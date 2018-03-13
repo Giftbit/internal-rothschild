@@ -7,8 +7,11 @@ export interface MoneyBucket {
     currency: string;
     dateStart?: string;
     dateEnd?: string;
-    frozen?: boolean;
-    inactive?: boolean;
+    status: {
+        frozen?: boolean;
+        inactive?: boolean;
+        expired?: boolean;
+    };
     redemptionRule?: Rule;
     valueRule?: Rule;
     pendingTransactions?: PendingTransaction[];
