@@ -8,10 +8,17 @@ export interface Fullcode {
 
 export function getFullcodeTableSchema(userId: string): dynameh.TableSchema {
     return {
-        tableName: `fFullcode-${userId}`,
+        tableName: `fullcode-${userId}`,
         primaryKeyField: "moneyBucketId",
         primaryKeyType: "string",
         versionKeyField: "version"
     };
-    // Also create a second index on encryptedFullcode
+}
+
+export function getEncryptedFullcodeTableSchema(userId: string): dynameh.TableSchema {
+    return {
+        ...getFullcodeTableSchema(userId),
+        // primaryKeyField: "encryptedFullcode",    // TODO remember if I need to do this
+        indexName: `encryptedFullcode-${userId}`
+    };
 }
