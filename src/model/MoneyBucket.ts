@@ -2,6 +2,7 @@ import * as dynameh from "dynameh";
 
 export interface MoneyBucket {
     id: string;
+    contactId?: string;
     type: "accountCredit" | "giftcard" | "promotion";   // etc...
     value: number;
     currency: string;
@@ -30,9 +31,21 @@ export interface Rule {
 // We'll end up with a table per merchant.  Is that a bad idea?
 export function getMoneyBucketTableSchema(userId: string): dynameh.TableSchema {
     return {
-        tableName: `moneybucket-${userId}`,
+        tableName: `moneyBucket-${userId}`,
         primaryKeyField: "id",
         primaryKeyType: "string",
+        versionKeyField: "version"
+    };
+}
+
+export function getMoneyBucketByContactTableSchema(userId: string): dynameh.TableSchema {
+    return {
+        tableName: `moneybucket-${userId}`,
+        primaryKeyField: "contactId",
+        primaryKeyType: "string",
+        sortKeyField: "type",
+        sortKeyType: "string",
+        indexName: `moneyBucketByContact-${userId}`,
         versionKeyField: "version"
     };
 }
