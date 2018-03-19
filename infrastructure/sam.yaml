@@ -25,21 +25,25 @@ Parameters:
     MinLength: 8
     NoEcho: true
     Type: String
-  VpcLambdaSubnetIds:
-    Type: String
-    Description: The Lambda subnets from the VPC
-  VpcLambdaSecurityGroupIds:
-    Type: String
-    Description: The comma separated list of Security Group Ids
-  VpcRdsSubnetIds:
-    Type: String
-    Description: The RDS Subnets from the VPC
-  VpcRdsSecurityGroupIds:
-    Type: String
-    Description: The comma separated list of Security Group Ids
+  VpcUniqueNumber:
+    Type: Number
+    Description: The value to prefix the regions subnets with
+    Default: 1
+    MaxValue: 251
+    MinValue: 1
 
 Conditions:
   HighCapacity: !Equals [!Ref Capacity, "high"]
+
+Mappings:
+  # aws --region [region-name] ec2 describe-images --owners amazon --filters "Name=root-device-type,Values=ebs" \
+  #   "Name=name,Values=amzn-ami-vpc-nat-hvm-*" "Name=architecture,Values=x86_64" --query "Images[].[ImageId,Name]" \
+  #   --output text
+  RegionNatImageMap:
+    us-west-2:
+      "64": ami-8437a5e4
+    us-east-1:
+      "64": ami-258e1f33
 
 Resources:
   # database encryption
@@ -58,16 +62,169 @@ Resources:
               - kms:*
             Resource: "*"
 
-  # database instance
-  DatabaseSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
+  # vpc
+  VPC:
+    Type: AWS::EC2::VPC
     Properties:
-      DBSubnetGroupDescription: !Sub "${AWS::StackName} database subnet group"
-      SubnetIds: !Split [",", !Ref VpcRdsSubnetIds]
+      CidrBlock: !Sub "10.${VpcUniqueNumber}.0.0/16"
+      EnableDnsHostnames: true
       Tags:
         - Key: Service
           Value: Rothschild
-  DatabaseCluster:
+  DbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Database ingress
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: "3306"
+          ToPort: "3306"
+          SourceSecurityGroupId: !Ref LambdaSecurityGroup
+      Tags:
+        - Key: Service
+          Value: Rothschild
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Lambda egress
+      VpcId: !Ref VPC
+
+#  InternetGateway:
+#    Type: AWS::EC2::InternetGateway
+#    Properties:
+#      Tags:
+#        - Key: Service
+#          Value: Rothschild
+#  InternetGatewayAttachment:
+#    Type: AWS::EC2::VPCGatewayAttachment
+#    Properties:
+#      VpcId: !Ref VPC
+#      InternetGatewayId: !Ref InternetGateway
+#  NatInstance:
+#    Type: AWS::EC2::Instance
+#    Properties:
+#      ImageId: !FindInMap [RegionNatImageMap, !Ref "AWS::Region", 64]
+#      AvailabilityZone: us-west-2b
+#      SourceDestCheck: false
+#      InstanceType: !Ref NatInstanceType
+#      SubnetId: !Ref SubnetPublicB
+#      SecurityGroupIds:
+#        - !Ref NatSecurityGroup
+#      Tags:
+#        - Key: Service
+#          Value: Rothschild
+#  NatElasticIP:
+#    Type: AWS::EC2::EIP
+#    Properties:
+#      Domain: vpc
+#      InstanceId: !Ref NatInstance
+#  NatSecurityGroup:
+#    Type: AWS::EC2::SecurityGroup
+#    Properties:
+#      GroupName: !Sub "${AWS::StackName}-NAT"
+#      GroupDescription: !Sub "${AWS::StackName} NAT"
+#      VpcId: !Ref VPC
+#      SecurityGroupIngress:
+#        # HTTP Access from the App Server Subnet
+#        - FromPort: 80
+#          ToPort: 80
+#          IpProtocol: tcp
+#          CidrIp: !Sub "10.${VpcUniqueNumber}.21.0/24"
+#        - FromPort: 80
+#          ToPort: 80
+#          IpProtocol: tcp
+#          CidrIp: !Sub "10.${VpcUniqueNumber}.22.0/24"
+#        - FromPort: 80
+#          ToPort: 80
+#          IpProtocol: tcp
+#          CidrIp: !Sub "10.${VpcUniqueNumber}.23.0/24"
+#        # HTTPS Access from the App Server Subnet
+#        - FromPort: 443
+#          ToPort: 443
+#          IpProtocol: tcp
+#          CidrIp: !Sub "10.${VpcUniqueNumber}.21.0/24"
+#        - FromPort: 443
+#          ToPort: 443
+#          IpProtocol: tcp
+#          CidrIp: !Sub "10.${VpcUniqueNumber}.22.0/24"
+#        - FromPort: 443
+#          ToPort: 443
+#          IpProtocol: tcp
+#          CidrIp: !Sub "10.${VpcUniqueNumber}.23.0/24"
+#        # HTTPS Access from the App Server Subnet
+#        - FromPort: 123
+#          ToPort: 123
+#          IpProtocol: udp
+#          CidrIp: !Sub "10.${VpcUniqueNumber}.21.0/24"
+#        - FromPort: 123
+#          ToPort: 123
+#          IpProtocol: udp
+#          CidrIp: !Sub "10.${VpcUniqueNumber}.22.0/24"
+#        - FromPort: 123
+#          ToPort: 123
+#          IpProtocol: udp
+#          CidrIp: !Sub "10.${VpcUniqueNumber}.23.0/24"
+#      SecurityGroupEgress:
+#        # Outgoing HTTP Access
+#        - FromPort: 80
+#          ToPort: 80
+#          IpProtocol: tcp
+#          CidrIp: 0.0.0.0/0
+#        # Outgoing HTTPS Access
+#        - FromPort: 443
+#          ToPort: 443
+#          IpProtocol: tcp
+#          CidrIp: 0.0.0.0/0
+#        # Outgoing NTP Access
+#        - FromPort: 123
+#          ToPort: 123
+#          IpProtocol: udp
+#          CidrIp: 0.0.0.0/0
+#      Tags:
+#        - Key: Name
+#          Value: !Sub "${EnvironmentName} Lightrail NAT"
+  SubnetPrivateA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Sub "10.${VpcUniqueNumber}.11.0/24"
+      AvailabilityZone: !Sub "${AWS::Region}a"
+      Tags:
+        - Key: Service
+          Value: Rothschild
+  SubnetPrivateB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Sub "10.${VpcUniqueNumber}.12.0/24"
+      AvailabilityZone: !Sub "${AWS::Region}b"
+      Tags:
+        - Key: Service
+          Value: Rothschild
+  SubnetPrivateC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Sub "10.${VpcUniqueNumber}.13.0/24"
+      AvailabilityZone: !Sub "${AWS::Region}c"
+      Tags:
+        - Key: Service
+          Value: Rothschild
+  DbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: !Sub "${AWS::StackName} database subnet group"
+      SubnetIds:
+        - !Ref SubnetPrivateA
+        - !Ref SubnetPrivateB
+        - !Ref SubnetPrivateC
+      Tags:
+        - Key: Service
+          Value: Rothschild
+
+  # database instance
+  DbCluster:
     Type: AWS::RDS::DBCluster
     Properties:
       Engine: aurora
@@ -76,21 +233,23 @@ Resources:
       BackupRetentionPeriod: 7
       PreferredBackupWindow: 09:17-09:47
       PreferredMaintenanceWindow: sun:06:57-sun:07:57
+      Port: "3306"
       StorageEncrypted: true
       KmsKeyId: !Ref DatabaseEncryptionKey
-      DBSubnetGroupName: !Ref DatabaseSubnetGroup
-      VpcSecurityGroupIds: !Split [",", !Ref VpcRdsSecurityGroupIds]
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref DbSecurityGroup
       Tags:
         - Key: Service
           Value: Rothschild
     DeletionPolicy: Snapshot
-  DatabasePrimaryInstance:
+  DbPrimaryInstance:
     Type: AWS::RDS::DBInstance
     Properties:
       Engine: aurora
-      DBClusterIdentifier: !Ref DatabaseCluster
+      DBClusterIdentifier: !Ref DbCluster
       DBInstanceClass: !If [HighCapacity, db.t2.medium, db.t2.medium]
-      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      DBSubnetGroupName: !Ref DbSubnetGroup
       Tags:
         - Key: Service
           Value: Rothschild
@@ -110,31 +269,36 @@ Resources:
 #            Path: /{proxy+}
 #            Method: ANY
 
-#  PostDeployFunction:
-#    Type: AWS::Serverless::Function
-#    Properties:
-#      CodeUri: ../dist/postDeploy/postDeploy.zip
-#      Handler: index.handler
-#      Runtime: nodejs6.10
-#      MemorySize: 128
-#      Timeout: 120 # seconds, 300 max
-#      Environment:
-#        Variables:
-#          DB_ENDPOINT: !GetAtt DatabaseCluster.Endpoint.Address
-#          DB_PORT: !GetAtt DatabaseCluster.Endpoint.Port
-#          DB_USERNAME: !Ref DatabaseUsername
-#          DB_PASSWORD: !Ref DatabasePassword
-#      VpcConfig:
-#        SecurityGroupIds: !Split [",", !Ref VpcRdsSecurityGroupIds]
-#        SubnetIds: !Split [",", !Ref VpcLambdaSubnetIds]
-#      Policies:
-#        - AWSLambdaVPCAccessExecutionRole
-#      Tags:
-#        ShortName: PostDeployFunction
-#        Service: Rothschild
-#  PostDeployInvocation:
-#    Type: Custom::PostDeployInvocation
-#    Properties:
-#      ServiceToken: !GetAtt PostDeployFunction.Arn
-#      # This parameter isn't used, but changing it forces this function to run every time, which we want.
-#      BuildDate: !Ref BuildDate
+  PostDeployFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: DbPrimaryInstance
+    Properties:
+      CodeUri: ../dist/postDeploy/postDeploy.zip
+      Handler: index.handler
+      Runtime: nodejs6.10
+      MemorySize: 128
+      Timeout: 120 # seconds, 300 max
+      Environment:
+        Variables:
+          DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
+          DB_PORT: !GetAtt DbCluster.Endpoint.Port
+          DB_USERNAME: !Ref DatabaseUsername
+          DB_PASSWORD: !Ref DatabasePassword
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds:
+        - !Ref SubnetPrivateA
+        - !Ref SubnetPrivateB
+        - !Ref SubnetPrivateC
+      Policies:
+        - AWSLambdaVPCAccessExecutionRole
+      Tags:
+        ShortName: PostDeployFunction
+        Service: Rothschild
+  PostDeployInvocation:
+    Type: Custom::PostDeployInvocation
+    Properties:
+      ServiceToken: !GetAtt PostDeployFunction.Arn
+      # This parameter isn't used, but changing it forces this function to run every time, which we want.
+      BuildDate: !Ref BuildDate

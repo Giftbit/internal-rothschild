@@ -23,16 +23,16 @@ export function handler(evt: awslambda.CloudFormationCustomResourceEvent, ctx: a
 async function handlerAsync(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context): Promise<void> {
     if (evt.RequestType === "Delete") {
         console.log("This action cannot be rolled back.  Calling success without doing anything.");
-        sendResponse(evt, ctx, true, {}, "This action cannot be rolled back.");
+        await sendResponse(evt, ctx, true, {}, "This action cannot be rolled back.");
         return;
     }
 
     try {
         await execSql("SHOW DATABASES");
-        sendResponse(evt, ctx, true, {});
+        await sendResponse(evt, ctx, true, {});
     } catch (err) {
         console.log("Error running post deploy", err);
-        sendResponse(evt, ctx, false, {}, err.message);
+        await sendResponse(evt, ctx, false, {}, err.message);
     }
 }
 

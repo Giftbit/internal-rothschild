@@ -65,6 +65,7 @@ module.exports = function (env) {
                     filename: `${fxn}.zip`
                 })
             ],
+            mode: 'development',
             target: 'node',
             externals: {
                 // These modules are already installed on the Lambda instance.
