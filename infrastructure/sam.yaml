@@ -2,19 +2,139 @@
 
 AWSTemplateFormatVersion: 2010-09-09
 Transform: AWS::Serverless-2016-10-31
-Description: Example project
+Description: Rothschild banking proof of concept
+
+Parameters:
+  BuildDate:
+    Type: String
+    Description: Input to the PostDeployInvocation function to force it to run on every deployment.
+    Default: "date +%s"
+  Capacity:
+    AllowedValues : ["high", "low"]
+    Type: String
+  DatabaseUsername:
+    AllowedPattern: "[a-zA-Z0-9]+"
+    Description: The database admin account user name, between 1 to 16 alphanumeric characters.
+    MaxLength: 16
+    MinLength: 1
+    Type: String
+  DatabasePassword:
+    AllowedPattern: "[a-zA-Z0-9]+"
+    Description: The database admin account password, between 8 to 41 alphanumeric characters.
+    MaxLength: 41
+    MinLength: 8
+    NoEcho: true
+    Type: String
+  VpcLambdaSubnetIds:
+    Type: String
+    Description: The Lambda subnets from the VPC
+  VpcLambdaSecurityGroupIds:
+    Type: String
+    Description: The comma separated list of Security Group Ids
+  VpcRdsSubnetIds:
+    Type: String
+    Description: The RDS Subnets from the VPC
+  VpcRdsSecurityGroupIds:
+    Type: String
+    Description: The comma separated list of Security Group Ids
+
+Conditions:
+  HighCapacity: !Equals [!Ref Capacity, "high"]
+
 Resources:
-  HelloWorldFunction:
-    Type: AWS::Serverless::Function
+  # database encryption
+  DatabaseEncryptionKey:
+    Type: AWS::KMS::Key
     Properties:
-      CodeUri: ../dist/helloWorld/helloWorld.zip
-      Handler: index.handler
-      Runtime: nodejs6.10
-      MemorySize: 128
-      Timeout: 30 # seconds, 300 max
-      Events:
-        RestApi:
-          Type: Api
-          Properties:
-            Path: /{proxy+}
-            Method: ANY
+      Description: !Sub "${AWS::StackName} database encryption key"
+      KeyPolicy:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS:
+                !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action:
+              - kms:*
+            Resource: "*"
+
+  # database instance
+  DatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: !Sub "${AWS::StackName} database subnet group"
+      SubnetIds: !Split [",", !Ref VpcRdsSubnetIds]
+      Tags:
+        - Key: Service
+          Value: Rothschild
+  DatabaseCluster:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      Engine: aurora
+      MasterUsername: !Ref DatabaseUsername
+      MasterUserPassword: !Ref DatabasePassword
+      BackupRetentionPeriod: 7
+      PreferredBackupWindow: 09:17-09:47
+      PreferredMaintenanceWindow: sun:06:57-sun:07:57
+      StorageEncrypted: true
+      KmsKeyId: !Ref DatabaseEncryptionKey
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      VpcSecurityGroupIds: !Split [",", !Ref VpcRdsSecurityGroupIds]
+      Tags:
+        - Key: Service
+          Value: Rothschild
+    DeletionPolicy: Snapshot
+  DatabasePrimaryInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Engine: aurora
+      DBClusterIdentifier: !Ref DatabaseCluster
+      DBInstanceClass: !If [HighCapacity, db.t2.medium, db.t2.medium]
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      Tags:
+        - Key: Service
+          Value: Rothschild
+
+#  HelloWorldFunction:
+#    Type: AWS::Serverless::Function
+#    Properties:
+#      CodeUri: ../dist/helloWorld/helloWorld.zip
+#      Handler: index.handler
+#      Runtime: nodejs6.10
+#      MemorySize: 128
+#      Timeout: 30 # seconds, 300 max
+#      Events:
+#        RestApi:
+#          Type: Api
+#          Properties:
+#            Path: /{proxy+}
+#            Method: ANY
+
+#  PostDeployFunction:
+#    Type: AWS::Serverless::Function
+#    Properties:
+#      CodeUri: ../dist/postDeploy/postDeploy.zip
+#      Handler: index.handler
+#      Runtime: nodejs6.10
+#      MemorySize: 128
+#      Timeout: 120 # seconds, 300 max
+#      Environment:
+#        Variables:
+#          DB_ENDPOINT: !GetAtt DatabaseCluster.Endpoint.Address
+#          DB_PORT: !GetAtt DatabaseCluster.Endpoint.Port
+#          DB_USERNAME: !Ref DatabaseUsername
+#          DB_PASSWORD: !Ref DatabasePassword
+#      VpcConfig:
+#        SecurityGroupIds: !Split [",", !Ref VpcRdsSecurityGroupIds]
+#        SubnetIds: !Split [",", !Ref VpcLambdaSubnetIds]
+#      Policies:
+#        - AWSLambdaVPCAccessExecutionRole
+#      Tags:
+#        ShortName: PostDeployFunction
+#        Service: Rothschild
+#  PostDeployInvocation:
+#    Type: Custom::PostDeployInvocation
+#    Properties:
+#      ServiceToken: !GetAtt PostDeployFunction.Arn
+#      # This parameter isn't used, but changing it forces this function to run every time, which we want.
+#      BuildDate: !Ref BuildDate

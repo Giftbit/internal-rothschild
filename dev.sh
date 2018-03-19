@@ -5,16 +5,21 @@
 
 # The name of your CloudFormation stack.  Two developers can share a stack by
 # sharing this value, or have their own with different values.
-STACK_NAME="MyProject"
+STACK_NAME="dev-Rothschild"
 
 # The name of an S3 bucket on your account to hold deployment artifacts.
-BUILD_ARTIFACT_BUCKET="mys3artifactbucket"
+BUILD_ARTIFACT_BUCKET="lightrail-sandbox-deploymentartifacts"
 
 # Parameter values for the sam template.  see: `aws cloudformation deploy help`
-PARAMETER_OVERRIDES=""
-#PARAMETER_OVERRIDES="--parameter-overrides"
-#PARAMETER_OVERRIDES+=" KeyOne=value"
-#PARAMETER_OVERRIDES+=" KeyTwo=value"
+PARAMETER_OVERRIDES="--parameter-overrides"
+PARAMETER_OVERRIDES+=" BuildDate=`date +%s`"
+PARAMETER_OVERRIDES+=" Capacity=low"
+PARAMETER_OVERRIDES+=" DatabaseUsername=rothschild"
+PARAMETER_OVERRIDES+=" DatabasePassword=3e186cf69805493ea05933bf954c953a"
+PARAMETER_OVERRIDES+=" VpcLambdaSubnetIds=subnet-d6c38d9f,subnet-5c5c6a3b,subnet-4790401c"
+PARAMETER_OVERRIDES+=" VpcLambdaSecurityGroupIds=sg-a21f29d9"
+PARAMETER_OVERRIDES+=" VpcRdsSubnetIds=subnet-6600492f,subnet-6914220e,subnet-faa070a1"
+PARAMETER_OVERRIDES+=" VpcRdsSecurityGroupIds=sg-d91026a2"
 
 USAGE="usage: $0 <command name>\nvalid command names: build delete deploy invoke upload"
 
