@@ -5,9 +5,7 @@ import * as mysql from "promise-mysql";
 import * as url from "url";
 
 /**
- * Handles a CloudFormationEvent and does any necessary Elasticsearch
- * configuration not available from CloudFormation (which is almost everything).
- * Currently the only action is PUTing the Card index template.
+ * Handles a CloudFormationEvent and upgrades the database.
  */
 export function handler(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context, callback: awslambda.Callback): void {
     console.log("event", JSON.stringify(evt, null, 2));
@@ -27,12 +25,20 @@ async function handlerAsync(evt: awslambda.CloudFormationCustomResourceEvent, ct
         return;
     }
 
-    try {
-        await execSql("SHOW DATABASES");
-        await sendResponse(evt, ctx, true, {});
-    } catch (err) {
-        console.log("Error running post deploy", err);
-        await sendResponse(evt, ctx, false, {}, err.message);
+    while (true) {
+        try {
+            await execSql("SHOW DATABASES");
+            await sendResponse(evt, ctx, true, {});
+            return;
+        } catch (err) {
+            console.log("Error running post deploy", err);
+            if (err.code && (err.code === "ETIMEDOUT" || err.code === "ENOTFOUND") && ctx.getRemainingTimeInMillis() > 15000) {
+                console.log("retrying...");
+            } else {
+                await sendResponse(evt, ctx, false, {}, err.message);
+                return;
+            }
+        }
     }
 }
 
@@ -102,12 +108,8 @@ async function sendResponse(evt: awslambda.CloudFormationCustomResourceEvent, ct
                     console.log("response error", responseBody);
                     reject(new Error(responseBody.join("")));
                 } else {
-                    try {
-                        const responseJson = JSON.parse(responseBody.join(""));
-                        resolve(responseJson);
-                    } catch (e) {
-                        reject(e);
-                    }
+                    console.log("response.body", responseBody.join(""));
+                    resolve();
                 }
             });
         });

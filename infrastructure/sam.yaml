@@ -35,18 +35,177 @@ Parameters:
 Conditions:
   HighCapacity: !Equals [!Ref Capacity, "high"]
 
-Mappings:
-  # aws --region [region-name] ec2 describe-images --owners amazon --filters "Name=root-device-type,Values=ebs" \
-  #   "Name=name,Values=amzn-ami-vpc-nat-hvm-*" "Name=architecture,Values=x86_64" --query "Images[].[ImageId,Name]" \
-  #   --output text
-  RegionNatImageMap:
-    us-west-2:
-      "64": ami-8437a5e4
-    us-east-1:
-      "64": ami-258e1f33
-
 Resources:
-  # database encryption
+  # Start with a VPC and who can talk to what
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Sub "10.${VpcUniqueNumber}.0.0/16"
+      EnableDnsHostnames: true
+      Tags:
+        # A lot of these resources have Name tags because they show up in the web console
+        - Key: Name
+          Value: !Sub "${AWS::StackName}"
+        - Key: Service
+          Value: Rothschild
+  DbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Database ingress
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !GetAtt LambdaSecurityGroup.GroupId
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName} db security group"
+        - Key: Service
+          Value: Rothschild
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Lambda egress
+      VpcId: !Ref VPC
+      SecurityGroupEgress:
+        - FromPort: 0
+          ToPort: 65535
+          IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName} lambda security group"
+        - Key: Service
+          Value: Rothschild
+
+  # Private subnet is where our DB and lambdas live
+  SubnetPrivateA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Sub "10.${VpcUniqueNumber}.11.0/24"
+      AvailabilityZone: !Sub "${AWS::Region}a"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName} private a"
+        - Key: Service
+          Value: Rothschild
+  SubnetPrivateB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Sub "10.${VpcUniqueNumber}.12.0/24"
+      AvailabilityZone: !Sub "${AWS::Region}b"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName} private b"
+        - Key: Service
+          Value: Rothschild
+  SubnetPrivateC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Sub "10.${VpcUniqueNumber}.13.0/24"
+      AvailabilityZone: !Sub "${AWS::Region}c"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName} private c"
+        - Key: Service
+          Value: Rothschild
+  PrivateSubnetRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName} private"
+        - Key: Service
+          Value: Rothschild
+  PrivateSubnetRouting:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateSubnetRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway # <- route to the nat
+  PrivateSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateSubnetRouteTable
+      SubnetId: !Ref SubnetPrivateA
+  PrivateSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateSubnetRouteTable
+      SubnetId: !Ref SubnetPrivateB
+  PrivateSubnetCRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateSubnetRouteTable
+      SubnetId: !Ref SubnetPrivateC
+
+  # Enable internet access through a NAT to a public subnet
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}"
+        - Key: Service
+          Value: Rothschild
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+  NatElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatElasticIP.AllocationId
+      SubnetId: !Ref NatExitSubnet  # <- the nat goes out through NatExitSubnet
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}"
+        - Key: Service
+          Value: Rothschild
+  NatExitSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Sub "10.${VpcUniqueNumber}.22.0/24"
+      AvailabilityZone: !Sub "${AWS::Region}b"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName} nat exit"
+        - Key: Service
+          Value: Rothschild
+  NatExitRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName} nat exit"
+        - Key: Service
+          Value: Rothschild
+  NatExitRouting:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref NatExitRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway # <- route to the internet
+  NatExitRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref NatExitRouteTable
+      SubnetId: !Ref NatExitSubnet
+
+  # Database encryption
   DatabaseEncryptionKey:
     Type: AWS::KMS::Key
     Properties:
@@ -62,155 +221,7 @@ Resources:
               - kms:*
             Resource: "*"
 
-  # vpc
-  VPC:
-    Type: AWS::EC2::VPC
-    Properties:
-      CidrBlock: !Sub "10.${VpcUniqueNumber}.0.0/16"
-      EnableDnsHostnames: true
-      Tags:
-        - Key: Service
-          Value: Rothschild
-  DbSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Database ingress
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: "3306"
-          ToPort: "3306"
-          SourceSecurityGroupId: !Ref LambdaSecurityGroup
-      Tags:
-        - Key: Service
-          Value: Rothschild
-  LambdaSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Lambda egress
-      VpcId: !Ref VPC
-
-#  InternetGateway:
-#    Type: AWS::EC2::InternetGateway
-#    Properties:
-#      Tags:
-#        - Key: Service
-#          Value: Rothschild
-#  InternetGatewayAttachment:
-#    Type: AWS::EC2::VPCGatewayAttachment
-#    Properties:
-#      VpcId: !Ref VPC
-#      InternetGatewayId: !Ref InternetGateway
-#  NatInstance:
-#    Type: AWS::EC2::Instance
-#    Properties:
-#      ImageId: !FindInMap [RegionNatImageMap, !Ref "AWS::Region", 64]
-#      AvailabilityZone: us-west-2b
-#      SourceDestCheck: false
-#      InstanceType: !Ref NatInstanceType
-#      SubnetId: !Ref SubnetPublicB
-#      SecurityGroupIds:
-#        - !Ref NatSecurityGroup
-#      Tags:
-#        - Key: Service
-#          Value: Rothschild
-#  NatElasticIP:
-#    Type: AWS::EC2::EIP
-#    Properties:
-#      Domain: vpc
-#      InstanceId: !Ref NatInstance
-#  NatSecurityGroup:
-#    Type: AWS::EC2::SecurityGroup
-#    Properties:
-#      GroupName: !Sub "${AWS::StackName}-NAT"
-#      GroupDescription: !Sub "${AWS::StackName} NAT"
-#      VpcId: !Ref VPC
-#      SecurityGroupIngress:
-#        # HTTP Access from the App Server Subnet
-#        - FromPort: 80
-#          ToPort: 80
-#          IpProtocol: tcp
-#          CidrIp: !Sub "10.${VpcUniqueNumber}.21.0/24"
-#        - FromPort: 80
-#          ToPort: 80
-#          IpProtocol: tcp
-#          CidrIp: !Sub "10.${VpcUniqueNumber}.22.0/24"
-#        - FromPort: 80
-#          ToPort: 80
-#          IpProtocol: tcp
-#          CidrIp: !Sub "10.${VpcUniqueNumber}.23.0/24"
-#        # HTTPS Access from the App Server Subnet
-#        - FromPort: 443
-#          ToPort: 443
-#          IpProtocol: tcp
-#          CidrIp: !Sub "10.${VpcUniqueNumber}.21.0/24"
-#        - FromPort: 443
-#          ToPort: 443
-#          IpProtocol: tcp
-#          CidrIp: !Sub "10.${VpcUniqueNumber}.22.0/24"
-#        - FromPort: 443
-#          ToPort: 443
-#          IpProtocol: tcp
-#          CidrIp: !Sub "10.${VpcUniqueNumber}.23.0/24"
-#        # HTTPS Access from the App Server Subnet
-#        - FromPort: 123
-#          ToPort: 123
-#          IpProtocol: udp
-#          CidrIp: !Sub "10.${VpcUniqueNumber}.21.0/24"
-#        - FromPort: 123
-#          ToPort: 123
-#          IpProtocol: udp
-#          CidrIp: !Sub "10.${VpcUniqueNumber}.22.0/24"
-#        - FromPort: 123
-#          ToPort: 123
-#          IpProtocol: udp
-#          CidrIp: !Sub "10.${VpcUniqueNumber}.23.0/24"
-#      SecurityGroupEgress:
-#        # Outgoing HTTP Access
-#        - FromPort: 80
-#          ToPort: 80
-#          IpProtocol: tcp
-#          CidrIp: 0.0.0.0/0
-#        # Outgoing HTTPS Access
-#        - FromPort: 443
-#          ToPort: 443
-#          IpProtocol: tcp
-#          CidrIp: 0.0.0.0/0
-#        # Outgoing NTP Access
-#        - FromPort: 123
-#          ToPort: 123
-#          IpProtocol: udp
-#          CidrIp: 0.0.0.0/0
-#      Tags:
-#        - Key: Name
-#          Value: !Sub "${EnvironmentName} Lightrail NAT"
-  SubnetPrivateA:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC
-      CidrBlock: !Sub "10.${VpcUniqueNumber}.11.0/24"
-      AvailabilityZone: !Sub "${AWS::Region}a"
-      Tags:
-        - Key: Service
-          Value: Rothschild
-  SubnetPrivateB:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC
-      CidrBlock: !Sub "10.${VpcUniqueNumber}.12.0/24"
-      AvailabilityZone: !Sub "${AWS::Region}b"
-      Tags:
-        - Key: Service
-          Value: Rothschild
-  SubnetPrivateC:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC
-      CidrBlock: !Sub "10.${VpcUniqueNumber}.13.0/24"
-      AvailabilityZone: !Sub "${AWS::Region}c"
-      Tags:
-        - Key: Service
-          Value: Rothschild
+  # Database instance
   DbSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
@@ -222,8 +233,6 @@ Resources:
       Tags:
         - Key: Service
           Value: Rothschild
-
-  # database instance
   DbCluster:
     Type: AWS::RDS::DBCluster
     Properties:
@@ -233,7 +242,7 @@ Resources:
       BackupRetentionPeriod: 7
       PreferredBackupWindow: 09:17-09:47
       PreferredMaintenanceWindow: sun:06:57-sun:07:57
-      Port: "3306"
+      Port: 3306
       StorageEncrypted: true
       KmsKeyId: !Ref DatabaseEncryptionKey
       DBSubnetGroupName: !Ref DbSubnetGroup
@@ -271,26 +280,28 @@ Resources:
 
   PostDeployFunction:
     Type: AWS::Serverless::Function
-    DependsOn: DbPrimaryInstance
+    DependsOn:
+      - DbPrimaryInstance
+      - PrivateSubnetRouting
     Properties:
       CodeUri: ../dist/postDeploy/postDeploy.zip
       Handler: index.handler
       Runtime: nodejs6.10
       MemorySize: 128
-      Timeout: 120 # seconds, 300 max
+      Timeout: 300 # seconds, 300 max
       Environment:
         Variables:
           DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
           DB_PORT: !GetAtt DbCluster.Endpoint.Port
           DB_USERNAME: !Ref DatabaseUsername
-          DB_PASSWORD: !Ref DatabasePassword
+          DB_PASSWORD: !Ref DatabasePassword  # TODO shouldn't do this because it publicly exposes it (one problem at a time)
       VpcConfig:
         SecurityGroupIds:
-          - !Ref LambdaSecurityGroup
+          - !GetAtt LambdaSecurityGroup.GroupId
         SubnetIds:
-        - !Ref SubnetPrivateA
-        - !Ref SubnetPrivateB
-        - !Ref SubnetPrivateC
+          - !Ref SubnetPrivateA
+          - !Ref SubnetPrivateB
+          - !Ref SubnetPrivateC
       Policies:
         - AWSLambdaVPCAccessExecutionRole
       Tags:
