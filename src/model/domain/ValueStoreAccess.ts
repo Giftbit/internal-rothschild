@@ -1,7 +1,7 @@
 export interface ValueStoreAccess {
     id: string;
     merchantId: string;
-    type: "ACCOUNT" | "FULLCODE" | "GENERIC_CODE";
+    type: "ACCOUNT" | "GIFT_CARD" | "PROMOTION";
     valueStoreId: string;
-    customerId: string;
+    contactId: string;
 }

@@ -1,4 +1,4 @@
-export interface Customer { // todo - Customer or Contact? A customer seems to imply they've purchased something.
+export interface Contact { // todo - Customer or Contact? A customer seems to imply they've purchased something.
     id: string;
     merchantId: string;
     email: string;

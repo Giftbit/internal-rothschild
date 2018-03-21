@@ -1,10 +1,19 @@
 export interface Order {
     id: string;
     merchantId: string;
-    total: number;
-    prepraid: number;
-    promotion: number;
-    externalPayment: number;
-    tax: number;
-    customerId: string;
+    contactId: string;
+    cart: string;
+    requestedValueStores: RequestedValueStore[];
+    requestedPaymentSources: RequestedPaymentSource[];
+}
+
+interface RequestedValueStore {
+    id?: string;
+    lookupCode?: string;
+    customerId?: string;
+}
+
+interface RequestedPaymentSource {
+    stripeCardToken?: string;
+    stripeCustomerId?: string;
 }
