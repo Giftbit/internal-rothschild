@@ -214,6 +214,42 @@ Resources:
               - kms:*
             Resource: "*"
 
+  # Database credentials
+  CredentialGenFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../dist/credentialGen/credentialGen.zip
+      Handler: index.handler
+      Runtime: nodejs6.10
+      MemorySize: 128
+      Timeout: 60 # seconds, 300 max
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action:
+                - ssm:PutParameter
+                - ssm:DeleteParameter
+                - ssm:DeleteParameters
+              Resource:
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}-*"
+            - Effect: Allow
+              Action:
+                - kms:DescribeKey
+                - kms:Encrypt
+              Resource:
+                - !GetAtt DbEncryptionKey.Arn
+      Tags:
+        ShortName: CredentialGenFunction
+        Service: Rothschild
+  DbCredentials:
+    Type: Custom::DbCredentials
+    Properties:
+      ServiceToken: !GetAtt CredentialGenFunction.Arn
+      KmsKeyId: !Ref DbEncryptionKey
+      SsmPrefix: !Sub "${AWS::StackName}"
+
   # Database instance
   DbSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
@@ -256,56 +292,20 @@ Resources:
         - Key: Service
           Value: Rothschild
 
-  # Database credentials
-  CredentialGenFunction:
+  RestFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../dist/credentialGen/credentialGen.zip
+      CodeUri: ../dist/rest/rest.zip
       Handler: index.handler
       Runtime: nodejs6.10
       MemorySize: 128
-      Timeout: 60 # seconds, 300 max
-      Policies:
-        - AWSLambdaBasicExecutionRole
-        - Version: 2012-10-17
-          Statement:
-            - Effect: Allow
-              Action:
-                - ssm:PutParameter
-                - ssm:DeleteParameter
-                - ssm:DeleteParameters
-              Resource:
-                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}-*"
-            - Effect: Allow
-              Action:
-                - kms:DescribeKey
-                - kms:Encrypt
-              Resource:
-                - !GetAtt DbEncryptionKey.Arn
-      Tags:
-        ShortName: CredentialGenFunction
-        Service: Rothschild
-  DbCredentials:
-    Type: Custom::DbCredentials
-    Properties:
-      ServiceToken: !GetAtt CredentialGenFunction.Arn
-      KmsKeyId: !Ref DbEncryptionKey
-      SsmPrefix: !Sub "${AWS::StackName}"
-
-#  HelloWorldFunction:
-#    Type: AWS::Serverless::Function
-#    Properties:
-#      CodeUri: ../dist/helloWorld/helloWorld.zip
-#      Handler: index.handler
-#      Runtime: nodejs6.10
-#      MemorySize: 128
-#      Timeout: 30 # seconds, 300 max
-#      Events:
-#        RestApi:
-#          Type: Api
-#          Properties:
-#            Path: /{proxy+}
-#            Method: ANY
+      Timeout: 120 # seconds, 300 max
+      Events:
+        RestApi:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
 
   PostDeployFunction:
     Type: AWS::Serverless::Function

@@ -1,8 +1,8 @@
 import "babel-polyfill";
 import * as awslambda from "aws-lambda";
-import * as mysql from "mysql2/promise";
+import * as mysql from "promise-mysql";
 import {sendCloudFormationResponse} from "../../sendCloudFormationResponse";
-import {getDbCredentials} from "../../dbUtils/getDbCredentials";
+import {getDbCredentials} from "../../dbUtils";
 
 /**
  * Handles a CloudFormationEvent and upgrades the database.
@@ -79,7 +79,7 @@ async function getConnection(ctx: awslambda.Context): Promise<mysql.Connection> 
 
 async function putBaseSchema(connection: mysql.Connection, force: boolean = false): Promise<void> {
     console.log("checking for schema");
-    const schemaRes = await connection.execute<mysql.RowDataPacket[]>("SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'rothschild';");
+    const schemaRes = await connection.query("SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'rothschild';");
     console.log("checked for schema", JSON.stringify(schemaRes));
     if (schemaRes.length > 0) {
         if (force) {

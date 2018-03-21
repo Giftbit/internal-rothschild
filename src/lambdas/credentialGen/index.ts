@@ -46,7 +46,7 @@ async function handlerAsync(evt: awslambda.CloudFormationCustomResourceEvent, ct
         const username = "master" + generateString(8);
         const password = generateString(32);
 
-        const res = await ssm.putParameter({
+        await ssm.putParameter({
             Name: usernameParameter,
             Description: `Database username for ${evt.ResourceProperties.SsmPrefix}`,
             Value: username,
@@ -56,7 +56,7 @@ async function handlerAsync(evt: awslambda.CloudFormationCustomResourceEvent, ct
             AllowedPattern: "^[a-zA-Z0-9]{1,16}$"
         }).promise();
 
-        const res2 = await ssm.putParameter({
+        await ssm.putParameter({
             Name: passwordParameter,
             Description: `Database password for ${evt.ResourceProperties.SsmPrefix}`,
             Value: password,
