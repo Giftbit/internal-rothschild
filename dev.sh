@@ -14,8 +14,6 @@ BUILD_ARTIFACT_BUCKET="lightrail-sandbox-deploymentartifacts"
 PARAMETER_OVERRIDES="--parameter-overrides"
 PARAMETER_OVERRIDES+=" BuildDate=`date +%s`"
 PARAMETER_OVERRIDES+=" Capacity=low"
-PARAMETER_OVERRIDES+=" DatabaseUsername=rothschild"
-PARAMETER_OVERRIDES+=" DatabasePassword=3e186cf69805493ea05933bf954c953a"
 PARAMETER_OVERRIDES+=" VpcUniqueNumber=101"
 USAGE="usage: $0 <command name>\nvalid command names: build delete deploy invoke upload"
 

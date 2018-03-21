@@ -12,19 +12,6 @@ Parameters:
   Capacity:
     AllowedValues : ["high", "low"]
     Type: String
-  DatabaseUsername:
-    AllowedPattern: "[a-zA-Z0-9]+"
-    Description: The database admin account user name, between 1 to 16 alphanumeric characters.
-    MaxLength: 16
-    MinLength: 1
-    Type: String
-  DatabasePassword:
-    AllowedPattern: "[a-zA-Z0-9]+"
-    Description: The database admin account password, between 8 to 41 alphanumeric characters.
-    MaxLength: 41
-    MinLength: 8
-    NoEcho: true
-    Type: String
   VpcUniqueNumber:
     Type: Number
     Description: The value to prefix the regions subnets with
@@ -54,10 +41,15 @@ Resources:
       GroupDescription: Database ingress
       VpcId: !Ref VPC
       SecurityGroupIngress:
+        # Only listen to lambdas on the default port
         - IpProtocol: tcp
           FromPort: 3306
           ToPort: 3306
           SourceSecurityGroupId: !GetAtt LambdaSecurityGroup.GroupId
+      SecurityGroupEgress:
+        # No outgoing traffic except localhost
+        - CidrIp: 127.0.0.1/32
+          IpProtocol: "-1"
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName} db security group"
@@ -69,6 +61,7 @@ Resources:
       GroupDescription: Lambda egress
       VpcId: !Ref VPC
       SecurityGroupEgress:
+        # All outgoing TCP traffic is ok
         - FromPort: 0
           ToPort: 65535
           IpProtocol: tcp
@@ -206,7 +199,7 @@ Resources:
       SubnetId: !Ref NatExitSubnet
 
   # Database encryption
-  DatabaseEncryptionKey:
+  DbEncryptionKey:
     Type: AWS::KMS::Key
     Properties:
       Description: !Sub "${AWS::StackName} database encryption key"
@@ -237,14 +230,14 @@ Resources:
     Type: AWS::RDS::DBCluster
     Properties:
       Engine: aurora
-      MasterUsername: !Ref DatabaseUsername
-      MasterUserPassword: !Ref DatabasePassword
+      MasterUsername: !GetAtt DbCredentials.Username
+      MasterUserPassword: !GetAtt DbCredentials.Password
       BackupRetentionPeriod: 7
       PreferredBackupWindow: 09:17-09:47
       PreferredMaintenanceWindow: sun:06:57-sun:07:57
       Port: 3306
       StorageEncrypted: true
-      KmsKeyId: !Ref DatabaseEncryptionKey
+      KmsKeyId: !Ref DbEncryptionKey
       DBSubnetGroupName: !Ref DbSubnetGroup
       VpcSecurityGroupIds:
         - !Ref DbSecurityGroup
@@ -262,6 +255,42 @@ Resources:
       Tags:
         - Key: Service
           Value: Rothschild
+
+  # Database credentials
+  CredentialGenFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../dist/credentialGen/credentialGen.zip
+      Handler: index.handler
+      Runtime: nodejs6.10
+      MemorySize: 128
+      Timeout: 60 # seconds, 300 max
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action:
+                - ssm:PutParameter
+                - ssm:DeleteParameter
+                - ssm:DeleteParameters
+              Resource:
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}-*"
+            - Effect: Allow
+              Action:
+                - kms:DescribeKey
+                - kms:Encrypt
+              Resource:
+                - !GetAtt DbEncryptionKey.Arn
+      Tags:
+        ShortName: CredentialGenFunction
+        Service: Rothschild
+  DbCredentials:
+    Type: Custom::DbCredentials
+    Properties:
+      ServiceToken: !GetAtt CredentialGenFunction.Arn
+      KmsKeyId: !Ref DbEncryptionKey
+      SsmPrefix: !Sub "${AWS::StackName}"
 
 #  HelloWorldFunction:
 #    Type: AWS::Serverless::Function
@@ -293,8 +322,8 @@ Resources:
         Variables:
           DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
           DB_PORT: !GetAtt DbCluster.Endpoint.Port
-          DB_USERNAME: !Ref DatabaseUsername
-          DB_PASSWORD: !Ref DatabasePassword  # TODO shouldn't do this because it publicly exposes it (one problem at a time)
+          DB_USERNAME_PARAMETER: !GetAtt DbCredentials.UsernameParameter
+          DB_PASSWORD_PARAMETER: !GetAtt DbCredentials.PasswordParameter
       VpcConfig:
         SecurityGroupIds:
           - !GetAtt LambdaSecurityGroup.GroupId
@@ -304,6 +333,21 @@ Resources:
           - !Ref SubnetPrivateC
       Policies:
         - AWSLambdaVPCAccessExecutionRole
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+                - ssm:GetParameters
+              Resource:
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DbCredentials.UsernameParameter}"
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DbCredentials.PasswordParameter}"
+            - Effect: Allow
+              Action:
+                - kms:Decrypt
+                - kms:DescribeKey
+              Resource:
+                - !GetAtt DbEncryptionKey.Arn
       Tags:
         ShortName: PostDeployFunction
         Service: Rothschild
