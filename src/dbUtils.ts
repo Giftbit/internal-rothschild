@@ -1,7 +1,13 @@
 import * as aws from "aws-sdk";
 import * as mysql from "promise-mysql";
 
+let dbCredentials: {username: string, password: string} = null;
+
 export async function getDbCredentials(): Promise<{username: string, password: string}> {
+    if (dbCredentials) {
+        return dbCredentials;
+    }
+
     checkForEnvVar("DB_USERNAME_PARAMETER", "DB_PASSWORD_PARAMETER");
 
     const ssm = new aws.SSM({
@@ -23,7 +29,7 @@ export async function getDbCredentials(): Promise<{username: string, password: s
         throw new Error(`Invalid SSM parameters requested: ${resp.InvalidParameters.join(", ")}`);
     }
 
-    return {
+    return dbCredentials = {
         username: resp.Parameters.find(p => p.Name === process.env["DB_USERNAME_PARAMETER"]).Value,
         password: resp.Parameters.find(p => p.Name === process.env["DB_PASSWORD_PARAMETER"]).Value
     };
@@ -43,6 +49,10 @@ async function getDbConnection(): Promise<mysql.Connection> {
     });
 }
 
+/**
+ * Check for the existence of the given envionment variables and throw an
+ * Error if they're missing.
+ */
 function checkForEnvVar(...envVars: string[]): void {
     for (const envVar of envVars) {
         if (!process.env[envVar]) {
