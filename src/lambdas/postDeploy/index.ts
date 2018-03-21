@@ -25,44 +25,69 @@ async function handlerAsync(evt: awslambda.CloudFormationCustomResourceEvent, ct
         return;
     }
 
+    try {
+        const connection = await getConnection(ctx);
+
+        await putBaseSchema(connection);
+
+        // // This lock will only last as long as this connection does.
+        // console.log("locking database");
+        // await connection.query("FLUSH TABLES WITH WRITE LOCK;");
+        //
+        // console.log("unlocking database");
+        // await connection.query("UNLOCK TABLES;");
+
+        await connection.end();
+
+        await sendResponse(evt, ctx, true, {});
+    } catch (err) {
+        console.error("error", err);
+        await sendResponse(evt, ctx, false, {}, err.message);
+        return;
+    }
+}
+
+async function getConnection(ctx: awslambda.Context): Promise<mysql.Connection> {
     while (true) {
         try {
-            await execSql("SHOW DATABASES");
-            await sendResponse(evt, ctx, true, {});
-            return;
+            console.log(`connecting to ${process.env["DB_ENDPOINT"]}:${process.env["DB_PORT"]}`);
+            return await await mysql.createConnection({
+                multipleStatements: true,   // This make
+                host: process.env["DB_ENDPOINT"],
+                port: +process.env["DB_PORT"],
+                user: process.env["DB_USERNAME"],
+                password: process.env["DB_PASSWORD"]    // TODO don't get from env var
+            });
         } catch (err) {
-            console.log("Error running post deploy", err);
-            if (err.code && (err.code === "ETIMEDOUT" || err.code === "ENOTFOUND") && ctx.getRemainingTimeInMillis() > 15000) {
+            console.log("error connecting to database", err);
+            if (err.code && (err.code === "ETIMEDOUT" || err.code === "ENOTFOUND") && ctx.getRemainingTimeInMillis() > 60000) {
                 console.log("retrying...");
             } else {
-                await sendResponse(evt, ctx, false, {}, err.message);
-                return;
+                throw err;
             }
         }
     }
 }
 
-async function execSql(sql: string): Promise<void> {
-    console.log("connecting to", {
-        host: process.env["DB_ENDPOINT"],
-        port: +process.env["DB_PORT"],
-        user: process.env["DB_USERNAME"],
-        password: process.env["DB_PASSWORD"]
-    });
+async function putBaseSchema(connection: mysql.Connection, force: boolean = false): Promise<void> {
+    console.log("checking for schema");
+    const schemaRes = await connection.query("SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'rothschild';");
+    console.log("checked for schema", JSON.stringify(schemaRes));
+    if (schemaRes.length > 0) {
+        if (force) {
+            console.log("!!! FORCING DATABASE SCHEMA FROM BASE !!!");
+            console.log("dropping schema");
+            const dropRes = await connection.query("DROP DATABASE rothschild;");
+            console.log("dropped schema", JSON.stringify(dropRes));
+        } else {
+            return;
+        }
+    }
 
-    const connection = await mysql.createConnection({
-        host: process.env["DB_ENDPOINT"],
-        port: +process.env["DB_PORT"],
-        user: process.env["DB_USERNAME"],
-        password: process.env["DB_PASSWORD"]
-    });
-
-    console.log("connected");
-
-    const dbs = await connection.query("SHOW DATABASES");
-    console.log("databases=", dbs);
-
-    await connection.end();
+    const sql = require("./schema/base.sql");
+    console.log("applying base schema");
+    const baseSchemaRes = await connection.query(sql);
+    console.log("applied base schema", JSON.stringify(baseSchemaRes));
 }
 
 /**
@@ -96,19 +121,18 @@ async function sendResponse(evt: awslambda.CloudFormationCustomResourceEvent, ct
 
     await new Promise((resolve, reject) => {
         const request = https.request(options, (response) => {
-            console.log(`response.statusCode ${response.statusCode}`);
-            console.log(`response.headers ${JSON.stringify(response.headers)}`);
+            console.log(`CloudFormationResponse response.statusCode ${response.statusCode}`);
+            console.log(`CloudFormationResponse response.headers ${JSON.stringify(response.headers)}`);
             const responseBody: string[] = [];
             response.setEncoding("utf8");
             response.on("data", d => {
                 responseBody.push(d as string);
             });
             response.on("end", () => {
+                console.log("CloudFormationResponse response.body", responseBody);
                 if (response.statusCode >= 400) {
-                    console.log("response error", responseBody);
                     reject(new Error(responseBody.join("")));
                 } else {
-                    console.log("response.body", responseBody.join(""));
                     resolve();
                 }
             });

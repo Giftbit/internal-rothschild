@@ -52,6 +52,12 @@ module.exports = function (env) {
                         use: [
                             'file-loader'
                         ]
+                    },
+                    {
+                        test: /\.sql$/,
+                        use: [
+                            'raw-loader'
+                        ]
                     }
                 ]
             },
