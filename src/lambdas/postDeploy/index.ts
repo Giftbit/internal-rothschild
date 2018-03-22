@@ -32,7 +32,7 @@ async function handlerAsync(evt: awslambda.CloudFormationCustomResourceEvent, ct
 
     const connection = await getConnection(ctx);
 
-    await putBaseSchema(connection, true);
+    await putBaseSchema(connection);
 
     // // This lock will only last as long as this connection does.
     // console.log("locking database");
