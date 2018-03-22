@@ -8,7 +8,7 @@ export async function getDbCredentials(): Promise<{username: string, password: s
         return dbCredentials;
     }
 
-    checkForEnvVar("AWS_REGION", "DB_USERNAME_PARAMETER", "DB_PASSWORD_PARAMETER");
+    checkForEnvVar("AWS_REGION", "DB_USERNAME", "DB_PASSWORD_PARAMETER");
 
     const ssm = new aws.SSM({
         apiVersion: "2014-11-06",
@@ -17,21 +17,18 @@ export async function getDbCredentials(): Promise<{username: string, password: s
     });
 
     console.log("fetching db credential parameters");
-    const resp = await ssm.getParameters({
-        Names: [
-            process.env["DB_USERNAME_PARAMETER"],
-            process.env["DB_PASSWORD_PARAMETER"]
-        ],
+    const resp = await ssm.getParameter({
+        Name: process.env["DB_PASSWORD_PARAMETER"],
         WithDecryption: true
     }).promise();
 
-    if (resp.InvalidParameters && resp.InvalidParameters.length) {
-        throw new Error(`Invalid SSM parameters requested: ${resp.InvalidParameters.join(", ")}`);
+    if (!resp.Parameter) {
+        throw new Error(`Could not find SSM parameter ${process.env["DB_PASSWORD_PARAMETER"]}`);
     }
 
     return dbCredentials = {
-        username: resp.Parameters.find(p => p.Name === process.env["DB_USERNAME_PARAMETER"]).Value,
-        password: resp.Parameters.find(p => p.Name === process.env["DB_PASSWORD_PARAMETER"]).Value
+        username: process.env["DB_USERNAME"],
+        password: resp.Parameter.Value
     };
 }
 

@@ -37,24 +37,12 @@ async function handlerAsync(evt: awslambda.CloudFormationCustomResourceEvent, ct
         region: process.env["AWS_REGION"]
     });
 
-    const usernameParameter = `${evt.ResourceProperties.SsmPrefix}-username`;
     const passwordParameter = `${evt.ResourceProperties.SsmPrefix}-password`;
 
     if (evt.RequestType === "Create" || evt.RequestType === "Update") {
-        console.log("setting credentials UsernameParameter=", usernameParameter, "PasswordParameter=", passwordParameter, "KeyId=", evt.ResourceProperties.KmsKeyId);
+        console.log("setting credentials PasswordParameter=", passwordParameter, "KeyId=", evt.ResourceProperties.KmsKeyId);
 
-        const username = "master" + generateString(8);
-        const password = generateString(32);
-
-        await ssm.putParameter({
-            Name: usernameParameter,
-            Description: `Database username for ${evt.ResourceProperties.SsmPrefix}`,
-            Value: username,
-            Type: "SecureString",
-            KeyId: evt.ResourceProperties.KmsKeyId,
-            Overwrite: evt.RequestType === "Update",
-            AllowedPattern: "^[a-zA-Z0-9]{1,16}$"
-        }).promise();
+        const password = generateString(36);
 
         await ssm.putParameter({
             Name: passwordParameter,
@@ -67,14 +55,12 @@ async function handlerAsync(evt: awslambda.CloudFormationCustomResourceEvent, ct
         }).promise();
 
         return {
-            Username: username,
             Password: password,
-            UsernameParameter: usernameParameter,
             PasswordParameter: passwordParameter
         };
     } else if (evt.RequestType === "Delete") {
         await ssm.deleteParameters({
-            Names: [usernameParameter, passwordParameter]
+            Names: [passwordParameter]
         });
 
         return {};

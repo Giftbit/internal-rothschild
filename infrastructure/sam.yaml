@@ -273,7 +273,7 @@ Resources:
     Type: AWS::RDS::DBCluster
     Properties:
       Engine: aurora
-      MasterUsername: !GetAtt DbCredentials.Username
+      MasterUsername: "master"
       MasterUserPassword: !GetAtt DbCredentials.Password
       BackupRetentionPeriod: 7
       PreferredBackupWindow: 09:17-09:47
@@ -311,7 +311,7 @@ Resources:
         Variables:
           DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
           DB_PORT: !GetAtt DbCluster.Endpoint.Port
-          DB_USERNAME_PARAMETER: !GetAtt DbCredentials.UsernameParameter
+          DB_USERNAME: "master"
           DB_PASSWORD_PARAMETER: !GetAtt DbCredentials.PasswordParameter
           SECURE_CONFIG_BUCKET: !Ref SecureConfigBucket
           SECURE_CONFIG_KEY_JWT: authentication_badge_key.json
@@ -332,7 +332,6 @@ Resources:
                 - ssm:GetParameter
                 - ssm:GetParameters
               Resource:
-                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DbCredentials.UsernameParameter}"
                 - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DbCredentials.PasswordParameter}"
             - Effect: Allow
               Action:
@@ -383,7 +382,7 @@ Resources:
         Variables:
           DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
           DB_PORT: !GetAtt DbCluster.Endpoint.Port
-          DB_USERNAME_PARAMETER: !GetAtt DbCredentials.UsernameParameter
+          DB_USERNAME: "master"
           DB_PASSWORD_PARAMETER: !GetAtt DbCredentials.PasswordParameter
       VpcConfig:
         SecurityGroupIds:
@@ -401,7 +400,6 @@ Resources:
                 - ssm:GetParameter
                 - ssm:GetParameters
               Resource:
-                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DbCredentials.UsernameParameter}"
                 - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DbCredentials.PasswordParameter}"
             - Effect: Allow
               Action:
