@@ -14,6 +14,8 @@ BUILD_ARTIFACT_BUCKET="lightrail-sandbox-deploymentartifacts"
 PARAMETER_OVERRIDES="--parameter-overrides"
 PARAMETER_OVERRIDES+=" BuildDate=`date +%s`"
 PARAMETER_OVERRIDES+=" Capacity=low"
+PARAMETER_OVERRIDES+=" SecureConfigBucket=dev-lightrailsecureconfig-1q7bltwyiihpq-bucket-id162gq711cc"
+PARAMETER_OVERRIDES+=" SecureConfigKmsArn=arn:aws:kms:us-west-2:757264843183:key/5240d853-a89f-4510-82ba-386bf2b977dc"
 PARAMETER_OVERRIDES+=" VpcUniqueNumber=101"
 USAGE="usage: $0 <command name>\nvalid command names: build delete deploy invoke upload"
 

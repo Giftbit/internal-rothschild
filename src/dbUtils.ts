@@ -8,7 +8,7 @@ export async function getDbCredentials(): Promise<{username: string, password: s
         return dbCredentials;
     }
 
-    checkForEnvVar("DB_USERNAME_PARAMETER", "DB_PASSWORD_PARAMETER");
+    checkForEnvVar("AWS_REGION", "DB_USERNAME_PARAMETER", "DB_PASSWORD_PARAMETER");
 
     const ssm = new aws.SSM({
         apiVersion: "2014-11-06",
@@ -35,17 +35,18 @@ export async function getDbCredentials(): Promise<{username: string, password: s
     };
 }
 
-async function getDbConnection(): Promise<mysql.Connection> {
+export async function getDbConnection(): Promise<mysql.Connection> {
     checkForEnvVar("DB_ENDPOINT", "DB_PORT");
 
     const credentials = await getDbCredentials();
 
     console.log(`connecting to ${process.env["DB_ENDPOINT"]}:${process.env["DB_PORT"]}`);
-    return await await mysql.createConnection({
+    return await mysql.createConnection({
         host: process.env["DB_ENDPOINT"],
         port: +process.env["DB_PORT"],
         user: credentials.username,
-        password: credentials.password
+        password: credentials.password,
+        database: "rothschild"
     });
 }
 

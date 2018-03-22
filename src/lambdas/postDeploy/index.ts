@@ -32,7 +32,7 @@ async function handlerAsync(evt: awslambda.CloudFormationCustomResourceEvent, ct
 
     const connection = await getConnection(ctx);
 
-    await putBaseSchema(connection);
+    await putBaseSchema(connection, true);
 
     // // This lock will only last as long as this connection does.
     // console.log("locking database");
@@ -79,7 +79,7 @@ async function getConnection(ctx: awslambda.Context): Promise<mysql.Connection> 
 
 async function putBaseSchema(connection: mysql.Connection, force: boolean = false): Promise<void> {
     console.log("checking for schema");
-    const schemaRes = await connection.query("SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = 'rothschild';");
+    const schemaRes = await connection.query("SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?;", "rothschild");
     console.log("checked for schema", JSON.stringify(schemaRes));
     if (schemaRes.length > 0) {
         if (force) {
