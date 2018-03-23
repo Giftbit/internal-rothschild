@@ -91,8 +91,7 @@ async function getCustomers(userId: string, pagination: PaginationParams): Promi
                 count: res.length,
                 limit: pagination.limit,
                 maxLimit: pagination.maxLimit,
-                offset: pagination.offset,
-                totalCount: res.length
+                offset: pagination.offset
             }
         };
     });

@@ -4,10 +4,18 @@ import {SqlDeleteResponse, SqlSelectResponse, SqlUpdateResponse} from "./sqlResp
 import * as cassava from "cassava";
 
 let dbCredentials: {username: string, password: string} = null;
+const isTestEnv = !!process.env["TEST_ENV"];
 
 export async function getDbCredentials(): Promise<{username: string, password: string}> {
     if (dbCredentials) {
         return dbCredentials;
+    }
+
+    if (isTestEnv && process.env["DB_PASSWORD"]) {
+        return dbCredentials = {
+            username: process.env["DB_USERNAME"],
+            password: process.env["DB_PASSWORD"]
+        };
     }
 
     checkForEnvVar("AWS_REGION", "DB_USERNAME", "DB_PASSWORD_PARAMETER");
@@ -39,7 +47,7 @@ export async function getDbConnection(): Promise<mysql.Connection> {
 
     const credentials = await getDbCredentials();
 
-    console.log(`connecting to ${process.env["DB_ENDPOINT"]}:${process.env["DB_PORT"]}`);
+    !isTestEnv && console.log(`connecting to ${process.env["DB_ENDPOINT"]}:${process.env["DB_PORT"]}`);
     return await mysql.createConnection({
         host: process.env["DB_ENDPOINT"],
         port: +process.env["DB_PORT"],
@@ -54,7 +62,7 @@ export async function getDbReadConnection(): Promise<mysql.Connection> {
 
     const credentials = await getDbCredentials();
 
-    console.log(`connecting to ${process.env["DB_READ_ENDPOINT"]}:${process.env["DB_PORT"]}`);
+    !isTestEnv && console.log(`connecting to ${process.env["DB_READ_ENDPOINT"]}:${process.env["DB_PORT"]}`);
     return await mysql.createConnection({
         host: process.env["DB_READ_ENDPOINT"],
         port: +process.env["DB_PORT"],

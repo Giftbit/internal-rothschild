@@ -1,5 +1,6 @@
 CREATE DATABASE rothschild;
 
+-- Stores what schema updates have been applied.  Not married to the specific columns.
 CREATE TABLE rothschild.schemaChanges (
   schemaChangeId int NOT NULL,
   scriptName VARCHAR(255),
