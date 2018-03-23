@@ -1,7 +1,7 @@
 import "babel-polyfill";
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {installContactsRest} from "./contacts";
+import {installCustomersRest} from "./customers";
 
 const router = new cassava.Router();
 
@@ -12,6 +12,6 @@ router.route(new cassava.routes.LoggingRoute());
 // router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(authConfigPromise, roleDefinitionsPromise));
 router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
 
-installContactsRest(router);
+installCustomersRest(router);
 
 export const handler = router.getLambdaHandler();

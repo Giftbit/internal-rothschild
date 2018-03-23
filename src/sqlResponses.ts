@@ -1,9 +1,11 @@
 export type SqlSelectResponse<T> = Array<T>;
 
+export interface SqlDeleteResponse extends SqlUpdateResponse {}
+
 export interface SqlInsertResponse extends SqlUpdateResponse {}
 
 export interface SqlUpdateResponse {
-    fieldCOunt: number;
+    fieldCount: number;
     affectedRows: number;
     insertId: number;
     serverStatus: number;

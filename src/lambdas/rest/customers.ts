@@ -1,92 +1,92 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {
-    withDbConnection, withDbConnectionSelectOne, withDbConnectionUpdateOne,
+    withDbConnection, withDbConnectionDeleteOne, withDbConnectionSelectOne, withDbConnectionUpdateOne,
     withDbReadConnection
 } from "../../dbUtils";
-import {Contact} from "../../model/Contact";
+import {Customer} from "../../model/Customer";
 import {SqlSelectResponse} from "../../sqlResponses";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
 
-export function installContactsRest(router: cassava.Router): void {
-    router.route("/v2/contacts")
+export function installCustomersRest(router: cassava.Router): void {
+    router.route("/v2/customers")
         .method("GET")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
             return {
-                body: await getContacts(auth.giftbitUserId, getPaginationParams(evt))
+                body: await getCustomers(auth.giftbitUserId, getPaginationParams(evt))
             };
         });
 
-    router.route("/v2/contacts")
+    router.route("/v2/customers")
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
 
-            requireBodyMember(evt, "contactId", {type: "string", required: true, nullable: false});
+            requireBodyMember(evt, "customerId", {type: "string", required: true, nullable: false});
             requireBodyMember(evt, "firstName", {type: "string"});
             requireBodyMember(evt, "lastName", {type: "string"});
             requireBodyMember(evt, "email", {type: "string"});
 
             return {
-                body: await createContact({
+                body: await createCustomer({
                     ...evt.body,
-                    platformUserId: auth.giftbitUserId
+                    userId: auth.giftbitUserId
                 })
             };
         });
 
-    router.route("/v2/contacts/{contactId}")
+    router.route("/v2/customers/{customerId}")
         .method("GET")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
             return {
-                body: await getContact(auth.giftbitUserId, evt.pathParameters.contactId)
+                body: await getCustomer(auth.giftbitUserId, evt.pathParameters.customerId)
             };
         });
 
-    router.route("/v2/contacts/{contactId}")
+    router.route("/v2/customers/{customerId}")
         .method("PUT")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
 
-            requireBodyMember(evt, "contactId", {type: "string", nullable: false});
+            requireBodyMember(evt, "customerId", {type: "string", nullable: false});
             requireBodyMember(evt, "firstName", {type: "string"});
             requireBodyMember(evt, "lastName", {type: "string"});
             requireBodyMember(evt, "email", {type: "string"});
 
             return {
-                body: await updateContact({
+                body: await updateCustomer({
                     ...evt.body,
-                    platformUserId: auth.giftbitUserId,
-                    contactId: evt.pathParameters.contactId
+                    userId: auth.giftbitUserId,
+                    customerId: evt.pathParameters.customerId
                 })
             };
         });
 
-    router.route("/v2/contacts/{contactId}")
+    router.route("/v2/customers/{customerId}")
         .method("DELETE")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
             return {
-                body: await deleteContact(auth.giftbitUserId, evt.pathParameters.contactId)
+                body: await deleteCustomer(auth.giftbitUserId, evt.pathParameters.customerId)
             };
         });
 }
 
-async function getContacts(platformUserId: string, pagination: PaginationParams): Promise<{contacts: Contact[], pagination: Pagination}> {
+async function getCustomers(userId: string, pagination: PaginationParams): Promise<{customers: Customer[], pagination: Pagination}> {
     return withDbReadConnection(async conn => {
-        const res: SqlSelectResponse<Contact> = await conn.query(
-            "SELECT * FROM contacts WHERE platformUserId = ? ORDER BY contactId LIMIT ?,?",
-            [platformUserId, pagination.offset, pagination.limit]
+        const res: SqlSelectResponse<Customer> = await conn.query(
+            "SELECT * FROM customers WHERE userId = ? ORDER BY customerId LIMIT ?,?",
+            [userId, pagination.offset, pagination.limit]
         );
         return {
-            contacts: res,
+            customers: res,
             pagination: {
                 count: res.length,
                 limit: pagination.limit,
@@ -98,47 +98,51 @@ async function getContacts(platformUserId: string, pagination: PaginationParams)
     });
 }
 
-export async function createContact(contact: Contact): Promise<Contact> {
-    if (!contact.contactId) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.BAD_REQUEST, "contactId must be set");
+export async function createCustomer(customer: Customer): Promise<Customer> {
+    if (!customer.customerId) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.BAD_REQUEST, "customerId must be set");
     }
-    if (contact.contactId.length > 255) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.BAD_REQUEST, "contactId too long");
+    if (customer.customerId.length > 255) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.BAD_REQUEST, "customerId too long");
     }
 
-    return withDbConnection<Contact>(async conn => {
+    return withDbConnection<Customer>(async conn => {
         try {
             await conn.query(
-                "INSERT INTO contacts (platformUserId, contactId, firstName, lastName, email) VALUES (?, ?, ?, ?, ?)",
-                [contact.platformUserId, contact.contactId, contact.firstName, contact.lastName, contact.email]
+                "INSERT INTO customers (userId, customerId, firstName, lastName, email) VALUES (?, ?, ?, ?, ?)",
+                [customer.userId, customer.customerId, customer.firstName, customer.lastName, customer.email]
             );
-            return contact;
+            return customer;
         } catch (err) {
             if (err.code === "ER_DUP_ENTRY") {
-                throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Contact with contactId '${contact.contactId}' already exists.`);
+                throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Customer with customerId '${customer.customerId}' already exists.`);
             }
             throw err;
         }
     });
 }
 
-export async function getContact(platformUserId: string, contactId: string): Promise<Contact> {
-    return withDbConnectionSelectOne<Contact>(
-        "SELECT * FROM contacts WHERE platformUserId = ? AND contactId = ?",
-        [platformUserId, contactId]
+export async function getCustomer(userId: string, customerId: string): Promise<Customer> {
+    return withDbConnectionSelectOne<Customer>(
+        "SELECT * FROM customers WHERE userId = ? AND customerId = ?",
+        [userId, customerId]
     );
 }
 
-export async function updateContact(contact: Contact): Promise<Contact> {
+export async function updateCustomer(customer: Customer): Promise<Customer> {
     await withDbConnectionUpdateOne(
-        "UPDATE contacts SET firstName = ?, lastName = ?, email = ? WHERE platformUserId = ? AND contactId = ?",
-        [contact.firstName, contact.lastName, contact.email, contact.platformUserId, contact.contactId]
+        "UPDATE customers SET firstName = ?, lastName = ?, email = ? WHERE userId = ? AND customerId = ?",
+        [customer.firstName, customer.lastName, customer.email, customer.userId, customer.customerId]
     );
-    return contact;
+    return customer;
 }
 
-export async function deleteContact(platformUserId: string, contactId: string): Promise<any> {
-    throw new cassava.RestError(500, "Not implemented yet.");
+export async function deleteCustomer(userId: string, customerId: string): Promise<{success: true}> {
+    await withDbConnectionDeleteOne(
+        "DELETE FROM customers WHERE userId = ? AND customerId = ?",
+        [userId, customerId]
+    );
+    return {success: true};
 }
 
 function requireBodyMember(evt: cassava.RouterEvent, member: string, conditions: BodyMemberConditions): void {

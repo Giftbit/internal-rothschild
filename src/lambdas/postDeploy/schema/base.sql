@@ -6,11 +6,11 @@ CREATE TABLE rothschild.schemaChanges (
   dateApplied DATETIME
 );
 
-CREATE TABLE rothschild.contacts (
-  platformUserId VARCHAR(255) NOT NULL,
-  contactId VARCHAR(255) NOT NULL,
+CREATE TABLE rothschild.customers (
+  userId VARCHAR(255) NOT NULL,
+  customerId VARCHAR(255) NOT NULL,
   firstName TEXT NOT NULL,
   lastName TEXT NOT NULL,
   email TEXT NOT NULL,
-  PRIMARY KEY (contactId, platformUserId)
+  PRIMARY KEY (customerId, userId)
 );

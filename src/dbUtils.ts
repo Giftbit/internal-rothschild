@@ -1,6 +1,6 @@
 import * as aws from "aws-sdk";
 import * as mysql from "promise-mysql";
-import {SqlSelectResponse, SqlUpdateResponse} from "./sqlResponses";
+import {SqlDeleteResponse, SqlSelectResponse, SqlUpdateResponse} from "./sqlResponses";
 import * as cassava from "cassava";
 
 let dbCredentials: {username: string, password: string} = null;
@@ -120,6 +120,25 @@ export async function withDbConnectionUpdateOne(updateQuery: string, values: (st
         const res: SqlUpdateResponse = await conn.query(updateQuery, values);
         if (res.affectedRows < 1) {
             throw new cassava.RestError(404);
+        }
+        if (res.affectedRows > 1) {
+            throw new Error(`Illegal UPDATE query ${conn.format(updateQuery, values)}.  Changed ${res.affectedRows} values.`);
+        }
+    });
+}
+
+export async function withDbConnectionDeleteOne(deleteQuery: string, values: (string | number)[]): Promise<void> {
+    if (!deleteQuery || !deleteQuery.startsWith("DELETE FROM ")) {
+        throw new Error(`Illegal DELETE query ${deleteQuery}.  Must start with 'DELETE FROM '.`);
+    }
+
+    await withDbConnection(async conn => {
+        const res: SqlDeleteResponse = await conn.query(deleteQuery, values);
+        if (res.affectedRows < 1) {
+            throw new cassava.RestError(404);
+        }
+        if (res.affectedRows > 1) {
+            throw new Error(`Illegal DELETE query ${conn.format(deleteQuery, values)}.  Deleted ${res.affectedRows} values.`);
         }
     });
 }
