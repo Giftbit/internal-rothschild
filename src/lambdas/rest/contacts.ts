@@ -1,9 +1,12 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {withDbConnection, withDbConnectionSelectOne, withDbConnectionUpdateOne} from "../../dbUtils";
+import {
+    withDbConnection, withDbConnectionSelectOne, withDbConnectionUpdateOne,
+    withDbReadConnection
+} from "../../dbUtils";
 import {Contact} from "../../model/Contact";
 import {SqlSelectResponse} from "../../sqlResponses";
-import {Pagination} from "../../model/Pagination";
+import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
 
 export function installContactsRest(router: cassava.Router): void {
     router.route("/v2/contacts")
@@ -12,7 +15,7 @@ export function installContactsRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
             return {
-                body: await getContacts(auth.giftbitUserId)
+                body: await getContacts(auth.giftbitUserId, getPaginationParams(evt))
             };
         });
 
@@ -76,19 +79,19 @@ export function installContactsRest(router: cassava.Router): void {
         });
 }
 
-async function getContacts(platformUserId: string): Promise<{contacts: Contact[], pagination: Pagination}> {
-    return withDbConnection(async conn => {
+async function getContacts(platformUserId: string, pagination: PaginationParams): Promise<{contacts: Contact[], pagination: Pagination}> {
+    return withDbReadConnection(async conn => {
         const res: SqlSelectResponse<Contact> = await conn.query(
-            "SELECT * FROM contacts WHERE platformUserId = ?",
-            [platformUserId]
+            "SELECT * FROM contacts WHERE platformUserId = ? ORDER BY contactId LIMIT ?,?",
+            [platformUserId, pagination.offset, pagination.limit]
         );
         return {
             contacts: res,
             pagination: {
                 count: res.length,
-                limit: 100,
-                maxLimit: 1000,
-                offset: 0,
+                limit: pagination.limit,
+                maxLimit: pagination.maxLimit,
+                offset: pagination.offset,
                 totalCount: res.length
             }
         };
