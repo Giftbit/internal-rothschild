@@ -49,6 +49,21 @@ export async function getDbConnection(): Promise<mysql.Connection> {
     });
 }
 
+export async function getDbReadConnection(): Promise<mysql.Connection> {
+    checkForEnvVar("DB_READ_ENDPOINT", "DB_PORT");
+
+    const credentials = await getDbCredentials();
+
+    console.log(`connecting to ${process.env["DB_READ_ENDPOINT"]}:${process.env["DB_PORT"]}`);
+    return await mysql.createConnection({
+        host: process.env["DB_READ_ENDPOINT"],
+        port: +process.env["DB_PORT"],
+        user: credentials.username,
+        password: credentials.password,
+        database: "rothschild"
+    });
+}
+
 /**
  * Check for the existence of the given envionment variables and throw an
  * Error if they're missing.
@@ -70,12 +85,21 @@ export async function withDbConnection<T>(fxn: (conn: mysql.Connection) => Promi
     }
 }
 
+export async function withDbReadConnection<T>(fxn: (conn: mysql.Connection) => Promise<T>): Promise<T> {
+    const conn = await getDbReadConnection();
+    try {
+        return fxn(conn);
+    } finally {
+        conn.end();
+    }
+}
+
 export async function withDbConnectionSelectOne<T>(selectQuery: string, values: (string | number)[]): Promise<T> {
     if (!selectQuery || !selectQuery.startsWith("SELECT ")) {
         throw new Error(`Illegal SELECT query '${selectQuery}'.  Must start with 'SELECT '.`);
     }
 
-    return withDbConnection<T>(async conn => {
+    return withDbReadConnection<T>(async conn => {
         const res: SqlSelectResponse<T> = await conn.query(selectQuery, values);
         if (res.length === 0) {
             throw new cassava.RestError(404);

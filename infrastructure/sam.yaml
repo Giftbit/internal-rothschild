@@ -310,6 +310,7 @@ Resources:
       Environment:
         Variables:
           DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
+          DB_READ_ENDPOINT: !GetAtt DbCluster.ReadEndpoint.Address
           DB_PORT: !GetAtt DbCluster.Endpoint.Port
           DB_USERNAME: "master"
           DB_PASSWORD_PARAMETER: !GetAtt DbCredentials.PasswordParameter
