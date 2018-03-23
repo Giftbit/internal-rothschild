@@ -1,5 +1,7 @@
 import * as aws from "aws-sdk";
 import * as mysql from "promise-mysql";
+import {SqlSelectResponse, SqlUpdateResponse} from "./sqlResponses";
+import * as cassava from "cassava";
 
 let dbCredentials: {username: string, password: string} = null;
 
@@ -57,4 +59,43 @@ function checkForEnvVar(...envVars: string[]): void {
             throw new Error(`env var ${envVar} not set`);
         }
     }
+}
+
+export async function withDbConnection<T>(fxn: (conn: mysql.Connection) => Promise<T>): Promise<T> {
+    const conn = await getDbConnection();
+    try {
+        return fxn(conn);
+    } finally {
+        conn.end();
+    }
+}
+
+export async function withDbConnectionSelectOne<T>(selectQuery: string, values: (string | number)[]): Promise<T> {
+    if (!selectQuery || !selectQuery.startsWith("SELECT ")) {
+        throw new Error(`Illegal SELECT query '${selectQuery}'.  Must start with 'SELECT '.`);
+    }
+
+    return withDbConnection<T>(async conn => {
+        const res: SqlSelectResponse<T> = await conn.query(selectQuery, values);
+        if (res.length === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (res.length > 1) {
+            throw new Error(`Illegal SELECT query ${conn.format(selectQuery, values)}.  Returned ${res.length} values.`);
+        }
+        return res[0];
+    });
+}
+
+export async function withDbConnectionUpdateOne(updateQuery: string, values: (string | number)[]): Promise<void> {
+    if (!updateQuery || !updateQuery.startsWith("UPDATE ")) {
+        throw new Error(`Illegal UPDATE query ${updateQuery}.  Must start with 'UPDATE '.`);
+    }
+
+    await withDbConnection(async conn => {
+        const res: SqlUpdateResponse = await conn.query(updateQuery, values);
+        if (res.affectedRows < 1) {
+            throw new cassava.RestError(404);
+        }
+    });
 }

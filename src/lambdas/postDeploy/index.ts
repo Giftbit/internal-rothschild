@@ -79,7 +79,7 @@ async function getConnection(ctx: awslambda.Context): Promise<mysql.Connection> 
 
 async function putBaseSchema(connection: mysql.Connection, force: boolean = false): Promise<void> {
     console.log("checking for schema");
-    const schemaRes = await connection.query("SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?;", "rothschild");
+    const schemaRes = await connection.query("SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?", ["rothschild"]);
     console.log("checked for schema", JSON.stringify(schemaRes));
     if (schemaRes.length > 0) {
         if (force) {

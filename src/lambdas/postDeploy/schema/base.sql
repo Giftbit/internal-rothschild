@@ -2,13 +2,13 @@ CREATE DATABASE rothschild;
 
 CREATE TABLE rothschild.schemaChanges (
   schemaChangeId int NOT NULL,
-  scriptName VARCHAR(32),
+  scriptName VARCHAR(255),
   dateApplied DATETIME
 );
 
 CREATE TABLE rothschild.contacts (
-  platformUserId VARCHAR(32) NOT NULL,
-  contactId VARCHAR(32) NOT NULL,
+  platformUserId VARCHAR(255) NOT NULL,
+  contactId VARCHAR(255) NOT NULL,
   firstName TEXT NOT NULL,
   lastName TEXT NOT NULL,
   email TEXT NOT NULL,

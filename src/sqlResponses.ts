@@ -1,3 +1,5 @@
+export type SqlSelectResponse<T> = Array<T>;
+
 export interface SqlInsertResponse extends SqlUpdateResponse {}
 
 export interface SqlUpdateResponse {

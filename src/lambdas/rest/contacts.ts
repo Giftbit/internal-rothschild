@@ -1,8 +1,9 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {getDbConnection} from "../../dbUtils";
+import {withDbConnection, withDbConnectionSelectOne, withDbConnectionUpdateOne} from "../../dbUtils";
 import {Contact} from "../../model/Contact";
-import {SqlInsertResponse, SqlUpdateResponse} from "../../sqlResponses";
+import {SqlSelectResponse} from "../../sqlResponses";
+import {Pagination} from "../../model/Pagination";
 
 export function installContactsRest(router: cassava.Router): void {
     router.route("/v2/contacts")
@@ -75,111 +76,62 @@ export function installContactsRest(router: cassava.Router): void {
         });
 }
 
-async function getContacts(platformUserId: string): Promise<any> {
-    const conn = await getDbConnection();
-
-    try {
-        const res = await conn.query(
-            // "SELECT * FROM contacts WHERE platformUserId = ?",
-            // [platformUserId]
-            "SELECT * FROM contacts"
+async function getContacts(platformUserId: string): Promise<{contacts: Contact[], pagination: Pagination}> {
+    return withDbConnection(async conn => {
+        const res: SqlSelectResponse<Contact> = await conn.query(
+            "SELECT * FROM contacts WHERE platformUserId = ?",
+            [platformUserId]
         );
-        conn.end();
-
         return {
             contacts: res,
-            platformUserId,
             pagination: {
-                count: 1,
+                count: res.length,
                 limit: 100,
                 maxLimit: 1000,
                 offset: 0,
-                totalCount: 1
+                totalCount: res.length
             }
         };
-    } catch (err) {
-        conn.end();
-        throw err;
-    }
+    });
 }
 
-export async function createContact(contact: Contact): Promise<any> {
-    const conn = await getDbConnection();
+export async function createContact(contact: Contact): Promise<Contact> {
+    if (!contact.contactId) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.BAD_REQUEST, "contactId must be set");
+    }
+    if (contact.contactId.length > 255) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.BAD_REQUEST, "contactId too long");
+    }
 
-    try {
-        const res: SqlInsertResponse = await conn.query(
-            "INSERT INTO contacts (platformUserId, contactId, firstName, lastName, email) VALUES (?, ?, ?, ?, ?)",
-            [contact.platformUserId, contact.contactId, contact.firstName, contact.lastName, contact.email]
-        );
-        conn.end();
-
-        return {
-            body: {
-                contact,
-                res
+    return withDbConnection<Contact>(async conn => {
+        try {
+            await conn.query(
+                "INSERT INTO contacts (platformUserId, contactId, firstName, lastName, email) VALUES (?, ?, ?, ?, ?)",
+                [contact.platformUserId, contact.contactId, contact.firstName, contact.lastName, contact.email]
+            );
+            return contact;
+        } catch (err) {
+            if (err.code === "ER_DUP_ENTRY") {
+                throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Contact with contactId '${contact.contactId}' already exists.`);
             }
-        };
-    } catch (err) {
-        conn.end();
-
-        return {
-            contact,
-            err
-        };
-        // if (err.code === "ER_DUP_ENTRY") {
-        //     throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Contact with contactId '${contact.contactId}' already exists.`);
-        // }
-        // throw err;
-    }
+            throw err;
+        }
+    });
 }
 
-export async function getContact(platformUserId: string, contactId: string): Promise<any> {
-    const conn = await getDbConnection();
-
-    try {
-        const res = await conn.query(
-            "SELECT * FROM contacts WHERE platformUserId = ? AND contactId = ?",
-            [platformUserId, contactId]
-        );
-        conn.end();
-
-        return {
-            res,
-            platformUserId,
-            contactId
-        };
-    } catch (err) {
-        conn.end();
-        return {
-            platformUserId,
-            contactId,
-            err
-        };
-        // throw err;
-    }
+export async function getContact(platformUserId: string, contactId: string): Promise<Contact> {
+    return withDbConnectionSelectOne<Contact>(
+        "SELECT * FROM contacts WHERE platformUserId = ? AND contactId = ?",
+        [platformUserId, contactId]
+    );
 }
 
-export async function updateContact(contact: Contact): Promise<any> {
-    const conn = await getDbConnection();
-
-    try {
-        const res: SqlUpdateResponse = await conn.query(
-            "UPDATE contacts SET firstName = ?, lastName = ?, email = ? WHERE platformUserId = ? AND contactId = ?",
-            [contact.firstName, contact.lastName, contact.email, contact.platformUserId, contact.contactId]
-        );
-        conn.end();
-
-        return {
-            contact,
-            res: res
-        };
-    } catch (err) {
-        conn.end();
-        return {
-            contact,
-            error: err
-        };
-    }
+export async function updateContact(contact: Contact): Promise<Contact> {
+    await withDbConnectionUpdateOne(
+        "UPDATE contacts SET firstName = ?, lastName = ?, email = ? WHERE platformUserId = ? AND contactId = ?",
+        [contact.firstName, contact.lastName, contact.email, contact.platformUserId, contact.contactId]
+    );
+    return contact;
 }
 
 export async function deleteContact(platformUserId: string, contactId: string): Promise<any> {
