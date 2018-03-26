@@ -4,13 +4,12 @@
 export interface Order {
     orderId: string;
     userId: string;
+    createdDate: Date;
 
     cart: string;
     contactId: string;
     requestedPaymentSources: RequestedPaymentSource[];
     requestedValueStores: RequestedValueStore[];
-
-    createdDate: Date;
 }
 
 interface RequestedValueStore {

@@ -3,6 +3,8 @@ import {Rule, ValueStoreType} from "./ValueStore";
 export interface ValueStoreTemplate {
     valueStoreTemplateId: string;
     userId: string;
+    createdDate: Date;
+    updatedDate: Date;
 
     currency: string;
     initialValue?: number;
@@ -13,9 +15,6 @@ export interface ValueStoreTemplate {
     valueStoreUses?: number;
     redemptionRule: Rule;
     valueRule: Rule;
-
-    createdDate: Date;
-    updatedDate: Date;
     startDate?: Date;
     endDate?: Date;
 }

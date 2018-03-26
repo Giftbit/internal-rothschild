@@ -1,6 +1,8 @@
 export interface ValueStore {
     valueStoreId: string;
     userId: string;
+    createdDate: Date;
+    updatedDate: Date;
 
     currency: string;
     valueStoreType: ValueStoreType;
@@ -11,9 +13,6 @@ export interface ValueStore {
     redemptionRule: Rule;
     valueRule: Rule;
     usesLeft: number | null;
-
-    createdDate: Date;
-    updatedDate: Date;
     startDate: Date;
     endDate: Date;
 }
