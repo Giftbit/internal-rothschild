@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const webpack = require('webpack');
 const ZipPlugin = require('zip-webpack-plugin');
 
 module.exports = function (env) {
@@ -52,6 +53,12 @@ module.exports = function (env) {
                         use: [
                             'file-loader'
                         ]
+                    },
+                    {
+                        test: /\.sql$/,
+                        use: [
+                            'raw-loader'
+                        ]
                     }
                 ]
             },
@@ -59,12 +66,14 @@ module.exports = function (env) {
                 extensions: ['.ts', '.tsx', '.js']
             },
             plugins: [
+                new webpack.DefinePlugin({"global.GENTLY": false}), // see https://github.com/felixge/node-formidable/issues/337 for why
                 new ZipPlugin({
                     path: path.join(__dirname, 'dist', fxn),
                     pathPrefix: '',
                     filename: `${fxn}.zip`
                 })
             ],
+            mode: 'development',
             target: 'node',
             externals: {
                 // These modules are already installed on the Lambda instance.

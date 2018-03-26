@@ -1,17 +1,21 @@
 import "babel-polyfill";
 import * as awslambda from "aws-lambda";
-import * as https from "https";
 import * as mysql from "promise-mysql";
-import * as url from "url";
+import {sendCloudFormationResponse} from "../../sendCloudFormationResponse";
+import {getDbCredentials} from "../../dbUtils";
 
 /**
- * Handles a CloudFormationEvent and does any necessary Elasticsearch
- * configuration not available from CloudFormation (which is almost everything).
- * Currently the only action is PUTing the Card index template.
+ * Handles a CloudFormationEvent and upgrades the database.
  */
 export function handler(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context, callback: awslambda.Callback): void {
     console.log("event", JSON.stringify(evt, null, 2));
     handlerAsync(evt, ctx)
+        .then(data => {
+            return sendCloudFormationResponse(evt, ctx, true, data);
+        }, err => {
+            console.error(JSON.stringify(err, null, 2));
+            return sendCloudFormationResponse(evt, ctx, false, null, err.message);
+        })
         .then(() => {
             callback(undefined, {});
         }, err => {
@@ -20,108 +24,76 @@ export function handler(evt: awslambda.CloudFormationCustomResourceEvent, ctx: a
         });
 }
 
-async function handlerAsync(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context): Promise<void> {
+async function handlerAsync(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context): Promise<{}> {
     if (evt.RequestType === "Delete") {
         console.log("This action cannot be rolled back.  Calling success without doing anything.");
-        sendResponse(evt, ctx, true, {}, "This action cannot be rolled back.");
-        return;
+        return {};
     }
 
-    try {
-        await execSql("SHOW DATABASES");
-        sendResponse(evt, ctx, true, {});
-    } catch (err) {
-        console.log("Error running post deploy", err);
-        sendResponse(evt, ctx, false, {}, err.message);
-    }
-}
+    const connection = await getConnection(ctx);
 
-async function execSql(sql: string): Promise<void> {
-    console.log("connecting to", {
-        host: process.env["DB_ENDPOINT"],
-        port: +process.env["DB_PORT"],
-        user: process.env["DB_USERNAME"],
-        password: process.env["DB_PASSWORD"]
-    });
+    await putBaseSchema(connection);
 
-    const connection = await mysql.createConnection({
-        host: process.env["DB_ENDPOINT"],
-        port: +process.env["DB_PORT"],
-        user: process.env["DB_USERNAME"],
-        password: process.env["DB_PASSWORD"]
-    });
-
-    console.log("connected");
-
-    const dbs = await connection.query("SHOW DATABASES");
-    console.log("databases=", dbs);
+    // // This lock will only last as long as this connection does.
+    // console.log("locking database");
+    // await connection.query("FLUSH TABLES WITH WRITE LOCK;");
+    //
+    // // And this is where we look at the schemaChanges table, and apply needed patches in order.
+    // // Patch files will go in ./schema.  They must be in a sequential order and never modified.
+    // // How do we enforce that?
+    //
+    // console.log("unlocking database");
+    // await connection.query("UNLOCK TABLES;");
 
     await connection.end();
+
+    return {};
 }
 
-/**
- * PUT the result of this CloudFormation task to the web callback expecting it.
- */
-async function sendResponse(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context, success: boolean, data?: {[key: string]: string}, reason?: string): Promise<void> {
-    const responseBody: any = {
-        StackId: evt.StackId,
-        RequestId: evt.RequestId,
-        LogicalResourceId: evt.LogicalResourceId,
-        PhysicalResourceId: ctx.logStreamName,
-        Status: success ? "SUCCESS" : "FAILED",
-        Reason: reason || `See details in CloudWatch Log: ${ctx.logStreamName}`,
-        Data: data
-    };
+async function getConnection(ctx: awslambda.Context): Promise<mysql.Connection> {
+    const credentials = await getDbCredentials();
 
-    console.log(`Sending CloudFormationResponse ${JSON.stringify(responseBody, null, 2)}`);
-
-    const responseJson = JSON.stringify(responseBody);
-    const parsedUrl = url.parse(evt.ResponseURL);
-    const options = {
-        hostname: parsedUrl.hostname,
-        port: 443,
-        path: parsedUrl.path,
-        method: "PUT",
-        headers: {
-            "content-type": "",
-            "content-length": responseJson.length
+    while (true) {
+        try {
+            console.log(`connecting to ${process.env["DB_ENDPOINT"]}:${process.env["DB_PORT"]}`);
+            return await await mysql.createConnection({
+                // multipleStatements = true removes a protection against injection attacks.
+                // We're running scripts and not accepting user input here so that's ok,
+                // but other clients should *not* do that.
+                multipleStatements: true,
+                host: process.env["DB_ENDPOINT"],
+                port: +process.env["DB_PORT"],
+                user: credentials.username,
+                password: credentials.password
+            });
+        } catch (err) {
+            console.log("error connecting to database", err);
+            if (err.code && (err.code === "ETIMEDOUT" || err.code === "ENOTFOUND") && ctx.getRemainingTimeInMillis() > 60000) {
+                console.log("retrying...");
+            } else {
+                throw err;
+            }
         }
-    };
+    }
+}
 
-    await new Promise((resolve, reject) => {
-        const request = https.request(options, (response) => {
-            console.log(`response.statusCode ${response.statusCode}`);
-            console.log(`response.headers ${JSON.stringify(response.headers)}`);
-            const responseBody: string[] = [];
-            response.setEncoding("utf8");
-            response.on("data", d => {
-                responseBody.push(d as string);
-            });
-            response.on("end", () => {
-                if (response.statusCode >= 400) {
-                    console.log("response error", responseBody);
-                    reject(new Error(responseBody.join("")));
-                } else {
-                    try {
-                        const responseJson = JSON.parse(responseBody.join(""));
-                        resolve(responseJson);
-                    } catch (e) {
-                        reject(e);
-                    }
-                }
-            });
-        });
+async function putBaseSchema(connection: mysql.Connection, force: boolean = false): Promise<void> {
+    console.log("checking for schema");
+    const schemaRes = await connection.query("SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?", ["rothschild"]);
+    console.log("checked for schema", JSON.stringify(schemaRes));
+    if (schemaRes.length > 0) {
+        if (force) {
+            console.log("!!! FORCING DATABASE SCHEMA FROM BASE !!!");
+            console.log("dropping schema");
+            const dropRes = await connection.query("DROP DATABASE rothschild;");
+            console.log("dropped schema", JSON.stringify(dropRes));
+        } else {
+            return;
+        }
+    }
 
-        request.on("error", error => {
-            console.log("sendResponse error", error);
-            reject(error);
-        });
-
-        request.on("end", () => {
-            console.log("end");
-        });
-
-        request.write(responseJson);
-        request.end();
-    });
+    const sql = require("./schema/base.sql");
+    console.log("applying base schema");
+    const baseSchemaRes = await connection.query(sql);
+    console.log("applied base schema", JSON.stringify(baseSchemaRes));
 }

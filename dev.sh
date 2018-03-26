@@ -14,13 +14,9 @@ BUILD_ARTIFACT_BUCKET="lightrail-sandbox-deploymentartifacts"
 PARAMETER_OVERRIDES="--parameter-overrides"
 PARAMETER_OVERRIDES+=" BuildDate=`date +%s`"
 PARAMETER_OVERRIDES+=" Capacity=low"
-PARAMETER_OVERRIDES+=" DatabaseUsername=rothschild"
-PARAMETER_OVERRIDES+=" DatabasePassword=3e186cf69805493ea05933bf954c953a"
-PARAMETER_OVERRIDES+=" VpcLambdaSubnetIds=subnet-d6c38d9f,subnet-5c5c6a3b,subnet-4790401c"
-PARAMETER_OVERRIDES+=" VpcLambdaSecurityGroupIds=sg-a21f29d9"
-PARAMETER_OVERRIDES+=" VpcRdsSubnetIds=subnet-6600492f,subnet-6914220e,subnet-faa070a1"
-PARAMETER_OVERRIDES+=" VpcRdsSecurityGroupIds=sg-d91026a2"
-
+PARAMETER_OVERRIDES+=" SecureConfigBucket=dev-lightrailsecureconfig-1q7bltwyiihpq-bucket-id162gq711cc"
+PARAMETER_OVERRIDES+=" SecureConfigKmsArn=arn:aws:kms:us-west-2:757264843183:key/5240d853-a89f-4510-82ba-386bf2b977dc"
+PARAMETER_OVERRIDES+=" VpcUniqueNumber=101"
 USAGE="usage: $0 <command name>\nvalid command names: build delete deploy invoke upload"
 
 

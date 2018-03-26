@@ -12,38 +12,201 @@ Parameters:
   Capacity:
     AllowedValues : ["high", "low"]
     Type: String
-  DatabaseUsername:
-    AllowedPattern: "[a-zA-Z0-9]+"
-    Description: The database admin account user name, between 1 to 16 alphanumeric characters.
-    MaxLength: 16
-    MinLength: 1
+  SecureConfigBucket:
     Type: String
-  DatabasePassword:
-    AllowedPattern: "[a-zA-Z0-9]+"
-    Description: The database admin account password, between 8 to 41 alphanumeric characters.
-    MaxLength: 41
-    MinLength: 8
-    NoEcho: true
+    Description: Name of the S3 bucket holding the JWT secure config
+  SecureConfigKmsArn:
     Type: String
-  VpcLambdaSubnetIds:
-    Type: String
-    Description: The Lambda subnets from the VPC
-  VpcLambdaSecurityGroupIds:
-    Type: String
-    Description: The comma separated list of Security Group Ids
-  VpcRdsSubnetIds:
-    Type: String
-    Description: The RDS Subnets from the VPC
-  VpcRdsSecurityGroupIds:
-    Type: String
-    Description: The comma separated list of Security Group Ids
+    Description: Optional ARN of the KMS encrypting SecureConfigBucket
+    AllowedPattern: arn:aws:kms:[a-zA-Z_0-9\-]+:\d{12}:key/[a-zA-Z_0-9+=,.@\-_/]+
+  VpcUniqueNumber:
+    Type: Number
+    Description: The value to prefix the regions subnets with
+    Default: 1
+    MaxValue: 251
+    MinValue: 1
 
 Conditions:
   HighCapacity: !Equals [!Ref Capacity, "high"]
 
 Resources:
-  # database encryption
-  DatabaseEncryptionKey:
+  # Start with a VPC and who can talk to what
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Sub "10.${VpcUniqueNumber}.0.0/16"
+      EnableDnsHostnames: true
+      Tags:
+        # A lot of these resources have Name tags because they show up in the web console
+        - Key: Name
+          Value: !Sub "${AWS::StackName}"
+        - Key: Service
+          Value: Rothschild
+  DbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Database ingress
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        # Only listen to lambdas on the default port
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !GetAtt LambdaSecurityGroup.GroupId
+      SecurityGroupEgress:
+        # No outgoing traffic except localhost
+        - CidrIp: 127.0.0.1/32
+          IpProtocol: "-1"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName} db security group"
+        - Key: Service
+          Value: Rothschild
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Lambda egress
+      VpcId: !Ref VPC
+      SecurityGroupEgress:
+        # All outgoing TCP traffic is ok
+        - FromPort: 0
+          ToPort: 65535
+          IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName} lambda security group"
+        - Key: Service
+          Value: Rothschild
+
+  # Private subnet is where our DB and lambdas live
+  SubnetPrivateA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Sub "10.${VpcUniqueNumber}.11.0/24"
+      AvailabilityZone: !Sub "${AWS::Region}a"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName} private a"
+        - Key: Service
+          Value: Rothschild
+  SubnetPrivateB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Sub "10.${VpcUniqueNumber}.12.0/24"
+      AvailabilityZone: !Sub "${AWS::Region}b"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName} private b"
+        - Key: Service
+          Value: Rothschild
+  SubnetPrivateC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Sub "10.${VpcUniqueNumber}.13.0/24"
+      AvailabilityZone: !Sub "${AWS::Region}c"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName} private c"
+        - Key: Service
+          Value: Rothschild
+  PrivateSubnetRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName} private"
+        - Key: Service
+          Value: Rothschild
+  PrivateSubnetRouting:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateSubnetRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway # <- route to the nat
+  PrivateSubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateSubnetRouteTable
+      SubnetId: !Ref SubnetPrivateA
+  PrivateSubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateSubnetRouteTable
+      SubnetId: !Ref SubnetPrivateB
+  PrivateSubnetCRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateSubnetRouteTable
+      SubnetId: !Ref SubnetPrivateC
+
+  # Enable internet access through a NAT to a public subnet
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}"
+        - Key: Service
+          Value: Rothschild
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+  NatElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatElasticIP.AllocationId
+      SubnetId: !Ref NatExitSubnet  # <- the nat goes out through NatExitSubnet
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}"
+        - Key: Service
+          Value: Rothschild
+  NatExitSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Sub "10.${VpcUniqueNumber}.22.0/24"
+      AvailabilityZone: !Sub "${AWS::Region}b"
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName} nat exit"
+        - Key: Service
+          Value: Rothschild
+  NatExitRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName} nat exit"
+        - Key: Service
+          Value: Rothschild
+  NatExitRouting:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref NatExitRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway # <- route to the internet
+  NatExitRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref NatExitRouteTable
+      SubnetId: !Ref NatExitSubnet
+
+  # Database encryption
+  DbEncryptionKey:
     Type: AWS::KMS::Key
     Properties:
       Description: !Sub "${AWS::StackName} database encryption key"
@@ -58,83 +221,199 @@ Resources:
               - kms:*
             Resource: "*"
 
-  # database instance
-  DatabaseSubnetGroup:
+  # Database credentials
+  CredentialGenFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../dist/credentialGen/credentialGen.zip
+      Handler: index.handler
+      Runtime: nodejs6.10
+      MemorySize: 128
+      Timeout: 60 # seconds, 300 max
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action:
+                - ssm:PutParameter
+                - ssm:DeleteParameter
+                - ssm:DeleteParameters
+              Resource:
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}-*"
+            - Effect: Allow
+              Action:
+                - kms:DescribeKey
+                - kms:Encrypt
+              Resource:
+                - !GetAtt DbEncryptionKey.Arn
+      Tags:
+        ShortName: CredentialGenFunction
+        Service: Rothschild
+  DbCredentials:
+    Type: Custom::DbCredentials
+    Properties:
+      ServiceToken: !GetAtt CredentialGenFunction.Arn
+      KmsKeyId: !Ref DbEncryptionKey
+      SsmPrefix: !Sub "${AWS::StackName}"
+
+  # Database instance
+  DbSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
       DBSubnetGroupDescription: !Sub "${AWS::StackName} database subnet group"
-      SubnetIds: !Split [",", !Ref VpcRdsSubnetIds]
+      SubnetIds:
+        - !Ref SubnetPrivateA
+        - !Ref SubnetPrivateB
+        - !Ref SubnetPrivateC
       Tags:
         - Key: Service
           Value: Rothschild
-  DatabaseCluster:
+  DbCluster:
     Type: AWS::RDS::DBCluster
     Properties:
       Engine: aurora
-      MasterUsername: !Ref DatabaseUsername
-      MasterUserPassword: !Ref DatabasePassword
+      MasterUsername: "master"
+      MasterUserPassword: !GetAtt DbCredentials.Password
       BackupRetentionPeriod: 7
       PreferredBackupWindow: 09:17-09:47
       PreferredMaintenanceWindow: sun:06:57-sun:07:57
+      Port: 3306
       StorageEncrypted: true
-      KmsKeyId: !Ref DatabaseEncryptionKey
-      DBSubnetGroupName: !Ref DatabaseSubnetGroup
-      VpcSecurityGroupIds: !Split [",", !Ref VpcRdsSecurityGroupIds]
+      KmsKeyId: !Ref DbEncryptionKey
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref DbSecurityGroup
       Tags:
         - Key: Service
           Value: Rothschild
     DeletionPolicy: Snapshot
-  DatabasePrimaryInstance:
+  DbPrimaryInstance:
     Type: AWS::RDS::DBInstance
     Properties:
       Engine: aurora
-      DBClusterIdentifier: !Ref DatabaseCluster
+      DBClusterIdentifier: !Ref DbCluster
       DBInstanceClass: !If [HighCapacity, db.t2.medium, db.t2.medium]
-      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      DBSubnetGroupName: !Ref DbSubnetGroup
       Tags:
         - Key: Service
           Value: Rothschild
 
-#  HelloWorldFunction:
-#    Type: AWS::Serverless::Function
-#    Properties:
-#      CodeUri: ../dist/helloWorld/helloWorld.zip
-#      Handler: index.handler
-#      Runtime: nodejs6.10
-#      MemorySize: 128
-#      Timeout: 30 # seconds, 300 max
-#      Events:
-#        RestApi:
-#          Type: Api
-#          Properties:
-#            Path: /{proxy+}
-#            Method: ANY
+  RestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../dist/rest/rest.zip
+      Handler: index.handler
+      Runtime: nodejs6.10
+      MemorySize: 128
+      Timeout: 120 # seconds, 300 max
+      Environment:
+        Variables:
+          DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
+          DB_READ_ENDPOINT: !GetAtt DbCluster.ReadEndpoint.Address
+          DB_PORT: !GetAtt DbCluster.Endpoint.Port
+          DB_USERNAME: "master"
+          DB_PASSWORD_PARAMETER: !GetAtt DbCredentials.PasswordParameter
+          SECURE_CONFIG_BUCKET: !Ref SecureConfigBucket
+          SECURE_CONFIG_KEY_JWT: authentication_badge_key.json
+          SECURE_CONFIG_KEY_ROLE_DEFINITIONS: RoleDefinitions.json
+      VpcConfig:
+        SecurityGroupIds:
+          - !GetAtt LambdaSecurityGroup.GroupId
+        SubnetIds:
+          - !Ref SubnetPrivateA
+          - !Ref SubnetPrivateB
+          - !Ref SubnetPrivateC
+      Policies:
+        - AWSLambdaVPCAccessExecutionRole
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+                - ssm:GetParameters
+              Resource:
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DbCredentials.PasswordParameter}"
+            - Effect: Allow
+              Action:
+                - kms:Decrypt
+                - kms:DescribeKey
+              Resource:
+                - !GetAtt DbEncryptionKey.Arn
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource:
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/authentication_badge_key.json"
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/RoleDefinitions.json"
+            - Effect: Allow
+              Action:
+                - kms:Decrypt
+                - kms:DescribeKey
+              Resource:
+                - !Ref SecureConfigKmsArn
+              Condition:
+                StringLike:
+                  "kms:ViaService":
+                    !Sub "s3.${AWS::Region}.amazonaws.com"
+                  "kms:EncryptionContext:aws:s3:arn":
+                    !Sub "arn:aws:s3:::${SecureConfigBucket}/*"
+      Tags:
+        ShortName: RestFunction
+        Service: Rothschild
+      Events:
+        RestApi:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
 
-#  PostDeployFunction:
-#    Type: AWS::Serverless::Function
-#    Properties:
-#      CodeUri: ../dist/postDeploy/postDeploy.zip
-#      Handler: index.handler
-#      Runtime: nodejs6.10
-#      MemorySize: 128
-#      Timeout: 120 # seconds, 300 max
-#      Environment:
-#        Variables:
-#          DB_ENDPOINT: !GetAtt DatabaseCluster.Endpoint.Address
-#          DB_PORT: !GetAtt DatabaseCluster.Endpoint.Port
-#          DB_USERNAME: !Ref DatabaseUsername
-#          DB_PASSWORD: !Ref DatabasePassword
-#      VpcConfig:
-#        SecurityGroupIds: !Split [",", !Ref VpcRdsSecurityGroupIds]
-#        SubnetIds: !Split [",", !Ref VpcLambdaSubnetIds]
-#      Policies:
-#        - AWSLambdaVPCAccessExecutionRole
-#      Tags:
-#        ShortName: PostDeployFunction
-#        Service: Rothschild
-#  PostDeployInvocation:
-#    Type: Custom::PostDeployInvocation
-#    Properties:
-#      ServiceToken: !GetAtt PostDeployFunction.Arn
-#      # This parameter isn't used, but changing it forces this function to run every time, which we want.
-#      BuildDate: !Ref BuildDate
+  PostDeployFunction:
+    Type: AWS::Serverless::Function
+    DependsOn:
+      - DbPrimaryInstance
+      - PrivateSubnetRouting
+    Properties:
+      CodeUri: ../dist/postDeploy/postDeploy.zip
+      Handler: index.handler
+      Runtime: nodejs6.10
+      MemorySize: 128
+      Timeout: 300 # seconds, 300 max
+      Environment:
+        Variables:
+          DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
+          DB_PORT: !GetAtt DbCluster.Endpoint.Port
+          DB_USERNAME: "master"
+          DB_PASSWORD_PARAMETER: !GetAtt DbCredentials.PasswordParameter
+      VpcConfig:
+        SecurityGroupIds:
+          - !GetAtt LambdaSecurityGroup.GroupId
+        SubnetIds:
+          - !Ref SubnetPrivateA
+          - !Ref SubnetPrivateB
+          - !Ref SubnetPrivateC
+      Policies:
+        - AWSLambdaVPCAccessExecutionRole
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+                - ssm:GetParameters
+              Resource:
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DbCredentials.PasswordParameter}"
+            - Effect: Allow
+              Action:
+                - kms:Decrypt
+                - kms:DescribeKey
+              Resource:
+                - !GetAtt DbEncryptionKey.Arn
+      Tags:
+        ShortName: PostDeployFunction
+        Service: Rothschild
+  PostDeployInvocation:
+    Type: Custom::PostDeployInvocation
+    Properties:
+      ServiceToken: !GetAtt PostDeployFunction.Arn
+      # This parameter isn't used, but changing it forces this function to run every time, which we want.
+      BuildDate: !Ref BuildDate

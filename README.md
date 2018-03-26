@@ -20,5 +20,5 @@ POC banking implementation
     - add new server
         - name: Rothschild
         - host: rothschild
-        - username: postgres
+        - userId: postgres
         - password: testpass
