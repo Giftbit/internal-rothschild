@@ -10,8 +10,8 @@ CREATE TABLE rothschild.schemaChanges (
 CREATE TABLE rothschild.customers (
   userId VARCHAR(255) NOT NULL,
   customerId VARCHAR(255) NOT NULL,
-  firstName TEXT NOT NULL,
-  lastName TEXT NOT NULL,
-  email TEXT NOT NULL,
+  firstName TEXT,
+  lastName TEXT,
+  email TEXT,
   PRIMARY KEY (customerId, userId)
 );

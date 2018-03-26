@@ -1,5 +1,6 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import * as jsonschema from "jsonschema";
 import {
     withDbConnection, withDbConnectionDeleteOne, withDbConnectionSelectOne, withDbConnectionUpdateOne,
     withDbReadConnection
@@ -24,16 +25,15 @@ export function installCustomersRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
-
-            requireBodyMember(evt, "customerId", {type: "string", required: true, nullable: false});
-            requireBodyMember(evt, "firstName", {type: "string"});
-            requireBodyMember(evt, "lastName", {type: "string"});
-            requireBodyMember(evt, "email", {type: "string"});
+            evt.validateBody(customerSchema);
 
             return {
                 body: await createCustomer({
-                    ...evt.body,
-                    userId: auth.giftbitUserId
+                    userId: auth.giftbitUserId,
+                    customerId: evt.body.customerId,
+                    firstName: evt.body.firstName !== undefined ? evt.body.firstName : null,
+                    lastName: evt.body.lastName !== undefined ? evt.body.lastName : null,
+                    email: evt.body.email !== undefined ? evt.body.email : null
                 })
             };
         });
@@ -53,17 +53,15 @@ export function installCustomersRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
-
-            requireBodyMember(evt, "customerId", {type: "string", nullable: false});
-            requireBodyMember(evt, "firstName", {type: "string"});
-            requireBodyMember(evt, "lastName", {type: "string"});
-            requireBodyMember(evt, "email", {type: "string"});
+            evt.validateBody(customerSchema);
 
             return {
                 body: await updateCustomer({
-                    ...evt.body,
                     userId: auth.giftbitUserId,
-                    customerId: evt.pathParameters.customerId
+                    customerId: evt.pathParameters.customerId,
+                    firstName: evt.body.firstName !== undefined ? evt.body.firstName : null,
+                    lastName: evt.body.lastName !== undefined ? evt.body.lastName : null,
+                    email: evt.body.email !== undefined ? evt.body.email : null
                 })
             };
         });
@@ -97,14 +95,7 @@ async function getCustomers(userId: string, pagination: PaginationParams): Promi
     });
 }
 
-export async function createCustomer(customer: Customer): Promise<Customer> {
-    if (!customer.customerId) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.BAD_REQUEST, "customerId must be set");
-    }
-    if (customer.customerId.length > 255) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.BAD_REQUEST, "customerId too long");
-    }
-
+async function createCustomer(customer: Customer): Promise<Customer> {
     return withDbConnection<Customer>(async conn => {
         try {
             await conn.query(
@@ -121,14 +112,14 @@ export async function createCustomer(customer: Customer): Promise<Customer> {
     });
 }
 
-export async function getCustomer(userId: string, customerId: string): Promise<Customer> {
+async function getCustomer(userId: string, customerId: string): Promise<Customer> {
     return withDbConnectionSelectOne<Customer>(
         "SELECT * FROM customers WHERE userId = ? AND customerId = ?",
         [userId, customerId]
     );
 }
 
-export async function updateCustomer(customer: Customer): Promise<Customer> {
+async function updateCustomer(customer: Customer): Promise<Customer> {
     await withDbConnectionUpdateOne(
         "UPDATE customers SET firstName = ?, lastName = ?, email = ? WHERE userId = ? AND customerId = ?",
         [customer.firstName, customer.lastName, customer.email, customer.userId, customer.customerId]
@@ -136,7 +127,7 @@ export async function updateCustomer(customer: Customer): Promise<Customer> {
     return customer;
 }
 
-export async function deleteCustomer(userId: string, customerId: string): Promise<{success: true}> {
+async function deleteCustomer(userId: string, customerId: string): Promise<{success: true}> {
     await withDbConnectionDeleteOne(
         "DELETE FROM customers WHERE userId = ? AND customerId = ?",
         [userId, customerId]
@@ -144,27 +135,23 @@ export async function deleteCustomer(userId: string, customerId: string): Promis
     return {success: true};
 }
 
-function requireBodyMember(evt: cassava.RouterEvent, member: string, conditions: BodyMemberConditions): void {
-    if (typeof evt.body !== "object") {
-        throw new cassava.RestError(400, "The body must be a JSON object.");
-    }
-    if (!evt.body.hasOwnProperty(member)) {
-        if (conditions.required) {
-            throw new cassava.RestError(400, `Required body value '${member}' is not set.`);
+const customerSchema: jsonschema.Schema = {
+    type: "object",
+    properties: {
+        customerId: {
+            type: "string",
+            maxLength: 255,
+            minLength: 1
+        },
+        firstName: {
+            type: ["string", "null"]
+        },
+        lastName: {
+            type: ["string", "null"]
+        },
+        email: {
+            type: ["string", "null"]
         }
-    } else if (evt.body[member] === null) {
-        if (conditions.nullable === false) {
-            throw new cassava.RestError(400, `Body value '${member}' must not be null.`);
-        }
-    } else {
-        if (conditions.type && typeof evt.body[member] !== conditions.type) {
-            throw new cassava.RestError(400, `Body value '${member}' must be of type ${conditions.type}.`);
-        }
-    }
-}
-
-interface BodyMemberConditions {
-    required?: boolean;
-    nullable?: boolean;
-    type?: "string" | "number" | "boolean" | "object";
-}
+    },
+    required: ["customerId"]
+};
