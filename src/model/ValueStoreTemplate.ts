@@ -4,10 +4,6 @@ export interface ValueStoreTemplate {
     valueStoreTemplateId: string;
     userId: string;
 
-    dateCreated?: Date;
-    startDate?: Date;
-    endDate?: Date;
-
     currency: string;
     initialValue?: number;
     minInitialValue?: number;
@@ -17,4 +13,9 @@ export interface ValueStoreTemplate {
     valueStoreUses?: number;
     redemptionRule: Rule;
     valueRule: Rule;
+
+    createdDate: Date;
+    updatedDate: Date;
+    startDate?: Date;
+    endDate?: Date;
 }

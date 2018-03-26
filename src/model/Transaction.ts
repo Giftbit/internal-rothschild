@@ -1,11 +1,14 @@
 export interface Transaction {
-    id: string;
+    transactionId: string;
+    userId: string;
+
     valueStoreId: string;
     orderId: string;
     value: number;
-    dateCreated: Date;
     type: "FUND" | "DRAWDOWN" | "DISCOUNT";
     ruleJustification: RuleJustification; // todo - this needs more though to indicate why a transaction was created given a cart and ValueStore
+
+    createdDate: Date;
 }
 
 export interface RuleJustification {

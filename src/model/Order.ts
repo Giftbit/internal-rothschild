@@ -9,6 +9,8 @@ export interface Order {
     contactId: string;
     requestedPaymentSources: RequestedPaymentSource[];
     requestedValueStores: RequestedValueStore[];
+
+    createdDate: Date;
 }
 
 interface RequestedValueStore {

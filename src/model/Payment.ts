@@ -9,4 +9,6 @@ export interface Payment {
     ccLastFour: string;
     ccFingerprint: string;
     orderId: string;
+
+    createdDate: Date;
 }

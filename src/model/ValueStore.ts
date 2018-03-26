@@ -12,8 +12,8 @@ export interface ValueStore {
     valueRule: Rule;
     usesLeft: number | null;
 
-    dateCreated: Date;
-    lastUpdated: Date;
+    createdDate: Date;
+    updatedDate: Date;
     startDate: Date;
     endDate: Date;
 }
