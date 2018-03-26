@@ -81,7 +81,7 @@ describe("/v2/customers/", () => {
             }
         });
     });
-    
+
     it("requires a customerId to create a customer", async () => {
         const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/customers", "POST", {
             headers: {
@@ -92,9 +92,9 @@ describe("/v2/customers/", () => {
                 customerId: undefined
             })
         }));
-        chai.assert.equal(resp.statusCode, 409);
+        chai.assert.equal(resp.statusCode, 422);
     });
-    
+
     it("requires a string customerId to create a customer", async () => {
         const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/customers", "POST", {
             headers: {
@@ -105,9 +105,9 @@ describe("/v2/customers/", () => {
                 customerId: 123
             })
         }));
-        chai.assert.equal(resp.statusCode, 409);
+        chai.assert.equal(resp.statusCode, 422);
     });
-    
+
     it("requires firstName is a string to create a customer", async () => {
         const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/customers", "POST", {
             headers: {
@@ -118,9 +118,9 @@ describe("/v2/customers/", () => {
                 firstName: 123
             })
         }));
-        chai.assert.equal(resp.statusCode, 409);
+        chai.assert.equal(resp.statusCode, 422);
     });
-    
+
     it("requires lastName is a string to create a customer", async () => {
         const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/customers", "POST", {
             headers: {
@@ -131,9 +131,9 @@ describe("/v2/customers/", () => {
                 lastName: 123
             })
         }));
-        chai.assert.equal(resp.statusCode, 409);
+        chai.assert.equal(resp.statusCode, 422);
     });
-    
+
     it("requires email is a string to create a customer", async () => {
         const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/customers", "POST", {
             headers: {
@@ -144,13 +144,13 @@ describe("/v2/customers/", () => {
                 email: 123
             })
         }));
-        chai.assert.equal(resp.statusCode, 409);
+        chai.assert.equal(resp.statusCode, 422);
     });
-    
+
     const customer2: any = {
         customerId: "2"
     };
-    
+
     it("only requires customerId to create a customer", async () => {
         const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/customers", "POST", {
             headers: {
@@ -159,16 +159,19 @@ describe("/v2/customers/", () => {
             body: JSON.stringify(customer2)
         }));
         customer2.userId = testUtils.testUserA.userId;
-        
+        customer2.firstName = null;
+        customer2.lastName = null;
+        customer2.email = null;
+
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.deepEqual(JSON.parse(resp.body), customer2);
     });
-    
+
     const customer3: any = {
         customerId: "3",
         userId: "malicious"
     };
-    
+
     it("doesn't allow the user to set the userId", async () => {
         const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/customers", "POST", {
             headers: {
@@ -176,7 +179,7 @@ describe("/v2/customers/", () => {
             },
             body: JSON.stringify(customer3)
         }));
-        
+
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.notDeepEqual(JSON.parse(resp.body), customer3);
         chai.assert.equal(JSON.parse(resp.body).userId, testUtils.testUserA.userId);

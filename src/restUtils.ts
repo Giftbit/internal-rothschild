@@ -1,16 +1,18 @@
 import * as cassava from "cassava";
 import * as jsonschema from "jsonschema";
 
-let bodyValidator: jsonschema.Validator;
+let validator: jsonschema.Validator;
 
 export function validateBody(evt: cassava.RouterEvent, schema: jsonschema.Schema): void {
-    if (!bodyValidator) {
-        bodyValidator = new jsonschema.Validator();
+    if (!validator) {
+        validator = new jsonschema.Validator();
     }
-    
-    const bodyValidatorResult = bodyValidator.validate(evt.body, schema);
-    if (bodyValidatorResult.errors.length) {
-        // TODO massage this into a rest error
-        throw new Error(JSON.stringify(bodyValidatorResult));
+
+    const result = validator.validate(evt.body, schema);
+    if (result.errors.length) {
+        throw new cassava.RestError(
+            cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY,
+            `The ${evt.httpMethod} body has ${result.errors.length} validation error(s): ${result.errors.map(e => e.toString()).join(", ")}.`
+        );
     }
 }
