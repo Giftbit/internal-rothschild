@@ -5,7 +5,6 @@ import {
     withDbConnection, withDbConnectionDeleteOne, withDbConnectionSelectOne, withDbConnectionUpdateOne,
     withDbReadConnection
 } from "../../dbUtils";
-import {validateBody} from "../../restUtils";
 import {Customer} from "../../model/Customer";
 import {SqlSelectResponse} from "../../sqlResponses";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
@@ -26,7 +25,7 @@ export function installCustomersRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
-            validateBody(evt, customerSchema);
+            evt.validateBody(customerSchema);
 
             return {
                 body: await createCustomer({
@@ -54,7 +53,7 @@ export function installCustomersRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
-            validateBody(evt, customerSchema);
+            evt.validateBody(customerSchema);
 
             return {
                 body: await updateCustomer({
