@@ -1,15 +1,19 @@
+/**
+ * Not yet used. Will be used later.
+ */
 export interface Order {
-    id: string;
-    merchantId: string;
-    contactId: string;
+    orderId: string;
+    userId: string;
+
     cart: string;
-    requestedValueStores: RequestedValueStore[];
+    contactId: string;
     requestedPaymentSources: RequestedPaymentSource[];
+    requestedValueStores: RequestedValueStore[];
 }
 
 interface RequestedValueStore {
     id?: string;
-    lookupCode?: string;
+    code?: string;
     customerId?: string;
 }
 
