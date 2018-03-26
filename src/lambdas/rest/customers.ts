@@ -80,7 +80,7 @@ export function installCustomersRest(router: cassava.Router): void {
 async function getCustomers(userId: string, pagination: PaginationParams): Promise<{customers: Customer[], pagination: Pagination}> {
     return withDbReadConnection(async conn => {
         const res: SqlSelectResponse<Customer> = await conn.query(
-            "SELECT * FROM customers WHERE userId = ? ORDER BY customerId LIMIT ?,?",
+            "SELECT * FROM Customers WHERE userId = ? ORDER BY customerId LIMIT ?,?",
             [userId, pagination.offset, pagination.limit]
         );
         return {
@@ -99,7 +99,7 @@ async function createCustomer(customer: Customer): Promise<Customer> {
     return withDbConnection<Customer>(async conn => {
         try {
             await conn.query(
-                "INSERT INTO customers (userId, customerId, firstName, lastName, email) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO Customers (userId, customerId, firstName, lastName, email) VALUES (?, ?, ?, ?, ?)",
                 [customer.userId, customer.customerId, customer.firstName, customer.lastName, customer.email]
             );
             return customer;
@@ -114,14 +114,14 @@ async function createCustomer(customer: Customer): Promise<Customer> {
 
 async function getCustomer(userId: string, customerId: string): Promise<Customer> {
     return withDbConnectionSelectOne<Customer>(
-        "SELECT * FROM customers WHERE userId = ? AND customerId = ?",
+        "SELECT * FROM Customers WHERE userId = ? AND customerId = ?",
         [userId, customerId]
     );
 }
 
 async function updateCustomer(customer: Customer): Promise<Customer> {
     await withDbConnectionUpdateOne(
-        "UPDATE customers SET firstName = ?, lastName = ?, email = ? WHERE userId = ? AND customerId = ?",
+        "UPDATE Customers SET firstName = ?, lastName = ?, email = ? WHERE userId = ? AND customerId = ?",
         [customer.firstName, customer.lastName, customer.email, customer.userId, customer.customerId]
     );
     return customer;
@@ -129,7 +129,7 @@ async function updateCustomer(customer: Customer): Promise<Customer> {
 
 async function deleteCustomer(userId: string, customerId: string): Promise<{success: true}> {
     await withDbConnectionDeleteOne(
-        "DELETE FROM customers WHERE userId = ? AND customerId = ?",
+        "DELETE FROM Customers WHERE userId = ? AND customerId = ?",
         [userId, customerId]
     );
     return {success: true};
@@ -144,13 +144,16 @@ const customerSchema: jsonschema.Schema = {
             minLength: 1
         },
         firstName: {
-            type: ["string", "null"]
+            type: ["string", "null"],
+            maxLength: 255
         },
         lastName: {
-            type: ["string", "null"]
+            type: ["string", "null"],
+            maxLength: 255
         },
         email: {
-            type: ["string", "null"]
+            type: ["string", "null"],
+            maxLength: 320
         }
     },
     required: ["customerId"]
