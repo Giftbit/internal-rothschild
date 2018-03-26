@@ -1,5 +1,5 @@
 export interface ValueStoreAccess {
-    valueStoreId: string;
+    valueStoreAccessId: string;
     userId: string;
     createdDate: Date;
     updatedDate: Date;

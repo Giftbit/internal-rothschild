@@ -1,6 +1,6 @@
 export interface Customer {
-    customerId: string;
     userId: string;
+    customerId: string;
     createdDate: Date;
     updatedDate: Date;
 
