@@ -1,10 +1,12 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import * as jsonschema from "jsonschema";
 import {
     withDbConnection, withDbConnectionDeleteOne, withDbConnectionSelectOne, withDbConnectionUpdateOne,
     withDbReadConnection
 } from "../../dbUtils";
-import {Customer} from "../../model/Customer";
+import {validateBody} from "../../restUtils";
+import {Customer, customerSchema} from "../../model/Customer";
 import {SqlSelectResponse} from "../../sqlResponses";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
 
@@ -24,11 +26,7 @@ export function installCustomersRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
-
-            requireBodyMember(evt, "customerId", {type: "string", required: true, nullable: false});
-            requireBodyMember(evt, "firstName", {type: "string"});
-            requireBodyMember(evt, "lastName", {type: "string"});
-            requireBodyMember(evt, "email", {type: "string"});
+            validateBody(evt, customerSchema);
 
             return {
                 body: await createCustomer({
@@ -53,11 +51,7 @@ export function installCustomersRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
-
-            requireBodyMember(evt, "customerId", {type: "string", nullable: false});
-            requireBodyMember(evt, "firstName", {type: "string"});
-            requireBodyMember(evt, "lastName", {type: "string"});
-            requireBodyMember(evt, "email", {type: "string"});
+            validateBody(evt, customerSchema);
 
             return {
                 body: await updateCustomer({
@@ -142,29 +136,4 @@ export async function deleteCustomer(userId: string, customerId: string): Promis
         [userId, customerId]
     );
     return {success: true};
-}
-
-function requireBodyMember(evt: cassava.RouterEvent, member: string, conditions: BodyMemberConditions): void {
-    if (typeof evt.body !== "object") {
-        throw new cassava.RestError(400, "The body must be a JSON object.");
-    }
-    if (!evt.body.hasOwnProperty(member)) {
-        if (conditions.required) {
-            throw new cassava.RestError(400, `Required body value '${member}' is not set.`);
-        }
-    } else if (evt.body[member] === null) {
-        if (conditions.nullable === false) {
-            throw new cassava.RestError(400, `Body value '${member}' must not be null.`);
-        }
-    } else {
-        if (conditions.type && typeof evt.body[member] !== conditions.type) {
-            throw new cassava.RestError(400, `Body value '${member}' must be of type ${conditions.type}.`);
-        }
-    }
-}
-
-interface BodyMemberConditions {
-    required?: boolean;
-    nullable?: boolean;
-    type?: "string" | "number" | "boolean" | "object";
 }

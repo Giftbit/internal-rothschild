@@ -40,6 +40,7 @@
     "giftbit-cassava-routes": "git+ssh://git@github.com/Giftbit/giftbit-cassava-routes.git#semver:^5.5.1",
     "giftbit-lambda-metricslib": "git+ssh://git@github.com/Giftbit/giftbit-lambda-metricslib.git#semver:^2.0.1",
     "json-loader": "^0.5.7",
+    "jsonschema": "^1.2.2",
     "mocha": "^5.0.5",
     "promise-mysql": "^3.2.1",
     "raw-loader": "^0.5.1",
