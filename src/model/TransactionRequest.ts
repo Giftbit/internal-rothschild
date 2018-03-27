@@ -1,21 +1,25 @@
 export interface OrderRequest {
+    transactionId: string;
     cart: any;
+    currency: string;
     sources: TransactionParty[];
 }
 
-export interface FundRequest {
+export interface CreditRequest {
+    transactionId: string;
     destination: TransactionParty;
     value: number;
     currency: string;
 }
 
-export interface ChargeRequest {
+export interface DebitRequest {
+    transactionId: string;
     source: TransactionParty;
     value: number;
     currency: string;
 }
 
-export type TransferRequest = FundRequest & ChargeRequest;
+export type TransferRequest = CreditRequest & DebitRequest;
 
 export type TransactionParty = LightrailTransactionParty | StripeTransactionParty | InternalTransactionParty;
 

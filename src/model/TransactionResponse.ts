@@ -1,33 +1,14 @@
 export interface TransactionResponse {
-    transactionType: "credit" | "debit" | "transfer" | "pending_create" | "pending_capture" | "pending_void";
+    transactionId: string;
+    transactionType: "credit" | "debit" | "order" | "transfer" | "pending_create" | "pending_capture" | "pending_void";
     cart?: any; // includes item-level and cart-level explanation of how value was applied
-    parties?: TransactionResponseParty[];
+    currency: string;
+    steps: TransactionStep[];
 }
 
-/*
-public enum TransactionType {
-    DRAWDOWN,
-    FUND,
-    INITIAL_VALUE,
-    CANCELLATION,
-    INACTIVATE,
-    ACTIVATE,
-    FREEZE,
-    UNFREEZE,
-    PENDING_CREATE,
-    PENDING_VOID,
-    PENDING_CAPTURE,
-    DRAWDOWN_REFUND,
-    REDEEM,
+export type TransactionStep = LightrailTransactionStep | StripeTransactionStep | InternalTransactionStep;
 
-    @Deprecated
-    REFUND;
-}
- */
-
-export type TransactionResponseParty = LightrailTransactionResponseParty | StripeTransactionResponseParty | InternalTransactionResponseParty;
-
-export interface LightrailTransactionResponseParty {
+export interface LightrailTransactionStep {
     rail: "lightrail";
     valueStoreId: string;
     valueStoreType: string;
@@ -38,14 +19,14 @@ export interface LightrailTransactionResponseParty {
     valueChange: number;
 }
 
-export interface StripeTransactionResponseParty {
+export interface StripeTransactionStep {
     rail: "stripe";
     chargeId: string;
     amount: number;
     // maybe the whole JSON from https://stripe.com/docs/api#charge_object
 }
 
-export interface InternalTransactionResponseParty {
+export interface InternalTransactionStep {
     rail: "internal";
     id: string;
     valueBefore: number;
