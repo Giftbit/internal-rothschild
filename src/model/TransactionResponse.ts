@@ -1,7 +1,7 @@
 export interface TransactionResponse {
     transactionType: "credit" | "debit" | "transfer" | "pending_create" | "pending_capture" | "pending_void";
     cart?: any; // includes item-level and cart-level explanation of how value was applied
-    partners?: TransactionResponsePartner[];
+    parties?: TransactionResponseParty[];
 }
 
 /*
@@ -25,9 +25,9 @@ public enum TransactionType {
 }
  */
 
-export type TransactionResponsePartner = LightrailTransactionResponsePartner | StripeTransactionResponsePartner | InternalTransactionResponsePartner;
+export type TransactionResponseParty = LightrailTransactionResponseParty | StripeTransactionResponseParty | InternalTransactionResponseParty;
 
-export interface LightrailTransactionResponsePartner {
+export interface LightrailTransactionResponseParty {
     rail: "lightrail";
     valueStoreId: string;
     customerId?: string;
@@ -37,17 +37,17 @@ export interface LightrailTransactionResponsePartner {
     valueChange: number;
 }
 
-export interface StripeTransactionResponsePartner {
+export interface StripeTransactionResponseParty {
     rail: "stripe";
     chargeId: string;
     amount: number;
     // maybe the whole JSON from https://stripe.com/docs/api#charge_object
 }
 
-export interface InternalTransactionResponsePartner {
+export interface InternalTransactionResponseParty {
     rail: "internal";
     id: string;
     valueBefore: number;
     valueAfter: number;
-    valueUsed: number;
+    valueChange: number;
 }
