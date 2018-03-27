@@ -30,6 +30,7 @@ export type TransactionResponseParty = LightrailTransactionResponseParty | Strip
 export interface LightrailTransactionResponseParty {
     rail: "lightrail";
     valueStoreId: string;
+    valueStoreType: string;
     customerId?: string;
     codeLastFour?: string;
     valueBefore: number;
