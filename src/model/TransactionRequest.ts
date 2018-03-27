@@ -1,48 +1,39 @@
 export interface OrderRequest {
     cart: any;
-    sources: PaymentSource[];
+    sources: Partner[];
 }
 
 export interface FundRequest {
-    destination: PaymentDestination;
+    destination: Partner;
     value: number;
+    currency: string;
 }
 
 export interface ChargeRequest {
-    source: PaymentSource;
+    source: Partner;
     value: number;
+    currency: string;
 }
 
 export type TransferRequest = FundRequest & ChargeRequest;
 
-export type PaymentSource = LightrailPaymentSource | StripePaymentSource | InternalPaymentSource;
+export type Partner = LightrailPartner | StripePartner | InternalPartner;
 
-export interface LightrailPaymentSource {
+export interface LightrailPartner {
     rail: "lightrail";
-    currency: string;
     customerId?: string;
     code?: string;
     valueStoreId?: string;
 }
 
-export interface StripePaymentSource {
+export interface StripePartner {
     rail: "stripe";
     token: string;
 }
 
-export interface InternalPaymentSource {
+export interface InternalPartner {
     rail: "internal";
     id: string;
     value: number;
     appliedFirst?: boolean;
-}
-
-export type PaymentDestination = LightrailPaymentDestination;
-
-export interface LightrailPaymentDestination {
-    rail: "lightrail";
-    currency: string;
-    customerId?: string;
-    code?: string;
-    valueStoreId?: string;
 }

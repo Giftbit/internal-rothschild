@@ -1,43 +1,53 @@
 export interface TransactionResponse {
-    transactionType: "fund" | "charge" | "transfer";
+    transactionType: "credit" | "debit" | "transfer" | "pending_create" | "pending_capture" | "pending_void";
     cart?: any; // includes item-level and cart-level explanation of how value was applied
-    sources?: TransactionSource[];
-    destinations?: TransactionDestination[];
+    partners?: TransactionResponsePartner[];
 }
 
-export type TransactionSource = LightrailTransactionSource | StripeTransactionSource | InternalTransactionSource;
+/*
+public enum TransactionType {
+    DRAWDOWN,
+    FUND,
+    INITIAL_VALUE,
+    CANCELLATION,
+    INACTIVATE,
+    ACTIVATE,
+    FREEZE,
+    UNFREEZE,
+    PENDING_CREATE,
+    PENDING_VOID,
+    PENDING_CAPTURE,
+    DRAWDOWN_REFUND,
+    REDEEM,
 
-export interface LightrailTransactionSource {
+    @Deprecated
+    REFUND;
+}
+ */
+
+export type TransactionResponsePartner = LightrailTransactionResponsePartner | StripeTransactionResponsePartner | InternalTransactionResponsePartner;
+
+export interface LightrailTransactionResponsePartner {
     rail: "lightrail";
     valueStoreId: string;
-    contactId?: string;
+    customerId?: string;
     codeLastFour?: string;
     valueBefore: number;
     valueAfter: number;
-    valueUsed: number;
+    valueChange: number;
 }
 
-export interface StripeTransactionSource {
+export interface StripeTransactionResponsePartner {
     rail: "stripe";
     chargeId: string;
     amount: number;
     // maybe the whole JSON from https://stripe.com/docs/api#charge_object
 }
 
-export interface InternalTransactionSource {
+export interface InternalTransactionResponsePartner {
     rail: "internal";
     id: string;
     valueBefore: number;
     valueAfter: number;
     valueUsed: number;
-}
-
-export type TransactionDestination = LightrailTransactionDestination;
-
-export interface LightrailTransactionDestination {
-    rail: "lightrail";
-    currency: string;
-    customerId?: string;
-    code?: string;
-    valueStoreId?: string;
 }
