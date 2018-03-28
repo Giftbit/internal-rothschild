@@ -2,7 +2,8 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {
-    withDbConnection, withDbConnectionDeleteOne, withDbConnectionSelectOne, withDbConnectionUpdateOne,
+    withDbConnection, withDbConnectionDeleteOne, withDbConnectionSelectOne, withDbConnectionUpdateAndFetchOne,
+    withDbConnectionUpdateOne,
     withDbReadConnection
 } from "../../dbUtils";
 import {Customer} from "../../model/Customer";
@@ -27,13 +28,18 @@ export function installCustomersRest(router: cassava.Router): void {
             auth.requireIds("giftbitUserId");
             evt.validateBody(customerSchema);
 
+            const now = new Date();
+            now.setMilliseconds(0);
             return {
+                statusCode: cassava.httpStatusCode.success.CREATED,
                 body: await createCustomer({
                     userId: auth.giftbitUserId,
                     customerId: evt.body.customerId,
                     firstName: evt.body.firstName !== undefined ? evt.body.firstName : null,
                     lastName: evt.body.lastName !== undefined ? evt.body.lastName : null,
-                    email: evt.body.email !== undefined ? evt.body.email : null
+                    email: evt.body.email !== undefined ? evt.body.email : null,
+                    createdDate: now,
+                    updatedDate: now
                 })
             };
         });
@@ -55,13 +61,16 @@ export function installCustomersRest(router: cassava.Router): void {
             auth.requireIds("giftbitUserId");
             evt.validateBody(customerSchema);
 
+            const now = new Date();
+            now.setMilliseconds(0);
             return {
                 body: await updateCustomer({
                     userId: auth.giftbitUserId,
                     customerId: evt.pathParameters.customerId,
                     firstName: evt.body.firstName !== undefined ? evt.body.firstName : null,
                     lastName: evt.body.lastName !== undefined ? evt.body.lastName : null,
-                    email: evt.body.email !== undefined ? evt.body.email : null
+                    email: evt.body.email !== undefined ? evt.body.email : null,
+                    updatedDate: now
                 })
             };
         });
@@ -99,8 +108,8 @@ async function createCustomer(customer: Customer): Promise<Customer> {
     return withDbConnection<Customer>(async conn => {
         try {
             await conn.query(
-                "INSERT INTO Customers (userId, customerId, firstName, lastName, email) VALUES (?, ?, ?, ?, ?)",
-                [customer.userId, customer.customerId, customer.firstName, customer.lastName, customer.email]
+                "INSERT INTO Customers (userId, customerId, firstName, lastName, email, createdDate, updatedDate) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                [customer.userId, customer.customerId, customer.firstName, customer.lastName, customer.email, customer.createdDate, customer.updatedDate]
             );
             return customer;
         } catch (err) {
@@ -120,11 +129,12 @@ async function getCustomer(userId: string, customerId: string): Promise<Customer
 }
 
 async function updateCustomer(customer: Customer): Promise<Customer> {
-    await withDbConnectionUpdateOne(
-        "UPDATE Customers SET firstName = ?, lastName = ?, email = ? WHERE userId = ? AND customerId = ?",
-        [customer.firstName, customer.lastName, customer.email, customer.userId, customer.customerId]
+    return await withDbConnectionUpdateAndFetchOne<Customer>(
+        "UPDATE Customers SET firstName = ?, lastName = ?, email = ?, updatedDate = ? WHERE userId = ? AND customerId = ?",
+        [customer.firstName, customer.lastName, customer.email, customer.updatedDate, customer.userId, customer.customerId],
+        "SELECT * FROM Customers WHERE userId = ? AND customerId = ?",
+        [customer.userId, customer.customerId]
     );
-    return customer;
 }
 
 async function deleteCustomer(userId: string, customerId: string): Promise<{success: true}> {

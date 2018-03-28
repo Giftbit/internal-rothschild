@@ -53,7 +53,8 @@ export async function getDbConnection(): Promise<mysql.Connection> {
         port: +process.env["DB_PORT"],
         user: credentials.username,
         password: credentials.password,
-        database: "rothschild"
+        database: "rothschild",
+        timezone: "Z"
     });
 }
 
@@ -68,7 +69,8 @@ export async function getDbReadConnection(): Promise<mysql.Connection> {
         port: +process.env["DB_PORT"],
         user: credentials.username,
         password: credentials.password,
-        database: "rothschild"
+        database: "rothschild",
+        timezone: "Z"
     });
 }
 
@@ -87,7 +89,7 @@ function checkForEnvVar(...envVars: string[]): void {
 export async function withDbConnection<T>(fxn: (conn: mysql.Connection) => Promise<T>): Promise<T> {
     const conn = await getDbConnection();
     try {
-        return fxn(conn);
+        return await fxn(conn);
     } finally {
         conn.end();
     }
@@ -96,13 +98,15 @@ export async function withDbConnection<T>(fxn: (conn: mysql.Connection) => Promi
 export async function withDbReadConnection<T>(fxn: (conn: mysql.Connection) => Promise<T>): Promise<T> {
     const conn = await getDbReadConnection();
     try {
-        return fxn(conn);
+        return await fxn(conn);
     } finally {
         conn.end();
     }
 }
 
-export async function withDbConnectionSelectOne<T>(selectQuery: string, values: (string | number)[]): Promise<T> {
+export type SqlValue = string | number | Date;
+
+export async function withDbConnectionSelectOne<T>(selectQuery: string, values: SqlValue[]): Promise<T> {
     if (!selectQuery || !selectQuery.startsWith("SELECT ")) {
         throw new Error(`Illegal SELECT query '${selectQuery}'.  Must start with 'SELECT '.`);
     }
@@ -119,7 +123,7 @@ export async function withDbConnectionSelectOne<T>(selectQuery: string, values: 
     });
 }
 
-export async function withDbConnectionUpdateOne(updateQuery: string, values: (string | number)[]): Promise<void> {
+export async function withDbConnectionUpdateOne(updateQuery: string, values: SqlValue[]): Promise<void> {
     if (!updateQuery || !updateQuery.startsWith("UPDATE ")) {
         throw new Error(`Illegal UPDATE query ${updateQuery}.  Must start with 'UPDATE '.`);
     }
@@ -135,7 +139,39 @@ export async function withDbConnectionUpdateOne(updateQuery: string, values: (st
     });
 }
 
-export async function withDbConnectionDeleteOne(deleteQuery: string, values: (string | number)[]): Promise<void> {
+/**
+ * Update a row and then select it.  Maybe in the future we can do this with a stored
+ * procedure or something?
+ */
+export async function withDbConnectionUpdateAndFetchOne<T>(updateQuery: string, updateValues: SqlValue[], selectQuery: string, selectValues: SqlValue[]): Promise<T> {
+    if (!updateQuery || !updateQuery.startsWith("UPDATE ")) {
+        throw new Error(`Illegal UPDATE query ${updateQuery}.  Must start with 'UPDATE '.`);
+    }
+    if (!selectQuery || !selectQuery.startsWith("SELECT ")) {
+        throw new Error(`Illegal SELECT query ${selectQuery}.  Must start with 'SELECT '.`);
+    }
+
+    return await withDbConnection(async conn => {
+        const updateRes: SqlUpdateResponse = await conn.query(updateQuery, updateValues);
+        if (updateRes.affectedRows < 1) {
+            throw new cassava.RestError(404);
+        }
+        if (updateRes.affectedRows > 1) {
+            throw new Error(`Illegal UPDATE query ${conn.format(updateQuery, updateValues)}.  Changed ${updateRes.affectedRows} values.`);
+        }
+
+        const selectRes: SqlSelectResponse<T> = await conn.query(selectQuery, selectValues);
+        if (selectRes.length === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (selectRes.length > 1) {
+            throw new Error(`Illegal SELECT query ${conn.format(selectQuery, selectValues)}.  Returned ${selectRes.length} values.`);
+        }
+        return selectRes[0];
+    });
+}
+
+export async function withDbConnectionDeleteOne(deleteQuery: string, values: SqlValue[]): Promise<void> {
     if (!deleteQuery || !deleteQuery.startsWith("DELETE FROM ")) {
         throw new Error(`Illegal DELETE query ${deleteQuery}.  Must start with 'DELETE FROM '.`);
     }

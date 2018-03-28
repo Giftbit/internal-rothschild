@@ -64,7 +64,8 @@ async function getConnection(ctx: awslambda.Context): Promise<mysql.Connection> 
                 host: process.env["DB_ENDPOINT"],
                 port: +process.env["DB_PORT"],
                 user: credentials.username,
-                password: credentials.password
+                password: credentials.password,
+                timezone: "Z"
             });
         } catch (err) {
             console.log("error connecting to database", err);

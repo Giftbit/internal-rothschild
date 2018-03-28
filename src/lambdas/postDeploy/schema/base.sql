@@ -14,6 +14,8 @@ CREATE TABLE rothschild.Customers (
   email VARCHAR(320),
   firstName NVARCHAR(255),
   lastName NVARCHAR(255),
+  createdDate DATETIME NOT NULL,
+  updatedDate DATETIME NOT NULL,
   PRIMARY KEY (userId, customerId)
 );
 

@@ -32,7 +32,7 @@ describe("/v2/customers/", () => {
         });
     });
 
-    const customer1: any = {
+    let customer1: any = {
         customerId: "1",
         firstName: "First",
         lastName: "Last",
@@ -46,10 +46,15 @@ describe("/v2/customers/", () => {
             },
             body: JSON.stringify(customer1)
         }));
-        customer1.userId = testUtils.testUserA.userId;
+        chai.assert.equal(resp.statusCode, 201);
 
-        chai.assert.equal(resp.statusCode, 200);
-        chai.assert.deepEqual(JSON.parse(resp.body), customer1);
+        const parsedBody = JSON.parse(resp.body);
+        chai.assert.equal(parsedBody.userId, testUtils.testUserA.userId);
+        chai.assert.equal(parsedBody.customerId, customer1.customerId);
+        chai.assert.equal(parsedBody.firstName, customer1.firstName);
+        chai.assert.equal(parsedBody.lastName, customer1.lastName);
+        chai.assert.equal(parsedBody.email, customer1.email);
+        customer1 = parsedBody;
     });
 
     it("can get the customer", async () => {
@@ -147,7 +152,7 @@ describe("/v2/customers/", () => {
         chai.assert.equal(resp.statusCode, 422);
     });
 
-    const customer2: any = {
+    let customer2: any = {
         customerId: "2"
     };
 
@@ -158,13 +163,14 @@ describe("/v2/customers/", () => {
             },
             body: JSON.stringify(customer2)
         }));
-        customer2.userId = testUtils.testUserA.userId;
-        customer2.firstName = null;
-        customer2.lastName = null;
-        customer2.email = null;
-
-        chai.assert.equal(resp.statusCode, 200);
-        chai.assert.deepEqual(JSON.parse(resp.body), customer2);
+        chai.assert.equal(resp.statusCode, 201);
+        const parsedBody = JSON.parse(resp.body);
+        chai.assert.equal(parsedBody.userId, testUtils.testUserA.userId);
+        chai.assert.equal(parsedBody.customerId, customer2.customerId);
+        chai.assert.equal(parsedBody.firstName, null);
+        chai.assert.equal(parsedBody.lastName, null);
+        chai.assert.equal(parsedBody.email, null);
+        customer2 = parsedBody;
     });
 
     const customer3: any = {
@@ -180,7 +186,7 @@ describe("/v2/customers/", () => {
             body: JSON.stringify(customer3)
         }));
 
-        chai.assert.equal(resp.statusCode, 200);
+        chai.assert.equal(resp.statusCode, 201);
         chai.assert.notDeepEqual(JSON.parse(resp.body), customer3);
         chai.assert.equal(JSON.parse(resp.body).userId, testUtils.testUserA.userId);
     });
