@@ -23,7 +23,7 @@ export interface StripeTransactionStep {
     rail: "stripe";
     chargeId: string;
     amount: number;
-    // maybe the whole JSON from https://stripe.com/docs/api#charge_object
+    charge: any; // whole JSON from https://stripe.com/docs/api#charge_object
 }
 
 export interface InternalTransactionStep {

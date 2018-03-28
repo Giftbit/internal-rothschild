@@ -58,38 +58,54 @@ CREATE TABLE rothschild.ValueStores (
 CREATE TABLE rothschild.Transactions (
   userId VARCHAR(255) NOT NULL,
   transactionId VARCHAR(255) NOT NULL,
-  customerId VARCHAR(255) NOT NULL,
-  cart TEXT NOT NULL,
+  transactionType VARCHAR(255) NOT NULL,
+  cart MEDIUMTEXT NOT NULL,
   createdDate DATETIME NOT NULL,
-  requestedValueStores TEXT NOT NULL,
   requestedPaymentSources TEXT NOT NULL,
-  PRIMARY KEY (userId, transactionId),
-  CONSTRAINT transactions_fk0 FOREIGN KEY (userId, customerId) REFERENCES rothschild.Customers(userId, customerId)
+  PRIMARY KEY (userId, transactionId)
 );
 
-CREATE TABLE rothschild.LightrailTransactionLegs (
+CREATE TABLE rothschild.LightrailTransactionSteps (
   userId VARCHAR(255) NOT NULL,
-  transactionLegId VARCHAR(255) NOT NULL,
-  transactionId VARCHAR(255),
-  valueStoreId VARCHAR(255) NOT NULL,
-  value INT NOT NULL,
-  createdDate DATETIME NOT NULL,
-  type VARCHAR(255) NOT NULL,
-  PRIMARY KEY (userId, transactionLegId),
-  CONSTRAINT lightrailTransactionLegs_fk0 FOREIGN KEY (userId, transactionId) REFERENCES rothschild.Transactions (userId, transactionId),
-  CONSTRAINT lightrailTransactionLegs_fk1 FOREIGN KEY (userId, valueStoreId) REFERENCES rothschild.ValueStores(userId, valueStoreId)
-);
-
-CREATE TABLE rothschild.ExternalTransactionLegs (
-  userId VARCHAR(255) NOT NULL,
-  paymentId VARCHAR(255) NOT NULL,
+  lightrailTransactionStepId VARCHAR(255) NOT NULL,
   transactionId VARCHAR(255) NOT NULL,
-  value INT NOT NULL,
-  currency VARCHAR(16) NOT NULL,
-  ccLastFour VARCHAR(4) NOT NULL,
-  cardFingerprint VARCHAR(255) NOT NULL,
-  PRIMARY KEY (userId, paymentId),
-  CONSTRAINT externalTransactionLegs_fk0 FOREIGN KEY (userId, transactionId) REFERENCES rothschild.LightrailTransactionLegs (userId, transactionId)
+  valueStoreId VARCHAR(255) NOT NULL,
+  customerId VARCHAR(255),
+  valueBefore INT NOT NULL,
+  valueAfter INT NOT NULL,
+  valueChange INT NOT NULL,
+  createdDate DATETIME NOT NULL,
+  PRIMARY KEY (userId, lightrailTransactionStepId),
+  INDEX lightrailTransactionSteps_ix0 (userId, transactionId),
+  CONSTRAINT lightrailTransactionSteps_fk0 FOREIGN KEY (userId, transactionId) REFERENCES rothschild.Transactions (userId, transactionId),
+  CONSTRAINT lightrailTransactionSteps_fk1 FOREIGN KEY (userId, valueStoreId) REFERENCES rothschild.ValueStores(userId, valueStoreId),
+  CONSTRAINT lightrailTransactionSteps_fk2 FOREIGN KEY (userId, customerId) REFERENCES rothschild.Customers(userId, customerId)
+);
+
+CREATE TABLE rothschild.StripeTransactionSteps (
+  userId VARCHAR(255) NOT NULL,
+  stripeTransactionStepId VARCHAR(255) NOT NULL,
+  transactionId VARCHAR(255) NOT NULL,
+  chargeId VARCHAR(255) NOT NULL,
+  currency CHAR(3) NOT NULL,
+  amount INT NOT NULL,
+  charge MEDIUMTEXT NOT NULL,
+  PRIMARY KEY (userId, stripeTransactionStepId),
+  INDEX stripeTransactionSteps_ix0 (userId, transactionId),
+  CONSTRAINT stripeTransactionSteps_fk0 FOREIGN KEY (userId, transactionId) REFERENCES rothschild.Transactions (userId, transactionId)
+);
+
+CREATE TABLE  rothschild.InternalTransactionSteps (
+  userId VARCHAR(255) NOT NULL,
+  internalTransactionStepId VARCHAR(255) NOT NULL,
+  transactionId VARCHAR(255) NOT NULL,
+  id VARCHAR(255) NOT NULL,
+  valueBefore INT NOT NULL,
+  valueAfter INT NOT NULL,
+  valueChange INT NOT NULL,
+  PRIMARY KEY (userId, internalTransactionStepId),
+  INDEX internalTransactionSteps_ix0 (userId, transactionId),
+  CONSTRAINT internalTransactionSteps_fk0 FOREIGN KEY (userId, transactionId) REFERENCES rothschild.Transactions (userId, transactionId)
 );
 
 CREATE TABLE rothschild.ValueStoreAccess (
