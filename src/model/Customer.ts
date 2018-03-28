@@ -4,6 +4,6 @@ export interface Customer {
     firstName: string | null;
     lastName: string | null;
     email: string | null;
-    createdDate?: Date;
-    updatedDate?: Date;
+    createdDate: Date;
+    updatedDate: Date;
 }

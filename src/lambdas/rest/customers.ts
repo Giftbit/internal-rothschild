@@ -3,7 +3,6 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {
     withDbConnection, withDbConnectionDeleteOne, withDbConnectionSelectOne, withDbConnectionUpdateAndFetchOne,
-    withDbConnectionUpdateOne,
     withDbReadConnection
 } from "../../dbUtils";
 import {Customer} from "../../model/Customer";
@@ -128,7 +127,7 @@ async function getCustomer(userId: string, customerId: string): Promise<Customer
     );
 }
 
-async function updateCustomer(customer: Customer): Promise<Customer> {
+async function updateCustomer(customer: Partial<Customer>): Promise<Customer> {
     return await withDbConnectionUpdateAndFetchOne<Customer>(
         "UPDATE Customers SET firstName = ?, lastName = ?, email = ?, updatedDate = ? WHERE userId = ? AND customerId = ?",
         [customer.firstName, customer.lastName, customer.email, customer.updatedDate, customer.userId, customer.customerId],
