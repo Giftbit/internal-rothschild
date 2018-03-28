@@ -199,8 +199,8 @@ const valueStoreTemplateSchema: jsonschema.Schema = {
             minLength: 1
         },
         valueStoreType: {
-            type: ["string", "null"],
-            maxLength: 255
+            type: "string",
+            enum: ["GIFTCARD", "ACCOUNT_CREDIT", "PROMOTION"]
         },
         value: {
             type: ["integer", "null"],
@@ -219,32 +219,62 @@ const valueStoreTemplateSchema: jsonschema.Schema = {
             maxLength: 16
         },
         createdDate: {
-            type: ["string"], // todo type?
+            type: ["string"],
             format: "date-time"
         },
         updatedDate: {
-            type: ["string"], // todo type?
+            type: ["string"],
             format: "date-time"
         },
         startDate: {
-            type: ["string", "null"], // todo type?
+            type: ["string", "null"],
             format: "date-time"
         },
         endDate: {
-            type: ["string", "null"], // todo type?
+            type: ["string", "null"],
             format: "date-time"
         },
         uses: {
             type: ["integer", "null"],
         },
         redemptionRule: {
-            type: ["string", "null"],
-            maxLength: 65535
+            oneOf: [ // todo can we export this schema for a rule so that it's not duplicated?
+                {
+                    type: "null"
+                },
+                {
+                    title: "Value rule",
+                    type: "object",
+                    properties: {
+                        rule: {
+                            type: "string"
+                        },
+                        explanation: {
+                            type: "string"
+                        }
+                    }
+                }
+            ]
         },
         valueRule: {
-            type: ["string", "null"],
-            maxLength: 65535
+            oneOf: [
+                {
+                    type: "null"
+                },
+                {
+                    title: "Value rule",
+                    type: "object",
+                    properties: {
+                        rule: {
+                            type: "string"
+                        },
+                        explanation: {
+                            type: "string"
+                        }
+                    }
+                }
+            ]
         }
     },
-    required: ["userId","valueStoreTemplateId", "currency"]
+    required: ["userId","valueStoreTemplateId", "currency", "createdDate", "updatedDate"]
 };
