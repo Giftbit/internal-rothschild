@@ -10,7 +10,8 @@ export interface ValueStoreTemplate {
     initialValue?: number;
     minInitialValue?: number;
     maxInitialValue?: number;
-    validityDurationInDays?: number;
+    validityDurationDays?: number;
+    uses?: number;
     valueStoreType: ValueStoreType;
     valueStoreUses?: number;
     redemptionRule: Rule;

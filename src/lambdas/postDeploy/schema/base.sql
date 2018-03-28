@@ -23,7 +23,7 @@ CREATE TABLE rothschild.ValueStoreTemplates (
   userId VARCHAR(255) NOT NULL,
   valueStoreTemplateId VARCHAR(255) NOT NULL,
   valueStoreType VARCHAR(255),
-  value INT,
+  initialValue INT,
   minInitialValue INT,
   maxInitialValue INT,
   currency VARCHAR(16) NOT NULL,
@@ -33,6 +33,8 @@ CREATE TABLE rothschild.ValueStoreTemplates (
   uses INT,
   redemptionRule TEXT,
   valueRule TEXT,
+  createdDate DATETIME NOT NULL,
+  updatedDate DATETIME NOT NULL,
   PRIMARY KEY (userId, valueStoreTemplateId)
 );
 
@@ -48,7 +50,7 @@ CREATE TABLE rothschild.ValueStores (
   redemptionRule TEXT,
   valueRule TEXT,
   createdDate DATETIME NOT NULL,
-  lastUpdatedDate DATETIME NOT NULL,
+  updatedDate DATETIME NOT NULL,
   startDate DATETIME NOT NULL,
   endDate DATETIME,
   usesLeft INT,
@@ -117,6 +119,8 @@ CREATE TABLE rothschild.ValueStoreAccess (
   valueStoreId VARCHAR(255) NOT NULL,
   accessType VARCHAR(255) NOT NULL,
   customerId VARCHAR(255),
+  createdDate DATETIME NOT NULL,
+  updatedDate DATETIME NOT NULL,
   PRIMARY KEY (userId, valueStoreAccessId),
   CONSTRAINT valueStoreAccess_fk0 FOREIGN KEY (userId, valueStoreId) REFERENCES rothschild.ValueStores(userId, valueStoreId),
   CONSTRAINT valueStoreAccess_fk1 FOREIGN KEY (userId, customerId) REFERENCES rothschild.Customers(userId, customerId)

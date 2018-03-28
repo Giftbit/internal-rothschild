@@ -3,6 +3,7 @@ export interface TransactionResponse {
     transactionType: "credit" | "debit" | "order" | "transfer" | "pending_create" | "pending_capture" | "pending_void";
     cart?: any; // includes item-level and cart-level explanation of how value was applied
     currency: string;
+    dateCreated: Date;
     steps: TransactionStep[];
 }
 
