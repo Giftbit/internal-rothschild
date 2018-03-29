@@ -2,7 +2,13 @@ import * as cassava from "cassava";
 import {RestError, ValidateBodyOptions} from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import {withDbConnection, withDbConnectionSelectOne, withDbReadConnection} from "../../dbUtils";
+import {
+    withDbConnection,
+    withDbConnectionDeleteOne,
+    withDbConnectionSelectOne,
+    withDbConnectionUpdateAndFetchOne,
+    withDbReadConnection
+} from "../../dbUtils";
 import {SqlSelectResponse} from "../../sqlResponses";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
 import {ValueStoreTemplate} from "../../model/ValueStoreTemplate";
@@ -78,36 +84,44 @@ export function installValueStoreTemplatesRest(router: cassava.Router): void {
             };
         });
 
-    // router.route("/v2/customers/{customerId}")
-    //     .method("PUT")
-    //     .handler(async evt => {
-    //         const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-    //         auth.requireIds("giftbitUserId");
-    //         evt.validateBody(valueStoreTemplateSchema);
-    //
-    //         const now = new Date();
-    //         now.setMilliseconds(0);
-    //         return {
-    //             body: await updateCustomer({
-    //                 userId: auth.giftbitUserId,
-    //                 customerId: evt.pathParameters.customerId,
-    //                 firstName: evt.body.firstName !== undefined ? evt.body.firstName : null,
-    //                 lastName: evt.body.lastName !== undefined ? evt.body.lastName : null,
-    //                 email: evt.body.email !== undefined ? evt.body.email : null,
-    //                 updatedDate: now
-    //             })
-    //         };
-    //     });
-    //
-    // router.route("/v2/customers/{customerId}")
-    //     .method("DELETE")
-    //     .handler(async evt => {
-    //         const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-    //         auth.requireIds("giftbitUserId");
-    //         return {
-    //             body: await deleteCustomer(auth.giftbitUserId, evt.pathParameters.customerId)
-    //         };
-    //     });
+    router.route("/v2/valueStoreTemplates/{valueStoreTemplateId}")
+        .method("PUT")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("giftbitUserId");
+            evt.validateBody(valueStoreTemplateSchema);
+
+            const now = new Date();
+            now.setMilliseconds(0);
+            return {
+                body: await updateValueStoreTemplate({
+                    userId: auth.giftbitUserId,
+                    valueStoreTemplateId: evt.pathParameters.valueStoreTemplateId,
+                    valueStoreType: evt.body.valueStoreType !== undefined ? evt.body.valueStoreType : null,
+                    initialValue: evt.body.initialValue !== undefined ? evt.body.initialValue : null,
+                    minInitialValue: evt.body.minInitialValue !== undefined ? evt.body.minInitialValue : null,
+                    maxInitialValue: evt.body.maxInitialValue !== undefined ? evt.body.maxInitialValue : null,
+                    currency: evt.body.currency !== undefined ? evt.body.currency : null,
+                    startDate: evt.body.startDate !== undefined ? evt.body.startDate : null,
+                    endDate: evt.body.endDate !== undefined ? evt.body.endDate : null,
+                    validityDurationDays: evt.body.validityDurationDays !== undefined ? evt.body.validityDurationDays : null,
+                    uses: evt.body.uses !== undefined ? evt.body.uses : null,
+                    redemptionRule: evt.body.redemptionRule !== undefined ? evt.body.redemptionRule : null,
+                    valueRule: evt.body.valueRule !== undefined ? evt.body.valueRule : null,
+                    updatedDate: now
+                })
+            };
+        });
+
+    router.route("/v2/valueStoreTemplates/{valueStoreTemplateId}")
+        .method("DELETE")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("giftbitUserId");
+            return {
+                body: await deleteValueStoreTemplate(auth.giftbitUserId, evt.pathParameters.valueStoreTemplateId)
+            };
+        });
 
 }
 
@@ -184,34 +198,52 @@ async function getValueStoreTemplate(userId: string, valueStoreTemplateId: strin
     );
 }
 
-// async function updateCustomer(customer: Customer): Promise<Customer> {
-//     return await withDbConnectionUpdateAndFetchOne<Customer>(
-//         "UPDATE Customers SET firstName = ?, lastName = ?, email = ?, updatedDate = ? WHERE userId = ? AND customerId = ?",
-//         [customer.firstName, customer.lastName, customer.email, customer.updatedDate, customer.userId, customer.customerId],
-//         "SELECT * FROM Customers WHERE userId = ? AND customerId = ?",
-//         [customer.userId, customer.customerId]
-//     );
-// }
-//
-// async function deleteCustomer(userId: string, customerId: string): Promise<{success: true}> {
-//     await withDbConnectionDeleteOne(
-//         "DELETE FROM Customers WHERE userId = ? AND customerId = ?",
-//         [userId, customerId]
-//     );
-//     return {success: true};
-// }
+async function updateValueStoreTemplate(valueStoreTemplate: ValueStoreTemplate): Promise<ValueStoreTemplate> {
+    return await withDbConnectionUpdateAndFetchOne<ValueStoreTemplate>(
+        "UPDATE ValueStoreTemplates SET " +
+        "valueStoreType = ?, " +
+        "initialValue = ?, " +
+        "minInitialValue = ?, " +
+        "maxInitialValue = ?, " +
+        "currency = ?, " +
+        "startDate = ?, " +
+        "endDate = ?, " +
+        "validityDurationDays = ?, " +
+        "uses = ?, " +
+        "redemptionRule = ?, " +
+        "valueRule = ?, " +
+        "updatedDate = ? " +
+        "WHERE userId = ? AND valueStoreTemplateId = ?",
+        [
+            valueStoreTemplate.valueStoreType,
+            valueStoreTemplate.initialValue,
+            valueStoreTemplate.minInitialValue,
+            valueStoreTemplate.maxInitialValue,
+            valueStoreTemplate.currency,
+            valueStoreTemplate.startDate,
+            valueStoreTemplate.endDate,
+            valueStoreTemplate.validityDurationDays,
+            valueStoreTemplate.uses,
+            valueStoreTemplate.redemptionRule,
+            valueStoreTemplate.valueRule,
+            valueStoreTemplate.updatedDate,
+            valueStoreTemplate.userId,
+            valueStoreTemplate.valueStoreTemplateId
+        ],
+        "SELECT * FROM ValueStoreTemplates WHERE userId = ? AND valueStoreTemplateId = ?",
+        [valueStoreTemplate.userId, valueStoreTemplate.valueStoreTemplateId]
+    );
+}
 
-// const valueStoreTemplateSchema: jsonschema.Schema = {
-//     type: "object",
-//     properties: {
-//         valueStoreTemplateId: {
-//             type: "string",
-//             maxLength: 255,
-//             minLength: 1
-//         }
-//     },
-//     required: ["valueStoreTemplateId"] // excluded "createdDate", "updatedDate" for same reason
-// };
+
+async function deleteValueStoreTemplate(userId: string, valueStoreTemplateId: string): Promise<{ success: true }> {
+    await withDbConnectionDeleteOne(
+        "DELETE FROM ValueStoreTemplates WHERE userId = ? AND valueStoreTemplateId = ?",
+        [userId, valueStoreTemplateId]
+    );
+    return {success: true};
+}
+
 const valueStoreTemplateSchema: jsonschema.Schema = {
     type: "object",
     properties: {
