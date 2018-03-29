@@ -41,7 +41,7 @@ CREATE TABLE rothschild.ValueStoreTemplates (
 CREATE TABLE rothschild.ValueStores (
   userId VARCHAR(255) NOT NULL,
   valueStoreId VARCHAR(255) NOT NULL,
-  valueType VARCHAR(255) NOT NULL,
+  valueStoreType VARCHAR(255) NOT NULL,
   value INT NOT NULL,
   currency VARCHAR(16) NOT NULL,
   active BOOL NOT NULL,
@@ -51,7 +51,7 @@ CREATE TABLE rothschild.ValueStores (
   valueRule TEXT,
   createdDate DATETIME NOT NULL,
   updatedDate DATETIME NOT NULL,
-  startDate DATETIME NOT NULL,
+  startDate DATETIME,
   endDate DATETIME,
   usesLeft INT,
   valueStoreTemplateId VARCHAR(255),
