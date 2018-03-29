@@ -1,11 +1,8 @@
 import * as cassava from "cassava";
+import {RestError, ValidateBodyOptions} from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import {
-    withDbConnection, withDbConnectionDeleteOne, withDbConnectionSelectOne, withDbConnectionUpdateAndFetchOne,
-    withDbConnectionUpdateOne,
-    withDbReadConnection
-} from "../../dbUtils";
+import {withDbConnection, withDbConnectionSelectOne, withDbReadConnection} from "../../dbUtils";
 import {SqlSelectResponse} from "../../sqlResponses";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
 import {ValueStoreTemplate} from "../../model/ValueStoreTemplate";
@@ -21,14 +18,33 @@ export function installValueStoreTemplatesRest(router: cassava.Router): void {
             };
         });
 
+    function validateBody(body: any, schema: jsonschema.Schema, options?: ValidateBodyOptions): void {
+        const result = jsonschema.validate(body, schema, options);
+        if (result.errors.length) {
+            console.log("ERROR OCCURED: " + JSON.stringify(result.errors));
+            const error = new RestError(
+                options && typeof options.httpStatusCode === "number" ? options.httpStatusCode : 422,
+                `The body has ${result.errors.length} validation error(s): ${result.errors.map(e => e.toString()).join(", ")}.`
+            );
+            console.log("error.message = " + error.message);
+            throw error;
+        }
+    }
+
     router.route("/v2/valueStoreTemplates")
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
-            evt.validateBody(valueStoreTemplateSchema);
-
             const now = new Date();
+            console.log("before validate");
+            try {
+                // evt.validateBody(valueStoreTemplateSchema);
+                validateBody(evt.body, valueStoreTemplateSchema);
+            } catch (e) {
+                console.log("WHOLE ERROR " + e);
+            }
+            console.log("after validate");
             now.setMilliseconds(0);
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
@@ -95,7 +111,7 @@ export function installValueStoreTemplatesRest(router: cassava.Router): void {
 
 }
 
-async function getValueStoreTemplates(userId: string, pagination: PaginationParams): Promise<{valueStoreTemplates: ValueStoreTemplate[], pagination: Pagination}> {
+async function getValueStoreTemplates(userId: string, pagination: PaginationParams): Promise<{ valueStoreTemplates: ValueStoreTemplate[], pagination: Pagination }> {
     return withDbReadConnection(async conn => {
         const res: SqlSelectResponse<ValueStoreTemplate> = await conn.query(
             "SELECT * FROM ValueStoreTemplates WHERE userId = ? ORDER BY createdDate DESC LIMIT ?,?",
@@ -185,14 +201,20 @@ async function getValueStoreTemplate(userId: string, valueStoreTemplateId: strin
 //     return {success: true};
 // }
 
+// const valueStoreTemplateSchema: jsonschema.Schema = {
+//     type: "object",
+//     properties: {
+//         valueStoreTemplateId: {
+//             type: "string",
+//             maxLength: 255,
+//             minLength: 1
+//         }
+//     },
+//     required: ["valueStoreTemplateId"] // excluded "createdDate", "updatedDate" for same reason
+// };
 const valueStoreTemplateSchema: jsonschema.Schema = {
     type: "object",
     properties: {
-        userId: {
-            type: "string",
-            maxLength: 255,
-            minLength: 1
-        },
         valueStoreTemplateId: {
             type: "string",
             maxLength: 255,
@@ -200,7 +222,7 @@ const valueStoreTemplateSchema: jsonschema.Schema = {
         },
         valueStoreType: {
             type: "string",
-            enum: ["GIFTCARD", "ACCOUNT_CREDIT", "PROMOTION"]
+            enum: ["PREPAID", "PERCENT_OFF", "UNIT"]
         },
         value: {
             type: ["integer", "null"],
@@ -218,14 +240,15 @@ const valueStoreTemplateSchema: jsonschema.Schema = {
             type: ["string"],
             maxLength: 16
         },
-        createdDate: {
-            type: ["string"],
-            format: "date-time"
-        },
-        updatedDate: {
-            type: ["string"],
-            format: "date-time"
-        },
+        // todo - excluded this because this is set after request is verified by schema
+        // createdDate: {
+        //     type: ["string"],
+        //     format: "date-time"
+        // },
+        // updatedDate: {
+        //     type: ["string"],
+        //     format: "date-time"
+        // },
         startDate: {
             type: ["string", "null"],
             format: "date-time"
@@ -276,5 +299,5 @@ const valueStoreTemplateSchema: jsonschema.Schema = {
             ]
         }
     },
-    required: ["userId","valueStoreTemplateId", "currency", "createdDate", "updatedDate"]
+    required: ["valueStoreTemplateId", "currency"] // excluded "createdDate", "updatedDate" for same reason
 };
