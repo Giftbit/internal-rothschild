@@ -4,7 +4,6 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import * as chai from "chai";
 import {ValueStoreTemplate} from "../../model/ValueStoreTemplate";
-import {ValueStoreType} from "../../model/ValueStore";
 
 describe("/v2/valueStoreTemplate/", () => {
 
@@ -49,13 +48,14 @@ describe("/v2/valueStoreTemplate/", () => {
         }));
         chai.assert.equal(resp.statusCode, 201);
 
+
         const parsedBody = JSON.parse(resp.body);
         chai.assert.equal(parsedBody.userId, testUtils.testUserA.userId);
         chai.assert.equal(parsedBody.valueStoreTemplateId, valueStoreTemplate1.valueStoreTemplateId);
         chai.assert.equal(parsedBody.currency, valueStoreTemplate1.currency);
         chai.assert.equal(parsedBody.valueStoreType, valueStoreTemplate1.valueStoreType);
         chai.assert.isNotNull(parsedBody.createdDate);
-        chai.assert.isNotNull(parsedBody.update());
+        chai.assert.isNotNull(parsedBody.updatedDate);
         valueStoreTemplate1 = parsedBody;
     });
 

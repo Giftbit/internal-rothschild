@@ -1,4 +1,4 @@
-import {Rule, ValueStoreType} from "./ValueStore";
+import {Rule} from "./ValueStore";
 
 export interface ValueStoreTemplate {
     valueStoreTemplateId: string;
@@ -12,7 +12,7 @@ export interface ValueStoreTemplate {
     maxInitialValue?: number;
     validityDurationDays?: number;
     uses?: number;
-    valueStoreType: ValueStoreType;
+    valueStoreType: string;
     valueStoreUses?: number;
     redemptionRule?: Rule;
     valueRule?: Rule;

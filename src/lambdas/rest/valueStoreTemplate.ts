@@ -137,7 +137,7 @@ async function createValueStoreTemplate(valueStoreTemplate: ValueStoreTemplate):
                 "userId, " +
                 "valueStoreTemplateId, " +
                 "valueStoreType, " +
-                "value, email, " +
+                "initialValue, " +
                 "minInitialValue, " +
                 "maxInitialValue, " +
                 "currency, " +
