@@ -1,16 +1,35 @@
 export interface Transaction {
     transactionId: string;
-    userId: string;
-    createdDate: Date;
-
-    valueStoreId: string;
-    orderId: string;
-    value: number;
-    type: "FUND" | "DRAWDOWN" | "DISCOUNT";
-    ruleJustification: RuleJustification; // todo - this needs more though to indicate why a transaction was created given a cart and ValueStore
+    transactionType: "credit" | "debit" | "order" | "transfer" | "pending_create" | "pending_capture" | "pending_void";
+    cart?: any; // includes item-level and cart-level explanation of how value was applied
+    currency: string;
+    steps: TransactionStep[];
 }
 
-export interface RuleJustification {
-    appliedTo: "ORDER" | "ITEM";
-    productsAppliedTo: string[]
+export type TransactionStep = LightrailTransactionStep | StripeTransactionStep | InternalTransactionStep;
+
+export interface LightrailTransactionStep {
+    rail: "lightrail";
+    valueStoreId: string;
+    valueStoreType: string;
+    customerId?: string;
+    codeLastFour?: string;
+    valueBefore: number;
+    valueAfter: number;
+    valueChange: number;
+}
+
+export interface StripeTransactionStep {
+    rail: "stripe";
+    chargeId: string;
+    amount: number;
+    charge: any; // whole JSON from https://stripe.com/docs/api#charge_object
+}
+
+export interface InternalTransactionStep {
+    rail: "internal";
+    id: string;
+    valueBefore: number;
+    valueAfter: number;
+    valueChange: number;
 }
