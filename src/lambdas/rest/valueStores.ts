@@ -2,8 +2,7 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
-import {SqlSelectResponse} from "../../sqlResponses";
-import {withDbConnection, withDbReadConnection} from "../../dbUtils";
+import {getKnex, getKnexRead, withDbConnection, withDbReadConnection} from "../../dbUtils";
 import {ValueStore} from "../../model/ValueStore";
 import {Customer} from "../../model/Customer";
 
@@ -14,7 +13,7 @@ export function installValueStoresRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
             return {
-                body: await getValueStores(auth.giftbitUserId, getPaginationParams(evt))
+                body: await getValueStores(auth, getPaginationParams(evt))
             };
         });
 
@@ -29,7 +28,7 @@ export function installValueStoresRest(router: cassava.Router): void {
             now.setMilliseconds(0);
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
-                body: await createValueStore({
+                body: await createValueStore(auth, {
                     userId: auth.giftbitUserId,
                     valueStoreId: evt.body.valueStoreId,
                     valueStoreType: evt.body.valueStoreType,
@@ -50,40 +49,46 @@ export function installValueStoresRest(router: cassava.Router): void {
         });
 }
 
-async function getValueStores(userId: string, pagination: PaginationParams): Promise<{valueStores: ValueStore[], pagination: Pagination}> {
-    return withDbReadConnection(async conn => {
-        const res: SqlSelectResponse<ValueStore> = await conn.query(
-            "SELECT * FROM ValueStores WHERE userId = ? ORDER BY valueStoreId LIMIT ?,?",
-            [userId, pagination.offset, pagination.limit]
-        );
-        return {
-            valueStores: res,
-            pagination: {
-                count: res.length,
-                limit: pagination.limit,
-                maxLimit: pagination.maxLimit,
-                offset: pagination.offset
-            }
-        };
-    });
+export async function getValueStores(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{valueStores: ValueStore[], pagination: Pagination}> {
+    auth.requireIds("giftbitUserId");
+
+    const knex = await getKnexRead();
+    const res = await knex("ValueStores")
+        .where({
+            userId: auth.giftbitUserId
+        })
+        .select()
+        .orderBy("valueStoreId")
+        .limit(pagination.limit)
+        .offset(pagination.offset);
+    return {
+        valueStores: res,
+        pagination: {
+            count: res.length,
+            limit: pagination.limit,
+            maxLimit: pagination.maxLimit,
+            offset: pagination.offset
+        }
+    };
 }
 
-async function createValueStore(valueStore: ValueStore): Promise<ValueStore> {
-    return withDbConnection<ValueStore>(async conn => {
-        try {
-            // This feels like a lot of work.  :/
-            await conn.query(
-                "INSERT INTO ValueStores (userId, valueStoreId, valueStoreType, currency, createdDate, updatedDate, value, active,expired, frozen, redemptionRule, valueRule, usesLeft, startDate, endDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [valueStore.userId, valueStore.valueStoreId, valueStore.valueStoreType, valueStore.currency, valueStore.createdDate, valueStore.updatedDate, valueStore.value, valueStore.active, valueStore.expired, valueStore.frozen, JSON.stringify(valueStore.redemptionRule), JSON.stringify(valueStore.valueRule), valueStore.usesLeft, valueStore.startDate, valueStore.endDate]
-            );
-            return valueStore;
-        } catch (err) {
-            if (err.code === "ER_DUP_ENTRY") {
-                throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `ValueStore with valueStoreId '${valueStore.valueStoreId}' already exists.`);
-            }
-            throw err;
+async function createValueStore(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStore: ValueStore): Promise<ValueStore> {
+    auth.requireIds("giftbitUserId");
+    if (auth.giftbitUserId !== valueStore.userId) {
+        throw new Error("valueStore.userId does not match auth.giftbitUserId");
+    }
+
+    try {
+        const knex = await getKnex();
+        const res = await knex("ValueStores")
+            .insert(valueStore);
+        return valueStore;
+    } catch (err) {
+        if (err.code === "ER_DUP_ENTRY") {
+            throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `ValueStore with valueStoreId '${valueStore.valueStoreId}' already exists.`);
         }
-    });
+        throw err;
+    }
 }
 
 const valueStoreSchema: jsonschema.Schema = {

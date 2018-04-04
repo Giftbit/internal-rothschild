@@ -213,6 +213,16 @@ describe("/v2/customers/", () => {
         chai.assert.deepEqual(JSON.parse(getResp.body), customer1);
     });
 
+    it("409s on creating a duplicate customer", async () => {
+        const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/customers", "POST", {
+            headers: {
+                Authorization: `Bearer ${testUtils.testUserA.jwt}`
+            },
+            body: JSON.stringify(customer1)
+        }));
+        chai.assert.equal(resp.statusCode, 409);
+    });
+
     it("404s on getting invalid customerId", async () => {
         const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent(`/v2/customers/iamnotavalidcustomerid`, "GET", {
             headers: {

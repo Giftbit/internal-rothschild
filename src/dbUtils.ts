@@ -16,6 +16,7 @@ export async function getDbCredentials(): Promise<{username: string, password: s
     }
 
     if (isTestEnv && process.env["DB_PASSWORD"]) {
+        // Passing in the DB password through plaintext is only acceptable in testing.
         return dbCredentials = {
             username: process.env["DB_USERNAME"],
             password: process.env["DB_PASSWORD"]
@@ -58,6 +59,7 @@ export async function getKnex(): Promise<knex> {
     checkForEnvVar("DB_ENDPOINT", "DB_PORT");
 
     const credentials = await getDbCredentials();
+    !isTestEnv && console.log(`connecting to ${process.env["DB_ENDPOINT"]}:${process.env["DB_PORT"]}`);
     return knexClient = knex({
         client: "mysql",
         connection: {
@@ -83,6 +85,7 @@ export async function getKnexRead(): Promise<knex> {
     checkForEnvVar("DB_READ_ENDPOINT", "DB_PORT");
 
     const credentials = await getDbCredentials();
+    !isTestEnv && console.log(`connecting to ${process.env["DB_READ_ENDPOINT"]}:${process.env["DB_PORT"]}`);
     return knexReadClient = knex({
         client: "mysql",
         connection: {
