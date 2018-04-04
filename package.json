@@ -6,7 +6,7 @@
     "build": "webpack",
     "clean": "rimraf ./dist",
     "lint": "tslint --project tsconfig.json",
-    "test": "npm run test:startdb; TEST_ENV=true DB_USERNAME=root DB_PASSWORD=testpass DB_PORT=3306 DB_ENDPOINT=localhost DB_READ_ENDPOINT=localhost mocha --recursive --throw-deprecation --require ts-node/register \"src/**/*.test.ts\"; npm run test:stopdb",
+    "test": "npm run test:startdb; TEST_ENV=true DB_USERNAME=root DB_PASSWORD=testpass DB_PORT=3306 DB_ENDPOINT=localhost DB_READ_ENDPOINT=localhost mocha --recursive --throw-deprecation --require ts-node/register --exit \"src/**/*.test.ts\"; npm run test:stopdb",
     "test:startdb": "docker start rothschild-test-mysql || docker run --name rothschild-test-mysql -e MYSQL_ROOT_PASSWORD=testpass -p 3306:3306 -d mysql:5.6",
     "test:stopdb": "docker stop rothschild-test-mysql"
   },
@@ -25,6 +25,7 @@
   "dependencies": {
     "@types/aws-lambda": "0.0.34",
     "@types/chai": "^4.1.2",
+    "@types/knex": "^0.14.9",
     "@types/mocha": "^5.0.0",
     "@types/node": "^9.6.0",
     "aws-sdk": "^2.213.1",
@@ -40,6 +41,7 @@
     "giftbit-cassava-routes": "git+ssh://git@github.com/Giftbit/giftbit-cassava-routes.git#semver:^5.5.1",
     "giftbit-lambda-metricslib": "git+ssh://git@github.com/Giftbit/giftbit-lambda-metricslib.git#semver:^2.0.1",
     "json-loader": "^0.5.7",
+    "knex": "^0.14.4",
     "mocha": "^5.0.5",
     "promise-mysql": "^3.2.1",
     "raw-loader": "^0.5.1",

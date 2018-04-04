@@ -1,10 +1,14 @@
 import * as aws from "aws-sdk";
+import * as knex from "knex";
 import * as mysql from "promise-mysql";
 import {SqlDeleteResponse, SqlSelectResponse, SqlUpdateResponse} from "./sqlResponses";
 import * as cassava from "cassava";
 
 let dbCredentials: {username: string, password: string} = null;
 const isTestEnv = !!process.env["TEST_ENV"];
+
+let knexClient: knex = null;
+let knexReadClient: knex = null;
 
 export async function getDbCredentials(): Promise<{username: string, password: string}> {
     if (dbCredentials) {
@@ -40,6 +44,60 @@ export async function getDbCredentials(): Promise<{username: string, password: s
         username: process.env["DB_USERNAME"],
         password: resp.Parameter.Value
     };
+}
+
+/**
+ * Get a Knex instance.  This instance holds a connection pool that releases
+ * connections when the process is shut down.
+ */
+export async function getKnex(): Promise<knex> {
+    if (knexClient) {
+        return knexClient;
+    }
+
+    checkForEnvVar("DB_ENDPOINT", "DB_PORT");
+
+    const credentials = await getDbCredentials();
+    return knexClient = knex({
+        client: "mysql",
+        connection: {
+            host: process.env["DB_ENDPOINT"],
+            port: +process.env["DB_PORT"],
+            user: credentials.username,
+            password: credentials.password,
+            database: "rothschild",
+            timezone: "Z"
+        },
+        pool: {
+            min: 1,
+            max: 1
+        }
+    });
+}
+
+export async function getKnexRead(): Promise<knex> {
+    if (knexReadClient) {
+        return knexReadClient;
+    }
+
+    checkForEnvVar("DB_READ_ENDPOINT", "DB_PORT");
+
+    const credentials = await getDbCredentials();
+    return knexReadClient = knex({
+        client: "mysql",
+        connection: {
+            host: process.env["DB_READ_ENDPOINT"],
+            port: +process.env["DB_PORT"],
+            user: credentials.username,
+            password: credentials.password,
+            database: "rothschild",
+            timezone: "Z"
+        },
+        pool: {
+            min: 1,
+            max: 1
+        }
+    });
 }
 
 export async function getDbConnection(): Promise<mysql.Connection> {
