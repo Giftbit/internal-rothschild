@@ -1,8 +1,10 @@
 export interface OrderRequest {
     transactionId: string;
-    cart: any;
+    cart: Cart;
     currency: string;
     sources: TransactionParty[];
+    simulate?: boolean;
+    allowRemainder?: boolean;
 }
 
 export interface CreditRequest {
@@ -19,6 +21,8 @@ export interface DebitRequest {
     currency: string;
 }
 
+export type Cart = any;
+
 export type TransferRequest = CreditRequest & DebitRequest;
 
 export type TransactionParty = LightrailTransactionParty | StripeTransactionParty | InternalTransactionParty;
@@ -33,6 +37,8 @@ export interface LightrailTransactionParty {
 export interface StripeTransactionParty {
     rail: "stripe";
     token: string;
+    maxAmount?: number;
+    priority?: number;
 }
 
 export interface InternalTransactionParty {

@@ -1,12 +1,13 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import {
-    InternalTransactionParty, LightrailTransactionParty, OrderRequest, StripeTransactionParty,
-    TransactionParty
-} from "../../../model/TransactionRequest";
-import {ValueStore} from "../../../model/ValueStore";
-import {getKnex, getKnexRead} from "../../../dbUtils";
+import {compareTransactionPlanSteps} from "./compareTransactionPlanSteps";
+import {OrderRequest} from "../../../model/TransactionRequest";
+import {resolveTransactionParties} from "./resolveTransactionParties";
+import {buildOrderTransactionPlan} from "./buildOrderTransactionPlan";
+import {Transaction} from "../../../model/Transaction";
+import {transactionPlanToTransaction} from "./transactionPlanToTransaction";
+import {executeTransactionPlan} from "./executeTransactionPlan";
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions/order")
@@ -22,52 +23,19 @@ export function installTransactionsRest(router: cassava.Router): void {
         });
 }
 
-async function createOrder(auth: giftbitRoutes.jwtauth.AuthorizationBadge, order: OrderRequest): Promise<any> {
-    const parties = await resolveParties(auth, order.sources);
-    // build transaction plan
-    // run transaction plan
-}
-
-async function resolveParties(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[]): Promise<{lightrail: ValueStore[], internal: InternalTransactionParty[], stripe: StripeTransactionParty[]}> {
-    const lightrailValueStoreIds = parties.filter(p => p.rail === "lightrail" && p.valueStoreId).map(p => (p as LightrailTransactionParty).valueStoreId);
-    const lightrailCodes = parties.filter(p => p.rail === "lightrail" && p.code).map(p => (p as LightrailTransactionParty).code);
-    const lightrailCustomerIds = parties.filter(p => p.rail === "lightrail" && p.customerId).map(p => (p as LightrailTransactionParty).customerId);
-
-    let lightrail: ValueStore[] = [];
-    if (lightrailValueStoreIds.length || lightrailCodes.length || lightrailCustomerIds.length) {
-        const knex = await getKnexRead();
-        lightrail = await knex("ValueStores")
-            .where({userId: auth.giftbitUserId})
-            .andWhere(function () {
-                // This is a fairly advanced subquery where I'm doing things conditionally.
-                let query = this;
-                if (lightrailValueStoreIds.length) {
-                    query = query.orWhereIn("valueStoreId", lightrailValueStoreIds);
-                }
-                if (lightrailCodes.length) {
-                    // TODO join on value store access
-                    throw new cassava.RestError(500, "lightrail code isn't supported yet");
-                }
-                if (lightrailCustomerIds.length) {
-                    // TODO join on value store access
-                    throw new cassava.RestError(500, "lightrail customerId isn't supported yet");
-                }
-                return query;
-            })
-            .select();
+async function createOrder(auth: giftbitRoutes.jwtauth.AuthorizationBadge, order: OrderRequest): Promise<Transaction> {
+    const steps = await resolveTransactionParties(auth, order.sources);
+    steps.sort(compareTransactionPlanSteps);
+    const plan = buildOrderTransactionPlan(order, steps);
+    if (plan.remainder && !order.allowRemainder) {
+        throw new cassava.RestError();      // TODO fill in the right values for an NSF error
+    }
+    if (order.simulate) {
+        return transactionPlanToTransaction(plan);
     }
 
-    // Internal doesn't need any further processing.
-    const internal = parties.filter(p => p.rail === "internal") as InternalTransactionParty[];
-
-    // I don't think Stripe needs more processing but if it did that would happen here.
-    const stripe = parties.filter(p => p.rail === "stripe") as StripeTransactionParty[];
-
-    return {
-        lightrail,
-        internal,
-        stripe
-    };
+    await executeTransactionPlan(plan);
+    return transactionPlanToTransaction(plan);
 }
 
 const lightrailPartySchema: jsonschema.Schema = {
@@ -166,6 +134,12 @@ const orderSchema: jsonschema.Schema = {
                     internalPartySchema
                 ]
             }
+        },
+        simulate: {
+            type: "boolean"
+        },
+        allowRemainder: {
+            type: "boolean"
         }
     },
     required: ["transactionId", "cart", "currency"]
