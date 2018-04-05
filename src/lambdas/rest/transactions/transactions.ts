@@ -1,7 +1,12 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import {OrderRequest, TransactionParty} from "../../../model/TransactionRequest";
+import {
+    InternalTransactionParty, LightrailTransactionParty, OrderRequest, StripeTransactionParty,
+    TransactionParty
+} from "../../../model/TransactionRequest";
+import {ValueStore} from "../../../model/ValueStore";
+import {getKnex, getKnexRead} from "../../../dbUtils";
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions/order")
@@ -12,43 +17,57 @@ export function installTransactionsRest(router: cassava.Router): void {
             evt.validateBody(orderSchema);
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
-                body: await createOrder(auth.giftbitUserId, evt.body)
+                body: await createOrder(auth, evt.body)
             };
         });
 }
 
-async function createOrder(userId: string, order: OrderRequest): Promise<any> {
-    const parties = await resolveParties(order.sources);
+async function createOrder(auth: giftbitRoutes.jwtauth.AuthorizationBadge, order: OrderRequest): Promise<any> {
+    const parties = await resolveParties(auth, order.sources);
     // build transaction plan
     // run transaction plan
 }
 
-async function resolveParties(parties: TransactionParty[]): Promise<TransactionParty[]> {
-    const resolvedParties: TransactionParty[] = [];
-    for (const party of parties) {
-        switch (party.rail) {
-            case "lightrail":
-                if (party.customerId) {
-                    throw new cassava.RestError(500, "lightrail customerId isn't supported yet");
-                    // TODO look up in value store access
-                } else if (party.code) {
-                    throw new cassava.RestError(500, "lightrail code isn't supported yet");
-                    // TODO look up in value store access
-                } else if (party.valueStoreId) {
-                    resolvedParties.push(party);
-                } else {
-                    throw new Error(`Unhandled lightrail transaction party: ${JSON.stringify(party)}`);
+async function resolveParties(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[]): Promise<{lightrail: ValueStore[], internal: InternalTransactionParty[], stripe: StripeTransactionParty[]}> {
+    const lightrailValueStoreIds = parties.filter(p => p.rail === "lightrail" && p.valueStoreId).map(p => (p as LightrailTransactionParty).valueStoreId);
+    const lightrailCodes = parties.filter(p => p.rail === "lightrail" && p.code).map(p => (p as LightrailTransactionParty).code);
+    const lightrailCustomerIds = parties.filter(p => p.rail === "lightrail" && p.customerId).map(p => (p as LightrailTransactionParty).customerId);
+
+    let lightrail: ValueStore[] = [];
+    if (lightrailValueStoreIds.length || lightrailCodes.length || lightrailCustomerIds.length) {
+        const knex = await getKnexRead();
+        lightrail = await knex("ValueStores")
+            .where({userId: auth.giftbitUserId})
+            .andWhere(function () {
+                // This is a fairly advanced subquery where I'm doing things conditionally.
+                let query = this;
+                if (lightrailValueStoreIds.length) {
+                    query = query.orWhereIn("valueStoreId", lightrailValueStoreIds);
                 }
-                break;
-            case "stripe":
-                resolvedParties.push(party);
-                break;
-            case "internal":
-                resolvedParties.push(party);
-                break;
-        }
+                if (lightrailCodes.length) {
+                    // TODO join on value store access
+                    throw new cassava.RestError(500, "lightrail code isn't supported yet");
+                }
+                if (lightrailCustomerIds.length) {
+                    // TODO join on value store access
+                    throw new cassava.RestError(500, "lightrail customerId isn't supported yet");
+                }
+                return query;
+            })
+            .select();
     }
-    return resolvedParties;
+
+    // Internal doesn't need any further processing.
+    const internal = parties.filter(p => p.rail === "internal") as InternalTransactionParty[];
+
+    // I don't think Stripe needs more processing but if it did that would happen here.
+    const stripe = parties.filter(p => p.rail === "stripe") as StripeTransactionParty[];
+
+    return {
+        lightrail,
+        internal,
+        stripe
+    };
 }
 
 const lightrailPartySchema: jsonschema.Schema = {
