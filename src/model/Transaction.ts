@@ -1,3 +1,5 @@
+import * as stripe from "stripe";
+
 export interface Transaction {
     transactionId: string;
     transactionType: TransactionType;
@@ -26,9 +28,9 @@ export interface LightrailTransactionStep {
 
 export interface StripeTransactionStep {
     rail: "stripe";
-    chargeId: string;
     amount: number;
-    charge: any; // whole JSON from https://stripe.com/docs/api#charge_object
+    chargeId?: string;
+    charge?: stripe.charges.ICharge;
 }
 
 export interface InternalTransactionStep {

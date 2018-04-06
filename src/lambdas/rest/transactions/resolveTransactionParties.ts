@@ -5,45 +5,19 @@ import {
     TransactionParty
 } from "../../../model/TransactionRequest";
 import {ValueStore} from "../../../model/ValueStore";
-import {getKnex, getKnexRead} from "../../../dbUtils";
+import {getKnexRead} from "../../../dbUtils";
 import {
     InternalTransactionPlanStep, LightrailTransactionPlanStep, StripeTransactionPlanStep,
     TransactionPlanStep
 } from "./TransactionPlan";
+import {QueryBuilder} from "knex";
 
 export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[]): Promise<TransactionPlanStep[]> {
     const lightrailValueStoreIds = parties.filter(p => p.rail === "lightrail" && p.valueStoreId).map(p => (p as LightrailTransactionParty).valueStoreId);
     const lightrailCodes = parties.filter(p => p.rail === "lightrail" && p.code).map(p => (p as LightrailTransactionParty).code);
     const lightrailCustomerIds = parties.filter(p => p.rail === "lightrail" && p.customerId).map(p => (p as LightrailTransactionParty).customerId);
 
-    let lightrailValueStores: ValueStore[] = [];
-    if (lightrailValueStoreIds.length || lightrailCodes.length || lightrailCustomerIds.length) {
-        const knex = await getKnexRead();
-        lightrailValueStores = await knex("ValueStores")
-            .where({
-                userId: auth.giftbitUserId,
-                frozen: false,
-                active: true,
-                expired: false
-            })
-            .andWhere(function () {
-                // This is a fairly advanced subquery where I'm doing things conditionally.
-                let query = this;
-                if (lightrailValueStoreIds.length) {
-                    query = query.orWhereIn("valueStoreId", lightrailValueStoreIds);
-                }
-                if (lightrailCodes.length) {
-                    // TODO join on value store access
-                    throw new cassava.RestError(500, "lightrail code isn't supported yet");
-                }
-                if (lightrailCustomerIds.length) {
-                    // TODO join on value store access
-                    throw new cassava.RestError(500, "lightrail customerId isn't supported yet");
-                }
-                return query;
-            })
-            .select();
-    }
+    const lightrailValueStores = await getLightrailValueStores(auth, lightrailValueStoreIds, lightrailCodes, lightrailCustomerIds);
     const lightrailSteps = lightrailValueStores
         .map((valueStore): LightrailTransactionPlanStep => ({
             rail: "lightrail",
@@ -77,4 +51,68 @@ export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.Auth
     }
 
     return [...lightrailSteps, ...internalSteps, ...stripeSteps];
+}
+
+async function getLightrailValueStores(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStoreIds: string[], codes: string[], customerIds: string[]): Promise<(ValueStore & {codeLastFour: string, customerId: string})[]> {
+    if (!valueStoreIds.length && !codes.length && !customerIds.length) {
+        return [];
+    }
+
+    const knex = await getKnexRead();
+
+    // This is untested but it's approximately right.
+    let query: QueryBuilder;
+
+    if (valueStoreIds.length) {
+        query = knex("ValueStores")
+            .select("ValueStores.*")
+            .select(knex.raw("NULL as codeLastFour, NULL as customerId"))   // need NULL values here so it lines up for the union
+            .where({
+                userId: auth.giftbitUserId,
+                frozen: false,
+                active: true,
+                expired: false
+            })
+            .whereIn("valueStoreId", valueStoreIds);
+    }
+
+    if (codes) {
+        query = query ? query.unionAll(selectByCodes(auth, codes)) : selectByCodes(auth, codes)(knex("ValueStores"));
+    }
+
+    if (customerIds.length) {
+        query = query ? query.unionAll(selectByCustomerIds(auth, customerIds)) : selectByCustomerIds(auth, customerIds)(knex("ValueStores"));
+    }
+
+    return await query;
+}
+
+function selectByCodes(auth: giftbitRoutes.jwtauth.AuthorizationBadge, codes: string[]): (query: QueryBuilder) => QueryBuilder {
+    return query => query.select("ValueStores.*", "ValueStoreAccess.codeLastFour as codeLastFour", "ValueStoreAccess.customerId as customerId")
+        .join("ValueStoreAccess", {
+            "ValueStores.userId": "ValueStoreAccess.userId",
+            "ValueStores.valueStoreId": "ValueStoreAccess.valueStoreId"
+        })
+        .where({
+            userId: auth.giftbitUserId,
+            frozen: false,
+            active: true,
+            expired: false
+        })
+        .whereIn("ValueStoreAccess.code", codes);
+}
+
+function selectByCustomerIds(auth: giftbitRoutes.jwtauth.AuthorizationBadge, customerIds: string[]): (query: QueryBuilder) => QueryBuilder {
+    return query => query.select("ValueStores.*", "ValueStoreAccess.codeLastFour as codeLastFour", "ValueStoreAccess.customerId as customerId")
+        .join("ValueStoreAccess", {
+            "ValueStores.userId": "ValueStoreAccess.userId",
+            "ValueStores.valueStoreId": "ValueStoreAccess.valueStoreId"
+        })
+        .where({
+            userId: auth.giftbitUserId,
+            frozen: false,
+            active: true,
+            expired: false
+        })
+        .whereIn("ValueStoreAccess.customerId", customerIds);
 }

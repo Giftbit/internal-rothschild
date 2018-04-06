@@ -1,3 +1,4 @@
+import * as stripe from "stripe";
 import {ValueStore} from "../../../model/ValueStore";
 import {CartTransaction, TransactionType} from "../../../model/Transaction";
 
@@ -13,7 +14,7 @@ export type TransactionPlanStep = LightrailTransactionPlanStep | StripeTransacti
 
 export interface LightrailTransactionPlanStep {
     rail: "lightrail";
-    valueStore: ValueStore;
+    valueStore: ValueStore & {codeLastFour: string, customerId: string};
     amount: number;
 }
 
@@ -24,6 +25,11 @@ export interface StripeTransactionPlanStep {
     priority: number;
     maxAmount: number | null;
     amount: number;
+
+    /**
+     * Result of creating the charge in Stripe is only set if the plan is executed.
+     */
+    chargeResult?: stripe.charges.ICharge;
 }
 
 export interface InternalTransactionPlanStep {

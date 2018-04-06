@@ -34,8 +34,7 @@ async function createOrder(auth: giftbitRoutes.jwtauth.AuthorizationBadge, order
         return transactionPlanToTransaction(plan);
     }
 
-    await executeTransactionPlan(plan);
-    return transactionPlanToTransaction(plan);
+    return await executeTransactionPlan(plan);
 }
 
 const lightrailPartySchema: jsonschema.Schema = {

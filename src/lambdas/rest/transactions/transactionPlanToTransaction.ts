@@ -36,8 +36,8 @@ function lightrailTransactionPlanStepToTransactionStep(step: LightrailTransactio
         valueStoreId: step.valueStore.valueStoreId,
         valueStoreType: step.valueStore.valueStoreType,
         currency: step.valueStore.currency,
-        customerId: null,   // TODO shoot, this is hard to get from the SQL query
-        codeLastFour: null, // TODO shoot, this is hard to get from the SQL query
+        customerId: step.valueStore.customerId,
+        codeLastFour: step.valueStore.codeLastFour,
         valueBefore: step.valueStore.value,
         valueAfter: step.valueStore.value + step.amount,
         valueChange: step.amount
@@ -45,12 +45,15 @@ function lightrailTransactionPlanStepToTransactionStep(step: LightrailTransactio
 }
 
 function stripeTransactionPlanStepToTransactionStep(step: StripeTransactionPlanStep): StripeTransactionStep {
-    return {
+    const res: StripeTransactionStep = {
         rail: "stripe",
-        chargeId: null, // TODO pull from transaction execution result
         amount: step.amount,
-        charge: null    // TODO pull from transaction execution result
     };
+    if (step.chargeResult) {
+        res.chargeId = step.chargeResult.id;
+        res.charge = step.chargeResult;
+    }
+    return res;
 }
 
 function internalTransactionPlanStepToTransactionStep(step: InternalTransactionPlanStep): InternalTransactionStep {
