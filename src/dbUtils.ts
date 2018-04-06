@@ -3,10 +3,10 @@ import * as mysql from "promise-mysql";
 import {SqlDeleteResponse, SqlSelectResponse, SqlUpdateResponse} from "./sqlResponses";
 import * as cassava from "cassava";
 
-let dbCredentials: {username: string, password: string} = null;
+let dbCredentials: { username: string, password: string } = null;
 const isTestEnv = !!process.env["TEST_ENV"];
 
-export async function getDbCredentials(): Promise<{username: string, password: string}> {
+export async function getDbCredentials(): Promise<{ username: string, password: string }> {
     if (dbCredentials) {
         return dbCredentials;
     }
@@ -104,7 +104,7 @@ export async function withDbReadConnection<T>(fxn: (conn: mysql.Connection) => P
     }
 }
 
-export type SqlValue = string | number | Date;
+export type SqlValue = string | number | Date | any; // added any, otherwise it complains about updating objects like Rule.
 
 export async function withDbConnectionSelectOne<T>(selectQuery: string, values: SqlValue[]): Promise<T> {
     if (!selectQuery || !selectQuery.startsWith("SELECT ")) {
