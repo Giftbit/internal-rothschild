@@ -4,6 +4,7 @@ import * as jsonschema from "jsonschema";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
 import {getKnex, getKnexRead} from "../../dbUtils";
 import {ValueStore} from "../../model/ValueStore";
+import {DbValueStore} from "../../dbmodel/DbValueStore";
 
 export function installValueStoresRest(router: cassava.Router): void {
     router.route("/v2/valueStores")
@@ -28,12 +29,9 @@ export function installValueStoresRest(router: cassava.Router): void {
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
                 body: await createValueStore(auth, {
-                    userId: auth.giftbitUserId,
                     valueStoreId: evt.body.valueStoreId,
                     valueStoreType: evt.body.valueStoreType,
                     currency: evt.body.currency,
-                    createdDate: now,
-                    updatedDate: now,
                     value: evt.body.value != null ? evt.body.value : 0,
                     active: evt.body.active != null ? evt.body.active : true,
                     expired: false,
@@ -42,7 +40,10 @@ export function installValueStoresRest(router: cassava.Router): void {
                     valueRule: evt.body.valueRule || null,
                     usesLeft: evt.body.usesLeft != null ? evt.body.usesLeft : null,
                     startDate: evt.body.startDate != null ? evt.body.startDate : null,
-                    endDate: evt.body.endDate != null ? evt.body.endDate : null
+                    endDate: evt.body.endDate != null ? evt.body.endDate : null,
+                    metadata: evt.body.metadata !== undefined ? evt.body.metadata : null,
+                    createdDate: now,
+                    updatedDate: now
                 })
             };
         });
@@ -62,7 +63,7 @@ export async function getValueStores(auth: giftbitRoutes.jwtauth.AuthorizationBa
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
-    const res = await knex("ValueStores")
+    const res: DbValueStore[] = await knex("ValueStores")
         .where({
             userId: auth.giftbitUserId
         })
@@ -71,7 +72,7 @@ export async function getValueStores(auth: giftbitRoutes.jwtauth.AuthorizationBa
         .limit(pagination.limit)
         .offset(pagination.offset);
     return {
-        valueStores: res,
+        valueStores: res.map(DbValueStore.toValueStore),
         pagination: {
             count: res.length,
             limit: pagination.limit,
@@ -83,14 +84,11 @@ export async function getValueStores(auth: giftbitRoutes.jwtauth.AuthorizationBa
 
 async function createValueStore(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStore: ValueStore): Promise<ValueStore> {
     auth.requireIds("giftbitUserId");
-    if (auth.giftbitUserId !== valueStore.userId) {
-        throw new Error("valueStore.userId does not match auth.giftbitUserId");
-    }
 
     try {
         const knex = await getKnex();
-        const res = await knex("ValueStores")
-            .insert(valueStore);
+        await knex("ValueStores")
+            .insert(ValueStore.toDbValueStore(auth, valueStore));
         return valueStore;
     } catch (err) {
         if (err.code === "ER_DUP_ENTRY") {
@@ -104,7 +102,7 @@ async function getValueStore(auth: giftbitRoutes.jwtauth.AuthorizationBadge, val
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
-    const res = await knex("ValueStores")
+    const res: DbValueStore[] = await knex("ValueStores")
         .select()
         .where({
             userId: auth.giftbitUserId,
@@ -116,7 +114,7 @@ async function getValueStore(auth: giftbitRoutes.jwtauth.AuthorizationBadge, val
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
-    return res[0];
+    return DbValueStore.toValueStore(res[0]);
 }
 
 const valueStoreSchema: jsonschema.Schema = {

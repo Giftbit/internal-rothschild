@@ -4,6 +4,7 @@ import * as jsonschema from "jsonschema";
 import {getKnex, getKnexRead} from "../../dbUtils";
 import {Customer} from "../../model/Customer";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
+import {DbCustomer} from "../../dbmodel/DbCustomer";
 
 export function installCustomersRest(router: cassava.Router): void {
     router.route("/v2/customers")
@@ -28,11 +29,11 @@ export function installCustomersRest(router: cassava.Router): void {
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
                 body: await createCustomer(auth, {
-                    userId: auth.giftbitUserId,
                     customerId: evt.body.customerId,
                     firstName: evt.body.firstName !== undefined ? evt.body.firstName : null,
                     lastName: evt.body.lastName !== undefined ? evt.body.lastName : null,
                     email: evt.body.email !== undefined ? evt.body.email : null,
+                    metadata: evt.body.metadata !== undefined ? evt.body.metadata : null,
                     createdDate: now,
                     updatedDate: now
                 })
@@ -60,11 +61,11 @@ export function installCustomersRest(router: cassava.Router): void {
             now.setMilliseconds(0);
             return {
                 body: await updateCustomer(auth, {
-                    userId: auth.giftbitUserId,
                     customerId: evt.pathParameters.customerId,
                     firstName: evt.body.firstName !== undefined ? evt.body.firstName : null,
                     lastName: evt.body.lastName !== undefined ? evt.body.lastName : null,
                     email: evt.body.email !== undefined ? evt.body.email : null,
+                    metadata: evt.body.metadata !== undefined ? evt.body.metadata : null,
                     updatedDate: now
                 })
             };
@@ -85,7 +86,7 @@ export async function getCustomers(auth: giftbitRoutes.jwtauth.AuthorizationBadg
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
-    const res = await knex("Customers")
+    const res: DbCustomer[] = await knex("Customers")
         .select()
         .where({
             userId: auth.giftbitUserId
@@ -94,7 +95,7 @@ export async function getCustomers(auth: giftbitRoutes.jwtauth.AuthorizationBadg
         .limit(pagination.limit)
         .offset(pagination.offset);
     return {
-        customers: res,
+        customers: res.map(DbCustomer.toCustomer),
         pagination: {
             count: res.length,
             limit: pagination.limit,
@@ -106,14 +107,11 @@ export async function getCustomers(auth: giftbitRoutes.jwtauth.AuthorizationBadg
 
 export async function createCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, customer: Customer): Promise<Customer> {
     auth.requireIds("giftbitUserId");
-    if (auth.giftbitUserId !== customer.userId) {
-        throw new Error("customer.userId does not match auth.giftbitUserId");
-    }
 
     try {
         const knex = await getKnex();
         await knex("Customers")
-            .insert(customer);
+            .insert(Customer.toDbCustomer(auth, customer));
         return customer;
     } catch (err) {
         if (err.code === "ER_DUP_ENTRY") {
@@ -127,7 +125,7 @@ export async function getCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
-    const res = await knex("Customers")
+    const res: DbCustomer[] = await knex("Customers")
         .select()
         .where({
             userId: auth.giftbitUserId,
@@ -139,14 +137,11 @@ export async function getCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
-    return res[0];
+    return DbCustomer.toCustomer(res[0]);
 }
 
 export async function updateCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, customer: Partial<Customer>): Promise<Customer> {
     auth.requireIds("giftbitUserId");
-    if (auth.giftbitUserId !== customer.userId) {
-        throw new Error("customer.userId does not match auth.giftbitUserId");
-    }
 
     const knex = await getKnex();
     const res = await knex("Customers")
@@ -158,7 +153,8 @@ export async function updateCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBa
             firstName: customer.firstName,
             lastName: customer.lastName,
             email: customer.email,
-            updatedDate: customer.updatedDate
+            updatedDate: customer.updatedDate,
+            metadata: JSON.stringify(customer.metadata)
         });
     if (res[0] === 0) {
         throw new cassava.RestError(404);
@@ -207,6 +203,9 @@ const customerSchema: jsonschema.Schema = {
         email: {
             type: ["string", "null"],
             maxLength: 320
+        },
+        metadata: {
+            type: ["object", "null"]
         }
     },
     required: ["customerId"]

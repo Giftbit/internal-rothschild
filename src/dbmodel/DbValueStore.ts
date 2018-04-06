@@ -1,7 +1,7 @@
-import * as giftbitRoutes from "giftbit-cassava-routes";
-import {DbValueStore} from "../dbmodel/DbValueStore";
+import {ValueStore, ValueStoreType} from "../model/ValueStore";
 
-export interface ValueStore {
+export interface DbValueStore {
+    userId: string;
     valueStoreId: string;
     valueStoreType: ValueStoreType;
     currency: string;
@@ -9,27 +9,19 @@ export interface ValueStore {
     active: boolean;
     expired: boolean;
     frozen: boolean;
-    redemptionRule: Rule | null;
-    valueRule: Rule | null;
+    redemptionRule: string;
+    valueRule: string;
     usesLeft: number | null;
     startDate: Date | null;
     endDate: Date | null;
-    metadata: object | null;
+    metadata: string;
     createdDate: Date;
     updatedDate: Date;
 }
 
-export type ValueStoreType = "GIFTCARD" | "ACCOUNT_CREDIT" | "PROMOTION";
-
-export interface Rule {
-    rule: string;
-    explanation: string;
-}
-
-export namespace ValueStore {
-    export function toDbValueStore(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: ValueStore): DbValueStore {
+export namespace DbValueStore {
+    export function toValueStore(v: DbValueStore): ValueStore {
         return {
-            userId: auth.giftbitUserId,
             valueStoreId: v.valueStoreId,
             valueStoreType: v.valueStoreType,
             currency: v.currency,
@@ -37,14 +29,14 @@ export namespace ValueStore {
             active: v.active,
             expired: v.expired,
             frozen: v.frozen,
-            redemptionRule: JSON.stringify(v.redemptionRule),
-            valueRule: JSON.stringify(v.valueRule),
+            redemptionRule: JSON.parse(v.redemptionRule),
+            valueRule: JSON.parse(v.valueRule),
             usesLeft: v.usesLeft,
             startDate: v.startDate,
             endDate: v.endDate,
-            metadata: JSON.stringify(v.metadata),
+            metadata: JSON.parse(v.metadata),
             createdDate: v.createdDate,
             updatedDate: v.updatedDate
-        };
+        }
     }
 }

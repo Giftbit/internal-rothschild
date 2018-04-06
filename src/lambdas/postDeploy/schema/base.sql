@@ -11,9 +11,10 @@ CREATE TABLE rothschild.SchemaChanges (
 CREATE TABLE rothschild.Customers (
   userId VARCHAR(255) NOT NULL,
   customerId VARCHAR(255) NOT NULL,
-  email VARCHAR(320),
   firstName NVARCHAR(255),
   lastName NVARCHAR(255),
+  email VARCHAR(320),
+  metadata TEXT,
   createdDate DATETIME NOT NULL,
   updatedDate DATETIME NOT NULL,
   PRIMARY KEY (userId, customerId)
@@ -47,12 +48,13 @@ CREATE TABLE rothschild.ValueStores (
   frozen BOOL NOT NULL,
   redemptionRule TEXT,
   valueRule TEXT,
-  createdDate DATETIME NOT NULL,
-  updatedDate DATETIME NOT NULL,
   startDate DATETIME,
   endDate DATETIME,
   usesLeft INT,
   valueStoreTemplateId VARCHAR(255),
+  metadata TEXT,
+  createdDate DATETIME NOT NULL,
+  updatedDate DATETIME NOT NULL,
   PRIMARY KEY (userId, valueStoreId),
   CONSTRAINT valueStores_fk0 FOREIGN KEY (userId, valueStoreTemplateId) REFERENCES rothschild.ValueStoreTemplates(userId, valueStoreTemplateId)
 );

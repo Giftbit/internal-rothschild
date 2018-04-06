@@ -49,7 +49,6 @@ describe("/v2/valueStores/", () => {
         chai.assert.equal(resp.statusCode, 201, `body=${resp.body}`);
 
         const parsedBody = JSON.parse(resp.body);
-        chai.assert.equal(parsedBody.userId, testUtils.testUserA.userId);
         chai.assert.equal(parsedBody.valueStoreId, valueStore1.valueStoreId);
         chai.assert.equal(parsedBody.valueStoreType, valueStore1.valueStoreType);
         chai.assert.equal(parsedBody.currency, valueStore1.currency);
