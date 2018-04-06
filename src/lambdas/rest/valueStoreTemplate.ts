@@ -2,16 +2,9 @@ import * as cassava from "cassava";
 import {RestError, ValidateBodyOptions} from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import {
-    withDbConnection,
-    withDbConnectionDeleteOne,
-    withDbConnectionSelectOne,
-    withDbConnectionUpdateAndFetchOne,
-    withDbReadConnection
-} from "../../dbUtils";
-import {SqlSelectResponse} from "../../sqlResponses";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
 import {ValueStoreTemplate} from "../../model/ValueStoreTemplate";
+import {getKnex, getKnexRead} from "../../dbUtils";
 
 export function installValueStoreTemplatesRest(router: cassava.Router): void {
     router.route("/v2/valueStoreTemplates")
@@ -126,121 +119,103 @@ export function installValueStoreTemplatesRest(router: cassava.Router): void {
 }
 
 async function getValueStoreTemplates(userId: string, pagination: PaginationParams): Promise<{ valueStoreTemplates: ValueStoreTemplate[], pagination: Pagination }> {
-    return withDbReadConnection(async conn => {
-        const res: SqlSelectResponse<ValueStoreTemplate> = await conn.query(
-            "SELECT * FROM ValueStoreTemplates WHERE userId = ? ORDER BY createdDate DESC LIMIT ?,?",
-            [userId, pagination.offset, pagination.limit]
-        );
-        return {
-            valueStoreTemplates: res,
-            pagination: {
-                count: res.length,
-                limit: pagination.limit,
-                maxLimit: pagination.maxLimit,
-                offset: pagination.offset
-            }
-        };
-    });
+    const knex = await getKnexRead();
+    const res = await knex("ValueStoreTemplates")
+        .select()
+        .where({
+            userId
+        })
+        .orderBy("customerId")
+        .limit(pagination.limit)
+        .offset(pagination.offset);
+
+    return {
+        valueStoreTemplates: res,
+        pagination: {
+            count: res.length,
+            limit: pagination.limit,
+            maxLimit: pagination.maxLimit,
+            offset: pagination.offset
+        }
+    };
 }
 
 async function createValueStoreTemplate(valueStoreTemplate: ValueStoreTemplate): Promise<ValueStoreTemplate> {
-    return withDbConnection<ValueStoreTemplate>(async conn => {
-        try {
-            await conn.query(
-                "INSERT INTO ValueStoreTemplates (" +
-                "userId, " +
-                "valueStoreTemplateId, " +
-                "valueStoreType, " +
-                "initialValue, " +
-                "minInitialValue, " +
-                "maxInitialValue, " +
-                "currency, " +
-                "startDate, " +
-                "endDate, " +
-                "validityDurationDays, " +
-                "uses, " +
-                "redemptionRule, " +
-                "valueRule, " +
-                "createdDate, " +
-                "updatedDate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [
-                    valueStoreTemplate.userId,
-                    valueStoreTemplate.valueStoreTemplateId,
-                    valueStoreTemplate.valueStoreType,
-                    valueStoreTemplate.initialValue,
-                    valueStoreTemplate.minInitialValue,
-                    valueStoreTemplate.maxInitialValue,
-                    valueStoreTemplate.currency,
-                    valueStoreTemplate.startDate,
-                    valueStoreTemplate.endDate,
-                    valueStoreTemplate.validityDurationDays,
-                    valueStoreTemplate.uses,
-                    valueStoreTemplate.redemptionRule,
-                    valueStoreTemplate.valueRule,
-                    valueStoreTemplate.createdDate,
-                    valueStoreTemplate.updatedDate
-                ]
-            );
-            return valueStoreTemplate;
-        } catch (err) {
-            if (err.code === "ER_DUP_ENTRY") {
-                throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `ValueStoreTemplate with valueStoreTemplateId '${valueStoreTemplate.valueStoreTemplateId}' already exists.`);
-            }
-            throw err;
+    try {
+        const knex = await getKnex();
+        await knex("ValueStoreTemplates")
+            .insert(valueStoreTemplate);
+        return valueStoreTemplate;
+    } catch (err) {
+        if (err.code === "ER_DUP_ENTRY") {
+            throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `ValueStoreTemplate with valueStoreTemplateId '${valueStoreTemplate.valueStoreTemplateId}' already exists.`);
         }
-    });
+        throw err;
+    }
 }
 
 async function getValueStoreTemplate(userId: string, valueStoreTemplateId: string): Promise<ValueStoreTemplate> {
-    return withDbConnectionSelectOne<ValueStoreTemplate>(
-        "SELECT * FROM ValueStoreTemplates WHERE userId = ? AND valueStoreTemplateId = ?",
-        [userId, valueStoreTemplateId]
-    );
+    const knex = await getKnexRead();
+    const res = await knex("ValueStoreTemplates")
+        .select()
+        .where({
+            userId,
+            valueStoreTemplateId
+        });
+    if (res.length === 0) {
+        throw new cassava.RestError(404);
+    }
+    if (res.length > 1) {
+        throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
+    }
+    return res[0];
 }
 
 async function updateValueStoreTemplate(valueStoreTemplate: ValueStoreTemplate): Promise<ValueStoreTemplate> {
-    return await withDbConnectionUpdateAndFetchOne<ValueStoreTemplate>(
-        "UPDATE ValueStoreTemplates SET " +
-        "valueStoreType = ?, " +
-        "initialValue = ?, " +
-        "minInitialValue = ?, " +
-        "maxInitialValue = ?, " +
-        "currency = ?, " +
-        "startDate = ?, " +
-        "endDate = ?, " +
-        "validityDurationDays = ?, " +
-        "uses = ?, " +
-        "redemptionRule = ?, " +
-        "valueRule = ?, " +
-        "updatedDate = ? " +
-        "WHERE userId = ? AND valueStoreTemplateId = ?",
-        [
-            valueStoreTemplate.valueStoreType,
-            valueStoreTemplate.initialValue,
-            valueStoreTemplate.minInitialValue,
-            valueStoreTemplate.maxInitialValue,
-            valueStoreTemplate.currency,
-            valueStoreTemplate.startDate,
-            valueStoreTemplate.endDate,
-            valueStoreTemplate.validityDurationDays,
-            valueStoreTemplate.uses,
-            valueStoreTemplate.redemptionRule,
-            valueStoreTemplate.valueRule,
-            valueStoreTemplate.updatedDate,
-            valueStoreTemplate.userId,
-            valueStoreTemplate.valueStoreTemplateId
-        ],
-        "SELECT * FROM ValueStoreTemplates WHERE userId = ? AND valueStoreTemplateId = ?",
-        [valueStoreTemplate.userId, valueStoreTemplate.valueStoreTemplateId]
-    );
+    const knex = await getKnex();
+    const res = await knex("ValueStoreTemplates")
+        .where({
+            userId: valueStoreTemplate.userId,
+            valueStoreTemplateId: valueStoreTemplate.valueStoreTemplateId
+        })
+        .update({
+            valueStoreType: valueStoreTemplate.valueStoreType,
+            initialValue: valueStoreTemplate.initialValue,
+            minInitialValue: valueStoreTemplate.minInitialValue,
+            maxInitialValue: valueStoreTemplate.maxInitialValue,
+            currency: valueStoreTemplate.currency,
+            startDate: valueStoreTemplate.startDate,
+            endDate: valueStoreTemplate.endDate,
+            validityDurationDays: valueStoreTemplate.validityDurationDays,
+            uses: valueStoreTemplate.uses,
+            redemptionRule: valueStoreTemplate.redemptionRule,
+            valueRule: valueStoreTemplate.valueRule,
+            updatedDate: valueStoreTemplate.updatedDate
+        });
+    if (res[0] === 0) {
+        throw new cassava.RestError(404);
+    }
+    if (res[0] > 1) {
+        throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
+    }
+    return getValueStoreTemplate(valueStoreTemplate.userId, valueStoreTemplate.valueStoreTemplateId);
 }
 
 
 async function deleteValueStoreTemplate(userId: string, valueStoreTemplateId: string): Promise<{ success: true }> {
-    await withDbConnectionDeleteOne(
-        "DELETE FROM ValueStoreTemplates WHERE userId = ? AND valueStoreTemplateId = ?",
-        [userId, valueStoreTemplateId]
-    );
+    const knex = await getKnex();
+    const res = await knex("ValueStoreTemplates")
+        .where({
+            userId,
+            valueStoreTemplateId
+        })
+        .delete();
+    if (res[0] === 0) {
+        throw new cassava.RestError(404);
+    }
+    if (res[0] > 1) {
+        throw new Error(`Illegal DELETE query.  Deleted ${res.length} values.`);
+    }
     return {success: true};
 }
 
