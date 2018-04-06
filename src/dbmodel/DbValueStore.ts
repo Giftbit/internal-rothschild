@@ -37,6 +37,6 @@ export namespace DbValueStore {
             metadata: JSON.parse(v.metadata),
             createdDate: v.createdDate,
             updatedDate: v.updatedDate
-        }
+        };
     }
 }
