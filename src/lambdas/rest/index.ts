@@ -4,6 +4,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {installCustomersRest} from "./customers";
 import {installTransactionsRest} from "./transactions/transactions";
 import {installValueStoresRest} from "./valueStores";
+import {installValueStoreTemplatesRest} from "./valueStoreTemplate";
 
 const router = new cassava.Router();
 
@@ -17,5 +18,6 @@ router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({se
 installCustomersRest(router);
 installValueStoresRest(router);
 installTransactionsRest(router);
+installValueStoreTemplatesRest(router);
 
 export const handler = router.getLambdaHandler();
