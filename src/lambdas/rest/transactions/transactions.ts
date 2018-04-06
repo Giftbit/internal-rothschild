@@ -24,7 +24,7 @@ export function installTransactionsRest(router: cassava.Router): void {
 }
 
 async function createOrder(auth: giftbitRoutes.jwtauth.AuthorizationBadge, order: OrderRequest): Promise<Transaction> {
-    const steps = await resolveTransactionParties(auth, order.sources);
+    const steps = await resolveTransactionParties(auth, order.currency, order.sources);
     steps.sort(compareTransactionPlanSteps);
     const plan = buildOrderTransactionPlan(order, steps);
     if (plan.remainder && !order.allowRemainder) {

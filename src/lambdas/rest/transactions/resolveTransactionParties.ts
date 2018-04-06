@@ -12,12 +12,12 @@ import {
 } from "./TransactionPlan";
 import {QueryBuilder} from "knex";
 
-export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[]): Promise<TransactionPlanStep[]> {
+export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: string, parties: TransactionParty[]): Promise<TransactionPlanStep[]> {
     const lightrailValueStoreIds = parties.filter(p => p.rail === "lightrail" && p.valueStoreId).map(p => (p as LightrailTransactionParty).valueStoreId);
     const lightrailCodes = parties.filter(p => p.rail === "lightrail" && p.code).map(p => (p as LightrailTransactionParty).code);
     const lightrailCustomerIds = parties.filter(p => p.rail === "lightrail" && p.customerId).map(p => (p as LightrailTransactionParty).customerId);
 
-    const lightrailValueStores = await getLightrailValueStores(auth, lightrailValueStoreIds, lightrailCodes, lightrailCustomerIds);
+    const lightrailValueStores = await getLightrailValueStores(auth, currency, lightrailValueStoreIds, lightrailCodes, lightrailCustomerIds);
     const lightrailSteps = lightrailValueStores
         .map((valueStore): LightrailTransactionPlanStep => ({
             rail: "lightrail",
@@ -53,7 +53,7 @@ export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.Auth
     return [...lightrailSteps, ...internalSteps, ...stripeSteps];
 }
 
-async function getLightrailValueStores(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStoreIds: string[], codes: string[], customerIds: string[]): Promise<(ValueStore & {codeLastFour: string, customerId: string})[]> {
+async function getLightrailValueStores(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: string, valueStoreIds: string[], codes: string[], customerIds: string[]): Promise<(ValueStore & {codeLastFour: string, customerId: string})[]> {
     if (!valueStoreIds.length && !codes.length && !customerIds.length) {
         return [];
     }
@@ -69,6 +69,7 @@ async function getLightrailValueStores(auth: giftbitRoutes.jwtauth.Authorization
             .select(knex.raw("NULL as codeLastFour, NULL as customerId"))   // need NULL values here so it lines up for the union
             .where({
                 userId: auth.giftbitUserId,
+                currency,
                 frozen: false,
                 active: true,
                 expired: false
@@ -77,24 +78,25 @@ async function getLightrailValueStores(auth: giftbitRoutes.jwtauth.Authorization
     }
 
     if (codes) {
-        query = query ? query.unionAll(selectByCodes(auth, codes)) : selectByCodes(auth, codes)(knex("ValueStores"));
+        query = query ? query.unionAll(selectByCodes(auth, currency, codes)) : selectByCodes(auth, currency, codes)(knex("ValueStores"));
     }
 
     if (customerIds.length) {
-        query = query ? query.unionAll(selectByCustomerIds(auth, customerIds)) : selectByCustomerIds(auth, customerIds)(knex("ValueStores"));
+        query = query ? query.unionAll(selectByCustomerIds(auth, currency, customerIds)) : selectByCustomerIds(auth, currency, customerIds)(knex("ValueStores"));
     }
 
     return await query;
 }
 
-function selectByCodes(auth: giftbitRoutes.jwtauth.AuthorizationBadge, codes: string[]): (query: QueryBuilder) => QueryBuilder {
-    return query => query.select("ValueStores.*", "ValueStoreAccess.codeLastFour as codeLastFour", "ValueStoreAccess.customerId as customerId")
+function selectByCodes(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: string, codes: string[]): (query: QueryBuilder) => QueryBuilder {
+    return query => query.select("*", "ValueStoreAccess.codeLastFour as codeLastFour", "ValueStoreAccess.customerId as customerId")
         .join("ValueStoreAccess", {
             "ValueStores.userId": "ValueStoreAccess.userId",
             "ValueStores.valueStoreId": "ValueStoreAccess.valueStoreId"
         })
         .where({
             userId: auth.giftbitUserId,
+            currency,
             frozen: false,
             active: true,
             expired: false
@@ -102,14 +104,15 @@ function selectByCodes(auth: giftbitRoutes.jwtauth.AuthorizationBadge, codes: st
         .whereIn("ValueStoreAccess.code", codes);
 }
 
-function selectByCustomerIds(auth: giftbitRoutes.jwtauth.AuthorizationBadge, customerIds: string[]): (query: QueryBuilder) => QueryBuilder {
-    return query => query.select("ValueStores.*", "ValueStoreAccess.codeLastFour as codeLastFour", "ValueStoreAccess.customerId as customerId")
+function selectByCustomerIds(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: string, customerIds: string[]): (query: QueryBuilder) => QueryBuilder {
+    return query => query.select("*", "ValueStoreAccess.codeLastFour as codeLastFour", "ValueStoreAccess.customerId as customerId")
         .join("ValueStoreAccess", {
             "ValueStores.userId": "ValueStoreAccess.userId",
             "ValueStores.valueStoreId": "ValueStoreAccess.valueStoreId"
         })
         .where({
             userId: auth.giftbitUserId,
+            currency,
             frozen: false,
             active: true,
             expired: false
