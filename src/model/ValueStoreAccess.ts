@@ -3,8 +3,8 @@ export interface ValueStoreAccess {
     userId: string;
     createdDate: Date;
     updatedDate: Date;
-
-    code: string;
-    customerId: string;
+    code: string | null;
+    codeLastFour: string | null;
+    customerId: string | null;
     type: "ACCOUNT" | "GIFT_CARD" | "UNIQUE_PROMOTION_CODE" | "GENERIC_PROMOTION_CODE" | "CUSTOMER_PROMOTION";
 }

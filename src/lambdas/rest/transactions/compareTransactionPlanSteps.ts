@@ -1,0 +1,66 @@
+import {
+    InternalTransactionPlanStep, LightrailTransactionPlanStep, StripeTransactionPlanStep,
+    TransactionPlanStep
+} from "./TransactionPlan";
+
+// Because after 14 years of programming I still get this wrong.
+const aFirst = -1;
+const bFirst = 1;
+
+/**
+ * Comparison function for sorting TransactionPlanSteps into the order they should
+ * be drawn down against.  This is key business logic.
+ */
+export function compareTransactionPlanSteps(a: TransactionPlanStep, b: TransactionPlanStep): number {
+    switch (a.rail) {
+        case "lightrail":
+            switch (b.rail) {
+                case "lightrail":
+                    return compareLightrailTransactionPlanSteps(a, b);
+                case "stripe":
+                    return aFirst;
+                case "internal":
+                    return b.appliedFirst ? bFirst : aFirst;
+            }
+            break;
+        case "stripe":
+            switch (b.rail) {
+                case "lightrail":
+                    return bFirst;
+                case "stripe":
+                    return compareStripeTransactionPlanSteps(a, b);
+                case "internal":
+                    return b.appliedFirst ? bFirst : aFirst;
+            }
+            break;
+        case "internal":
+            switch (b.rail) {
+                case "lightrail":
+                    return a.appliedFirst ? aFirst : bFirst;
+                case "stripe":
+                    return a.appliedFirst ? aFirst : bFirst;
+                case "internal":
+                    return compareInternalTransactionPlanSteps(a, b);
+            }
+            break;
+    }
+}
+
+function compareLightrailTransactionPlanSteps(a: LightrailTransactionPlanStep, b: LightrailTransactionPlanStep): number {
+    // TODO this logic is blocked on defining the value store types
+    return a.valueStore.valueStoreId < b.valueStore.valueStoreId ? aFirst : bFirst;
+}
+
+function compareStripeTransactionPlanSteps(a: StripeTransactionPlanStep, b: StripeTransactionPlanStep): number {
+    return b.priority - a.priority;
+}
+
+function compareInternalTransactionPlanSteps(a: InternalTransactionPlanStep, b: InternalTransactionPlanStep): number {
+    if (a.appliedFirst && !b.appliedFirst) {
+        return aFirst;
+    }
+    if (b.appliedFirst && !a.appliedFirst) {
+        return bFirst;
+    }
+    return a.internalId < b.internalId ? aFirst : bFirst;
+}

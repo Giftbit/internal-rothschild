@@ -116,6 +116,7 @@ CREATE TABLE rothschild.ValueStoreAccess (
   userId             VARCHAR(255) NOT NULL,
   valueStoreAccessId VARCHAR(255) NOT NULL,
   code               VARCHAR(255),
+  codeLastFour       VARCHAR(4),
   valueStoreId       VARCHAR(255) NOT NULL,
   accessType         VARCHAR(255) NOT NULL,
   customerId         VARCHAR(255),

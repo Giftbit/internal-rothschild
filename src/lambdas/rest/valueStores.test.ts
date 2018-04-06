@@ -4,7 +4,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as valueStores from "./valueStores";
 import * as testUtils from "../../testUtils";
 
-describe("/v2/customers/", () => {
+describe("/v2/valueStores/", () => {
 
     const router = new cassava.Router();
 
@@ -61,5 +61,15 @@ describe("/v2/customers/", () => {
         chai.assert.equal(parsedBody.valueRule, null);
         chai.assert.equal(parsedBody.valueRule, null);
         valueStore1 = parsedBody;
+    });
+
+    it("409s on creating a duplicate valueStore", async () => {
+        const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/valueStores", "POST", {
+            headers: {
+                Authorization: `Bearer ${testUtils.testUserA.jwt}`
+            },
+            body: JSON.stringify(valueStore1)
+        }));
+        chai.assert.equal(resp.statusCode, 409);
     });
 });

@@ -1,7 +1,13 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import {OrderRequest, TransactionParty} from "../../../model/TransactionRequest";
+import {compareTransactionPlanSteps} from "./compareTransactionPlanSteps";
+import {OrderRequest} from "../../../model/TransactionRequest";
+import {resolveTransactionParties} from "./resolveTransactionParties";
+import {buildOrderTransactionPlan} from "./buildOrderTransactionPlan";
+import {Transaction} from "../../../model/Transaction";
+import {transactionPlanToTransaction} from "./transactionPlanToTransaction";
+import {executeTransactionPlan} from "./executeTransactionPlan";
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions/order")
@@ -12,43 +18,23 @@ export function installTransactionsRest(router: cassava.Router): void {
             evt.validateBody(orderSchema);
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
-                body: await createOrder(auth.giftbitUserId, evt.body)
+                body: await createOrder(auth, evt.body)
             };
         });
 }
 
-async function createOrder(userId: string, order: OrderRequest): Promise<any> {
-    const parties = await resolveParties(order.sources);
-    // build transaction plan
-    // run transaction plan
-}
-
-async function resolveParties(parties: TransactionParty[]): Promise<TransactionParty[]> {
-    const resolvedParties: TransactionParty[] = [];
-    for (const party of parties) {
-        switch (party.rail) {
-            case "lightrail":
-                if (party.customerId) {
-                    throw new cassava.RestError(500, "lightrail customerId isn't supported yet");
-                    // TODO look up in value store access
-                } else if (party.code) {
-                    throw new cassava.RestError(500, "lightrail code isn't supported yet");
-                    // TODO look up in value store access
-                } else if (party.valueStoreId) {
-                    resolvedParties.push(party);
-                } else {
-                    throw new Error(`Unhandled lightrail transaction party: ${JSON.stringify(party)}`);
-                }
-                break;
-            case "stripe":
-                resolvedParties.push(party);
-                break;
-            case "internal":
-                resolvedParties.push(party);
-                break;
-        }
+async function createOrder(auth: giftbitRoutes.jwtauth.AuthorizationBadge, order: OrderRequest): Promise<Transaction> {
+    const steps = await resolveTransactionParties(auth, order.currency, order.sources);
+    steps.sort(compareTransactionPlanSteps);
+    const plan = buildOrderTransactionPlan(order, steps);
+    if (plan.remainder && !order.allowRemainder) {
+        throw new cassava.RestError();      // TODO fill in the right values for an NSF error
     }
-    return resolvedParties;
+    if (order.simulate) {
+        return transactionPlanToTransaction(plan);
+    }
+
+    return await executeTransactionPlan(plan);
 }
 
 const lightrailPartySchema: jsonschema.Schema = {
@@ -127,6 +113,7 @@ const internalPartySchema: jsonschema.Schema = {
 };
 
 const orderSchema: jsonschema.Schema = {
+    title: "order",
     type: "object",
     properties: {
         transactionId: {
@@ -147,6 +134,12 @@ const orderSchema: jsonschema.Schema = {
                     internalPartySchema
                 ]
             }
+        },
+        simulate: {
+            type: "boolean"
+        },
+        allowRemainder: {
+            type: "boolean"
         }
     },
     required: ["transactionId", "cart", "currency"]

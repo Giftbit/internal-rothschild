@@ -49,7 +49,7 @@ describe("/v2/customers/", () => {
         chai.assert.equal(resp.statusCode, 201);
 
         const parsedBody = JSON.parse(resp.body);
-        chai.assert.equal(parsedBody.userId, testUtils.testUserA.userId);
+        chai.assert.equal(parsedBody.userId, testUtils.testUserA.userId, `body=${resp.body}`);
         chai.assert.equal(parsedBody.customerId, customer1.customerId);
         chai.assert.equal(parsedBody.firstName, customer1.firstName);
         chai.assert.equal(parsedBody.lastName, customer1.lastName);
@@ -203,6 +203,24 @@ describe("/v2/customers/", () => {
         }));
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.deepEqual(JSON.parse(resp.body), customer1);
+
+        const getResp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent(`/v2/customers/${customer1.customerId}`, "GET", {
+            headers: {
+                Authorization: `Bearer ${testUtils.testUserA.jwt}`
+            }
+        }));
+        chai.assert.equal(getResp.statusCode, 200);
+        chai.assert.deepEqual(JSON.parse(getResp.body), customer1);
+    });
+
+    it("409s on creating a duplicate customer", async () => {
+        const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/customers", "POST", {
+            headers: {
+                Authorization: `Bearer ${testUtils.testUserA.jwt}`
+            },
+            body: JSON.stringify(customer1)
+        }));
+        chai.assert.equal(resp.statusCode, 409);
     });
 
     it("404s on getting invalid customerId", async () => {
