@@ -8,6 +8,7 @@ export interface ValueStoreTemplate {
 
     currency: string;
     initialValue?: number;
+    pretax: boolean;
     minInitialValue?: number;
     maxInitialValue?: number;
     validityDurationDays?: number;

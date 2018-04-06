@@ -36,6 +36,7 @@ export interface InternalTransactionPlanStep {
     rail: "internal";
     internalId: string;
     value: number;
+    pretax: boolean;
     appliedFirst: boolean;
     amount: number;
 }

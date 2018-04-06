@@ -35,6 +35,7 @@ export function installValueStoresRest(router: cassava.Router): void {
                     createdDate: now,
                     updatedDate: now,
                     value: evt.body.value != null ? evt.body.value : 0,
+                    pretax: evt.body.pretax != null ? evt.body.pretax : false,
                     active: evt.body.active != null ? evt.body.active : true,
                     expired: false,
                     frozen: evt.body.frozen != null ? evt.body.frozen : false,
@@ -137,6 +138,9 @@ const valueStoreSchema: jsonschema.Schema = {
         },
         value: {
             type: ["number", "null"]
+        },
+        preTax: {
+            type: "boolean"
         },
         active: {
             type: "boolean"

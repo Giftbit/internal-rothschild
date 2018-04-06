@@ -6,6 +6,7 @@ export interface ValueStore {
     createdDate: Date;
     updatedDate: Date;
     value: number | null;
+    pretax: boolean;
     active: boolean;
     expired: boolean;
     frozen: boolean;

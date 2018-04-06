@@ -31,6 +31,7 @@ export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.Auth
             rail: "internal",
             internalId: p.id,
             value: p.value,
+            pretax: !!p.pretax,
             appliedFirst: !!p.appliedFirst,
             amount: 0
         }));

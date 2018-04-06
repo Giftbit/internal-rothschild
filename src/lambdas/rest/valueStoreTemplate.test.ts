@@ -33,7 +33,7 @@ describe("/v2/valueStoreTemplate/", () => {
         });
     });
 
-    let valueStoreTemplate1: ValueStoreTemplate = {
+    let valueStoreTemplate1: Partial<ValueStoreTemplate> = {
         valueStoreTemplateId: "1",
         currency: "USD",
         valueStoreType: "PREPAID"
