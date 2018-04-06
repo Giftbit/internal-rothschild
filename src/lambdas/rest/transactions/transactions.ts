@@ -113,6 +113,7 @@ const internalPartySchema: jsonschema.Schema = {
 };
 
 const orderSchema: jsonschema.Schema = {
+    title: "order",
     type: "object",
     properties: {
         transactionId: {

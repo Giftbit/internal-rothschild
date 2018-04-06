@@ -46,6 +46,16 @@ export function installValueStoresRest(router: cassava.Router): void {
                 })
             };
         });
+
+    router.route("/v2/valueStores/{valueStoreId}")
+        .method("GET")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("giftbitUserId");
+            return {
+                body: await getValueStore(auth, evt.pathParameters.valueStoreId)
+            };
+        });
 }
 
 export async function getValueStores(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{valueStores: ValueStore[], pagination: Pagination}> {
@@ -88,6 +98,25 @@ async function createValueStore(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
         }
         throw err;
     }
+}
+
+async function getValueStore(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStoreId: string): Promise<ValueStore> {
+    auth.requireIds("giftbitUserId");
+
+    const knex = await getKnexRead();
+    const res = await knex("ValueStores")
+        .select()
+        .where({
+            userId: auth.giftbitUserId,
+            valueStoreId
+        });
+    if (res.length === 0) {
+        throw new cassava.RestError(404);
+    }
+    if (res.length > 1) {
+        throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
+    }
+    return res[0];
 }
 
 const valueStoreSchema: jsonschema.Schema = {
