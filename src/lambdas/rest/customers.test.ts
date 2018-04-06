@@ -3,6 +3,7 @@ import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as customers from "./customers";
 import * as testUtils from "../../testUtils";
+import {Customer} from "../../model/Customer";
 
 describe("/v2/customers/", () => {
 
@@ -32,7 +33,7 @@ describe("/v2/customers/", () => {
         });
     });
 
-    let customer1: any = {
+    let customer1: Partial<Customer> = {
         customerId: "1",
         firstName: "First",
         lastName: "Last",
@@ -151,7 +152,7 @@ describe("/v2/customers/", () => {
         chai.assert.equal(resp.statusCode, 422);
     });
 
-    let customer2: any = {
+    let customer2: Partial<Customer> = {
         customerId: "2"
     };
 
@@ -171,7 +172,7 @@ describe("/v2/customers/", () => {
         customer2 = parsedBody;
     });
 
-    const customer3: any = {
+    const customer3: Partial<Customer> & {userId: string} = {
         customerId: "3",
         userId: "malicious"
     };
@@ -259,7 +260,7 @@ describe("/v2/customers/", () => {
         });
     });
 
-    let customer4: any = {
+    let customer4: Partial<Customer> = {
         customerId: "4",
         firstName: "customer4",
         metadata: {

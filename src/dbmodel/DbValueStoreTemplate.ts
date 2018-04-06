@@ -1,8 +1,7 @@
-import * as giftbitRoutes from "giftbit-cassava-routes";
-import {Rule} from "./ValueStore";
-import {DbValueStoreTemplate} from "../dbmodel/DbValueStoreTemplate";
+import {ValueStoreTemplate} from "../model/ValueStoreTemplate";
 
-export interface ValueStoreTemplate {
+export interface DbValueStoreTemplate {
+    userId: string;
     valueStoreTemplateId: string;
     currency: string;
     initialValue: number | null;
@@ -11,19 +10,18 @@ export interface ValueStoreTemplate {
     validityDurationDays: number | null;
     uses: number | null;
     valueStoreType: string;
-    redemptionRule: Rule | null;
-    valueRule: Rule | null;
+    redemptionRule: string;
+    valueRule: string;
     startDate: Date | null;
     endDate: Date | null;
-    metadata: object | null;
-    createdDate: Date;
-    updatedDate: Date;
+    metadata: string;
+    createdDate: Date | null;
+    updatedDate: Date | null;
 }
 
-export namespace ValueStoreTemplate {
-    export function toDbValueStoreTemplate(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: ValueStoreTemplate): DbValueStoreTemplate {
+export namespace DbValueStoreTemplate {
+    export function toValueStoreTemplate(v: DbValueStoreTemplate): ValueStoreTemplate {
         return {
-            userId: auth.giftbitUserId,
             valueStoreTemplateId: v.valueStoreTemplateId,
             currency: v.currency,
             initialValue: v.initialValue,
@@ -32,11 +30,11 @@ export namespace ValueStoreTemplate {
             validityDurationDays: v.validityDurationDays,
             uses: v.uses,
             valueStoreType: v.valueStoreType,
-            redemptionRule: JSON.stringify(v.redemptionRule),
-            valueRule: JSON.stringify(v.valueRule),
+            redemptionRule: JSON.parse(v.redemptionRule),
+            valueRule: JSON.parse(v.valueRule),
             startDate: v.startDate,
             endDate: v.endDate,
-            metadata: JSON.stringify(v.metadata),
+            metadata: JSON.parse(v.metadata),
             createdDate: v.createdDate,
             updatedDate: v.updatedDate
         };

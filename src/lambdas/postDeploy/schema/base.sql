@@ -34,6 +34,7 @@ CREATE TABLE rothschild.ValueStoreTemplates (
   uses                 INT,
   redemptionRule       TEXT,
   valueRule            TEXT,
+  metadata             TEXT,
   createdDate          DATETIME     NOT NULL,
   updatedDate          DATETIME     NOT NULL,
   PRIMARY KEY (userId, valueStoreTemplateId)

@@ -6,5 +6,7 @@ export interface ValueStoreAccess {
     code: string | null;
     codeLastFour: string | null;
     customerId: string | null;
-    type: "ACCOUNT" | "GIFT_CARD" | "UNIQUE_PROMOTION_CODE" | "GENERIC_PROMOTION_CODE" | "CUSTOMER_PROMOTION";
+    type: ValueStoreAccessType;
 }
+
+export type ValueStoreAccessType = "ACCOUNT" | "GIFT_CARD" | "UNIQUE_PROMOTION_CODE" | "GENERIC_PROMOTION_CODE" | "CUSTOMER_PROMOTION";

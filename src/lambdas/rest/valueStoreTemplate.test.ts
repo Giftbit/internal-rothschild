@@ -33,7 +33,7 @@ describe("/v2/valueStoreTemplate/", () => {
         });
     });
 
-    let valueStoreTemplate1: ValueStoreTemplate = {
+    let valueStoreTemplate1: Partial<ValueStoreTemplate> = {
         valueStoreTemplateId: "1",
         currency: "USD",
         valueStoreType: "PREPAID"
@@ -50,7 +50,6 @@ describe("/v2/valueStoreTemplate/", () => {
 
 
         const parsedBody = JSON.parse(resp.body);
-        chai.assert.equal(parsedBody.userId, testUtils.testUserA.userId);
         chai.assert.equal(parsedBody.valueStoreTemplateId, valueStoreTemplate1.valueStoreTemplateId);
         chai.assert.equal(parsedBody.currency, valueStoreTemplate1.currency);
         chai.assert.equal(parsedBody.valueStoreType, valueStoreTemplate1.valueStoreType);
@@ -81,7 +80,6 @@ describe("/v2/valueStoreTemplate/", () => {
         chai.assert.equal(resp.statusCode, 200);
 
         const parsedBody = JSON.parse(resp.body);
-        chai.assert.equal(parsedBody.userId, testUtils.testUserA.userId);
         chai.assert.equal(parsedBody.valueStoreTemplateId, valueStoreTemplate1Update.valueStoreTemplateId);
         chai.assert.equal(parsedBody.currency, valueStoreTemplate1Update.currency);
         chai.assert.equal(parsedBody.valueStoreType, valueStoreTemplate1Update.valueStoreType);

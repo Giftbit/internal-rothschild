@@ -5,6 +5,7 @@ import * as jsonschema from "jsonschema";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
 import {ValueStoreTemplate} from "../../model/ValueStoreTemplate";
 import {getKnex, getKnexRead} from "../../dbUtils";
+import {DbValueStoreTemplate} from "../../dbmodel/DbValueStoreTemplate";
 
 export function installValueStoreTemplatesRest(router: cassava.Router): void {
     router.route("/v2/valueStoreTemplates")
@@ -13,7 +14,7 @@ export function installValueStoreTemplatesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
             return {
-                body: await getValueStoreTemplates(auth.giftbitUserId, getPaginationParams(evt))
+                body: await getValueStoreTemplates(auth, getPaginationParams(evt))
             };
         });
 
@@ -47,8 +48,7 @@ export function installValueStoreTemplatesRest(router: cassava.Router): void {
             now.setMilliseconds(0);
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
-                body: await createValueStoreTemplate({
-                    userId: auth.giftbitUserId,
+                body: await createValueStoreTemplate(auth, {
                     valueStoreTemplateId: evt.body.valueStoreTemplateId,
                     valueStoreType: evt.body.valueStoreType !== undefined ? evt.body.valueStoreType : null,
                     initialValue: evt.body.initialValue !== undefined ? evt.body.initialValue : null,
@@ -61,6 +61,7 @@ export function installValueStoreTemplatesRest(router: cassava.Router): void {
                     uses: evt.body.uses !== undefined ? evt.body.uses : null,
                     redemptionRule: evt.body.redemptionRule !== undefined ? evt.body.redemptionRule : null,
                     valueRule: evt.body.valueRule !== undefined ? evt.body.valueRule : null,
+                    metadata: evt.body.metadata !== undefined ? evt.body.metadata : null,
                     createdDate: now,
                     updatedDate: now,
                 })
@@ -73,7 +74,7 @@ export function installValueStoreTemplatesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
             return {
-                body: await getValueStoreTemplate(auth.giftbitUserId, evt.pathParameters.valueStoreTemplateId)
+                body: await getValueStoreTemplate(auth, evt.pathParameters.valueStoreTemplateId)
             };
         });
 
@@ -87,8 +88,7 @@ export function installValueStoreTemplatesRest(router: cassava.Router): void {
             const now = new Date();
             now.setMilliseconds(0);
             return {
-                body: await updateValueStoreTemplate({
-                    userId: auth.giftbitUserId,
+                body: await updateValueStoreTemplate(auth, {
                     valueStoreTemplateId: evt.pathParameters.valueStoreTemplateId,
                     valueStoreType: evt.body.valueStoreType !== undefined ? evt.body.valueStoreType : null,
                     initialValue: evt.body.initialValue !== undefined ? evt.body.initialValue : null,
@@ -101,6 +101,7 @@ export function installValueStoreTemplatesRest(router: cassava.Router): void {
                     uses: evt.body.uses !== undefined ? evt.body.uses : null,
                     redemptionRule: evt.body.redemptionRule !== undefined ? evt.body.redemptionRule : null,
                     valueRule: evt.body.valueRule !== undefined ? evt.body.valueRule : null,
+                    metadata: evt.body.metadata !== undefined ? evt.body.metadata : null,
                     updatedDate: now
                 })
             };
@@ -112,25 +113,25 @@ export function installValueStoreTemplatesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
             return {
-                body: await deleteValueStoreTemplate(auth.giftbitUserId, evt.pathParameters.valueStoreTemplateId)
+                body: await deleteValueStoreTemplate(auth, evt.pathParameters.valueStoreTemplateId)
             };
         });
 
 }
 
-async function getValueStoreTemplates(userId: string, pagination: PaginationParams): Promise<{ valueStoreTemplates: ValueStoreTemplate[], pagination: Pagination }> {
+async function getValueStoreTemplates(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ valueStoreTemplates: ValueStoreTemplate[], pagination: Pagination }> {
     const knex = await getKnexRead();
-    const res = await knex("ValueStoreTemplates")
+    const res: DbValueStoreTemplate[] = await knex("ValueStoreTemplates")
         .select()
         .where({
-            userId
+            userId: auth.giftbitUserId
         })
-        .orderBy("customerId")
+        .orderBy("valueStoreTemplateId")
         .limit(pagination.limit)
         .offset(pagination.offset);
 
     return {
-        valueStoreTemplates: res,
+        valueStoreTemplates: res.map(DbValueStoreTemplate.toValueStoreTemplate),
         pagination: {
             count: res.length,
             limit: pagination.limit,
@@ -140,11 +141,11 @@ async function getValueStoreTemplates(userId: string, pagination: PaginationPara
     };
 }
 
-async function createValueStoreTemplate(valueStoreTemplate: ValueStoreTemplate): Promise<ValueStoreTemplate> {
+async function createValueStoreTemplate(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStoreTemplate: ValueStoreTemplate): Promise<ValueStoreTemplate> {
     try {
         const knex = await getKnex();
         await knex("ValueStoreTemplates")
-            .insert(valueStoreTemplate);
+            .insert(ValueStoreTemplate.toDbValueStoreTemplate(auth, valueStoreTemplate));
         return valueStoreTemplate;
     } catch (err) {
         if (err.code === "ER_DUP_ENTRY") {
@@ -154,12 +155,12 @@ async function createValueStoreTemplate(valueStoreTemplate: ValueStoreTemplate):
     }
 }
 
-async function getValueStoreTemplate(userId: string, valueStoreTemplateId: string): Promise<ValueStoreTemplate> {
+async function getValueStoreTemplate(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStoreTemplateId: string): Promise<ValueStoreTemplate> {
     const knex = await getKnexRead();
-    const res = await knex("ValueStoreTemplates")
+    const res: DbValueStoreTemplate[] = await knex("ValueStoreTemplates")
         .select()
         .where({
-            userId,
+            userId: auth.giftbitUserId,
             valueStoreTemplateId
         });
     if (res.length === 0) {
@@ -168,14 +169,14 @@ async function getValueStoreTemplate(userId: string, valueStoreTemplateId: strin
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
-    return res[0];
+    return DbValueStoreTemplate.toValueStoreTemplate(res[0]);
 }
 
-async function updateValueStoreTemplate(valueStoreTemplate: ValueStoreTemplate): Promise<ValueStoreTemplate> {
+async function updateValueStoreTemplate(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStoreTemplate: Partial<ValueStoreTemplate>): Promise<ValueStoreTemplate> {
     const knex = await getKnex();
     const res = await knex("ValueStoreTemplates")
         .where({
-            userId: valueStoreTemplate.userId,
+            userId: auth.giftbitUserId,
             valueStoreTemplateId: valueStoreTemplate.valueStoreTemplateId
         })
         .update({
@@ -188,8 +189,9 @@ async function updateValueStoreTemplate(valueStoreTemplate: ValueStoreTemplate):
             endDate: valueStoreTemplate.endDate,
             validityDurationDays: valueStoreTemplate.validityDurationDays,
             uses: valueStoreTemplate.uses,
-            redemptionRule: valueStoreTemplate.redemptionRule,
-            valueRule: valueStoreTemplate.valueRule,
+            redemptionRule: JSON.stringify(valueStoreTemplate.redemptionRule),
+            valueRule: JSON.stringify(valueStoreTemplate.valueRule),
+            metadata: JSON.stringify(valueStoreTemplate.metadata),
             updatedDate: valueStoreTemplate.updatedDate
         });
     if (res[0] === 0) {
@@ -198,15 +200,15 @@ async function updateValueStoreTemplate(valueStoreTemplate: ValueStoreTemplate):
     if (res[0] > 1) {
         throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
     }
-    return getValueStoreTemplate(valueStoreTemplate.userId, valueStoreTemplate.valueStoreTemplateId);
+    return getValueStoreTemplate(auth, valueStoreTemplate.valueStoreTemplateId);
 }
 
 
-async function deleteValueStoreTemplate(userId: string, valueStoreTemplateId: string): Promise<{ success: true }> {
+async function deleteValueStoreTemplate(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStoreTemplateId: string): Promise<{ success: true }> {
     const knex = await getKnex();
     const res = await knex("ValueStoreTemplates")
         .where({
-            userId,
+            userId: auth.giftbitUserId,
             valueStoreTemplateId
         })
         .delete();
