@@ -2,9 +2,8 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {getKnexWrite, getKnexRead} from "../../dbUtils";
-import {Customer} from "../../model/Customer";
+import {Customer, DbCustomer} from "../../model/Customer";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
-import {DbCustomer} from "../../dbmodel/DbCustomer";
 
 export function installCustomersRest(router: cassava.Router): void {
     router.route("/v2/customers")

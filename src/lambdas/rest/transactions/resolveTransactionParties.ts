@@ -10,7 +10,7 @@ import {
     TransactionPlanStep
 } from "./TransactionPlan";
 import {QueryBuilder} from "knex";
-import {DbValueStore} from "../../../dbmodel/DbValueStore";
+import {DbValueStore} from "../../../model/dbmodel/DbValueStore";
 
 export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: string, parties: TransactionParty[]): Promise<TransactionPlanStep[]> {
     const lightrailValueStoreIds = parties.filter(p => p.rail === "lightrail" && p.valueStoreId).map(p => (p as LightrailTransactionParty).valueStoreId);

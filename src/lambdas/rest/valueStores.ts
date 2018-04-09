@@ -3,8 +3,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
 import {getKnexWrite, getKnexRead} from "../../dbUtils";
-import {ValueStore} from "../../model/ValueStore";
-import {DbValueStore} from "../../dbmodel/DbValueStore";
+import {DbValueStore, ValueStore} from "../../model/ValueStore";
 
 export function installValueStoresRest(router: cassava.Router): void {
     router.route("/v2/valueStores")

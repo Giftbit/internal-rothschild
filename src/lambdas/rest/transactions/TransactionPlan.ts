@@ -1,6 +1,6 @@
 import * as stripe from "stripe";
 import {CartTransaction, TransactionType} from "../../../model/Transaction";
-import {DbValueStore} from "../../../dbmodel/DbValueStore";
+import {DbValueStore} from "../../../model/dbmodel/DbValueStore";
 
 export interface TransactionPlan {
     transactionId: string;

@@ -1,5 +1,4 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {DbCustomer} from "../dbmodel/DbCustomer";
 
 export interface Customer {
     customerId: string;
@@ -20,6 +19,31 @@ export namespace Customer {
             lastName: c.lastName,
             email: c.email,
             metadata: JSON.stringify(c.metadata),
+            createdDate: c.createdDate,
+            updatedDate: c.updatedDate
+        };
+    }
+}
+
+export interface DbCustomer {
+    userId: string;
+    customerId: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+    metadata: string;
+    createdDate: Date;
+    updatedDate: Date;
+}
+
+export namespace DbCustomer {
+    export function toCustomer(c: DbCustomer): Customer {
+        return {
+            customerId: c.customerId,
+            firstName: c.firstName,
+            lastName: c.lastName,
+            email: c.email,
+            metadata: JSON.parse(c.metadata),
             createdDate: c.createdDate,
             updatedDate: c.updatedDate
         };

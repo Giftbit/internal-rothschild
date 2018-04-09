@@ -3,9 +3,8 @@ import {RestError, ValidateBodyOptions} from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
-import {ValueStoreTemplate} from "../../model/ValueStoreTemplate";
+import {DbValueStoreTemplate, ValueStoreTemplate} from "../../model/ValueStoreTemplate";
 import {getKnexWrite, getKnexRead} from "../../dbUtils";
-import {DbValueStoreTemplate} from "../../dbmodel/DbValueStoreTemplate";
 
 export function installValueStoreTemplatesRest(router: cassava.Router): void {
     router.route("/v2/valueStoreTemplates")
