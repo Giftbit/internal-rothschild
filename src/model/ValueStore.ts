@@ -35,6 +35,7 @@ export namespace ValueStore {
             valueStoreType: v.valueStoreType,
             currency: v.currency,
             value: v.value,
+            pretax: v.pretax,
             active: v.active,
             expired: v.expired,
             frozen: v.frozen,

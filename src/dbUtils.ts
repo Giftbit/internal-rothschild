@@ -45,10 +45,10 @@ export async function getDbCredentials(): Promise<{username: string, password: s
 }
 
 /**
- * Get a Knex instance.  This instance holds a connection pool that releases
+ * Get a read/write Knex instance.  This instance holds a connection pool that releases
  * connections when the process is shut down.
  */
-export async function getKnex(): Promise<knex> {
+export async function getKnexWrite(): Promise<knex> {
     if (knexClient) {
         return knexClient;
     }
@@ -56,42 +56,41 @@ export async function getKnex(): Promise<knex> {
     checkForEnvVar("DB_ENDPOINT", "DB_PORT");
 
     const credentials = await getDbCredentials();
-    !isTestEnv && console.log(`connecting to ${process.env["DB_ENDPOINT"]}:${process.env["DB_PORT"]}`);
-    return knexClient = knex({
-        client: "mysql",
-        connection: {
-            host: process.env["DB_ENDPOINT"],
-            port: +process.env["DB_PORT"],
-            user: credentials.username,
-            password: credentials.password,
-            database: "rothschild",
-            timezone: "Z"
-        },
-        pool: {
-            min: 1,
-            max: 1
-        }
-    });
+    return knexReadClient = getKnex(credentials.username, credentials.password, process.env["DB_ENDPOINT"], process.env["DB_PORT"]);
 }
 
+/**
+ * Get a read only Knex instance.  This instance holds a connection pool that releases
+ * connections when the process is shut down.
+ */
 export async function getKnexRead(): Promise<knex> {
     if (knexReadClient) {
         return knexReadClient;
     }
 
     checkForEnvVar("DB_READ_ENDPOINT", "DB_PORT");
-
     const credentials = await getDbCredentials();
-    !isTestEnv && console.log(`connecting to ${process.env["DB_READ_ENDPOINT"]}:${process.env["DB_PORT"]}`);
-    return knexReadClient = knex({
+    return knexReadClient = getKnex(credentials.username, credentials.password, process.env["DB_READ_ENDPOINT"], process.env["DB_PORT"]);
+}
+
+function getKnex(username: string, password: string, endpoint: string, port: string): knex {
+    !isTestEnv && console.log(`connecting to ${endpoint}:${port}`);
+    return knex({
         client: "mysql",
         connection: {
-            host: process.env["DB_READ_ENDPOINT"],
-            port: +process.env["DB_PORT"],
-            user: credentials.username,
-            password: credentials.password,
+            host: endpoint,
+            port: +port,
+            user: username,
+            password: password,
             database: "rothschild",
-            timezone: "Z"
+            timezone: "Z",
+            typeCast: function(field, next) {
+                if (field.type === "TINY" && field.length === 1) {
+                    // MySQL does not have a true boolean type.  Convert tinyint(1) to boolean.
+                    return field.string() === "1";
+                }
+                return next();
+            }
         },
         pool: {
             min: 1,

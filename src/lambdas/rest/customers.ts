@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import {getKnex, getKnexRead} from "../../dbUtils";
+import {getKnexWrite, getKnexRead} from "../../dbUtils";
 import {Customer} from "../../model/Customer";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
 import {DbCustomer} from "../../dbmodel/DbCustomer";
@@ -109,7 +109,7 @@ export async function createCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBa
     auth.requireIds("giftbitUserId");
 
     try {
-        const knex = await getKnex();
+        const knex = await getKnexWrite();
         await knex("Customers")
             .insert(Customer.toDbCustomer(auth, customer));
         return customer;
@@ -143,7 +143,7 @@ export async function getCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 export async function updateCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, customer: Partial<Customer>): Promise<Customer> {
     auth.requireIds("giftbitUserId");
 
-    const knex = await getKnex();
+    const knex = await getKnexWrite();
     const res = await knex("Customers")
         .where({
             userId: auth.giftbitUserId,
@@ -168,7 +168,7 @@ export async function updateCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBa
 export async function deleteCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, customerId: string): Promise<{success: true}> {
     auth.requireIds("giftbitUserId");
 
-    const knex = await getKnex();
+    const knex = await getKnexWrite();
     const res = await knex("Customers")
         .where({
             userId: auth.giftbitUserId,

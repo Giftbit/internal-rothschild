@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
-import {getKnex, getKnexRead} from "../../dbUtils";
+import {getKnexWrite, getKnexRead} from "../../dbUtils";
 import {ValueStore} from "../../model/ValueStore";
 import {DbValueStore} from "../../dbmodel/DbValueStore";
 
@@ -87,7 +87,7 @@ async function createValueStore(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     auth.requireIds("giftbitUserId");
 
     try {
-        const knex = await getKnex();
+        const knex = await getKnexWrite();
         await knex("ValueStores")
             .insert(ValueStore.toDbValueStore(auth, valueStore));
         return valueStore;

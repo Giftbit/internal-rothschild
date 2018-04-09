@@ -5,6 +5,7 @@ export interface DbValueStoreTemplate {
     valueStoreTemplateId: string;
     currency: string;
     initialValue: number | null;
+    pretax: boolean;
     minInitialValue: number | null;
     maxInitialValue: number | null;
     validityDurationDays: number | null;
@@ -25,6 +26,7 @@ export namespace DbValueStoreTemplate {
             valueStoreTemplateId: v.valueStoreTemplateId,
             currency: v.currency,
             initialValue: v.initialValue,
+            pretax: v.pretax,
             minInitialValue: v.minInitialValue,
             maxInitialValue: v.maxInitialValue,
             validityDurationDays: v.validityDurationDays,

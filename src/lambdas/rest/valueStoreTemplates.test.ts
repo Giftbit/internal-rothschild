@@ -1,5 +1,5 @@
 import * as testUtils from "../../testUtils";
-import * as valueStoreTemplates from "./valueStoreTemplate";
+import * as valueStoreTemplates from "./valueStoreTemplates";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import * as chai from "chai";

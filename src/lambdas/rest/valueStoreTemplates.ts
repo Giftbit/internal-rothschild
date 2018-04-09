@@ -4,7 +4,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
 import {ValueStoreTemplate} from "../../model/ValueStoreTemplate";
-import {getKnex, getKnexRead} from "../../dbUtils";
+import {getKnexWrite, getKnexRead} from "../../dbUtils";
 import {DbValueStoreTemplate} from "../../dbmodel/DbValueStoreTemplate";
 
 export function installValueStoreTemplatesRest(router: cassava.Router): void {
@@ -36,15 +36,8 @@ export function installValueStoreTemplatesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            evt.validateBody(valueStoreTemplateSchema);
             const now = new Date();
-            console.log("before validate");
-            try {
-                // evt.validateBody(valueStoreTemplateSchema);
-                validateBody(evt.body, valueStoreTemplateSchema);
-            } catch (e) {
-                console.log("WHOLE ERROR " + e);
-            }
-            console.log("after validate");
             now.setMilliseconds(0);
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
@@ -122,6 +115,8 @@ export function installValueStoreTemplatesRest(router: cassava.Router): void {
 }
 
 async function getValueStoreTemplates(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ valueStoreTemplates: ValueStoreTemplate[], pagination: Pagination }> {
+    auth.requireIds("giftbitUserId");
+
     const knex = await getKnexRead();
     const res: DbValueStoreTemplate[] = await knex("ValueStoreTemplates")
         .select()
@@ -144,8 +139,10 @@ async function getValueStoreTemplates(auth: giftbitRoutes.jwtauth.AuthorizationB
 }
 
 async function createValueStoreTemplate(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStoreTemplate: ValueStoreTemplate): Promise<ValueStoreTemplate> {
+    auth.requireIds("giftbitUserId");
+
     try {
-        const knex = await getKnex();
+        const knex = await getKnexWrite();
         await knex("ValueStoreTemplates")
             .insert(ValueStoreTemplate.toDbValueStoreTemplate(auth, valueStoreTemplate));
         return valueStoreTemplate;
@@ -158,6 +155,8 @@ async function createValueStoreTemplate(auth: giftbitRoutes.jwtauth.Authorizatio
 }
 
 async function getValueStoreTemplate(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStoreTemplateId: string): Promise<ValueStoreTemplate> {
+    auth.requireIds("giftbitUserId");
+
     const knex = await getKnexRead();
     const res: DbValueStoreTemplate[] = await knex("ValueStoreTemplates")
         .select()
@@ -175,7 +174,9 @@ async function getValueStoreTemplate(auth: giftbitRoutes.jwtauth.AuthorizationBa
 }
 
 async function updateValueStoreTemplate(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStoreTemplate: Partial<ValueStoreTemplate>): Promise<ValueStoreTemplate> {
-    const knex = await getKnex();
+    auth.requireIds("giftbitUserId");
+
+    const knex = await getKnexWrite();
     const res = await knex("ValueStoreTemplates")
         .where({
             userId: auth.giftbitUserId,
@@ -208,7 +209,9 @@ async function updateValueStoreTemplate(auth: giftbitRoutes.jwtauth.Authorizatio
 
 
 async function deleteValueStoreTemplate(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStoreTemplateId: string): Promise<{ success: true }> {
-    const knex = await getKnex();
+    auth.requireIds("giftbitUserId");
+
+    const knex = await getKnexWrite();
     const res = await knex("ValueStoreTemplates")
         .where({
             userId: auth.giftbitUserId,
@@ -278,7 +281,7 @@ const valueStoreTemplateSchema: jsonschema.Schema = {
                     type: "null"
                 },
                 {
-                    title: "Value rule",
+                    title: "Redemption rule",
                     type: "object",
                     properties: {
                         rule: {

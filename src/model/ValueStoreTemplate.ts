@@ -28,6 +28,7 @@ export namespace ValueStoreTemplate {
             valueStoreTemplateId: v.valueStoreTemplateId,
             currency: v.currency,
             initialValue: v.initialValue,
+            pretax: v.pretax,
             minInitialValue: v.minInitialValue,
             maxInitialValue: v.maxInitialValue,
             validityDurationDays: v.validityDurationDays,

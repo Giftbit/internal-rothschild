@@ -6,6 +6,7 @@ export interface DbValueStore {
     valueStoreType: ValueStoreType;
     currency: string;
     value: number | null;
+    pretax: boolean;
     active: boolean;
     expired: boolean;
     frozen: boolean;
@@ -26,6 +27,7 @@ export namespace DbValueStore {
             valueStoreType: v.valueStoreType,
             currency: v.currency,
             value: v.value,
+            pretax: v.pretax,
             active: v.active,
             expired: v.expired,
             frozen: v.frozen,
