@@ -6,6 +6,7 @@ export interface ValueStoreTemplate {
     valueStoreTemplateId: string;
     currency: string;
     initialValue: number | null;
+    pretax: boolean;
     minInitialValue: number | null;
     maxInitialValue: number | null;
     validityDurationDays: number | null;

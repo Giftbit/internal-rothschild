@@ -52,6 +52,7 @@ export function installValueStoreTemplatesRest(router: cassava.Router): void {
                     valueStoreTemplateId: evt.body.valueStoreTemplateId,
                     valueStoreType: evt.body.valueStoreType !== undefined ? evt.body.valueStoreType : null,
                     initialValue: evt.body.initialValue !== undefined ? evt.body.initialValue : null,
+                    pretax: evt.body.pretax != null ? evt.body.pretax : false,
                     minInitialValue: evt.body.minInitialValue !== undefined ? evt.body.minInitialValue : null,
                     maxInitialValue: evt.body.maxInitialValue !== undefined ? evt.body.maxInitialValue : null,
                     currency: evt.body.currency !== undefined ? evt.body.currency : null,
@@ -92,6 +93,7 @@ export function installValueStoreTemplatesRest(router: cassava.Router): void {
                     valueStoreTemplateId: evt.pathParameters.valueStoreTemplateId,
                     valueStoreType: evt.body.valueStoreType !== undefined ? evt.body.valueStoreType : null,
                     initialValue: evt.body.initialValue !== undefined ? evt.body.initialValue : null,
+                    pretax: evt.body.pretax != null ? evt.body.pretax : false,
                     minInitialValue: evt.body.minInitialValue !== undefined ? evt.body.minInitialValue : null,
                     maxInitialValue: evt.body.maxInitialValue !== undefined ? evt.body.maxInitialValue : null,
                     currency: evt.body.currency !== undefined ? evt.body.currency : null,
@@ -182,6 +184,7 @@ async function updateValueStoreTemplate(auth: giftbitRoutes.jwtauth.Authorizatio
         .update({
             valueStoreType: valueStoreTemplate.valueStoreType,
             initialValue: valueStoreTemplate.initialValue,
+            pretax: valueStoreTemplate.pretax,
             minInitialValue: valueStoreTemplate.minInitialValue,
             maxInitialValue: valueStoreTemplate.maxInitialValue,
             currency: valueStoreTemplate.currency,

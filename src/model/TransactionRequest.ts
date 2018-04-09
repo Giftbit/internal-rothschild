@@ -45,5 +45,6 @@ export interface InternalTransactionParty {
     rail: "internal";
     id: string;
     value: number;
+    pretax?: boolean;
     appliedFirst?: boolean;
 }

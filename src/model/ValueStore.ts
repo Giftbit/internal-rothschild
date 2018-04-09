@@ -6,6 +6,7 @@ export interface ValueStore {
     valueStoreType: ValueStoreType;
     currency: string;
     value: number | null;
+    pretax: boolean;
     active: boolean;
     expired: boolean;
     frozen: boolean;
