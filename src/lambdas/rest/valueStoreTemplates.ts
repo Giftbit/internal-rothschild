@@ -1,5 +1,4 @@
 import * as cassava from "cassava";
-import {RestError, ValidateBodyOptions} from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
@@ -16,19 +15,6 @@ export function installValueStoreTemplatesRest(router: cassava.Router): void {
                 body: await getValueStoreTemplates(auth, getPaginationParams(evt))
             };
         });
-
-    function validateBody(body: any, schema: jsonschema.Schema, options?: ValidateBodyOptions): void {
-        const result = jsonschema.validate(body, schema, options);
-        if (result.errors.length) {
-            console.log("ERROR OCCURED: " + JSON.stringify(result.errors));
-            const error = new RestError(
-                options && typeof options.httpStatusCode === "number" ? options.httpStatusCode : 422,
-                `The body has ${result.errors.length} validation error(s): ${result.errors.map(e => e.toString()).join(", ")}.`
-            );
-            console.log("error.message = " + error.message);
-            throw error;
-        }
-    }
 
     router.route("/v2/valueStoreTemplates")
         .method("POST")
