@@ -28,7 +28,7 @@ async function createOrder(auth: giftbitRoutes.jwtauth.AuthorizationBadge, order
     steps.sort(compareTransactionPlanSteps);
     const plan = buildOrderTransactionPlan(order, steps);
     if (plan.remainder && !order.allowRemainder) {
-        throw new cassava.RestError();      // TODO fill in the right values for an NSF error
+        throw new giftbitRoutes.GiftbitRestError(400, "Insufficient value.", "InsufficientValue");
     }
     if (order.simulate) {
         return transactionPlanToTransaction(plan);
