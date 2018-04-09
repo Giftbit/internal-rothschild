@@ -3,6 +3,7 @@ import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as customers from "./customers";
 import * as testUtils from "../../testUtils";
+import {Customer} from "../../model/Customer";
 
 describe("/v2/customers/", () => {
 
@@ -32,7 +33,7 @@ describe("/v2/customers/", () => {
         });
     });
 
-    let customer1: any = {
+    let customer1: Partial<Customer> = {
         customerId: "1",
         firstName: "First",
         lastName: "Last",
@@ -49,7 +50,6 @@ describe("/v2/customers/", () => {
         chai.assert.equal(resp.statusCode, 201);
 
         const parsedBody = JSON.parse(resp.body);
-        chai.assert.equal(parsedBody.userId, testUtils.testUserA.userId, `body=${resp.body}`);
         chai.assert.equal(parsedBody.customerId, customer1.customerId);
         chai.assert.equal(parsedBody.firstName, customer1.firstName);
         chai.assert.equal(parsedBody.lastName, customer1.lastName);
@@ -152,7 +152,7 @@ describe("/v2/customers/", () => {
         chai.assert.equal(resp.statusCode, 422);
     });
 
-    let customer2: any = {
+    let customer2: Partial<Customer> = {
         customerId: "2"
     };
 
@@ -165,7 +165,6 @@ describe("/v2/customers/", () => {
         }));
         chai.assert.equal(resp.statusCode, 201);
         const parsedBody = JSON.parse(resp.body);
-        chai.assert.equal(parsedBody.userId, testUtils.testUserA.userId);
         chai.assert.equal(parsedBody.customerId, customer2.customerId);
         chai.assert.equal(parsedBody.firstName, null);
         chai.assert.equal(parsedBody.lastName, null);
@@ -173,12 +172,12 @@ describe("/v2/customers/", () => {
         customer2 = parsedBody;
     });
 
-    const customer3: any = {
+    const customer3: Partial<Customer> & {userId: string} = {
         customerId: "3",
         userId: "malicious"
     };
 
-    it("doesn't allow the user to set the userId", async () => {
+    it("can't override the userId", async () => {
         const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/customers", "POST", {
             headers: {
                 Authorization: `Bearer ${testUtils.testUserA.jwt}`
@@ -187,8 +186,7 @@ describe("/v2/customers/", () => {
         }));
 
         chai.assert.equal(resp.statusCode, 201);
-        chai.assert.notDeepEqual(JSON.parse(resp.body), customer3);
-        chai.assert.equal(JSON.parse(resp.body).userId, testUtils.testUserA.userId);
+        chai.assert.notEqual(JSON.parse(resp.body).userId, customer3.userId);
     });
 
     it("can modify the customer", async () => {
@@ -201,7 +199,7 @@ describe("/v2/customers/", () => {
             },
             body: JSON.stringify(customer1)
         }));
-        chai.assert.equal(resp.statusCode, 200);
+        chai.assert.equal(resp.statusCode, 200, `body=${resp.body}`);
         chai.assert.deepEqual(JSON.parse(resp.body), customer1);
 
         const getResp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent(`/v2/customers/${customer1.customerId}`, "GET", {
@@ -260,6 +258,46 @@ describe("/v2/customers/", () => {
                 offset: 1
             }
         });
+    });
+
+    let customer4: Partial<Customer> = {
+        customerId: "4",
+        firstName: "customer4",
+        metadata: {
+            strings: "supported",
+            numbers: 1,
+            booleans: true,
+            arrays: ["also", "supported"],
+            nested: {
+                also: "supported"
+            }
+        }
+    };
+
+    it("can create a customer with metadata", async () => {
+        const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/customers", "POST", {
+            headers: {
+                Authorization: `Bearer ${testUtils.testUserA.jwt}`
+            },
+            body: JSON.stringify(customer4)
+        }));
+        chai.assert.equal(resp.statusCode, 201);
+        const parsedBody = JSON.parse(resp.body);
+        chai.assert.equal(parsedBody.customerId, customer4.customerId);
+        chai.assert.deepEqual(parsedBody.metadata, customer4.metadata);
+        customer4 = parsedBody;
+    });
+
+    it("can get he customer with metadata", async () => {
+        const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent(`/v2/customers/${customer4.customerId}`, "GET", {
+            headers: {
+                Authorization: `Bearer ${testUtils.testUserA.jwt}`
+            },
+            body: JSON.stringify(customer4)
+        }));
+        chai.assert.equal(resp.statusCode, 200);
+        const parsedBody = JSON.parse(resp.body);
+        chai.assert.deepEqual(customer4, parsedBody);
     });
 
     describe("userId isolation", () => {

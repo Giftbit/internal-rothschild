@@ -4,13 +4,13 @@ import {
     InternalTransactionParty, LightrailTransactionParty, StripeTransactionParty,
     TransactionParty
 } from "../../../model/TransactionRequest";
-import {ValueStore} from "../../../model/ValueStore";
 import {getKnexRead} from "../../../dbUtils";
 import {
     InternalTransactionPlanStep, LightrailTransactionPlanStep, StripeTransactionPlanStep,
     TransactionPlanStep
 } from "./TransactionPlan";
 import {QueryBuilder} from "knex";
+import {DbValueStore} from "../../../model/dbmodel/DbValueStore";
 
 export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: string, parties: TransactionParty[]): Promise<TransactionPlanStep[]> {
     const lightrailValueStoreIds = parties.filter(p => p.rail === "lightrail" && p.valueStoreId).map(p => (p as LightrailTransactionParty).valueStoreId);
@@ -54,7 +54,7 @@ export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.Auth
     return [...lightrailSteps, ...internalSteps, ...stripeSteps];
 }
 
-async function getLightrailValueStores(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: string, valueStoreIds: string[], codes: string[], customerIds: string[]): Promise<(ValueStore & {codeLastFour: string, customerId: string})[]> {
+async function getLightrailValueStores(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: string, valueStoreIds: string[], codes: string[], customerIds: string[]): Promise<(DbValueStore & {codeLastFour: string, customerId: string})[]> {
     if (!valueStoreIds.length && !codes.length && !customerIds.length) {
         return [];
     }

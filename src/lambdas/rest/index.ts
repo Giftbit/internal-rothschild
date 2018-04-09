@@ -4,7 +4,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {installCustomersRest} from "./customers";
 import {installTransactionsRest} from "./transactions/transactions";
 import {installValueStoresRest} from "./valueStores";
-import {installValueStoreTemplatesRest} from "./valueStoreTemplate";
+import {installValueStoreTemplatesRest} from "./valueStoreTemplates";
 
 const router = new cassava.Router();
 

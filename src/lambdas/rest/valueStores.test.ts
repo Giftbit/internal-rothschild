@@ -3,6 +3,7 @@ import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as valueStores from "./valueStores";
 import * as testUtils from "../../testUtils";
+import {ValueStore} from "../../model/ValueStore";
 
 describe("/v2/valueStores/", () => {
 
@@ -32,14 +33,14 @@ describe("/v2/valueStores/", () => {
         });
     });
 
-    let valueStore1: any = {
+    let valueStore1: Partial<ValueStore> = {
         valueStoreId: "1",
         valueStoreType: "GIFTCARD",
         currency: "USD",
         value: 5000
     };
 
-    it("can create a valueStore", async () => {
+    it("can create a value store", async () => {
         const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/valueStores", "POST", {
             headers: {
                 Authorization: `Bearer ${testUtils.testUserA.jwt}`
@@ -49,7 +50,6 @@ describe("/v2/valueStores/", () => {
         chai.assert.equal(resp.statusCode, 201, `body=${resp.body}`);
 
         const parsedBody = JSON.parse(resp.body);
-        chai.assert.equal(parsedBody.userId, testUtils.testUserA.userId);
         chai.assert.equal(parsedBody.valueStoreId, valueStore1.valueStoreId);
         chai.assert.equal(parsedBody.valueStoreType, valueStore1.valueStoreType);
         chai.assert.equal(parsedBody.currency, valueStore1.currency);
@@ -61,6 +61,16 @@ describe("/v2/valueStores/", () => {
         chai.assert.equal(parsedBody.valueRule, null);
         chai.assert.equal(parsedBody.valueRule, null);
         valueStore1 = parsedBody;
+    });
+
+    it("can get the value store", async () => {
+        const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent(`/v2/valueStores/${valueStore1.valueStoreId}`, "GET", {
+            headers: {
+                Authorization: `Bearer ${testUtils.testUserA.jwt}`
+            }
+        }));
+        chai.assert.equal(resp.statusCode, 200, `body=${resp.body}`);
+        chai.assert.deepEqual(JSON.parse(resp.body), valueStore1);
     });
 
     it("409s on creating a duplicate valueStore", async () => {
