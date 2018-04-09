@@ -80,7 +80,18 @@ module.exports = function (env) {
                 'aws-sdk': 'aws-sdk',
                 'awslambda': 'awslambda',
                 'dynamodb-doc': 'dynamodb-doc',
-                'imagemagick': 'imagemagick'
+                'imagemagick': 'imagemagick',
+
+                // Knex drivers we won't use.
+                'sqlite3': 'sqlite3',
+                'mariasql': 'mariasql',
+                'mssql': 'mssql',
+                'mysql': 'mysql',
+                'oracle': 'oracle',
+                'strong-oracle': 'strong-oracle',
+                'oracledb': 'oracledb',
+                'pg': 'pg',
+                'pg-query-stream': 'pg-query-stream'
             },
             node: {
                 // Allow these globals.

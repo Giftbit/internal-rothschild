@@ -10,7 +10,7 @@ import {
     TransactionPlanStep
 } from "./TransactionPlan";
 import {QueryBuilder} from "knex";
-import {DbValueStore} from "../../../model/dbmodel/DbValueStore";
+import {DbValueStore, ValueStore} from "../../../model/ValueStore";
 
 export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: string, parties: TransactionParty[]): Promise<TransactionPlanStep[]> {
     const lightrailValueStoreIds = parties.filter(p => p.rail === "lightrail" && p.valueStoreId).map(p => (p as LightrailTransactionParty).valueStoreId);
@@ -19,9 +19,11 @@ export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.Auth
 
     const lightrailValueStores = await getLightrailValueStores(auth, currency, lightrailValueStoreIds, lightrailCodes, lightrailCustomerIds);
     const lightrailSteps = lightrailValueStores
-        .map((valueStore): LightrailTransactionPlanStep => ({
+        .map((v): LightrailTransactionPlanStep => ({
             rail: "lightrail",
-            valueStore,
+            valueStore: v.valueStore,
+            codeLastFour: v.codeLastFour,
+            customerId: v.customerId,
             amount: 0
         }));
 
@@ -54,7 +56,7 @@ export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.Auth
     return [...lightrailSteps, ...internalSteps, ...stripeSteps];
 }
 
-async function getLightrailValueStores(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: string, valueStoreIds: string[], codes: string[], customerIds: string[]): Promise<(DbValueStore & {codeLastFour: string, customerId: string})[]> {
+async function getLightrailValueStores(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: string, valueStoreIds: string[], codes: string[], customerIds: string[]): Promise<({valueStore: ValueStore, codeLastFour: string, customerId: string})[]> {
     if (!valueStoreIds.length && !codes.length && !customerIds.length) {
         return [];
     }
@@ -66,7 +68,7 @@ async function getLightrailValueStores(auth: giftbitRoutes.jwtauth.Authorization
 
     if (valueStoreIds.length) {
         query = knex("ValueStores")
-            .select("ValueStores.*")
+            .select("*")
             .select(knex.raw("NULL as codeLastFour, NULL as customerId"))   // need NULL values here so it lines up for the union
             .where({
                 userId: auth.giftbitUserId,
@@ -74,6 +76,9 @@ async function getLightrailValueStores(auth: giftbitRoutes.jwtauth.Authorization
                 frozen: false,
                 active: true,
                 expired: false
+            })
+            .whereNot({
+                uses: 0
             })
             .whereIn("valueStoreId", valueStoreIds);
     }
@@ -86,7 +91,12 @@ async function getLightrailValueStores(auth: giftbitRoutes.jwtauth.Authorization
         query = query ? query.unionAll(selectByCustomerIds(auth, currency, customerIds)) : selectByCustomerIds(auth, currency, customerIds)(knex("ValueStores"));
     }
 
-    return await query;
+    const valueStores: (DbValueStore & {codeLastFour: string, customerId: string})[] = await query;
+    return valueStores.map(v => ({
+        valueStore: DbValueStore.toValueStore(v),
+        codeLastFour: v.codeLastFour,
+        customerId: v.customerId
+    }));
 }
 
 function selectByCodes(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: string, codes: string[]): (query: QueryBuilder) => QueryBuilder {
@@ -101,6 +111,9 @@ function selectByCodes(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency:
             frozen: false,
             active: true,
             expired: false
+        })
+        .whereNot({
+            uses: 0
         })
         .whereIn("ValueStoreAccess.code", codes);
 }
@@ -117,6 +130,9 @@ function selectByCustomerIds(auth: giftbitRoutes.jwtauth.AuthorizationBadge, cur
             frozen: false,
             active: true,
             expired: false
+        })
+        .whereNot({
+            uses: 0
         })
         .whereIn("ValueStoreAccess.customerId", customerIds);
 }
