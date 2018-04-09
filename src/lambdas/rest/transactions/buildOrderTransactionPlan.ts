@@ -1,5 +1,7 @@
 import {TransactionPlan, TransactionPlanStep} from "./TransactionPlan";
 import {OrderRequest} from "../../../model/TransactionRequest";
+import {Rule} from "../../../model/ValueStore";
+import {getRuleFromCache} from "./getRuleFromCache";
 
 export function buildOrderTransactionPlan(order: OrderRequest, steps: TransactionPlanStep[]): TransactionPlan {
     const now = new Date();
@@ -12,7 +14,7 @@ export function buildOrderTransactionPlan(order: OrderRequest, steps: Transactio
         const step = steps[stepIx];
         switch (step.rail) {
             case "lightrail":
-                if (step.valueStore.frozen || !step.valueStore.active || step.valueStore.expired) {
+                if (step.valueStore.frozen || !step.valueStore.active || step.valueStore.expired || step.valueStore.usesLeft === 0) {
                     // Ideally those won't be returned in the query for efficiency but it's good to be paranoid here.
                     break;
                 }
@@ -22,18 +24,30 @@ export function buildOrderTransactionPlan(order: OrderRequest, steps: Transactio
                 if (step.valueStore.endDate && step.valueStore.endDate < now) {
                     break;
                 }
-                // TODO redemption rules, value rules
-                step.amount = -Math.max(remainder, step.valueStore.value);
+                if (step.valueStore.redemptionRule) {
+                    const context = {
+                        cart: order.cart
+                    };
+                    if (!getRuleFromCache(step.valueStore.redemptionRule.rule).evaluateToBoolean(context)) {
+                        break;
+                    }
+                }
+
+                if (step.valueStore.valueRule) {
+                    step.amount = -Math.min(remainder, getRuleFromCache(step.valueStore.valueRule.rule).evaluateToNumber(context) | 0);
+                } else {
+                    step.amount = -Math.min(remainder, step.valueStore.value);
+                }
                 break;
             case "stripe":
                 if (step.maxAmount) {
-                    step.amount = -Math.max(remainder, step.maxAmount);
+                    step.amount = -Math.min(remainder, step.maxAmount);
                 } else {
                     step.amount = -remainder;
                 }
                 break;
             case "internal":
-                step.amount = -Math.max(remainder, step.value);
+                step.amount = -Math.min(remainder, step.value);
                 break;
         }
         remainder += step.amount;

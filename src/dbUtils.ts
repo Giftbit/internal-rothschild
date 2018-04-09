@@ -76,7 +76,7 @@ export async function getKnexRead(): Promise<knex> {
 function getKnex(username: string, password: string, endpoint: string, port: string): knex {
     !isTestEnv && console.log(`connecting to ${endpoint}:${port}`);
     return knex({
-        client: "mysql",
+        client: "mysql2",
         connection: {
             host: endpoint,
             port: +port,
@@ -88,6 +88,9 @@ function getKnex(username: string, password: string, endpoint: string, port: str
                 if (field.type === "TINY" && field.length === 1) {
                     // MySQL does not have a true boolean type.  Convert tinyint(1) to boolean.
                     return field.string() === "1";
+                }
+                if (field.type === "DATETIME") {
+                    return new Date(field.string() + "Z");
                 }
                 return next();
             }

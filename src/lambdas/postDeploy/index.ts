@@ -1,6 +1,6 @@
 import "babel-polyfill";
 import * as awslambda from "aws-lambda";
-import * as mysql from "promise-mysql";
+import * as mysql from "mysql2/promise";
 import {sendCloudFormationResponse} from "../../sendCloudFormationResponse";
 import {getDbCredentials} from "../../dbUtils";
 
@@ -56,7 +56,7 @@ async function getConnection(ctx: awslambda.Context): Promise<mysql.Connection> 
     while (true) {
         try {
             console.log(`connecting to ${process.env["DB_ENDPOINT"]}:${process.env["DB_PORT"]}`);
-            return await await mysql.createConnection({
+            return await mysql.createConnection({
                 // multipleStatements = true removes a protection against injection attacks.
                 // We're running scripts and not accepting user input here so that's ok,
                 // but other clients should *not* do that.
@@ -80,13 +80,13 @@ async function getConnection(ctx: awslambda.Context): Promise<mysql.Connection> 
 
 async function putBaseSchema(connection: mysql.Connection, force: boolean = false): Promise<void> {
     console.log("checking for schema");
-    const schemaRes = await connection.query("SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?", ["rothschild"]);
+    const [schemaRes] = await connection.execute("SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?", ["rothschild"]);
     console.log("checked for schema", JSON.stringify(schemaRes));
     if (schemaRes.length > 0) {
         if (force) {
             console.log("!!! FORCING DATABASE SCHEMA FROM BASE !!!");
             console.log("dropping schema");
-            const dropRes = await connection.query("DROP DATABASE rothschild;");
+            const [dropRes] = await connection.execute("DROP DATABASE rothschild;");
             console.log("dropped schema", JSON.stringify(dropRes));
         } else {
             return;
@@ -95,6 +95,6 @@ async function putBaseSchema(connection: mysql.Connection, force: boolean = fals
 
     const sql = require("./schema/base.sql");
     console.log("applying base schema");
-    const baseSchemaRes = await connection.query(sql);
+    const [baseSchemaRes] = await connection.execute(sql);
     console.log("applied base schema", JSON.stringify(baseSchemaRes));
 }

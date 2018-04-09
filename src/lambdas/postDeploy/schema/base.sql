@@ -58,8 +58,8 @@ CREATE TABLE rothschild.ValueStores (
   usesLeft             INT,
   valueStoreTemplateId VARCHAR(255),
   metadata             TEXT,
-  createdDate          DATETIME NOT NULL,
-  updatedDate          DATETIME NOT NULL,
+  createdDate          DATETIME     NOT NULL,
+  updatedDate          DATETIME     NOT NULL,
   PRIMARY KEY (userId, valueStoreId),
   CONSTRAINT valueStores_fk0 FOREIGN KEY (userId, valueStoreTemplateId) REFERENCES rothschild.ValueStoreTemplates (userId, valueStoreTemplateId)
 );

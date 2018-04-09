@@ -36,8 +36,8 @@ function lightrailTransactionPlanStepToTransactionStep(step: LightrailTransactio
         valueStoreId: step.valueStore.valueStoreId,
         valueStoreType: step.valueStore.valueStoreType,
         currency: step.valueStore.currency,
-        customerId: step.valueStore.customerId,
-        codeLastFour: step.valueStore.codeLastFour,
+        customerId: step.customerId,
+        codeLastFour: step.codeLastFour,
         valueBefore: step.valueStore.value,
         valueAfter: step.valueStore.value + step.amount,
         valueChange: step.amount
