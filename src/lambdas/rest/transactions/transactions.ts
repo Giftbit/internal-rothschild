@@ -51,7 +51,7 @@ export function installTransactionsRest(router: cassava.Router): void {
 async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CreditRequest): Promise<Transaction> {
     const parties = await resolveTransactionParties(auth, req.currency, [req.destination]);
     if (parties.length !== 1 || parties[0].rail !== "lightrail") {
-        throw new giftbitRoutes.GiftbitRestError(404);
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable value store.", "InvalidParty");
     }
 
     const plan: TransactionPlan = {
@@ -77,7 +77,7 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
 async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: DebitRequest): Promise<Transaction> {
     const parties = await resolveTransactionParties(auth, req.currency, [req.source]);
     if (parties.length !== 1 || parties[0].rail !== "lightrail") {
-        throw new giftbitRoutes.GiftbitRestError(404);
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable value store.", "InvalidParty");
     }
 
     const amount = Math.max(req.value, -(parties[0] as LightrailTransactionPlanStep).valueStore.value);
