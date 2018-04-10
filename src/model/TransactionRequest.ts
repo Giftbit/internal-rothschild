@@ -12,6 +12,7 @@ export interface CreditRequest {
     destination: TransactionParty;
     value: number;
     currency: string;
+    simulate?: boolean;
 }
 
 export interface DebitRequest {
@@ -19,6 +20,8 @@ export interface DebitRequest {
     source: TransactionParty;
     value: number;
     currency: string;
+    simulate?: boolean;
+    allowRemainder?: boolean;
 }
 
 export type Cart = any;

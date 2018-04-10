@@ -77,13 +77,11 @@ async function getLightrailValueStores(auth: giftbitRoutes.jwtauth.Authorization
                 active: true,
                 expired: false
             })
-            .whereNot({
-                uses: 0
-            })
+            .where(q => q.whereNull("uses").orWhere("uses", ">", 0))
             .whereIn("valueStoreId", valueStoreIds);
     }
 
-    if (codes) {
+    if (codes.length) {
         query = query ? query.unionAll(selectByCodes(auth, currency, codes)) : selectByCodes(auth, currency, codes)(knex("ValueStores"));
     }
 

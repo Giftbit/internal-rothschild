@@ -1,6 +1,5 @@
 import {TransactionPlan, TransactionPlanStep} from "./TransactionPlan";
 import {OrderRequest} from "../../../model/TransactionRequest";
-import {Rule} from "../../../model/ValueStore";
 import {getRuleFromCache} from "./getRuleFromCache";
 
 export function buildOrderTransactionPlan(order: OrderRequest, steps: TransactionPlanStep[]): TransactionPlan {
@@ -14,7 +13,7 @@ export function buildOrderTransactionPlan(order: OrderRequest, steps: Transactio
         const step = steps[stepIx];
         switch (step.rail) {
             case "lightrail":
-                if (step.valueStore.frozen || !step.valueStore.active || step.valueStore.expired || step.valueStore.usesLeft === 0) {
+                if (step.valueStore.frozen || !step.valueStore.active || step.valueStore.expired || step.valueStore.uses === 0) {
                     // Ideally those won't be returned in the query for efficiency but it's good to be paranoid here.
                     break;
                 }

@@ -38,7 +38,7 @@ export function installValueStoresRest(router: cassava.Router): void {
                     frozen: evt.body.frozen != null ? evt.body.frozen : false,
                     redemptionRule: evt.body.redemptionRule || null,
                     valueRule: evt.body.valueRule || null,
-                    usesLeft: evt.body.usesLeft != null ? evt.body.usesLeft : null,
+                    uses: evt.body.uses != null ? evt.body.uses : null,
                     startDate: evt.body.startDate != null ? evt.body.startDate : null,
                     endDate: evt.body.endDate != null ? evt.body.endDate : null,
                     metadata: evt.body.metadata !== undefined ? evt.body.metadata : null,
@@ -131,6 +131,7 @@ const valueStoreSchema: jsonschema.Schema = {
         },
         currency: {
             type: "string",
+            minLength: 3,
             maxLength: 16
         },
         value: {
@@ -186,7 +187,7 @@ const valueStoreSchema: jsonschema.Schema = {
                 }
             ]
         },
-        usesLeft: {
+        uses: {
             type: ["number", "null"]
         },
         startDate: {

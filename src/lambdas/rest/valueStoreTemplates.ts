@@ -238,6 +238,7 @@ const valueStoreTemplateSchema: jsonschema.Schema = {
         },
         currency: {
             type: ["string"],
+            minLength: 3,
             maxLength: 16
         },
         // todo - excluded this because this is set after request is verified by schema

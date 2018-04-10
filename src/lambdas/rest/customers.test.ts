@@ -5,7 +5,7 @@ import * as customers from "./customers";
 import * as testUtils from "../../testUtils";
 import {Customer} from "../../model/Customer";
 
-describe("/v2/customers/", () => {
+describe("/v2/customers", () => {
 
     const router = new cassava.Router();
 

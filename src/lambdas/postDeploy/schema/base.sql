@@ -55,7 +55,7 @@ CREATE TABLE rothschild.ValueStores (
   valueRule            TEXT,
   startDate            DATETIME,
   endDate              DATETIME,
-  usesLeft             INT,
+  uses                 INT,
   valueStoreTemplateId VARCHAR(255),
   metadata             TEXT,
   createdDate          DATETIME     NOT NULL,
@@ -68,9 +68,10 @@ CREATE TABLE rothschild.Transactions (
   userId                  VARCHAR(255) NOT NULL,
   transactionId           VARCHAR(255) NOT NULL,
   transactionType         VARCHAR(255) NOT NULL,
-  cart                    MEDIUMTEXT   NOT NULL,
+  cart                    MEDIUMTEXT,
+  requestedPaymentSources TEXT,
+  remainder               INT          NOT NULL,
   createdDate             DATETIME     NOT NULL,
-  requestedPaymentSources TEXT         NOT NULL,
   PRIMARY KEY (userId, transactionId)
 );
 
@@ -80,6 +81,7 @@ CREATE TABLE rothschild.LightrailTransactionSteps (
   transactionId              VARCHAR(255) NOT NULL,
   valueStoreId               VARCHAR(255) NOT NULL,
   customerId                 VARCHAR(255),
+  codeLastFour               VARCHAR(4),
   valueBefore                INT          NOT NULL,
   valueAfter                 INT          NOT NULL,
   valueChange                INT          NOT NULL,

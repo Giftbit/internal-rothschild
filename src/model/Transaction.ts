@@ -6,6 +6,7 @@ export interface Transaction {
     cart?: CartTransaction;
     steps: TransactionStep[];
     remainder: number;
+    simulated?: true;
 }
 
 export type TransactionType = "credit" | "debit" | "order" | "transfer" | "pending_create" | "pending_capture" | "pending_void";

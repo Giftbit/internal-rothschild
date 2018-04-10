@@ -9,14 +9,18 @@ import {
     TransactionPlanStep
 } from "./TransactionPlan";
 
-export function transactionPlanToTransaction(plan: TransactionPlan): Transaction {
-    return {
+export function transactionPlanToTransaction(plan: TransactionPlan, simulated?: boolean): Transaction {
+    const transaction: Transaction = {
         transactionId: plan.transactionId,
         transactionType: plan.transactionType,
         cart: plan.cart,
         steps: plan.steps.map(transactionPlanStepToTransactionStep),
         remainder: plan.remainder
     };
+    if (simulated) {
+        transaction.simulated = true;
+    }
+    return transaction;
 }
 
 function transactionPlanStepToTransactionStep(step: TransactionPlanStep): TransactionStep {

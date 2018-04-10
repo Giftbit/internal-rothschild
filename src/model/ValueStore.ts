@@ -11,7 +11,7 @@ export interface ValueStore {
     frozen: boolean;
     redemptionRule: Rule | null;
     valueRule: Rule | null;
-    usesLeft: number | null;
+    uses: number | null;
     startDate: Date | null;
     endDate: Date | null;
     metadata: object | null;
@@ -40,7 +40,7 @@ export namespace ValueStore {
             frozen: v.frozen,
             redemptionRule: JSON.stringify(v.redemptionRule),
             valueRule: JSON.stringify(v.valueRule),
-            usesLeft: v.usesLeft,
+            uses: v.uses,
             startDate: v.startDate,
             endDate: v.endDate,
             metadata: JSON.stringify(v.metadata),
@@ -62,7 +62,7 @@ export interface DbValueStore {
     frozen: boolean;
     redemptionRule: string;
     valueRule: string;
-    usesLeft: number | null;
+    uses: number | null;
     startDate: Date | null;
     endDate: Date | null;
     metadata: string;
@@ -83,7 +83,7 @@ export namespace DbValueStore {
             frozen: v.frozen,
             redemptionRule: JSON.parse(v.redemptionRule),
             valueRule: JSON.parse(v.valueRule),
-            usesLeft: v.usesLeft,
+            uses: v.uses,
             startDate: v.startDate,
             endDate: v.endDate,
             metadata: JSON.parse(v.metadata),
