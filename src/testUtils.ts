@@ -1,3 +1,4 @@
+import * as cassava from "cassava";
 import * as fs from "fs";
 import * as mysql from "mysql2/promise";
 import * as path from "path";
@@ -8,13 +9,13 @@ if (!process.env["TEST_ENV"]) {
     throw new Error("Env var TEST_ENV is undefined.  This is not a test environment!");
 }
 
-export const testUserA = {
-    userId: "test-user-a",
+export const defaultTestUser = {
+    userId: "default-test-user",
     jwt: "eyJ2ZXIiOjIsInZhdiI6MSwiYWxnIjoiSFMyNTYiLCJ0eXAiOiJKV1QifQ.eyJnIjp7Imd1aSI6InRlc3QtdXNlci1hIiwiZ21pIjoidGVzdC11c2VyLWEifSwiaWF0IjoiMjAxNy0wMy0wN1QxODozNDowNi42MDMrMDAwMCIsImp0aSI6ImJhZGdlLWRkOTViOWI1ODJlODQwZWNiYTFjYmY0MTM2NWQ1N2UxIiwic2NvcGVzIjpbXSwicm9sZXMiOlsiYWNjb3VudE1hbmFnZXIiLCJjb250YWN0TWFuYWdlciIsImN1c3RvbWVyU2VydmljZU1hbmFnZXIiLCJjdXN0b21lclNlcnZpY2VSZXByZXNlbnRhdGl2ZSIsInBvaW50T2ZTYWxlIiwicHJvZ3JhbU1hbmFnZXIiLCJwcm9tb3RlciIsInJlcG9ydGVyIiwic2VjdXJpdHlNYW5hZ2VyIiwidGVhbUFkbWluIiwid2ViUG9ydGFsIl19.Pc1EQL77Z8SsIjlPJqOuVdksx8ZiyFfGwAgFVSOmuMQ"
 };
 
-export const testUserB = {
-    userId: "test-user-b",
+export const alternateTestUser = {
+    userId: "alternate-test-user",
     jwt: "eyJ2ZXIiOjIsInZhdiI6MSwiYWxnIjoiSFMyNTYiLCJ0eXAiOiJKV1QifQ.eyJnIjp7Imd1aSI6InRlc3QtdXNlci1iIiwiZ21pIjoidGVzdC11c2VyLWIifSwiaWF0IjoiMjAxOC0wMy0yM1QyMToyNToyNi44MTIrMDAwMCIsImp0aSI6ImJhZGdlLTJmMThmZDI5NmJjZDQ4OGVhZDg1MzU5ZWI2NjgwNDE5Iiwic2NvcGVzIjpbXSwicm9sZXMiOlsiYWNjb3VudE1hbmFnZXIiLCJjb250YWN0TWFuYWdlciIsImN1c3RvbWVyU2VydmljZU1hbmFnZXIiLCJjdXN0b21lclNlcnZpY2VSZXByZXNlbnRhdGl2ZSIsInBvaW50T2ZTYWxlIiwicHJvZ3JhbU1hbmFnZXIiLCJwcm9tb3RlciIsInJlcG9ydGVyIiwic2VjdXJpdHlNYW5hZ2VyIiwidGVhbUFkbWluIiwid2ViUG9ydGFsIl19.yLyfSbgdDoLv4gD9aPkXWB40yj2_vg4WqUnZg6-yNBY"
 };
 
@@ -61,4 +62,29 @@ export async function resetDb(): Promise<void> {
     }
 
     await connection.end();
+}
+
+export interface ParsedProxyResponse<T> {
+    statusCode: number;
+    headers: {
+        [key: string]: string;
+    };
+    body: T;
+}
+
+/**
+ * Make a simple authed request to the router with the default test user.
+ */
+export async function testAuthedRequest<T>(router: cassava.Router, url: string, method: string, body?: any): Promise<ParsedProxyResponse<T>> {
+    const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent(url, method, {
+        headers: {
+            Authorization: `Bearer ${defaultTestUser.jwt}`
+        },
+        body: body && JSON.stringify(body) || undefined
+    }));
+    return {
+        statusCode: resp.statusCode,
+        headers: resp.headers,
+        body: resp.body && JSON.parse(resp.body) || undefined
+    };
 }

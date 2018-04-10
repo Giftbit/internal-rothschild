@@ -5,6 +5,7 @@ import * as transactions from "./transactions";
 import * as valueStores from "../valueStores";
 import * as testUtils from "../../../testUtils";
 import {ValueStore} from "../../../model/ValueStore";
+import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
 
 describe("/v2/transactions/transfer", () => {
 
@@ -32,48 +33,32 @@ describe("/v2/transactions/transfer", () => {
     };
 
     it("can credit a gift card by valueStoreId", async () => {
-        const postValueStore1Resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/valueStores", "POST", {
-            headers: {
-                Authorization: `Bearer ${testUtils.testUserA.jwt}`
-            },
-            body: JSON.stringify(valueStore1)
-        }));
+        const postValueStore1Resp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/valueStores", "POST", valueStore1);
         chai.assert.equal(postValueStore1Resp.statusCode, 201, `body=${postValueStore1Resp.body}`);
 
-        const postValueStore2Resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/valueStores", "POST", {
-            headers: {
-                Authorization: `Bearer ${testUtils.testUserA.jwt}`
-            },
-            body: JSON.stringify(valueStore2)
-        }));
+        const postValueStore2Resp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/valueStores", "POST", valueStore2);
         chai.assert.equal(postValueStore2Resp.statusCode, 201, `body=${postValueStore1Resp.body}`);
 
-        const postTransferResp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/transactions/transfer", "POST", {
-            headers: {
-                Authorization: `Bearer ${testUtils.testUserA.jwt}`
+        const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
+            transactionId: "transfer-1",
+            source: {
+                rail: "lightrail",
+                valueStoreId: valueStore1.valueStoreId
             },
-            body: JSON.stringify({
-                transactionId: "transfer-1",
-                source: {
-                    rail: "lightrail",
-                    valueStoreId: valueStore1.valueStoreId
-                },
-                destination: {
-                    rail: "lightrail",
-                    valueStoreId: valueStore2.valueStoreId
-                },
-                value: 1000,
-                currency: "CAD"
-            })
-        }));
+            destination: {
+                rail: "lightrail",
+                valueStoreId: valueStore2.valueStoreId
+            },
+            value: 1000,
+            currency: "CAD"
+        });
         chai.assert.equal(postTransferResp.statusCode, 201, `body=${postTransferResp.body}`);
 
-        const postCreditBody = JSON.parse(postTransferResp.body);
-        chai.assert.equal(postCreditBody.transactionId, "transfer-1");
-        chai.assert.equal(postCreditBody.transactionType, "transfer");
-        chai.assert.lengthOf(postCreditBody.steps, 2);
+        chai.assert.equal(postTransferResp.body.transactionId, "transfer-1");
+        chai.assert.equal(postTransferResp.body.transactionType, "transfer");
+        chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
-        const sourceStep = postCreditBody.steps.find(s => s.valueStoreId === valueStore1.valueStoreId);
+        const sourceStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueStoreId === valueStore1.valueStoreId) as LightrailTransactionStep;
         chai.assert.isObject(sourceStep, "find source step");
         chai.assert.equal(sourceStep.rail, "lightrail");
         chai.assert.equal(sourceStep.valueStoreId, valueStore1.valueStoreId);
@@ -83,7 +68,7 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.equal(sourceStep.valueAfter, 500);
         chai.assert.equal(sourceStep.valueChange, -1000);
 
-        const destStep = postCreditBody.steps.find(s => s.valueStoreId === valueStore2.valueStoreId);
+        const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueStoreId === valueStore2.valueStoreId) as LightrailTransactionStep;
         chai.assert.isObject(destStep, "find dest step");
         chai.assert.equal(destStep.rail, "lightrail");
         chai.assert.equal(destStep.valueStoreId, valueStore2.valueStoreId);
@@ -93,24 +78,12 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.equal(destStep.valueAfter, 3500);
         chai.assert.equal(destStep.valueChange, 1000);
 
-        const getValueStore1Resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent(`/v2/valueStores/${valueStore1.valueStoreId}`, "GET", {
-            headers: {
-                Authorization: `Bearer ${testUtils.testUserA.jwt}`
-            }
-        }));
+        const getValueStore1Resp = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${valueStore1.valueStoreId}`, "GET");
         chai.assert.equal(getValueStore1Resp.statusCode, 200, `body=${postValueStore1Resp.body}`);
+        chai.assert.equal(getValueStore1Resp.body.value, 500);
 
-        const getValueStore1Body = JSON.parse(getValueStore1Resp.body) as ValueStore;
-        chai.assert.equal(getValueStore1Body.value, 500);
-
-        const getValueStore2Resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent(`/v2/valueStores/${valueStore2.valueStoreId}`, "GET", {
-            headers: {
-                Authorization: `Bearer ${testUtils.testUserA.jwt}`
-            }
-        }));
+        const getValueStore2Resp = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${valueStore2.valueStoreId}`, "GET");
         chai.assert.equal(getValueStore2Resp.statusCode, 200, `body=${getValueStore2Resp.body}`);
-
-        const getValueStore2Body = JSON.parse(getValueStore2Resp.body) as ValueStore;
-        chai.assert.equal(getValueStore2Body.value, 3500);
+        chai.assert.equal(getValueStore2Resp.body.value, 3500);
     });
 });

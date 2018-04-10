@@ -16,13 +16,9 @@ describe("/v2/valueStoreTemplate/", () => {
     });
 
     it("can list 0 ValueStoreTemplates", async () => {
-        const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/valueStoreTemplates", "GET", {
-            headers: {
-                Authorization: `Bearer ${testUtils.testUserA.jwt}`
-            }
-        }));
+        const resp = await testUtils.testAuthedRequest(router, "/v2/valueStoreTemplates", "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.deepEqual(JSON.parse(resp.body), {
+        chai.assert.deepEqual(resp.body, {
             valueStoreTemplates: [],
             pagination: {
                 count: 0,
@@ -40,66 +36,39 @@ describe("/v2/valueStoreTemplate/", () => {
     };
 
     it("can create a ValueStoreTemplate", async () => {
-        const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/valueStoreTemplates", "POST", {
-            headers: {
-                Authorization: `Bearer ${testUtils.testUserA.jwt}`
-            },
-            body: JSON.stringify(valueStoreTemplate1)
-        }));
+        const resp = await testUtils.testAuthedRequest<ValueStoreTemplate>(router, "/v2/valueStoreTemplates", "POST", valueStoreTemplate1);
         chai.assert.equal(resp.statusCode, 201);
-
-
-        const parsedBody = JSON.parse(resp.body);
-        chai.assert.equal(parsedBody.valueStoreTemplateId, valueStoreTemplate1.valueStoreTemplateId);
-        chai.assert.equal(parsedBody.currency, valueStoreTemplate1.currency);
-        chai.assert.equal(parsedBody.valueStoreType, valueStoreTemplate1.valueStoreType);
-        chai.assert.isNotNull(parsedBody.createdDate);
-        chai.assert.isNotNull(parsedBody.updatedDate);
-        valueStoreTemplate1 = parsedBody;
+        chai.assert.equal(resp.body.valueStoreTemplateId, valueStoreTemplate1.valueStoreTemplateId);
+        chai.assert.equal(resp.body.currency, valueStoreTemplate1.currency);
+        chai.assert.equal(resp.body.valueStoreType, valueStoreTemplate1.valueStoreType);
+        chai.assert.isNotNull(resp.body.createdDate);
+        chai.assert.isNotNull(resp.body.updatedDate);
+        valueStoreTemplate1 = resp.body;
     });
 
     it("can get the ValueStoreTemplate", async () => {
-        const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent(`/v2/valueStoreTemplates/${valueStoreTemplate1.valueStoreTemplateId}`, "GET", {
-            headers: {
-                Authorization: `Bearer ${testUtils.testUserA.jwt}`
-            }
-        }));
+        const resp = await testUtils.testAuthedRequest<ValueStoreTemplate>(router, `/v2/valueStoreTemplates/${valueStoreTemplate1.valueStoreTemplateId}`, "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.deepEqual(JSON.parse(resp.body), valueStoreTemplate1);
+        chai.assert.deepEqual(resp.body, valueStoreTemplate1);
     });
 
     it("can update a ValueStoreTemplate", async () => {
         let valueStoreTemplate1Update = {...valueStoreTemplate1};
         valueStoreTemplate1Update.currency = "FUN_BUCKS";
-        const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent(`/v2/valueStoreTemplates/${valueStoreTemplate1.valueStoreTemplateId}`, "PUT", {
-            headers: {
-                Authorization: `Bearer ${testUtils.testUserA.jwt}`
-            },
-            body: JSON.stringify(valueStoreTemplate1Update)
-        }));
+        const resp = await testUtils.testAuthedRequest<ValueStoreTemplate>(router, `/v2/valueStoreTemplates/${valueStoreTemplate1.valueStoreTemplateId}`, "PUT", valueStoreTemplate1Update);
         chai.assert.equal(resp.statusCode, 200);
-
-        const parsedBody = JSON.parse(resp.body);
-        chai.assert.equal(parsedBody.valueStoreTemplateId, valueStoreTemplate1Update.valueStoreTemplateId);
-        chai.assert.equal(parsedBody.currency, valueStoreTemplate1Update.currency);
-        chai.assert.equal(parsedBody.valueStoreType, valueStoreTemplate1Update.valueStoreType);
-        chai.assert.isNotNull(parsedBody.createdDate);
-        chai.assert.isNotNull(parsedBody.updatedDate);
+        chai.assert.equal(resp.body.valueStoreTemplateId, valueStoreTemplate1Update.valueStoreTemplateId);
+        chai.assert.equal(resp.body.currency, valueStoreTemplate1Update.currency);
+        chai.assert.equal(resp.body.valueStoreType, valueStoreTemplate1Update.valueStoreType);
+        chai.assert.isNotNull(resp.body.createdDate);
+        chai.assert.isNotNull(resp.body.updatedDate);
     });
 
     it("can delete a ValueStoreTemplate", async () => {
-        const deleteResp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent(`/v2/valueStoreTemplates/${valueStoreTemplate1.valueStoreTemplateId}`, "DELETE", {
-            headers: {
-                Authorization: `Bearer ${testUtils.testUserA.jwt}`
-            }
-        }));
+        const deleteResp = await testUtils.testAuthedRequest(router, `/v2/valueStoreTemplates/${valueStoreTemplate1.valueStoreTemplateId}`, "DELETE");
         chai.assert.equal(deleteResp.statusCode, 200);
 
-        const getResp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent(`/v2/valueStoreTemplates/${valueStoreTemplate1.valueStoreTemplateId}`, "GET", {
-            headers: {
-                Authorization: `Bearer ${testUtils.testUserA.jwt}`
-            }
-        }));
+        const getResp = await testUtils.testAuthedRequest(router, `/v2/valueStoreTemplates/${valueStoreTemplate1.valueStoreTemplateId}`, "GET");
         chai.assert.equal(getResp.statusCode, 404);
     });
 });

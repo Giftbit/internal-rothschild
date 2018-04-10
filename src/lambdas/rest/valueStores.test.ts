@@ -16,13 +16,9 @@ describe("/v2/valueStores/", () => {
     });
 
     it("can list 0 valueStores", async () => {
-        const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/valueStores", "GET", {
-            headers: {
-                Authorization: `Bearer ${testUtils.testUserA.jwt}`
-            }
-        }));
+        const resp = await testUtils.testAuthedRequest(router, "/v2/valueStores", "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.deepEqual(JSON.parse(resp.body), {
+        chai.assert.deepEqual(resp.body, {
             valueStores: [],
             pagination: {
                 count: 0,
@@ -41,45 +37,29 @@ describe("/v2/valueStores/", () => {
     };
 
     it("can create a value store", async () => {
-        const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/valueStores", "POST", {
-            headers: {
-                Authorization: `Bearer ${testUtils.testUserA.jwt}`
-            },
-            body: JSON.stringify(valueStore1)
-        }));
+        const resp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/valueStores", "POST", valueStore1);
         chai.assert.equal(resp.statusCode, 201, `body=${resp.body}`);
-
-        const parsedBody = JSON.parse(resp.body);
-        chai.assert.equal(parsedBody.valueStoreId, valueStore1.valueStoreId);
-        chai.assert.equal(parsedBody.valueStoreType, valueStore1.valueStoreType);
-        chai.assert.equal(parsedBody.currency, valueStore1.currency);
-        chai.assert.equal(parsedBody.value, valueStore1.value);
-        chai.assert.equal(parsedBody.active, true);
-        chai.assert.equal(parsedBody.expired, false);
-        chai.assert.equal(parsedBody.frozen, false);
-        chai.assert.equal(parsedBody.redemptionRule, null);
-        chai.assert.equal(parsedBody.valueRule, null);
-        chai.assert.equal(parsedBody.valueRule, null);
-        valueStore1 = parsedBody;
+        chai.assert.equal(resp.body.valueStoreId, valueStore1.valueStoreId);
+        chai.assert.equal(resp.body.valueStoreType, valueStore1.valueStoreType);
+        chai.assert.equal(resp.body.currency, valueStore1.currency);
+        chai.assert.equal(resp.body.value, valueStore1.value);
+        chai.assert.equal(resp.body.active, true);
+        chai.assert.equal(resp.body.expired, false);
+        chai.assert.equal(resp.body.frozen, false);
+        chai.assert.equal(resp.body.redemptionRule, null);
+        chai.assert.equal(resp.body.valueRule, null);
+        chai.assert.equal(resp.body.valueRule, null);
+        valueStore1 = resp.body;
     });
 
     it("can get the value store", async () => {
-        const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent(`/v2/valueStores/${valueStore1.valueStoreId}`, "GET", {
-            headers: {
-                Authorization: `Bearer ${testUtils.testUserA.jwt}`
-            }
-        }));
+        const resp = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${valueStore1.valueStoreId}`, "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${resp.body}`);
-        chai.assert.deepEqual(JSON.parse(resp.body), valueStore1);
+        chai.assert.deepEqual(resp.body, valueStore1);
     });
 
     it("409s on creating a duplicate valueStore", async () => {
-        const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/valueStores", "POST", {
-            headers: {
-                Authorization: `Bearer ${testUtils.testUserA.jwt}`
-            },
-            body: JSON.stringify(valueStore1)
-        }));
+        const resp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/valueStores", "POST", valueStore1);
         chai.assert.equal(resp.statusCode, 409);
     });
 });
