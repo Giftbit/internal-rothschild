@@ -69,6 +69,13 @@ describe("rest/transactions/executeTransactionPlan", () => {
         chai.assert.isDefined(err, "executeTransactionPlan threw an error");
         chai.assert.isTrue(err.isTransactionPlanError, "isTransactionPlanError");
         chai.assert.isTrue(err.isReplanable, "isReplanable");
+
+        const transactionsRes: any[] = await knex("Transactions")
+            .where({
+                userId: auth.giftbitUserId,
+                transactionId: plan.transactionId
+            });
+        chai.assert.lengthOf(transactionsRes, 0);
     });
 
     it("throws a replannable TransactionPlanError when there are 0 uses", async () => {
@@ -120,5 +127,12 @@ describe("rest/transactions/executeTransactionPlan", () => {
         chai.assert.isDefined(err, "executeTransactionPlan threw an error");
         chai.assert.isTrue(err.isTransactionPlanError, "isTransactionPlanError");
         chai.assert.isTrue(err.isReplanable, "isReplanable");
+
+        const transactionsRes: any[] = await knex("Transactions")
+            .where({
+                userId: auth.giftbitUserId,
+                transactionId: plan.transactionId
+            });
+        chai.assert.lengthOf(transactionsRes, 0);
     });
 });
