@@ -55,7 +55,9 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
 
             const res = await query;
             if (res !== 1) {
-                throw new TransactionPlanError(res === 0, `Transaction execution canceled because value store updated ${res} rows.  userId=${auth.giftbitUserId} valueStoreId=${step.valueStore.valueStoreId} value=${step.valueStore.value} uses=${step.valueStore.uses} step.amount=${step.amount}`);
+                throw new TransactionPlanError(`Transaction execution canceled because value store updated ${res} rows.  userId=${auth.giftbitUserId} valueStoreId=${step.valueStore.valueStoreId} value=${step.valueStore.value} uses=${step.valueStore.uses} step.amount=${step.amount}`, {
+                    isReplanable: res === 0
+                });
             }
 
             const res2: DbValueStore[] = await trx.from("ValueStores")
@@ -66,7 +68,9 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
                 .select();
 
             if (res2.length !== 1) {
-                throw new TransactionPlanError(false, `Transaction execution canceled because the value store that was updated could not be refetched.  This should never happen.  userId=${auth.giftbitUserId} valueStoreId=${step.valueStore.valueStoreId}`);
+                throw new TransactionPlanError(`Transaction execution canceled because the value store that was updated could not be refetched.  This should never happen.  userId=${auth.giftbitUserId} valueStoreId=${step.valueStore.valueStoreId}`, {
+                    isReplanable: false
+                });
             }
 
             // Fix the plan to indicate the true value change.

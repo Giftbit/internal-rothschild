@@ -14,6 +14,7 @@ import {Transaction} from "../../../model/Transaction";
 import {transactionPlanToTransaction} from "./transactionPlanToTransaction";
 import {executeTransactionPlan} from "./executeTransactionPlan";
 import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
+import {TransactionPlanError} from "./TransactionPlanError";
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions/credit")
@@ -71,24 +72,33 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable value store.", "InvalidParty");
     }
 
-    const plan: TransactionPlan = {
-        transactionId: req.transactionId,
-        transactionType: "credit",
-        steps: [
-            {
-                rail: "lightrail",
-                valueStore: (parties[0] as LightrailTransactionPlanStep).valueStore,
-                codeLastFour: (parties[0] as LightrailTransactionPlanStep).codeLastFour,
-                customerId: (parties[0] as LightrailTransactionPlanStep).customerId,
-                amount: req.value
+    while (true) {
+        try {
+            const plan: TransactionPlan = {
+                transactionId: req.transactionId,
+                transactionType: "credit",
+                steps: [
+                    {
+                        rail: "lightrail",
+                        valueStore: (parties[0] as LightrailTransactionPlanStep).valueStore,
+                        codeLastFour: (parties[0] as LightrailTransactionPlanStep).codeLastFour,
+                        customerId: (parties[0] as LightrailTransactionPlanStep).customerId,
+                        amount: req.value
+                    }
+                ],
+                remainder: 0
+            };
+            if (req.simulate) {
+                return transactionPlanToTransaction(plan);
             }
-        ],
-        remainder: 0
-    };
-    if (req.simulate) {
-        return transactionPlanToTransaction(plan);
+            return await executeTransactionPlan(auth, plan);
+        } catch (err) {
+            if ((err as TransactionPlanError).isTransactionPlanError && (err as TransactionPlanError).isReplanable) {
+                continue;
+            }
+            throw err;
+        }
     }
-    return await executeTransactionPlan(auth, plan);
 }
 
 async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: DebitRequest): Promise<Transaction> {
@@ -97,42 +107,61 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable value store.", "InvalidParty");
     }
 
-    const amount = Math.max(req.value, -(parties[0] as LightrailTransactionPlanStep).valueStore.value);
-    const plan: TransactionPlan = {
-        transactionId: req.transactionId,
-        transactionType: "debit",
-        steps: [
-            {
-                rail: "lightrail",
-                valueStore: (parties[0] as LightrailTransactionPlanStep).valueStore,
-                codeLastFour: (parties[0] as LightrailTransactionPlanStep).codeLastFour,
-                customerId: (parties[0] as LightrailTransactionPlanStep).customerId,
-                amount
+    while (true) {
+        try {
+            const amount = Math.max(req.value, -(parties[0] as LightrailTransactionPlanStep).valueStore.value);
+            const plan: TransactionPlan = {
+                transactionId: req.transactionId,
+                transactionType: "debit",
+                steps: [
+                    {
+                        rail: "lightrail",
+                        valueStore: (parties[0] as LightrailTransactionPlanStep).valueStore,
+                        codeLastFour: (parties[0] as LightrailTransactionPlanStep).codeLastFour,
+                        customerId: (parties[0] as LightrailTransactionPlanStep).customerId,
+                        amount
+                    }
+                ],
+                remainder: req.value - amount
+            };
+            if (plan.remainder && !req.allowRemainder) {
+                throw new giftbitRoutes.GiftbitRestError(409, "Insufficient value.", "InsufficientValue");
             }
-        ],
-        remainder: req.value - amount
-    };
-    if (plan.remainder && !req.allowRemainder) {
-        throw new giftbitRoutes.GiftbitRestError(409, "Insufficient value.", "InsufficientValue");
+            if (req.simulate) {
+                return transactionPlanToTransaction(plan);
+            }
+            return await executeTransactionPlan(auth, plan);
+        } catch (err) {
+            if ((err as TransactionPlanError).isTransactionPlanError && (err as TransactionPlanError).isReplanable) {
+                continue;
+            }
+            throw err;
+        }
     }
-    if (req.simulate) {
-        return transactionPlanToTransaction(plan);
-    }
-    return await executeTransactionPlan(auth, plan);
 }
 
 async function createOrder(auth: giftbitRoutes.jwtauth.AuthorizationBadge, order: OrderRequest): Promise<Transaction> {
     const steps = await resolveTransactionParties(auth, order.currency, order.sources);
     steps.sort(compareTransactionPlanSteps);
-    const plan = buildOrderTransactionPlan(order, steps);
-    if (plan.remainder && !order.allowRemainder) {
-        throw new giftbitRoutes.GiftbitRestError(409, "Insufficient value.", "InsufficientValue");
-    }
-    if (order.simulate) {
-        return transactionPlanToTransaction(plan);
-    }
 
-    return await executeTransactionPlan(auth, plan);
+    while (true) {
+        try {
+            const plan = buildOrderTransactionPlan(order, steps);
+            if (plan.remainder && !order.allowRemainder) {
+                throw new giftbitRoutes.GiftbitRestError(409, "Insufficient value.", "InsufficientValue");
+            }
+            if (order.simulate) {
+                return transactionPlanToTransaction(plan);
+            }
+
+            return await executeTransactionPlan(auth, plan);
+        } catch (err) {
+            if ((err as TransactionPlanError).isTransactionPlanError && (err as TransactionPlanError).isReplanable) {
+                continue;
+            }
+            throw err;
+        }
+    }
 }
 
 async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: TransferRequest): Promise<Transaction> {
@@ -146,35 +175,46 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable value store.", "InvalidParty");
     }
 
-    const amount = Math.min(req.value, (sourceParties[0] as LightrailTransactionPlanStep).valueStore.value);
-    const plan: TransactionPlan = {
-        transactionId: req.transactionId,
-        transactionType: "transfer",
-        steps: [
-            {
-                rail: "lightrail",
-                valueStore: (sourceParties[0] as LightrailTransactionPlanStep).valueStore,
-                codeLastFour: (sourceParties[0] as LightrailTransactionPlanStep).codeLastFour,
-                customerId: (sourceParties[0] as LightrailTransactionPlanStep).customerId,
-                amount: -amount
-            },
-            {
-                rail: "lightrail",
-                valueStore: (destParties[0] as LightrailTransactionPlanStep).valueStore,
-                codeLastFour: (destParties[0] as LightrailTransactionPlanStep).codeLastFour,
-                customerId: (destParties[0] as LightrailTransactionPlanStep).customerId,
-                amount
+    while (true) {
+        try {
+            const amount = Math.min(req.value, (sourceParties[0] as LightrailTransactionPlanStep).valueStore.value);
+            const plan: TransactionPlan = {
+                transactionId: req.transactionId,
+                transactionType: "transfer",
+                steps: [
+                    {
+                        rail: "lightrail",
+                        valueStore: (sourceParties[0] as LightrailTransactionPlanStep).valueStore,
+                        codeLastFour: (sourceParties[0] as LightrailTransactionPlanStep).codeLastFour,
+                        customerId: (sourceParties[0] as LightrailTransactionPlanStep).customerId,
+                        amount: -amount
+                    },
+                    {
+                        rail: "lightrail",
+                        valueStore: (destParties[0] as LightrailTransactionPlanStep).valueStore,
+                        codeLastFour: (destParties[0] as LightrailTransactionPlanStep).codeLastFour,
+                        customerId: (destParties[0] as LightrailTransactionPlanStep).customerId,
+                        amount
+                    }
+                ],
+                remainder: req.value - amount
+            };
+            if (plan.remainder && !req.allowRemainder) {
+                throw new giftbitRoutes.GiftbitRestError(409, "Insufficient value.", "InsufficientValue");
             }
-        ],
-        remainder: req.value - amount
-    };
-    if (plan.remainder && !req.allowRemainder) {
-        throw new giftbitRoutes.GiftbitRestError(409, "Insufficient value.", "InsufficientValue");
+            if (req.simulate) {
+                return transactionPlanToTransaction(plan);
+            }
+            return await executeTransactionPlan(auth, plan);
+        } catch (err) {
+            if ((err as TransactionPlanError).isTransactionPlanError && (err as TransactionPlanError).isReplanable) {
+                continue;
+            }
+            throw err;
+        }
     }
-    if (req.simulate) {
-        return transactionPlanToTransaction(plan);
-    }
-    return await executeTransactionPlan(auth, plan);
+
+
 }
 
 const lightrailPartySchema: jsonschema.Schema = {

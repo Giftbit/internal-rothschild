@@ -1,8 +1,10 @@
 export class TransactionPlanError extends Error {
 
     readonly isTransactionPlanError = true;
+    readonly isReplanable: boolean;
 
-    constructor(public isReplanable: boolean, msg?: string) {
+    constructor(msg?: string, options: {isReplanable?: boolean} = {}) {
         super(msg);
+        this.isReplanable = !!options.isReplanable;
     }
 }
