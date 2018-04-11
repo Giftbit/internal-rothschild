@@ -23,7 +23,7 @@ export function installTransactionsRest(router: cassava.Router): void {
             auth.requireIds("giftbitUserId");
             evt.validateBody(creditSchema);
             return {
-                statusCode: cassava.httpStatusCode.success.CREATED,
+                statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
                 body: await createCredit(auth, evt.body)
             };
         });
@@ -35,7 +35,7 @@ export function installTransactionsRest(router: cassava.Router): void {
             auth.requireIds("giftbitUserId");
             evt.validateBody(debitSchema);
             return {
-                statusCode: cassava.httpStatusCode.success.CREATED,
+                statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
                 body: await createDebit(auth, evt.body)
             };
         });
@@ -47,7 +47,7 @@ export function installTransactionsRest(router: cassava.Router): void {
             auth.requireIds("giftbitUserId");
             evt.validateBody(orderSchema);
             return {
-                statusCode: cassava.httpStatusCode.success.CREATED,
+                statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
                 body: await createOrder(auth, evt.body)
             };
         });
@@ -59,7 +59,7 @@ export function installTransactionsRest(router: cassava.Router): void {
             auth.requireIds("giftbitUserId");
             evt.validateBody(transferSchema);
             return {
-                statusCode: cassava.httpStatusCode.success.CREATED,
+                statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
                 body: await createTransfer(auth, evt.body)
             };
         });
