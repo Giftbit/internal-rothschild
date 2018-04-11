@@ -102,6 +102,24 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.equal(getValueStore2Resp.body.value, 3500);
     });
 
+    it("409s on reusing a transactionId", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
+            transactionId: "transfer-1",    // same as above
+            source: {
+                rail: "lightrail",
+                valueStoreId: valueStoreCad1.valueStoreId
+            },
+            destination: {
+                rail: "lightrail",
+                valueStoreId: valueStoreCad2.valueStoreId
+            },
+            value: 15,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.messageCode, "TransactionExists");
+    });
+
     it("can simulate a transfer between valueStoreIds", async () => {
         const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
             transactionId: "transfer-2",

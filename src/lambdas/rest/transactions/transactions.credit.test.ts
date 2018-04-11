@@ -5,7 +5,7 @@ import * as transactions from "./transactions";
 import * as valueStores from "../valueStores";
 import * as testUtils from "../../../testUtils";
 import {ValueStore} from "../../../model/ValueStore";
-import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {Transaction} from "../../../model/Transaction";
 
 describe("/v2/transactions/credit", () => {
 
@@ -61,6 +61,20 @@ describe("/v2/transactions/credit", () => {
         const getValueStoreResp = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${valueStore1.valueStoreId}`, "GET");
         chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(postValueStoreResp.body)}`);
         chai.assert.equal(getValueStoreResp.body.value, 1000);
+    });
+
+    it("409s on reusing a transactionId", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
+            transactionId: "credit-1",  // same as above
+            destination: {
+                rail: "lightrail",
+                valueStoreId: valueStore1.valueStoreId
+            },
+            value: 1350,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.messageCode, "TransactionExists");
     });
 
     it("can simulate a credit by valueStoreId", async () => {

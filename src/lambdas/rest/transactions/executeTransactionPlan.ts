@@ -1,7 +1,7 @@
+import * as giftbitRoutes from "giftbit-cassava-routes";
 import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {Transaction} from "../../../model/Transaction";
 import {getKnexWrite} from "../../../dbUtils";
-import * as giftbitRoutes from "giftbit-cassava-routes";
 import {DbValueStore} from "../../../model/ValueStore";
 import {transactionPlanToTransaction} from "./transactionPlanToTransaction";
 import {TransactionPlanError} from "./TransactionPlanError";
@@ -20,16 +20,22 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
     now.setMilliseconds(0);
     const knex = await getKnexWrite();
     await knex.transaction(async trx => {
-        await trx.into("Transactions")
-            .insert({
-                userId: auth.giftbitUserId,
-                transactionId: plan.transactionId,
-                transactionType: plan.transactionType,
-                cart: null,
-                requestedPaymentSources: null,
-                remainder: plan.remainder,
-                createdDate: now
-            });
+        try {
+            await trx.into("Transactions")
+                .insert({
+                    userId: auth.giftbitUserId,
+                    transactionId: plan.transactionId,
+                    transactionType: plan.transactionType,
+                    cart: null,
+                    requestedPaymentSources: null,
+                    remainder: plan.remainder,
+                    createdDate: now
+                });
+        } catch (err) {
+            if (err.code === "ER_DUP_ENTRY") {
+                throw new giftbitRoutes.GiftbitRestError(409, `A transaction with transactionId '${plan.transactionId}' already exists.`, "TransactionExists");
+            }
+        }
 
         for (let stepIx = 0; stepIx < plan.steps.length; stepIx++) {
             const step = plan.steps[stepIx] as LightrailTransactionPlanStep;
