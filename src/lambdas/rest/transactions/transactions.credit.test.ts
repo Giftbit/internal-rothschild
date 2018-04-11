@@ -140,4 +140,29 @@ describe("/v2/transactions/credit", () => {
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
     });
+
+    it("422s crediting without a transactionId", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
+            destination: {
+                rail: "lightrail",
+                valueStoreId: "idontexist"
+            },
+            value: 1500,
+            currency: "USD"
+        });
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("422s crediting with an invalid transactionId", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
+            transactionId: 123,
+            destination: {
+                rail: "lightrail",
+                valueStoreId: "idontexist"
+            },
+            value: 1500,
+            currency: "USD"
+        });
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
 });

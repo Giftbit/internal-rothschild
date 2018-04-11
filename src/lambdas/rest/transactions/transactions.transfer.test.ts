@@ -236,7 +236,7 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.equal(getValueStore2Resp.body.value, 4000);
     });
 
-    it("cannot transfer between valueStoreIds where the source has insufficient value", async () => {
+    it("409s transferring between valueStoreIds where the source has insufficient value", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
             transactionId: "transfer-4",
             source: {
@@ -254,7 +254,7 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.equal(resp.body.messageCode, "InsufficientValue");
     });
 
-    it("cannot transfer between valueStoreIds in the wrong currency", async () => {
+    it("409s transferring between valueStoreIds in the wrong currency", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
             transactionId: "transfer-5",
             source: {
@@ -272,7 +272,7 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
     });
 
-    it("cannot transfer from an invalid valueStoreId", async () => {
+    it("409s transferring from an invalid valueStoreId", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
             transactionId: "transfer-6",
             source: {
@@ -290,7 +290,7 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
     });
 
-    it("cannot transfer to an invalid valueStoreId", async () => {
+    it("409s transferring to an invalid valueStoreId", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
             transactionId: "transfer-7",
             source: {
@@ -308,7 +308,7 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
     });
 
-    it("cannot transfer from a valueStoreId in the wrong currency", async () => {
+    it("409s transferring from a valueStoreId in the wrong currency", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
             transactionId: "transfer-8",
             source: {
@@ -326,7 +326,7 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
     });
 
-    it("cannot transfer to a valueStoreId in the wrong currency", async () => {
+    it("409s transferring to a valueStoreId in the wrong currency", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
             transactionId: "transfer-9",
             source: {
@@ -342,5 +342,38 @@ describe("/v2/transactions/transfer", () => {
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
+    });
+
+    it("422s transferring without a transactionId", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
+            source: {
+                rail: "lightrail",
+                valueStoreId: valueStoreCad1.valueStoreId
+            },
+            destination: {
+                rail: "lightrail",
+                valueStoreId: valueStoreCad2.valueStoreId
+            },
+            value: 1,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("422s transferring with an invalid transactionId", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
+            transactionId: 123,
+            source: {
+                rail: "lightrail",
+                valueStoreId: valueStoreCad1.valueStoreId
+            },
+            destination: {
+                rail: "lightrail",
+                valueStoreId: valueStoreCad2.valueStoreId
+            },
+            value: 1,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 });

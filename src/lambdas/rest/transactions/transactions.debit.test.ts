@@ -190,4 +190,29 @@ describe("/v2/transactions/debit", () => {
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
     });
+
+    it("422s debiting without a transactionId", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/debit", "POST", {
+            destination: {
+                rail: "lightrail",
+                valueStoreId: "idontexist"
+            },
+            value: -1500,
+            currency: "USD"
+        });
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("422s debiting with an invalid transactionId", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/debit", "POST", {
+            transactionId: 123,
+            destination: {
+                rail: "lightrail",
+                valueStoreId: "idontexist"
+            },
+            value: -1500,
+            currency: "USD"
+        });
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
 });
