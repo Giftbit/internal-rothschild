@@ -5,6 +5,9 @@ import * as customers from "./customers";
 import * as testUtils from "../../testUtils";
 import {Customer} from "../../model/Customer";
 
+import chaiExclude = require("chai-exclude");
+chai.use(chaiExclude);
+
 describe("/v2/customers", () => {
 
     const router = new cassava.Router();
@@ -39,11 +42,7 @@ describe("/v2/customers", () => {
     it("can create a customer", async () => {
         const resp = await testUtils.testAuthedRequest<Customer>(router, "/v2/customers", "POST", customer1);
         chai.assert.equal(resp.statusCode, 201);
-
-        chai.assert.equal(resp.body.customerId, customer1.customerId);
-        chai.assert.equal(resp.body.firstName, customer1.firstName);
-        chai.assert.equal(resp.body.lastName, customer1.lastName);
-        chai.assert.equal(resp.body.email, customer1.email);
+        chai.assert.deepEqualExcluding(resp.body, customer1, ["createdDate", "updatedDate", "metadata"]);
         customer1 = resp.body;
     });
 
@@ -115,11 +114,13 @@ describe("/v2/customers", () => {
 
     it("only requires customerId to create a customer", async () => {
         const resp = await testUtils.testAuthedRequest<Customer>(router, "/v2/customers", "POST", customer2);
+        chai.assert.deepEqualExcluding(resp.body, {
+            ...customer2,
+            firstName: null,
+            lastName: null,
+            email: null
+        }, ["createdDate", "updatedDate", "metadata"]);
         chai.assert.equal(resp.statusCode, 201);
-        chai.assert.equal(resp.body.customerId, customer2.customerId);
-        chai.assert.equal(resp.body.firstName, null);
-        chai.assert.equal(resp.body.lastName, null);
-        chai.assert.equal(resp.body.email, null);
         customer2 = resp.body;
     });
 
@@ -195,8 +196,11 @@ describe("/v2/customers", () => {
     it("can create a customer with metadata", async () => {
         const resp = await testUtils.testAuthedRequest<Customer>(router, "/v2/customers", "POST", customer4);
         chai.assert.equal(resp.statusCode, 201);
-        chai.assert.equal(resp.body.customerId, customer4.customerId);
-        chai.assert.deepEqual(resp.body.metadata, customer4.metadata);
+        chai.assert.deepEqualExcluding(resp.body, {
+            ...customer4,
+            lastName: null,
+            email: null
+        }, ["createdDate", "updatedDate"]);
         customer4 = resp.body;
     });
 

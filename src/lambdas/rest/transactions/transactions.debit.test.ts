@@ -45,13 +45,17 @@ describe("/v2/transactions/debit", () => {
         chai.assert.lengthOf(postDebitResp.body.steps, 1);
 
         const step = postDebitResp.body.steps[0] as LightrailTransactionStep;
-        chai.assert.equal(step.rail, "lightrail");
-        chai.assert.equal(step.valueStoreId, valueStore1.valueStoreId);
-        chai.assert.equal(step.valueStoreType, valueStore1.valueStoreType);
-        chai.assert.equal(step.currency, valueStore1.currency);
-        chai.assert.equal(step.valueBefore, 1000);
-        chai.assert.equal(step.valueAfter, 401);
-        chai.assert.equal(step.valueChange, -599);
+        chai.assert.deepEqual(step, {
+            rail: "lightrail",
+            valueStoreId: valueStore1.valueStoreId,
+            valueStoreType: valueStore1.valueStoreType,
+            currency: valueStore1.currency,
+            codeLastFour: null,
+            customerId: null,
+            valueBefore: 1000,
+            valueAfter: 401,
+            valueChange: -599
+        });
 
         const getValueStoreResp = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${valueStore1.valueStoreId}`, "GET");
         chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(postValueStoreResp.body)}`);
@@ -76,13 +80,17 @@ describe("/v2/transactions/debit", () => {
         chai.assert.lengthOf(postDebitResp.body.steps, 1);
 
         const step = postDebitResp.body.steps[0] as LightrailTransactionStep;
-        chai.assert.equal(step.rail, "lightrail");
-        chai.assert.equal(step.valueStoreId, valueStore1.valueStoreId);
-        chai.assert.equal(step.valueStoreType, valueStore1.valueStoreType);
-        chai.assert.equal(step.currency, valueStore1.currency);
-        chai.assert.equal(step.valueBefore, 401);
-        chai.assert.equal(step.valueAfter, 101);
-        chai.assert.equal(step.valueChange, -300);
+        chai.assert.deepEqual(step, {
+            rail: "lightrail",
+            valueStoreId: valueStore1.valueStoreId,
+            valueStoreType: valueStore1.valueStoreType,
+            currency: valueStore1.currency,
+            codeLastFour: null,
+            customerId: null,
+            valueBefore: 401,
+            valueAfter: 101,
+            valueChange: -300
+        });
 
         const getValueStoreResp = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${valueStore1.valueStoreId}`, "GET");
         chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(getValueStoreResp.body)}`);

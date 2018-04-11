@@ -66,24 +66,30 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
         const sourceStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueStoreId === valueStoreCad1.valueStoreId) as LightrailTransactionStep;
-        chai.assert.isObject(sourceStep, "find source step");
-        chai.assert.equal(sourceStep.rail, "lightrail");
-        chai.assert.equal(sourceStep.valueStoreId, valueStoreCad1.valueStoreId);
-        chai.assert.equal(sourceStep.valueStoreType, valueStoreCad1.valueStoreType);
-        chai.assert.equal(sourceStep.currency, valueStoreCad1.currency);
-        chai.assert.equal(sourceStep.valueBefore, 1500);
-        chai.assert.equal(sourceStep.valueAfter, 500);
-        chai.assert.equal(sourceStep.valueChange, -1000);
+        chai.assert.deepEqual(sourceStep, {
+            rail: "lightrail",
+            valueStoreId: valueStoreCad1.valueStoreId,
+            valueStoreType: valueStoreCad1.valueStoreType,
+            currency: valueStoreCad1.currency,
+            codeLastFour: null,
+            customerId: null,
+            valueBefore: 1500,
+            valueAfter: 500,
+            valueChange: -1000
+        });
 
         const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueStoreId === valueStoreCad2.valueStoreId) as LightrailTransactionStep;
-        chai.assert.isObject(destStep, "find dest step");
-        chai.assert.equal(destStep.rail, "lightrail");
-        chai.assert.equal(destStep.valueStoreId, valueStoreCad2.valueStoreId);
-        chai.assert.equal(destStep.valueStoreType, valueStoreCad2.valueStoreType);
-        chai.assert.equal(destStep.currency, valueStoreCad2.currency);
-        chai.assert.equal(destStep.valueBefore, 2500);
-        chai.assert.equal(destStep.valueAfter, 3500);
-        chai.assert.equal(destStep.valueChange, 1000);
+        chai.assert.deepEqual(destStep, {
+            rail: "lightrail",
+            valueStoreId: valueStoreCad2.valueStoreId,
+            valueStoreType: valueStoreCad2.valueStoreType,
+            currency: valueStoreCad2.currency,
+            codeLastFour: null,
+            customerId: null,
+            valueBefore: 2500,
+            valueAfter: 3500,
+            valueChange: 1000
+        });
 
         const getValueStore1Resp = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${valueStoreCad1.valueStoreId}`, "GET");
         chai.assert.equal(getValueStore1Resp.statusCode, 200, `body=${JSON.stringify(getValueStore1Resp.body)}`);
@@ -116,24 +122,30 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
         const sourceStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueStoreId === valueStoreCad1.valueStoreId) as LightrailTransactionStep;
-        chai.assert.isObject(sourceStep, "find source step");
-        chai.assert.equal(sourceStep.rail, "lightrail");
-        chai.assert.equal(sourceStep.valueStoreId, valueStoreCad1.valueStoreId);
-        chai.assert.equal(sourceStep.valueStoreType, valueStoreCad1.valueStoreType);
-        chai.assert.equal(sourceStep.currency, valueStoreCad1.currency);
-        chai.assert.equal(sourceStep.valueBefore, 500);
-        chai.assert.equal(sourceStep.valueAfter, 0);
-        chai.assert.equal(sourceStep.valueChange, -500);
+        chai.assert.deepEqual(sourceStep, {
+            rail: "lightrail",
+            valueStoreId: valueStoreCad1.valueStoreId,
+            valueStoreType: valueStoreCad1.valueStoreType,
+            currency: valueStoreCad1.currency,
+            codeLastFour: null,
+            customerId: null,
+            valueBefore: 500,
+            valueAfter: 0,
+            valueChange: -500
+        });
 
         const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueStoreId === valueStoreCad2.valueStoreId) as LightrailTransactionStep;
-        chai.assert.isObject(destStep, "find dest step");
-        chai.assert.equal(destStep.rail, "lightrail");
-        chai.assert.equal(destStep.valueStoreId, valueStoreCad2.valueStoreId);
-        chai.assert.equal(destStep.valueStoreType, valueStoreCad2.valueStoreType);
-        chai.assert.equal(destStep.currency, valueStoreCad2.currency);
-        chai.assert.equal(destStep.valueBefore, 3500);
-        chai.assert.equal(destStep.valueAfter, 4000);
-        chai.assert.equal(destStep.valueChange, 500);
+        chai.assert.deepEqual(destStep, {
+            rail: "lightrail",
+            valueStoreId: valueStoreCad2.valueStoreId,
+            valueStoreType: valueStoreCad2.valueStoreType,
+            currency: valueStoreCad2.currency,
+            codeLastFour: null,
+            customerId: null,
+            valueBefore: 3500,
+            valueAfter: 4000,
+            valueChange: 500
+        });
 
         const getValueStore1Resp = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${valueStoreCad1.valueStoreId}`, "GET");
         chai.assert.equal(getValueStore1Resp.statusCode, 200, `body=${JSON.stringify(getValueStore1Resp.body)}`);

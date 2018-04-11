@@ -5,6 +5,9 @@ import * as valueStores from "./valueStores";
 import * as testUtils from "../../testUtils";
 import {ValueStore} from "../../model/ValueStore";
 
+import chaiExclude = require("chai-exclude");
+chai.use(chaiExclude);
+
 describe("/v2/valueStores/", () => {
 
     const router = new cassava.Router();
@@ -39,16 +42,19 @@ describe("/v2/valueStores/", () => {
     it("can create a value store", async () => {
         const resp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/valueStores", "POST", valueStore1);
         chai.assert.equal(resp.statusCode, 201, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.equal(resp.body.valueStoreId, valueStore1.valueStoreId);
-        chai.assert.equal(resp.body.valueStoreType, valueStore1.valueStoreType);
-        chai.assert.equal(resp.body.currency, valueStore1.currency);
-        chai.assert.equal(resp.body.value, valueStore1.value);
-        chai.assert.equal(resp.body.active, true);
-        chai.assert.equal(resp.body.expired, false);
-        chai.assert.equal(resp.body.frozen, false);
-        chai.assert.equal(resp.body.redemptionRule, null);
-        chai.assert.equal(resp.body.valueRule, null);
-        chai.assert.equal(resp.body.valueRule, null);
+        chai.assert.deepEqualExcluding(resp.body, {
+            ...valueStore1,
+            uses: null,
+            pretax: false,
+            active: true,
+            expired: false,
+            frozen: false,
+            startDate: null,
+            endDate: null,
+            redemptionRule: null,
+            valueRule: null,
+            metadata: null
+        }, ["createdDate", "updatedDate"]);
         valueStore1 = resp.body;
     });
 
