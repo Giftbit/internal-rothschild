@@ -40,7 +40,7 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
                 })
                 .increment("value", step.amount);
             if (step.amount < 0) {
-                query = query.where("value", ">", -step.amount);
+                query = query.where("value", ">=", -step.amount);
             }
             if (step.valueStore.uses !== null) {
                 query = query.where("uses", ">", 0)
@@ -49,8 +49,7 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
 
             const res = await query;
             if (res !== 1) {
-                console.log(`Transaction execution canceled because value store updated ${res} rows.  userId=${auth.giftbitUserId} valueStoreId=${step.valueStore.valueStoreId} value=${step.valueStore.value} uses=${step.valueStore.uses} step.amount=${step.amount}`);
-                throw new TransactionPlanError();
+                throw new TransactionPlanError(res === 0, `Transaction execution canceled because value store updated ${res} rows.  userId=${auth.giftbitUserId} valueStoreId=${step.valueStore.valueStoreId} value=${step.valueStore.value} uses=${step.valueStore.uses} step.amount=${step.amount}`);
             }
 
             const res2: DbValueStore[] = await trx.from("ValueStores")
@@ -61,8 +60,7 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
                 .select();
 
             if (res2.length !== 1) {
-                console.log(`Transaction execution canceled because the value store that was updated could not be refetched.  This should never happen.  userId=${auth.giftbitUserId} valueStoreId=${step.valueStore.valueStoreId}`);
-                throw new TransactionPlanError();
+                throw new TransactionPlanError(false, `Transaction execution canceled because the value store that was updated could not be refetched.  This should never happen.  userId=${auth.giftbitUserId} valueStoreId=${step.valueStore.valueStoreId}`);
             }
 
             // Fix the plan to indicate the true value change.

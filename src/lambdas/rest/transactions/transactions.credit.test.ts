@@ -39,18 +39,24 @@ describe("/v2/transactions/credit", () => {
             currency: "CAD"
         });
         chai.assert.equal(postCreditResp.statusCode, 201, `body=${postCreditResp.body}`);
-        chai.assert.equal(postCreditResp.body.transactionId, "credit-1");
-        chai.assert.equal(postCreditResp.body.transactionType, "credit");
-        chai.assert.lengthOf(postCreditResp.body.steps, 1);
-
-        const step = postCreditResp.body.steps[0] as LightrailTransactionStep;
-        chai.assert.equal(step.rail, "lightrail");
-        chai.assert.equal(step.valueStoreId, valueStore1.valueStoreId);
-        chai.assert.equal(step.valueStoreType, valueStore1.valueStoreType);
-        chai.assert.equal(step.currency, valueStore1.currency);
-        chai.assert.equal(step.valueBefore, 0);
-        chai.assert.equal(step.valueAfter, 1000);
-        chai.assert.equal(step.valueChange, 1000);
+        chai.assert.deepEqualExcluding(postCreditResp.body, {
+            transactionId: "credit-1",
+            transactionType: "credit",
+            remainder: 0,
+            steps: [
+                {
+                    rail: "lightrail",
+                    valueStoreId: valueStore1.valueStoreId,
+                    valueStoreType: valueStore1.valueStoreType,
+                    currency: valueStore1.currency,
+                    codeLastFour: null,
+                    customerId: null,
+                    valueBefore: 0,
+                    valueAfter: 1000,
+                    valueChange: 1000
+                }
+            ]
+        }, ["createdDate"]);
 
         const getValueStoreResp = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${valueStore1.valueStoreId}`, "GET");
         chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(postValueStoreResp.body)}`);
@@ -69,22 +75,24 @@ describe("/v2/transactions/credit", () => {
             simulate: true
         });
         chai.assert.equal(postCreditResp.statusCode, 200, `body=${JSON.stringify(postCreditResp.body)}`);
-        chai.assert.equal(postCreditResp.body.transactionId, "credit-2");
-        chai.assert.equal(postCreditResp.body.transactionType, "credit");
-        chai.assert.lengthOf(postCreditResp.body.steps, 1);
-
-        const step = postCreditResp.body.steps[0] as LightrailTransactionStep;
-        chai.assert.deepEqual(step, {
-            rail: "lightrail",
-            valueStoreId: valueStore1.valueStoreId,
-            valueStoreType: valueStore1.valueStoreType,
-            currency: valueStore1.currency,
-            codeLastFour: null,
-            customerId: null,
-            valueBefore: 1000,
-            valueAfter: 2100,
-            valueChange: 1100
-        });
+        chai.assert.deepEqualExcluding(postCreditResp.body, {
+            transactionId: "credit-2",
+            transactionType: "credit",
+            remainder: 0,
+            steps: [
+                {
+                    rail: "lightrail",
+                    valueStoreId: valueStore1.valueStoreId,
+                    valueStoreType: valueStore1.valueStoreType,
+                    currency: valueStore1.currency,
+                    codeLastFour: null,
+                    customerId: null,
+                    valueBefore: 1000,
+                    valueAfter: 2100,
+                    valueChange: 1100
+                }
+            ]
+        }, ["createdDate"]);
 
         const getValueStoreResp = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${valueStore1.valueStoreId}`, "GET");
         chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(getValueStoreResp.body)}`);

@@ -38,27 +38,28 @@ describe("/v2/transactions/debit", () => {
             value: -599,
             currency: "CAD"
         });
-        chai.assert.equal(postDebitResp.statusCode, 201, `body=${postDebitResp.body}`);
-
-        chai.assert.equal(postDebitResp.body.transactionId, "debit-1");
-        chai.assert.equal(postDebitResp.body.transactionType, "debit");
-        chai.assert.lengthOf(postDebitResp.body.steps, 1);
-
-        const step = postDebitResp.body.steps[0] as LightrailTransactionStep;
-        chai.assert.deepEqual(step, {
-            rail: "lightrail",
-            valueStoreId: valueStore1.valueStoreId,
-            valueStoreType: valueStore1.valueStoreType,
-            currency: valueStore1.currency,
-            codeLastFour: null,
-            customerId: null,
-            valueBefore: 1000,
-            valueAfter: 401,
-            valueChange: -599
-        });
+        chai.assert.equal(postDebitResp.statusCode, 201, `body=${JSON.stringify(postDebitResp.body)}`);
+        chai.assert.deepEqualExcluding(postDebitResp.body, {
+            transactionId: "debit-1",
+            transactionType: "debit",
+            remainder: 0,
+            steps: [
+                {
+                    rail: "lightrail",
+                    valueStoreId: valueStore1.valueStoreId,
+                    valueStoreType: valueStore1.valueStoreType,
+                    currency: valueStore1.currency,
+                    codeLastFour: null,
+                    customerId: null,
+                    valueBefore: 1000,
+                    valueAfter: 401,
+                    valueChange: -599
+                }
+            ]
+        }, ["createdDate"]);
 
         const getValueStoreResp = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${valueStore1.valueStoreId}`, "GET");
-        chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(postValueStoreResp.body)}`);
+        chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(getValueStoreResp.body)}`);
         chai.assert.equal(getValueStoreResp.body.value, 401);
     });
 
@@ -73,33 +74,70 @@ describe("/v2/transactions/debit", () => {
             currency: "CAD",
             simulate: true
         });
-        chai.assert.equal(postDebitResp.statusCode, 200, `body=${postDebitResp.body}`);
-
-        chai.assert.equal(postDebitResp.body.transactionId, "debit-2");
-        chai.assert.equal(postDebitResp.body.transactionType, "debit");
-        chai.assert.lengthOf(postDebitResp.body.steps, 1);
-
-        const step = postDebitResp.body.steps[0] as LightrailTransactionStep;
-        chai.assert.deepEqual(step, {
-            rail: "lightrail",
-            valueStoreId: valueStore1.valueStoreId,
-            valueStoreType: valueStore1.valueStoreType,
-            currency: valueStore1.currency,
-            codeLastFour: null,
-            customerId: null,
-            valueBefore: 401,
-            valueAfter: 101,
-            valueChange: -300
-        });
+        chai.assert.equal(postDebitResp.statusCode, 200, `body=${JSON.stringify(postDebitResp.body)}`);
+        chai.assert.deepEqualExcluding(postDebitResp.body, {
+            transactionId: "debit-2",
+            transactionType: "debit",
+            remainder: 0,
+            steps: [
+                {
+                    rail: "lightrail",
+                    valueStoreId: valueStore1.valueStoreId,
+                    valueStoreType: valueStore1.valueStoreType,
+                    currency: valueStore1.currency,
+                    codeLastFour: null,
+                    customerId: null,
+                    valueBefore: 401,
+                    valueAfter: 101,
+                    valueChange: -300
+                }
+            ]
+        }, ["createdDate"]);
 
         const getValueStoreResp = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${valueStore1.valueStoreId}`, "GET");
         chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(getValueStoreResp.body)}`);
         chai.assert.equal(getValueStoreResp.body.value, 401, "the value did not actually change");
     });
 
+    it("can debit by valueStoreId with allowRemainder", async () => {
+        const postDebitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
+            transactionId: "debit-3",
+            source: {
+                rail: "lightrail",
+                valueStoreId: valueStore1.valueStoreId
+            },
+            value: -9500,
+            currency: "CAD",
+            allowRemainder: true
+        });
+        chai.assert.equal(postDebitResp.statusCode, 201, `body=${JSON.stringify(postDebitResp.body)}`);
+        chai.assert.deepEqualExcluding(postDebitResp.body, {
+            transactionId: "debit-3",
+            transactionType: "debit",
+            remainder: 401 - 9500,
+            steps: [
+                {
+                    rail: "lightrail",
+                    valueStoreId: valueStore1.valueStoreId,
+                    valueStoreType: valueStore1.valueStoreType,
+                    currency: valueStore1.currency,
+                    codeLastFour: null,
+                    customerId: null,
+                    valueBefore: 401,
+                    valueAfter: 0,
+                    valueChange: -401
+                }
+            ]
+        }, ["createdDate"]);
+
+        const getValueStoreResp = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${valueStore1.valueStoreId}`, "GET");
+        chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(getValueStoreResp.body)}`);
+        chai.assert.equal(getValueStoreResp.body.value, 0);
+    });
+
     it("409s debiting by valueStoreId of the wrong currency", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/debit", "POST", {
-            transactionId: "debit-3",
+            transactionId: "debit-4",
             source: {
                 rail: "lightrail",
                 valueStoreId: valueStore1.valueStoreId
@@ -113,7 +151,7 @@ describe("/v2/transactions/debit", () => {
 
     it("409s debiting by valueStoreId for more money than is available", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/debit", "POST", {
-            transactionId: "debit-4",
+            transactionId: "debit-5",
             source: {
                 rail: "lightrail",
                 valueStoreId: valueStore1.valueStoreId
@@ -127,7 +165,7 @@ describe("/v2/transactions/debit", () => {
 
     it("409s debiting a valueStoreId that does not exist", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/debit", "POST", {
-            transactionId: "debit-5",
+            transactionId: "debit-6",
             source: {
                 rail: "lightrail",
                 valueStoreId: "idontexist"
