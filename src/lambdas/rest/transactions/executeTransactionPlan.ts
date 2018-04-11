@@ -6,6 +6,35 @@ import {DbValueStore} from "../../../model/ValueStore";
 import {transactionPlanToTransaction} from "./transactionPlanToTransaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 
+export interface ExecuteTransactionPlannerOptions {
+    allowRemainder: boolean;
+    simulate: boolean;
+}
+
+/**
+ * Calls the planner and executes on the plan created.  If the plan cannot be executed
+ * but can be replanned then the planner will be called again.
+ */
+export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ExecuteTransactionPlannerOptions, planner: () => Promise<TransactionPlan>): Promise<Transaction> {
+    while (true) {
+        try {
+            const plan = await planner();
+            if (plan.remainder && !options.allowRemainder) {
+                throw new giftbitRoutes.GiftbitRestError(409, "Insufficient value.", "InsufficientValue");
+            }
+            if (options.simulate) {
+                return transactionPlanToTransaction(plan);
+            }
+            return await executeTransactionPlan(auth, plan);
+        } catch (err) {
+            if ((err as TransactionPlanError).isTransactionPlanError && (err as TransactionPlanError).isReplanable) {
+                continue;
+            }
+            throw err;
+        }
+    }
+}
+
 export function executeTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<Transaction> {
     const messy = plan.steps.find(step => step.rail !== "lightrail" && step.rail !== "internal");
     return messy ? executeMessyTransactionPlan(auth, plan) : executePureTransactionPlan(auth, plan);
