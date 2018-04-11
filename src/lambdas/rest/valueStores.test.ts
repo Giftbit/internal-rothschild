@@ -38,7 +38,7 @@ describe("/v2/valueStores/", () => {
 
     it("can create a value store", async () => {
         const resp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/valueStores", "POST", valueStore1);
-        chai.assert.equal(resp.statusCode, 201, `body=${resp.body}`);
+        chai.assert.equal(resp.statusCode, 201, `body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.valueStoreId, valueStore1.valueStoreId);
         chai.assert.equal(resp.body.valueStoreType, valueStore1.valueStoreType);
         chai.assert.equal(resp.body.currency, valueStore1.currency);
@@ -54,7 +54,7 @@ describe("/v2/valueStores/", () => {
 
     it("can get the value store", async () => {
         const resp = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${valueStore1.valueStoreId}`, "GET");
-        chai.assert.equal(resp.statusCode, 200, `body=${resp.body}`);
+        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
         chai.assert.deepEqual(resp.body, valueStore1);
     });
 

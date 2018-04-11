@@ -68,7 +68,7 @@ describe("/v2/transactions/debit", () => {
             value: -301,
             currency: "USD"
         });
-        chai.assert.equal(resp.statusCode, 409, `body=${resp.body}`);
+        chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
     });
 
@@ -80,10 +80,10 @@ describe("/v2/transactions/debit", () => {
                 valueStoreId: valueStore1.valueStoreId
             },
             value: -1301,
-            currency: "USD"
+            currency: "CAD"
         });
-        chai.assert.equal(resp.statusCode, 409, `body=${resp.body}`);
-        chai.assert.equal(resp.body.messageCode, "InvalidParty");
+        chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.messageCode, "InsufficientValue");
     });
 
     it("409s debiting a valueStoreId that does not exist", async () => {
@@ -96,7 +96,7 @@ describe("/v2/transactions/debit", () => {
             value: -1301,
             currency: "USD"
         });
-        chai.assert.equal(resp.statusCode, 409, `body=${resp.body}`);
+        chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
     });
 });

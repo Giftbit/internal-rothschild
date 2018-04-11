@@ -113,7 +113,7 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
         remainder: req.value - amount
     };
     if (plan.remainder && !req.allowRemainder) {
-        throw new giftbitRoutes.GiftbitRestError(400, "Insufficient value.", "InsufficientValue");
+        throw new giftbitRoutes.GiftbitRestError(409, "Insufficient value.", "InsufficientValue");
     }
     if (req.simulate) {
         return transactionPlanToTransaction(plan);
@@ -126,7 +126,7 @@ async function createOrder(auth: giftbitRoutes.jwtauth.AuthorizationBadge, order
     steps.sort(compareTransactionPlanSteps);
     const plan = buildOrderTransactionPlan(order, steps);
     if (plan.remainder && !order.allowRemainder) {
-        throw new giftbitRoutes.GiftbitRestError(400, "Insufficient value.", "InsufficientValue");
+        throw new giftbitRoutes.GiftbitRestError(409, "Insufficient value.", "InsufficientValue");
     }
     if (order.simulate) {
         return transactionPlanToTransaction(plan);
@@ -169,7 +169,7 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
         remainder: req.value - amount
     };
     if (plan.remainder && !req.allowRemainder) {
-        throw new giftbitRoutes.GiftbitRestError(400, "Insufficient value.", "InsufficientValue");
+        throw new giftbitRoutes.GiftbitRestError(409, "Insufficient value.", "InsufficientValue");
     }
     if (req.simulate) {
         return transactionPlanToTransaction(plan);

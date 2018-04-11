@@ -139,7 +139,7 @@ describe("/v2/customers", () => {
         customer1.lastName = "One";
 
         const resp = await testUtils.testAuthedRequest<Customer>(router, `/v2/customers/${customer1.customerId}`, "PUT", customer1);
-        chai.assert.equal(resp.statusCode, 200, `body=${resp.body}`);
+        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
         chai.assert.deepEqual(resp.body, customer1);
 
         const getResp = await testUtils.testAuthedRequest<Customer>(router, `/v2/customers/${customer1.customerId}`, "GET");

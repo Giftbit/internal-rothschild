@@ -67,7 +67,7 @@ describe("/v2/transactions/credit", () => {
             value: 1500,
             currency: "USD"
         });
-        chai.assert.equal(resp.statusCode, 409, `body=${resp.body}`);
+        chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
     });
 
@@ -81,7 +81,7 @@ describe("/v2/transactions/credit", () => {
             value: 1500,
             currency: "USD"
         });
-        chai.assert.equal(resp.statusCode, 409, `body=${resp.body}`);
+        chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
     });
 });
