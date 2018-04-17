@@ -76,9 +76,9 @@ export async function getKnexRead(): Promise<knex> {
         knexReadClient.decrement = knexReadClient.increment = knexReadClient.insert = knexReadClient.into = knexReadClient.update = () => {
             throw new Error("Attempting to modify database from read-only connection.");
         };
-        const originalQeryBuilder = knexReadClient.queryBuilder;
+        const originalQueryBuilder = knexReadClient.queryBuilder;
         knexReadClient.queryBuilder = function () {
-            const qb = originalQeryBuilder();
+            const qb = originalQueryBuilder();
             qb.decrement = qb.increment = qb.insert = qb.into = qb.update = () => {
                 throw new Error("Attempting to modify database from read-only connection.");
             };
