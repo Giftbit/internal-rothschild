@@ -1,53 +1,94 @@
 import "babel-polyfill";
 import * as awslambda from "aws-lambda";
+import * as childProcess from "child_process";
 import * as mysql from "mysql2/promise";
+import * as path from "path";
 import {sendCloudFormationResponse} from "../../sendCloudFormationResponse";
 import {getDbCredentials} from "../../dbUtils";
+
+// Every SQL migration file needs to be named here to be included in the dist.
+require("./schema/V1__base.sql");
+
+// Flyway version to download and use.
+const flywayVersion = "5.0.7";
+
+// Remove after firmly establishing V1.
+const dropExistingDb = true;
 
 /**
  * Handles a CloudFormationEvent and upgrades the database.
  */
-export function handler(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context, callback: awslambda.Callback): void {
+export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context, callback: awslambda.Callback): Promise<any> {
     console.log("event", JSON.stringify(evt, null, 2));
-    handlerAsync(evt, ctx)
-        .then(data => {
-            return sendCloudFormationResponse(evt, ctx, true, data);
-        }, err => {
-            console.error(JSON.stringify(err, null, 2));
-            return sendCloudFormationResponse(evt, ctx, false, null, err.message);
-        })
-        .then(() => {
-            callback(undefined, {});
-        }, err => {
-            console.error(JSON.stringify(err, null, 2));
-            callback(err);
-        });
-}
 
-async function handlerAsync(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context): Promise<{}> {
     if (evt.RequestType === "Delete") {
         console.log("This action cannot be rolled back.  Calling success without doing anything.");
-        return {};
+        return sendCloudFormationResponse(evt, ctx, true, {});
     }
 
-    const connection = await getConnection(ctx);
+    try {
+        const res = await upgradeDb2(ctx);
+        return sendCloudFormationResponse(evt, ctx, true, res);
+    } catch (err) {
+        console.error(JSON.stringify(err, null, 2));
+        return sendCloudFormationResponse(evt, ctx, false, null, err.message);
+    }
+}
 
-    await putBaseSchema(connection);
+async function upgradeDb2(ctx: awslambda.Context): Promise<any> {
+    console.log("downloading flyway", flywayVersion);
+    await spawn("curl", ["-o", `/tmp/flyway-commandline-${flywayVersion}.tar.gz`, `https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/${flywayVersion}/flyway-commandline-${flywayVersion}.tar.gz`]);
 
-    // // This lock will only last as long as this connection does.
-    // console.log("locking database");
-    // await connection.query("FLUSH TABLES WITH WRITE LOCK;");
-    //
-    // // And this is where we look at the schemaChanges table, and apply needed patches in order.
-    // // Patch files will go in ./schema.  They must be in a sequential order and never modified.
-    // // How do we enforce that?
-    //
-    // console.log("unlocking database");
-    // await connection.query("UNLOCK TABLES;");
+    console.log("extracting flyway");
+    await spawn("tar", ["-xf", `/tmp/flyway-commandline-${flywayVersion}.tar.gz`, "-C", "/tmp"]);
 
-    await connection.end();
+    console.log("waiting for database to be connectable");
+    const conn = await getConnection(ctx);
+    if (dropExistingDb) {
+        const [schemaRes] = await conn.query("SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?", ["rothschild"]);
+        if (schemaRes.length > 0) {
+            console.log("dropping existing schema");
+            const [dropRes] = await conn.execute("DROP DATABASE rothschild;");
+            console.log("dropRes=", dropRes);
+        }
+    }
+    conn.end();
 
-    return {};
+    console.log("invoking flyway");
+    const credentials = await getDbCredentials();
+    const env = {
+        FLYWAY_USER: credentials.username,
+        FLYWAY_PASSWORD: credentials.password,
+        FLYWAY_DRIVER: "com.mysql.jdbc.Driver",
+        FLYWAY_URL: `jdbc:mysql://${process.env["DB_ENDPOINT"]}:${process.env["DB_PORT"]}/`,
+        FLYWAY_LOCATIONS: `filesystem:${path.resolve(".", "schema")}`,
+        FLYWAY_SCHEMAS: "rothschild"
+    };
+    await spawn(`/tmp/flyway-${flywayVersion}/flyway`, ["-X", "migrate"], {env});
+}
+
+function spawn(cmd: string, args?: string[], options?: childProcess.SpawnOptions): Promise<{stdout: string[], stderr: string[]}> {
+    const child = childProcess.spawn(cmd, args, options);
+
+    const stdout: string[] = [];
+    const stderr: string[] = [];
+    child.stdout.on("data", data => stdout.push(data.toString()));
+    child.stderr.on("data", data => stderr.push(data.toString()));
+    return new Promise<{stdout: string[], stderr: string[]}>((resolve, reject) => {
+        child.on("error", error => {
+            console.error("Error running", cmd, args.join(" "));
+            console.error(error);
+            stdout.length && console.log("stdout:", stdout.join(""));
+            stderr.length && console.log("stderr:", stderr.join(""));
+            reject(error);
+        });
+        child.on("close", code => {
+            console.log(cmd, args.join(" "));
+            stdout.length && console.log("stdout:", stdout.join(""));
+            stderr.length && console.log("stderr:", stderr.join(""));
+            resolve({stdout, stderr});
+        });
+    });
 }
 
 async function getConnection(ctx: awslambda.Context): Promise<mysql.Connection> {
@@ -57,10 +98,6 @@ async function getConnection(ctx: awslambda.Context): Promise<mysql.Connection> 
         try {
             console.log(`connecting to ${process.env["DB_ENDPOINT"]}:${process.env["DB_PORT"]}`);
             return await mysql.createConnection({
-                // multipleStatements = true removes a protection against injection attacks.
-                // We're running scripts and not accepting user input here so that's ok,
-                // but other clients should *not* do that.
-                multipleStatements: true,
                 host: process.env["DB_ENDPOINT"],
                 port: +process.env["DB_PORT"],
                 user: credentials.username,
@@ -76,25 +113,4 @@ async function getConnection(ctx: awslambda.Context): Promise<mysql.Connection> 
             }
         }
     }
-}
-
-async function putBaseSchema(connection: mysql.Connection, force: boolean = false): Promise<void> {
-    console.log("checking for schema");
-    const [schemaRes] = await connection.execute("SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?", ["rothschild"]);
-    console.log("checked for schema", JSON.stringify(schemaRes));
-    if (schemaRes.length > 0) {
-        if (force) {
-            console.log("!!! FORCING DATABASE SCHEMA FROM BASE !!!");
-            console.log("dropping schema");
-            const [dropRes] = await connection.execute("DROP DATABASE rothschild;");
-            console.log("dropped schema", JSON.stringify(dropRes));
-        } else {
-            return;
-        }
-    }
-
-    const sql = require("./schema/base.sql");
-    console.log("applying base schema");
-    const [baseSchemaRes] = await connection.execute(sql);
-    console.log("applied base schema", JSON.stringify(baseSchemaRes));
 }

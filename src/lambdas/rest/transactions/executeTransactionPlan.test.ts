@@ -1,7 +1,7 @@
 import * as chai from "chai";
 import {TransactionPlanError} from "./TransactionPlanError";
 import * as testUtils from "../../../testUtils";
-import {DbValueStore, ValueStore} from "../../../model/ValueStore";
+import {DbValueStore} from "../../../model/ValueStore";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {getKnexWrite} from "../../../dbUtils";
 import {TransactionPlan} from "./TransactionPlan";

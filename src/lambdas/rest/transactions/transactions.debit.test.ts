@@ -35,7 +35,7 @@ describe("/v2/transactions/debit", () => {
                 rail: "lightrail",
                 valueStoreId: valueStore1.valueStoreId
             },
-            value: -599,
+            amount: 599,
             currency: "CAD"
         });
         chai.assert.equal(postDebitResp.statusCode, 201, `body=${JSON.stringify(postDebitResp.body)}`);
@@ -70,7 +70,7 @@ describe("/v2/transactions/debit", () => {
                 rail: "lightrail",
                 valueStoreId: valueStore1.valueStoreId
             },
-            value: -100,
+            amount: 100,
             currency: "CAD"
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
@@ -84,7 +84,7 @@ describe("/v2/transactions/debit", () => {
                 rail: "lightrail",
                 valueStoreId: valueStore1.valueStoreId
             },
-            value: -300,
+            amount: 300,
             currency: "CAD",
             simulate: true
         });
@@ -120,7 +120,7 @@ describe("/v2/transactions/debit", () => {
                 rail: "lightrail",
                 valueStoreId: valueStore1.valueStoreId
             },
-            value: -9500,
+            amount: 9500,
             currency: "CAD",
             allowRemainder: true
         });
@@ -128,7 +128,7 @@ describe("/v2/transactions/debit", () => {
         chai.assert.deepEqualExcluding(postDebitResp.body, {
             transactionId: "debit-3",
             transactionType: "debit",
-            remainder: 401 - 9500,
+            remainder: 9500 - 401,
             steps: [
                 {
                     rail: "lightrail",
@@ -156,7 +156,7 @@ describe("/v2/transactions/debit", () => {
                 rail: "lightrail",
                 valueStoreId: valueStore1.valueStoreId
             },
-            value: -301,
+            amount: 301,
             currency: "USD"
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
@@ -170,7 +170,7 @@ describe("/v2/transactions/debit", () => {
                 rail: "lightrail",
                 valueStoreId: valueStore1.valueStoreId
             },
-            value: -1301,
+            amount: 1301,
             currency: "CAD"
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
@@ -184,7 +184,7 @@ describe("/v2/transactions/debit", () => {
                 rail: "lightrail",
                 valueStoreId: "idontexist"
             },
-            value: -1301,
+            amount: 1301,
             currency: "USD"
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
@@ -197,7 +197,7 @@ describe("/v2/transactions/debit", () => {
                 rail: "lightrail",
                 valueStoreId: "idontexist"
             },
-            value: -1500,
+            amount: 1500,
             currency: "USD"
         });
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
@@ -210,7 +210,7 @@ describe("/v2/transactions/debit", () => {
                 rail: "lightrail",
                 valueStoreId: "idontexist"
             },
-            value: -1500,
+            amount: -1500,
             currency: "USD"
         });
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);

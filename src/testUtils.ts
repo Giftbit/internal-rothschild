@@ -32,15 +32,16 @@ export async function resetDb(): Promise<void> {
         password: credentials.password
     });
 
-    // This is very similar to what's going on in postDeploy.  Maybe refactor?
     try {
-        const [schemaRes] = await connection.execute("SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?", ["rothschild"]);
+        const [schemaRes] = await connection.query("SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?", ["rothschild"]);
         if (schemaRes.length > 0) {
-            await connection.execute("DROP DATABASE rothschild;");
+            await connection.query("DROP DATABASE rothschild");
         }
 
+        await connection.query("CREATE DATABASE rothschild");
+
         const sqlDir = path.join(__dirname, "lambdas", "postDeploy", "schema");
-        for (const sqlFile of ["base.sql"]) {
+        for (const sqlFile of fs.readdirSync(sqlDir).sort()) {
             const sql = fs.readFileSync(path.join(sqlDir, sqlFile)).toString("utf8");
             await connection.query(sql);
         }
@@ -48,7 +49,7 @@ export async function resetDb(): Promise<void> {
         console.error("Error setting up DB for test.", err.message, "Fetching InnoDB status...");
 
         try {
-            const [statusRes] = await connection.execute("SHOW ENGINE INNODB STATUS");
+            const [statusRes] = await connection.query("SHOW ENGINE INNODB STATUS");
             if (statusRes.length === 1 && statusRes[0].Status) {
                 for (const line of statusRes[0].Status.split("\\n")) {
                     console.error(line);

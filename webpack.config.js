@@ -55,9 +55,14 @@ module.exports = function (env) {
                         ]
                     },
                     {
-                        test: /\.sql$/,
+                        test: /\/V\d+__.*\.sql$/,
                         use: [
-                            'raw-loader'
+                            {
+                                loader: 'file-loader',
+                                options: {
+                                    name: 'schema/[name].[ext]'
+                                }
+                            }
                         ]
                     }
                 ]

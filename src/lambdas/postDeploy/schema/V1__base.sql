@@ -1,13 +1,3 @@
-CREATE DATABASE rothschild;
-
--- Stores what schema updates have been applied.  Not married to the specific columns.
-CREATE TABLE rothschild.SchemaChanges (
-  schemaChangeId INT NOT NULL,
-  scriptName     VARCHAR(255),
-  dateApplied    DATETIME
-);
-
--- The actual schema.
 CREATE TABLE rothschild.Customers (
   userId      VARCHAR(255) NOT NULL,
   customerId  VARCHAR(255) NOT NULL,

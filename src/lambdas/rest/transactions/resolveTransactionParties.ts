@@ -110,9 +110,7 @@ function selectByCodes(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency:
             active: true,
             expired: false
         })
-        .whereNot({
-            uses: 0
-        })
+        .where(q => q.whereNull("uses").orWhere("uses", ">", 0))
         .whereIn("ValueStoreAccess.code", codes);
 }
 
@@ -129,8 +127,6 @@ function selectByCustomerIds(auth: giftbitRoutes.jwtauth.AuthorizationBadge, cur
             active: true,
             expired: false
         })
-        .whereNot({
-            uses: 0
-        })
+        .where(q => q.whereNull("uses").orWhere("uses", ">", 0))
         .whereIn("ValueStoreAccess.customerId", customerIds);
 }

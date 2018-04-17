@@ -56,7 +56,7 @@ describe("/v2/transactions/transfer", () => {
                 rail: "lightrail",
                 valueStoreId: valueStoreCad2.valueStoreId
             },
-            value: 1000,
+            amount: 1000,
             currency: "CAD"
         });
         chai.assert.equal(postTransferResp.statusCode, 201, `body=${JSON.stringify(postTransferResp.body)}`);
@@ -113,7 +113,7 @@ describe("/v2/transactions/transfer", () => {
                 rail: "lightrail",
                 valueStoreId: valueStoreCad2.valueStoreId
             },
-            value: 15,
+            amount: 15,
             currency: "CAD"
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
@@ -131,7 +131,7 @@ describe("/v2/transactions/transfer", () => {
                 rail: "lightrail",
                 valueStoreId: valueStoreCad2.valueStoreId
             },
-            value: 500,
+            amount: 500,
             currency: "CAD",
             simulate: true
         });
@@ -189,7 +189,7 @@ describe("/v2/transactions/transfer", () => {
                 rail: "lightrail",
                 valueStoreId: valueStoreCad2.valueStoreId
             },
-            value: 7500,
+            amount: 7500,
             currency: "CAD",
             allowRemainder: true
         });
@@ -247,7 +247,7 @@ describe("/v2/transactions/transfer", () => {
                 rail: "lightrail",
                 valueStoreId: valueStoreCad2.valueStoreId
             },
-            value: 2000,
+            amount: 2000,
             currency: "CAD"
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
@@ -265,7 +265,7 @@ describe("/v2/transactions/transfer", () => {
                 rail: "lightrail",
                 valueStoreId: valueStoreCad2.valueStoreId
             },
-            value: 1,
+            amount: 1,
             currency: "XXX"
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
@@ -283,7 +283,7 @@ describe("/v2/transactions/transfer", () => {
                 rail: "lightrail",
                 valueStoreId: valueStoreCad2.valueStoreId
             },
-            value: 1,
+            amount: 1,
             currency: "CAD"
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
@@ -301,7 +301,7 @@ describe("/v2/transactions/transfer", () => {
                 rail: "lightrail",
                 valueStoreId: "idontexist"
             },
-            value: 1,
+            amount: 1,
             currency: "CAD"
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
@@ -319,7 +319,7 @@ describe("/v2/transactions/transfer", () => {
                 rail: "lightrail",
                 valueStoreId: valueStoreCad2.valueStoreId
             },
-            value: 1,
+            amount: 1,
             currency: "CAD"
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
@@ -337,7 +337,7 @@ describe("/v2/transactions/transfer", () => {
                 rail: "lightrail",
                 valueStoreId: valueStoreUsd.valueStoreId
             },
-            value: 1,
+            amount: 1,
             currency: "CAD"
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
@@ -354,7 +354,7 @@ describe("/v2/transactions/transfer", () => {
                 rail: "lightrail",
                 valueStoreId: valueStoreCad2.valueStoreId
             },
-            value: 1,
+            amount: 1,
             currency: "CAD"
         });
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
@@ -371,7 +371,7 @@ describe("/v2/transactions/transfer", () => {
                 rail: "lightrail",
                 valueStoreId: valueStoreCad2.valueStoreId
             },
-            value: 1,
+            amount: 1,
             currency: "CAD"
         });
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);

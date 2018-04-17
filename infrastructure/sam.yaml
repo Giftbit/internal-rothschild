@@ -227,7 +227,7 @@ Resources:
     Properties:
       CodeUri: ../dist/credentialGen/credentialGen.zip
       Handler: index.handler
-      Runtime: nodejs6.10
+      Runtime: nodejs8.10
       MemorySize: 128
       Timeout: 60 # seconds, 300 max
       Policies:
@@ -304,7 +304,7 @@ Resources:
     Properties:
       CodeUri: ../dist/rest/rest.zip
       Handler: index.handler
-      Runtime: nodejs6.10
+      Runtime: nodejs8.10
       MemorySize: 128
       Timeout: 120 # seconds, 300 max
       Environment:
@@ -376,8 +376,8 @@ Resources:
     Properties:
       CodeUri: ../dist/postDeploy/postDeploy.zip
       Handler: index.handler
-      Runtime: nodejs6.10
-      MemorySize: 128
+      Runtime: nodejs8.10
+      MemorySize: 256
       Timeout: 300 # seconds, 300 max
       Environment:
         Variables:

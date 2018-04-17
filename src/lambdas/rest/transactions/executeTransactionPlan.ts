@@ -103,7 +103,7 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
             }
 
             // Fix the plan to indicate the true value change.
-            step.valueStore.value = res2[0].value - step.amount;
+            step.valueStore.amount = res2[0].value - step.amount;
 
             await trx.into("LightrailTransactionSteps")
                 .insert({

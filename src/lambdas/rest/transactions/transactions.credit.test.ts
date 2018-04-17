@@ -27,7 +27,7 @@ describe("/v2/transactions/credit", () => {
 
     it("can credit by valueStoreId", async () => {
         const postValueStoreResp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/valueStores", "POST", valueStore1);
-        chai.assert.equal(postValueStoreResp.statusCode, 201, `body=${postValueStoreResp.body}`);
+        chai.assert.equal(postValueStoreResp.statusCode, 201, `body=${JSON.stringify(postValueStoreResp.body)}`);
 
         const postCreditResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", {
             transactionId: "credit-1",
@@ -35,10 +35,10 @@ describe("/v2/transactions/credit", () => {
                 rail: "lightrail",
                 valueStoreId: valueStore1.valueStoreId
             },
-            value: 1000,
+            amount: 1000,
             currency: "CAD"
         });
-        chai.assert.equal(postCreditResp.statusCode, 201, `body=${postCreditResp.body}`);
+        chai.assert.equal(postCreditResp.statusCode, 201, `body=${JSON.stringify(postCreditResp.body)}`);
         chai.assert.deepEqualExcluding(postCreditResp.body, {
             transactionId: "credit-1",
             transactionType: "credit",
@@ -70,7 +70,7 @@ describe("/v2/transactions/credit", () => {
                 rail: "lightrail",
                 valueStoreId: valueStore1.valueStoreId
             },
-            value: 1350,
+            amount: 1350,
             currency: "CAD"
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
@@ -84,7 +84,7 @@ describe("/v2/transactions/credit", () => {
                 rail: "lightrail",
                 valueStoreId: valueStore1.valueStoreId
             },
-            value: 1100,
+            amount: 1100,
             currency: "CAD",
             simulate: true
         });
@@ -120,7 +120,7 @@ describe("/v2/transactions/credit", () => {
                 rail: "lightrail",
                 valueStoreId: valueStore1.valueStoreId
             },
-            value: 1500,
+            amount: 1500,
             currency: "USD"
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
@@ -134,7 +134,7 @@ describe("/v2/transactions/credit", () => {
                 rail: "lightrail",
                 valueStoreId: "idontexist"
             },
-            value: 1500,
+            amount: 1500,
             currency: "USD"
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
@@ -147,7 +147,7 @@ describe("/v2/transactions/credit", () => {
                 rail: "lightrail",
                 valueStoreId: "idontexist"
             },
-            value: 1500,
+            amount: 1500,
             currency: "USD"
         });
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
@@ -160,7 +160,7 @@ describe("/v2/transactions/credit", () => {
                 rail: "lightrail",
                 valueStoreId: "idontexist"
             },
-            value: 1500,
+            amount: 1500,
             currency: "USD"
         });
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);

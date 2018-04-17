@@ -10,7 +10,7 @@ export interface OrderRequest {
 export interface CreditRequest {
     transactionId: string;
     destination: TransactionParty;
-    value: number;
+    amount: number;
     currency: string;
     simulate?: boolean;
 }
@@ -18,7 +18,7 @@ export interface CreditRequest {
 export interface DebitRequest {
     transactionId: string;
     source: TransactionParty;
-    value: number;
+    amount: number;
     currency: string;
     simulate?: boolean;
     allowRemainder?: boolean;

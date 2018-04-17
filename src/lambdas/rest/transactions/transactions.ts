@@ -86,7 +86,7 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
                         valueStore: (parties[0] as LightrailTransactionPlanStep).valueStore,
                         codeLastFour: (parties[0] as LightrailTransactionPlanStep).codeLastFour,
                         customerId: (parties[0] as LightrailTransactionPlanStep).customerId,
-                        amount: req.value
+                        amount: req.amount
                     }
                 ],
                 remainder: 0
@@ -108,7 +108,7 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable value store.", "InvalidParty");
             }
 
-            const amount = Math.max(req.value, -(parties[0] as LightrailTransactionPlanStep).valueStore.value);
+            const amount = Math.min(req.amount, (parties[0] as LightrailTransactionPlanStep).valueStore.value);
             return {
                 transactionId: req.transactionId,
                 transactionType: "debit",
@@ -118,10 +118,10 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
                         valueStore: (parties[0] as LightrailTransactionPlanStep).valueStore,
                         codeLastFour: (parties[0] as LightrailTransactionPlanStep).codeLastFour,
                         customerId: (parties[0] as LightrailTransactionPlanStep).customerId,
-                        amount
+                        amount: -amount
                     }
                 ],
-                remainder: req.value - amount
+                remainder: req.amount - amount
             };
         }
     );
@@ -160,7 +160,7 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable value store.", "InvalidParty");
             }
 
-            const amount = Math.min(req.value, (sourceParties[0] as LightrailTransactionPlanStep).valueStore.value);
+            const amount = Math.min(req.amount, (sourceParties[0] as LightrailTransactionPlanStep).valueStore.value);
             return {
                 transactionId: req.transactionId,
                 transactionType: "transfer",
@@ -180,7 +180,7 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
                         amount
                     }
                 ],
-                remainder: req.value - amount
+                remainder: req.amount - amount
             };
         }
     );
@@ -303,7 +303,7 @@ const creditSchema: jsonschema.Schema = {
             minLength: 1
         },
         destination: lightrailUniquePartySchema,
-        value: {
+        amount: {
             type: "integer",
             minimum: 1
         },
@@ -316,7 +316,7 @@ const creditSchema: jsonschema.Schema = {
             type: "boolean"
         }
     },
-    required: ["transactionId", "destination", "value", "currency"]
+    required: ["transactionId", "destination", "amount", "currency"]
 };
 
 const debitSchema: jsonschema.Schema = {
@@ -328,9 +328,9 @@ const debitSchema: jsonschema.Schema = {
             minLength: 1
         },
         source: lightrailUniquePartySchema,
-        value: {
+        amount: {
             type: "integer",
-            maximum: -1
+            minimum: 1
         },
         currency: {
             type: "string",
@@ -344,7 +344,7 @@ const debitSchema: jsonschema.Schema = {
             type: "boolean"
         }
     },
-    required: ["transactionId", "source", "value", "currency"]
+    required: ["transactionId", "source", "amount", "currency"]
 };
 
 const transferSchema: jsonschema.Schema = {
@@ -357,7 +357,7 @@ const transferSchema: jsonschema.Schema = {
         },
         source: lightrailUniquePartySchema,
         destination: lightrailUniquePartySchema,
-        value: {
+        amount: {
             type: "integer",
             minimum: 1
         },
@@ -373,7 +373,7 @@ const transferSchema: jsonschema.Schema = {
             type: "boolean"
         }
     },
-    required: ["transactionId", "source", "value", "currency"]
+    required: ["transactionId", "source", "amount", "currency"]
 };
 
 const orderSchema: jsonschema.Schema = {
