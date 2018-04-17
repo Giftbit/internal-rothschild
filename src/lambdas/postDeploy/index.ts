@@ -7,13 +7,14 @@ import {sendCloudFormationResponse} from "../../sendCloudFormationResponse";
 import {getDbCredentials} from "../../dbUtils";
 
 // Every SQL migration file needs to be named here to be included in the dist.
+// Files must be named V#__migration_name.sql where # is the next number sequentially.
 require("./schema/V1__base.sql");
 
-// Flyway version to download and use.
+// Flyway version to download and use.  Flyway does the migration.
 const flywayVersion = "5.0.7";
 
-// Remove after firmly establishing V1.
-const dropExistingDb = true;
+// Remove this ability after firmly establishing V1.
+const dropExistingDb = false;
 
 /**
  * Handles a CloudFormationEvent and upgrades the database.
@@ -27,7 +28,7 @@ export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, 
     }
 
     try {
-        const res = await upgradeDb2(ctx);
+        const res = await migrateDatabase(ctx);
         return sendCloudFormationResponse(evt, ctx, true, res);
     } catch (err) {
         console.error(JSON.stringify(err, null, 2));
@@ -35,7 +36,7 @@ export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, 
     }
 }
 
-async function upgradeDb2(ctx: awslambda.Context): Promise<any> {
+async function migrateDatabase(ctx: awslambda.Context): Promise<any> {
     console.log("downloading flyway", flywayVersion);
     await spawn("curl", ["-o", `/tmp/flyway-commandline-${flywayVersion}.tar.gz`, `https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/${flywayVersion}/flyway-commandline-${flywayVersion}.tar.gz`]);
 
@@ -56,15 +57,16 @@ async function upgradeDb2(ctx: awslambda.Context): Promise<any> {
 
     console.log("invoking flyway");
     const credentials = await getDbCredentials();
-    const env = {
-        FLYWAY_USER: credentials.username,
-        FLYWAY_PASSWORD: credentials.password,
-        FLYWAY_DRIVER: "com.mysql.jdbc.Driver",
-        FLYWAY_URL: `jdbc:mysql://${process.env["DB_ENDPOINT"]}:${process.env["DB_PORT"]}/`,
-        FLYWAY_LOCATIONS: `filesystem:${path.resolve(".", "schema")}`,
-        FLYWAY_SCHEMAS: "rothschild"
-    };
-    await spawn(`/tmp/flyway-${flywayVersion}/flyway`, ["-X", "migrate"], {env});
+    await spawn(`/tmp/flyway-${flywayVersion}/flyway`, ["-X", "migrate"], {
+        env: {
+            FLYWAY_USER: credentials.username,
+            FLYWAY_PASSWORD: credentials.password,
+            FLYWAY_DRIVER: "com.mysql.jdbc.Driver",
+            FLYWAY_URL: `jdbc:mysql://${process.env["DB_ENDPOINT"]}:${process.env["DB_PORT"]}/`,
+            FLYWAY_LOCATIONS: `filesystem:${path.resolve(".", "schema")}`,
+            FLYWAY_SCHEMAS: "rothschild"
+        }
+    });
 }
 
 function spawn(cmd: string, args?: string[], options?: childProcess.SpawnOptions): Promise<{stdout: string[], stderr: string[]}> {

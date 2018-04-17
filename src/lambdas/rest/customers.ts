@@ -81,6 +81,7 @@ export function installCustomersRest(router: cassava.Router): void {
         });
 }
 
+// TODO this should be filterable by firstName, lastName, email (includes, ignore case)
 export async function getCustomers(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{customers: Customer[], pagination: Pagination}> {
     auth.requireIds("giftbitUserId");
 
