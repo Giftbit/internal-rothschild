@@ -5,6 +5,7 @@ export interface OrderRequest {
     sources: TransactionParty[];
     simulate?: boolean;
     allowRemainder?: boolean;
+    // metadata: object | null; // TODO
 }
 
 export interface CreditRequest {
@@ -13,6 +14,7 @@ export interface CreditRequest {
     amount: number;
     currency: string;
     simulate?: boolean;
+    // metadata: object | null; // TODO
 }
 
 export interface DebitRequest {
@@ -22,6 +24,7 @@ export interface DebitRequest {
     currency: string;
     simulate?: boolean;
     allowRemainder?: boolean;
+    // metadata: object | null; // TODO
 }
 
 export type Cart = any;

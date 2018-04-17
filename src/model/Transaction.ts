@@ -7,6 +7,7 @@ export interface Transaction {
     steps: TransactionStep[];
     remainder: number;
     simulated?: true;
+    // createdDate: Date;   // TODO
     // metadata: object | null; // TODO
 }
 
