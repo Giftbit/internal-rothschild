@@ -4,7 +4,7 @@ import * as knex from "knex";
 let dbCredentials: {username: string, password: string} = null;
 const isTestEnv = !!process.env["TEST_ENV"];
 
-let knexClient: knex = null;
+let knexWriteClient: knex = null;
 let knexReadClient: knex = null;
 
 export async function getDbCredentials(): Promise<{username: string, password: string}> {
@@ -49,14 +49,13 @@ export async function getDbCredentials(): Promise<{username: string, password: s
  * connections when the process is shut down.
  */
 export async function getKnexWrite(): Promise<knex> {
-    if (knexClient) {
-        return knexClient;
+    if (knexWriteClient) {
+        return knexWriteClient;
     }
 
     checkForEnvVar("DB_ENDPOINT", "DB_PORT");
-
     const credentials = await getDbCredentials();
-    return knexReadClient = getKnex(credentials.username, credentials.password, process.env["DB_ENDPOINT"], process.env["DB_PORT"]);
+    return knexWriteClient = getKnex(credentials.username, credentials.password, process.env["DB_ENDPOINT"], process.env["DB_PORT"]);
 }
 
 /**
@@ -70,7 +69,24 @@ export async function getKnexRead(): Promise<knex> {
 
     checkForEnvVar("DB_READ_ENDPOINT", "DB_PORT");
     const credentials = await getDbCredentials();
-    return knexReadClient = getKnex(credentials.username, credentials.password, process.env["DB_READ_ENDPOINT"], process.env["DB_PORT"]);
+    knexReadClient = getKnex(credentials.username, credentials.password, process.env["DB_READ_ENDPOINT"], process.env["DB_PORT"]);
+
+    if (isTestEnv) {
+        // Hack Knex to be sure we're not trying to modify the DB through the read-only connection.
+        knexReadClient.decrement = knexReadClient.increment = knexReadClient.insert = knexReadClient.into = knexReadClient.update = () => {
+            throw new Error("Attempting to modify database from read-only connection.");
+        };
+        const originalQeryBuilder = knexReadClient.queryBuilder;
+        knexReadClient.queryBuilder = function () {
+            const qb = originalQeryBuilder();
+            qb.decrement = qb.increment = qb.insert = qb.into = qb.update = () => {
+                throw new Error("Attempting to modify database from read-only connection.");
+            };
+            return qb;
+        };
+    }
+
+    return knexReadClient;
 }
 
 function getKnex(username: string, password: string, endpoint: string, port: string): knex {
