@@ -7,6 +7,7 @@ export interface Transaction {
     steps: TransactionStep[];
     remainder: number;
     simulated?: true;
+    // metadata: object | null; // TODO
 }
 
 export type TransactionType = "credit" | "debit" | "order" | "transfer" | "pending_create" | "pending_capture" | "pending_void";
