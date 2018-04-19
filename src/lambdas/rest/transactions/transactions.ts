@@ -287,7 +287,7 @@ const internalPartySchema: jsonschema.Schema = {
             type: "integer",
             minimum: 0
         },
-        appliedFirst: {
+        beforeLightrail: {
             type: "boolean"
         }
     },
