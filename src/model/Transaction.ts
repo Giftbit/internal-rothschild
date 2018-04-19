@@ -1,19 +1,45 @@
 import * as stripe from "stripe";
+import {LineItem} from "./LineItem";
 
 export interface Transaction {
     transactionId: string;
     transactionType: TransactionType;
-    cart?: CartTransaction;
+    lineItems?: LineItem[];
     steps: TransactionStep[];
     remainder: number;
+    paymentSources?: PaymentSource[];
     simulated?: true;
-    // createdDate: Date;   // TODO
-    // metadata: object | null; // TODO
+    metadata?: any;
 }
 
-export type TransactionType = "credit" | "debit" | "order" | "transfer" | "pending_create" | "pending_capture" | "pending_void";
+export type PaymentSource =
+    LightrailCustomerPaymentSource
+    | LightrailCodePaymentSource
+    | LightrailValueStorePaymentSource;
 
-export type CartTransaction = any;  // Cart + explanation of what happened
+export interface LightrailCustomerPaymentSource {
+    rail: "lightrail";
+    customerId: string;
+}
+
+export interface LightrailCodePaymentSource {
+    rail: "lightrail";
+    code: string;
+}
+
+export interface LightrailValueStorePaymentSource {
+    rail: "lightrail";
+    valueStoreId: string;
+}
+
+export type TransactionType =
+    "credit"
+    | "debit"
+    | "order"
+    | "transfer"
+    | "pending_create"
+    | "pending_capture"
+    | "pending_void";
 
 export type TransactionStep = LightrailTransactionStep | StripeTransactionStep | InternalTransactionStep;
 

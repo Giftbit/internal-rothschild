@@ -58,7 +58,7 @@ CREATE TABLE rothschild.Transactions (
   userId                  VARCHAR(255) NOT NULL,
   transactionId           VARCHAR(255) NOT NULL,
   transactionType         VARCHAR(255) NOT NULL,
-  cart                    MEDIUMTEXT,
+  lineItems               MEDIUMTEXT,
   requestedPaymentSources TEXT,
   remainder               INT          NOT NULL,
   createdDate             DATETIME     NOT NULL,

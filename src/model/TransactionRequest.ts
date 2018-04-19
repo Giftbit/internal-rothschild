@@ -1,6 +1,8 @@
+import {LineItemRequest} from "./LineItem";
+
 export interface OrderRequest {
     transactionId: string;
-    cart: Cart;
+    lineItems: LineItemRequest[];
     currency: string;
     sources: TransactionParty[];
     simulate?: boolean;
@@ -26,8 +28,6 @@ export interface DebitRequest {
     allowRemainder?: boolean;
     // metadata: object | null; // TODO
 }
-
-export type Cart = any;
 
 export type TransferRequest = CreditRequest & DebitRequest;
 

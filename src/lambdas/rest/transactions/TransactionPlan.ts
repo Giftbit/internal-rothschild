@@ -1,16 +1,20 @@
 import * as stripe from "stripe";
-import {CartTransaction, TransactionType} from "../../../model/Transaction";
+import {TransactionType} from "../../../model/Transaction";
 import {ValueStore} from "../../../model/ValueStore";
+import {LineItemResponse} from "../../../model/LineItem";
 
 export interface TransactionPlan {
     transactionId: string;
     transactionType: TransactionType;
-    cart?: CartTransaction;
+    lineItems?: LineItemResponse[];
     steps: TransactionPlanStep[];
     remainder: number;
 }
 
-export type TransactionPlanStep = LightrailTransactionPlanStep | StripeTransactionPlanStep | InternalTransactionPlanStep;
+export type TransactionPlanStep =
+    LightrailTransactionPlanStep
+    | StripeTransactionPlanStep
+    | InternalTransactionPlanStep;
 
 export interface LightrailTransactionPlanStep {
     rail: "lightrail";

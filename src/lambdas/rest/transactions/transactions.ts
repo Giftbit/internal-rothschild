@@ -2,17 +2,12 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {compareTransactionPlanSteps} from "./compareTransactionPlanSteps";
-import {
-    CreditRequest,
-    DebitRequest,
-    OrderRequest,
-    TransferRequest
-} from "../../../model/TransactionRequest";
+import {CreditRequest, DebitRequest, OrderRequest, TransferRequest} from "../../../model/TransactionRequest";
 import {resolveTransactionParties} from "./resolveTransactionParties";
 import {buildOrderTransactionPlan} from "./buildOrderTransactionPlan";
 import {Transaction} from "../../../model/Transaction";
 import {executeTransactionPlanner} from "./executeTransactionPlan";
-import {LightrailTransactionPlanStep} from "./TransactionPlan";
+import {LightrailTransactionPlanStep, TransactionPlanStep} from "./TransactionPlan";
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions/credit")
@@ -136,8 +131,20 @@ async function createOrder(auth: giftbitRoutes.jwtauth.AuthorizationBadge, order
         },
         async () => {
             const steps = await resolveTransactionParties(auth, order.currency, order.sources);
-            steps.sort(compareTransactionPlanSteps);
-            return buildOrderTransactionPlan(order, steps);
+            let pretaxSteps: TransactionPlanStep[] = [];
+            let postTaxSteps: TransactionPlanStep[] = [];
+
+            for (const step of steps) {
+                if (step.rail === "lightrail" && step.valueStore.pretax) {
+                    pretaxSteps.push(step);
+                } else {
+                    postTaxSteps.push(step)
+                }
+            }
+
+            pretaxSteps.sort(compareTransactionPlanSteps);
+            postTaxSteps.sort(compareTransactionPlanSteps);
+            return buildOrderTransactionPlan(order, pretaxSteps, postTaxSteps);
         }
     );
 }
@@ -384,8 +391,30 @@ const orderSchema: jsonschema.Schema = {
             type: "string",
             minLength: 1
         },
-        cart: {
-            type: "object"
+        lineItems: {
+            type: "array",
+            items: {
+                type: "object",
+                properties: {
+                    type: {
+                        type: "string",
+                        enum: ["product", "shipping", "fee"]
+                    },
+                    productId: {
+                        type: "string"
+                    },
+                    unitPrice: {
+                        type: "integer",
+                        minimum: 0
+                    },
+                    quantity: {
+                        type: "integer",
+                        minimum: 1
+                    }
+                },
+                required: ["unitPrice"],
+                minItems: 1
+            }
         },
         currency: {
             type: "string",
@@ -409,5 +438,5 @@ const orderSchema: jsonschema.Schema = {
             type: "boolean"
         }
     },
-    required: ["transactionId", "cart", "currency", "sources"]
+    required: ["transactionId", "lineItems", "currency", "sources"]
 };

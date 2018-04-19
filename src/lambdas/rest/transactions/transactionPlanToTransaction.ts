@@ -1,11 +1,15 @@
 import {
     InternalTransactionStep,
-    LightrailTransactionStep, StripeTransactionStep, Transaction,
+    LightrailTransactionStep,
+    StripeTransactionStep,
+    Transaction,
     TransactionStep,
 } from "../../../model/Transaction";
 import {
     InternalTransactionPlanStep,
-    LightrailTransactionPlanStep, StripeTransactionPlanStep, TransactionPlan,
+    LightrailTransactionPlanStep,
+    StripeTransactionPlanStep,
+    TransactionPlan,
     TransactionPlanStep
 } from "./TransactionPlan";
 
@@ -13,7 +17,7 @@ export function transactionPlanToTransaction(plan: TransactionPlan, simulated?: 
     const transaction: Transaction = {
         transactionId: plan.transactionId,
         transactionType: plan.transactionType,
-        cart: plan.cart,
+        lineItems: plan.lineItems,
         steps: plan.steps.map(transactionPlanStepToTransactionStep),
         remainder: plan.remainder
     };
