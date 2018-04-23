@@ -7,7 +7,7 @@ export interface ValueStore {
     value: number | null;
     pretax: boolean;
     active: boolean;
-    expired: boolean;
+    expired: boolean;   // TODO we don't need to expose this to the user because it's implied by endDate
     frozen: boolean;
     redemptionRule: Rule | null;
     valueRule: Rule | null;

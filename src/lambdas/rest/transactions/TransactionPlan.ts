@@ -43,6 +43,6 @@ export interface InternalTransactionPlanStep {
     internalId: string;
     value: number;
     pretax: boolean;
-    appliedFirst: boolean;
+    beforeLightrail: boolean;
     amount: number;
 }

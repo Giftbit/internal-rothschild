@@ -137,7 +137,7 @@ const valueStoreSchema: jsonschema.Schema = {
         value: {
             type: ["number", "null"]
         },
-        preTax: {
+        pretax: {
             type: "boolean"
         },
         active: {

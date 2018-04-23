@@ -52,5 +52,5 @@ export interface InternalTransactionParty {
     id: string;
     value: number;
     pretax?: boolean;
-    appliedFirst?: boolean;
+    beforeLightrail?: boolean;
 }

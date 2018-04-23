@@ -22,7 +22,7 @@ export function compareTransactionPlanSteps(a: TransactionPlanStep, b: Transacti
                 case "stripe":
                     return aFirst;
                 case "internal":
-                    return b.appliedFirst ? bFirst : aFirst;
+                    return b.beforeLightrail ? bFirst : aFirst;
             }
             break;
         case "stripe":
@@ -32,15 +32,15 @@ export function compareTransactionPlanSteps(a: TransactionPlanStep, b: Transacti
                 case "stripe":
                     return compareStripeTransactionPlanSteps(a, b);
                 case "internal":
-                    return b.appliedFirst ? bFirst : aFirst;
+                    return b.beforeLightrail ? bFirst : aFirst;
             }
             break;
         case "internal":
             switch (b.rail) {
                 case "lightrail":
-                    return a.appliedFirst ? aFirst : bFirst;
+                    return a.beforeLightrail ? aFirst : bFirst;
                 case "stripe":
-                    return a.appliedFirst ? aFirst : bFirst;
+                    return a.beforeLightrail ? aFirst : bFirst;
                 case "internal":
                     return compareInternalTransactionPlanSteps(a, b);
             }
@@ -77,10 +77,10 @@ function compareInternalTransactionPlanSteps(a: InternalTransactionPlanStep, b: 
     if (!a.pretax && b.pretax) {
         return bFirst;
     }
-    if (a.appliedFirst && !b.appliedFirst) {
+    if (a.beforeLightrail && !b.beforeLightrail) {
         return aFirst;
     }
-    if (b.appliedFirst && !a.appliedFirst) {
+    if (b.beforeLightrail && !a.beforeLightrail) {
         return bFirst;
     }
     return a.internalId < b.internalId ? aFirst : bFirst;
