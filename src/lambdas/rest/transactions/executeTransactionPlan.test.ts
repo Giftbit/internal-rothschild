@@ -6,6 +6,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {getKnexWrite} from "../../../dbUtils";
 import {TransactionPlan} from "./TransactionPlan";
 import {executeTransactionPlan} from "./executeTransactionPlan";
+import {DbCurrency} from "../../../model/Currency";
 
 describe("rest/transactions/executeTransactionPlan", () => {
 
@@ -21,6 +22,14 @@ describe("rest/transactions/executeTransactionPlan", () => {
     });
 
     it("throws a replannable TransactionPlanError when there is not enough value", async () => {
+        const currency: DbCurrency = {
+            userId: "user",
+            code: "CAD",
+            name: "Monopoly money",
+            symbol: "$",
+            decimalPlaces: 2
+        };
+
         const valueStore: DbValueStore = {
             userId: "user",
             valueStoreId: "vs-1",
@@ -42,6 +51,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
         };
 
         const knex = await getKnexWrite();
+        await knex("Currencies").insert(currency);
         await knex("ValueStores").insert(valueStore);
 
         const plan: TransactionPlan = {

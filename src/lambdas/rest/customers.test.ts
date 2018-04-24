@@ -136,10 +136,10 @@ describe("/v2/customers", () => {
     });
 
     it("can modify the customer", async () => {
-        customer1.firstName = "Customer";
-        customer1.lastName = "One";
-
-        const resp = await testUtils.testAuthedRequest<Customer>(router, `/v2/customers/${customer1.customerId}`, "PUT", customer1);
+        const resp = await testUtils.testAuthedRequest<Customer>(router, `/v2/customers/${customer1.customerId}`, "PATCH", {
+            firstName: customer1.firstName = "Customer",
+            lastName: customer1.lastName = "One"
+        });
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
         chai.assert.deepEqual(resp.body, customer1);
 

@@ -2,10 +2,10 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {getKnexWrite, getKnexRead} from "../../dbUtils";
-import {Currency} from "../../model/Currency";
+import {Currency, DbCurrency} from "../../model/Currency";
 import {pick} from "../../pick";
 
-export function installCustomersRest(router: cassava.Router): void {
+export function installCurrenciesRest(router: cassava.Router): void {
     router.route("/v2/currencies")
         .method("GET")
         .handler(async evt => {
@@ -36,7 +36,7 @@ export function installCustomersRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
             return {
-                body: await getCurrency(auth, evt.pathParameters.customerId)
+                body: await getCurrency(auth, evt.pathParameters.code)
             };
         });
 
@@ -72,13 +72,13 @@ export async function getCurrencies(auth: giftbitRoutes.jwtauth.AuthorizationBad
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
-    const res: Currency[] = await knex("Currencies")
+    const res: DbCurrency[] = await knex("Currencies")
         .select()
         .where({
             userId: auth.giftbitUserId
         })
         .orderBy("code");
-    return res;
+    return res.map(DbCurrency.toCurrency);
 }
 
 export async function createCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: Currency): Promise<Currency> {
@@ -87,7 +87,7 @@ export async function createCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBa
     try {
         const knex = await getKnexWrite();
         await knex("Currencies")
-            .insert(currency);
+            .insert(Currency.toDbCurrency(auth, currency));
         return currency;
     } catch (err) {
         if (err.code === "ER_DUP_ENTRY") {
@@ -101,7 +101,7 @@ export async function getCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
-    const res: Currency[] = await knex("Customers")
+    const res: DbCurrency[] = await knex("Currencies")
         .select()
         .where({
             userId: auth.giftbitUserId,
@@ -113,7 +113,7 @@ export async function getCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
-    return res[0];
+    return DbCurrency.toCurrency(res[0]);
 }
 
 export async function updateCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string, currency: Partial<Currency>): Promise<Currency> {
@@ -133,7 +133,7 @@ export async function updateCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBa
         throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
     }
     return {
-        ...getCurrency(auth, code),
+        ...await getCurrency(auth, code),
         ...currency
     };
 }

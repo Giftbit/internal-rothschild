@@ -150,13 +150,7 @@ export async function updateCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBa
             userId: auth.giftbitUserId,
             customerId: customerId
         })
-        .update({
-            firstName: customer.firstName,
-            lastName: customer.lastName,
-            email: customer.email,
-            updatedDate: customer.updatedDate,
-            metadata: JSON.stringify(customer.metadata)
-        });
+        .update(customer);
     if (res[0] === 0) {
         throw new cassava.RestError(404);
     }
@@ -164,7 +158,7 @@ export async function updateCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBa
         throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
     }
     return {
-        ...getCustomer(auth, customer.customerId),
+        ...await getCustomer(auth, customerId),
         ...customer
     };
 }
