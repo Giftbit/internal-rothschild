@@ -10,6 +10,15 @@ CREATE TABLE rothschild.Customers (
   PRIMARY KEY (userId, customerId)
 );
 
+CREATE TABLE rothschild.Currencies (
+  userId        VARCHAR(255) NOT NULL,
+  code          VARCHAR(16)  NOT NULL,
+  name          VARCHAR(255) NOT NULL,
+  symbol        VARCHAR(16)  NOT NULL,
+  decimalPlaces INT          NOT NULL,
+  PRIMARY KEY (userId, code)
+);
+
 CREATE TABLE rothschild.ValueStoreTemplates (
   userId               VARCHAR(255) NOT NULL,
   valueStoreTemplateId VARCHAR(255) NOT NULL,
@@ -28,7 +37,8 @@ CREATE TABLE rothschild.ValueStoreTemplates (
   metadata             TEXT,
   createdDate          DATETIME     NOT NULL,
   updatedDate          DATETIME     NOT NULL,
-  PRIMARY KEY (userId, valueStoreTemplateId)
+  PRIMARY KEY (userId, valueStoreTemplateId),
+  CONSTRAINT valueStoreTemplates_fk0 FOREIGN KEY (userId, currency) REFERENCES rothschild.Currencies (userId, code)
 );
 
 CREATE TABLE rothschild.ValueStores (
@@ -51,7 +61,8 @@ CREATE TABLE rothschild.ValueStores (
   createdDate          DATETIME     NOT NULL,
   updatedDate          DATETIME     NOT NULL,
   PRIMARY KEY (userId, valueStoreId),
-  CONSTRAINT valueStores_fk0 FOREIGN KEY (userId, valueStoreTemplateId) REFERENCES rothschild.ValueStoreTemplates (userId, valueStoreTemplateId)
+  CONSTRAINT valueStores_fk0 FOREIGN KEY (userId, valueStoreTemplateId) REFERENCES rothschild.ValueStoreTemplates (userId, valueStoreTemplateId),
+  CONSTRAINT valueStores_fk1 FOREIGN KEY (userId, currency) REFERENCES rothschild.Currencies (userId, code)
 );
 
 CREATE TABLE rothschild.Transactions (
@@ -93,7 +104,8 @@ CREATE TABLE rothschild.StripeTransactionSteps (
   charge                  MEDIUMTEXT   NOT NULL,
   PRIMARY KEY (userId, stripeTransactionStepId),
   INDEX stripeTransactionSteps_ix0 (userId, transactionId),
-  CONSTRAINT stripeTransactionSteps_fk0 FOREIGN KEY (userId, transactionId) REFERENCES rothschild.Transactions (userId, transactionId)
+  CONSTRAINT stripeTransactionSteps_fk0 FOREIGN KEY (userId, transactionId) REFERENCES rothschild.Transactions (userId, transactionId),
+  CONSTRAINT stripeTransactionSteps_fk1 FOREIGN KEY (userId, currency) REFERENCES rothschild.Currencies (userId, code)
 );
 
 CREATE TABLE rothschild.InternalTransactionSteps (
