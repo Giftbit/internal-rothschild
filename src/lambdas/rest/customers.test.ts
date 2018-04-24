@@ -1,9 +1,9 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import * as customers from "./customers";
 import * as testUtils from "../../testUtils";
 import {Customer} from "../../model/Customer";
+import {installRest} from "./index";
 
 import chaiExclude = require("chai-exclude");
 chai.use(chaiExclude);
@@ -15,7 +15,7 @@ describe("/v2/customers", () => {
     before(async function () {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
-        customers.installCustomersRest(router);
+        installRest(router);
     });
 
     it("can list 0 customers", async () => {

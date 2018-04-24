@@ -119,7 +119,7 @@ function getKnex(username: string, password: string, endpoint: string, port: str
 }
 
 /**
- * Check for the existence of the given envionment variables and throw an
+ * Check for the existence of the given environment variables and throw an
  * Error if they're missing.
  */
 function checkForEnvVar(...envVars: string[]): void {
@@ -128,4 +128,21 @@ function checkForEnvVar(...envVars: string[]): void {
             throw new Error(`env var ${envVar} not set`);
         }
     }
+}
+
+/**
+ * Get the name of the constraint that failed a consistency check.
+ */
+export function getSqlErrorConstraintName(err: any): string {
+    if (!err.code || !err.sqlMessage) {
+        throw new Error("Error is not an SQL error.");
+    }
+    if (err.code !== "ER_NO_REFERENCED_ROW_2") {
+        throw new Error("Error is not a constraint error.");
+    }
+    const nameMatcher = /Cannot add or update a child row: .* CONSTRAINT `([^`]+)`/.exec(err.sqlMessage);
+    if (!nameMatcher) {
+        throw new Error("SQL error did not match expected error message despite the correct code 'ER_NO_REFERENCED_ROW_2'.");
+    }
+    return nameMatcher[1];
 }

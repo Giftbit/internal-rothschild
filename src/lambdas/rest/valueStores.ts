@@ -2,8 +2,9 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
-import {getKnexWrite, getKnexRead} from "../../dbUtils";
+import {getKnexWrite, getKnexRead, getSqlErrorConstraintName} from "../../dbUtils";
 import {DbValueStore, ValueStore} from "../../model/ValueStore";
+import {pickOrDefault} from "../../pick";
 
 export function installValueStoresRest(router: cassava.Router): void {
     router.route("/v2/valueStores")
@@ -25,26 +26,29 @@ export function installValueStoresRest(router: cassava.Router): void {
 
             const now = new Date();
             now.setMilliseconds(0);
+            const valueStore: ValueStore = {
+                ...pickOrDefault(evt.body, {
+                    valueStoreId: "",
+                    valueStoreType: "",
+                    currency: "",
+                    value: 0,
+                    pretax: false,
+                    active: true,
+                    frozen: false,
+                    redemptionRule: null,
+                    valueRule: null,
+                    uses: null,
+                    startDate: null,
+                    endDate: null,
+                    metadata: null
+                }),
+                expired: false,
+                createdDate: now,
+                updatedDate: now
+            };
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
-                body: await createValueStore(auth, {
-                    valueStoreId: evt.body.valueStoreId,
-                    valueStoreType: evt.body.valueStoreType,
-                    currency: evt.body.currency,
-                    value: evt.body.value != null ? evt.body.value : 0,
-                    pretax: evt.body.pretax != null ? evt.body.pretax : false,
-                    active: evt.body.active != null ? evt.body.active : true,
-                    expired: false,
-                    frozen: evt.body.frozen != null ? evt.body.frozen : false,
-                    redemptionRule: evt.body.redemptionRule || null,
-                    valueRule: evt.body.valueRule || null,
-                    uses: evt.body.uses != null ? evt.body.uses : null,
-                    startDate: evt.body.startDate != null ? evt.body.startDate : null,
-                    endDate: evt.body.endDate != null ? evt.body.endDate : null,
-                    metadata: evt.body.metadata !== undefined ? evt.body.metadata : null,
-                    createdDate: now,
-                    updatedDate: now
-                })
+                body: await createValueStore(auth, valueStore)
             };
         });
 
@@ -92,7 +96,13 @@ async function createValueStore(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
         return valueStore;
     } catch (err) {
         if (err.code === "ER_DUP_ENTRY") {
-            throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `ValueStore with valueStoreId '${valueStore.valueStoreId}' already exists.`);
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `ValueStore with valueStoreId '${valueStore.valueStoreId}' already exists.`);
+        }
+        if (err.code === "ER_NO_REFERENCED_ROW_2") {
+            const constraint = getSqlErrorConstraintName(err);
+            if (constraint === "valueStores_currency") {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${valueStore.currency}' does not exist.`, "CurrencyNotFound");
+            }
         }
         throw err;
     }

@@ -1,18 +1,18 @@
 import * as testUtils from "../../testUtils";
-import * as valueStoreTemplates from "./valueStoreTemplates";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import * as chai from "chai";
 import {ValueStoreTemplate} from "../../model/ValueStoreTemplate";
+import {installRest} from "./index";
 
-describe("/v2/valueStoreTemplate/", () => {
+describe.skip("/v2/valueStoreTemplate/ (this all needs to become programs anyways)", () => {
 
     const router = new cassava.Router();
 
     before(async function () {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
-        valueStoreTemplates.installValueStoreTemplatesRest(router);
+        installRest(router);
     });
 
     it("can list 0 ValueStoreTemplates", async () => {
