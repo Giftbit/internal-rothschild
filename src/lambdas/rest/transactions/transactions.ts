@@ -2,19 +2,26 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {compareTransactionPlanSteps} from "./compareTransactionPlanSteps";
-import {
-    CreditRequest,
-    DebitRequest,
-    OrderRequest,
-    TransferRequest
-} from "../../../model/TransactionRequest";
+import {CreditRequest, DebitRequest, OrderRequest, TransferRequest} from "../../../model/TransactionRequest";
 import {resolveTransactionParties} from "./resolveTransactionParties";
 import {buildOrderTransactionPlan} from "./buildOrderTransactionPlan";
-import {Transaction} from "../../../model/Transaction";
+import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {executeTransactionPlanner} from "./executeTransactionPlan";
 import {LightrailTransactionPlanStep} from "./TransactionPlan";
+import {getPaginationParams, Pagination, PaginationParams} from "../../../model/Pagination";
+import {getKnexRead} from "../../../dbUtils";
 
 export function installTransactionsRest(router: cassava.Router): void {
+    router.route("/v2/transactions")
+        .method("GET")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("giftbitUserId");
+            return {
+                body: await getTransactions(auth, getPaginationParams(evt))
+            };
+        });
+
     router.route("/v2/transactions/credit")
         .method("POST")
         .handler(async evt => {
@@ -62,6 +69,29 @@ export function installTransactionsRest(router: cassava.Router): void {
                 body: await createTransfer(auth, evt.body)
             };
         });
+}
+
+async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ transactions: Transaction[], pagination: Pagination }> {
+    auth.requireIds("giftbitUserId");
+
+    const knex = await getKnexRead();
+    const res: DbTransaction[] = await knex("Transactions")
+        .select()
+        .where({
+            userId: auth.giftbitUserId
+        })
+        .orderBy("transactionId")
+        .limit(pagination.limit)
+        .offset(pagination.offset);
+    return {
+        transactions: res.map(DbTransaction.toTransaction),
+        pagination: {
+            count: res.length,
+            limit: pagination.limit,
+            maxLimit: pagination.maxLimit,
+            offset: pagination.offset
+        }
+    };
 }
 
 async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CreditRequest): Promise<Transaction> {
