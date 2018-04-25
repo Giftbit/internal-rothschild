@@ -9,6 +9,7 @@ export interface ValueStore {
     active: boolean;
     expired: boolean;   // TODO we don't need to expose this to the user because it's implied by endDate
     frozen: boolean;
+    discount: boolean;
     redemptionRule: Rule | null;
     valueRule: Rule | null;
     uses: number | null;
@@ -38,6 +39,7 @@ export namespace ValueStore {
             active: v.active,
             expired: v.expired,
             frozen: v.frozen,
+            discount: v.discount,
             redemptionRule: JSON.stringify(v.redemptionRule),
             valueRule: JSON.stringify(v.valueRule),
             uses: v.uses,
@@ -60,6 +62,7 @@ export interface DbValueStore {
     active: boolean;
     expired: boolean;
     frozen: boolean;
+    discount: boolean;
     redemptionRule: string;
     valueRule: string;
     uses: number | null;
@@ -81,6 +84,7 @@ export namespace DbValueStore {
             active: v.active,
             expired: v.expired,
             frozen: v.frozen,
+            discount: v.discount,
             redemptionRule: JSON.parse(v.redemptionRule),
             valueRule: JSON.parse(v.valueRule),
             uses: v.uses,

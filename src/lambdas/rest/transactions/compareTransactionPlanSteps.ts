@@ -56,11 +56,10 @@ function compareLightrailTransactionPlanSteps(a: LightrailTransactionPlanStep, b
     if (!a.valueStore.pretax && b.valueStore.pretax) {
         return bFirst;
     }
-    // todo - this needs to do more. item vs. cart promos etc.
-    if (a.valueStore.valueStoreType === "PROMOTION") {
+    if (a.valueStore.discount) {
         return aFirst;
     }
-    if (b.valueStore.valueStoreType === "PROMOTION") {
+    if (b.valueStore.discount) {
         return bFirst;
     }
     return a.valueStore.valueStoreId < b.valueStore.valueStoreId ? aFirst : bFirst;

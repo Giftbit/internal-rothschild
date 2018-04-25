@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
-import {getKnexWrite, getKnexRead} from "../../dbUtils";
+import {getKnexRead, getKnexWrite} from "../../dbUtils";
 import {DbValueStore, ValueStore} from "../../model/ValueStore";
 
 export function installValueStoresRest(router: cassava.Router): void {
@@ -32,6 +32,7 @@ export function installValueStoresRest(router: cassava.Router): void {
                     valueStoreType: evt.body.valueStoreType,
                     currency: evt.body.currency,
                     value: evt.body.value != null ? evt.body.value : 0,
+                    discount: evt.body.discount != null ? evt.body.discount : false,
                     pretax: evt.body.pretax != null ? evt.body.pretax : false,
                     active: evt.body.active != null ? evt.body.active : true,
                     expired: false,
@@ -59,7 +60,7 @@ export function installValueStoresRest(router: cassava.Router): void {
         });
 }
 
-export async function getValueStores(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{valueStores: ValueStore[], pagination: Pagination}> {
+export async function getValueStores(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ valueStores: ValueStore[], pagination: Pagination }> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();

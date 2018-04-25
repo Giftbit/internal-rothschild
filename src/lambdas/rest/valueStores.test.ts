@@ -4,8 +4,8 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as valueStores from "./valueStores";
 import * as testUtils from "../../testUtils";
 import {ValueStore} from "../../model/ValueStore";
-
 import chaiExclude = require("chai-exclude");
+
 chai.use(chaiExclude);
 
 describe("/v2/valueStores/", () => {
@@ -36,7 +36,8 @@ describe("/v2/valueStores/", () => {
         valueStoreId: "1",
         valueStoreType: "GIFTCARD",
         currency: "USD",
-        value: 5000
+        value: 5000,
+        discount: false
     };
 
     it("can create a value store", async () => {

@@ -17,6 +17,7 @@ export function transactionPlanToTransaction(plan: TransactionPlan, simulated?: 
     const transaction: Transaction = {
         transactionId: plan.transactionId,
         transactionType: plan.transactionType,
+        totals: plan.totals,
         lineItems: plan.lineItems,
         steps: plan.steps.map(transactionPlanStepToTransactionStep),
         remainder: plan.remainder

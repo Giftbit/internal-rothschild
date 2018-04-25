@@ -12,11 +12,16 @@ export interface LineItemRequest {
 }
 
 export interface LineItemResponse extends LineItemRequest {
-    lineTotal: {
-        subtotal: number;
-        pretaxDiscount: number;
-        tax: number;
-        postTaxDiscount: number;
-        payable: number;
-    }
+    lineTotal: LineTotal
 }
+
+export interface LineTotal {
+    subtotal: number;
+    taxable: number;
+    tax: number;
+    discount: number;
+    remainder: number; // not displayed but used during the order calculation
+    payable: number;
+}
+
+export type LineItem = LineItemRequest | LineItemResponse;

@@ -1,14 +1,23 @@
 import * as stripe from "stripe";
-import {TransactionType} from "../../../model/Transaction";
 import {ValueStore} from "../../../model/ValueStore";
+import {TransactionTotal, TransactionType} from "../../../model/Transaction";
 import {LineItemResponse} from "../../../model/LineItem";
 
 export interface TransactionPlan {
     transactionId: string;
     transactionType: TransactionType;
+    totals?: TransactionTotal;
     lineItems?: LineItemResponse[];
     steps: TransactionPlanStep[];
     remainder: number;
+}
+
+export function calculateRemainder(lineItems: LineItemResponse[]) {
+    let remainder = 0;
+    for (const item of lineItems) {
+        remainder += item.lineTotal.remainder;
+    }
+    return remainder;
 }
 
 export type TransactionPlanStep =

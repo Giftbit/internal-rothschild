@@ -131,20 +131,22 @@ async function createOrder(auth: giftbitRoutes.jwtauth.AuthorizationBadge, order
         },
         async () => {
             const steps = await resolveTransactionParties(auth, order.currency, order.sources);
-            let pretaxSteps: TransactionPlanStep[] = [];
+            let preTaxSteps: TransactionPlanStep[] = [];
             let postTaxSteps: TransactionPlanStep[] = [];
 
             for (const step of steps) {
                 if (step.rail === "lightrail" && step.valueStore.pretax) {
-                    pretaxSteps.push(step);
+                    preTaxSteps.push(step);
                 } else {
                     postTaxSteps.push(step)
                 }
             }
 
-            pretaxSteps.sort(compareTransactionPlanSteps);
-            postTaxSteps.sort(compareTransactionPlanSteps);
-            return buildOrderTransactionPlan(order, pretaxSteps, postTaxSteps);
+            preTaxSteps = preTaxSteps.sort(compareTransactionPlanSteps);
+            postTaxSteps = postTaxSteps.sort(compareTransactionPlanSteps);
+            console.log(`preTaxSteps: ${JSON.stringify(preTaxSteps)}`);
+            console.log(`postTaxSteps: ${JSON.stringify(postTaxSteps)}`);
+            return buildOrderTransactionPlan(order, preTaxSteps, postTaxSteps);
         }
     );
 }

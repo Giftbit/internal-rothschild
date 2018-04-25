@@ -4,6 +4,7 @@ import {LineItem} from "./LineItem";
 export interface Transaction {
     transactionId: string;
     transactionType: TransactionType;
+    totals: TransactionTotal;
     lineItems?: LineItem[];
     steps: TransactionStep[];
     remainder: number;
@@ -68,4 +69,11 @@ export interface InternalTransactionStep {
     valueBefore: number;
     valueAfter: number;
     valueChange: number;
+}
+
+export interface TransactionTotal {
+    subTotal: number;
+    tax: number;
+    discount: number;
+    payable: number;
 }
