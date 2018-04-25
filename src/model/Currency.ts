@@ -1,4 +1,5 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import {pick} from "../pick";
 
 export interface Currency {
     code: string;
@@ -16,6 +17,10 @@ export namespace Currency {
             symbol: c.symbol,
             decimalPlaces: c.decimalPlaces
         };
+    }
+
+    export function toDbCurrencyUpdate(c: Partial<Currency>): Partial<DbCurrency> {
+        return pick(c, "name", "symbol", "decimalPlaces");
     }
 }
 

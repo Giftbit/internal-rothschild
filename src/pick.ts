@@ -34,3 +34,22 @@ export function pickOrDefault<T>(obj: T, defaults: T): T {
     }
     return res as T;
 }
+
+/**
+ * Returns a filtered copy of `obj` with only defined values present.
+ */
+export function pickDefined<T>(obj: Partial<T>): Partial<T> {
+    const res: Partial<T> = {};
+    const keys = Object.keys(obj);
+
+    const len = keys.length;
+    let idx = -1;
+
+    while (++idx < len) {
+        const key = keys[idx];
+        if (obj[key] !== undefined) {
+            res[key] = obj[key];
+        }
+    }
+    return res;
+}

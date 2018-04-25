@@ -150,7 +150,7 @@ export async function updateCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBa
             userId: auth.giftbitUserId,
             customerId: customerId
         })
-        .update(customer);
+        .update(Customer.toDbCustomerUpdate(customer));
     if (res[0] === 0) {
         throw new cassava.RestError(404);
     }

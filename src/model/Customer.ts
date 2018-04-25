@@ -1,4 +1,5 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import {pickDefined} from "../pick";
 
 export interface Customer {
     customerId: string;
@@ -22,6 +23,16 @@ export namespace Customer {
             createdDate: c.createdDate,
             updatedDate: c.updatedDate
         };
+    }
+
+    export function toDbCustomerUpdate(c: Partial<Customer>): Partial<DbCustomer> {
+        return pickDefined({
+            firstName: c.firstName,
+            lastName: c.lastName,
+            email: c.email,
+            metadata: JSON.stringify(c.metadata),
+            updatedDate: c.updatedDate
+        });
     }
 }
 

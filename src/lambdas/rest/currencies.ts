@@ -125,7 +125,7 @@ export async function updateCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBa
             userId: auth.giftbitUserId,
             code: code
         })
-        .update(currency);
+        .update(Currency.toDbCurrencyUpdate(currency));
     if (res[0] === 0) {
         throw new cassava.RestError(404);
     }
