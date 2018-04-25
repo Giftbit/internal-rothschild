@@ -1,5 +1,6 @@
 import * as stripe from "stripe";
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import {getKnexRead} from "../dbUtils";
 
 export interface Transaction {
     transactionId: string;
@@ -38,12 +39,39 @@ export interface DbTransaction {
 }
 
 export namespace DbTransaction {
-    export function toTransaction(t: DbTransaction): Transaction {
+    export async function toTransaction(t: DbTransaction): Promise<Transaction> {
+        const knex = await getKnexRead();
+
+        let dbSteps: any[] = await knex("LightrailTransactionSteps")
+            .where("transactionId", t.transactionId);
+        dbSteps = dbSteps.concat(await knex("StripeTransactionSteps")
+            .where("transactionId", t.transactionId));
+        dbSteps = dbSteps.concat(await knex("InternalTransactionSteps")
+            .where("transactionId", t.transactionId));
+
+        for (let step of dbSteps) {
+            step.index = step.lightrailTransactionStepId ? step.lightrailTransactionStepId : step.stripeTransactionStepId ? step.stripeTransactionStepId : step.internalTransactionStepId ? step.internalTransactionStepId : null;
+            if (step.index == null) {
+                throw new Error(`Cannot read transaction step index of ${step}`);
+            }
+            step.index = step.index.split("-").pop();
+        }
+
+        dbSteps.sort((step1, step2) => {
+            return step1.index < step2.index ? -1 : step1.index > step2.index ? 1 : 0;
+        });
+
+        const steps: TransactionStep[] = dbSteps.map(step => {
+            delete step.index;
+            return step;
+        });
+
+
         return {
             transactionId: t.transactionId,
             transactionType: t.transactionType,
             cart: t.cart,
-            steps: null, // TODO
+            steps: steps,
             remainder: t.remainder,
             createdDate: t.createdDate
         };

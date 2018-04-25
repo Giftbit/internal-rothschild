@@ -73,7 +73,6 @@ export function installTransactionsRest(router: cassava.Router): void {
 
 async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ transactions: Transaction[], pagination: Pagination }> {
     auth.requireIds("giftbitUserId");
-
     const knex = await getKnexRead();
     const res: DbTransaction[] = await knex("Transactions")
         .select()
@@ -83,8 +82,14 @@ async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, p
         .orderBy("transactionId")
         .limit(pagination.limit)
         .offset(pagination.offset);
+
+    const transacs: Transaction[] = await Promise.all(res.map(
+        async (tx) => {
+            return await DbTransaction.toTransaction(tx);
+        }));
+
     return {
-        transactions: res.map(DbTransaction.toTransaction),
+        transactions: transacs,
         pagination: {
             count: res.length,
             limit: pagination.limit,
