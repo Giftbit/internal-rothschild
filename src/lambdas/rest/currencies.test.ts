@@ -6,6 +6,7 @@ import {Currency} from "../../model/Currency";
 import {installRest} from ".";
 
 import chaiExclude = require("chai-exclude");
+import {ValueStore} from "../../model/ValueStore";
 chai.use(chaiExclude);
 
 describe("/v2/currencies", () => {
@@ -99,10 +100,30 @@ describe("/v2/currencies", () => {
     });
 
     it("can delete an unused currency", async () => {
-        const resp = await testUtils.testAuthedRequest<Currency>(router, `/v2/currencies/${funbux.code}`, "DELETE");
+        const resp = await testUtils.testAuthedRequest<any>(router, `/v2/currencies/${funbux.code}`, "DELETE");
         chai.assert.equal(resp.statusCode, 200);
 
         const resp2 = await testUtils.testAuthedRequest<Currency>(router, `/v2/currencies/${funbux.code}`, "GET");
         chai.assert.equal(resp2.statusCode, 404);
+    });
+
+    it("cannot delete a used currency", async () => {
+        const resp = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", funbux);
+        chai.assert.equal(resp.statusCode, 201, `body=${JSON.stringify(resp.body)}`);
+
+        const valueStore1: Partial<ValueStore> = {
+            valueStoreId: "1",
+            valueStoreType: "GIFTCARD",
+            currency: funbux.code,
+            value: 5000
+        };
+
+        const resp2 = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/valueStores", "POST", valueStore1);
+        chai.assert.equal(resp2.statusCode, 201, `body=${JSON.stringify(resp2.body)}`);
+
+
+        const resp3 = await testUtils.testAuthedRequest<any>(router, `/v2/currencies/${funbux.code}`, "DELETE");
+        chai.assert.equal(resp3.statusCode, 409);
+        chai.assert.equal(resp3.body.messageCode, "CurrencyInUse");
     });
 });

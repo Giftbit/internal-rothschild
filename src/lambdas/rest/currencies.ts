@@ -91,7 +91,7 @@ export async function createCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBa
         return currency;
     } catch (err) {
         if (err.code === "ER_DUP_ENTRY") {
-            throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency with code '${currency.code}' already exists.`);
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency with code '${currency.code}' already exists.`, "CurrencyExists");
         }
         throw err;
     }
@@ -141,20 +141,26 @@ export async function updateCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBa
 export async function deleteCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string): Promise<{success: true}> {
     auth.requireIds("giftbitUserId");
 
-    const knex = await getKnexWrite();
-    const res: [number] = await knex("Currencies")
-        .where({
-            userId: auth.giftbitUserId,
-            code: code
-        })
-        .delete();
-    if (res[0] === 0) {
-        throw new cassava.RestError(404);
+    try {
+        const knex = await getKnexWrite();
+        const res: [number] = await knex("Currencies")
+            .where({
+                userId: auth.giftbitUserId,
+                code: code
+            })
+            .delete();
+        if (res[0] === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (res[0] > 1) {
+            throw new Error(`Illegal DELETE query.  Deleted ${res.length} values.`);
+        }
+        return {success: true};
+    } catch (err) {
+        if (err.code === "ER_ROW_IS_REFERENCED_2") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${code}' is in use.`, "CurrencyInUse");
+        }
     }
-    if (res[0] > 1) {
-        throw new Error(`Illegal DELETE query.  Deleted ${res.length} values.`);
-    }
-    return {success: true};
 }
 
 const currencySchema: jsonschema.Schema = {
