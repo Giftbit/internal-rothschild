@@ -1,11 +1,11 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import * as transactions from "./transactions";
-import * as valueStores from "../valueStores";
 import * as testUtils from "../../../testUtils";
 import {ValueStore} from "../../../model/ValueStore";
 import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {installRest} from "../index";
+import {Currency} from "../../../model/Currency";
 
 describe("/v2/transactions/transfer", () => {
 
@@ -14,9 +14,15 @@ describe("/v2/transactions/transfer", () => {
     before(async function () {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
-        transactions.installTransactionsRest(router);
-        valueStores.installValueStoresRest(router);
+        installRest(router);
     });
+
+    const currency: Currency = {
+        code: "CAD",
+        name: "Beaver pelts",
+        symbol: "$",
+        decimalPlaces: 2
+    };
 
     const valueStoreCad1: Partial<ValueStore> = {
         valueStoreId: "vs-transfer-1",
@@ -40,6 +46,9 @@ describe("/v2/transactions/transfer", () => {
     };
 
     it("can transfer between valueStoreIds", async () => {
+        const postCurrencyResp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/currencies", "POST", currency);
+        chai.assert.equal(postCurrencyResp.statusCode, 201, `body=${JSON.stringify(postCurrencyResp.body)}`);
+
         const postValueStore1Resp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/valueStores", "POST", valueStoreCad1);
         chai.assert.equal(postValueStore1Resp.statusCode, 201, `body=${JSON.stringify(postValueStore1Resp.body)}`);
 

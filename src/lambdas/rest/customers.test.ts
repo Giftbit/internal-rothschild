@@ -1,9 +1,9 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import * as customers from "./customers";
 import * as testUtils from "../../testUtils";
 import {Customer} from "../../model/Customer";
+import {installRest} from "./index";
 
 import chaiExclude = require("chai-exclude");
 chai.use(chaiExclude);
@@ -15,7 +15,7 @@ describe("/v2/customers", () => {
     before(async function () {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
-        customers.installCustomersRest(router);
+        installRest(router);
     });
 
     it("can list 0 customers", async () => {
@@ -136,10 +136,10 @@ describe("/v2/customers", () => {
     });
 
     it("can modify the customer", async () => {
-        customer1.firstName = "Customer";
-        customer1.lastName = "One";
-
-        const resp = await testUtils.testAuthedRequest<Customer>(router, `/v2/customers/${customer1.customerId}`, "PUT", customer1);
+        const resp = await testUtils.testAuthedRequest<Customer>(router, `/v2/customers/${customer1.customerId}`, "PATCH", {
+            firstName: customer1.firstName = "Customer",
+            lastName: customer1.lastName = "One"
+        });
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
         chai.assert.deepEqual(resp.body, customer1);
 

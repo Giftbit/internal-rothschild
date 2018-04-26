@@ -1,11 +1,11 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import * as transactions from "./transactions";
-import * as valueStores from "../valueStores";
 import * as testUtils from "../../../testUtils";
 import {ValueStore} from "../../../model/ValueStore";
 import {Transaction} from "../../../model/Transaction";
+import {Currency} from "../../../model/Currency";
+import {installRest} from "../index";
 
 describe("/v2/transactions/credit", () => {
 
@@ -14,9 +14,15 @@ describe("/v2/transactions/credit", () => {
     before(async function () {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
-        transactions.installTransactionsRest(router);
-        valueStores.installValueStoresRest(router);
+        installRest(router);
     });
+
+    const currency: Currency = {
+        code: "CAD",
+        name: "Maple leaves",
+        symbol: "$",
+        decimalPlaces: 2
+    };
 
     const valueStore1: Partial<ValueStore> = {
         valueStoreId: "vs-credit-1",
@@ -26,6 +32,9 @@ describe("/v2/transactions/credit", () => {
     };
 
     it("can credit by valueStoreId", async () => {
+        const postCurrencyResp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/currencies", "POST", currency);
+        chai.assert.equal(postCurrencyResp.statusCode, 201, `body=${JSON.stringify(postCurrencyResp.body)}`);
+
         const postValueStoreResp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/valueStores", "POST", valueStore1);
         chai.assert.equal(postValueStoreResp.statusCode, 201, `body=${JSON.stringify(postValueStoreResp.body)}`);
 
