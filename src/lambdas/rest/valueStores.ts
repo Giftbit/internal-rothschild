@@ -101,7 +101,7 @@ async function createValueStore(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
         if (err.code === "ER_NO_REFERENCED_ROW_2") {
             const constraint = getSqlErrorConstraintName(err);
             if (constraint === "valueStores_currency") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${valueStore.currency}' does not exist.`, "CurrencyNotFound");
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${valueStore.currency}' does not exist.  See the documentation in creating currencies.`, "CurrencyNotFound");
             }
         }
         throw err;
