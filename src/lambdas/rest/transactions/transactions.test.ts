@@ -95,4 +95,15 @@ describe("/v2/transactions", () => {
         chai.assert.equal(resp.body.transactions[0].steps.length, 2);
         chai.assert.equal(resp.body.transactions[1].steps.length, 1);
     });
+
+    describe.skip("get transaction by id", () => {
+        it("can get a transaction by id", async () => {
+            const resp = await testUtils.testAuthedRequest(router, `/v2/transactions/${transfer1.transactionId}`, "GET");
+            chai.assert.equal(resp.statusCode, 200);
+            chai.assert.equal(resp.body.transactionId, transfer1.transactionId, `body=${JSON.stringify(resp.body)}`);
+        });
+    });
+
+    describe.skip("filter transactions by query params", () => {
+    });
 });
