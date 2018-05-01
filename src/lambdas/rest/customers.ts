@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import {getKnexWrite, getKnexRead} from "../../dbUtils";
+import {getKnexRead, getKnexWrite} from "../../dbUtils";
 import {Customer, DbCustomer} from "../../model/Customer";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
 import {pick, pickOrDefault} from "../../pick";
@@ -27,7 +27,7 @@ export function installCustomersRest(router: cassava.Router): void {
             const now = new Date();
             now.setMilliseconds(0);
             const customer = {
-                    ...pickOrDefault(evt.body, {
+                ...pickOrDefault(evt.body, {
                     customerId: evt.body.customerId,
                     firstName: null,
                     lastName: null,
@@ -36,7 +36,7 @@ export function installCustomersRest(router: cassava.Router): void {
                 }),
                 createdDate: now,
                 updatedDate: now
-                };
+            };
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
                 body: await createCustomer(auth, customer)
@@ -83,7 +83,7 @@ export function installCustomersRest(router: cassava.Router): void {
 }
 
 // TODO this should be filterable by firstName, lastName, email (includes, ignore case)
-export async function getCustomers(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{customers: Customer[], pagination: Pagination}> {
+export async function getCustomers(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ customers: Customer[], pagination: Pagination }> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
@@ -163,7 +163,7 @@ export async function updateCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBa
     };
 }
 
-export async function deleteCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, customerId: string): Promise<{success: true}> {
+export async function deleteCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, customerId: string): Promise<{ success: true }> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexWrite();
