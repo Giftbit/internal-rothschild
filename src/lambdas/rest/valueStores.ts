@@ -1,19 +1,26 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
+import {Pagination, PaginationParams} from "../../model/Pagination";
 import {getKnexWrite, getKnexRead, getSqlErrorConstraintName} from "../../dbUtils";
 import {DbValueStore, ValueStore} from "../../model/ValueStore";
 import {pickOrDefault} from "../../pick";
+import {csvSerializer} from "../../serializers";
 
 export function installValueStoresRest(router: cassava.Router): void {
     router.route("/v2/valueStores")
         .method("GET")
+        .serializers({
+            "application/json": cassava.serializers.jsonSerializer,
+            "text/csv": csvSerializer
+        })
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            const res = await getValueStores(auth, Pagination.getPaginationParams(evt));
             return {
-                body: await getValueStores(auth, getPaginationParams(evt))
+                headers: Pagination.toHeaders(res.pagination),
+                body: res.valueStores
             };
         });
 
@@ -78,7 +85,6 @@ export async function getValueStores(auth: giftbitRoutes.jwtauth.AuthorizationBa
     return {
         valueStores: res.map(DbValueStore.toValueStore),
         pagination: {
-            count: res.length,
             limit: pagination.limit,
             maxLimit: pagination.maxLimit,
             offset: pagination.offset

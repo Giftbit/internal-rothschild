@@ -20,17 +20,21 @@ describe("/v2/valueStores/", () => {
     });
 
     it("can list 0 valueStores", async () => {
-        const resp = await testUtils.testAuthedRequest(router, "/v2/valueStores", "GET");
+        const resp = await testUtils.testAuthedRequest<ValueStore[]>(router, "/v2/valueStores", "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.deepEqual(resp.body, {
-            valueStores: [],
-            pagination: {
-                count: 0,
-                limit: 100,
-                maxLimit: 1000,
-                offset: 0
-            }
-        });
+        chai.assert.deepEqual(resp.body, []);
+        chai.assert.equal(resp.headers["Limit"], "100");
+        chai.assert.equal(resp.headers["MaxLimit"], "1000");
+        chai.assert.equal(resp.headers["Offset"], "0");
+    });
+
+    it("can list 0 valueStores in csv", async () => {
+        const resp = await testUtils.testAuthedCsvRequest<ValueStore>(router, "/v2/valueStores", "GET");
+        chai.assert.equal(resp.statusCode, 200);
+        chai.assert.deepEqual(resp.body, []);
+        chai.assert.equal(resp.headers["Limit"], "100");
+        chai.assert.equal(resp.headers["MaxLimit"], "1000");
+        chai.assert.equal(resp.headers["Offset"], "0");
     });
 
     const currency: Currency = {
