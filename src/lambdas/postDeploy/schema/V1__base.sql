@@ -118,20 +118,22 @@ CREATE TABLE rothschild.InternalTransactionSteps (
   valueChange               INT          NOT NULL,
   PRIMARY KEY (userId, internalTransactionStepId),
   INDEX internalTransactionSteps_ix0 (userId, transactionId),
-  CONSTRAINT internalTransactionSteps_fk0 FOREIGN KEY (userId, transactionId) REFERENCES rothschild.Transactions (userId, transactionId)
+  CONSTRAINT internalTransactionSteps_transaction FOREIGN KEY (userId, transactionId) REFERENCES rothschild.Transactions (userId, transactionId)
 );
 
 CREATE TABLE rothschild.ValueStoreAccess (
   userId             VARCHAR(255) NOT NULL,
   valueStoreAccessId VARCHAR(255) NOT NULL,
-  code               VARCHAR(255),
-  codeLastFour       VARCHAR(4),
   valueStoreId       VARCHAR(255) NOT NULL,
-  accessType         VARCHAR(255) NOT NULL,
+  code               VARCHAR(255),
+  codeHashed         VARCHAR(255),
+  codeLastFour       VARCHAR(4),
   customerId         VARCHAR(255),
   createdDate        DATETIME     NOT NULL,
   updatedDate        DATETIME     NOT NULL,
   PRIMARY KEY (userId, valueStoreAccessId),
+  CONSTRAINT valueStoreAccess_code UNIQUE (userId, code),
+  CONSTRAINT valueStoreAccess_codeHashed UNIQUE (userId, codeHashed),
   CONSTRAINT valueStoreAccess_valueStore FOREIGN KEY (userId, valueStoreId) REFERENCES rothschild.ValueStores (userId, valueStoreId),
   CONSTRAINT valueStoreAccess_customer FOREIGN KEY (userId, customerId) REFERENCES rothschild.Customers (userId, customerId)
 );

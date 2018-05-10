@@ -1,12 +1,10 @@
-export interface ValueStoreAccess {
-    valueStoreAccessId: string;
+export interface ValueStoreAccessDb {
     userId: string;
-    createdDate: Date;
-    updatedDate: Date;
+    valueStoreAccessId: string;
     code: string | null;
+    codeHashed: string | null;
     codeLastFour: string | null;
     customerId: string | null;
-    type: ValueStoreAccessType;
+    createdDate: Date;
+    updatedDate: Date;
 }
-
-export type ValueStoreAccessType = "ACCOUNT" | "GIFT_CARD" | "UNIQUE_PROMOTION_CODE" | "GENERIC_PROMOTION_CODE" | "CUSTOMER_PROMOTION";
