@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
-import {getKnexWrite, getKnexRead, getSqlErrorConstraintName, upsert, getDbNowDate} from "../../dbUtils";
+import {getKnexWrite, getKnexRead, getSqlErrorConstraintName, upsert, nowInDbPrecision} from "../../dbUtils";
 import {DbValueStore, ValueStore} from "../../model/ValueStore";
 import {pickOrDefault} from "../../pick";
 
@@ -24,8 +24,7 @@ export function installValueStoresRest(router: cassava.Router): void {
             auth.requireIds("giftbitUserId");
             evt.validateBody(valueStoreSchema);
 
-            const now = new Date();
-            now.setMilliseconds(0);
+            const now = nowInDbPrecision();
             const valueStore: ValueStore = {
                 ...pickOrDefault(evt.body, {
                     valueStoreId: "",
@@ -182,7 +181,7 @@ async function getValueStoreCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBa
 async function setValueStoreCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStoreId: string, customerId: string): Promise<{customerId: string}> {
     auth.requireIds("giftbitUserId");
 
-    const now = getDbNowDate();
+    const now = nowInDbPrecision();
     await upsert(
         "ValueStoreAccess",
         {

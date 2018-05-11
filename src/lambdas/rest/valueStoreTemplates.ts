@@ -3,7 +3,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
 import {DbValueStoreTemplate, ValueStoreTemplate} from "../../model/ValueStoreTemplate";
-import {getKnexWrite, getKnexRead} from "../../dbUtils";
+import {getKnexWrite, getKnexRead, nowInDbPrecision} from "../../dbUtils";
 
 export function installValueStoreTemplatesRest(router: cassava.Router): void {
     router.route("/v2/valueStoreTemplates")
@@ -22,8 +22,7 @@ export function installValueStoreTemplatesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
             evt.validateBody(valueStoreTemplateSchema);
-            const now = new Date();
-            now.setMilliseconds(0);
+            const now = nowInDbPrecision();
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
                 body: await createValueStoreTemplate(auth, {
@@ -64,8 +63,7 @@ export function installValueStoreTemplatesRest(router: cassava.Router): void {
             auth.requireIds("giftbitUserId");
             evt.validateBody(valueStoreTemplateSchema);
 
-            const now = new Date();
-            now.setMilliseconds(0);
+            const now = nowInDbPrecision();
             return {
                 body: await updateValueStoreTemplate(auth, {
                     valueStoreTemplateId: evt.pathParameters.valueStoreTemplateId,

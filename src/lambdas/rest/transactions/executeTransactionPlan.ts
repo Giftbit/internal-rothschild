@@ -1,7 +1,7 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {Transaction} from "../../../model/Transaction";
-import {getKnexWrite} from "../../../dbUtils";
+import {getKnexWrite, nowInDbPrecision} from "../../../dbUtils";
 import {DbValueStore} from "../../../model/ValueStore";
 import {transactionPlanToTransaction} from "./transactionPlanToTransaction";
 import {TransactionPlanError} from "./TransactionPlanError";
@@ -45,8 +45,7 @@ export function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authorization
  * locking on ValueStores.
  */
 async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<Transaction> {
-    const now = new Date();
-    now.setMilliseconds(0);
+    const now = nowInDbPrecision();
     const knex = await getKnexWrite();
     await knex.transaction(async trx => {
         try {

@@ -130,7 +130,10 @@ function checkForEnvVar(...envVars: string[]): void {
     }
 }
 
-export function getDbNowDate(): Date {
+/**
+ * Get a Date representing now in the same precision as the database.
+ */
+export function nowInDbPrecision(): Date {
     const now = new Date();
     now.setMilliseconds(0);
     return now;
