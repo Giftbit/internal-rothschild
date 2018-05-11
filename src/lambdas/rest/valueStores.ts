@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
-import {getKnexWrite, getKnexRead, getSqlErrorConstraintName} from "../../dbUtils";
+import {getKnexWrite, getKnexRead, getSqlErrorConstraintName, upsert, getDbNowDate} from "../../dbUtils";
 import {DbValueStore, ValueStore} from "../../model/ValueStore";
 import {pickOrDefault} from "../../pick";
 
@@ -57,8 +57,40 @@ export function installValueStoresRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+
             return {
                 body: await getValueStore(auth, evt.pathParameters.valueStoreId)
+            };
+        });
+
+    router.route("/v2/valueStores/{valueStoreId}/customer")
+        .method("GET")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("giftbitUserId");
+
+            return {
+                body: await getValueStoreCustomer(auth, evt.pathParameters.valueStoreId)
+            };
+        });
+
+    router.route("/v2/valueStores/{valueStoreId}/customer")
+        .method("PUT")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("giftbitUserId");
+
+            evt.validateBody({
+                properties: {
+                    customerId: {
+                        type: "string"
+                    }
+                },
+                required: ["customerId"]
+            });
+
+            return {
+                body: await setValueStoreCustomer(auth, evt.pathParameters.valueStoreId, evt.body["customerId"])
             };
         });
 }
@@ -101,7 +133,7 @@ async function createValueStore(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
         if (err.code === "ER_NO_REFERENCED_ROW_2") {
             const constraint = getSqlErrorConstraintName(err);
             if (constraint === "valueStores_currency") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${valueStore.currency}' does not exist.  See the documentation in creating currencies.`, "CurrencyNotFound");
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${valueStore.currency}' does not exist.  See the documentation on creating currencies.`, "CurrencyNotFound");
             }
         }
         throw err;
@@ -125,6 +157,48 @@ async function getValueStore(auth: giftbitRoutes.jwtauth.AuthorizationBadge, val
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
     return DbValueStore.toValueStore(res[0]);
+}
+
+async function getValueStoreCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStoreId: string): Promise<{customerId: string}> {
+    auth.requireIds("giftbitUserId");
+
+    const knex = await getKnexRead();
+    const res: {customerId: string}[] = await knex("ValueStoreAccess")
+        .select("customerId")
+        .where({
+            userId: auth.giftbitUserId,
+            valueStoreId
+        })
+        .whereNotNull("customerId");
+    if (res.length === 0) {
+        throw new cassava.RestError(404);
+    }
+    if (res.length > 1) {
+        throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
+    }
+    return res[0];
+}
+
+async function setValueStoreCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStoreId: string, customerId: string): Promise<{customerId: string}> {
+    auth.requireIds("giftbitUserId");
+
+    const now = getDbNowDate();
+    await upsert(
+        "ValueStoreAccess",
+        {
+            userId: auth.giftbitUserId,
+            valueStoreId,
+            customerId,
+            updatedDate: now
+        },
+        {
+            userId: auth.giftbitUserId,
+            valueStoreId,
+            customerId,
+            createdDate: now,
+            updatedDate: now
+        });
+    return {customerId};
 }
 
 const valueStoreSchema: jsonschema.Schema = {

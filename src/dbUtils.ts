@@ -130,6 +130,24 @@ function checkForEnvVar(...envVars: string[]): void {
     }
 }
 
+export function getDbNowDate(): Date {
+    const now = new Date();
+    now.setMilliseconds(0);
+    return now;
+}
+
+/**
+ * update + insert = upsert.
+ * This pattern is a MySQL extension.  Knex does not support it natively.
+ */
+export async function upsert(table: string, update: {[ke: string]: any}, insert?: {[key: string]: any}): Promise<[number]> {
+    const knex = await getKnexWrite();
+    const insertQuery = knex(table).insert(insert || update).toString();
+    const updateQuery = knex(table).insert(update).toString();
+    const upsertQuery = insertQuery + " on duplicate key update " + updateQuery.replace(/^update [a-z.]+ set /i, "");
+    return knex.raw(upsertQuery);
+}
+
 /**
  * Get the name of the constraint that failed a consistency check.
  */
