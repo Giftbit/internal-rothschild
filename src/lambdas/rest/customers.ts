@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import {getKnexRead, getKnexWrite} from "../../dbUtils";
+import {getKnexRead, getKnexWrite, nowInDbPrecision} from "../../dbUtils";
 import {Customer, DbCustomer} from "../../model/Customer";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {pick, pickOrDefault} from "../../pick";
@@ -31,8 +31,7 @@ export function installCustomersRest(router: cassava.Router): void {
             auth.requireIds("giftbitUserId");
             evt.validateBody(customerSchema);
 
-            const now = new Date();
-            now.setMilliseconds(0);
+            const now = nowInDbPrecision();
             const customer = {
                 ...pickOrDefault(evt.body, {
                     customerId: evt.body.customerId,
@@ -67,8 +66,7 @@ export function installCustomersRest(router: cassava.Router): void {
             auth.requireIds("giftbitUserId");
             evt.validateBody(customerUpdateSchema);
 
-            const now = new Date();
-            now.setMilliseconds(0);
+            const now = nowInDbPrecision();
             const customer = {
                 ...pick<Customer>(evt.body, "firstName", "lastName", "email", "metadata"),
                 updatedDate: now
