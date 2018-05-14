@@ -1,18 +1,25 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
+import {Pagination, PaginationParams} from "../../model/Pagination";
 import {DbValueStoreTemplate, ValueStoreTemplate} from "../../model/ValueStoreTemplate";
+import {csvSerializer} from "../../serializers";
 import {getKnexWrite, getKnexRead, nowInDbPrecision} from "../../dbUtils";
 
 export function installValueStoreTemplatesRest(router: cassava.Router): void {
     router.route("/v2/valueStoreTemplates")
         .method("GET")
+        .serializers({
+            "application/json": cassava.serializers.jsonSerializer,
+            "text/csv": csvSerializer
+        })
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            const res = await getValueStoreTemplates(auth, Pagination.getPaginationParams(evt));
             return {
-                body: await getValueStoreTemplates(auth, getPaginationParams(evt))
+                headers: Pagination.toHeaders(res.pagination),
+                body: res.valueStoreTemplates
             };
         });
 
@@ -113,7 +120,6 @@ async function getValueStoreTemplates(auth: giftbitRoutes.jwtauth.AuthorizationB
     return {
         valueStoreTemplates: res.map(DbValueStoreTemplate.toValueStoreTemplate),
         pagination: {
-            count: res.length,
             limit: pagination.limit,
             maxLimit: pagination.maxLimit,
             offset: pagination.offset

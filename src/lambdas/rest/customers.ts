@@ -3,17 +3,24 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {getKnexRead, getKnexWrite, nowInDbPrecision} from "../../dbUtils";
 import {Customer, DbCustomer} from "../../model/Customer";
-import {getPaginationParams, Pagination, PaginationParams} from "../../model/Pagination";
+import {Pagination, PaginationParams} from "../../model/Pagination";
 import {pick, pickOrDefault} from "../../pick";
+import {csvSerializer} from "../../serializers";
 
 export function installCustomersRest(router: cassava.Router): void {
     router.route("/v2/customers")
         .method("GET")
+        .serializers({
+            "application/json": cassava.serializers.jsonSerializer,
+            "text/csv": csvSerializer
+        })
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            const res = await getCustomers(auth, Pagination.getPaginationParams(evt));
             return {
-                body: await getCustomers(auth, getPaginationParams(evt))
+                headers: Pagination.toHeaders(res.pagination),
+                body: res.customers
             };
         });
 
@@ -96,7 +103,6 @@ export async function getCustomers(auth: giftbitRoutes.jwtauth.AuthorizationBadg
     return {
         customers: res.map(DbCustomer.toCustomer),
         pagination: {
-            count: res.length,
             limit: pagination.limit,
             maxLimit: pagination.maxLimit,
             offset: pagination.offset

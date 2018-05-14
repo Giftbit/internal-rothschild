@@ -5,8 +5,7 @@ import * as testUtils from "../../testUtils";
 import {Customer} from "../../model/Customer";
 import {installRest} from "./index";
 
-import chaiExclude = require("chai-exclude");
-chai.use(chaiExclude);
+chai.use(require("chai-exclude"));
 
 describe("/v2/customers", () => {
 
@@ -19,21 +18,25 @@ describe("/v2/customers", () => {
     });
 
     it("can list 0 customers", async () => {
-        const resp = await testUtils.testAuthedRequest(router, "/v2/customers", "GET");
+        const resp = await testUtils.testAuthedRequest<Customer[]>(router, "/v2/customers", "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.deepEqual(resp.body, {
-            customers: [],
-            pagination: {
-                count: 0,
-                limit: 100,
-                maxLimit: 1000,
-                offset: 0
-            }
-        });
+        chai.assert.deepEqual(resp.body, []);
+        chai.assert.equal(resp.headers["Limit"], "100");
+        chai.assert.equal(resp.headers["MaxLimit"], "1000");
+        chai.assert.equal(resp.headers["Offset"], "0");
+    });
+
+    it("can list 0 customers with csv", async () => {
+        const resp = await testUtils.testAuthedCsvRequest<Customer>(router, "/v2/customers", "GET");
+        chai.assert.equal(resp.statusCode, 200);
+        chai.assert.deepEqual(resp.body, []);
+        chai.assert.equal(resp.headers["Limit"], "100");
+        chai.assert.equal(resp.headers["MaxLimit"], "1000");
+        chai.assert.equal(resp.headers["Offset"], "0");
     });
 
     let customer1: Partial<Customer> = {
-        customerId: "1",
+        customerId: "c1",
         firstName: "First",
         lastName: "Last",
         email: "email@example.com"
@@ -53,19 +56,25 @@ describe("/v2/customers", () => {
     });
 
     it("can list 1 customer", async () => {
-        const resp = await testUtils.testAuthedRequest(router, "/v2/customers", "GET");
+        const resp = await testUtils.testAuthedRequest<Customer[]>(router, "/v2/customers", "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.deepEqual(resp.body, {
-            customers: [
-                customer1
-            ],
-            pagination: {
-                count: 1,
-                limit: 100,
-                maxLimit: 1000,
-                offset: 0
-            }
-        });
+        chai.assert.deepEqual(resp.body, [
+            customer1
+        ]);
+        chai.assert.equal(resp.headers["Limit"], "100");
+        chai.assert.equal(resp.headers["MaxLimit"], "1000");
+        chai.assert.equal(resp.headers["Offset"], "0");
+    });
+
+    it("can list 1 customer in csv", async () => {
+        const resp = await testUtils.testAuthedCsvRequest<Customer>(router, "/v2/customers", "GET");
+        chai.assert.equal(resp.statusCode, 200);
+        chai.assert.deepEqualExcludingEvery(resp.body, [
+            customer1
+        ], ["createdDate", "updatedDate"]); // TODO don't ignore dates if my issue gets resolved https://github.com/mholt/PapaParse/issues/502
+        chai.assert.equal(resp.headers["Limit"], "100");
+        chai.assert.equal(resp.headers["MaxLimit"], "1000");
+        chai.assert.equal(resp.headers["Offset"], "0");
     });
 
     it("requires a customerId to create a customer", async () => {
@@ -109,7 +118,7 @@ describe("/v2/customers", () => {
     });
 
     let customer2: Partial<Customer> = {
-        customerId: "2"
+        customerId: "c2"
     };
 
     it("only requires customerId to create a customer", async () => {
@@ -124,8 +133,8 @@ describe("/v2/customers", () => {
         customer2 = resp.body;
     });
 
-    const customer3: Partial<Customer> & {userId: string} = {
-        customerId: "3",
+    let customer3: Partial<Customer> & {userId: string} = {
+        customerId: "c3",
         userId: "malicious"
     };
 
@@ -133,6 +142,7 @@ describe("/v2/customers", () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/customers", "POST", customer3);
         chai.assert.equal(resp.statusCode, 201);
         chai.assert.notEqual(resp.body.userId, customer3.userId);
+        customer3 = resp.body;
     });
 
     it("can modify the customer", async () => {
@@ -163,24 +173,56 @@ describe("/v2/customers", () => {
         chai.assert.equal(resp.statusCode, 404);
     });
 
-    it("can page to the second customer", async () => {
-        const resp = await testUtils.testAuthedRequest(router, "/v2/customers?limit=1&offset=1", "GET");
+    it("can list 3 customers", async () => {
+        const resp = await testUtils.testAuthedRequest<Customer[]>(router, "/v2/customers", "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.deepEqual(resp.body, {
-            customers: [
-                customer2
-            ],
-            pagination: {
-                count: 1,
-                limit: 1,
-                maxLimit: 1000,
-                offset: 1
-            }
-        });
+        chai.assert.deepEqual(resp.body, [
+            customer1,
+            customer2,
+            customer3
+        ]);
+        chai.assert.equal(resp.headers["Limit"], "100");
+        chai.assert.equal(resp.headers["MaxLimit"], "1000");
+        chai.assert.equal(resp.headers["Offset"], "0");
+    });
+
+    it("can list 3 customers in csv", async () => {
+        const resp = await testUtils.testAuthedCsvRequest<Customer>(router, "/v2/customers", "GET");
+        chai.assert.equal(resp.statusCode, 200);
+        chai.assert.deepEqualExcludingEvery(resp.body, [
+            customer1,
+            customer2,
+            customer3
+        ], ["createdDate", "updatedDate"]); // TODO don't ignore dates if my issue gets resolved https://github.com/mholt/PapaParse/issues/502
+        chai.assert.equal(resp.headers["Limit"], "100");
+        chai.assert.equal(resp.headers["MaxLimit"], "1000");
+        chai.assert.equal(resp.headers["Offset"], "0");
+    });
+
+    it("can page to the second customer", async () => {
+        const resp = await testUtils.testAuthedRequest<Customer[]>(router, "/v2/customers?limit=1&offset=1", "GET");
+        chai.assert.equal(resp.statusCode, 200);
+        chai.assert.deepEqual(resp.body, [
+            customer2
+        ]);
+        chai.assert.equal(resp.headers["Limit"], "1");
+        chai.assert.equal(resp.headers["MaxLimit"], "1000");
+        chai.assert.equal(resp.headers["Offset"], "1");
+    });
+
+    it("can page to the second customer in csv", async () => {
+        const resp = await testUtils.testAuthedCsvRequest<Customer>(router, "/v2/customers?limit=1&offset=1", "GET");
+        chai.assert.equal(resp.statusCode, 200);
+        chai.assert.deepEqualExcludingEvery(resp.body, [
+            customer2
+        ], ["createdDate", "updatedDate"]); // TODO don't ignore dates if my issue gets resolved https://github.com/mholt/PapaParse/issues/502
+        chai.assert.equal(resp.headers["Limit"], "1");
+        chai.assert.equal(resp.headers["MaxLimit"], "1000");
+        chai.assert.equal(resp.headers["Offset"], "1");
     });
 
     let customer4: Partial<Customer> = {
-        customerId: "4",
+        customerId: "c4",
         firstName: "customer4",
         metadata: {
             strings: "supported",
@@ -218,15 +260,10 @@ describe("/v2/customers", () => {
                 }
             }));
             chai.assert.equal(resp.statusCode, 200);
-            chai.assert.deepEqual(JSON.parse(resp.body), {
-                customers: [],
-                pagination: {
-                    count: 0,
-                    limit: 100,
-                    maxLimit: 1000,
-                    offset: 0
-                }
-            });
+            chai.assert.deepEqual(JSON.parse(resp.body), []);
+            chai.assert.equal(resp.headers["Limit"], "100");
+            chai.assert.equal(resp.headers["MaxLimit"], "1000");
+            chai.assert.equal(resp.headers["Offset"], "0");
         });
 
         it("doesn't leak GET /customer/{customerId}", async () => {
