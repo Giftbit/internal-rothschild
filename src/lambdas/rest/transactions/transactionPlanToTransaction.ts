@@ -37,13 +37,13 @@ function transactionPlanStepToTransactionStep(step: TransactionPlanStep): Transa
 function lightrailTransactionPlanStepToTransactionStep(step: LightrailTransactionPlanStep): LightrailTransactionStep {
     return {
         rail: "lightrail",
-        valueStoreId: step.valueStore.valueStoreId,
+        valueStoreId: step.valueStore.id,
         valueStoreType: step.valueStore.valueStoreType,
         currency: step.valueStore.currency,
         customerId: step.customerId,
         codeLastFour: step.codeLastFour,
-        valueBefore: step.valueStore.value,
-        valueAfter: step.valueStore.value + step.amount,
+        valueBefore: step.valueStore.balance,
+        valueAfter: step.valueStore.balance + step.amount,
         valueChange: step.amount
     };
 }

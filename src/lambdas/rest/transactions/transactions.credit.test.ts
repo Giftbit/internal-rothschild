@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as testUtils from "../../../testUtils";
-import {ValueStore} from "../../../model/ValueStore";
+import {Value} from "../../../model/Value";
 import {Transaction} from "../../../model/Transaction";
 import {Currency} from "../../../model/Currency";
 import {installRest} from "../index";
@@ -24,25 +24,25 @@ describe("/v2/transactions/credit", () => {
         decimalPlaces: 2
     };
 
-    const valueStore1: Partial<ValueStore> = {
-        valueStoreId: "vs-credit-1",
+    const valueStore1: Partial<Value> = {
+        id: "vs-credit-1",
         valueStoreType: "GIFTCARD",
         currency: "CAD",
-        value: 0
+        balance: 0
     };
 
     it("can credit by valueStoreId", async () => {
-        const postCurrencyResp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/currencies", "POST", currency);
+        const postCurrencyResp = await testUtils.testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency);
         chai.assert.equal(postCurrencyResp.statusCode, 201, `body=${JSON.stringify(postCurrencyResp.body)}`);
 
-        const postValueStoreResp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/valueStores", "POST", valueStore1);
+        const postValueStoreResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueStore1);
         chai.assert.equal(postValueStoreResp.statusCode, 201, `body=${JSON.stringify(postValueStoreResp.body)}`);
 
         const postCreditResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", {
             transactionId: "credit-1",
             destination: {
                 rail: "lightrail",
-                valueStoreId: valueStore1.valueStoreId
+                valueStoreId: valueStore1.id
             },
             amount: 1000,
             currency: "CAD"
@@ -55,7 +55,7 @@ describe("/v2/transactions/credit", () => {
             steps: [
                 {
                     rail: "lightrail",
-                    valueStoreId: valueStore1.valueStoreId,
+                    valueStoreId: valueStore1.id,
                     valueStoreType: valueStore1.valueStoreType,
                     currency: valueStore1.currency,
                     codeLastFour: null,
@@ -67,9 +67,9 @@ describe("/v2/transactions/credit", () => {
             ]
         }, ["createdDate"]);
 
-        const getValueStoreResp = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${valueStore1.valueStoreId}`, "GET");
+        const getValueStoreResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueStore1.id}`, "GET");
         chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(postValueStoreResp.body)}`);
-        chai.assert.equal(getValueStoreResp.body.value, 1000);
+        chai.assert.equal(getValueStoreResp.body.balance, 1000);
     });
 
     it("409s on reusing a transactionId", async () => {
@@ -77,7 +77,7 @@ describe("/v2/transactions/credit", () => {
             transactionId: "credit-1",  // same as above
             destination: {
                 rail: "lightrail",
-                valueStoreId: valueStore1.valueStoreId
+                valueStoreId: valueStore1.id
             },
             amount: 1350,
             currency: "CAD"
@@ -91,7 +91,7 @@ describe("/v2/transactions/credit", () => {
             transactionId: "credit-2",
             destination: {
                 rail: "lightrail",
-                valueStoreId: valueStore1.valueStoreId
+                valueStoreId: valueStore1.id
             },
             amount: 1100,
             currency: "CAD",
@@ -105,7 +105,7 @@ describe("/v2/transactions/credit", () => {
             steps: [
                 {
                     rail: "lightrail",
-                    valueStoreId: valueStore1.valueStoreId,
+                    valueStoreId: valueStore1.id,
                     valueStoreType: valueStore1.valueStoreType,
                     currency: valueStore1.currency,
                     codeLastFour: null,
@@ -117,9 +117,9 @@ describe("/v2/transactions/credit", () => {
             ]
         }, ["createdDate"]);
 
-        const getValueStoreResp = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${valueStore1.valueStoreId}`, "GET");
+        const getValueStoreResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueStore1.id}`, "GET");
         chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(getValueStoreResp.body)}`);
-        chai.assert.equal(getValueStoreResp.body.value, 1000, "value did not actually change");
+        chai.assert.equal(getValueStoreResp.body.balance, 1000, "value did not actually change");
     });
 
     it("409s crediting by valueStoreId of the wrong currency", async () => {
@@ -127,7 +127,7 @@ describe("/v2/transactions/credit", () => {
             transactionId: "credit-3",
             destination: {
                 rail: "lightrail",
-                valueStoreId: valueStore1.valueStoreId
+                valueStoreId: valueStore1.id
             },
             amount: 1500,
             currency: "USD"

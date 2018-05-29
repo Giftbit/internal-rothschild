@@ -22,7 +22,6 @@ CREATE TABLE rothschild.Currencies (
 CREATE TABLE rothschild.ValueStoreTemplates (
   userId               VARCHAR(255) NOT NULL,
   valueStoreTemplateId VARCHAR(255) NOT NULL,
-  valueStoreType       VARCHAR(255),
   initialValue         INT,
   pretax               BOOL         NOT NULL,
   minInitialValue      INT,
@@ -41,13 +40,17 @@ CREATE TABLE rothschild.ValueStoreTemplates (
   CONSTRAINT valueStoreTemplates_currency FOREIGN KEY (userId, currency) REFERENCES rothschild.Currencies (userId, code)
 );
 
-CREATE TABLE rothschild.ValueStores (
+CREATE TABLE rothschild.Values (
   userId               VARCHAR(255) NOT NULL,
-  valueStoreId         VARCHAR(255) NOT NULL,
-  valueStoreType       VARCHAR(255) NOT NULL,
-  value                INT          NOT NULL,
-  pretax               BOOL         NOT NULL,
+  id                   VARCHAR(255) NOT NULL,
   currency             VARCHAR(16)  NOT NULL,
+  balance              INT,
+  uses                 INT,
+  code                 VARCHAR(255),
+  codeHashed           VARCHAR(255),
+  codeLastFour         VARCHAR(4),
+  contact              VARCHAR(255),
+  pretax               BOOL         NOT NULL,
   active               BOOL         NOT NULL,
   expired              BOOL         NOT NULL,
   frozen               BOOL         NOT NULL,
@@ -55,14 +58,16 @@ CREATE TABLE rothschild.ValueStores (
   valueRule            TEXT,
   startDate            DATETIME,
   endDate              DATETIME,
-  uses                 INT,
   valueStoreTemplateId VARCHAR(255),
   metadata             TEXT,
   createdDate          DATETIME     NOT NULL,
   updatedDate          DATETIME     NOT NULL,
-  PRIMARY KEY (userId, valueStoreId),
+  PRIMARY KEY (userId, id),
   CONSTRAINT valueStores_valueStoreTemplate FOREIGN KEY (userId, valueStoreTemplateId) REFERENCES rothschild.ValueStoreTemplates (userId, valueStoreTemplateId),
-  CONSTRAINT valueStores_currency FOREIGN KEY (userId, currency) REFERENCES rothschild.Currencies (userId, code)
+  CONSTRAINT valueStores_currency FOREIGN KEY (userId, currency) REFERENCES rothschild.Currencies (userId, code),
+  CONSTRAINT valueStores_code UNIQUE (userId, code),
+  CONSTRAINT valueStores_codeHashed UNIQUE (userId, codeHashed),
+  CONSTRAINT valueStores_customer FOREIGN KEY (userId, contact) REFERENCES rothschild.Contacts (userId, id)
 );
 
 CREATE TABLE rothschild.Transactions (
@@ -90,7 +95,7 @@ CREATE TABLE rothschild.LightrailTransactionSteps (
   PRIMARY KEY (userId, lightrailTransactionStepId),
   INDEX lightrailTransactionSteps_ix0 (userId, transactionId),
   CONSTRAINT lightrailTransactionSteps_transaction FOREIGN KEY (userId, transactionId) REFERENCES rothschild.Transactions (userId, transactionId),
-  CONSTRAINT lightrailTransactionSteps_valueStore FOREIGN KEY (userId, valueStoreId) REFERENCES rothschild.ValueStores (userId, valueStoreId),
+  CONSTRAINT lightrailTransactionSteps_valueStore FOREIGN KEY (userId, valueStoreId) REFERENCES rothschild.`Values` (userId, id),
   CONSTRAINT lightrailTransactionSteps_customer FOREIGN KEY (userId, customerId) REFERENCES rothschild.Contacts (userId, id)
 );
 
@@ -119,23 +124,4 @@ CREATE TABLE rothschild.InternalTransactionSteps (
   PRIMARY KEY (userId, internalTransactionStepId),
   INDEX internalTransactionSteps_ix0 (userId, transactionId),
   CONSTRAINT internalTransactionSteps_transaction FOREIGN KEY (userId, transactionId) REFERENCES rothschild.Transactions (userId, transactionId)
-);
-
-CREATE TABLE rothschild.ValueStoreAccess (
-  userId             VARCHAR(255) NOT NULL,
-  valueStoreId       VARCHAR(255) NOT NULL,
-  code               VARCHAR(255),
-  codeHashed         VARCHAR(255),
-  codeLastFour       VARCHAR(4),
-  customerId         VARCHAR(255),
-  automatic          BOOLEAN      NOT NULL DEFAULT false,
-  automaticStartDate DATETIME,
-  automaticEndDate   DATETIME,
-  createdDate        DATETIME     NOT NULL,
-  updatedDate        DATETIME     NOT NULL,
-  PRIMARY KEY (userId, valueStoreId),
-  CONSTRAINT valueStoreAccess_code UNIQUE (userId, code),
-  CONSTRAINT valueStoreAccess_codeHashed UNIQUE (userId, codeHashed),
-  CONSTRAINT valueStoreAccess_valueStore FOREIGN KEY (userId, valueStoreId) REFERENCES rothschild.ValueStores (userId, valueStoreId),
-  CONSTRAINT valueStoreAccess_customer FOREIGN KEY (userId, customerId) REFERENCES rothschild.Contacts (userId, id)
 );

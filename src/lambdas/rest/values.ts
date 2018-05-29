@@ -3,12 +3,12 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {getKnexWrite, getKnexRead, getSqlErrorConstraintName, upsert, nowInDbPrecision} from "../../dbUtils";
-import {DbValueStore, ValueStore} from "../../model/ValueStore";
+import {DbValue, Value} from "../../model/Value";
 import {pickOrDefault} from "../../pick";
 import {csvSerializer} from "../../serializers";
 
 export function installValueStoresRest(router: cassava.Router): void {
-    router.route("/v2/valueStores")
+    router.route("/v2/values")
         .method("GET")
         .serializers({
             "application/json": cassava.serializers.jsonSerializer,
@@ -24,7 +24,7 @@ export function installValueStoresRest(router: cassava.Router): void {
             };
         });
 
-    router.route("/v2/valueStores")
+    router.route("/v2/values")
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
@@ -32,18 +32,19 @@ export function installValueStoresRest(router: cassava.Router): void {
             evt.validateBody(valueStoreSchema);
 
             const now = nowInDbPrecision();
-            const valueStore: ValueStore = {
+            const value: Value = {
                 ...pickOrDefault(evt.body, {
-                    valueStoreId: "",
-                    valueStoreType: "",
+                    id: "",
                     currency: "",
-                    value: 0,
+                    balance: 0,
+                    uses: null,
+                    code: null,
+                    contact: null,
                     pretax: false,
                     active: true,
                     frozen: false,
                     redemptionRule: null,
                     valueRule: null,
-                    uses: null,
                     startDate: null,
                     endDate: null,
                     metadata: null
@@ -54,11 +55,11 @@ export function installValueStoresRest(router: cassava.Router): void {
             };
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
-                body: await createValueStore(auth, valueStore)
+                body: await createValueStore(auth, value)
             };
         });
 
-    router.route("/v2/valueStores/{valueStoreId}")
+    router.route("/v2/values/{valueStoreId}")
         .method("GET")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
@@ -69,7 +70,7 @@ export function installValueStoresRest(router: cassava.Router): void {
             };
         });
 
-    router.route("/v2/valueStores/{valueStoreId}/customer")
+    router.route("/v2/values/{valueStoreId}/customer")
         .method("GET")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
@@ -80,7 +81,7 @@ export function installValueStoresRest(router: cassava.Router): void {
             };
         });
 
-    router.route("/v2/valueStores/{valueStoreId}/customer")
+    router.route("/v2/values/{valueStoreId}/customer")
         .method("PUT")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
@@ -101,11 +102,11 @@ export function installValueStoresRest(router: cassava.Router): void {
         });
 }
 
-export async function getValueStores(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{valueStores: ValueStore[], pagination: Pagination}> {
+export async function getValueStores(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{valueStores: Value[], pagination: Pagination}> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
-    const res: DbValueStore[] = await knex("ValueStores")
+    const res: DbValue[] = await knex("ValueStores")
         .where({
             userId: auth.giftbitUserId
         })
@@ -114,7 +115,7 @@ export async function getValueStores(auth: giftbitRoutes.jwtauth.AuthorizationBa
         .limit(pagination.limit)
         .offset(pagination.offset);
     return {
-        valueStores: res.map(DbValueStore.toValueStore),
+        valueStores: res.map(DbValue.toValue),
         pagination: {
             limit: pagination.limit,
             maxLimit: pagination.maxLimit,
@@ -123,17 +124,17 @@ export async function getValueStores(auth: giftbitRoutes.jwtauth.AuthorizationBa
     };
 }
 
-async function createValueStore(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStore: ValueStore): Promise<ValueStore> {
+async function createValueStore(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStore: Value): Promise<Value> {
     auth.requireIds("giftbitUserId");
 
     try {
         const knex = await getKnexWrite();
         await knex("ValueStores")
-            .insert(ValueStore.toDbValueStore(auth, valueStore));
+            .insert(Value.toDbValue(auth, valueStore));
         return valueStore;
     } catch (err) {
         if (err.code === "ER_DUP_ENTRY") {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `ValueStore with valueStoreId '${valueStore.valueStoreId}' already exists.`);
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `ValueStore with valueStoreId '${valueStore.id}' already exists.`);
         }
         if (err.code === "ER_NO_REFERENCED_ROW_2") {
             const constraint = getSqlErrorConstraintName(err);
@@ -145,11 +146,11 @@ async function createValueStore(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     }
 }
 
-async function getValueStore(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStoreId: string): Promise<ValueStore> {
+async function getValueStore(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStoreId: string): Promise<Value> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
-    const res: DbValueStore[] = await knex("ValueStores")
+    const res: DbValue[] = await knex("ValueStores")
         .select()
         .where({
             userId: auth.giftbitUserId,
@@ -161,7 +162,7 @@ async function getValueStore(auth: giftbitRoutes.jwtauth.AuthorizationBadge, val
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
-    return DbValueStore.toValueStore(res[0]);
+    return DbValue.toValue(res[0]);
 }
 
 async function getValueStoreCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStoreId: string): Promise<{customerId: string}> {
@@ -209,22 +210,31 @@ async function setValueStoreCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBa
 const valueStoreSchema: jsonschema.Schema = {
     type: "object",
     properties: {
-        valueStoreId: {
+        id: {
             type: "string",
             maxLength: 255,
             minLength: 1
-        },
-        valueStoreType: {
-            type: "string",
-            enum: ["GIFTCARD", "ACCOUNT_CREDIT", "PROMOTION"]
         },
         currency: {
             type: "string",
             minLength: 3,
             maxLength: 16
         },
-        value: {
+        balance: {
             type: ["number", "null"]
+        },
+        uses: {
+            type: ["number", "null"]
+        },
+        code: {
+            type: "string",
+            minLength: 1,
+            maxLength: 255
+        },
+        contact: {
+            type: "string",
+            minLength: 1,
+            maxLength: 255
         },
         pretax: {
             type: "boolean"
@@ -275,9 +285,6 @@ const valueStoreSchema: jsonschema.Schema = {
                     }
                 }
             ]
-        },
-        uses: {
-            type: ["number", "null"]
         },
         startDate: {
             type: ["string", "null"],

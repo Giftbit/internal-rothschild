@@ -1,7 +1,7 @@
 import * as chai from "chai";
 import {TransactionPlanError} from "./TransactionPlanError";
 import * as testUtils from "../../../testUtils";
-import {DbValueStore} from "../../../model/ValueStore";
+import {DbValue} from "../../../model/Value";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {getKnexWrite} from "../../../dbUtils";
 import {TransactionPlan} from "./TransactionPlan";
@@ -30,19 +30,22 @@ describe("rest/transactions/executeTransactionPlan", () => {
             decimalPlaces: 2
         };
 
-        const valueStore: DbValueStore = {
+        const value: DbValue = {
             userId: "user",
-            valueStoreId: "vs-1",
-            valueStoreType: "GIFTCARD",
+            id: "vs-1",
             currency: "CAD",
-            value: 1500,
+            uses: null,
+            code: null,
+            codeLastFour: null,
+            codeHashed: null,
+            contact: null,
+            balance: 1500,
             pretax: false,
             active: true,
             expired: false,
             frozen: false,
             redemptionRule: "null",
             valueRule: "null",
-            uses: null,
             startDate: null,
             endDate: null,
             metadata: "null",
@@ -52,7 +55,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
 
         const knex = await getKnexWrite();
         await knex("Currencies").insert(currency);
-        await knex("ValueStores").insert(valueStore);
+        await knex("ValueStores").insert(value);
 
         const plan: TransactionPlan = {
             transactionId: "xxx",
@@ -60,10 +63,10 @@ describe("rest/transactions/executeTransactionPlan", () => {
             steps: [
                 {
                     rail: "lightrail",
-                    valueStore: DbValueStore.toValueStore(valueStore),
+                    valueStore: DbValue.toValue(value),
                     codeLastFour: null,
                     customerId: null,
-                    amount: -3500    // more than is in the value store
+                    amount: -3500    // more than is in the value
                 }
             ],
             remainder: 0
@@ -89,19 +92,22 @@ describe("rest/transactions/executeTransactionPlan", () => {
     });
 
     it("throws a replannable TransactionPlanError when there are 0 uses", async () => {
-        const valueStore: DbValueStore = {
+        const value: DbValue = {
             userId: "user",
-            valueStoreId: "vs-2",
-            valueStoreType: "GIFTCARD",
+            id: "vs-2",
             currency: "CAD",
-            value: 1500,
+            balance: 1500,
+            uses: 0,
+            code: null,
+            codeLastFour: null,
+            codeHashed: null,
+            contact: null,
             pretax: false,
             active: true,
             expired: false,
             frozen: false,
             redemptionRule: "null",
             valueRule: "null",
-            uses: 0,
             startDate: null,
             endDate: null,
             metadata: "null",
@@ -110,7 +116,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
         };
 
         const knex = await getKnexWrite();
-        await knex("ValueStores").insert(valueStore);
+        await knex("ValueStores").insert(value);
 
         const plan: TransactionPlan = {
             transactionId: "xxx",
@@ -118,7 +124,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             steps: [
                 {
                     rail: "lightrail",
-                    valueStore: DbValueStore.toValueStore(valueStore),
+                    valueStore: DbValue.toValue(value),
                     codeLastFour: null,
                     customerId: null,
                     amount: 1200

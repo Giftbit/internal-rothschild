@@ -54,7 +54,7 @@ function compareLightrailTransactionPlanSteps(a: LightrailTransactionPlanStep, b
     if (!a.valueStore.pretax && b.valueStore.pretax) {
         return bFirst;
     }
-    return a.valueStore.valueStoreId < b.valueStore.valueStoreId ? aFirst : bFirst;
+    return a.valueStore.id < b.valueStore.id ? aFirst : bFirst;
 }
 
 function compareStripeTransactionPlanSteps(a: StripeTransactionPlanStep, b: StripeTransactionPlanStep): number {

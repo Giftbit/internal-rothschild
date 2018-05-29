@@ -35,7 +35,7 @@ export function buildOrderTransactionPlan(order: OrderRequest, steps: Transactio
                 if (step.valueStore.valueRule) {
                     step.amount = -Math.min(remainder, getRuleFromCache(step.valueStore.valueRule.rule).evaluateToNumber(context) | 0);
                 } else {
-                    step.amount = -Math.min(remainder, step.valueStore.value);
+                    step.amount = -Math.min(remainder, step.valueStore.balance);
                 }
                 break;
             case "stripe":

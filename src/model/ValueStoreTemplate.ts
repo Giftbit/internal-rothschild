@@ -1,5 +1,5 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {Rule} from "./ValueStore";
+import {Rule} from "./Value";
 
 export interface ValueStoreTemplate {
     valueStoreTemplateId: string;

@@ -2,7 +2,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {Transaction} from "../../../model/Transaction";
 import {getKnexWrite, nowInDbPrecision} from "../../../dbUtils";
-import {DbValueStore} from "../../../model/ValueStore";
+import {DbValue} from "../../../model/Value";
 import {transactionPlanToTransaction} from "./transactionPlanToTransaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 
@@ -70,7 +70,7 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
             let query = trx.into("ValueStores")
                 .where({
                     userId: auth.giftbitUserId,
-                    valueStoreId: step.valueStore.valueStoreId
+                    valueStoreId: step.valueStore.id
                 })
                 .increment("value", step.amount);
             if (step.amount < 0) {
@@ -83,37 +83,37 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
 
             const res = await query;
             if (res !== 1) {
-                throw new TransactionPlanError(`Transaction execution canceled because value store updated ${res} rows.  userId=${auth.giftbitUserId} valueStoreId=${step.valueStore.valueStoreId} value=${step.valueStore.value} uses=${step.valueStore.uses} step.amount=${step.amount}`, {
+                throw new TransactionPlanError(`Transaction execution canceled because Value updated ${res} rows.  userId=${auth.giftbitUserId} valueStoreId=${step.valueStore.id} value=${step.valueStore.balance} uses=${step.valueStore.uses} step.amount=${step.amount}`, {
                     isReplanable: res === 0
                 });
             }
 
-            const res2: DbValueStore[] = await trx.from("ValueStores")
+            const res2: DbValue[] = await trx.from("ValueStores")
                 .where({
                     userId: auth.giftbitUserId,
-                    valueStoreId: step.valueStore.valueStoreId
+                    valueStoreId: step.valueStore.id
                 })
                 .select();
 
             if (res2.length !== 1) {
-                throw new TransactionPlanError(`Transaction execution canceled because the value store that was updated could not be refetched.  This should never happen.  userId=${auth.giftbitUserId} valueStoreId=${step.valueStore.valueStoreId}`, {
+                throw new TransactionPlanError(`Transaction execution canceled because the Value that was updated could not be refetched.  This should never happen.  userId=${auth.giftbitUserId} valueStoreId=${step.valueStore.id}`, {
                     isReplanable: false
                 });
             }
 
             // Fix the plan to indicate the true value change.
-            step.valueStore.value = res2[0].value - step.amount;
+            step.valueStore.balance = res2[0].balance - step.amount;
 
             await trx.into("LightrailTransactionSteps")
                 .insert({
                     userId: auth.giftbitUserId,
                     lightrailTransactionStepId: `${plan.transactionId}-${stepIx}`,
                     transactionId: plan.transactionId,
-                    valueStoreId: step.valueStore.valueStoreId,
+                    valueStoreId: step.valueStore.id,
                     customerId: step.customerId,
                     codeLastFour: step.codeLastFour,
-                    valueBefore: res2[0].value - step.amount,
-                    valueAfter: res2[0].value,
+                    valueBefore: res2[0].balance - step.amount,
+                    valueAfter: res2[0].balance,
                     valueChange: step.amount
                 });
         }

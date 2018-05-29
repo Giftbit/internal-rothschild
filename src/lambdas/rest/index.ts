@@ -3,7 +3,7 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {installContactsRest} from "./contacts";
 import {installTransactionsRest} from "./transactions/transactions";
-import {installValueStoresRest} from "./valueStores";
+import {installValueStoresRest} from "./values";
 import {installValueStoreTemplatesRest} from "./valueStoreTemplates";
 import {installCurrenciesRest} from "./currencies";
 
