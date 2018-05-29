@@ -1,13 +1,13 @@
-CREATE TABLE rothschild.Customers (
+CREATE TABLE rothschild.Contacts (
   userId      VARCHAR(255) NOT NULL,
-  customerId  VARCHAR(255) NOT NULL,
+  id          VARCHAR(255) NOT NULL,
   email       VARCHAR(320),
   firstName   NVARCHAR(255),
   lastName    NVARCHAR(255),
   metadata    TEXT,
   createdDate DATETIME     NOT NULL,
   updatedDate DATETIME     NOT NULL,
-  PRIMARY KEY (userId, customerId)
+  PRIMARY KEY (userId, id)
 );
 
 CREATE TABLE rothschild.Currencies (
@@ -91,7 +91,7 @@ CREATE TABLE rothschild.LightrailTransactionSteps (
   INDEX lightrailTransactionSteps_ix0 (userId, transactionId),
   CONSTRAINT lightrailTransactionSteps_transaction FOREIGN KEY (userId, transactionId) REFERENCES rothschild.Transactions (userId, transactionId),
   CONSTRAINT lightrailTransactionSteps_valueStore FOREIGN KEY (userId, valueStoreId) REFERENCES rothschild.ValueStores (userId, valueStoreId),
-  CONSTRAINT lightrailTransactionSteps_customer FOREIGN KEY (userId, customerId) REFERENCES rothschild.Customers (userId, customerId)
+  CONSTRAINT lightrailTransactionSteps_customer FOREIGN KEY (userId, customerId) REFERENCES rothschild.Contacts (userId, id)
 );
 
 CREATE TABLE rothschild.StripeTransactionSteps (
@@ -137,5 +137,5 @@ CREATE TABLE rothschild.ValueStoreAccess (
   CONSTRAINT valueStoreAccess_code UNIQUE (userId, code),
   CONSTRAINT valueStoreAccess_codeHashed UNIQUE (userId, codeHashed),
   CONSTRAINT valueStoreAccess_valueStore FOREIGN KEY (userId, valueStoreId) REFERENCES rothschild.ValueStores (userId, valueStoreId),
-  CONSTRAINT valueStoreAccess_customer FOREIGN KEY (userId, customerId) REFERENCES rothschild.Customers (userId, customerId)
+  CONSTRAINT valueStoreAccess_customer FOREIGN KEY (userId, customerId) REFERENCES rothschild.Contacts (userId, id)
 );

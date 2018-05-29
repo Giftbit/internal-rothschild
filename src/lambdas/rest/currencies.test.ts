@@ -83,7 +83,7 @@ describe("/v2/currencies", () => {
     });
 
     it("404s on getting invalid currency", async () => {
-        const resp = await testUtils.testAuthedRequest<Currency>(router, `/v2/currencies/iamnotavalidcustomerid`, "GET");
+        const resp = await testUtils.testAuthedRequest<Currency>(router, `/v2/currencies/iamnotavalidcurrency`, "GET");
         chai.assert.equal(resp.statusCode, 404);
     });
 
