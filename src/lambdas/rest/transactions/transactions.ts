@@ -74,18 +74,18 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
         async () => {
             const parties = await resolveTransactionParties(auth, req.currency, [req.destination]);
             if (parties.length !== 1 || parties[0].rail !== "lightrail") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable value store.", "InvalidParty");
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable Value.", "InvalidParty");
             }
 
             return {
-                transactionId: req.transactionId,
+                id: req.id,
                 transactionType: "credit",
                 steps: [
                     {
                         rail: "lightrail",
-                        valueStore: (parties[0] as LightrailTransactionPlanStep).valueStore,
+                        value: (parties[0] as LightrailTransactionPlanStep).value,
                         codeLastFour: (parties[0] as LightrailTransactionPlanStep).codeLastFour,
-                        customerId: (parties[0] as LightrailTransactionPlanStep).customerId,
+                        contactId: (parties[0] as LightrailTransactionPlanStep).contactId,
                         amount: req.amount
                     }
                 ],
@@ -105,19 +105,19 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
         async () => {
             const parties = await resolveTransactionParties(auth, req.currency, [req.source]);
             if (parties.length !== 1 || parties[0].rail !== "lightrail") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable value store.", "InvalidParty");
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable Value.", "InvalidParty");
             }
 
-            const amount = Math.min(req.amount, (parties[0] as LightrailTransactionPlanStep).valueStore.value);
+            const amount = Math.min(req.amount, (parties[0] as LightrailTransactionPlanStep).value.balance);
             return {
-                transactionId: req.transactionId,
+                id: req.id,
                 transactionType: "debit",
                 steps: [
                     {
                         rail: "lightrail",
-                        valueStore: (parties[0] as LightrailTransactionPlanStep).valueStore,
+                        value: (parties[0] as LightrailTransactionPlanStep).value,
                         codeLastFour: (parties[0] as LightrailTransactionPlanStep).codeLastFour,
-                        customerId: (parties[0] as LightrailTransactionPlanStep).customerId,
+                        contactId: (parties[0] as LightrailTransactionPlanStep).contactId,
                         amount: -amount
                     }
                 ],
@@ -152,31 +152,31 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
         async () => {
             const sourceParties = await resolveTransactionParties(auth, req.currency, [req.source]);
             if (sourceParties.length !== 1 || sourceParties[0].rail !== "lightrail") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable value store.", "InvalidParty");
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable Value.", "InvalidParty");
             }
 
             const destParties = await resolveTransactionParties(auth, req.currency, [req.destination]);
             if (destParties.length !== 1 || destParties[0].rail !== "lightrail") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable value store.", "InvalidParty");
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable Value.", "InvalidParty");
             }
 
-            const amount = Math.min(req.amount, (sourceParties[0] as LightrailTransactionPlanStep).valueStore.value);
+            const amount = Math.min(req.amount, (sourceParties[0] as LightrailTransactionPlanStep).value.balance);
             return {
-                transactionId: req.transactionId,
+                id: req.id,
                 transactionType: "transfer",
                 steps: [
                     {
                         rail: "lightrail",
-                        valueStore: (sourceParties[0] as LightrailTransactionPlanStep).valueStore,
+                        value: (sourceParties[0] as LightrailTransactionPlanStep).value,
                         codeLastFour: (sourceParties[0] as LightrailTransactionPlanStep).codeLastFour,
-                        customerId: (sourceParties[0] as LightrailTransactionPlanStep).customerId,
+                        contactId: (sourceParties[0] as LightrailTransactionPlanStep).contactId,
                         amount: -amount
                     },
                     {
                         rail: "lightrail",
-                        valueStore: (destParties[0] as LightrailTransactionPlanStep).valueStore,
+                        value: (destParties[0] as LightrailTransactionPlanStep).value,
                         codeLastFour: (destParties[0] as LightrailTransactionPlanStep).codeLastFour,
-                        customerId: (destParties[0] as LightrailTransactionPlanStep).customerId,
+                        contactId: (destParties[0] as LightrailTransactionPlanStep).contactId,
                         amount
                     }
                 ],
@@ -198,11 +198,11 @@ const lightrailPartySchema: jsonschema.Schema = {
     oneOf: [
         {
             properties: {
-                customerId: {
+                contactId: {
                     type: "string"
                 }
             },
-            required: ["customerId"]
+            required: ["contactId"]
         },
         {
             properties: {
@@ -214,11 +214,11 @@ const lightrailPartySchema: jsonschema.Schema = {
         },
         {
             properties: {
-                valueStoreId: {
+                valueId: {
                     type: "string"
                 }
             },
-            required: ["valueStoreId"]
+            required: ["valueId"]
         }
     ],
     required: ["rail"]
@@ -247,11 +247,11 @@ const lightrailUniquePartySchema: jsonschema.Schema = {
         },
         {
             properties: {
-                valueStoreId: {
+                valueId: {
                     type: "string"
                 }
             },
-            required: ["valueStoreId"]
+            required: ["valueId"]
         }
     ],
     required: ["rail"]

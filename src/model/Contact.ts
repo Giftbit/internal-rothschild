@@ -1,8 +1,8 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {pickDefined} from "../pick";
 
-export interface Customer {
-    customerId: string;
+export interface Contact {
+    id: string;
     firstName: string | null;
     lastName: string | null;
     email: string | null;
@@ -11,11 +11,11 @@ export interface Customer {
     updatedDate: Date;
 }
 
-export namespace Customer {
-    export function toDbCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, c: Customer): DbCustomer {
+export namespace Contact {
+    export function toDbContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, c: Contact): DbContact {
         return {
             userId: auth.giftbitUserId,
-            customerId: c.customerId,
+            id: c.id,
             firstName: c.firstName,
             lastName: c.lastName,
             email: c.email,
@@ -25,7 +25,7 @@ export namespace Customer {
         };
     }
 
-    export function toDbCustomerUpdate(c: Partial<Customer>): Partial<DbCustomer> {
+    export function toDbContactUpdate(c: Partial<Contact>): Partial<DbContact> {
         return pickDefined({
             firstName: c.firstName,
             lastName: c.lastName,
@@ -36,9 +36,9 @@ export namespace Customer {
     }
 }
 
-export interface DbCustomer {
+export interface DbContact {
     userId: string;
-    customerId: string;
+    id: string;
     firstName: string | null;
     lastName: string | null;
     email: string | null;
@@ -47,10 +47,10 @@ export interface DbCustomer {
     updatedDate: Date;
 }
 
-export namespace DbCustomer {
-    export function toCustomer(c: DbCustomer): Customer {
+export namespace DbContact {
+    export function toContact(c: DbContact): Contact {
         return {
-            customerId: c.customerId,
+            id: c.id,
             firstName: c.firstName,
             lastName: c.lastName,
             email: c.email,

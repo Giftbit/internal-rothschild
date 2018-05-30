@@ -2,14 +2,14 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as testUtils from "../../testUtils";
-import {ValueStore} from "../../model/ValueStore";
+import {Value} from "../../model/Value";
 
 import chaiExclude = require("chai-exclude");
 import {Currency} from "../../model/Currency";
 import {installRest} from "./index";
 chai.use(chaiExclude);
 
-describe("/v2/valueStores/", () => {
+describe.skip("/v2/values/", () => {
 
     const router = new cassava.Router();
 
@@ -19,8 +19,8 @@ describe("/v2/valueStores/", () => {
         installRest(router);
     });
 
-    it("can list 0 valueStores", async () => {
-        const resp = await testUtils.testAuthedRequest<ValueStore[]>(router, "/v2/valueStores", "GET");
+    it("can list 0 values", async () => {
+        const resp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/values", "GET");
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.deepEqual(resp.body, []);
         chai.assert.equal(resp.headers["Limit"], "100");
@@ -28,8 +28,8 @@ describe("/v2/valueStores/", () => {
         chai.assert.equal(resp.headers["Offset"], "0");
     });
 
-    it("can list 0 valueStores in csv", async () => {
-        const resp = await testUtils.testAuthedCsvRequest<ValueStore>(router, "/v2/valueStores", "GET");
+    it("can list 0 values in csv", async () => {
+        const resp = await testUtils.testAuthedCsvRequest<Value>(router, "/v2/values", "GET");
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.deepEqual(resp.body, []);
         chai.assert.equal(resp.headers["Limit"], "100");
@@ -44,27 +44,26 @@ describe("/v2/valueStores/", () => {
         decimalPlaces: 2
     };
 
-    let valueStore1: Partial<ValueStore> = {
-        valueStoreId: "1",
-        valueStoreType: "GIFTCARD",
+    let value1: Partial<Value> = {
+        id: "1",
         currency: "USD",
-        value: 5000
+        balance: 5000
     };
 
     it("requires the currency to exist", async () => {
-        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/valueStores", "POST", valueStore1);
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value1);
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.messageCode, "CurrencyNotFound");
     });
 
-    it("can create a value store", async () => {
-        const resp1 = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/currencies", "POST", currency);
+    it("can create a value", async () => {
+        const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency);
         chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
 
-        const resp2 = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/valueStores", "POST", valueStore1);
+        const resp2 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
         chai.assert.equal(resp2.statusCode, 201, `body=${JSON.stringify(resp2.body)}`);
         chai.assert.deepEqualExcluding(resp2.body, {
-            ...valueStore1,
+            ...value1,
             uses: null,
             pretax: false,
             active: true,
@@ -76,17 +75,17 @@ describe("/v2/valueStores/", () => {
             valueRule: null,
             metadata: null
         }, ["createdDate", "updatedDate"]);
-        valueStore1 = resp2.body;
+        value1 = resp2.body;
     });
 
-    it("can get the value store", async () => {
-        const resp = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${valueStore1.valueStoreId}`, "GET");
+    it("can get the value", async () => {
+        const resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.deepEqual(resp.body, valueStore1);
+        chai.assert.deepEqual(resp.body, value1);
     });
 
-    it("409s on creating a duplicate valueStore", async () => {
-        const resp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/valueStores", "POST", valueStore1);
+    it("409s on creating a duplicate value", async () => {
+        const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
         chai.assert.equal(resp.statusCode, 409);
     });
 });
