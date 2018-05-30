@@ -7,7 +7,7 @@ import {csvSerializer} from "../../serializers";
 import {getKnexWrite, getKnexRead, nowInDbPrecision} from "../../dbUtils";
 import {pick, pickOrDefault} from "../../pick";
 
-export function installValueStoreTemplatesRest(router: cassava.Router): void {
+export function installValueTemplatesRest(router: cassava.Router): void {
     router.route("/v2/programs")
         .method("GET")
         .serializers({
@@ -135,7 +135,7 @@ async function createProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pro
         return program;
     } catch (err) {
         if (err.code === "ER_DUP_ENTRY") {
-            throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `ValueStoreTemplate with valueStoreTemplateId '${program.id}' already exists.`);
+            throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `ValueTemplate with valueTemplateId '${program.id}' already exists.`);
         }
         throw err;
     }

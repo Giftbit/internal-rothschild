@@ -7,11 +7,11 @@ describe("dbUtils", () => {
             const knex = await getKnexRead();
 
             chai.assert.throws(() => {
-                knex.insert({a: "a"}).into("ValueStores");
+                knex.insert({a: "a"}).into("Values");
             }, "Attempting to modify database from read-only connection.");
 
             chai.assert.throws(() => {
-                knex("ValueStores").insert({a: "a"});
+                knex("Values").insert({a: "a"});
             }, "Attempting to modify database from read-only connection.");
         });
     });

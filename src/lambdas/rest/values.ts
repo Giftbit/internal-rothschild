@@ -7,7 +7,7 @@ import {DbValue, Value} from "../../model/Value";
 import {pickOrDefault} from "../../pick";
 import {csvSerializer} from "../../serializers";
 
-export function installValueStoresRest(router: cassava.Router): void {
+export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
         .method("GET")
         .serializers({
@@ -20,7 +20,7 @@ export function installValueStoresRest(router: cassava.Router): void {
             const res = await getValues(auth, Pagination.getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(res.pagination),
-                body: res.valueStores
+                body: res.values
             };
         });
 
@@ -38,9 +38,9 @@ export function installValueStoresRest(router: cassava.Router): void {
                     currency: "",
                     balance: 0,
                     uses: null,
-                    program: null,
+                    programId: null,
                     code: null,
-                    contact: null,
+                    contactId: null,
                     pretax: false,
                     active: true,
                     frozen: false,
@@ -72,7 +72,7 @@ export function installValueStoresRest(router: cassava.Router): void {
         });
 }
 
-export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{valueStores: Value[], pagination: Pagination}> {
+export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{values: Value[], pagination: Pagination}> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
@@ -85,7 +85,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
         .limit(pagination.limit)
         .offset(pagination.offset);
     return {
-        valueStores: res.map(DbValue.toValue),
+        values: res.map(DbValue.toValue),
         pagination: {
             limit: pagination.limit,
             maxLimit: pagination.maxLimit,
@@ -124,7 +124,7 @@ async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: stri
         .select()
         .where({
             userId: auth.giftbitUserId,
-            valueStoreId: id
+            valueId: id
         });
     if (res.length === 0) {
         throw new cassava.RestError(404);

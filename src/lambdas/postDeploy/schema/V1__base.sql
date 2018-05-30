@@ -52,11 +52,11 @@ CREATE TABLE rothschild.Programs (
 
 CREATE TABLE rothschild.ProgramTags (
   userId  VARCHAR(32) NOT NULL,
-  program VARCHAR(64) NOT NULL,
+  programId VARCHAR(64) NOT NULL,
   tag     VARCHAR(32) NOT NULL,
-  PRIMARY KEY pk_ProgramTags (userId, program, tag),
+  PRIMARY KEY pk_ProgramTags (userId, programId, tag),
   INDEX ix_ProgramTags_tag (userId, tag),
-  CONSTRAINT fk_ProgramTags_Programs FOREIGN KEY (userId, program) REFERENCES rothschild.Programs (userId, id)
+  CONSTRAINT fk_ProgramTags_Programs FOREIGN KEY (userId, programId) REFERENCES rothschild.Programs (userId, id)
 );
 
 CREATE TABLE rothschild.Values (
@@ -65,11 +65,11 @@ CREATE TABLE rothschild.Values (
   currency       VARCHAR(16) NOT NULL,
   balance        INT,
   uses           INT,
-  program        VARCHAR(64),
+  programId        VARCHAR(64),
   code           VARCHAR(255),
   codeHashed     CHAR(255),
   codeLastFour   VARCHAR(4),
-  contact        VARCHAR(64),
+  contactId        VARCHAR(64),
   pretax         BOOL        NOT NULL,
   active         BOOL        NOT NULL,
   expired        BOOL        NOT NULL,
@@ -82,20 +82,20 @@ CREATE TABLE rothschild.Values (
   createdDate    DATETIME    NOT NULL,
   updatedDate    DATETIME    NOT NULL,
   PRIMARY KEY pk_Values (userId, id),
-  CONSTRAINT fk_Values_Programs FOREIGN KEY (userId, program) REFERENCES rothschild.Programs (userId, id),
+  CONSTRAINT fk_Values_Programs FOREIGN KEY (userId, programId) REFERENCES rothschild.Programs (userId, id),
   CONSTRAINT fk_Values_Currencies FOREIGN KEY (userId, currency) REFERENCES rothschild.Currencies (userId, code),
-  CONSTRAINT fk_Values_Customers FOREIGN KEY (userId, contact) REFERENCES rothschild.Contacts (userId, id),
+  CONSTRAINT fk_Values_Customers FOREIGN KEY (userId, contactId) REFERENCES rothschild.Contacts (userId, id),
   CONSTRAINT uq_Values_code UNIQUE (userId, code),
   CONSTRAINT uq_Values_codeHashed UNIQUE (userId, codeHashed)
 );
 
 CREATE TABLE rothschild.ValueTags (
   userId VARCHAR(32) NOT NULL,
-  value  VARCHAR(64) NOT NULL,
+  valueId  VARCHAR(64) NOT NULL,
   tag    VARCHAR(32) NOT NULL,
-  PRIMARY KEY pk_ValueTags (userId, value, tag),
+  PRIMARY KEY pk_ValueTags (userId, valueId, tag),
   INDEX ix_ValueTags_tag (userId, tag),
-  CONSTRAINT fk_ValueTags_Values FOREIGN KEY (userId, value) REFERENCES rothschild.Values (userId, id)
+  CONSTRAINT fk_ValueTags_Values FOREIGN KEY (userId, valueId) REFERENCES rothschild.Values (userId, id)
 );
 
 CREATE TABLE rothschild.Transactions (
@@ -112,19 +112,19 @@ CREATE TABLE rothschild.Transactions (
 CREATE TABLE rothschild.LightrailTransactionSteps (
   userId                     VARCHAR(32)  NOT NULL,
   lightrailTransactionStepId VARCHAR(255) NOT NULL,
-  transaction                VARCHAR(64)  NOT NULL,
-  value                      VARCHAR(64)  NOT NULL,
-  customer                   VARCHAR(64),
+  transactionId                VARCHAR(64)  NOT NULL,
+  valueId                      VARCHAR(64)  NOT NULL,
+  contactId                   VARCHAR(64),
   codeLastFour               CHAR(4),
   balanceBefore              INT          NOT NULL,
   balanceAfter               INT          NOT NULL,
   balanceChange              INT          NOT NULL,
   createdDate                DATETIME     NOT NULL,
   PRIMARY KEY pk_LightrailTransactionSteps (userId, lightrailTransactionStepId),
-  INDEX ix_LightrailTransactionSteps_transactionId (userId, transaction),
-  CONSTRAINT fk_LightrailTransactionSteps_Transactions FOREIGN KEY (userId, transaction) REFERENCES rothschild.Transactions (userId, id),
-  CONSTRAINT fk_LightrailTransactionSteps_Values FOREIGN KEY (userId, value) REFERENCES rothschild.Values (userId, id),
-  CONSTRAINT fk_LightrailTransactionSteps_Contacts FOREIGN KEY (userId, customer) REFERENCES rothschild.Contacts (userId, id)
+  INDEX ix_LightrailTransactionSteps_transactionId (userId, transactionId),
+  CONSTRAINT fk_LightrailTransactionSteps_Transactions FOREIGN KEY (userId, transactionId) REFERENCES rothschild.Transactions (userId, id),
+  CONSTRAINT fk_LightrailTransactionSteps_Values FOREIGN KEY (userId, valueId) REFERENCES rothschild.Values (userId, id),
+  CONSTRAINT fk_LightrailTransactionSteps_Contacts FOREIGN KEY (userId, contactId) REFERENCES rothschild.Contacts (userId, id)
 );
 
 CREATE TABLE rothschild.StripeTransactionSteps (
@@ -144,12 +144,12 @@ CREATE TABLE rothschild.StripeTransactionSteps (
 CREATE TABLE rothschild.InternalTransactionSteps (
   userId        VARCHAR(32)  NOT NULL,
   id            VARCHAR(255) NOT NULL,
-  transaction   VARCHAR(255) NOT NULL,
+  transactionId   VARCHAR(255) NOT NULL,
   internalId    VARCHAR(255) NOT NULL,
   balanceBefore INT          NOT NULL,
   balanceAfter  INT          NOT NULL,
   balanceChange INT          NOT NULL,
   PRIMARY KEY pk_InternalTransactionSteps (userId, id),
-  INDEX is_InternalTransactionSteps_transactionId (userId, transaction),
-  CONSTRAINT fk_InternalTransactionSteps_Transactions FOREIGN KEY (userId, transaction) REFERENCES rothschild.Transactions (userId, id)
+  INDEX is_InternalTransactionSteps_transactionId (userId, transactionId),
+  CONSTRAINT fk_InternalTransactionSteps_Transactions FOREIGN KEY (userId, transactionId) REFERENCES rothschild.Transactions (userId, id)
 );

@@ -32,13 +32,14 @@ describe("rest/transactions/executeTransactionPlan", () => {
 
         const value: DbValue = {
             userId: "user",
-            id: "vs-1",
+            id: "v-1",
             currency: "CAD",
             uses: null,
+            programId: null,
             code: null,
             codeLastFour: null,
             codeHashed: null,
-            contact: null,
+            contactId: null,
             balance: 1500,
             pretax: false,
             active: true,
@@ -55,17 +56,17 @@ describe("rest/transactions/executeTransactionPlan", () => {
 
         const knex = await getKnexWrite();
         await knex("Currencies").insert(currency);
-        await knex("ValueStores").insert(value);
+        await knex("Values").insert(value);
 
         const plan: TransactionPlan = {
-            transactionId: "xxx",
+            id: "xxx",
             transactionType: "debit",
             steps: [
                 {
                     rail: "lightrail",
-                    valueStore: DbValue.toValue(value),
+                    value: DbValue.toValue(value),
                     codeLastFour: null,
-                    customerId: null,
+                    contactId: null,
                     amount: -3500    // more than is in the value
                 }
             ],
@@ -86,7 +87,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
         const transactionsRes: any[] = await knex("Transactions")
             .where({
                 userId: auth.giftbitUserId,
-                transactionId: plan.transactionId
+                transactionId: plan.id
             });
         chai.assert.lengthOf(transactionsRes, 0);
     });
@@ -94,14 +95,15 @@ describe("rest/transactions/executeTransactionPlan", () => {
     it("throws a replannable TransactionPlanError when there are 0 uses", async () => {
         const value: DbValue = {
             userId: "user",
-            id: "vs-2",
+            id: "v-2",
             currency: "CAD",
             balance: 1500,
             uses: 0,
+            programId: null,
             code: null,
             codeLastFour: null,
             codeHashed: null,
-            contact: null,
+            contactId: null,
             pretax: false,
             active: true,
             expired: false,
@@ -116,17 +118,17 @@ describe("rest/transactions/executeTransactionPlan", () => {
         };
 
         const knex = await getKnexWrite();
-        await knex("ValueStores").insert(value);
+        await knex("Values").insert(value);
 
         const plan: TransactionPlan = {
-            transactionId: "xxx",
+            id: "xxx",
             transactionType: "credit",
             steps: [
                 {
                     rail: "lightrail",
-                    valueStore: DbValue.toValue(value),
+                    value: DbValue.toValue(value),
                     codeLastFour: null,
-                    customerId: null,
+                    contactId: null,
                     amount: 1200
                 }
             ],
@@ -147,7 +149,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
         const transactionsRes: any[] = await knex("Transactions")
             .where({
                 userId: auth.giftbitUserId,
-                transactionId: plan.transactionId
+                transactionId: plan.id
             });
         chai.assert.lengthOf(transactionsRes, 0);
     });

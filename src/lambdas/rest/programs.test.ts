@@ -5,7 +5,7 @@ import * as chai from "chai";
 import {Program} from "../../model/Program";
 import {installRest} from "./index";
 
-describe.skip("/v2/valueStoreTemplate/ (this all needs to become programs anyways)", () => {
+describe.skip("/v2/programs (this all needs to become programs anyways)", () => {
 
     const router = new cassava.Router();
 
@@ -15,11 +15,11 @@ describe.skip("/v2/valueStoreTemplate/ (this all needs to become programs anyway
         installRest(router);
     });
 
-    it("can list 0 ValueStoreTemplates", async () => {
+    it("can list 0 programs", async () => {
         const resp = await testUtils.testAuthedRequest(router, "/v2/programs", "GET");
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.deepEqual(resp.body, {
-            valueStoreTemplates: [],
+            valueTemplates: [],
             pagination: {
                 count: 0,
                 limit: 100,
@@ -29,46 +29,43 @@ describe.skip("/v2/valueStoreTemplate/ (this all needs to become programs anyway
         });
     });
 
-    let valueStoreTemplate1: Partial<Program> = {
+    let program1: Partial<Program> = {
         id: "1",
-        currency: "USD",
-        valueStoreType: "PREPAID"
+        currency: "USD"
     };
 
-    it("can create a ValueStoreTemplate", async () => {
-        const resp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", valueStoreTemplate1);
+    it("can create a program", async () => {
+        const resp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program1);
         chai.assert.equal(resp.statusCode, 201);
-        chai.assert.equal(resp.body.id, valueStoreTemplate1.id);
-        chai.assert.equal(resp.body.currency, valueStoreTemplate1.currency);
-        chai.assert.equal(resp.body.valueStoreType, valueStoreTemplate1.valueStoreType);
+        chai.assert.equal(resp.body.id, program1.id);
+        chai.assert.equal(resp.body.currency, program1.currency);
         chai.assert.isNotNull(resp.body.createdDate);
         chai.assert.isNotNull(resp.body.updatedDate);
-        valueStoreTemplate1 = resp.body;
+        program1 = resp.body;
     });
 
-    it("can get the ValueStoreTemplate", async () => {
-        const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${valueStoreTemplate1.id}`, "GET");
+    it("can get the program", async () => {
+        const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${program1.id}`, "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.deepEqual(resp.body, valueStoreTemplate1);
+        chai.assert.deepEqual(resp.body, program1);
     });
 
-    it("can update a ValueStoreTemplate", async () => {
-        let valueStoreTemplate1Update = {...valueStoreTemplate1};
-        valueStoreTemplate1Update.currency = "FUN_BUCKS";
-        const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${valueStoreTemplate1.id}`, "PUT", valueStoreTemplate1Update);
+    it("can update a program", async () => {
+        let valueTemplate1Update = {...program1};
+        valueTemplate1Update.currency = "FUN_BUCKS";
+        const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${program1.id}`, "PUT", valueTemplate1Update);
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.equal(resp.body.id, valueStoreTemplate1Update.id);
-        chai.assert.equal(resp.body.currency, valueStoreTemplate1Update.currency);
-        chai.assert.equal(resp.body.valueStoreType, valueStoreTemplate1Update.valueStoreType);
+        chai.assert.equal(resp.body.id, valueTemplate1Update.id);
+        chai.assert.equal(resp.body.currency, valueTemplate1Update.currency);
         chai.assert.isNotNull(resp.body.createdDate);
         chai.assert.isNotNull(resp.body.updatedDate);
     });
 
-    it("can delete a ValueStoreTemplate", async () => {
-        const deleteResp = await testUtils.testAuthedRequest(router, `/v2/programs/${valueStoreTemplate1.id}`, "DELETE");
+    it("can delete a program", async () => {
+        const deleteResp = await testUtils.testAuthedRequest(router, `/v2/programs/${program1.id}`, "DELETE");
         chai.assert.equal(deleteResp.statusCode, 200);
 
-        const getResp = await testUtils.testAuthedRequest(router, `/v2/programs/${valueStoreTemplate1.id}`, "GET");
+        const getResp = await testUtils.testAuthedRequest(router, `/v2/programs/${program1.id}`, "GET");
         chai.assert.equal(getResp.statusCode, 404);
     });
 });

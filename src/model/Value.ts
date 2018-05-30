@@ -5,9 +5,9 @@ export interface Value {
     currency: string;
     balance: number | null;
     uses: number | null;
-    program: string | null;
+    programId: string | null;
     code: string | null;
-    contact: string | null;
+    contactId: string | null;
     pretax: boolean;
     active: boolean;
     expired: boolean;   // TODO we don't need to expose this to the user because it's implied by endDate
@@ -37,11 +37,11 @@ export namespace Value {
             currency: v.currency,
             balance: v.balance,
             uses: v.uses,
-            progam: v.program,
+            programId: v.programId,
             code: v.code,
             codeHashed: null,
             codeLastFour: null,
-            contact: v.contact,
+            contactId: v.contactId,
             pretax: v.pretax,
             active: v.active,
             expired: v.expired,
@@ -63,11 +63,11 @@ export interface DbValue {
     currency: string;
     balance: number | null;
     uses: number | null;
-    progam: string | null;
+    programId: string | null;
     code: string | null;
     codeHashed: string | null;
     codeLastFour: string | null;
-    contact: string | null;
+    contactId: string | null;
     pretax: boolean;
     active: boolean;
     expired: boolean;
@@ -88,8 +88,8 @@ export namespace DbValue {
             currency: v.currency,
             balance: v.balance,
             uses: v.uses,
-            program: v.progam,
-            contact: v.contact,
+            programId: v.programId,
+            contactId: v.contactId,
             code: v.code || (v.codeLastFour && "…" + v.codeLastFour) || null,
             pretax: v.pretax,
             active: v.active,

@@ -24,91 +24,86 @@ describe("/v2/transactions/transfer", () => {
         decimalPlaces: 2
     };
 
-    const valueStoreCad1: Partial<Value> = {
-        id: "vs-transfer-1",
-        valueStoreType: "GIFTCARD",
+    const valueCad1: Partial<Value> = {
+        id: "v-transfer-1",
         currency: "CAD",
         balance: 1500
     };
 
-    const valueStoreCad2: Partial<Value> = {
-        id: "vs-transfer-2",
-        valueStoreType: "GIFTCARD",
+    const valueCad2: Partial<Value> = {
+        id: "v-transfer-2",
         currency: "CAD",
         balance: 2500
     };
 
-    const valueStoreUsd: Partial<Value> = {
-        id: "vs-transfer-3",
-        valueStoreType: "GIFTCARD",
+    const valueUsd: Partial<Value> = {
+        id: "v-transfer-3",
         currency: "USD",
         balance: 3500
     };
 
-    it("can transfer between valueStoreIds", async () => {
+    it("can transfer between valueIds", async () => {
         const postCurrencyResp = await testUtils.testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency);
         chai.assert.equal(postCurrencyResp.statusCode, 201, `body=${JSON.stringify(postCurrencyResp.body)}`);
 
-        const postValueStore1Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueStoreCad1);
-        chai.assert.equal(postValueStore1Resp.statusCode, 201, `body=${JSON.stringify(postValueStore1Resp.body)}`);
+        const postValue1Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueCad1);
+        chai.assert.equal(postValue1Resp.statusCode, 201, `body=${JSON.stringify(postValue1Resp.body)}`);
 
-        const postValueStore2Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueStoreCad2);
-        chai.assert.equal(postValueStore2Resp.statusCode, 201, `body=${JSON.stringify(postValueStore1Resp.body)}`);
+        const postValue2Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueCad2);
+        chai.assert.equal(postValue2Resp.statusCode, 201, `body=${JSON.stringify(postValue1Resp.body)}`);
 
         const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
             transactionId: "transfer-1",
             source: {
                 rail: "lightrail",
-                valueStoreId: valueStoreCad1.id
+                valueId: valueCad1.id
             },
             destination: {
                 rail: "lightrail",
-                valueStoreId: valueStoreCad2.id
+                valueId: valueCad2.id
             },
             amount: 1000,
             currency: "CAD"
         });
         chai.assert.equal(postTransferResp.statusCode, 201, `body=${JSON.stringify(postTransferResp.body)}`);
         chai.assert.deepEqualExcluding(postTransferResp.body, {
-            transactionId: "transfer-1",
+            id: "transfer-1",
             transactionType: "transfer",
             remainder: 0
         }, ["steps", "createdDate"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
-        const sourceStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueStoreId === valueStoreCad1.id) as LightrailTransactionStep;
+        const sourceStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad1.id) as LightrailTransactionStep;
         chai.assert.deepEqual(sourceStep, {
             rail: "lightrail",
-            valueStoreId: valueStoreCad1.id,
-            valueStoreType: valueStoreCad1.valueStoreType,
-            currency: valueStoreCad1.currency,
+            valueId: valueCad1.id,
+            currency: valueCad1.currency,
             codeLastFour: null,
-            customerId: null,
-            valueBefore: 1500,
-            valueAfter: 500,
-            valueChange: -1000
+            contactId: null,
+            balanceBefore: 1500,
+            balanceAfter: 500,
+            balanceChange: -1000
         });
 
-        const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueStoreId === valueStoreCad2.id) as LightrailTransactionStep;
+        const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad2.id) as LightrailTransactionStep;
         chai.assert.deepEqual(destStep, {
             rail: "lightrail",
-            valueStoreId: valueStoreCad2.id,
-            valueStoreType: valueStoreCad2.valueStoreType,
-            currency: valueStoreCad2.currency,
+            valueId: valueCad2.id,
+            currency: valueCad2.currency,
             codeLastFour: null,
-            customerId: null,
-            valueBefore: 2500,
-            valueAfter: 3500,
-            valueChange: 1000
+            contactId: null,
+            balanceBefore: 2500,
+            balanceAfter: 3500,
+            balanceChange: 1000
         });
 
-        const getValueStore1Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueStoreCad1.id}`, "GET");
-        chai.assert.equal(getValueStore1Resp.statusCode, 200, `body=${JSON.stringify(getValueStore1Resp.body)}`);
-        chai.assert.equal(getValueStore1Resp.body.balance, 500);
+        const getValue1Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCad1.id}`, "GET");
+        chai.assert.equal(getValue1Resp.statusCode, 200, `body=${JSON.stringify(getValue1Resp.body)}`);
+        chai.assert.equal(getValue1Resp.body.balance, 500);
 
-        const getValueStore2Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueStoreCad2.id}`, "GET");
-        chai.assert.equal(getValueStore2Resp.statusCode, 200, `body=${JSON.stringify(getValueStore2Resp.body)}`);
-        chai.assert.equal(getValueStore2Resp.body.balance, 3500);
+        const getValue2Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCad2.id}`, "GET");
+        chai.assert.equal(getValue2Resp.statusCode, 200, `body=${JSON.stringify(getValue2Resp.body)}`);
+        chai.assert.equal(getValue2Resp.body.balance, 3500);
     });
 
     it("409s on reusing a transactionId", async () => {
@@ -116,11 +111,11 @@ describe("/v2/transactions/transfer", () => {
             transactionId: "transfer-1",    // same as above
             source: {
                 rail: "lightrail",
-                valueStoreId: valueStoreCad1.id
+                valueId: valueCad1.id
             },
             destination: {
                 rail: "lightrail",
-                valueStoreId: valueStoreCad2.id
+                valueId: valueCad2.id
             },
             amount: 15,
             currency: "CAD"
@@ -129,16 +124,16 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.equal(resp.body.messageCode, "TransactionExists");
     });
 
-    it("can simulate a transfer between valueStoreIds", async () => {
+    it("can simulate a transfer between valueIds", async () => {
         const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
             transactionId: "transfer-2",
             source: {
                 rail: "lightrail",
-                valueStoreId: valueStoreCad1.id
+                valueId: valueCad1.id
             },
             destination: {
                 rail: "lightrail",
-                valueStoreId: valueStoreCad2.id
+                valueId: valueCad2.id
             },
             amount: 500,
             currency: "CAD",
@@ -146,57 +141,55 @@ describe("/v2/transactions/transfer", () => {
         });
         chai.assert.equal(postTransferResp.statusCode, 200, `body=${JSON.stringify(postTransferResp.body)}`);
         chai.assert.deepEqualExcluding(postTransferResp.body, {
-            transactionId: "transfer-2",
+            id: "transfer-2",
             transactionType: "transfer",
             remainder: 0
         }, ["steps", "createdDate"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
-        const sourceStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueStoreId === valueStoreCad1.id) as LightrailTransactionStep;
+        const sourceStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad1.id) as LightrailTransactionStep;
         chai.assert.deepEqual(sourceStep, {
             rail: "lightrail",
-            valueStoreId: valueStoreCad1.id,
-            valueStoreType: valueStoreCad1.valueStoreType,
-            currency: valueStoreCad1.currency,
+            valueId: valueCad1.id,
+            currency: valueCad1.currency,
             codeLastFour: null,
-            customerId: null,
-            valueBefore: 500,
-            valueAfter: 0,
-            valueChange: -500
+            contactId: null,
+            balanceBefore: 500,
+            balanceAfter: 0,
+            balanceChange: -500
         });
 
-        const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueStoreId === valueStoreCad2.id) as LightrailTransactionStep;
+        const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad2.id) as LightrailTransactionStep;
         chai.assert.deepEqual(destStep, {
             rail: "lightrail",
-            valueStoreId: valueStoreCad2.id,
-            valueStoreType: valueStoreCad2.valueStoreType,
-            currency: valueStoreCad2.currency,
+            valueId: valueCad2.id,
+            currency: valueCad2.currency,
             codeLastFour: null,
-            customerId: null,
-            valueBefore: 3500,
-            valueAfter: 4000,
-            valueChange: 500
+            contactId: null,
+            balanceBefore: 3500,
+            balanceAfter: 4000,
+            balanceChange: 500
         });
 
-        const getValueStore1Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueStoreCad1.id}`, "GET");
-        chai.assert.equal(getValueStore1Resp.statusCode, 200, `body=${JSON.stringify(getValueStore1Resp.body)}`);
-        chai.assert.equal(getValueStore1Resp.body.balance, 500, "value did not actually change");
+        const getValue1Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCad1.id}`, "GET");
+        chai.assert.equal(getValue1Resp.statusCode, 200, `body=${JSON.stringify(getValue1Resp.body)}`);
+        chai.assert.equal(getValue1Resp.body.balance, 500, "value did not actually change");
 
-        const getValueStore2Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueStoreCad2.id}`, "GET");
-        chai.assert.equal(getValueStore2Resp.statusCode, 200, `body=${JSON.stringify(getValueStore2Resp.body)}`);
-        chai.assert.equal(getValueStore2Resp.body.balance, 3500, "value did not actually change");
+        const getValue2Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCad2.id}`, "GET");
+        chai.assert.equal(getValue2Resp.statusCode, 200, `body=${JSON.stringify(getValue2Resp.body)}`);
+        chai.assert.equal(getValue2Resp.body.balance, 3500, "value did not actually change");
     });
 
-    it("can transfer between valueStoreIds with allowRemainder", async () => {
+    it("can transfer between valueIds with allowRemainder", async () => {
         const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
             transactionId: "transfer-3",
             source: {
                 rail: "lightrail",
-                valueStoreId: valueStoreCad1.id
+                valueId: valueCad1.id
             },
             destination: {
                 rail: "lightrail",
-                valueStoreId: valueStoreCad2.id
+                valueId: valueCad2.id
             },
             amount: 7500,
             currency: "CAD",
@@ -204,57 +197,55 @@ describe("/v2/transactions/transfer", () => {
         });
         chai.assert.equal(postTransferResp.statusCode, 201, `body=${JSON.stringify(postTransferResp.body)}`);
         chai.assert.deepEqualExcluding(postTransferResp.body, {
-            transactionId: "transfer-3",
+            id: "transfer-3",
             transactionType: "transfer",
             remainder: 7500 - 500
         }, ["steps", "createdDate"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
-        const sourceStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueStoreId === valueStoreCad1.id) as LightrailTransactionStep;
+        const sourceStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad1.id) as LightrailTransactionStep;
         chai.assert.deepEqual(sourceStep, {
             rail: "lightrail",
-            valueStoreId: valueStoreCad1.id,
-            valueStoreType: valueStoreCad1.valueStoreType,
-            currency: valueStoreCad1.currency,
+            valueId: valueCad1.id,
+            currency: valueCad1.currency,
             codeLastFour: null,
-            customerId: null,
-            valueBefore: 500,
-            valueAfter: 0,
-            valueChange: -500
+            contactId: null,
+            balanceBefore: 500,
+            balanceAfter: 0,
+            balanceChange: -500
         });
 
-        const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueStoreId === valueStoreCad2.id) as LightrailTransactionStep;
+        const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad2.id) as LightrailTransactionStep;
         chai.assert.deepEqual(destStep, {
             rail: "lightrail",
-            valueStoreId: valueStoreCad2.id,
-            valueStoreType: valueStoreCad2.valueStoreType,
-            currency: valueStoreCad2.currency,
+            valueId: valueCad2.id,
+            currency: valueCad2.currency,
             codeLastFour: null,
-            customerId: null,
-            valueBefore: 3500,
-            valueAfter: 4000,
-            valueChange: 500
+            contactId: null,
+            balanceBefore: 3500,
+            balanceAfter: 4000,
+            balanceChange: 500
         });
 
-        const getValueStore1Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueStoreCad1.id}`, "GET");
-        chai.assert.equal(getValueStore1Resp.statusCode, 200, `body=${JSON.stringify(getValueStore1Resp.body)}`);
-        chai.assert.equal(getValueStore1Resp.body.balance, 0);
+        const getValue1Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCad1.id}`, "GET");
+        chai.assert.equal(getValue1Resp.statusCode, 200, `body=${JSON.stringify(getValue1Resp.body)}`);
+        chai.assert.equal(getValue1Resp.body.balance, 0);
 
-        const getValueStore2Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueStoreCad2.id}`, "GET");
-        chai.assert.equal(getValueStore2Resp.statusCode, 200, `body=${JSON.stringify(getValueStore2Resp.body)}`);
-        chai.assert.equal(getValueStore2Resp.body.balance, 4000);
+        const getValue2Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCad2.id}`, "GET");
+        chai.assert.equal(getValue2Resp.statusCode, 200, `body=${JSON.stringify(getValue2Resp.body)}`);
+        chai.assert.equal(getValue2Resp.body.balance, 4000);
     });
 
-    it("409s transferring between valueStoreIds where the source has insufficient value", async () => {
+    it("409s transferring between valueIds where the source has insufficient value", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
             transactionId: "transfer-4",
             source: {
                 rail: "lightrail",
-                valueStoreId: valueStoreCad1.id
+                valueId: valueCad1.id
             },
             destination: {
                 rail: "lightrail",
-                valueStoreId: valueStoreCad2.id
+                valueId: valueCad2.id
             },
             amount: 2000,
             currency: "CAD"
@@ -263,16 +254,16 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.equal(resp.body.messageCode, "InsufficientValue");
     });
 
-    it("409s transferring between valueStoreIds in the wrong currency", async () => {
+    it("409s transferring between valueIds in the wrong currency", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
             transactionId: "transfer-5",
             source: {
                 rail: "lightrail",
-                valueStoreId: valueStoreCad1.id
+                valueId: valueCad1.id
             },
             destination: {
                 rail: "lightrail",
-                valueStoreId: valueStoreCad2.id
+                valueId: valueCad2.id
             },
             amount: 1,
             currency: "XXX"
@@ -281,16 +272,16 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
     });
 
-    it("409s transferring from an invalid valueStoreId", async () => {
+    it("409s transferring from an invalid valueId", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
             transactionId: "transfer-6",
             source: {
                 rail: "lightrail",
-                valueStoreId: "idontexist"
+                valueId: "idontexist"
             },
             destination: {
                 rail: "lightrail",
-                valueStoreId: valueStoreCad2.id
+                valueId: valueCad2.id
             },
             amount: 1,
             currency: "CAD"
@@ -299,16 +290,16 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
     });
 
-    it("409s transferring to an invalid valueStoreId", async () => {
+    it("409s transferring to an invalid valueId", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
             transactionId: "transfer-7",
             source: {
                 rail: "lightrail",
-                valueStoreId: valueStoreCad1.id
+                valueId: valueCad1.id
             },
             destination: {
                 rail: "lightrail",
-                valueStoreId: "idontexist"
+                valueId: "idontexist"
             },
             amount: 1,
             currency: "CAD"
@@ -317,16 +308,16 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
     });
 
-    it("409s transferring from a valueStoreId in the wrong currency", async () => {
+    it("409s transferring from a valueId in the wrong currency", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
             transactionId: "transfer-8",
             source: {
                 rail: "lightrail",
-                valueStoreId: valueStoreUsd.id
+                valueId: valueUsd.id
             },
             destination: {
                 rail: "lightrail",
-                valueStoreId: valueStoreCad2.id
+                valueId: valueCad2.id
             },
             amount: 1,
             currency: "CAD"
@@ -335,16 +326,16 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
     });
 
-    it("409s transferring to a valueStoreId in the wrong currency", async () => {
+    it("409s transferring to a valueId in the wrong currency", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
             transactionId: "transfer-9",
             source: {
                 rail: "lightrail",
-                valueStoreId: valueStoreCad1.id
+                valueId: valueCad1.id
             },
             destination: {
                 rail: "lightrail",
-                valueStoreId: valueStoreUsd.id
+                valueId: valueUsd.id
             },
             amount: 1,
             currency: "CAD"
@@ -357,11 +348,11 @@ describe("/v2/transactions/transfer", () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
             source: {
                 rail: "lightrail",
-                valueStoreId: valueStoreCad1.id
+                valueId: valueCad1.id
             },
             destination: {
                 rail: "lightrail",
-                valueStoreId: valueStoreCad2.id
+                valueId: valueCad2.id
             },
             amount: 1,
             currency: "CAD"
@@ -374,11 +365,11 @@ describe("/v2/transactions/transfer", () => {
             transactionId: 123,
             source: {
                 rail: "lightrail",
-                valueStoreId: valueStoreCad1.id
+                valueId: valueCad1.id
             },
             destination: {
                 rail: "lightrail",
-                valueStoreId: valueStoreCad2.id
+                valueId: valueCad2.id
             },
             amount: 1,
             currency: "CAD"

@@ -48,13 +48,13 @@ export function compareTransactionPlanSteps(a: TransactionPlanStep, b: Transacti
 
 function compareLightrailTransactionPlanSteps(a: LightrailTransactionPlanStep, b: LightrailTransactionPlanStep): number {
     // TODO this logic is blocked on defining the value store types
-    if (a.valueStore.pretax && !b.valueStore.pretax) {
+    if (a.value.pretax && !b.value.pretax) {
         return aFirst;
     }
-    if (!a.valueStore.pretax && b.valueStore.pretax) {
+    if (!a.value.pretax && b.value.pretax) {
         return bFirst;
     }
-    return a.valueStore.id < b.valueStore.id ? aFirst : bFirst;
+    return a.value.id < b.value.id ? aFirst : bFirst;
 }
 
 function compareStripeTransactionPlanSteps(a: StripeTransactionPlanStep, b: StripeTransactionPlanStep): number {

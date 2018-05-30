@@ -13,17 +13,17 @@ import {QueryBuilder} from "knex";
 import {DbValue, Value} from "../../../model/Value";
 
 export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: string, parties: TransactionParty[]): Promise<TransactionPlanStep[]> {
-    const lightrailValueStoreIds = parties.filter(p => p.rail === "lightrail" && p.valueStoreId).map(p => (p as LightrailTransactionParty).valueStoreId);
+    const lightrailValueIds = parties.filter(p => p.rail === "lightrail" && p.valueId).map(p => (p as LightrailTransactionParty).valueId);
     const lightrailCodes = parties.filter(p => p.rail === "lightrail" && p.code).map(p => (p as LightrailTransactionParty).code);
-    const lightrailCustomerIds = parties.filter(p => p.rail === "lightrail" && p.customerId).map(p => (p as LightrailTransactionParty).customerId);
+    const lightrailcontactIds = parties.filter(p => p.rail === "lightrail" && p.contactId).map(p => (p as LightrailTransactionParty).contactId);
 
-    const lightrailValueStores = await getLightrailValueStores(auth, currency, lightrailValueStoreIds, lightrailCodes, lightrailCustomerIds);
-    const lightrailSteps = lightrailValueStores
+    const lightrailValues = await getLightrailValues(auth, currency, lightrailValueIds, lightrailCodes, lightrailcontactIds);
+    const lightrailSteps = lightrailValues
         .map((v): LightrailTransactionPlanStep => ({
             rail: "lightrail",
-            valueStore: v.valueStore,
+            value: v.value,
             codeLastFour: v.codeLastFour,
-            customerId: v.customerId,
+            contactId: v.contactId,
             amount: 0
         }));
 
@@ -56,8 +56,8 @@ export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.Auth
     return [...lightrailSteps, ...internalSteps, ...stripeSteps];
 }
 
-async function getLightrailValueStores(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: string, valueStoreIds: string[], codes: string[], customerIds: string[]): Promise<({valueStore: Value, codeLastFour: string, customerId: string})[]> {
-    if (!valueStoreIds.length && !codes.length && !customerIds.length) {
+async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: string, valueIds: string[], codes: string[], contactIds: string[]): Promise<({value: Value, codeLastFour: string, contactId: string})[]> {
+    if (!valueIds.length && !codes.length && !contactIds.length) {
         return [];
     }
 
@@ -66,10 +66,10 @@ async function getLightrailValueStores(auth: giftbitRoutes.jwtauth.Authorization
     // This is untested but it's approximately right.
     let query: QueryBuilder;
 
-    if (valueStoreIds.length) {
-        query = knex("ValueStores")
+    if (valueIds.length) {
+        query = knex("Values")
             .select("*")
-            .select(knex.raw("NULL as codeLastFour, NULL as customerId"))   // need NULL values here so it lines up for the union
+            .select(knex.raw("NULL as codeLastFour, NULL as contactId"))   // need NULL values here so it lines up for the union
             .where({
                 userId: auth.giftbitUserId,
                 currency,
@@ -78,30 +78,30 @@ async function getLightrailValueStores(auth: giftbitRoutes.jwtauth.Authorization
                 expired: false
             })
             .where(q => q.whereNull("uses").orWhere("uses", ">", 0))
-            .whereIn("valueStoreId", valueStoreIds);
+            .whereIn("valueId", valueIds);
     }
 
     if (codes.length) {
-        query = query ? query.unionAll(selectByCodes(auth, currency, codes)) : selectByCodes(auth, currency, codes)(knex("ValueStores"));
+        query = query ? query.unionAll(selectByCodes(auth, currency, codes)) : selectByCodes(auth, currency, codes)(knex("Values"));
     }
 
-    if (customerIds.length) {
-        query = query ? query.unionAll(selectByCustomerIds(auth, currency, customerIds)) : selectByCustomerIds(auth, currency, customerIds)(knex("ValueStores"));
+    if (contactIds.length) {
+        query = query ? query.unionAll(selectBycontactIds(auth, currency, contactIds)) : selectBycontactIds(auth, currency, contactIds)(knex("Values"));
     }
 
-    const valueStores: (DbValue & {codeLastFour: string, customerId: string})[] = await query;
-    return valueStores.map(v => ({
-        valueStore: DbValue.toValue(v),
+    const values: (DbValue & {codeLastFour: string, contactId: string})[] = await query;
+    return values.map(v => ({
+        value: DbValue.toValue(v),
         codeLastFour: v.codeLastFour,
-        customerId: v.customerId
+        contactId: v.contactId
     }));
 }
 
 function selectByCodes(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: string, codes: string[]): (query: QueryBuilder) => QueryBuilder {
-    return query => query.select("*", "ValueStoreAccess.codeLastFour as codeLastFour", "ValueStoreAccess.customerId as customerId")
-        .join("ValueStoreAccess", {
-            "ValueStores.userId": "ValueStoreAccess.userId",
-            "ValueStores.valueStoreId": "ValueStoreAccess.valueStoreId"
+    return query => query.select("*", "ValueAccess.codeLastFour as codeLastFour", "ValueAccess.contactId as contactId")
+        .join("ValueAccess", {
+            "Values.userId": "ValueAccess.userId",
+            "Values.valueId": "ValueAccess.valueId"
         })
         .where({
             userId: auth.giftbitUserId,
@@ -111,14 +111,14 @@ function selectByCodes(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency:
             expired: false
         })
         .where(q => q.whereNull("uses").orWhere("uses", ">", 0))
-        .whereIn("ValueStoreAccess.code", codes);
+        .whereIn("ValueAccess.code", codes);
 }
 
-function selectByCustomerIds(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: string, customerIds: string[]): (query: QueryBuilder) => QueryBuilder {
-    return query => query.select("*", "ValueStoreAccess.codeLastFour as codeLastFour", "ValueStoreAccess.customerId as customerId")
-        .join("ValueStoreAccess", {
-            "ValueStores.userId": "ValueStoreAccess.userId",
-            "ValueStores.valueStoreId": "ValueStoreAccess.valueStoreId"
+function selectBycontactIds(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: string, contactIds: string[]): (query: QueryBuilder) => QueryBuilder {
+    return query => query.select("*", "ValueAccess.codeLastFour as codeLastFour", "ValueAccess.contactId as contactId")
+        .join("ValueAccess", {
+            "Values.userId": "ValueAccess.userId",
+            "Values.valueId": "ValueAccess.valueId"
         })
         .where({
             userId: auth.giftbitUserId,
@@ -128,5 +128,5 @@ function selectByCustomerIds(auth: giftbitRoutes.jwtauth.AuthorizationBadge, cur
             expired: false
         })
         .where(q => q.whereNull("uses").orWhere("uses", ">", 0))
-        .whereIn("ValueStoreAccess.customerId", customerIds);
+        .whereIn("ValueAccess.contactId", contactIds);
 }

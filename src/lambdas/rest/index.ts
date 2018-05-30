@@ -3,8 +3,8 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {installContactsRest} from "./contacts";
 import {installTransactionsRest} from "./transactions/transactions";
-import {installValueStoresRest} from "./values";
-import {installValueStoreTemplatesRest} from "./programs";
+import {installValuesRest} from "./values";
+import {installValueTemplatesRest} from "./programs";
 import {installCurrenciesRest} from "./currencies";
 
 const router = new cassava.Router();
@@ -22,9 +22,9 @@ router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({se
 export function installRest(router: cassava.Router): void {
     installCurrenciesRest(router);
     installContactsRest(router);
-    installValueStoresRest(router);
+    installValuesRest(router);
     installTransactionsRest(router);
-    installValueStoreTemplatesRest(router);
+    installValueTemplatesRest(router);
 }
 
 installRest(router);
