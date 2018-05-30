@@ -7,7 +7,7 @@ import {LightrailTransactionStep, Transaction} from "../../../model/Transaction"
 import {installRest} from "../index";
 import {Currency} from "../../../model/Currency";
 
-describe("/v2/transactions/transfer", () => {
+describe.skip("/v2/transactions/transfer", () => {
 
     const router = new cassava.Router();
 

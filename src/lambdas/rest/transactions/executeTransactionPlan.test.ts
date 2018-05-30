@@ -8,7 +8,7 @@ import {TransactionPlan} from "./TransactionPlan";
 import {executeTransactionPlan} from "./executeTransactionPlan";
 import {DbCurrency} from "../../../model/Currency";
 
-describe("rest/transactions/executeTransactionPlan", () => {
+describe.skip("rest/transactions/executeTransactionPlan", () => {
 
     before(async function () {
         await testUtils.resetDb();

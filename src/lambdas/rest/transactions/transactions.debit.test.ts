@@ -7,7 +7,7 @@ import {Transaction} from "../../../model/Transaction";
 import {installRest} from "../index";
 import {Currency} from "../../../model/Currency";
 
-describe("/v2/transactions/debit", () => {
+describe.skip("/v2/transactions/debit", () => {
 
     const router = new cassava.Router();
 

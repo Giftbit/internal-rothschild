@@ -5,7 +5,7 @@ import * as chai from "chai";
 import {Program} from "../../model/Program";
 import {installRest} from "./index";
 
-describe.skip("/v2/programs (this all needs to become programs anyways)", () => {
+describe.skip("/v2/programs", () => {
 
     const router = new cassava.Router();
 

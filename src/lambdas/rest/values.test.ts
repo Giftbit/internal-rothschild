@@ -9,7 +9,7 @@ import {Currency} from "../../model/Currency";
 import {installRest} from "./index";
 chai.use(chaiExclude);
 
-describe("/v2/values/", () => {
+describe.skip("/v2/values/", () => {
 
     const router = new cassava.Router();
 
