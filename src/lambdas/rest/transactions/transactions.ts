@@ -9,7 +9,7 @@ import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {executeTransactionPlanner} from "./executeTransactionPlan";
 import {LightrailTransactionPlanStep} from "./TransactionPlan";
 import {Pagination, PaginationParams} from "../../../model/Pagination";
-import {getKnexRead} from "../../../dbUtils";
+import {getKnexRead, nowInDbPrecision} from "../../../dbUtils";
 import getPaginationParams = Pagination.getPaginationParams;
 
 export function installTransactionsRest(router: cassava.Router): void {
@@ -20,6 +20,16 @@ export function installTransactionsRest(router: cassava.Router): void {
             auth.requireIds("giftbitUserId");
             return {
                 body: await getTransactions(auth, getPaginationParams(evt))
+            };
+        });
+
+    router.route("/v2/transactions/{transactionId}")
+        .method("GET")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("giftbitUserId");
+            return {
+                body: await getTransaction(auth, evt.pathParameters.transactionId)
             };
         });
 
@@ -98,6 +108,25 @@ async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, p
             offset: pagination.offset
         }
     };
+}
+
+export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, transactionId: string): Promise<Transaction> {
+    auth.requireIds("giftbitUserId");
+
+    const knex = await getKnexRead();
+    const res: DbTransaction[] = await knex("Transactions")
+        .select()
+        .where({
+            userId: auth.giftbitUserId,
+            transactionId
+        });
+    if (res.length === 0) {
+        throw new cassava.RestError(404);
+    }
+    if (res.length > 1) {
+        throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
+    }
+    return DbTransaction.toTransaction(res[0]);
 }
 
 async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CreditRequest): Promise<Transaction> {
