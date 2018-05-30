@@ -21,7 +21,7 @@ describe.skip("/v2/valueStoreTemplate/ (this all needs to become programs anyway
         chai.assert.deepEqual(resp.body, {
             valueStoreTemplates: [],
             pagination: {
-                count: 0,
+                totalCount: 0,
                 limit: 100,
                 maxLimit: 1000,
                 offset: 0

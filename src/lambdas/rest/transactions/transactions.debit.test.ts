@@ -5,7 +5,6 @@ import * as testUtils from "../../../testUtils";
 import {ValueStore} from "../../../model/ValueStore";
 import {Transaction} from "../../../model/Transaction";
 import {installRest} from "../index";
-import {Currency} from "../../../model/Currency";
 
 describe("/v2/transactions/debit", () => {
 
@@ -15,14 +14,14 @@ describe("/v2/transactions/debit", () => {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
         installRest(router);
-    });
 
-    const currency: Currency = {
-        code: "CAD",
-        name: "Hockey sticks",
-        symbol: "$",
-        decimalPlaces: 2
-    };
+        await testUtils.addCurrency(router, {
+            code: "CAD",
+            name: "Canadian bucks",
+            symbol: "$",
+            decimalPlaces: 2
+        });
+    });
 
     const valueStore1: Partial<ValueStore> = {
         valueStoreId: "vs-debit-1",
@@ -32,9 +31,6 @@ describe("/v2/transactions/debit", () => {
     };
 
     it("can debit by valueStoreId", async () => {
-        const postCurrencyResp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/currencies", "POST", currency);
-        chai.assert.equal(postCurrencyResp.statusCode, 201, `body=${JSON.stringify(postCurrencyResp.body)}`);
-
         const postValueStoreResp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/valueStores", "POST", valueStore1);
         chai.assert.equal(postValueStoreResp.statusCode, 201, `body=${JSON.stringify(postValueStoreResp.body)}`);
 
@@ -64,7 +60,8 @@ describe("/v2/transactions/debit", () => {
                     valueAfter: 401,
                     valueChange: -599
                 }
-            ]
+            ],
+            createdDate: null
         }, ["createdDate"]);
 
         const getValueStoreResp = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${valueStore1.valueStoreId}`, "GET");
@@ -114,7 +111,8 @@ describe("/v2/transactions/debit", () => {
                     valueAfter: 101,
                     valueChange: -300
                 }
-            ]
+            ],
+            createdDate: null
         }, ["createdDate"]);
 
         const getValueStoreResp = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${valueStore1.valueStoreId}`, "GET");
@@ -150,7 +148,8 @@ describe("/v2/transactions/debit", () => {
                     valueAfter: 0,
                     valueChange: -401
                 }
-            ]
+            ],
+            createdDate: null
         }, ["createdDate"]);
 
         const getValueStoreResp = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${valueStore1.valueStoreId}`, "GET");

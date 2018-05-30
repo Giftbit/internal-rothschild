@@ -2,9 +2,10 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as fs from "fs";
 import * as mysql from "mysql2/promise";
-import papaparse = require("papaparse");
 import * as path from "path";
 import {getDbCredentials} from "./dbUtils";
+import {Currency} from "./model/Currency";
+import papaparse = require("papaparse");
 
 if (!process.env["TEST_ENV"]) {
     console.log("Env var TEST_ENV is undefined.  This is not a test environment!");
@@ -128,4 +129,11 @@ export async function testAuthedCsvRequest<T>(router: cassava.Router, url: strin
         headers: resp.headers,
         body: parseRes.data
     };
+}
+
+export async function addCurrency(router: cassava.Router, currency: Currency): Promise<Currency> {
+    const resp = await testAuthedRequest<Currency>(router, "/v2/currencies", "POST", currency);
+    chai.assert.equal(resp.statusCode, 201, `body=${JSON.stringify(resp.body)}`);
+    chai.assert.deepEqual(resp.body, currency);
+    return resp.body;
 }

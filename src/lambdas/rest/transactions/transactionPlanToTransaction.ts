@@ -1,13 +1,18 @@
 import {
     InternalTransactionStep,
-    LightrailTransactionStep, StripeTransactionStep, Transaction,
+    LightrailTransactionStep,
+    StripeTransactionStep,
+    Transaction,
     TransactionStep,
 } from "../../../model/Transaction";
 import {
     InternalTransactionPlanStep,
-    LightrailTransactionPlanStep, StripeTransactionPlanStep, TransactionPlan,
+    LightrailTransactionPlanStep,
+    StripeTransactionPlanStep,
+    TransactionPlan,
     TransactionPlanStep
 } from "./TransactionPlan";
+import {nowInDbPrecision} from "../../../dbUtils";
 
 export function transactionPlanToTransaction(plan: TransactionPlan, simulated?: boolean): Transaction {
     const transaction: Transaction = {
@@ -15,7 +20,8 @@ export function transactionPlanToTransaction(plan: TransactionPlan, simulated?: 
         transactionType: plan.transactionType,
         cart: plan.cart,
         steps: plan.steps.map(transactionPlanStepToTransactionStep),
-        remainder: plan.remainder
+        remainder: plan.remainder,
+        createdDate: nowInDbPrecision()
     };
     if (simulated) {
         transaction.simulated = true;

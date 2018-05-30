@@ -1,12 +1,11 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import * as chai from "chai";
-import * as transactions from "./transactions";
-import * as valueStores from "../valueStores";
 import * as testUtils from "../../../testUtils";
 import {Transaction} from "../../../model/Transaction";
 import {ValueStore} from "../../../model/ValueStore";
 import {DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
+import {installRest} from "../index";
 
 describe("/v2/transactions", () => {
     const router = new cassava.Router();
@@ -14,8 +13,14 @@ describe("/v2/transactions", () => {
     before(async function () {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
-        transactions.installTransactionsRest(router);
-        valueStores.installValueStoresRest(router);
+        installRest(router);
+
+        await testUtils.addCurrency(router, {
+            code: "CAD",
+            name: "Canadian bucks",
+            symbol: "$",
+            decimalPlaces: 2
+        });
     });
 
     it("can retrieve 0 transactions", async () => {
@@ -24,7 +29,7 @@ describe("/v2/transactions", () => {
         chai.assert.deepEqual(resp.body, {
             transactions: [],
             pagination: {
-                count: 0,
+                totalCount: 0,
                 limit: 100,
                 maxLimit: 1000,
                 offset: 0
@@ -76,7 +81,7 @@ describe("/v2/transactions", () => {
         const transferResp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/transactions/transfer", "POST", transfer1);
         chai.assert.equal(transferResp.statusCode, 201, `body=${JSON.stringify(transferResp.body)}`);
 
-        const resp = await testUtils.testAuthedRequest(router, "/v2/transactions", "GET");
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions", "GET");
 
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.equal(resp.body.transactions.length, 1);
@@ -87,9 +92,7 @@ describe("/v2/transactions", () => {
         const debitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", debit1);
         chai.assert.equal(debitResp.statusCode, 201, `body=${JSON.stringify(debitResp.body)}`);
 
-
-        const resp = await testUtils.testAuthedRequest(router, "/v2/transactions", "GET");
-
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions", "GET");
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.equal(resp.body.transactions.length, 2);
         chai.assert.equal(resp.body.transactions[0].steps.length, 2);
@@ -98,7 +101,7 @@ describe("/v2/transactions", () => {
 
     describe.skip("get transaction by id", () => {
         it("can get a transaction by id", async () => {
-            const resp = await testUtils.testAuthedRequest(router, `/v2/transactions/${transfer1.transactionId}`, "GET");
+            const resp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transfer1.transactionId}`, "GET");
             chai.assert.equal(resp.statusCode, 200);
             chai.assert.equal(resp.body.transactionId, transfer1.transactionId, `body=${JSON.stringify(resp.body)}`);
         });

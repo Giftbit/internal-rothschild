@@ -8,8 +8,9 @@ import {buildOrderTransactionPlan} from "./buildOrderTransactionPlan";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {executeTransactionPlanner} from "./executeTransactionPlan";
 import {LightrailTransactionPlanStep} from "./TransactionPlan";
-import {getPaginationParams, Pagination, PaginationParams} from "../../../model/Pagination";
+import {Pagination, PaginationParams} from "../../../model/Pagination";
 import {getKnexRead} from "../../../dbUtils";
+import getPaginationParams = Pagination.getPaginationParams;
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions")
@@ -91,7 +92,7 @@ async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, p
     return {
         transactions: transacs,
         pagination: {
-            count: res.length,
+            totalCount: res.length,
             limit: pagination.limit,
             maxLimit: pagination.maxLimit,
             offset: pagination.offset
