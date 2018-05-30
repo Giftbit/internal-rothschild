@@ -105,6 +105,29 @@ describe("/v2/transactions", () => {
         chai.assert.equal(resp.body.transactionId, transfer1.transactionId, `body=${JSON.stringify(resp.body)}`);
     });
 
-    describe.skip("filter transactions by query params", () => {
+    describe("filter transactions by query params", () => {
+        it("can filter by type", async () => {
+            const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions?transactionType=transfer", "GET");
+            chai.assert.equal(resp.statusCode, 200);
+            chai.assert.equal(resp.body.transactions.length, 1);
+            chai.assert.equal(resp.body.transactions[0].steps.length, 2);
+        });
+
+        it("can filter by minCreatedDate", async () => {
+            const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions?minCreatedDate=2018-01-01", "GET");
+            chai.assert.equal(resp.statusCode, 200);
+            chai.assert.equal(resp.body.transactions.length, 2);
+            chai.assert.equal(resp.body.transactions[0].steps.length, 2);
+            chai.assert.equal(resp.body.transactions[1].steps.length, 1);
+        });
+
+        it("can filter by maxCreatedDate", async () => {
+            const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions?maxCreatedDate=2018-01-01", "GET");
+            chai.assert.equal(resp.statusCode, 200);
+            chai.assert.equal(resp.body.transactions.length, 0);
+        });
+    });
+
+    describe.skip("filter transactions by pagination params", () => {
     });
 });

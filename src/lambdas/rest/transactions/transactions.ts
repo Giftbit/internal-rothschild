@@ -9,8 +9,10 @@ import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {executeTransactionPlanner} from "./executeTransactionPlan";
 import {LightrailTransactionPlanStep} from "./TransactionPlan";
 import {Pagination, PaginationParams} from "../../../model/Pagination";
-import {getKnexRead, nowInDbPrecision} from "../../../dbUtils";
+import {getKnexRead} from "../../../dbUtils";
+import {Filters, TransactionFilterParams} from "../../../model/Filter";
 import getPaginationParams = Pagination.getPaginationParams;
+import getTransactionFilterParams = Filters.getTransactionFilterParams;
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions")
@@ -19,7 +21,7 @@ export function installTransactionsRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
             return {
-                body: await getTransactions(auth, getPaginationParams(evt))
+                body: await getTransactions(auth, getPaginationParams(evt), getTransactionFilterParams(evt))
             };
         });
 
@@ -82,13 +84,28 @@ export function installTransactionsRest(router: cassava.Router): void {
         });
 }
 
-async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ transactions: Transaction[], pagination: Pagination }> {
+async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams, filter: TransactionFilterParams): Promise<{ transactions: Transaction[], pagination: Pagination }> {
     auth.requireIds("giftbitUserId");
     const knex = await getKnexRead();
     const res: DbTransaction[] = await knex("Transactions")
         .select()
         .where({
             userId: auth.giftbitUserId
+        })
+        .modify(function (queryBuilder) {
+            if (filter.transactionType) {
+                queryBuilder.where("transactionType", filter.transactionType);
+            }
+        })
+        .modify(function (queryBuilder) {
+            if (filter.minCreatedDate) {
+                queryBuilder.where("createdDate", ">", filter.minCreatedDate);
+            }
+        })
+        .modify(function (queryBuilder) {
+            if (filter.maxCreatedDate) {
+                queryBuilder.where("createdDate", "<", filter.maxCreatedDate);
+            }
         })
         .orderBy("transactionId")
         .limit(pagination.limit)
