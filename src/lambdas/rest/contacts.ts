@@ -87,7 +87,6 @@ export function installContactsRest(router: cassava.Router): void {
         });
 }
 
-// TODO this should be filterable by firstName, lastName, email (includes, ignore case)
 export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ contacts: Contact[], pagination: Pagination }> {
     auth.requireIds("giftbitUserId");
 
@@ -191,7 +190,7 @@ const contactSchema: jsonschema.Schema = {
     properties: {
         id: {
             type: "string",
-            maxLength: 255,
+            maxLength: 64,
             minLength: 1
         },
         firstName: {

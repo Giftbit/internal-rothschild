@@ -5,6 +5,7 @@ export interface Value {
     currency: string;
     balance: number | null;
     uses: number | null;
+    program: string | null;
     code: string | null;
     contact: string | null;
     pretax: boolean;
@@ -36,6 +37,7 @@ export namespace Value {
             currency: v.currency,
             balance: v.balance,
             uses: v.uses,
+            progam: v.program,
             code: v.code,
             codeHashed: null,
             codeLastFour: null,
@@ -61,6 +63,7 @@ export interface DbValue {
     currency: string;
     balance: number | null;
     uses: number | null;
+    progam: string | null;
     code: string | null;
     codeHashed: string | null;
     codeLastFour: string | null;
@@ -85,6 +88,7 @@ export namespace DbValue {
             currency: v.currency,
             balance: v.balance,
             uses: v.uses,
+            program: v.progam,
             contact: v.contact,
             code: v.code || (v.codeLastFour && "…" + v.codeLastFour) || null,
             pretax: v.pretax,

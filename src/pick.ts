@@ -17,7 +17,7 @@ export function pick<T>(obj: T, ...keys: (keyof T)[]): Partial<T> {
     return res;
 }
 
-export function pickOrDefault<T>(obj: T, defaults: T): T {
+export function pickOrDefault<T>(obj: Partial<T>, defaults: T): T {
     const res: Partial<T> = {};
     const keys = Object.keys(defaults);
 
