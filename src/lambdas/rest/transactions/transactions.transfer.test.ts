@@ -7,7 +7,7 @@ import {LightrailTransactionStep, Transaction} from "../../../model/Transaction"
 import {installRest} from "../index";
 import {Currency} from "../../../model/Currency";
 
-describe.skip("/v2/transactions/transfer", () => {
+describe("/v2/transactions/transfer", () => {
 
     const router = new cassava.Router();
 
@@ -53,7 +53,7 @@ describe.skip("/v2/transactions/transfer", () => {
         chai.assert.equal(postValue2Resp.statusCode, 201, `body=${JSON.stringify(postValue1Resp.body)}`);
 
         const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
-            transactionId: "transfer-1",
+            id: "transfer-1",
             source: {
                 rail: "lightrail",
                 valueId: valueCad1.id
@@ -108,7 +108,7 @@ describe.skip("/v2/transactions/transfer", () => {
 
     it("409s on reusing a transactionId", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
-            transactionId: "transfer-1",    // same as above
+            id: "transfer-1",    // same as above
             source: {
                 rail: "lightrail",
                 valueId: valueCad1.id
@@ -126,7 +126,7 @@ describe.skip("/v2/transactions/transfer", () => {
 
     it("can simulate a transfer between valueIds", async () => {
         const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
-            transactionId: "transfer-2",
+            id: "transfer-2",
             source: {
                 rail: "lightrail",
                 valueId: valueCad1.id
@@ -182,7 +182,7 @@ describe.skip("/v2/transactions/transfer", () => {
 
     it("can transfer between valueIds with allowRemainder", async () => {
         const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
-            transactionId: "transfer-3",
+            id: "transfer-3",
             source: {
                 rail: "lightrail",
                 valueId: valueCad1.id
@@ -238,7 +238,7 @@ describe.skip("/v2/transactions/transfer", () => {
 
     it("409s transferring between valueIds where the source has insufficient value", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
-            transactionId: "transfer-4",
+            id: "transfer-4",
             source: {
                 rail: "lightrail",
                 valueId: valueCad1.id
@@ -256,7 +256,7 @@ describe.skip("/v2/transactions/transfer", () => {
 
     it("409s transferring between valueIds in the wrong currency", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
-            transactionId: "transfer-5",
+            id: "transfer-5",
             source: {
                 rail: "lightrail",
                 valueId: valueCad1.id
@@ -274,7 +274,7 @@ describe.skip("/v2/transactions/transfer", () => {
 
     it("409s transferring from an invalid valueId", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
-            transactionId: "transfer-6",
+            id: "transfer-6",
             source: {
                 rail: "lightrail",
                 valueId: "idontexist"
@@ -292,7 +292,7 @@ describe.skip("/v2/transactions/transfer", () => {
 
     it("409s transferring to an invalid valueId", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
-            transactionId: "transfer-7",
+            id: "transfer-7",
             source: {
                 rail: "lightrail",
                 valueId: valueCad1.id
@@ -310,7 +310,7 @@ describe.skip("/v2/transactions/transfer", () => {
 
     it("409s transferring from a valueId in the wrong currency", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
-            transactionId: "transfer-8",
+            id: "transfer-8",
             source: {
                 rail: "lightrail",
                 valueId: valueUsd.id
@@ -328,7 +328,7 @@ describe.skip("/v2/transactions/transfer", () => {
 
     it("409s transferring to a valueId in the wrong currency", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
-            transactionId: "transfer-9",
+            id: "transfer-9",
             source: {
                 rail: "lightrail",
                 valueId: valueCad1.id
@@ -362,7 +362,7 @@ describe.skip("/v2/transactions/transfer", () => {
 
     it("422s transferring with an invalid transactionId", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
-            transactionId: 123,
+            id: 123,
             source: {
                 rail: "lightrail",
                 valueId: valueCad1.id

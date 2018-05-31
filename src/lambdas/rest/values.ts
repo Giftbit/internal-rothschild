@@ -124,7 +124,7 @@ async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: stri
         .select()
         .where({
             userId: auth.giftbitUserId,
-            valueId: id
+            id: id
         });
     if (res.length === 0) {
         throw new cassava.RestError(404);

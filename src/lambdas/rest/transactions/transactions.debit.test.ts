@@ -6,7 +6,7 @@ import {Value} from "../../../model/Value";
 import {Transaction} from "../../../model/Transaction";
 import {installRest} from "../index";
 
-describe.skip("/v2/transactions/debit", () => {
+describe("/v2/transactions/debit", () => {
 
     const router = new cassava.Router();
 
@@ -29,7 +29,7 @@ describe.skip("/v2/transactions/debit", () => {
         balance: 1000
     };
 
-    it("can debit by valueId", async () => {
+    it("can debit by value ID", async () => {
         const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
         chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
 
@@ -42,6 +42,7 @@ describe.skip("/v2/transactions/debit", () => {
             amount: 599,
             currency: "CAD"
         });
+
         chai.assert.equal(postDebitResp.statusCode, 201, `body=${JSON.stringify(postDebitResp.body)}`);
         chai.assert.deepEqualExcluding(postDebitResp.body, {
             id: "debit-1",
@@ -81,7 +82,7 @@ describe.skip("/v2/transactions/debit", () => {
         chai.assert.equal(resp.body.messageCode, "TransactionExists");
     });
 
-    it("can simulate a debit by valueId", async () => {
+    it("can simulate a debit by value ID", async () => {
         const postDebitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
             id: "debit-2",
             source: {
@@ -117,7 +118,7 @@ describe.skip("/v2/transactions/debit", () => {
         chai.assert.equal(getValueResp.body.balance, 401, "the value did not actually change");
     });
 
-    it("can debit by valueId with allowRemainder", async () => {
+    it("can debit by value ID with allowRemainder", async () => {
         const postDebitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
             id: "debit-3",
             source: {
@@ -153,7 +154,7 @@ describe.skip("/v2/transactions/debit", () => {
         chai.assert.equal(getValueResp.body.balance, 0);
     });
 
-    it("409s debiting by valueId of the wrong currency", async () => {
+    it("409s debiting by value ID of the wrong currency", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/debit", "POST", {
             id: "debit-4",
             source: {
@@ -167,7 +168,7 @@ describe.skip("/v2/transactions/debit", () => {
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
     });
 
-    it("409s debiting by valueId for more money than is available", async () => {
+    it("409s debiting by value ID for more money than is available", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/debit", "POST", {
             id: "debit-5",
             source: {
@@ -181,7 +182,7 @@ describe.skip("/v2/transactions/debit", () => {
         chai.assert.equal(resp.body.messageCode, "InsufficientValue");
     });
 
-    it("409s debiting a valueId that does not exist", async () => {
+    it("409s debiting a value ID that does not exist", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/debit", "POST", {
             id: "debit-6",
             source: {
