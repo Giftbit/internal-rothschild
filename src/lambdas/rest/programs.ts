@@ -204,6 +204,7 @@ async function deleteProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
 
 const programSchema: jsonschema.Schema = {
     type: "object",
+    additionalProperties: false,
     properties: {
         id: {
             type: "string",

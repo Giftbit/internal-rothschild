@@ -55,6 +55,10 @@ export namespace Value {
     }
 
     export function toDbValueUpdate(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Partial<Value>): Partial<DbValue> {
+        if (v.canceled != null && !v.canceled) {
+            throw new giftbitRoutes.GiftbitRestError(422, "A Value cannot be uncanceled (cancel = false).", "UncancelValue");
+        }
+
         return pickDefined({
             contactId: v.contactId,
             active: v.active,

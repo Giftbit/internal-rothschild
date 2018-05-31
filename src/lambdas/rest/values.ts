@@ -6,8 +6,6 @@ import {getKnexWrite, getKnexRead, getSqlErrorConstraintName, nowInDbPrecision} 
 import {DbValue, Value} from "../../model/Value";
 import {pick, pickOrDefault} from "../../pick";
 import {csvSerializer} from "../../serializers";
-import {Contact} from "../../model/Contact";
-import {updateContact} from "./contacts";
 
 export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
@@ -200,6 +198,7 @@ async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
 
 const valueSchema: jsonschema.Schema = {
     type: "object",
+    additionalProperties: false,
     properties: {
         id: {
             type: "string",
@@ -296,78 +295,11 @@ const valueSchema: jsonschema.Schema = {
 
 const valueUpdateSchema: jsonschema.Schema = {
     type: "object",
+    additionalProperties: false,
     properties: {
-        id: {
-            type: "string",
-            maxLength: 64,
-            minLength: 1
-        },
-        contactId: {
-            type: ["string", "null"],
-            minLength: 1,
-            maxLength: 64
-        },
-        active: {
-            type: "boolean"
-        },
+        ...pick(valueSchema.properties, "id", "contactId", "active", "frozen", "pretax", "redemptionRule", "valueRule", "startDate", "endDate", "metadata"),
         canceled: {
-            type: "boolean",
-            enum: [true]
-        },
-        frozen: {
             type: "boolean"
-        },
-        pretax: {
-            type: "boolean"
-        },
-        redemptionRule: {
-            oneOf: [
-                {
-                    type: "null"
-                },
-                {
-                    title: "Redemption rule",
-                    type: "object",
-                    properties: {
-                        rule: {
-                            type: "string"
-                        },
-                        explanation: {
-                            type: "string"
-                        }
-                    }
-                }
-            ]
-        },
-        valueRule: {
-            oneOf: [
-                {
-                    type: "null"
-                },
-                {
-                    title: "Value rule",
-                    type: "object",
-                    properties: {
-                        rule: {
-                            type: "string"
-                        },
-                        explanation: {
-                            type: "string"
-                        }
-                    }
-                }
-            ]
-        },
-        startDate: {
-            type: ["string", "null"],
-            format: "date-time"
-        },
-        endDate: {
-            type: ["string", "null"],
-            format: "date-time"
-        },
-        metadata: {
-            type: ["object", "null"]
         }
     },
     required: []

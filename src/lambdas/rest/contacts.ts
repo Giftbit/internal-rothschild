@@ -34,7 +34,7 @@ export function installContactsRest(router: cassava.Router): void {
             const now = nowInDbPrecision();
             const contact = {
                 ...pickOrDefault(evt.body, {
-                    id: evt.body.id,
+                    id: "",
                     firstName: null,
                     lastName: null,
                     email: null,
@@ -191,6 +191,7 @@ export async function deleteContact(auth: giftbitRoutes.jwtauth.AuthorizationBad
 
 const contactSchema: jsonschema.Schema = {
     type: "object",
+    additionalProperties: false,
     properties: {
         id: {
             type: "string",
