@@ -50,11 +50,7 @@ export namespace DbTransaction {
             .where("transactionId", t.id));
 
         for (let step of dbSteps) {
-            step.index = step.lightrailTransactionStepId ? step.lightrailTransactionStepId : step.stripeTransactionStepId ? step.stripeTransactionStepId : step.internalTransactionStepId ? step.internalTransactionStepId : null;
-            if (step.index == null) {
-                throw new Error(`Cannot read transaction step index of ${step}`);
-            }
-            step.index = step.index.split("-").pop();
+            step.index = step.id.split("-").pop();
         }
 
         dbSteps.sort((step1, step2) => {

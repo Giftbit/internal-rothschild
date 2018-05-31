@@ -78,7 +78,7 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 expired: false
             })
             .where(q => q.whereNull("uses").orWhere("uses", ">", 0))
-            .whereIn("valueId", valueIds);
+            .whereIn("id", valueIds);
     }
 
     if (codes.length) {

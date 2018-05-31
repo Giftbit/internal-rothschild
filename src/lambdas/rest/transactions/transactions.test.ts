@@ -7,7 +7,7 @@ import {DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
 import {installRest} from "../index";
 import {Value} from "../../../model/Value";
 
-describe.skip("/v2/transactions", () => {
+describe("/v2/transactions", () => {
     const router = new cassava.Router();
 
     before(async function () {
@@ -71,16 +71,15 @@ describe.skip("/v2/transactions", () => {
     };
 
     it("can retrieve 1 transactions with 2 steps", async () => {
-        const postValueStoreResp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/valueStores", "POST", value1);
-        chai.assert.equal(postValueStoreResp1.statusCode, 201, `body=${JSON.stringify(postValueStoreResp1.body)}`);
-        const postValueStoreResp2 = await testUtils.testAuthedRequest<Value>(router, "/v2/valueStores", "POST", value2);
-        chai.assert.equal(postValueStoreResp2.statusCode, 201, `body=${JSON.stringify(postValueStoreResp2.body)}`);
+        const postValueResp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
+        chai.assert.equal(postValueResp1.statusCode, 201, `body=${JSON.stringify(postValueResp1.body)}`);
+        const postValueResp2 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value2);
+        chai.assert.equal(postValueResp2.statusCode, 201, `body=${JSON.stringify(postValueResp2.body)}`);
 
         const transferResp = await testUtils.testAuthedRequest<Value>(router, "/v2/transactions/transfer", "POST", transfer1);
         chai.assert.equal(transferResp.statusCode, 201, `body=${JSON.stringify(transferResp.body)}`);
 
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions", "GET");
-
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.equal(resp.body.transactions.length, 1);
         chai.assert.equal(resp.body.transactions[0].steps.length, 2);
