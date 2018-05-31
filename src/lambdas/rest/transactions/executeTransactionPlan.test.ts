@@ -8,7 +8,7 @@ import {TransactionPlan} from "./TransactionPlan";
 import {executeTransactionPlan} from "./executeTransactionPlan";
 import {DbCurrency} from "../../../model/Currency";
 
-describe.skip("rest/transactions/executeTransactionPlan", () => {
+describe("rest/transactions/executeTransactionPlan", () => {
 
     before(async function () {
         await testUtils.resetDb();
@@ -87,7 +87,7 @@ describe.skip("rest/transactions/executeTransactionPlan", () => {
         const transactionsRes: any[] = await knex("Transactions")
             .where({
                 userId: auth.giftbitUserId,
-                transactionId: plan.id
+                id: plan.id
             });
         chai.assert.lengthOf(transactionsRes, 0);
     });
@@ -149,7 +149,7 @@ describe.skip("rest/transactions/executeTransactionPlan", () => {
         const transactionsRes: any[] = await knex("Transactions")
             .where({
                 userId: auth.giftbitUserId,
-                transactionId: plan.id
+                id: plan.id
             });
         chai.assert.lengthOf(transactionsRes, 0);
     });
