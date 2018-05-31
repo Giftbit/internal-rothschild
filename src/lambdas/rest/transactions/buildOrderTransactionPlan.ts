@@ -13,29 +13,29 @@ export function buildOrderTransactionPlan(order: OrderRequest, steps: Transactio
         const step = steps[stepIx];
         switch (step.rail) {
             case "lightrail":
-                if (step.valueStore.frozen || !step.valueStore.active || step.valueStore.expired || step.valueStore.uses === 0) {
+                if (step.value.frozen || !step.value.active || step.value.expired || step.value.uses === 0) {
                     // Ideally those won't be returned in the query for efficiency but it's good to be paranoid here.
                     break;
                 }
-                if (step.valueStore.startDate && step.valueStore.startDate > now) {
+                if (step.value.startDate && step.value.startDate > now) {
                     break;
                 }
-                if (step.valueStore.endDate && step.valueStore.endDate < now) {
+                if (step.value.endDate && step.value.endDate < now) {
                     break;
                 }
-                if (step.valueStore.redemptionRule) {
+                if (step.value.redemptionRule) {
                     const context = {
                         cart: order.cart
                     };
-                    if (!getRuleFromCache(step.valueStore.redemptionRule.rule).evaluateToBoolean(context)) {
+                    if (!getRuleFromCache(step.value.redemptionRule.rule).evaluateToBoolean(context)) {
                         break;
                     }
                 }
 
-                if (step.valueStore.valueRule) {
-                    step.amount = -Math.min(remainder, getRuleFromCache(step.valueStore.valueRule.rule).evaluateToNumber(context) | 0);
+                if (step.value.valueRule) {
+                    step.amount = -Math.min(remainder, getRuleFromCache(step.value.valueRule.rule).evaluateToNumber(context) | 0);
                 } else {
-                    step.amount = -Math.min(remainder, step.valueStore.value);
+                    step.amount = -Math.min(remainder, step.value.balance);
                 }
                 break;
             case "stripe":
@@ -53,7 +53,7 @@ export function buildOrderTransactionPlan(order: OrderRequest, steps: Transactio
     }
 
     return {
-        transactionId: order.transactionId,
+        id: order.id,
         transactionType: "order",
         cart,
         steps: steps,

@@ -1,9 +1,9 @@
 import * as stripe from "stripe";
 import {CartTransaction, TransactionType} from "../../../model/Transaction";
-import {ValueStore} from "../../../model/ValueStore";
+import {Value} from "../../../model/Value";
 
 export interface TransactionPlan {
-    transactionId: string;
+    id: string;
     transactionType: TransactionType;
     cart?: CartTransaction;
     steps: TransactionPlanStep[];
@@ -14,9 +14,9 @@ export type TransactionPlanStep = LightrailTransactionPlanStep | StripeTransacti
 
 export interface LightrailTransactionPlanStep {
     rail: "lightrail";
-    valueStore: ValueStore;
+    value: Value;
     codeLastFour: string | null;
-    customerId: string | null;
+    contactId: string | null;
     amount: number;
 }
 

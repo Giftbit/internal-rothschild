@@ -6,7 +6,7 @@ import {Currency} from "../../model/Currency";
 import {installRest} from ".";
 
 import chaiExclude = require("chai-exclude");
-import {ValueStore} from "../../model/ValueStore";
+import {Value} from "../../model/Value";
 chai.use(chaiExclude);
 
 describe("/v2/currencies", () => {
@@ -83,7 +83,7 @@ describe("/v2/currencies", () => {
     });
 
     it("404s on getting invalid currency", async () => {
-        const resp = await testUtils.testAuthedRequest<Currency>(router, `/v2/currencies/iamnotavalidcustomerid`, "GET");
+        const resp = await testUtils.testAuthedRequest<Currency>(router, `/v2/currencies/iamnotavalidcurrency`, "GET");
         chai.assert.equal(resp.statusCode, 404);
     });
 
@@ -111,16 +111,14 @@ describe("/v2/currencies", () => {
         const resp = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", funbux);
         chai.assert.equal(resp.statusCode, 201, `body=${JSON.stringify(resp.body)}`);
 
-        const valueStore1: Partial<ValueStore> = {
-            valueStoreId: "1",
-            valueStoreType: "GIFTCARD",
+        const value1: Partial<Value> = {
+            id: "1",
             currency: funbux.code,
-            value: 5000
+            balance: 5000
         };
 
-        const resp2 = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/valueStores", "POST", valueStore1);
+        const resp2 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
         chai.assert.equal(resp2.statusCode, 201, `body=${JSON.stringify(resp2.body)}`);
-
 
         const resp3 = await testUtils.testAuthedRequest<any>(router, `/v2/currencies/${funbux.code}`, "DELETE");
         chai.assert.equal(resp3.statusCode, 409);

@@ -3,7 +3,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {getKnexRead} from "../dbUtils";
 
 export interface Transaction {
-    transactionId: string;
+    id: string;
     transactionType: TransactionType;
     cart?: CartTransaction;
     steps: TransactionStep[];
@@ -93,14 +93,13 @@ export type TransactionStep = LightrailTransactionStep | StripeTransactionStep |
 
 export interface LightrailTransactionStep {
     rail: "lightrail";
-    valueStoreId: string;
-    valueStoreType: string;
+    valueId: string;
     currency: string;
-    customerId?: string;
+    contactId?: string;
     codeLastFour?: string;
-    valueBefore: number;
-    valueAfter: number;
-    valueChange: number;
+    balanceBefore: number;
+    balanceAfter: number;
+    balanceChange: number;
 }
 
 export interface StripeTransactionStep {
@@ -113,7 +112,7 @@ export interface StripeTransactionStep {
 export interface InternalTransactionStep {
     rail: "internal";
     id: string;
-    valueBefore: number;
-    valueAfter: number;
-    valueChange: number;
+    balanceBefore: number;
+    balanceAfter: number;
+    balanceChange: number;
 }

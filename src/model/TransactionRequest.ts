@@ -1,5 +1,5 @@
 export interface OrderRequest {
-    transactionId: string;
+    id: string;
     cart: Cart;
     currency: string;
     sources: TransactionParty[];
@@ -9,7 +9,7 @@ export interface OrderRequest {
 }
 
 export interface CreditRequest {
-    transactionId: string;
+    id: string;
     destination: TransactionParty;
     amount: number;
     currency: string;
@@ -18,7 +18,7 @@ export interface CreditRequest {
 }
 
 export interface DebitRequest {
-    transactionId: string;
+    id: string;
     source: TransactionParty;
     amount: number;
     currency: string;
@@ -35,9 +35,9 @@ export type TransactionParty = LightrailTransactionParty | StripeTransactionPart
 
 export interface LightrailTransactionParty {
     rail: "lightrail";
-    customerId?: string;
+    contactId?: string;
     code?: string;
-    valueStoreId?: string;
+    valueId?: string;
 }
 
 export interface StripeTransactionParty {

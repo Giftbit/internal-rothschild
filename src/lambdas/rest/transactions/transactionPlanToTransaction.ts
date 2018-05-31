@@ -16,7 +16,7 @@ import {nowInDbPrecision} from "../../../dbUtils";
 
 export function transactionPlanToTransaction(plan: TransactionPlan, simulated?: boolean): Transaction {
     const transaction: Transaction = {
-        transactionId: plan.transactionId,
+        id: plan.id,
         transactionType: plan.transactionType,
         cart: plan.cart,
         steps: plan.steps.map(transactionPlanStepToTransactionStep),
@@ -43,14 +43,13 @@ function transactionPlanStepToTransactionStep(step: TransactionPlanStep): Transa
 function lightrailTransactionPlanStepToTransactionStep(step: LightrailTransactionPlanStep): LightrailTransactionStep {
     return {
         rail: "lightrail",
-        valueStoreId: step.valueStore.valueStoreId,
-        valueStoreType: step.valueStore.valueStoreType,
-        currency: step.valueStore.currency,
-        customerId: step.customerId,
+        valueId: step.value.id,
+        currency: step.value.currency,
+        contactId: step.contactId,
         codeLastFour: step.codeLastFour,
-        valueBefore: step.valueStore.value,
-        valueAfter: step.valueStore.value + step.amount,
-        valueChange: step.amount
+        balanceBefore: step.value.balance,
+        balanceAfter: step.value.balance + step.amount,
+        balanceChange: step.amount
     };
 }
 
@@ -70,8 +69,8 @@ function internalTransactionPlanStepToTransactionStep(step: InternalTransactionP
     return {
         rail: "internal",
         id: step.internalId,
-        valueBefore: step.value,
-        valueAfter: step.value + step.amount,
-        valueChange: step.amount
+        balanceBefore: step.value,
+        balanceAfter: step.value + step.amount,
+        balanceChange: step.amount
     };
 }
