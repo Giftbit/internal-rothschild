@@ -140,7 +140,7 @@ const valueSchema: jsonschema.Schema = {
     properties: {
         id: {
             type: "string",
-            maxLength: 64,
+            maxLength: 32,
             minLength: 1
         },
         currency: {
@@ -154,9 +154,9 @@ const valueSchema: jsonschema.Schema = {
         uses: {
             type: ["number", "null"]
         },
-        program: {
+        programId: {
             type: ["string", "null"],
-            maxLength: 64,
+            maxLength: 32,
             minLength: 1
         },
         code: {
@@ -164,10 +164,10 @@ const valueSchema: jsonschema.Schema = {
             minLength: 1,
             maxLength: 255
         },
-        contact: {
+        contactId: {
             type: ["string", "null"],
             minLength: 1,
-            maxLength: 64
+            maxLength: 32
         },
         pretax: {
             type: "boolean"

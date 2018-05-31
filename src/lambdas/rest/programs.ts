@@ -207,7 +207,7 @@ const programSchema: jsonschema.Schema = {
     properties: {
         id: {
             type: "string",
-            maxLength: 64,
+            maxLength: 32,
             minLength: 1
         },
         name: {

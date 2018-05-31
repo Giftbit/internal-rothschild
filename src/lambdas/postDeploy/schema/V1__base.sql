@@ -8,7 +8,7 @@
 
 CREATE TABLE rothschild.Contacts (
   userId      VARCHAR(32) NOT NULL,
-  id          VARCHAR(64) NOT NULL,
+  id          VARCHAR(32) NOT NULL,
   email       VARCHAR(320),
   firstName   NVARCHAR(255),
   lastName    NVARCHAR(255),
@@ -29,7 +29,7 @@ CREATE TABLE rothschild.Currencies (
 
 CREATE TABLE rothschild.Programs (
   userId               VARCHAR(32) NOT NULL,
-  id                   VARCHAR(64) NOT NULL,
+  id                   VARCHAR(32) NOT NULL,
   name                 TEXT        NOT NULL,
   currency             VARCHAR(16) NOT NULL,
   discount             BOOL        NOT NULL,
@@ -52,7 +52,7 @@ CREATE TABLE rothschild.Programs (
 
 CREATE TABLE rothschild.ProgramTags (
   userId    VARCHAR(32) NOT NULL,
-  programId VARCHAR(64) NOT NULL,
+  programId VARCHAR(32) NOT NULL,
   tag       VARCHAR(32) NOT NULL,
   PRIMARY KEY pk_ProgramTags (userId, programId, tag),
   INDEX ix_ProgramTags_tag (userId, tag),
@@ -61,15 +61,15 @@ CREATE TABLE rothschild.ProgramTags (
 
 CREATE TABLE rothschild.Values (
   userId         VARCHAR(32) NOT NULL,
-  id             VARCHAR(64) NOT NULL,
+  id             VARCHAR(32) NOT NULL,
   currency       VARCHAR(16) NOT NULL,
   balance        INT,
   uses           INT,
-  programId      VARCHAR(64),
+  programId      VARCHAR(32),
   code           VARCHAR(255),
   codeHashed     CHAR(255),
   codeLastFour   VARCHAR(4),
-  contactId      VARCHAR(64),
+  contactId      VARCHAR(32),
   pretax         BOOL        NOT NULL,
   active         BOOL        NOT NULL,
   expired        BOOL        NOT NULL,
@@ -91,7 +91,7 @@ CREATE TABLE rothschild.Values (
 
 CREATE TABLE rothschild.ValueTags (
   userId  VARCHAR(32) NOT NULL,
-  valueId VARCHAR(64) NOT NULL,
+  valueId VARCHAR(32) NOT NULL,
   tag     VARCHAR(32) NOT NULL,
   PRIMARY KEY pk_ValueTags (userId, valueId, tag),
   INDEX ix_ValueTags_tag (userId, tag),
@@ -100,7 +100,7 @@ CREATE TABLE rothschild.ValueTags (
 
 CREATE TABLE rothschild.Transactions (
   userId                  VARCHAR(32)  NOT NULL,
-  id                      VARCHAR(64)  NOT NULL,
+  id                      VARCHAR(32)  NOT NULL,
   transactionType         VARCHAR(255) NOT NULL,
   cart                    MEDIUMTEXT,
   requestedPaymentSources TEXT,
@@ -112,9 +112,9 @@ CREATE TABLE rothschild.Transactions (
 CREATE TABLE rothschild.LightrailTransactionSteps (
   userId        VARCHAR(32)  NOT NULL,
   id            VARCHAR(255) NOT NULL,
-  transactionId VARCHAR(64)  NOT NULL,
-  valueId       VARCHAR(64)  NOT NULL,
-  contactId     VARCHAR(64),
+  transactionId VARCHAR(32)  NOT NULL,
+  valueId       VARCHAR(32)  NOT NULL,
+  contactId     VARCHAR(32),
   codeLastFour  CHAR(4),
   balanceBefore INT          NOT NULL,
   balanceAfter  INT          NOT NULL,
