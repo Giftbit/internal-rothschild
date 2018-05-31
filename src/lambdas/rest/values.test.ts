@@ -9,7 +9,7 @@ import {Currency} from "../../model/Currency";
 import {installRest} from "./index";
 chai.use(chaiExclude);
 
-describe.skip("/v2/values/", () => {
+describe("/v2/values/", () => {
 
     const router = new cassava.Router();
 
@@ -50,13 +50,13 @@ describe.skip("/v2/values/", () => {
         balance: 5000
     };
 
-    it("requires the currency to exist", async () => {
+    it("cannot create a value with missing currency", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value1);
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.messageCode, "CurrencyNotFound");
     });
 
-    it("can create a value", async () => {
+    it("can create a value with no code, no contact, no program", async () => {
         const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency);
         chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
 
@@ -65,10 +65,13 @@ describe.skip("/v2/values/", () => {
         chai.assert.deepEqualExcluding(resp2.body, {
             ...value1,
             uses: null,
-            pretax: false,
+            programId: null,
+            contactId: null,
+            code: null,
             active: true,
-            expired: false,
+            canceled: false,
             frozen: false,
+            pretax: false,
             startDate: null,
             endDate: null,
             redemptionRule: null,
@@ -87,5 +90,21 @@ describe.skip("/v2/values/", () => {
     it("409s on creating a duplicate value", async () => {
         const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
         chai.assert.equal(resp.statusCode, 409);
+    });
+
+    it("can freeze a value", async () => {
+        const resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "PATCH", {frozen: true});
+        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+
+        value1.frozen = true;
+        chai.assert.deepEqual(resp.body, value1);
+    });
+
+    it("can unfreeze a value", async () => {
+        const resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "PATCH", {frozen: false});
+        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+
+        value1.frozen = false;
+        chai.assert.deepEqual(resp.body, value1);
     });
 });

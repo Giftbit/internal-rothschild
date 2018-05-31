@@ -4,10 +4,15 @@ import * as jsonschema from "jsonschema";
 import {getKnexWrite, getKnexRead} from "../../dbUtils";
 import {Currency, DbCurrency} from "../../model/Currency";
 import {pick} from "../../pick";
+import {csvSerializer} from "../../serializers";
 
 export function installCurrenciesRest(router: cassava.Router): void {
     router.route("/v2/currencies")
         .method("GET")
+        .serializers({
+            "application/json": cassava.serializers.jsonSerializer,
+            "text/csv": csvSerializer
+        })
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");

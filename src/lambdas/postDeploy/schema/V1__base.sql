@@ -72,7 +72,7 @@ CREATE TABLE rothschild.Values (
   contactId      VARCHAR(64),
   pretax         BOOL        NOT NULL,
   active         BOOL        NOT NULL,
-  expired        BOOL        NOT NULL,
+  canceled       BOOL        NOT NULL,
   frozen         BOOL        NOT NULL,
   redemptionRule TEXT,
   valueRule      TEXT,

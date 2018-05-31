@@ -66,6 +66,10 @@ export function installContactsRest(router: cassava.Router): void {
             auth.requireIds("giftbitUserId");
             evt.validateBody(contactUpdateSchema);
 
+            if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
+                throw new giftbitRoutes.GiftbitRestError(422, `The body id '${evt.body.id}' does not match the path id '${evt.pathParameters.id}'.  The id cannot be updated.`);
+            }
+
             const now = nowInDbPrecision();
             const contact = {
                 ...pick<Contact>(evt.body, "firstName", "lastName", "email", "metadata"),

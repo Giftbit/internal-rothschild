@@ -2,10 +2,12 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
-import {getKnexWrite, getKnexRead, getSqlErrorConstraintName, upsert, nowInDbPrecision} from "../../dbUtils";
+import {getKnexWrite, getKnexRead, getSqlErrorConstraintName, nowInDbPrecision} from "../../dbUtils";
 import {DbValue, Value} from "../../model/Value";
-import {pickOrDefault} from "../../pick";
+import {pick, pickOrDefault} from "../../pick";
 import {csvSerializer} from "../../serializers";
+import {Contact} from "../../model/Contact";
+import {updateContact} from "./contacts";
 
 export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
@@ -50,7 +52,7 @@ export function installValuesRest(router: cassava.Router): void {
                     endDate: null,
                     metadata: null
                 }),
-                expired: false,
+                canceled: false,
                 createdDate: now,
                 updatedDate: now
             };
@@ -58,6 +60,12 @@ export function installValuesRest(router: cassava.Router): void {
                 statusCode: cassava.httpStatusCode.success.CREATED,
                 body: await createValue(auth, value)
             };
+        });
+
+    router.route("/v2/values")
+        .method("PATCH")
+        .handler(async evt => {
+            throw new giftbitRoutes.GiftbitRestError(500, "Not implemented");   // TODO
         });
 
     router.route("/v2/values/{id}")
@@ -69,6 +77,39 @@ export function installValuesRest(router: cassava.Router): void {
             return {
                 body: await getValue(auth, evt.pathParameters.id)
             };
+        });
+
+    router.route("/v2/values/{id}")
+        .method("PATCH")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("giftbitUserId");
+            evt.validateBody(valueUpdateSchema);
+
+            if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
+                throw new giftbitRoutes.GiftbitRestError(422, `The body id '${evt.body.id}' does not match the path id '${evt.pathParameters.id}'.  The id cannot be updated.`);
+            }
+
+            const now = nowInDbPrecision();
+            const value = {
+                ...pick<Value>(evt.body, "contactId", "pretax", "active", "canceled", "frozen", "pretax", "redemptionRule", "valueRule", "startDate", "endDate", "metadata"),
+                updatedDate: now
+            };
+            return {
+                body: await updateValue(auth, evt.pathParameters.id, value)
+            };
+        });
+
+    router.route("/v2/values/{id}")
+        .method("DELETE")
+        .handler(async evt => {
+            throw new giftbitRoutes.GiftbitRestError(500, "Not implemented");   // TODO
+        });
+
+    router.route("/v2/values/{id}/changeCode")
+        .method("POST")
+        .handler(async evt => {
+            throw new giftbitRoutes.GiftbitRestError(500, "Not implemented");   // TODO
         });
 }
 
@@ -124,7 +165,7 @@ async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: stri
         .select()
         .where({
             userId: auth.giftbitUserId,
-            valueId: id
+            id: id
         });
     if (res.length === 0) {
         throw new cassava.RestError(404);
@@ -133,6 +174,28 @@ async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: stri
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
     return DbValue.toValue(res[0]);
+}
+
+async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, value: Partial<Value>): Promise<Value> {
+    auth.requireIds("giftbitUserId");
+
+    const knex = await getKnexWrite();
+    const res = await knex("Values")
+        .where({
+            userId: auth.giftbitUserId,
+            id: id
+        })
+        .update(Value.toDbValueUpdate(auth, value));
+    if (res[0] === 0) {
+        throw new cassava.RestError(404);
+    }
+    if (res[0] > 1) {
+        throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
+    }
+    return {
+        ...await getValue(auth, id),
+        ...value
+    };
 }
 
 const valueSchema: jsonschema.Schema = {
@@ -154,7 +217,7 @@ const valueSchema: jsonschema.Schema = {
         uses: {
             type: ["number", "null"]
         },
-        program: {
+        programId: {
             type: ["string", "null"],
             maxLength: 64,
             minLength: 1
@@ -164,21 +227,18 @@ const valueSchema: jsonschema.Schema = {
             minLength: 1,
             maxLength: 255
         },
-        contact: {
+        contactId: {
             type: ["string", "null"],
             minLength: 1,
             maxLength: 64
         },
-        pretax: {
-            type: "boolean"
-        },
         active: {
             type: "boolean"
         },
-        expired: {
+        frozen: {
             type: "boolean"
         },
-        frozen: {
+        pretax: {
             type: "boolean"
         },
         redemptionRule: {
@@ -232,4 +292,83 @@ const valueSchema: jsonschema.Schema = {
         }
     },
     required: ["id", "currency"]
+};
+
+const valueUpdateSchema: jsonschema.Schema = {
+    type: "object",
+    properties: {
+        id: {
+            type: "string",
+            maxLength: 64,
+            minLength: 1
+        },
+        contactId: {
+            type: ["string", "null"],
+            minLength: 1,
+            maxLength: 64
+        },
+        active: {
+            type: "boolean"
+        },
+        canceled: {
+            type: "boolean",
+            enum: [true]
+        },
+        frozen: {
+            type: "boolean"
+        },
+        pretax: {
+            type: "boolean"
+        },
+        redemptionRule: {
+            oneOf: [
+                {
+                    type: "null"
+                },
+                {
+                    title: "Redemption rule",
+                    type: "object",
+                    properties: {
+                        rule: {
+                            type: "string"
+                        },
+                        explanation: {
+                            type: "string"
+                        }
+                    }
+                }
+            ]
+        },
+        valueRule: {
+            oneOf: [
+                {
+                    type: "null"
+                },
+                {
+                    title: "Value rule",
+                    type: "object",
+                    properties: {
+                        rule: {
+                            type: "string"
+                        },
+                        explanation: {
+                            type: "string"
+                        }
+                    }
+                }
+            ]
+        },
+        startDate: {
+            type: ["string", "null"],
+            format: "date-time"
+        },
+        endDate: {
+            type: ["string", "null"],
+            format: "date-time"
+        },
+        metadata: {
+            type: ["object", "null"]
+        }
+    },
+    required: []
 };
