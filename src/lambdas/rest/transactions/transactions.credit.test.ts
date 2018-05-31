@@ -34,7 +34,7 @@ describe.skip("/v2/transactions/credit", () => {
         chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
 
         const postCreditResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", {
-            transactionId: "credit-1",
+            id: "credit-1",
             destination: {
                 rail: "lightrail",
                 valueId: value.id
@@ -67,9 +67,9 @@ describe.skip("/v2/transactions/credit", () => {
         chai.assert.equal(getValueResp.body.balance, 1000);
     });
 
-    it("409s on reusing a transactionId", async () => {
+    it("409s on reusing a transaction ID", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
-            transactionId: "credit-1",  // same as above
+            id: "credit-1",  // same as above
             destination: {
                 rail: "lightrail",
                 valueId: value.id
@@ -81,9 +81,9 @@ describe.skip("/v2/transactions/credit", () => {
         chai.assert.equal(resp.body.messageCode, "TransactionExists");
     });
 
-    it("can simulate a credit by valueId", async () => {
+    it("can simulate a credit by value ID", async () => {
         const postCreditResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", {
-            transactionId: "credit-2",
+            id: "credit-2",
             destination: {
                 rail: "lightrail",
                 valueId: value.id
@@ -119,7 +119,7 @@ describe.skip("/v2/transactions/credit", () => {
 
     it("409s crediting by valueId of the wrong currency", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
-            transactionId: "credit-3",
+            id: "credit-3",
             destination: {
                 rail: "lightrail",
                 valueId: value.id
@@ -133,7 +133,7 @@ describe.skip("/v2/transactions/credit", () => {
 
     it("409s crediting a valueId that does not exist", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
-            transactionId: "credit-4",
+            id: "credit-4",
             destination: {
                 rail: "lightrail",
                 valueId: "idontexist"
@@ -145,7 +145,7 @@ describe.skip("/v2/transactions/credit", () => {
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
     });
 
-    it("422s crediting without a transactionId", async () => {
+    it("422s crediting without a transaction ID", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
             destination: {
                 rail: "lightrail",
@@ -157,9 +157,9 @@ describe.skip("/v2/transactions/credit", () => {
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 
-    it("422s crediting with an invalid transactionId", async () => {
+    it("422s crediting with an invalid transaction ID", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
-            transactionId: 123,
+            id: 123,
             destination: {
                 rail: "lightrail",
                 valueId: "idontexist"

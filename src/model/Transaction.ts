@@ -18,7 +18,7 @@ export namespace Transaction {
     (auth: giftbitRoutes.jwtauth.AuthorizationBadge, t: Transaction): DbTransaction {
         return {
             userId: auth.giftbitUserId,
-            transactionId: t.transactionId,
+            id: t.id,
             transactionType: t.transactionType,
             cart: JSON.stringify(t.cart),
             requestedPaymentSources: "", // todo maybe JSON.stringify(t.requestedPaymentSources), // TODO does this actually exist on the Transaction in any form, or does it only exist on the request? Depends on how we handle payment sources that evaluate to $0 (save & return, or not).
@@ -30,7 +30,7 @@ export namespace Transaction {
 
 export interface DbTransaction {
     userId: string;
-    transactionId: string;
+    id: string;
     transactionType: TransactionType;
     cart: string | null;
     requestedPaymentSources: string | null;
@@ -43,11 +43,11 @@ export namespace DbTransaction {
         const knex = await getKnexRead();
 
         let dbSteps: any[] = await knex("LightrailTransactionSteps")
-            .where("transactionId", t.transactionId);
+            .where("transactionId", t.id);
         dbSteps = dbSteps.concat(await knex("StripeTransactionSteps")
-            .where("transactionId", t.transactionId));
+            .where("transactionId", t.id));
         dbSteps = dbSteps.concat(await knex("InternalTransactionSteps")
-            .where("transactionId", t.transactionId));
+            .where("transactionId", t.id));
 
         for (let step of dbSteps) {
             step.index = step.lightrailTransactionStepId ? step.lightrailTransactionStepId : step.stripeTransactionStepId ? step.stripeTransactionStepId : step.internalTransactionStepId ? step.internalTransactionStepId : null;
@@ -68,7 +68,7 @@ export namespace DbTransaction {
 
 
         return {
-            transactionId: t.transactionId,
+            id: t.id,
             transactionType: t.transactionType,
             cart: t.cart,
             steps: steps,

@@ -25,13 +25,13 @@ export function installTransactionsRest(router: cassava.Router): void {
             };
         });
 
-    router.route("/v2/transactions/{transactionId}")
+    router.route("/v2/transactions/{id}")
         .method("GET")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
             return {
-                body: await getTransaction(auth, evt.pathParameters.transactionId)
+                body: await getTransaction(auth, evt.pathParameters.id)
             };
         });
 
@@ -107,7 +107,7 @@ async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, p
                 queryBuilder.where("createdDate", "<", filter.maxCreatedDate);
             }
         })
-        .orderBy("transactionId")
+        .orderBy("id")
         .limit(pagination.limit)
         .offset(pagination.offset);
 
@@ -127,7 +127,7 @@ async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, p
     };
 }
 
-export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, transactionId: string): Promise<Transaction> {
+export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Transaction> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
@@ -135,7 +135,7 @@ export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBa
         .select()
         .where({
             userId: auth.giftbitUserId,
-            transactionId
+            id
         });
     if (res.length === 0) {
         throw new cassava.RestError(404);
@@ -380,7 +380,7 @@ const creditSchema: jsonschema.Schema = {
     title: "credit",
     type: "object",
     properties: {
-        transactionId: {
+        id: {
             type: "string",
             minLength: 1
         },
@@ -398,14 +398,14 @@ const creditSchema: jsonschema.Schema = {
             type: "boolean"
         }
     },
-    required: ["transactionId", "destination", "amount", "currency"]
+    required: ["id", "destination", "amount", "currency"]
 };
 
 const debitSchema: jsonschema.Schema = {
     title: "credit",
     type: "object",
     properties: {
-        transactionId: {
+        id: {
             type: "string",
             minLength: 1
         },
@@ -426,14 +426,14 @@ const debitSchema: jsonschema.Schema = {
             type: "boolean"
         }
     },
-    required: ["transactionId", "source", "amount", "currency"]
+    required: ["id", "source", "amount", "currency"]
 };
 
 const transferSchema: jsonschema.Schema = {
     title: "credit",
     type: "object",
     properties: {
-        transactionId: {
+        id: {
             type: "string",
             minLength: 1
         },
@@ -455,14 +455,14 @@ const transferSchema: jsonschema.Schema = {
             type: "boolean"
         }
     },
-    required: ["transactionId", "source", "amount", "currency"]
+    required: ["id", "source", "amount", "currency"]
 };
 
 const orderSchema: jsonschema.Schema = {
     title: "order",
     type: "object",
     properties: {
-        transactionId: {
+        id: {
             type: "string",
             minLength: 1
         },
@@ -491,5 +491,5 @@ const orderSchema: jsonschema.Schema = {
             type: "boolean"
         }
     },
-    required: ["transactionId", "cart", "currency", "sources"]
+    required: ["id", "cart", "currency", "sources"]
 };
