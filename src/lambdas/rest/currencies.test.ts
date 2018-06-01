@@ -114,7 +114,7 @@ describe("/v2/currencies", () => {
         chai.assert.equal(resp2.statusCode, 404);
     });
 
-    it("cannot delete a used currency", async () => {
+    it("409s on deleting a currency in use", async () => {
         const resp = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", funbux);
         chai.assert.equal(resp.statusCode, 201, `body=${JSON.stringify(resp.body)}`);
 

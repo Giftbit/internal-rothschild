@@ -101,7 +101,11 @@ export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values/{id}")
         .method("DELETE")
         .handler(async evt => {
-            throw new giftbitRoutes.GiftbitRestError(500, "Not implemented");   // TODO
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("giftbitUserId");
+            return {
+                body: await deleteValue(auth, evt.pathParameters.id)
+            };
         });
 
     router.route("/v2/values/{id}/changeCode")
@@ -138,8 +142,15 @@ async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value
 
     try {
         const knex = await getKnexWrite();
-        await knex("Values")
-            .insert(Value.toDbValue(auth, value));
+
+        await knex.transaction(async trx => {
+            await trx.into("Values")
+                .insert(Value.toDbValue(auth, value));
+            if (value.balance) {
+                // TODO insert initialValue Transaction and LightrailTransactionStep
+            }
+        });
+
         return value;
     } catch (err) {
         if (err.code === "ER_DUP_ENTRY") {
@@ -197,6 +208,31 @@ async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
         ...await getValue(auth, id),
         ...value
     };
+}
+
+async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<{success: true}> {
+    auth.requireIds("giftbitUserId");
+
+    try {
+        const knex = await getKnexWrite();
+        const res: [number] = await knex("Values")
+            .where({
+                userId: auth.giftbitUserId,
+                id
+            })
+            .delete();
+        if (res[0] === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (res[0] > 1) {
+            throw new Error(`Illegal DELETE query.  Deleted ${res.length} values.`);
+        }
+        return {success: true};
+    } catch (err) {
+        if (err.code === "ER_ROW_IS_REFERENCED_2") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Value '${id}' is in use.`, "ValueInUse");
+        }
+    }
 }
 
 const valueSchema: jsonschema.Schema = {

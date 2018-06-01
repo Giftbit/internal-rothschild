@@ -48,7 +48,7 @@ describe("/v2/values/", () => {
     let value1: Partial<Value> = {
         id: "1",
         currency: "USD",
-        balance: 5000
+        balance: 0
     };
 
     it("cannot create a value with missing currency", async () => {
@@ -181,7 +181,7 @@ describe("/v2/values/", () => {
     let value2: Partial<Value> = {
         id: "v2",
         currency: "USD",
-        balance: 5000,
+        balance: 0,
         contactId: contact1.id
     };
 
@@ -192,20 +192,71 @@ describe("/v2/values/", () => {
         const resp2 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value2);
         chai.assert.equal(resp2.statusCode, 201, `body=${JSON.stringify(resp2.body)}`);
         chai.assert.equal(resp2.body.contactId, value2.contactId);
-
         value2 = resp2.body;
     });
 
     let value3: Partial<Value> = {
         id: "v3",
         currency: "USD",
-        balance: 5000,
+        balance: 5000
+    };
+
+    it.skip("can create a value with an initial balance", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value3);
+        chai.assert.equal(resp.statusCode, 201, `create body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.balance, value3.balance);
+        value3 = resp.body;
+
+        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/transactions/${value2.id}-fund`, "GET");
+        chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
+    });
+
+    let value4: Partial<Value> = {
+        id: "v4",
+        currency: "USD",
+        balance: 0,
         contactId: "idontexist"
     };
 
     it("409s on creating a value attached to a non-existent contact", async () => {
-        const resp2 = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value3);
-        chai.assert.equal(resp2.statusCode, 409, `body=${JSON.stringify(resp2.body)}`);
-        chai.assert.equal(resp2.body.messageCode, "ContactNotFound");
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value4);
+        chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.messageCode, "ContactNotFound");
+    });
+
+    it("can delete a value that is not in use", async () => {
+        const value: Partial<Value> = {
+            id: "vjeff",
+            currency: "USD",
+            balance: 0
+        };
+
+        const resp1 = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
+        chai.assert.equal(resp1.statusCode, 201, `create body=${JSON.stringify(resp1.body)}`);
+
+        const resp3 = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.id}`, "DELETE");
+        chai.assert.equal(resp3.statusCode, 200, `delete body=${JSON.stringify(resp3.body)}`);
+
+        const resp4 = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.id}`, "GET");
+        chai.assert.equal(resp4.statusCode, 404, `get deleted body=${JSON.stringify(resp4.body)}`);
+    });
+
+    let value5: Partial<Value> = {
+        id: "vjeff2",
+        currency: "USD",
+        balance: 1982   // creates an initial value transaction
+    };
+
+    it.skip("409s on deleting a value that is in use", async () => {
+        const resp1 = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value5);
+        chai.assert.equal(resp1.statusCode, 201, `create body=${JSON.stringify(resp1.body)}`);
+        value5 = resp1.body;
+
+        const resp2 = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value5.id}`, "DELETE");
+        chai.assert.equal(resp2.statusCode, 409, `delete body=${JSON.stringify(resp2.body)}`);
+        chai.assert.equal(resp2.body.messageCode, "ValueInUse");
+
+        const resp3 = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value5.id}`, "GET");
+        chai.assert.equal(resp3.statusCode, 200, `still exists body=${JSON.stringify(resp3.body)}`);
     });
 });
