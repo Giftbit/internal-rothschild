@@ -12,7 +12,7 @@ export namespace Filters {
         //     return null;
         // }
         return {
-            transactionType: evt.queryStringParameters["transactionType"] ? evt.queryStringParameters["transactionType"] : null,
+            transactionType: evt.queryStringParameters["transactionType"] || null,
             minCreatedDate: evt.queryStringParameters["minCreatedDate"] ? new Date(evt.queryStringParameters["minCreatedDate"]) : null,
             maxCreatedDate: evt.queryStringParameters["maxCreatedDate"] ? new Date(evt.queryStringParameters["maxCreatedDate"]) : null
         };

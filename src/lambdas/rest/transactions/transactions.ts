@@ -87,26 +87,24 @@ export function installTransactionsRest(router: cassava.Router): void {
 async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams, filter: TransactionFilterParams): Promise<{ transactions: Transaction[], pagination: Pagination }> {
     auth.requireIds("giftbitUserId");
     const knex = await getKnexRead();
-    const res: DbTransaction[] = await knex("Transactions")
+
+    let query = knex("Transactions")
         .select()
         .where({
             userId: auth.giftbitUserId
-        })
-        .modify(function (queryBuilder) {
-            if (filter.transactionType) {
-                queryBuilder.where("transactionType", filter.transactionType);
-            }
-        })
-        .modify(function (queryBuilder) {
-            if (filter.minCreatedDate) {
-                queryBuilder.where("createdDate", ">", filter.minCreatedDate);
-            }
-        })
-        .modify(function (queryBuilder) {
-            if (filter.maxCreatedDate) {
-                queryBuilder.where("createdDate", "<", filter.maxCreatedDate);
-            }
-        })
+        });
+
+    if (filter.transactionType) {
+        query.where("transactionType", filter.transactionType);
+    }
+    if (filter.minCreatedDate) {
+        query.where("createdDate", ">", filter.minCreatedDate);
+    }
+    if (filter.maxCreatedDate) {
+        query.where("createdDate", "<", filter.maxCreatedDate);
+    }
+
+    const res: DbTransaction[] = await query
         .orderBy("id")
         .limit(pagination.limit)
         .offset(pagination.offset);
