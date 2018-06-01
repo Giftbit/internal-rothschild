@@ -82,6 +82,7 @@ describe("/v2/transactions", () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions", "GET");
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.equal(resp.body.transactions.length, 1);
+        chai.assert.equal(resp.body.transactions[0].id, transfer1.id);
         chai.assert.equal(resp.body.transactions[0].steps.length, 2);
     });
 
@@ -92,7 +93,9 @@ describe("/v2/transactions", () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions", "GET");
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.equal(resp.body.transactions.length, 2);
+        chai.assert.equal(resp.body.transactions[0].id, transfer1.id);
         chai.assert.equal(resp.body.transactions[0].steps.length, 2);
+        chai.assert.equal(resp.body.transactions[1].id, debit1.id);
         chai.assert.equal(resp.body.transactions[1].steps.length, 1);
     });
 
@@ -107,15 +110,15 @@ describe("/v2/transactions", () => {
             const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions?transactionType=transfer", "GET");
             chai.assert.equal(resp.statusCode, 200);
             chai.assert.equal(resp.body.transactions.length, 1);
-            chai.assert.equal(resp.body.transactions[0].steps.length, 2);
+            chai.assert.equal(resp.body.transactions[0].id, transfer1.id);
         });
 
         it("can filter by minCreatedDate", async () => {
             const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions?minCreatedDate=2018-01-01", "GET");
             chai.assert.equal(resp.statusCode, 200);
             chai.assert.equal(resp.body.transactions.length, 2);
-            chai.assert.equal(resp.body.transactions[0].steps.length, 2);
-            chai.assert.equal(resp.body.transactions[1].steps.length, 1);
+            chai.assert.equal(resp.body.transactions[0].id, transfer1.id);
+            chai.assert.equal(resp.body.transactions[1].id, debit1.id);
         });
 
         it("can filter by maxCreatedDate", async () => {
