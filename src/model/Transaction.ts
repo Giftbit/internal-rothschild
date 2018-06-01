@@ -49,25 +49,11 @@ export namespace DbTransaction {
         dbSteps = dbSteps.concat(await knex("InternalTransactionSteps")
             .where("transactionId", t.id));
 
-        for (let step of dbSteps) {
-            step.index = step.id.split("-").pop();
-        }
-
-        dbSteps.sort((step1, step2) => {
-            return step1.index < step2.index ? -1 : step1.index > step2.index ? 1 : 0;
-        });
-
-        const steps: TransactionStep[] = dbSteps.map(step => {
-            delete step.index;
-            return step;
-        });
-
-
         return {
             id: t.id,
             transactionType: t.transactionType,
             cart: t.cart,
-            steps: steps,
+            steps: dbSteps,
             remainder: t.remainder,
             createdDate: t.createdDate
         };
