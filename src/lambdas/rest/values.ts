@@ -150,6 +150,9 @@ async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value
             if (constraint === "fk_Values_Currencies") {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${value.currency}' does not exist.  See the documentation on creating currencies.`, "CurrencyNotFound");
             }
+            if (constraint === "fk_Values_Contacts") {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Contact '${value.contactId}' does not exist.`, "ContactNotFound");
+            }
         }
         throw err;
     }
@@ -215,11 +218,6 @@ const valueSchema: jsonschema.Schema = {
         },
         uses: {
             type: ["number", "null"]
-        },
-        programId: {
-            type: ["string", "null"],
-            maxLength: 32,
-            minLength: 1
         },
         code: {
             type: ["string", "null"],

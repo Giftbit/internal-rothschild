@@ -6,6 +6,7 @@ import {Value} from "../../model/Value";
 import chaiExclude = require("chai-exclude");
 import {Currency} from "../../model/Currency";
 import {installRest} from "./index";
+import {Contact} from "../../model/Contact";
 
 chai.use(chaiExclude);
 
@@ -171,5 +172,40 @@ describe("/v2/values/", () => {
         const resp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value1.id}`, "PATCH", {canceled: false});
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.messageCode, "UncancelValue");
+    });
+
+    let contact1: Partial<Contact> = {
+        id: "c1",
+    };
+
+    let value2: Partial<Value> = {
+        id: "v2",
+        currency: "USD",
+        balance: 5000,
+        contactId: contact1.id
+    };
+
+    it("can create a value attached to a contact", async () => {
+        const resp1 = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact1);
+        chai.assert.equal(resp1.statusCode, 201);
+
+        const resp2 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value2);
+        chai.assert.equal(resp2.statusCode, 201, `body=${JSON.stringify(resp2.body)}`);
+        chai.assert.equal(resp2.body.contactId, value2.contactId);
+
+        value2 = resp2.body;
+    });
+
+    let value3: Partial<Value> = {
+        id: "v3",
+        currency: "USD",
+        balance: 5000,
+        contactId: "idontexist"
+    };
+
+    it("409s on creating a value attached to a non-existent contact", async () => {
+        const resp2 = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value3);
+        chai.assert.equal(resp2.statusCode, 409, `body=${JSON.stringify(resp2.body)}`);
+        chai.assert.equal(resp2.body.messageCode, "ContactNotFound");
     });
 });
