@@ -125,6 +125,19 @@ describe("/v2/transactions", () => {
         });
     });
 
-    describe.skip("filter transactions by pagination params", () => {
+    describe("filter transactions by pagination params", () => {
+        it("can limit transactions retrieved", async () => {
+            const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions?limit=1", "GET");
+            chai.assert.equal(resp.statusCode, 200);
+            chai.assert.equal(resp.body.transactions.length, 1);
+            chai.assert.equal(resp.body.transactions[0].id, transfer1.id);
+        });
+
+        it("can page to the second transaction", async () => {
+            const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions?offset=1", "GET");
+            chai.assert.equal(resp.statusCode, 200);
+            chai.assert.equal(resp.body.transactions.length, 1);
+            chai.assert.equal(resp.body.transactions[0].id, debit1.id);
+        });
     });
 });
