@@ -119,7 +119,6 @@ CREATE TABLE rothschild.LightrailTransactionSteps (
   balanceBefore INT          NOT NULL,
   balanceAfter  INT          NOT NULL,
   balanceChange INT          NOT NULL,
-  createdDate   DATETIME     NOT NULL,
   PRIMARY KEY pk_LightrailTransactionSteps (userId, id),
   INDEX ix_LightrailTransactionSteps_transactionId (userId, transactionId),
   CONSTRAINT fk_LightrailTransactionSteps_Transactions FOREIGN KEY (userId, transactionId) REFERENCES rothschild.Transactions (userId, id),
