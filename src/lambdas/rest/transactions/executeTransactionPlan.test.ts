@@ -43,7 +43,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             balance: 1500,
             pretax: false,
             active: true,
-            expired: false,
+            canceled: false,
             frozen: false,
             redemptionRule: "null",
             valueRule: "null",
@@ -65,8 +65,6 @@ describe("rest/transactions/executeTransactionPlan", () => {
                 {
                     rail: "lightrail",
                     value: DbValue.toValue(value),
-                    codeLastFour: null,
-                    contactId: null,
                     amount: -3500    // more than is in the value
                 }
             ],
@@ -106,7 +104,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             contactId: null,
             pretax: false,
             active: true,
-            expired: false,
+            canceled: false,
             frozen: false,
             redemptionRule: "null",
             valueRule: "null",
@@ -127,8 +125,6 @@ describe("rest/transactions/executeTransactionPlan", () => {
                 {
                     rail: "lightrail",
                     value: DbValue.toValue(value),
-                    codeLastFour: null,
-                    contactId: null,
                     amount: 1200
                 }
             ],

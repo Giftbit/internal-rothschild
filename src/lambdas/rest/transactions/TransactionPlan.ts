@@ -15,8 +15,6 @@ export type TransactionPlanStep = LightrailTransactionPlanStep | StripeTransacti
 export interface LightrailTransactionPlanStep {
     rail: "lightrail";
     value: Value;
-    codeLastFour: string | null;
-    contactId: string | null;
     amount: number;
 }
 
@@ -37,7 +35,7 @@ export interface StripeTransactionPlanStep {
 export interface InternalTransactionPlanStep {
     rail: "internal";
     internalId: string;
-    value: number;
+    balance: number;
     pretax: boolean;
     beforeLightrail: boolean;
     amount: number;

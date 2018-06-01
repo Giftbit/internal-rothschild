@@ -78,7 +78,7 @@ describe("/v2/transactions/transfer", () => {
             rail: "lightrail",
             valueId: valueCad1.id,
             currency: valueCad1.currency,
-            codeLastFour: null,
+            code: null,
             contactId: null,
             balanceBefore: 1500,
             balanceAfter: 500,
@@ -90,7 +90,7 @@ describe("/v2/transactions/transfer", () => {
             rail: "lightrail",
             valueId: valueCad2.id,
             currency: valueCad2.currency,
-            codeLastFour: null,
+            code: null,
             contactId: null,
             balanceBefore: 2500,
             balanceAfter: 3500,
@@ -106,7 +106,7 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.equal(getValue2Resp.body.balance, 3500);
     });
 
-    it("409s on reusing a transactionId", async () => {
+    it("409s on reusing an id", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
             id: "transfer-1",    // same as above
             source: {
@@ -152,7 +152,7 @@ describe("/v2/transactions/transfer", () => {
             rail: "lightrail",
             valueId: valueCad1.id,
             currency: valueCad1.currency,
-            codeLastFour: null,
+            code: null,
             contactId: null,
             balanceBefore: 500,
             balanceAfter: 0,
@@ -164,7 +164,7 @@ describe("/v2/transactions/transfer", () => {
             rail: "lightrail",
             valueId: valueCad2.id,
             currency: valueCad2.currency,
-            codeLastFour: null,
+            code: null,
             contactId: null,
             balanceBefore: 3500,
             balanceAfter: 4000,
@@ -208,7 +208,7 @@ describe("/v2/transactions/transfer", () => {
             rail: "lightrail",
             valueId: valueCad1.id,
             currency: valueCad1.currency,
-            codeLastFour: null,
+            code: null,
             contactId: null,
             balanceBefore: 500,
             balanceAfter: 0,
@@ -220,7 +220,7 @@ describe("/v2/transactions/transfer", () => {
             rail: "lightrail",
             valueId: valueCad2.id,
             currency: valueCad2.currency,
-            codeLastFour: null,
+            code: null,
             contactId: null,
             balanceBefore: 3500,
             balanceAfter: 4000,
@@ -344,7 +344,7 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
     });
 
-    it("422s transferring without a transactionId", async () => {
+    it("422s transferring without an id", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
             source: {
                 rail: "lightrail",
@@ -360,7 +360,7 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 
-    it("422s transferring with an invalid transactionId", async () => {
+    it("422s transferring with an invalid id", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
             id: 123,
             source: {

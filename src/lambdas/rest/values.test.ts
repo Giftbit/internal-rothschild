@@ -3,13 +3,13 @@ import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as testUtils from "../../testUtils";
 import {Value} from "../../model/Value";
-
 import chaiExclude = require("chai-exclude");
 import {Currency} from "../../model/Currency";
 import {installRest} from "./index";
+
 chai.use(chaiExclude);
 
-describe.skip("/v2/values/", () => {
+describe("/v2/values/", () => {
 
     const router = new cassava.Router();
 
@@ -50,13 +50,13 @@ describe.skip("/v2/values/", () => {
         balance: 5000
     };
 
-    it("requires the currency to exist", async () => {
+    it("cannot create a value with missing currency", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value1);
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.messageCode, "CurrencyNotFound");
     });
 
-    it("can create a value", async () => {
+    it("can create a value with no code, no contact, no program", async () => {
         const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency);
         chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
 
@@ -65,10 +65,13 @@ describe.skip("/v2/values/", () => {
         chai.assert.deepEqualExcluding(resp2.body, {
             ...value1,
             uses: null,
-            pretax: false,
+            programId: null,
+            contactId: null,
+            code: null,
             active: true,
-            expired: false,
+            canceled: false,
             frozen: false,
+            pretax: false,
             startDate: null,
             endDate: null,
             redemptionRule: null,
@@ -85,7 +88,88 @@ describe.skip("/v2/values/", () => {
     });
 
     it("409s on creating a duplicate value", async () => {
-        const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
-        chai.assert.equal(resp.statusCode, 409);
+        const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {id: value1.id, currency: value1.currency, balance: value1.balance});
+        chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("cannot change a value's currency", async () => {
+        const currency2: Currency = {
+            code: "XYZZY",
+            name: "XYZZY",
+            symbol: "X",
+            decimalPlaces: 0
+        };
+
+        const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency2);
+        chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
+
+        const resp2 = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value1.id}`, "PATCH", {currency: currency2.code});
+        chai.assert.equal(resp2.statusCode, 422, `body=${JSON.stringify(resp2.body)}`);
+    });
+
+    it("cannot change a value's balance", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value1.id}`, "PATCH", {balance: 123123});
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("cannot change a value's uses", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value1.id}`, "PATCH", {uses: 100});
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("can change the startDate and endDate", async () => {
+        const resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "PATCH", {
+            startDate: new Date("2077-01-01"),
+            endDate: new Date("2277-01-01")
+        });
+        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+
+        value1.startDate = new Date("2077-01-01").toISOString() as any;
+        value1.endDate = new Date("2277-01-01").toISOString() as any;
+        chai.assert.deepEqualExcluding(resp.body, value1, ["updatedDate"]);
+    });
+
+    it("can change the metadata", async () => {
+        const resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "PATCH", {
+            metadata: {
+                special: "snowflake"
+            }
+        });
+        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+
+        value1.metadata = {
+            special: "snowflake"
+        };
+        chai.assert.deepEqualExcluding(resp.body, value1, ["updatedDate"]);
+    });
+
+    it("can freeze a value", async () => {
+        const resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "PATCH", {frozen: true});
+        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+
+        value1.frozen = true;
+        chai.assert.deepEqualExcluding(resp.body, value1, ["updatedDate"]);
+    });
+
+    it("can unfreeze a value", async () => {
+        const resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "PATCH", {frozen: false});
+        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+
+        value1.frozen = false;
+        chai.assert.deepEqualExcluding(resp.body, value1, ["updatedDate"]);
+    });
+
+    it("can cancel a value", async () => {
+        const resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "PATCH", {canceled: true});
+        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+
+        value1.canceled = true;
+        chai.assert.deepEqualExcluding(resp.body, value1, ["updatedDate"]);
+    });
+
+    it("cannot uncancel a value", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value1.id}`, "PATCH", {canceled: false});
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.messageCode, "UncancelValue");
     });
 });

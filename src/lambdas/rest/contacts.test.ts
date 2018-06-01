@@ -140,9 +140,7 @@ describe("/v2/contacts", () => {
 
     it("can't override the userId", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/contacts", "POST", contact3);
-        chai.assert.equal(resp.statusCode, 201);
-        chai.assert.notEqual(resp.body.userId, contact3.userId);
-        contact3 = resp.body;
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 
     it("can modify the contact", async () => {
@@ -151,48 +149,47 @@ describe("/v2/contacts", () => {
             lastName: contact1.lastName = "One"
         });
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.deepEqual(resp.body, contact1);
+        chai.assert.deepEqualExcluding(resp.body, contact1, ["updatedDate"]);
+        contact1 = resp.body;
 
         const getResp = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/${contact1.id}`, "GET");
-        chai.assert.equal(getResp.statusCode, 200);
-        chai.assert.deepEqual(getResp.body, contact1);
+        chai.assert.equal(getResp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.deepEqual(resp.body, contact1);
     });
 
     it("409s on creating a duplicate contact", async () => {
-        const resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact1);
-        chai.assert.equal(resp.statusCode, 409);
+        const resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contact1.id, firstName: "Duplicate"});
+        chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
     });
 
     it("404s on getting invalid id", async () => {
         const resp = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/iamnotavalidcontactid`, "GET");
-        chai.assert.equal(resp.statusCode, 404);
+        chai.assert.equal(resp.statusCode, 404, `body=${JSON.stringify(resp.body)}`);
     });
 
     it("404s on modifying invalid id", async () => {
         const resp = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/iamnotavalidcontactid`, "PUT", contact1);
-        chai.assert.equal(resp.statusCode, 404);
+        chai.assert.equal(resp.statusCode, 404, `body=${JSON.stringify(resp.body)}`);
     });
 
-    it("can list 3 contacts", async () => {
+    it("can list 2 contacts", async () => {
         const resp = await testUtils.testAuthedRequest<Contact[]>(router, "/v2/contacts", "GET");
-        chai.assert.equal(resp.statusCode, 200);
+        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
         chai.assert.deepEqual(resp.body, [
             contact1,
-            contact2,
-            contact3
+            contact2
         ]);
         chai.assert.equal(resp.headers["Limit"], "100");
         chai.assert.equal(resp.headers["MaxLimit"], "1000");
         chai.assert.equal(resp.headers["Offset"], "0");
     });
 
-    it("can list 3 contacts in csv", async () => {
+    it("can list 2 contacts in csv", async () => {
         const resp = await testUtils.testAuthedCsvRequest<Contact>(router, "/v2/contacts", "GET");
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.deepEqualExcludingEvery(resp.body, [
             contact1,
-            contact2,
-            contact3
+            contact2
         ], ["createdDate", "updatedDate"]); // TODO don't ignore dates if my issue gets resolved https://github.com/mholt/PapaParse/issues/502
         chai.assert.equal(resp.headers["Limit"], "100");
         chai.assert.equal(resp.headers["MaxLimit"], "1000");
@@ -201,7 +198,7 @@ describe("/v2/contacts", () => {
 
     it("can page to the second contact", async () => {
         const resp = await testUtils.testAuthedRequest<Contact[]>(router, "/v2/contacts?limit=1&offset=1", "GET");
-        chai.assert.equal(resp.statusCode, 200);
+        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
         chai.assert.deepEqual(resp.body, [
             contact2
         ]);
@@ -237,7 +234,7 @@ describe("/v2/contacts", () => {
 
     it("can create a contact with metadata", async () => {
         const resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact4);
-        chai.assert.equal(resp.statusCode, 201);
+        chai.assert.equal(resp.statusCode, 201, `body=${JSON.stringify(resp.body)}`);
         chai.assert.deepEqualExcluding(resp.body, {
             ...contact4,
             lastName: null,
@@ -248,7 +245,7 @@ describe("/v2/contacts", () => {
 
     it("can get the contact with metadata", async () => {
         const resp = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/${contact4.id}`, "GET");
-        chai.assert.equal(resp.statusCode, 200);
+        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
         chai.assert.deepEqual(resp.body, contact4);
     });
 
@@ -259,7 +256,7 @@ describe("/v2/contacts", () => {
                     Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`
                 }
             }));
-            chai.assert.equal(resp.statusCode, 200);
+            chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
             chai.assert.deepEqual(JSON.parse(resp.body), []);
             chai.assert.equal(resp.headers["Limit"], "100");
             chai.assert.equal(resp.headers["MaxLimit"], "1000");
@@ -272,7 +269,7 @@ describe("/v2/contacts", () => {
                     Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`
                 }
             }));
-            chai.assert.equal(resp.statusCode, 404);
+            chai.assert.equal(resp.statusCode, 404, `body=${JSON.stringify(resp.body)}`);
         });
 
         it("doesn't leak PUT /contacts/{id}", async () => {
@@ -282,7 +279,7 @@ describe("/v2/contacts", () => {
                 },
                 body: JSON.stringify(contact1)
             }));
-            chai.assert.equal(resp.statusCode, 404);
+            chai.assert.equal(resp.statusCode, 404, `body=${JSON.stringify(resp.body)}`);
         });
     });
 });

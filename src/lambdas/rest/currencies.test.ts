@@ -7,6 +7,7 @@ import {installRest} from ".";
 
 import chaiExclude = require("chai-exclude");
 import {Value} from "../../model/Value";
+import {Contact} from "../../model/Contact";
 chai.use(chaiExclude);
 
 describe("/v2/currencies", () => {
@@ -46,6 +47,12 @@ describe("/v2/currencies", () => {
 
     it("can list 1 currency", async () => {
         const resp = await testUtils.testAuthedRequest<Currency[]>(router, "/v2/currencies", "GET");
+        chai.assert.equal(resp.statusCode, 200);
+        chai.assert.deepEqual(resp.body, [funbux]);
+    });
+
+    it("can list 1 currency in csv", async () => {
+        const resp = await testUtils.testAuthedCsvRequest<Currency>(router, "/v2/currencies", "GET");
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.deepEqual(resp.body, [funbux]);
     });

@@ -166,8 +166,6 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
                     {
                         rail: "lightrail",
                         value: (parties[0] as LightrailTransactionPlanStep).value,
-                        codeLastFour: (parties[0] as LightrailTransactionPlanStep).codeLastFour,
-                        contactId: (parties[0] as LightrailTransactionPlanStep).contactId,
                         amount: req.amount
                     }
                 ],
@@ -198,8 +196,6 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
                     {
                         rail: "lightrail",
                         value: (parties[0] as LightrailTransactionPlanStep).value,
-                        codeLastFour: (parties[0] as LightrailTransactionPlanStep).codeLastFour,
-                        contactId: (parties[0] as LightrailTransactionPlanStep).contactId,
                         amount: -amount
                     }
                 ],
@@ -250,15 +246,11 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
                     {
                         rail: "lightrail",
                         value: (sourceParties[0] as LightrailTransactionPlanStep).value,
-                        codeLastFour: (sourceParties[0] as LightrailTransactionPlanStep).codeLastFour,
-                        contactId: (sourceParties[0] as LightrailTransactionPlanStep).contactId,
                         amount: -amount
                     },
                     {
                         rail: "lightrail",
                         value: (destParties[0] as LightrailTransactionPlanStep).value,
-                        codeLastFour: (destParties[0] as LightrailTransactionPlanStep).codeLastFour,
-                        contactId: (destParties[0] as LightrailTransactionPlanStep).contactId,
                         amount
                     }
                 ],

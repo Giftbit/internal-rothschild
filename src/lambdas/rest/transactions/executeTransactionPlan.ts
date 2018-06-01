@@ -110,8 +110,8 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
                     id: `${plan.id}-${stepIx}`,
                     transactionId: plan.id,
                     valueId: step.value.id,
-                    contactId: step.contactId,
-                    codeLastFour: step.codeLastFour,
+                    contactId: step.value.contactId,
+                    code: step.value.code,
                     balanceBefore: res2[0].balance - step.amount,
                     balanceAfter: res2[0].balance,
                     balanceChange: step.amount

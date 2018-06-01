@@ -34,7 +34,7 @@ export function installContactsRest(router: cassava.Router): void {
             const now = nowInDbPrecision();
             const contact = {
                 ...pickOrDefault(evt.body, {
-                    id: evt.body.id,
+                    id: "",
                     firstName: null,
                     lastName: null,
                     email: null,
@@ -65,6 +65,10 @@ export function installContactsRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
             evt.validateBody(contactUpdateSchema);
+
+            if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
+                throw new giftbitRoutes.GiftbitRestError(422, `The body id '${evt.body.id}' does not match the path id '${evt.pathParameters.id}'.  The id cannot be updated.`);
+            }
 
             const now = nowInDbPrecision();
             const contact = {
@@ -187,10 +191,11 @@ export async function deleteContact(auth: giftbitRoutes.jwtauth.AuthorizationBad
 
 const contactSchema: jsonschema.Schema = {
     type: "object",
+    additionalProperties: false,
     properties: {
         id: {
             type: "string",
-            maxLength: 64,
+            maxLength: 32,
             minLength: 1
         },
         firstName: {
