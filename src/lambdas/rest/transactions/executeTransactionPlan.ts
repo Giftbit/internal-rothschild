@@ -52,7 +52,7 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
             await trx.into("Transactions")
                 .insert({
                     userId: auth.giftbitUserId,
-                    transactionId: plan.id,
+                    id: plan.id,
                     transactionType: plan.transactionType,
                     cart: null,
                     requestedPaymentSources: null,
@@ -70,11 +70,11 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
             let query = trx.into("Values")
                 .where({
                     userId: auth.giftbitUserId,
-                    valueId: step.value.id
+                    id: step.value.id
                 })
-                .increment("value", step.amount);
+                .increment("balance", step.amount);
             if (step.amount < 0) {
-                query = query.where("value", ">=", -step.amount);
+                query = query.where("balance", ">=", -step.amount);
             }
             if (step.value.uses !== null) {
                 query = query.where("uses", ">", 0)
@@ -91,7 +91,7 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
             const res2: DbValue[] = await trx.from("Values")
                 .where({
                     userId: auth.giftbitUserId,
-                    valueId: step.value.id
+                    id: step.value.id
                 })
                 .select();
 
@@ -107,11 +107,11 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
             await trx.into("LightrailTransactionSteps")
                 .insert({
                     userId: auth.giftbitUserId,
-                    lightrailTransactionStepId: `${plan.id}-${stepIx}`,
+                    id: `${plan.id}-${stepIx}`,
                     transactionId: plan.id,
                     valueId: step.value.id,
-                    contactId: step.contactId,
-                    codeLastFour: step.codeLastFour,
+                    contactId: step.value.contactId,
+                    code: step.value.code,
                     balanceBefore: res2[0].balance - step.amount,
                     balanceAfter: res2[0].balance,
                     balanceChange: step.amount
