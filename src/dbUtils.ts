@@ -1,5 +1,6 @@
 import * as aws from "aws-sdk";
 import * as knex from "knex";
+import {Pagination, PaginationParams} from "./model/Pagination";
 
 let dbCredentials: {username: string, password: string} = null;
 const isTestEnv = !!process.env["TEST_ENV"];
@@ -143,12 +144,60 @@ export function nowInDbPrecision(): Date {
  * update + insert = upsert.
  * This pattern is a MySQL extension.  Knex does not support it natively.
  */
-export async function upsert(table: string, update: {[ke: string]: any}, insert?: {[key: string]: any}): Promise<[number]> {
+export async function upsert(table: string, update: {[key: string]: any}, insert?: {[key: string]: any}): Promise<[number]> {
     const knex = await getKnexWrite();
     const insertQuery = knex(table).insert(insert || update).toString();
     const updateQuery = knex(table).insert(update).toString();
     const upsertQuery = insertQuery + " on duplicate key update " + updateQuery.replace(/^update [a-z.]+ set /i, "");
     return knex.raw(upsertQuery);
+}
+
+export async function paginateQuery<T extends {id: string}>(query: knex.QueryBuilder, paginationParams: PaginationParams): Promise<{body: T[], pagination: Pagination}> {
+    let reverse = false;
+    let atFirst = false;
+    let atLast = false;
+    if (paginationParams.after) {
+        query = query.where("id", ">", paginationParams.after);
+    } else if (paginationParams.before) {
+        query = query.where("id", "<", paginationParams.before).orderBy("id", "ASC");
+        reverse = true;
+    } else if (paginationParams.last) {
+        query = query.orderBy("id", "ASC");
+        reverse = true;
+        atLast = true;
+    } else {
+        atFirst = true;
+    }
+
+    query = query.limit(paginationParams.limit);
+
+    const resBody: T[] = await query;
+    if (reverse) {
+        const length = resBody.length;
+        const middle = (length / 2) | 0;
+        for (let i = 0; i < middle; i++) {
+            const temp = resBody[i];
+            resBody[i] = temp[length - i - 1];
+            resBody[length - i - 1] = temp;
+        }
+    }
+    if (resBody.length < paginationParams.limit) {
+        if (paginationParams.after) {
+            atLast = true;
+        } else if (paginationParams.before) {
+            atFirst = true;
+        }
+    }
+
+    return {
+        body: resBody,
+        pagination: {
+            limit: paginationParams.limit,
+            maxLimit: paginationParams.maxLimit,
+            before: !atFirst && resBody[0].id,
+            after: !atLast && resBody[resBody.length - 1].id,
+        }
+    };
 }
 
 /**

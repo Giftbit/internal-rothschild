@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
-import {getKnexWrite, getKnexRead, getSqlErrorConstraintName, nowInDbPrecision} from "../../dbUtils";
+import {getKnexWrite, getKnexRead, getSqlErrorConstraintName, nowInDbPrecision, paginateQuery} from "../../dbUtils";
 import {DbValue, Value} from "../../model/Value";
 import {pick, pickOrDefault} from "../../pick";
 import {csvSerializer} from "../../serializers";
@@ -19,7 +19,7 @@ export function installValuesRest(router: cassava.Router): void {
             auth.requireIds("giftbitUserId");
             const res = await getValues(auth, Pagination.getPaginationParams(evt));
             return {
-                headers: Pagination.toHeaders(res.pagination),
+                headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.values
             };
         });
@@ -119,21 +119,16 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
-    const res: DbValue[] = await knex("Values")
-        .where({
-            userId: auth.giftbitUserId
-        })
-        .select()
-        .orderBy("id")
-        .limit(pagination.limit)
-        .offset(pagination.offset);
+    const paginatedRes = await paginateQuery<DbValue>(
+        knex("Values")
+            .where({
+                userId: auth.giftbitUserId
+            }), // TODO filter
+        pagination
+    );
     return {
-        values: res.map(DbValue.toValue),
-        pagination: {
-            limit: pagination.limit,
-            maxLimit: pagination.maxLimit,
-            offset: pagination.offset
-        }
+        values: paginatedRes.body.map(DbValue.toValue),
+        pagination: paginatedRes.pagination
     };
 }
 
