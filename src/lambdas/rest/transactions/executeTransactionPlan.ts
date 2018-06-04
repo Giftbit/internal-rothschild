@@ -57,6 +57,7 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
                     cart: null,
                     requestedPaymentSources: null,
                     remainder: plan.remainder,
+                    metadata: plan.metadata,
                     createdDate: now
                 });
         } catch (err) {

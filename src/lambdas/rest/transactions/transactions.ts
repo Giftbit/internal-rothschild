@@ -167,6 +167,7 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
                         amount: req.amount
                     }
                 ],
+                metadata: JSON.stringify(req.metadata),
                 remainder: 0
             };
         }
@@ -197,6 +198,7 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
                         amount: -amount
                     }
                 ],
+                metadata: JSON.stringify(req.metadata),
                 remainder: req.amount - amount
             };
         }
@@ -252,6 +254,7 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
                         amount
                     }
                 ],
+                metadata: JSON.stringify(req.metadata),
                 remainder: req.amount - amount
             };
         }

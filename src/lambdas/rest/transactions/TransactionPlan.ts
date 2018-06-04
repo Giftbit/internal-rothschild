@@ -7,6 +7,7 @@ export interface TransactionPlan {
     transactionType: TransactionType;
     cart?: CartTransaction;
     steps: TransactionPlanStep[];
+    metadata?: string;
     remainder: number;
 }
 

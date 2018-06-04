@@ -105,6 +105,7 @@ CREATE TABLE rothschild.Transactions (
   cart                    MEDIUMTEXT,
   requestedPaymentSources TEXT,
   remainder               INT          NOT NULL,
+  metadata                TEXT,
   createdDate             DATETIME     NOT NULL,
   PRIMARY KEY pk_Transactions (userId, id)
 );

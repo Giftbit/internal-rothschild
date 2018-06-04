@@ -24,20 +24,6 @@ describe("/v2/transactions", () => {
         });
     });
 
-    it("can retrieve 0 transactions", async () => {
-        const resp = await testUtils.testAuthedRequest(router, "/v2/transactions", "GET");
-        chai.assert.equal(resp.statusCode, 200);
-        chai.assert.deepEqual(resp.body, {
-            transactions: [],
-            pagination: {
-                totalCount: 0,
-                limit: 100,
-                maxLimit: 1000,
-                offset: 0
-            }
-        });
-    });
-
     const value1: Partial<Value> = {
         id: "vs-gc-1",
         currency: "CAD",
@@ -70,6 +56,18 @@ describe("/v2/transactions", () => {
         amount: 2,
         currency: "CAD"
     };
+    const debit2: Partial<DebitRequest> = {
+        id: "tx-2",
+        source: {
+            rail: "lightrail",
+            valueId: value1.id
+        },
+        amount: 2,
+        currency: "CAD",
+        metadata: {
+            "light": "rail"
+        }
+    };
     const transfer2: DbTransaction = {
         userId: "test-user-a",
         id: "transfer-2",
@@ -77,7 +75,8 @@ describe("/v2/transactions", () => {
         cart: null,
         requestedPaymentSources: null,
         remainder: 0,
-        createdDate: new Date("01 January 2000")
+        createdDate: new Date("01 January 2000"),
+        metadata: null
     };
     const transfer3: DbTransaction = {
         userId: "test-user-a",
@@ -86,9 +85,24 @@ describe("/v2/transactions", () => {
         cart: null,
         requestedPaymentSources: null,
         remainder: 0,
-        createdDate: new Date("01 January 2005")
+        createdDate: new Date("01 January 2005"),
+        metadata: null
     };
 
+
+    it("can retrieve 0 transactions", async () => {
+        const resp = await testUtils.testAuthedRequest(router, "/v2/transactions", "GET");
+        chai.assert.equal(resp.statusCode, 200);
+        chai.assert.deepEqual(resp.body, {
+            transactions: [],
+            pagination: {
+                totalCount: 0,
+                limit: 100,
+                maxLimit: 1000,
+                offset: 0
+            }
+        });
+    });
 
     it("can retrieve 1 transactions with 2 steps", async () => {
         const postValueResp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
@@ -125,6 +139,15 @@ describe("/v2/transactions", () => {
         chai.assert.equal(resp.body.id, transfer1.id, `body=${JSON.stringify(resp.body)}`);
     });
 
+    it("can get a transaction with metadata", async () => {
+        const debitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", debit2);
+        chai.assert.equal(debitResp.statusCode, 201, `body=${JSON.stringify(debitResp.body)}`);
+
+        const resp = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${debit2.id}`, "GET");
+        chai.assert.equal(resp.statusCode, 200);
+        chai.assert.equal(JSON.stringify(resp.body.metadata), JSON.stringify(debit2.metadata), `body=${JSON.stringify(debitResp.body)}`);
+    });
+
     describe("filter transactions by query params", () => {
         it("can filter by type", async () => {
             const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions?transactionType=transfer", "GET");
@@ -136,7 +159,7 @@ describe("/v2/transactions", () => {
         it("can filter by minCreatedDate", async () => {
             const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions?minCreatedDate=2018-01-01", "GET");
             chai.assert.equal(resp.statusCode, 200);
-            chai.assert.equal(resp.body.transactions.length, 2);
+            chai.assert.equal(resp.body.transactions.length, 3);
             chai.assert.equal(resp.body.transactions[0].id, transfer1.id);
             chai.assert.equal(resp.body.transactions[1].id, debit1.id);
         });
@@ -156,7 +179,7 @@ describe("/v2/transactions", () => {
 
             chai.assert.equal(resp.statusCode, 200);
             chai.assert.equal(resp.body.transactions.length, 1);
-            chai.assert.equal(resp.body.transactions[0].id, transfer3.id);
+            chai.assert.include(resp.body.transactions[0].id, transfer3.id);
         });
     });
 
@@ -170,7 +193,7 @@ describe("/v2/transactions", () => {
         it("can page to the second transaction", async () => {
             const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions?offset=1", "GET");
             chai.assert.equal(resp.statusCode, 200);
-            chai.assert.equal(resp.body.transactions.length, 3);
+            chai.assert.equal(resp.body.transactions.length, 4);
         });
     });
 });

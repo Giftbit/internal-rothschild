@@ -10,7 +10,7 @@ export interface Transaction {
     remainder: number;
     simulated?: true;
     createdDate: Date;
-    // metadata: object | null; // TODO
+    metadata?: object | null;
 }
 
 export namespace Transaction {
@@ -23,7 +23,8 @@ export namespace Transaction {
             cart: JSON.stringify(t.cart),
             requestedPaymentSources: "", // todo maybe JSON.stringify(t.requestedPaymentSources), // TODO does this actually exist on the Transaction in any form, or does it only exist on the request? Depends on how we handle payment sources that evaluate to $0 (save & return, or not).
             remainder: t.remainder,
-            createdDate: t.createdDate
+            createdDate: t.createdDate,
+            metadata: JSON.stringify(t.metadata)
         };
     }
 }
@@ -36,6 +37,7 @@ export interface DbTransaction {
     requestedPaymentSources: string | null;
     remainder: number;
     createdDate: Date;
+    metadata?: string | null;
 }
 
 export namespace DbTransaction {
@@ -55,7 +57,8 @@ export namespace DbTransaction {
             cart: t.cart,
             steps: dbSteps,
             remainder: t.remainder,
-            createdDate: t.createdDate
+            createdDate: t.createdDate,
+            metadata: JSON.parse(t.metadata)
         };
     }
 }
