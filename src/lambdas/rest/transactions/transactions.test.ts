@@ -2,10 +2,11 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as testUtils from "../../../testUtils";
-import {Transaction} from "../../../model/Transaction";
+import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
 import {installRest} from "../index";
 import {Value} from "../../../model/Value";
+import {getKnexWrite} from "../../../dbUtils";
 
 describe("/v2/transactions", () => {
     const router = new cassava.Router();
@@ -69,6 +70,25 @@ describe("/v2/transactions", () => {
         amount: 2,
         currency: "CAD"
     };
+    const transfer2: DbTransaction = {
+        userId: "test-user-a",
+        id: "transfer-2",
+        transactionType: "transfer",
+        cart: null,
+        requestedPaymentSources: null,
+        remainder: 0,
+        createdDate: new Date("01 January 2000")
+    };
+    const transfer3: DbTransaction = {
+        userId: "test-user-a",
+        id: "transfer-3",
+        transactionType: "transfer",
+        cart: null,
+        requestedPaymentSources: null,
+        remainder: 0,
+        createdDate: new Date("01 January 2005")
+    };
+
 
     it("can retrieve 1 transactions with 2 steps", async () => {
         const postValueResp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
@@ -126,6 +146,18 @@ describe("/v2/transactions", () => {
             chai.assert.equal(resp.statusCode, 200);
             chai.assert.equal(resp.body.transactions.length, 0);
         });
+
+        it("can filter by three params", async () => {
+            const knex = await getKnexWrite();
+            await knex("Transactions").insert(transfer2);
+            await knex("Transactions").insert(transfer3);
+
+            const resp = await testUtils.testAuthedRequest<any>(router, `/v2/transactions?transactionType=transfer&minCreatedDate=${new Date("01 January 2002").toISOString()}&maxCreatedDate=${new Date("01 January 2006").toISOString()}`, "GET");
+
+            chai.assert.equal(resp.statusCode, 200);
+            chai.assert.equal(resp.body.transactions.length, 1);
+            chai.assert.equal(resp.body.transactions[0].id, transfer3.id);
+        });
     });
 
     describe("filter transactions by pagination params", () => {
@@ -133,14 +165,12 @@ describe("/v2/transactions", () => {
             const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions?limit=1", "GET");
             chai.assert.equal(resp.statusCode, 200);
             chai.assert.equal(resp.body.transactions.length, 1);
-            chai.assert.equal(resp.body.transactions[0].id, transfer1.id);
         });
 
         it("can page to the second transaction", async () => {
             const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions?offset=1", "GET");
             chai.assert.equal(resp.statusCode, 200);
-            chai.assert.equal(resp.body.transactions.length, 1);
-            chai.assert.equal(resp.body.transactions[0].id, debit1.id);
+            chai.assert.equal(resp.body.transactions.length, 3);
         });
     });
 });
