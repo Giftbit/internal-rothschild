@@ -43,7 +43,7 @@ export namespace Pagination {
             link = toLink(evt.path, resQueryParams, "first") + "," + toLink(evt.path, {...resQueryParams, before: pagination.before}, "prev");
         }
         if (pagination.after) {
-            if (link.length > 0) {
+            if (link) {
                 link += ",";
             }
             link += toLink(evt.path, {...resQueryParams, after: pagination.after}, "next") + "," + toLink(evt.path, {...resQueryParams, last: "true"}, "last");

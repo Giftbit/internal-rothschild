@@ -228,13 +228,7 @@ export async function paginateQuery<T extends {id: string}>(query: knex.QueryBui
 
     const resBody: T[] = await query;
     if (reverse) {
-        const length = resBody.length;
-        const middle = (length / 2) | 0;
-        for (let i = 0; i < middle; i++) {
-            const temp = resBody[i];
-            resBody[i] = resBody[length - i - 1];
-            resBody[length - i - 1] = temp;
-        }
+        resBody.reverse();
     }
     if (resBody.length < paginationParams.limit) {
         if (paginationParams.after) {
@@ -249,8 +243,8 @@ export async function paginateQuery<T extends {id: string}>(query: knex.QueryBui
         pagination: {
             limit: paginationParams.limit,
             maxLimit: paginationParams.maxLimit,
-            before: !atFirst && PaginationCursor.encode(PaginationCursor.build(true, resBody, paginationParams)),
-            after: !atLast && PaginationCursor.encode(PaginationCursor.build(false, resBody, paginationParams))
+            before: !atFirst && resBody.length && PaginationCursor.encode(PaginationCursor.build(true, resBody, paginationParams)),
+            after: !atLast && resBody.length && PaginationCursor.encode(PaginationCursor.build(false, resBody, paginationParams))
         }
     };
 }

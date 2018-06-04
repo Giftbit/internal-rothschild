@@ -23,7 +23,6 @@ describe("/v2/contacts", () => {
         chai.assert.deepEqual(resp.body, []);
         chai.assert.equal(resp.headers["Limit"], "100");
         chai.assert.equal(resp.headers["MaxLimit"], "1000");
-        chai.assert.equal(resp.headers["Offset"], "0");
     });
 
     it("can list 0 contacts with csv", async () => {
@@ -32,7 +31,6 @@ describe("/v2/contacts", () => {
         chai.assert.deepEqual(resp.body, []);
         chai.assert.equal(resp.headers["Limit"], "100");
         chai.assert.equal(resp.headers["MaxLimit"], "1000");
-        chai.assert.equal(resp.headers["Offset"], "0");
     });
 
     let contact1: Partial<Contact> = {
@@ -63,7 +61,6 @@ describe("/v2/contacts", () => {
         ]);
         chai.assert.equal(resp.headers["Limit"], "100");
         chai.assert.equal(resp.headers["MaxLimit"], "1000");
-        chai.assert.equal(resp.headers["Offset"], "0");
     });
 
     it("can list 1 contact in csv", async () => {
@@ -74,7 +71,6 @@ describe("/v2/contacts", () => {
         ], ["createdDate", "updatedDate"]); // TODO don't ignore dates if my issue gets resolved https://github.com/mholt/PapaParse/issues/502
         chai.assert.equal(resp.headers["Limit"], "100");
         chai.assert.equal(resp.headers["MaxLimit"], "1000");
-        chai.assert.equal(resp.headers["Offset"], "0");
     });
 
     it("requires an id to create a contact", async () => {
@@ -181,7 +177,6 @@ describe("/v2/contacts", () => {
         ]);
         chai.assert.equal(resp.headers["Limit"], "100");
         chai.assert.equal(resp.headers["MaxLimit"], "1000");
-        chai.assert.equal(resp.headers["Offset"], "0");
     });
 
     it("can list 2 contacts in csv", async () => {
@@ -193,29 +188,6 @@ describe("/v2/contacts", () => {
         ], ["createdDate", "updatedDate"]); // TODO don't ignore dates if my issue gets resolved https://github.com/mholt/PapaParse/issues/502
         chai.assert.equal(resp.headers["Limit"], "100");
         chai.assert.equal(resp.headers["MaxLimit"], "1000");
-        chai.assert.equal(resp.headers["Offset"], "0");
-    });
-
-    it("can page to the second contact", async () => {
-        const resp = await testUtils.testAuthedRequest<Contact[]>(router, "/v2/contacts?limit=1&offset=1", "GET");
-        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.deepEqual(resp.body, [
-            contact2
-        ]);
-        chai.assert.equal(resp.headers["Limit"], "1");
-        chai.assert.equal(resp.headers["MaxLimit"], "1000");
-        chai.assert.equal(resp.headers["Offset"], "1");
-    });
-
-    it("can page to the second contact in csv", async () => {
-        const resp = await testUtils.testAuthedCsvRequest<Contact>(router, "/v2/contacts?limit=1&offset=1", "GET");
-        chai.assert.equal(resp.statusCode, 200);
-        chai.assert.deepEqualExcludingEvery(resp.body, [
-            contact2
-        ], ["createdDate", "updatedDate"]); // TODO don't ignore dates if my issue gets resolved https://github.com/mholt/PapaParse/issues/502
-        chai.assert.equal(resp.headers["Limit"], "1");
-        chai.assert.equal(resp.headers["MaxLimit"], "1000");
-        chai.assert.equal(resp.headers["Offset"], "1");
     });
 
     let contact4: Partial<Contact> = {
@@ -260,7 +232,6 @@ describe("/v2/contacts", () => {
             chai.assert.deepEqual(JSON.parse(resp.body), []);
             chai.assert.equal(resp.headers["Limit"], "100");
             chai.assert.equal(resp.headers["MaxLimit"], "1000");
-            chai.assert.equal(resp.headers["Offset"], "0");
         });
 
         it("doesn't leak GET /contacts/{id}", async () => {

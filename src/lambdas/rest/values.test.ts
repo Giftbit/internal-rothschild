@@ -26,7 +26,6 @@ describe("/v2/values/", () => {
         chai.assert.deepEqual(resp.body, []);
         chai.assert.equal(resp.headers["Limit"], "100");
         chai.assert.equal(resp.headers["MaxLimit"], "1000");
-        chai.assert.equal(resp.headers["Offset"], "0");
     });
 
     it("can list 0 values in csv", async () => {
@@ -35,7 +34,6 @@ describe("/v2/values/", () => {
         chai.assert.deepEqual(resp.body, []);
         chai.assert.equal(resp.headers["Limit"], "100");
         chai.assert.equal(resp.headers["MaxLimit"], "1000");
-        chai.assert.equal(resp.headers["Offset"], "0");
     });
 
     const currency: Currency = {

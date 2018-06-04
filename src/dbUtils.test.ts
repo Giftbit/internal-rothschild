@@ -54,7 +54,7 @@ describe("dbUtils", () => {
             await knex.into("PaginationTest").insert(rows);
         });
 
-        it("pages back and forth with before & after", async () => {
+        it("pages a simple query", async () => {
             const knex = await getKnexRead();
 
             const firstThirty: PaginationTest[] = await knex("PaginationTest")
@@ -144,8 +144,17 @@ describe("dbUtils", () => {
             chai.assert.deepEqual(page3prevprev.body, page1.body, "page3prevprev");
         });
 
-        it("can page to last", async () => {
+        it("pages a simple query from last", async () => {
             const knex = await getKnexRead();
+
+            const lastThirty: PaginationTest[] = await knex("PaginationTest")
+                .where({
+                    userId: "user1"
+                })
+                .orderBy("id", "DESC")
+                .limit(30);
+            lastThirty.reverse();
+            chai.assert.equal(lastThirty[lastThirty.length - 1].id, "id-999", "check that I got the last 20 thirty");
 
             const lastPage = await paginateQuery<PaginationTest>(
                 knex("PaginationTest")
@@ -153,7 +162,7 @@ describe("dbUtils", () => {
                         userId: "user1"
                     }),
                 {
-                    limit: 5,
+                    limit: 10,
                     maxLimit: 10,
                     sort: null,
                     before: null,
@@ -161,32 +170,7 @@ describe("dbUtils", () => {
                     last: true
                 }
             );
-            chai.assert.deepEqualExcludingEvery(
-                lastPage.body,
-                [
-                    {
-                        userId: "user1",
-                        id: "id-995"
-                    },
-                    {
-                        userId: "user1",
-                        id: "id-996"
-                    },
-                    {
-                        userId: "user1",
-                        id: "id-997"
-                    },
-                    {
-                        userId: "user1",
-                        id: "id-998"
-                    },
-                    {
-                        userId: "user1",
-                        id: "id-999"
-                    } as any
-                ],
-                ["a", "b", "c"],
-                "lastPage");
+            chai.assert.deepEqual(lastPage.body, lastThirty.slice(20, 30));
 
             const secondLastPage = await paginateQuery<PaginationTest>(
                 knex("PaginationTest")
@@ -194,7 +178,7 @@ describe("dbUtils", () => {
                         userId: "user1"
                     }),
                 {
-                    limit: 5,
+                    limit: 10,
                     maxLimit: 10,
                     sort: null,
                     before: lastPage.pagination.before,
@@ -202,36 +186,35 @@ describe("dbUtils", () => {
                     last: false
                 }
             );
-            chai.assert.deepEqualExcludingEvery(
-                secondLastPage.body,
-                [
-                    {
-                        userId: "user1",
-                        id: "id-990"
-                    },
-                    {
-                        userId: "user1",
-                        id: "id-991"
-                    },
-                    {
-                        userId: "user1",
-                        id: "id-992"
-                    },
-                    {
-                        userId: "user1",
-                        id: "id-993"
-                    },
-                    {
-                        userId: "user1",
-                        id: "id-994"
-                    } as any
-                ],
-                ["a", "b", "c"],
-                "secondLastPage");
+            chai.assert.deepEqual(secondLastPage.body, lastThirty.slice(10, 20), "secondLastPage");
+
+            const secondLastPageNext = await paginateQuery<PaginationTest>(
+                knex("PaginationTest")
+                    .where({
+                        userId: "user1"
+                    }),
+                {
+                    limit: 10,
+                    maxLimit: 10,
+                    sort: null,
+                    before: null,
+                    after: secondLastPage.pagination.after,
+                    last: false
+                }
+            );
+            chai.assert.deepEqual(secondLastPageNext.body, lastPage.body, "secondLastPageNext");
         });
 
         it("pages a query with advanced filters", async () => {
             const knex = await getKnexRead();
+
+            const firstThirty: PaginationTest[] = await knex("PaginationTest")
+                .where({
+                    userId: "user1",
+                    c: true
+                })
+                .where("b", ">", 50)
+                .limit(30);
 
             const page1 = await paginateQuery<PaginationTest>(
                 knex("PaginationTest")
@@ -249,14 +232,9 @@ describe("dbUtils", () => {
                     last: false
                 }
             );
-            chai.assert.lengthOf(page1.body, 10);
-            for (let i = 0; i < page1.body.length; i++) {
-                chai.assert.equal(page1.body[i].userId, "user1", `page1 row ${i}`);
-                chai.assert.isTrue(page1.body[i].c, `page1 row ${i}`);
-                chai.assert.isAtLeast(page1.body[i].b, 50, `page1 row ${i}`);
-            }
+            chai.assert.deepEqual(page1.body, firstThirty.slice(0, 10), "page1");
 
-            const page2 = await paginateQuery<PaginationTest>(
+            const page2 = await paginateQuery(
                 knex("PaginationTest")
                     .where({
                         userId: "user1",
@@ -272,14 +250,27 @@ describe("dbUtils", () => {
                     last: false
                 }
             );
-            chai.assert.lengthOf(page2.body, 10);
-            for (let i = 0; i < page2.body.length; i++) {
-                chai.assert.equal(page2.body[i].userId, "user1", `page2 row ${i}`);
-                chai.assert.isTrue(page2.body[i].c, `page2 row ${i}`);
-                chai.assert.isAtLeast(page2.body[i].b, 50, `page2 row ${i}`);
-            }
+            chai.assert.deepEqual(page2.body, firstThirty.slice(10, 20), "page2");
 
-            const page2prev = await paginateQuery<PaginationTest>(
+            const page3 = await paginateQuery<PaginationTest>(
+                knex("PaginationTest")
+                    .where({
+                        userId: "user1",
+                        c: true
+                    })
+                    .where("b", ">", 50),
+                {
+                    limit: 10,
+                    maxLimit: 10,
+                    before: null,
+                    after: page2.pagination.after,
+                    sort: null,
+                    last: false
+                }
+            );
+            chai.assert.deepEqual(page3.body, firstThirty.slice(20, 30), "page3");
+
+            const page3prev = await paginateQuery<PaginationTest>(
                 knex("PaginationTest")
                     .where({
                         userId: "user1",
@@ -290,12 +281,98 @@ describe("dbUtils", () => {
                     limit: 10,
                     maxLimit: 10,
                     sort: null,
-                    before: page2.pagination.before,
+                    before: page3.pagination.before,
                     after: null,
                     last: false
                 }
             );
-            chai.assert.deepEqual(page2prev.body, page1.body, "page2prev");
+            chai.assert.deepEqual(page3prev.body, page2.body, "page3prev");
+
+            const page3prevprev = await paginateQuery<PaginationTest>(
+                knex("PaginationTest")
+                    .where({
+                        userId: "user1",
+                        c: true
+                    })
+                    .where("b", ">", 50),
+                {
+                    limit: 10,
+                    maxLimit: 10,
+                    sort: null,
+                    before: page3prev.pagination.before,
+                    after: null,
+                    last: false
+                }
+            );
+            chai.assert.deepEqual(page3prevprev.body, page1.body, "page3prevprev");
+        });
+
+        it("pages a query with advanced filters from last", async () => {
+            const knex = await getKnexRead();
+
+            const lastThirty: PaginationTest[] = await knex("PaginationTest")
+                .where({
+                    userId: "user1",
+                    c: true
+                })
+                .where("b", ">", 50)
+                .orderBy("id", "DESC")
+                .limit(30);
+            lastThirty.reverse();
+
+            const lastPage = await paginateQuery<PaginationTest>(
+                knex("PaginationTest")
+                    .where({
+                        userId: "user1",
+                        c: true
+                    })
+                    .where("b", ">", 50),
+                {
+                    limit: 10,
+                    maxLimit: 10,
+                    sort: null,
+                    before: null,
+                    after: null,
+                    last: true
+                }
+            );
+            chai.assert.deepEqual(lastPage.body, lastThirty.slice(20, 30));
+
+            const secondLastPage = await paginateQuery<PaginationTest>(
+                knex("PaginationTest")
+                    .where({
+                        userId: "user1",
+                        c: true
+                    })
+                    .where("b", ">", 50),
+                {
+                    limit: 10,
+                    maxLimit: 10,
+                    sort: null,
+                    before: lastPage.pagination.before,
+                    after: null,
+                    last: false
+                }
+            );
+            chai.assert.deepEqual(secondLastPage.body, lastThirty.slice(10, 20), "secondLastPage");
+
+            const secondLastPageNext = await paginateQuery<PaginationTest>(
+                knex("PaginationTest")
+                    .where({
+                        userId: "user1",
+                        c: true
+                    })
+                    .where("b", ">", 50),
+                {
+                    limit: 10,
+                    maxLimit: 10,
+                    sort: null,
+                    before: null,
+                    after: secondLastPage.pagination.after,
+                    last: false
+                }
+            );
+            chai.assert.deepEqual(secondLastPageNext.body, lastPage.body, "secondLastPageNext");
         });
 
         it("pages a query with sorting", async () => {
@@ -405,7 +482,78 @@ describe("dbUtils", () => {
             chai.assert.deepEqual(page3prevprev.body, page1.body, "page3prevprev");
         });
 
-        it("pages a query in reverse order with sorting", async () => {
+        it("pages a query with sorting from last", async () => {
+            const knex = await getKnexRead();
+
+            const lastThirty: PaginationTest[] = await knex("PaginationTest")
+                .where({
+                    userId: "user1"
+                })
+                .orderBy("b", "DESC")
+                .orderBy("id", "DESC")
+                .limit(30);
+            lastThirty.reverse();
+            chai.assert.isTrue(lastThirty[lastThirty.length - 2].b <= lastThirty[lastThirty.length - 1].b, "check that I got the last 20 thirty");
+
+            const lastPage = await paginateQuery<PaginationTest>(
+                knex("PaginationTest")
+                    .where({
+                        userId: "user1"
+                    }),
+                {
+                    limit: 10,
+                    maxLimit: 10,
+                    sort: {
+                        field: "b",
+                        asc: true
+                    },
+                    before: null,
+                    after: null,
+                    last: true
+                }
+            );
+            chai.assert.deepEqual(lastPage.body, lastThirty.slice(20, 30));
+
+            const secondLastPage = await paginateQuery<PaginationTest>(
+                knex("PaginationTest")
+                    .where({
+                        userId: "user1"
+                    }),
+                {
+                    limit: 10,
+                    maxLimit: 10,
+                    sort: {
+                        field: "b",
+                        asc: true
+                    },
+                    before: lastPage.pagination.before,
+                    after: null,
+                    last: false
+                }
+            );
+            chai.assert.deepEqual(secondLastPage.body, lastThirty.slice(10, 20), "secondLastPage");
+
+            const secondLastPageNext = await paginateQuery<PaginationTest>(
+                knex("PaginationTest")
+                    .where({
+                        userId: "user1"
+                    }),
+                {
+                    limit: 10,
+                    maxLimit: 10,
+                    sort: {
+                        field: "b",
+                        asc: true
+                    },
+                    before: null,
+                    after: secondLastPage.pagination.after,
+                    last: false
+                }
+            );
+            chai.assert.deepEqual(secondLastPageNext.body, lastPage.body, "secondLastPageNext");
+        });
+
+        it("pages a query with reverse sorting", async () => {
             const knex = await getKnexRead();
 
             const firstThirty: PaginationTest[] = await knex("PaginationTest")
@@ -510,6 +658,77 @@ describe("dbUtils", () => {
                 }
             );
             chai.assert.deepEqual(page3prevprev.body, page1.body, "page3prevprev");
+        });
+
+        it("pages a query with reverse sorting from last", async () => {
+            const knex = await getKnexRead();
+
+            const lastThirty: PaginationTest[] = await knex("PaginationTest")
+                .where({
+                    userId: "user1"
+                })
+                .orderBy("b")
+                .orderBy("id")
+                .limit(30);
+            lastThirty.reverse();
+            chai.assert.isTrue(lastThirty[lastThirty.length - 2].b >= lastThirty[lastThirty.length - 1].b, "check that I got the last 20 thirty");
+
+            const lastPage = await paginateQuery<PaginationTest>(
+                knex("PaginationTest")
+                    .where({
+                        userId: "user1"
+                    }),
+                {
+                    limit: 10,
+                    maxLimit: 10,
+                    sort: {
+                        field: "b",
+                        asc: false
+                    },
+                    before: null,
+                    after: null,
+                    last: true
+                }
+            );
+            chai.assert.deepEqual(lastPage.body, lastThirty.slice(20, 30));
+
+            const secondLastPage = await paginateQuery<PaginationTest>(
+                knex("PaginationTest")
+                    .where({
+                        userId: "user1"
+                    }),
+                {
+                    limit: 10,
+                    maxLimit: 10,
+                    sort: {
+                        field: "b",
+                        asc: false
+                    },
+                    before: lastPage.pagination.before,
+                    after: null,
+                    last: false
+                }
+            );
+            chai.assert.deepEqual(secondLastPage.body, lastThirty.slice(10, 20), "secondLastPage");
+
+            const secondLastPageNext = await paginateQuery<PaginationTest>(
+                knex("PaginationTest")
+                    .where({
+                        userId: "user1"
+                    }),
+                {
+                    limit: 10,
+                    maxLimit: 10,
+                    sort: {
+                        field: "b",
+                        asc: false
+                    },
+                    before: null,
+                    after: secondLastPage.pagination.after,
+                    last: false
+                }
+            );
+            chai.assert.deepEqual(secondLastPageNext.body, lastPage.body, "secondLastPageNext");
         });
     });
 });
