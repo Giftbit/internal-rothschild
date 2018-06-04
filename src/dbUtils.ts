@@ -1,4 +1,5 @@
 import * as aws from "aws-sdk";
+import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as knex from "knex";
 import {Pagination, PaginationParams} from "./model/Pagination";
 
@@ -152,20 +153,74 @@ export async function upsert(table: string, update: {[key: string]: any}, insert
     return knex.raw(upsertQuery);
 }
 
+/**
+ * Apply cursor-based pagination to the given query.  All filtering is supported but sorting (ORDER BY)
+ * must be done through PaginationParams.
+ */
 export async function paginateQuery<T extends {id: string}>(query: knex.QueryBuilder, paginationParams: PaginationParams): Promise<{body: T[], pagination: Pagination}> {
     let reverse = false;
     let atFirst = false;
     let atLast = false;
+
     if (paginationParams.after) {
-        query = query.where("id", ">", paginationParams.after);
+        const after = PaginationCursor.decode(paginationParams.after);
+        if (after.sort != null && paginationParams.sort) {
+            query = query
+                .where(query => query
+                    .where(paginationParams.sort.field, paginationParams.sort.asc ? ">" : "<", after.sort)
+                    .orWhere(query =>
+                        query
+                            .where(paginationParams.sort.field, "=", after.sort)
+                            .where("id", paginationParams.sort.asc ? ">" : "<", after.id)
+                    )
+                )
+                .orderBy(paginationParams.sort.field, paginationParams.sort.asc ? "ASC" : "DESC")
+                .orderBy("id", paginationParams.sort.asc ? "ASC" : "DESC");
+        } else {
+            query = query
+                .where("id", ">", after.id)
+                .orderBy("id", "ASC");
+        }
     } else if (paginationParams.before) {
-        query = query.where("id", "<", paginationParams.before).orderBy("id", "ASC");
+        const before = PaginationCursor.decode(paginationParams.before);
+        if (before.sort != null && paginationParams.sort) {
+            query = query
+                .where(query => query
+                    .where(paginationParams.sort.field, paginationParams.sort.asc ? "<" : ">", before.sort)
+                    .orWhere(query =>
+                        query
+                            .where(paginationParams.sort.field, "=", before.sort)
+                            .where("id", paginationParams.sort.asc ? "<" : ">", before.id)
+                    )
+                )
+                .orderBy(paginationParams.sort.field, paginationParams.sort.asc ? "DESC" : "ASC")
+                .orderBy("id", paginationParams.sort.asc ? "DESC" : "ASC");
+        } else {
+            query = query
+                .where("id", "<", before.id)
+                .orderBy("id", "DESC");
+        }
         reverse = true;
     } else if (paginationParams.last) {
-        query = query.orderBy("id", "ASC");
+        if (paginationParams.sort) {
+            query = query
+                .orderBy(paginationParams.sort.field, paginationParams.sort.asc ? "DESC" : "ASC")
+                .orderBy("id", paginationParams.sort.asc ? "DESC" : "ASC");
+        } else {
+            query = query
+                .orderBy("id", "DESC");
+        }
         reverse = true;
         atLast = true;
     } else {
+        if (paginationParams.sort) {
+            query = query
+                .orderBy(paginationParams.sort.field, paginationParams.sort.asc ? "ASC" : "DESC")
+                .orderBy("id", paginationParams.sort.asc ? "ASC" : "DESC");
+        } else {
+            query = query
+                .orderBy("id", "ASC");
+        }
         atFirst = true;
     }
 
@@ -177,7 +232,7 @@ export async function paginateQuery<T extends {id: string}>(query: knex.QueryBui
         const middle = (length / 2) | 0;
         for (let i = 0; i < middle; i++) {
             const temp = resBody[i];
-            resBody[i] = temp[length - i - 1];
+            resBody[i] = resBody[length - i - 1];
             resBody[length - i - 1] = temp;
         }
     }
@@ -194,10 +249,40 @@ export async function paginateQuery<T extends {id: string}>(query: knex.QueryBui
         pagination: {
             limit: paginationParams.limit,
             maxLimit: paginationParams.maxLimit,
-            before: !atFirst && resBody[0].id,
-            after: !atLast && resBody[resBody.length - 1].id,
+            before: !atFirst && PaginationCursor.encode(PaginationCursor.build(true, resBody, paginationParams)),
+            after: !atLast && PaginationCursor.encode(PaginationCursor.build(false, resBody, paginationParams))
         }
     };
+}
+
+interface PaginationCursor {
+    id: string;
+    sort?: string | number;
+}
+
+namespace PaginationCursor {
+    export function build(before: boolean, resBody: any[], paginationParams: PaginationParams): PaginationCursor {
+        const ix = before ? 0 : resBody.length - 1;
+        let cursor: PaginationCursor = {
+            id: resBody[ix].id
+        };
+        if (paginationParams.sort) {
+            cursor.sort = resBody[ix][paginationParams.sort.field];
+        }
+        return cursor;
+    }
+
+    export function decode(s: string): PaginationCursor {
+        try {
+            return JSON.parse(Buffer.from(s, "base64").toString());
+        } catch (unused) {
+            throw new giftbitRoutes.GiftbitRestError(400);
+        }
+    }
+
+    export function encode(c: PaginationCursor): string {
+        return Buffer.from(JSON.stringify(c)).toString("base64");
+    }
 }
 
 /**

@@ -123,7 +123,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
         knex("Values")
             .where({
                 userId: auth.giftbitUserId
-            }), // TODO filter
+            }),
         pagination
     );
     return {

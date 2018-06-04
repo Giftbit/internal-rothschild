@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import {getKnexRead, getKnexWrite, nowInDbPrecision} from "../../dbUtils";
+import {getKnexRead, getKnexWrite, nowInDbPrecision, paginateQuery} from "../../dbUtils";
 import {Contact, DbContact} from "../../model/Contact";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {pick, pickOrDefault} from "../../pick";
@@ -19,7 +19,7 @@ export function installContactsRest(router: cassava.Router): void {
             auth.requireIds("giftbitUserId");
             const res = await getContacts(auth, Pagination.getPaginationParams(evt));
             return {
-                headers: Pagination.toHeaders(res.pagination),
+                headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.contacts
             };
         });
@@ -95,21 +95,16 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
-    const res: DbContact[] = await knex("Contacts")
-        .select()
-        .where({
-            userId: auth.giftbitUserId
-        })
-        .orderBy("id")
-        .limit(pagination.limit)
-        .offset(pagination.offset);
+    const res = await paginateQuery<DbContact>(
+        knex("Contacts")
+            .where({
+                userId: auth.giftbitUserId
+            }),
+        pagination
+    );
     return {
-        contacts: res.map(DbContact.toContact),
-        pagination: {
-            limit: pagination.limit,
-            maxLimit: pagination.maxLimit,
-            offset: pagination.offset
-        }
+        contacts: res.body.map(DbContact.toContact),
+        pagination: res.pagination
     };
 }
 

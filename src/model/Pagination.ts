@@ -5,16 +5,29 @@ import {RouterEvent} from "cassava/dist/RouterEvent";
 export interface PaginationParams {
     limit: number;
     maxLimit: number;
-    before: string;
-    after: string;
+    sort: {
+        field: string;
+        asc: boolean;
+    } | null;
+    before: string | null;
+    after: string | null;
     last: boolean;
+}
+
+export interface PaginationParamOptions {
+    defaultLimit?: number;
+    maxLimit?: number;
+    sort?: {
+        field: string;
+        asc: boolean;
+    };
 }
 
 export class Pagination {
     limit: number;
     maxLimit: number;
-    before: string;
-    after: string;
+    before: string | null;
+    after: string | null;
 }
 
 export namespace Pagination {
@@ -24,11 +37,12 @@ export namespace Pagination {
         delete resQueryParams.before;
         delete resQueryParams.last;
 
+        // Link header corresponding to https://tools.ietf.org/html/rfc5988
         let link: string;
-        if (!pagination.before) {
+        if (pagination.before) {
             link = toLink(evt.path, resQueryParams, "first") + "," + toLink(evt.path, {...resQueryParams, before: pagination.before}, "prev");
         }
-        if (!pagination.after) {
+        if (pagination.after) {
             if (link.length > 0) {
                 link += ",";
             }
@@ -46,10 +60,14 @@ export namespace Pagination {
         return `<${path}?${querystring.stringify(queryString)}>; rel="${encodeURIComponent(rel)}"`;
     }
 
-    export function getPaginationParams(evt: RouterEvent, defaultLimit: number = 100, maxLimit: number = 1000): PaginationParams {
+    export function getPaginationParams(evt: RouterEvent, options: PaginationParamOptions = {}): PaginationParams {
+        const defaultLimit = options.defaultLimit || 100;
+        const maxLimit = options.maxLimit || 1000;
+
         return {
-            limit: Math.min(Math.max(+evt.queryStringParameters["limit"] || 100, 1), maxLimit),
+            limit: Math.min(Math.max(+evt.queryStringParameters["limit"] || defaultLimit, 1), maxLimit),
             maxLimit,
+            sort: options.sort || null,
             before: evt.queryStringParameters.before,
             after: evt.queryStringParameters.after,
             last: (evt.queryStringParameters.last || "").toLowerCase() === "true"
