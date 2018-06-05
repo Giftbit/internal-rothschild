@@ -21,7 +21,7 @@ export namespace Transaction {
             id: t.id,
             transactionType: t.transactionType,
             cart: JSON.stringify(t.cart),
-            requestedPaymentSources: "", // todo maybe JSON.stringify(t.requestedPaymentSources), // TODO does this actually exist on the Transaction in any form, or does it only exist on the request? Depends on how we handle payment sources that evaluate to $0 (save & return, or not).
+            requestedPaymentSources: "", // todo JSON.stringify(t.requestedPaymentSources)
             remainder: t.remainder,
             createdDate: t.createdDate,
             metadata: JSON.stringify(t.metadata)
