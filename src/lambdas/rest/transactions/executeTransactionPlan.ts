@@ -1,10 +1,11 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {Transaction} from "../../../model/Transaction";
-import {getKnexWrite, nowInDbPrecision} from "../../../dbUtils";
+import {nowInDbPrecision} from "../../../dbUtils/index";
 import {DbValue} from "../../../model/Value";
 import {transactionPlanToTransaction} from "./transactionPlanToTransaction";
 import {TransactionPlanError} from "./TransactionPlanError";
+import {getKnexWrite} from "../../../dbUtils/connection";
 
 export interface ExecuteTransactionPlannerOptions {
     allowRemainder: boolean;

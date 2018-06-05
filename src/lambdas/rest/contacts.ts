@@ -1,11 +1,13 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import {getKnexRead, getKnexWrite, nowInDbPrecision, paginateQuery} from "../../dbUtils";
 import {Contact, DbContact} from "../../model/Contact";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {pick, pickOrDefault} from "../../pick";
 import {csvSerializer} from "../../serializers";
+import {nowInDbPrecision} from "../../dbUtils";
+import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
+import {paginateQuery} from "../../dbUtils/paginateQuery";
 
 export function installContactsRest(router: cassava.Router): void {
     router.route("/v2/contacts")

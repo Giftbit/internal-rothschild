@@ -2,10 +2,12 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
-import {getKnexWrite, getKnexRead, getSqlErrorConstraintName, nowInDbPrecision, paginateQuery} from "../../dbUtils";
 import {DbValue, Value} from "../../model/Value";
 import {pick, pickOrDefault} from "../../pick";
 import {csvSerializer} from "../../serializers";
+import {getSqlErrorConstraintName, nowInDbPrecision} from "../../dbUtils";
+import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
+import {paginateQuery} from "../../dbUtils/paginateQuery";
 
 export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
