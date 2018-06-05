@@ -45,6 +45,10 @@ CREATE TABLE rothschild.ValueStores (
   userId               VARCHAR(255) NOT NULL,
   valueStoreId         VARCHAR(255) NOT NULL,
   valueStoreType       VARCHAR(255) NOT NULL,
+  code                 VARCHAR(255),
+  codeHashed           VARCHAR(255),
+  codeLastFour         VARCHAR(4),
+  customerId           VARCHAR(255),
   value                INT          NOT NULL,
   pretax               BOOL         NOT NULL,
   currency             VARCHAR(16)  NOT NULL,
@@ -61,8 +65,11 @@ CREATE TABLE rothschild.ValueStores (
   createdDate          DATETIME     NOT NULL,
   updatedDate          DATETIME     NOT NULL,
   PRIMARY KEY (userId, valueStoreId),
-  CONSTRAINT valueStores_valueStoreTemplate FOREIGN KEY (userId, valueStoreTemplateId) REFERENCES rothschild.ValueStoreTemplates (userId, valueStoreTemplateId),
-  CONSTRAINT valueStores_currency FOREIGN KEY (userId, currency) REFERENCES rothschild.Currencies (userId, code)
+  CONSTRAINT values_code UNIQUE (userId, code),
+  CONSTRAINT values_codeHashed UNIQUE (userId, codeHashed),
+  CONSTRAINT values_valueStoreTemplate FOREIGN KEY (userId, valueStoreTemplateId) REFERENCES rothschild.ValueStoreTemplates (userId, valueStoreTemplateId),
+  CONSTRAINT values_currency FOREIGN KEY (userId, currency) REFERENCES rothschild.Currencies (userId, code),
+  CONSTRAINT values_customer FOREIGN KEY (userId, customerId) REFERENCES rothschild.Customers (userId, customerId)
 );
 
 CREATE TABLE rothschild.Transactions (
@@ -128,7 +135,7 @@ CREATE TABLE rothschild.ValueStoreAccess (
   codeHashed         VARCHAR(255),
   codeLastFour       VARCHAR(4),
   customerId         VARCHAR(255),
-  automatic          BOOLEAN      NOT NULL DEFAULT false,
+  automatic          BOOLEAN      NOT NULL DEFAULT FALSE,
   automaticStartDate DATETIME,
   automaticEndDate   DATETIME,
   createdDate        DATETIME     NOT NULL,

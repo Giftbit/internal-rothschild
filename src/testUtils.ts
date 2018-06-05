@@ -2,9 +2,9 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as fs from "fs";
 import * as mysql from "mysql2/promise";
-import papaparse = require("papaparse");
 import * as path from "path";
 import {getDbCredentials} from "./dbUtils";
+import papaparse = require("papaparse");
 
 if (!process.env["TEST_ENV"]) {
     console.log("Env var TEST_ENV is undefined.  This is not a test environment!");

@@ -2,10 +2,11 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
-import {getKnexWrite, getKnexRead, getSqlErrorConstraintName, upsert, nowInDbPrecision} from "../../dbUtils";
+import {getKnexRead, getKnexWrite, getSqlErrorConstraintName, nowInDbPrecision, upsert} from "../../dbUtils";
 import {DbValueStore, ValueStore} from "../../model/ValueStore";
 import {pickOrDefault} from "../../pick";
 import {csvSerializer} from "../../serializers";
+import {computeLookupHash, encrypt} from "../../services/codeCryptoUtils";
 
 export function installValueStoresRest(router: cassava.Router): void {
     router.route("/v2/valueStores")
@@ -30,6 +31,14 @@ export function installValueStoresRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
             evt.validateBody(valueStoreSchema);
+
+            // todo - code generation or setting
+            const code = "ABCDEFGHIJKL";
+            let encryptedCode, lookupHash: string;
+            if (code) {
+                encryptedCode = encrypt(code);
+                lookupHash = computeLookupHash(code, auth);
+            }
 
             const now = nowInDbPrecision();
             const valueStore: ValueStore = {
@@ -101,7 +110,7 @@ export function installValueStoresRest(router: cassava.Router): void {
         });
 }
 
-export async function getValueStores(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{valueStores: ValueStore[], pagination: Pagination}> {
+export async function getValueStores(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ valueStores: ValueStore[], pagination: Pagination }> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
@@ -164,11 +173,11 @@ async function getValueStore(auth: giftbitRoutes.jwtauth.AuthorizationBadge, val
     return DbValueStore.toValueStore(res[0]);
 }
 
-async function getValueStoreCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStoreId: string): Promise<{customerId: string}> {
+async function getValueStoreCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStoreId: string): Promise<{ customerId: string }> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
-    const res: {customerId: string}[] = await knex("ValueStoreAccess")
+    const res: { customerId: string }[] = await knex("ValueStoreAccess")
         .select("customerId")
         .where({
             userId: auth.giftbitUserId,
@@ -184,7 +193,7 @@ async function getValueStoreCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBa
     return res[0];
 }
 
-async function setValueStoreCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStoreId: string, customerId: string): Promise<{customerId: string}> {
+async function setValueStoreCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueStoreId: string, customerId: string): Promise<{ customerId: string }> {
     auth.requireIds("giftbitUserId");
 
     const now = nowInDbPrecision();
@@ -206,6 +215,7 @@ async function setValueStoreCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBa
     return {customerId};
 }
 
+// todo - update schema to require a code or contactId.
 const valueStoreSchema: jsonschema.Schema = {
     type: "object",
     properties: {
