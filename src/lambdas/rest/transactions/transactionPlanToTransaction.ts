@@ -44,8 +44,8 @@ function lightrailTransactionPlanStepToTransactionStep(step: LightrailTransactio
         rail: "lightrail",
         valueId: step.value.id,
         currency: step.value.currency,
-        contactId: step.contactId,
-        codeLastFour: step.codeLastFour,
+        contactId: step.value.contactId,
+        code: step.value.code,
         balanceBefore: step.value.balance,
         balanceAfter: step.value.balance + step.amount,
         balanceChange: step.amount
@@ -68,8 +68,8 @@ function internalTransactionPlanStepToTransactionStep(step: InternalTransactionP
     return {
         rail: "internal",
         id: step.internalId,
-        balanceBefore: step.value,
-        balanceAfter: step.value + step.amount,
+        balanceBefore: step.balance,
+        balanceAfter: step.balance + step.amount,
         balanceChange: step.amount
     };
 }

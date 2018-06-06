@@ -73,7 +73,7 @@ CREATE TABLE rothschild.Values (
   contactId      VARCHAR(32),
   pretax         BOOL        NOT NULL,
   active         BOOL        NOT NULL,
-  expired        BOOL        NOT NULL,
+  canceled       BOOL        NOT NULL,
   frozen         BOOL        NOT NULL,
   redemptionRule TEXT,
   valueRule      TEXT,
@@ -85,7 +85,7 @@ CREATE TABLE rothschild.Values (
   PRIMARY KEY pk_Values (userId, id),
   CONSTRAINT fk_Values_Programs FOREIGN KEY (userId, programId) REFERENCES rothschild.Programs (userId, id),
   CONSTRAINT fk_Values_Currencies FOREIGN KEY (userId, currency) REFERENCES rothschild.Currencies (userId, code),
-  CONSTRAINT fk_Values_Customers FOREIGN KEY (userId, contactId) REFERENCES rothschild.Contacts (userId, id),
+  CONSTRAINT fk_Values_Contacts FOREIGN KEY (userId, contactId) REFERENCES rothschild.Contacts (userId, id),
   CONSTRAINT uq_Values_code UNIQUE (userId, code),
   CONSTRAINT uq_Values_codeHashed UNIQUE (userId, codeHashed)
 );
@@ -117,7 +117,7 @@ CREATE TABLE rothschild.LightrailTransactionSteps (
   transactionId VARCHAR(32)  NOT NULL,
   valueId       VARCHAR(32)  NOT NULL,
   contactId     VARCHAR(32),
-  codeLastFour  CHAR(4),
+  code          CHAR(4),
   balanceBefore INT          NOT NULL,
   balanceAfter  INT          NOT NULL,
   balanceChange INT          NOT NULL,

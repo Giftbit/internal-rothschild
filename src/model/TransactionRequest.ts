@@ -50,7 +50,7 @@ export interface StripeTransactionParty {
 export interface InternalTransactionParty {
     rail: "internal";
     id: string;
-    value: number;
+    balance: number;
     pretax?: boolean;
     beforeLightrail?: boolean;
 }

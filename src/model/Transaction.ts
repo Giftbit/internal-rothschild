@@ -49,7 +49,7 @@ export interface LightrailTransactionStep {
     valueId: string;
     currency: string;
     contactId?: string;
-    codeLastFour?: string;
+    code?: string;
     balanceBefore: number;
     balanceAfter: number;
     balanceChange: number;
