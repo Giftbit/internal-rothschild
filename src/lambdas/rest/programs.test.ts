@@ -9,7 +9,7 @@ describe.skip("/v2/programs", () => {
 
     const router = new cassava.Router();
 
-    before(async function () {
+    before(async () => {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
         installRest(router);

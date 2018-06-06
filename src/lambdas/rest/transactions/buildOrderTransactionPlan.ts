@@ -13,7 +13,7 @@ export function buildOrderTransactionPlan(order: OrderRequest, steps: Transactio
         const step = steps[stepIx];
         switch (step.rail) {
             case "lightrail":
-                if (step.value.frozen || !step.value.active || step.value.expired || step.value.uses === 0) {
+                if (step.value.frozen || !step.value.active || step.value.canceled || step.value.uses === 0) {
                     // Ideally those won't be returned in the query for efficiency but it's good to be paranoid here.
                     break;
                 }
@@ -46,7 +46,7 @@ export function buildOrderTransactionPlan(order: OrderRequest, steps: Transactio
                 }
                 break;
             case "internal":
-                step.amount = -Math.min(remainder, step.value);
+                step.amount = -Math.min(remainder, step.balance);
                 break;
         }
         remainder += step.amount;

@@ -3,12 +3,12 @@ import {TransactionPlanError} from "./TransactionPlanError";
 import * as testUtils from "../../../testUtils";
 import {DbValue} from "../../../model/Value";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {getKnexWrite} from "../../../dbUtils";
 import {TransactionPlan} from "./TransactionPlan";
 import {executeTransactionPlan} from "./executeTransactionPlan";
 import {DbCurrency} from "../../../model/Currency";
+import {getKnexWrite} from "../../../dbUtils/connection";
 
-describe.skip("rest/transactions/executeTransactionPlan", () => {
+describe("rest/transactions/executeTransactionPlan", () => {
 
     before(async function () {
         await testUtils.resetDb();
@@ -43,7 +43,7 @@ describe.skip("rest/transactions/executeTransactionPlan", () => {
             balance: 1500,
             pretax: false,
             active: true,
-            expired: false,
+            canceled: false,
             frozen: false,
             redemptionRule: "null",
             valueRule: "null",
@@ -65,8 +65,6 @@ describe.skip("rest/transactions/executeTransactionPlan", () => {
                 {
                     rail: "lightrail",
                     value: DbValue.toValue(value),
-                    codeLastFour: null,
-                    contactId: null,
                     amount: -3500    // more than is in the value
                 }
             ],
@@ -87,7 +85,7 @@ describe.skip("rest/transactions/executeTransactionPlan", () => {
         const transactionsRes: any[] = await knex("Transactions")
             .where({
                 userId: auth.giftbitUserId,
-                transactionId: plan.id
+                id: plan.id
             });
         chai.assert.lengthOf(transactionsRes, 0);
     });
@@ -106,7 +104,7 @@ describe.skip("rest/transactions/executeTransactionPlan", () => {
             contactId: null,
             pretax: false,
             active: true,
-            expired: false,
+            canceled: false,
             frozen: false,
             redemptionRule: "null",
             valueRule: "null",
@@ -127,8 +125,6 @@ describe.skip("rest/transactions/executeTransactionPlan", () => {
                 {
                     rail: "lightrail",
                     value: DbValue.toValue(value),
-                    codeLastFour: null,
-                    contactId: null,
                     amount: 1200
                 }
             ],
@@ -149,7 +145,7 @@ describe.skip("rest/transactions/executeTransactionPlan", () => {
         const transactionsRes: any[] = await knex("Transactions")
             .where({
                 userId: auth.giftbitUserId,
-                transactionId: plan.id
+                id: plan.id
             });
         chai.assert.lengthOf(transactionsRes, 0);
     });

@@ -2,10 +2,12 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
-import {getKnexWrite, getKnexRead, getSqlErrorConstraintName, upsert, nowInDbPrecision} from "../../dbUtils";
 import {DbValue, Value} from "../../model/Value";
-import {pickOrDefault} from "../../pick";
+import {pick, pickOrDefault} from "../../pick";
 import {csvSerializer} from "../../serializers";
+import {getSqlErrorConstraintName, nowInDbPrecision} from "../../dbUtils";
+import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
+import {paginateQuery} from "../../dbUtils/paginateQuery";
 
 export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
@@ -19,7 +21,7 @@ export function installValuesRest(router: cassava.Router): void {
             auth.requireIds("giftbitUserId");
             const res = await getValues(auth, Pagination.getPaginationParams(evt));
             return {
-                headers: Pagination.toHeaders(res.pagination),
+                headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.values
             };
         });
@@ -50,7 +52,7 @@ export function installValuesRest(router: cassava.Router): void {
                     endDate: null,
                     metadata: null
                 }),
-                expired: false,
+                canceled: false,
                 createdDate: now,
                 updatedDate: now
             };
@@ -58,6 +60,12 @@ export function installValuesRest(router: cassava.Router): void {
                 statusCode: cassava.httpStatusCode.success.CREATED,
                 body: await createValue(auth, value)
             };
+        });
+
+    router.route("/v2/values")
+        .method("PATCH")
+        .handler(async evt => {
+            throw new giftbitRoutes.GiftbitRestError(500, "Not implemented");   // TODO
         });
 
     router.route("/v2/values/{id}")
@@ -70,27 +78,59 @@ export function installValuesRest(router: cassava.Router): void {
                 body: await getValue(auth, evt.pathParameters.id)
             };
         });
+
+    router.route("/v2/values/{id}")
+        .method("PATCH")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("giftbitUserId");
+            evt.validateBody(valueUpdateSchema);
+
+            if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
+                throw new giftbitRoutes.GiftbitRestError(422, `The body id '${evt.body.id}' does not match the path id '${evt.pathParameters.id}'.  The id cannot be updated.`);
+            }
+
+            const now = nowInDbPrecision();
+            const value = {
+                ...pick<Value>(evt.body, "contactId", "pretax", "active", "canceled", "frozen", "pretax", "redemptionRule", "valueRule", "startDate", "endDate", "metadata"),
+                updatedDate: now
+            };
+            return {
+                body: await updateValue(auth, evt.pathParameters.id, value)
+            };
+        });
+
+    router.route("/v2/values/{id}")
+        .method("DELETE")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("giftbitUserId");
+            return {
+                body: await deleteValue(auth, evt.pathParameters.id)
+            };
+        });
+
+    router.route("/v2/values/{id}/changeCode")
+        .method("POST")
+        .handler(async evt => {
+            throw new giftbitRoutes.GiftbitRestError(500, "Not implemented");   // TODO
+        });
 }
 
 export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{values: Value[], pagination: Pagination}> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
-    const res: DbValue[] = await knex("Values")
-        .where({
-            userId: auth.giftbitUserId
-        })
-        .select()
-        .orderBy("id")
-        .limit(pagination.limit)
-        .offset(pagination.offset);
+    const paginatedRes = await paginateQuery<DbValue>(
+        knex("Values")
+            .where({
+                userId: auth.giftbitUserId
+            }),
+        pagination
+    );
     return {
-        values: res.map(DbValue.toValue),
-        pagination: {
-            limit: pagination.limit,
-            maxLimit: pagination.maxLimit,
-            offset: pagination.offset
-        }
+        values: paginatedRes.body.map(DbValue.toValue),
+        pagination: paginatedRes.pagination
     };
 }
 
@@ -99,8 +139,15 @@ async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value
 
     try {
         const knex = await getKnexWrite();
-        await knex("Values")
-            .insert(Value.toDbValue(auth, value));
+
+        await knex.transaction(async trx => {
+            await trx.into("Values")
+                .insert(Value.toDbValue(auth, value));
+            if (value.balance) {
+                // TODO insert initialValue Transaction and LightrailTransactionStep
+            }
+        });
+
         return value;
     } catch (err) {
         if (err.code === "ER_DUP_ENTRY") {
@@ -110,6 +157,9 @@ async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value
             const constraint = getSqlErrorConstraintName(err);
             if (constraint === "fk_Values_Currencies") {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${value.currency}' does not exist.  See the documentation on creating currencies.`, "CurrencyNotFound");
+            }
+            if (constraint === "fk_Values_Contacts") {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Contact '${value.contactId}' does not exist.`, "ContactNotFound");
             }
         }
         throw err;
@@ -124,7 +174,7 @@ async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: stri
         .select()
         .where({
             userId: auth.giftbitUserId,
-            valueId: id
+            id: id
         });
     if (res.length === 0) {
         throw new cassava.RestError(404);
@@ -135,8 +185,56 @@ async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: stri
     return DbValue.toValue(res[0]);
 }
 
+async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, value: Partial<Value>): Promise<Value> {
+    auth.requireIds("giftbitUserId");
+
+    const knex = await getKnexWrite();
+    const res = await knex("Values")
+        .where({
+            userId: auth.giftbitUserId,
+            id: id
+        })
+        .update(Value.toDbValueUpdate(auth, value));
+    if (res[0] === 0) {
+        throw new cassava.RestError(404);
+    }
+    if (res[0] > 1) {
+        throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
+    }
+    return {
+        ...await getValue(auth, id),
+        ...value
+    };
+}
+
+async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<{success: true}> {
+    auth.requireIds("giftbitUserId");
+
+    try {
+        const knex = await getKnexWrite();
+        const res: [number] = await knex("Values")
+            .where({
+                userId: auth.giftbitUserId,
+                id
+            })
+            .delete();
+        if (res[0] === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (res[0] > 1) {
+            throw new Error(`Illegal DELETE query.  Deleted ${res.length} values.`);
+        }
+        return {success: true};
+    } catch (err) {
+        if (err.code === "ER_ROW_IS_REFERENCED_2") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Value '${id}' is in use.`, "ValueInUse");
+        }
+    }
+}
+
 const valueSchema: jsonschema.Schema = {
     type: "object",
+    additionalProperties: false,
     properties: {
         id: {
             type: "string",
@@ -154,11 +252,6 @@ const valueSchema: jsonschema.Schema = {
         uses: {
             type: ["number", "null"]
         },
-        programId: {
-            type: ["string", "null"],
-            maxLength: 32,
-            minLength: 1
-        },
         code: {
             type: ["string", "null"],
             minLength: 1,
@@ -169,16 +262,13 @@ const valueSchema: jsonschema.Schema = {
             minLength: 1,
             maxLength: 32
         },
-        pretax: {
-            type: "boolean"
-        },
         active: {
             type: "boolean"
         },
-        expired: {
+        frozen: {
             type: "boolean"
         },
-        frozen: {
+        pretax: {
             type: "boolean"
         },
         redemptionRule: {
@@ -232,4 +322,16 @@ const valueSchema: jsonschema.Schema = {
         }
     },
     required: ["id", "currency"]
+};
+
+const valueUpdateSchema: jsonschema.Schema = {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+        ...pick(valueSchema.properties, "id", "contactId", "active", "frozen", "pretax", "redemptionRule", "valueRule", "startDate", "endDate", "metadata"),
+        canceled: {
+            type: "boolean"
+        }
+    },
+    required: []
 };

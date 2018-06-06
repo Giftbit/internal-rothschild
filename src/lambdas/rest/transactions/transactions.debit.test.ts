@@ -7,7 +7,7 @@ import {Transaction} from "../../../model/Transaction";
 import {installRest} from "../index";
 import {Currency} from "../../../model/Currency";
 
-describe.skip("/v2/transactions/debit", () => {
+describe("/v2/transactions/debit", () => {
 
     const router = new cassava.Router();
 
@@ -38,7 +38,7 @@ describe.skip("/v2/transactions/debit", () => {
         chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
 
         const postDebitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
-            transactionId: "debit-1",
+            id: "debit-1",
             source: {
                 rail: "lightrail",
                 valueId: value1.id
@@ -56,7 +56,7 @@ describe.skip("/v2/transactions/debit", () => {
                     rail: "lightrail",
                     valueId: value1.id,
                     currency: value1.currency,
-                    codeLastFour: null,
+                    code: null,
                     contactId: null,
                     balanceBefore: 1000,
                     balanceAfter: 401,
@@ -70,9 +70,9 @@ describe.skip("/v2/transactions/debit", () => {
         chai.assert.equal(getValueResp.body.balance, 401);
     });
 
-    it("409s on reusing a transactionId", async () => {
+    it("409s on reusing an id", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/debit", "POST", {
-            transactionId: "debit-1",   // same as above
+            id: "debit-1",   // same as above
             source: {
                 rail: "lightrail",
                 valueId: value1.id
@@ -86,7 +86,7 @@ describe.skip("/v2/transactions/debit", () => {
 
     it("can simulate a debit by valueId", async () => {
         const postDebitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
-            transactionId: "debit-2",
+            id: "debit-2",
             source: {
                 rail: "lightrail",
                 valueId: value1.id
@@ -105,7 +105,7 @@ describe.skip("/v2/transactions/debit", () => {
                     rail: "lightrail",
                     valueId: value1.id,
                     currency: value1.currency,
-                    codeLastFour: null,
+                    code: null,
                     contactId: null,
                     balanceBefore: 401,
                     balanceAfter: 101,
@@ -121,7 +121,7 @@ describe.skip("/v2/transactions/debit", () => {
 
     it("can debit by valueId with allowRemainder", async () => {
         const postDebitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
-            transactionId: "debit-3",
+            id: "debit-3",
             source: {
                 rail: "lightrail",
                 valueId: value1.id
@@ -140,7 +140,7 @@ describe.skip("/v2/transactions/debit", () => {
                     rail: "lightrail",
                     valueId: value1.id,
                     currency: value1.currency,
-                    codeLastFour: null,
+                    code: null,
                     contactId: null,
                     balanceBefore: 401,
                     balanceAfter: 0,
@@ -156,7 +156,7 @@ describe.skip("/v2/transactions/debit", () => {
 
     it("409s debiting by valueId of the wrong currency", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/debit", "POST", {
-            transactionId: "debit-4",
+            id: "debit-4",
             source: {
                 rail: "lightrail",
                 valueId: value1.id
@@ -170,7 +170,7 @@ describe.skip("/v2/transactions/debit", () => {
 
     it("409s debiting by valueId for more money than is available", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/debit", "POST", {
-            transactionId: "debit-5",
+            id: "debit-5",
             source: {
                 rail: "lightrail",
                 valueId: value1.id
@@ -184,7 +184,7 @@ describe.skip("/v2/transactions/debit", () => {
 
     it("409s debiting a valueId that does not exist", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/debit", "POST", {
-            transactionId: "debit-6",
+            id: "debit-6",
             source: {
                 rail: "lightrail",
                 valueId: "idontexist"
@@ -196,7 +196,7 @@ describe.skip("/v2/transactions/debit", () => {
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
     });
 
-    it("422s debiting without a transactionId", async () => {
+    it("422s debiting without an id", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/debit", "POST", {
             destination: {
                 rail: "lightrail",
@@ -208,9 +208,9 @@ describe.skip("/v2/transactions/debit", () => {
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 
-    it("422s debiting with an invalid transactionId", async () => {
+    it("422s debiting with an invalid id", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/debit", "POST", {
-            transactionId: 123,
+            id: 123,
             destination: {
                 rail: "lightrail",
                 valueId: "idontexist"

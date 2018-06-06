@@ -1,11 +1,13 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import {getKnexRead, getKnexWrite, nowInDbPrecision} from "../../dbUtils";
 import {Contact, DbContact} from "../../model/Contact";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {pick, pickOrDefault} from "../../pick";
 import {csvSerializer} from "../../serializers";
+import {nowInDbPrecision} from "../../dbUtils";
+import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
+import {paginateQuery} from "../../dbUtils/paginateQuery";
 
 export function installContactsRest(router: cassava.Router): void {
     router.route("/v2/contacts")
@@ -19,7 +21,7 @@ export function installContactsRest(router: cassava.Router): void {
             auth.requireIds("giftbitUserId");
             const res = await getContacts(auth, Pagination.getPaginationParams(evt));
             return {
-                headers: Pagination.toHeaders(res.pagination),
+                headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.contacts
             };
         });
@@ -34,7 +36,7 @@ export function installContactsRest(router: cassava.Router): void {
             const now = nowInDbPrecision();
             const contact = {
                 ...pickOrDefault(evt.body, {
-                    id: evt.body.id,
+                    id: "",
                     firstName: null,
                     lastName: null,
                     email: null,
@@ -66,6 +68,10 @@ export function installContactsRest(router: cassava.Router): void {
             auth.requireIds("giftbitUserId");
             evt.validateBody(contactUpdateSchema);
 
+            if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
+                throw new giftbitRoutes.GiftbitRestError(422, `The body id '${evt.body.id}' does not match the path id '${evt.pathParameters.id}'.  The id cannot be updated.`);
+            }
+
             const now = nowInDbPrecision();
             const contact = {
                 ...pick<Contact>(evt.body, "firstName", "lastName", "email", "metadata"),
@@ -91,21 +97,16 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
-    const res: DbContact[] = await knex("Contacts")
-        .select()
-        .where({
-            userId: auth.giftbitUserId
-        })
-        .orderBy("id")
-        .limit(pagination.limit)
-        .offset(pagination.offset);
+    const res = await paginateQuery<DbContact>(
+        knex("Contacts")
+            .where({
+                userId: auth.giftbitUserId
+            }),
+        pagination
+    );
     return {
-        contacts: res.map(DbContact.toContact),
-        pagination: {
-            limit: pagination.limit,
-            maxLimit: pagination.maxLimit,
-            offset: pagination.offset
-        }
+        contacts: res.body.map(DbContact.toContact),
+        pagination: res.pagination
     };
 }
 
@@ -187,6 +188,7 @@ export async function deleteContact(auth: giftbitRoutes.jwtauth.AuthorizationBad
 
 const contactSchema: jsonschema.Schema = {
     type: "object",
+    additionalProperties: false,
     properties: {
         id: {
             type: "string",

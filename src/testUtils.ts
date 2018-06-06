@@ -4,7 +4,7 @@ import * as fs from "fs";
 import * as mysql from "mysql2/promise";
 import papaparse = require("papaparse");
 import * as path from "path";
-import {getDbCredentials} from "./dbUtils";
+import {getDbCredentials} from "./dbUtils/connection";
 
 if (!process.env["TEST_ENV"]) {
     console.log("Env var TEST_ENV is undefined.  This is not a test environment!");

@@ -1,4 +1,5 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import {pickDefined} from "../pick";
 
 export interface Value {
     id: string;
@@ -10,7 +11,7 @@ export interface Value {
     contactId: string | null;
     pretax: boolean;
     active: boolean;
-    expired: boolean;   // TODO we don't need to expose this to the user because it's implied by endDate
+    canceled: boolean;
     frozen: boolean;
     redemptionRule: Rule | null;
     valueRule: Rule | null;
@@ -27,9 +28,6 @@ export interface Rule {
 }
 
 export namespace Value {
-    /**
-     * Create a Value object where the code is known and not secured.
-     */
     export function toDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Value): DbValue {
         return {
             userId: auth.giftbitUserId,
@@ -44,7 +42,7 @@ export namespace Value {
             contactId: v.contactId,
             pretax: v.pretax,
             active: v.active,
-            expired: v.expired,
+            canceled: v.canceled,
             frozen: v.frozen,
             redemptionRule: JSON.stringify(v.redemptionRule),
             valueRule: JSON.stringify(v.valueRule),
@@ -54,6 +52,26 @@ export namespace Value {
             createdDate: v.createdDate,
             updatedDate: v.updatedDate
         };
+    }
+
+    export function toDbValueUpdate(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Partial<Value>): Partial<DbValue> {
+        if (v.canceled != null && !v.canceled) {
+            throw new giftbitRoutes.GiftbitRestError(422, "A Value cannot be uncanceled (cancel = false).", "CannotUncancelValue");
+        }
+
+        return pickDefined({
+            contactId: v.contactId,
+            active: v.active,
+            canceled: v.canceled,
+            frozen: v.frozen,
+            pretax: v.pretax,
+            redemptionRule: JSON.stringify(v.redemptionRule),
+            valueRule: JSON.stringify(v.valueRule),
+            startDate: v.startDate,
+            endDate: v.endDate,
+            metadata: JSON.stringify(v.metadata),
+            updatedDate: v.updatedDate
+        });
     }
 }
 
@@ -70,7 +88,7 @@ export interface DbValue {
     contactId: string | null;
     pretax: boolean;
     active: boolean;
-    expired: boolean;
+    canceled: boolean;
     frozen: boolean;
     redemptionRule: string;
     valueRule: string;
@@ -93,7 +111,7 @@ export namespace DbValue {
             code: v.code || (v.codeLastFour && "…" + v.codeLastFour) || null,
             pretax: v.pretax,
             active: v.active,
-            expired: v.expired,
+            canceled: v.canceled,
             frozen: v.frozen,
             redemptionRule: JSON.parse(v.redemptionRule),
             valueRule: JSON.parse(v.valueRule),

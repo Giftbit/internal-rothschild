@@ -1,7 +1,7 @@
 import * as chai from "chai";
-import {getKnexRead} from "./dbUtils";
+import {getKnexRead} from "./connection";
 
-describe("dbUtils", () => {
+describe("connection", () => {
     describe("getKnexRead()", () => {
         it("throws an Error when attempting to modify the database", async () => {
             const knex = await getKnexRead();
