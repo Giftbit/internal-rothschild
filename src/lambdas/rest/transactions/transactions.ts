@@ -9,8 +9,9 @@ import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {executeTransactionPlanner} from "./executeTransactionPlan";
 import {LightrailTransactionPlanStep} from "./TransactionPlan";
 import {Pagination, PaginationParams} from "../../../model/Pagination";
-import {getKnexRead} from "../../../dbUtils";
+import {getKnexRead} from "../../../dbUtils/connection";
 import {Filters, TransactionFilterParams} from "../../../model/Filter";
+import {paginateQuery} from "../../../dbUtils/paginateQuery";
 import getPaginationParams = Pagination.getPaginationParams;
 import getTransactionFilterParams = Filters.getTransactionFilterParams;
 
@@ -20,8 +21,10 @@ export function installTransactionsRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            const res = await getTransactions(auth, getPaginationParams(evt), getTransactionFilterParams(evt));
             return {
-                body: await getTransactions(auth, getPaginationParams(evt), getTransactionFilterParams(evt))
+                headers: Pagination.toHeaders(evt, res.pagination),
+                body: res.transactions
             };
         });
 
@@ -104,24 +107,26 @@ async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, p
         query.where("createdDate", "<", filter.maxCreatedDate);
     }
 
-    const res: DbTransaction[] = await query
-        .orderBy("id")
-        .limit(pagination.limit)
-        .offset(pagination.offset);
+    if (!pagination.sort) {     // TODO should we be more prescriptive about this?
+        pagination.sort = {
+            field: "createdDate",
+            asc: true
+        };
+    }
 
-    const transacs: Transaction[] = await Promise.all(res.map(
+    const paginatedRes = await paginateQuery<DbTransaction>(
+        query,
+        pagination
+    );
+
+    const transacs: Transaction[] = await Promise.all(paginatedRes.body.map(
         async (tx) => {
             return await DbTransaction.toTransaction(tx);
         }));
 
     return {
         transactions: transacs,
-        pagination: {
-            totalCount: res.length,
-            limit: pagination.limit,
-            maxLimit: pagination.maxLimit,
-            offset: pagination.offset
-        }
+        pagination: paginatedRes.pagination
     };
 }
 

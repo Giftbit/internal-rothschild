@@ -1,6 +1,6 @@
 import * as stripe from "stripe";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {getKnexRead} from "../dbUtils";
+import {getKnexRead} from "../dbUtils/connection";
 
 export interface Transaction {
     id: string;
