@@ -139,7 +139,7 @@ describe("/v2/transactions", () => {
 
         const resp = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${debit2.id}`, "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.equal(JSON.stringify(resp.body.metadata), JSON.stringify(debit2.metadata), `body=${JSON.stringify(debitResp.body)}`);
+        chai.assert.equal(JSON.stringify(resp.body.metadata), JSON.stringify(debit2.metadata), `body=${JSON.stringify(resp.body)}`);
     });
 
     describe.skip("filter transactions by query params", () => {
@@ -184,5 +184,31 @@ describe("/v2/transactions", () => {
         chai.assert.include(resp.body[0].id, transfer1.id);
         chai.assert.include(resp.body[1].id, debit1.id);
         chai.assert.include(resp.body[2].id, debit2.id);
+    });
+
+    it("404s on getting an invalid id", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/iamnotavalidtransactionid", "GET");
+
+        console.log(JSON.stringify(resp));
+
+        chai.assert.equal(resp.statusCode, 404, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("can't modify a transaction", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${debit1.id}`, "PATCH", {
+            amount: 100,
+            currency: "USD"
+        });
+        chai.assert.equal(resp.statusCode, 403, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.messageCode, "CannotModifyTransaction");
+    });
+
+    it("can't delete a transaction", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${debit1.id}`, "DELETE");
+
+        console.log(JSON.stringify(resp));
+
+        chai.assert.equal(resp.statusCode, 403, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.messageCode, "CannotDeleteTransaction");
     });
 });

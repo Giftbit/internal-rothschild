@@ -38,6 +38,22 @@ export function installTransactionsRest(router: cassava.Router): void {
             };
         });
 
+    router.route("/v2/transactions/{id}")
+        .method("PATCH")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("giftbitUserId");
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.FORBIDDEN, "Cannot modify transactions.", "CannotModifyTransaction");
+        });
+
+    router.route("/v2/transactions/{id}")
+        .method("DELETE")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("giftbitUserId");
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.FORBIDDEN, "Cannot delete transactions.", "CannotDeleteTransaction");
+        });
+
     router.route("/v2/transactions/credit")
         .method("POST")
         .handler(async evt => {
