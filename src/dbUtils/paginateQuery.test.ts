@@ -140,7 +140,7 @@ describe("paginateQuery()", () => {
             .orderBy("id", "DESC")
             .limit(30);
         lastThirty.reverse();
-        chai.assert.equal(lastThirty[lastThirty.length - 1].id, "id-999", "check that I got the last 20 thirty");
+        chai.assert.equal(lastThirty[lastThirty.length - 1].id, "id-999", "check that I got the last 30");
 
         const lastPage = await paginateQuery<PaginationTest>(
             knex("PaginationTest")

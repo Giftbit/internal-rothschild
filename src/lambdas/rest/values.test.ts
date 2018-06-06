@@ -169,7 +169,7 @@ describe("/v2/values/", () => {
     it("cannot uncancel a value", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value1.id}`, "PATCH", {canceled: false});
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.equal(resp.body.messageCode, "UncancelValue");
+        chai.assert.equal(resp.body.messageCode, "CannotUncancelValue");
     });
 
     let contact1: Partial<Contact> = {
