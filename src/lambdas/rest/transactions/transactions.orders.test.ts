@@ -106,7 +106,7 @@ describe("/v2/transactions/order", () => {
         chai.assert.equal(getValueStoreResp.body.balance, 950);
     });
 
-    it("order with two ValueStores", async () => {
+    it("process order with two ValueStores", async () => {
         const giftCard: Partial<Value> = {
             id: "vs-order2-giftcard",
             // valueStoreType: "GIFTCARD",
@@ -211,7 +211,7 @@ describe("/v2/transactions/order", () => {
         chai.assert.equal(getGiftCardVS.body.balance, 960);
     });
 
-    it("order with 3 ValueStores with complicated tax implications", async () => {
+    it("process order with 3 ValueStores with complicated tax implications", async () => {
         const giftCard: Partial<Value> = {
             id: "vs-order3-giftcard",
             // valueStoreType: "GIFTCARD",
@@ -368,5 +368,139 @@ describe("/v2/transactions/order", () => {
         const getGiftCardVS = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
         chai.assert.equal(getGiftCardVS.statusCode, 200, `body=${JSON.stringify(getGiftCardVS.body)}`);
         chai.assert.equal(getGiftCardVS.body.balance, 1);
+    });
+
+
+    it("process order with insufficientValue followed by allowRemainder = true", async () => {
+        const giftCard: Partial<Value> = {
+            id: "vs-order4-giftcard",
+            currency: "CAD",
+            balance: 500
+        };
+        const preTaxPromotion: Partial<Value> = {
+            id: "vs-order4-promotion1",
+            currency: "CAD",
+            balance: 200,
+            pretax: true,
+            discount: true
+        };
+
+        const createGiftCardResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", giftCard);
+        chai.assert.equal(createGiftCardResp.statusCode, 201, `body=${JSON.stringify(createGiftCardResp.body)}`);
+
+        const createPromotion1Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", preTaxPromotion);
+        chai.assert.equal(createPromotion1Resp.statusCode, 201, `body=${JSON.stringify(createPromotion1Resp.body)}`);
+
+        let request: any = {
+            id: "order-4",
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: giftCard.id
+                },
+                {
+                    rail: "lightrail",
+                    valueId: preTaxPromotion.id
+                }
+            ],
+            lineItems: [
+                {
+                    type: "shipping",
+                    productId: "p1",
+                    unitPrice: 500,
+                    taxRate: 0.05
+                },
+                {
+                    type: "product",
+                    productId: "p2",
+                    unitPrice: 333,
+                    quantity: 2,
+                    taxRate: 0.08
+                }
+            ],
+            currency: "CAD"
+        };
+        const postOrderRespInsufficientValue = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/order", "POST", request);
+        chai.assert.equal(postOrderRespInsufficientValue.statusCode, 409, `body=${JSON.stringify(postOrderRespInsufficientValue.body)}`);
+        chai.assert.equal(postOrderRespInsufficientValue.body.messageCode, "InsufficientValue", `body=${JSON.stringify(postOrderRespInsufficientValue.body)}`);
+
+        request.allowRemainder = true;
+        const postOrderResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/order", "POST", request);
+        chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
+        chai.assert.deepEqualExcluding(postOrderResp.body, {
+            id: request.id,
+            transactionType: "debit",
+            remainder: 534,
+            totals: {
+                subTotal: 1166,
+                tax: 68,
+                discount: 200,
+                payable: 1034
+            },
+            lineItems: [
+                {
+                    type: "shipping",
+                    productId: "p1",
+                    unitPrice: 500,
+                    taxRate: 0.05,
+                    quantity: 1,
+                    lineTotal: {
+                        subtotal: 500,
+                        taxable: 300,
+                        tax: 15,
+                        discount: 200,
+                        payable: 315,
+                        remainder: 0
+                    }
+                },
+                {
+                    type: "product",
+                    productId: "p2",
+                    unitPrice: 333,
+                    quantity: 2,
+                    taxRate: 0.08,
+                    lineTotal: {
+                        subtotal: 666,
+                        taxable: 666,
+                        tax: 53 /* 53.28 */,
+                        discount: 0,
+                        payable: 719,
+                        remainder: 534
+                    }
+                }
+            ],
+            steps: [
+                {
+                    rail: "lightrail",
+                    valueId: preTaxPromotion.id,
+                    // valueStoreType: preTaxPromotion.valueStoreType,
+                    currency: preTaxPromotion.currency,
+                    code: null,
+                    contactId: null,
+                    balanceBefore: 200,
+                    balanceAfter: 0,
+                    balanceChange: -200
+                },
+                {
+                    rail: "lightrail",
+                    valueId: giftCard.id,
+                    // valueStoreType: giftCard.valueStoreType,
+                    currency: giftCard.currency,
+                    code: null,
+                    contactId: null,
+                    balanceBefore: 500,
+                    balanceAfter: 0,
+                    balanceChange: -500
+                }
+            ]
+        }, ["createdDate"]);
+
+        const getPreTaxPromo = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${preTaxPromotion.id}`, "GET");
+        chai.assert.equal(getPreTaxPromo.statusCode, 200, `body=${JSON.stringify(getPreTaxPromo.body)}`);
+        chai.assert.equal(getPreTaxPromo.body.balance, 0);
+
+        const getGiftCardVS = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
+        chai.assert.equal(getGiftCardVS.statusCode, 200, `body=${JSON.stringify(getGiftCardVS.body)}`);
+        chai.assert.equal(getGiftCardVS.body.balance, 0);
     });
 });

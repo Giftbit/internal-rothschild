@@ -9,7 +9,7 @@ export interface TransactionPlan {
     totals?: TransactionTotal;
     lineItems?: LineItemResponse[];
     steps: TransactionPlanStep[];
-    remainder: number; // todo - should this be moved into totals? 
+    remainder: number; // todo - should this be moved into totals?
 }
 
 export type TransactionPlanStep =
