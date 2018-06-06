@@ -4,8 +4,10 @@ import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {DbProgram, Program} from "../../model/Program";
 import {csvSerializer} from "../../serializers";
-import {getKnexWrite, getKnexRead, nowInDbPrecision} from "../../dbUtils";
 import {pick, pickOrDefault} from "../../pick";
+import {nowInDbPrecision} from "../../dbUtils";
+import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
+import {paginateQuery} from "../../dbUtils/paginateQuery";
 
 export function installValueTemplatesRest(router: cassava.Router): void {
     router.route("/v2/programs")
@@ -19,7 +21,7 @@ export function installValueTemplatesRest(router: cassava.Router): void {
             auth.requireIds("giftbitUserId");
             const res = await getPrograms(auth, Pagination.getPaginationParams(evt));
             return {
-                headers: Pagination.toHeaders(res.pagination),
+                headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.programs
             };
         });
@@ -106,22 +108,17 @@ async function getPrograms(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagin
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
-    const res: DbProgram[] = await knex("Programs")
-        .select()
-        .where({
-            userId: auth.giftbitUserId
-        })
-        .orderBy("id")
-        .limit(pagination.limit)
-        .offset(pagination.offset);
+    const res = await paginateQuery<DbProgram>(
+        knex("Programs")
+            .where({
+                userId: auth.giftbitUserId
+            }),
+        pagination
+    );
 
     return {
-        programs: res.map(DbProgram.toProgram),
-        pagination: {
-            limit: pagination.limit,
-            maxLimit: pagination.maxLimit,
-            offset: pagination.offset
-        }
+        programs: res.body.map(DbProgram.toProgram),
+        pagination: res.pagination
     };
 }
 

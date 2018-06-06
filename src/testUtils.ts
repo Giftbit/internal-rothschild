@@ -3,7 +3,7 @@ import * as chai from "chai";
 import * as fs from "fs";
 import * as mysql from "mysql2/promise";
 import * as path from "path";
-import {getDbCredentials} from "./dbUtils";
+import {getDbCredentials} from "./dbUtils/connection";
 import {Currency} from "./model/Currency";
 import papaparse = require("papaparse");
 

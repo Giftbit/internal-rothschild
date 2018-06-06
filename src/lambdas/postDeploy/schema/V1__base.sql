@@ -84,7 +84,7 @@ CREATE TABLE rothschild.Values (
   PRIMARY KEY pk_Values (userId, id),
   CONSTRAINT fk_Values_Programs FOREIGN KEY (userId, programId) REFERENCES rothschild.Programs (userId, id),
   CONSTRAINT fk_Values_Currencies FOREIGN KEY (userId, currency) REFERENCES rothschild.Currencies (userId, code),
-  CONSTRAINT fk_Values_Customers FOREIGN KEY (userId, contactId) REFERENCES rothschild.Contacts (userId, id),
+  CONSTRAINT fk_Values_Contacts FOREIGN KEY (userId, contactId) REFERENCES rothschild.Contacts (userId, id),
   CONSTRAINT uq_Values_code UNIQUE (userId, code),
   CONSTRAINT uq_Values_codeHashed UNIQUE (userId, codeHashed)
 );

@@ -3,10 +3,10 @@ import {TransactionPlanError} from "./TransactionPlanError";
 import * as testUtils from "../../../testUtils";
 import {DbValue} from "../../../model/Value";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {getKnexWrite} from "../../../dbUtils";
 import {TransactionPlan} from "./TransactionPlan";
 import {executeTransactionPlan} from "./executeTransactionPlan";
 import {DbCurrency} from "../../../model/Currency";
+import {getKnexWrite} from "../../../dbUtils/connection";
 
 describe("rest/transactions/executeTransactionPlan", () => {
 
