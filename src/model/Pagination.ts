@@ -50,9 +50,9 @@ export namespace Pagination {
         }
 
         return {
-            Limit: pagination.limit.toString(),
-            MaxLimit: pagination.maxLimit.toString(),
-            Link: link
+            "Limit": pagination.limit.toString(),
+            "Max-Limit": pagination.maxLimit.toString(),
+            "Link": link
         };
     }
 

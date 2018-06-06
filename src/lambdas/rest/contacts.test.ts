@@ -22,7 +22,7 @@ describe("/v2/contacts", () => {
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.deepEqual(resp.body, []);
         chai.assert.equal(resp.headers["Limit"], "100");
-        chai.assert.equal(resp.headers["MaxLimit"], "1000");
+        chai.assert.equal(resp.headers["Max-Limit"], "1000");
     });
 
     it("can list 0 contacts with csv", async () => {
@@ -30,7 +30,7 @@ describe("/v2/contacts", () => {
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.deepEqual(resp.body, []);
         chai.assert.equal(resp.headers["Limit"], "100");
-        chai.assert.equal(resp.headers["MaxLimit"], "1000");
+        chai.assert.equal(resp.headers["Max-Limit"], "1000");
     });
 
     let contact1: Partial<Contact> = {
@@ -60,7 +60,7 @@ describe("/v2/contacts", () => {
             contact1
         ]);
         chai.assert.equal(resp.headers["Limit"], "100");
-        chai.assert.equal(resp.headers["MaxLimit"], "1000");
+        chai.assert.equal(resp.headers["Max-Limit"], "1000");
     });
 
     it("can list 1 contact in csv", async () => {
@@ -70,7 +70,7 @@ describe("/v2/contacts", () => {
             contact1
         ], ["createdDate", "updatedDate"]); // TODO don't ignore dates if my issue gets resolved https://github.com/mholt/PapaParse/issues/502
         chai.assert.equal(resp.headers["Limit"], "100");
-        chai.assert.equal(resp.headers["MaxLimit"], "1000");
+        chai.assert.equal(resp.headers["Max-Limit"], "1000");
     });
 
     it("requires an id to create a contact", async () => {
@@ -176,7 +176,7 @@ describe("/v2/contacts", () => {
             contact2
         ]);
         chai.assert.equal(resp.headers["Limit"], "100");
-        chai.assert.equal(resp.headers["MaxLimit"], "1000");
+        chai.assert.equal(resp.headers["Max-Limit"], "1000");
     });
 
     it("can list 2 contacts in csv", async () => {
@@ -187,7 +187,7 @@ describe("/v2/contacts", () => {
             contact2
         ], ["createdDate", "updatedDate"]); // TODO don't ignore dates if my issue gets resolved https://github.com/mholt/PapaParse/issues/502
         chai.assert.equal(resp.headers["Limit"], "100");
-        chai.assert.equal(resp.headers["MaxLimit"], "1000");
+        chai.assert.equal(resp.headers["Max-Limit"], "1000");
     });
 
     let contact4: Partial<Contact> = {
@@ -231,7 +231,7 @@ describe("/v2/contacts", () => {
             chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
             chai.assert.deepEqual(JSON.parse(resp.body), []);
             chai.assert.equal(resp.headers["Limit"], "100");
-            chai.assert.equal(resp.headers["MaxLimit"], "1000");
+            chai.assert.equal(resp.headers["Max-Limit"], "1000");
         });
 
         it("doesn't leak GET /contacts/{id}", async () => {
