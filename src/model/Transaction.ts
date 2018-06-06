@@ -5,8 +5,8 @@ export interface Transaction {
     id: string;
     transactionType: TransactionType;
     steps: TransactionStep[];
-    remainder: number;
-    totals?: TransactionTotal;
+    // remainder: number;
+    totals: TransactionTotal;
     lineItems?: LineItem[];
     paymentSources?: PaymentSource[];
     simulated?: true;
@@ -71,8 +71,9 @@ export interface InternalTransactionStep {
 }
 
 export interface TransactionTotal {
-    subTotal: number;
-    tax: number;
-    discount: number;
-    payable: number;
+    subTotal?: number;
+    tax?: number;
+    discount?: number;
+    payable?: number;
+    remainder: number;
 }

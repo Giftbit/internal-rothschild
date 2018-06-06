@@ -63,12 +63,12 @@ describe("/v2/transactions/order", () => {
         chai.assert.deepEqualExcluding(postOrderResp.body, {
             id: "order-1",
             transactionType: "debit",
-            remainder: 0,
             totals: {
                 subTotal: 50,
                 tax: 0,
                 discount: 0,
-                payable: 50
+                payable: 50,
+                remainder: 0,
             },
             lineItems: [
                 {
@@ -153,12 +153,12 @@ describe("/v2/transactions/order", () => {
         chai.assert.deepEqualExcluding(postOrderResp.body, {
             id: request.id,
             transactionType: "debit",
-            remainder: 0,
             totals: {
                 subTotal: 50,
                 tax: 0,
                 discount: 10,
-                payable: 40
+                payable: 40,
+                remainder: 0
             },
             lineItems: [
                 {
@@ -281,12 +281,12 @@ describe("/v2/transactions/order", () => {
         chai.assert.deepEqualExcluding(postOrderResp.body, {
             id: request.id,
             transactionType: "debit",
-            remainder: 0,
             totals: {
                 subTotal: 1166,
                 tax: 68,
                 discount: 225,
-                payable: 1009
+                payable: 1009,
+                remainder: 0
             },
             lineItems: [
                 {
@@ -430,12 +430,12 @@ describe("/v2/transactions/order", () => {
         chai.assert.deepEqualExcluding(postOrderResp.body, {
             id: request.id,
             transactionType: "debit",
-            remainder: 534,
             totals: {
                 subTotal: 1166,
                 tax: 68,
                 discount: 200,
-                payable: 1034
+                payable: 1034,
+                remainder: 534
             },
             lineItems: [
                 {

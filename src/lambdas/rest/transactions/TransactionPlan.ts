@@ -6,10 +6,10 @@ import {LineItemResponse} from "../../../model/LineItem";
 export interface TransactionPlan {
     id: string;
     transactionType: TransactionType;
-    totals?: TransactionTotal;
+    totals: TransactionTotal;
     lineItems?: LineItemResponse[];
     steps: TransactionPlanStep[];
-    remainder: number; // todo - should this be moved into totals?
+    // remainder: number; // todo - should this be moved into totals?
 }
 
 export type TransactionPlanStep =

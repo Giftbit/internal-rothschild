@@ -69,7 +69,7 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.deepEqualExcluding(postTransferResp.body, {
             id: "transfer-1",
             transactionType: "transfer",
-            remainder: 0
+            totals: {remainder: 0}
         }, ["steps", "createdDate"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
@@ -139,12 +139,13 @@ describe("/v2/transactions/transfer", () => {
             currency: "CAD",
             simulate: true
         });
-        chai.assert.equal(postTransferResp.statusCode, 200, `body=${JSON.stringify(postTransferResp.body)}`);
-        chai.assert.deepEqualExcluding(postTransferResp.body, {
+        const validObject = {
             id: "transfer-2",
             transactionType: "transfer",
-            remainder: 0
-        }, ["steps", "createdDate"]);
+            totals: {remainder: 0}
+        };
+        chai.assert.equal(postTransferResp.statusCode, 200, `body=${JSON.stringify(postTransferResp.body)}`);
+        chai.assert.deepEqualExcluding(postTransferResp.body, validObject, ["steps", "createdDate"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
         const sourceStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad1.id) as LightrailTransactionStep;
@@ -199,7 +200,7 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.deepEqualExcluding(postTransferResp.body, {
             id: "transfer-3",
             transactionType: "transfer",
-            remainder: 7500 - 500
+            totals: {remainder: 7500 - 500}
         }, ["steps", "createdDate"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 

@@ -38,12 +38,12 @@ function initializeTransactionPlan(order: OrderRequest, steps: TransactionPlanSt
         transactionType: "debit",
         lineItems: lineItemResponses,
         steps: steps,
-        remainder: calculateRemainderFromLineItems(lineItemResponses),
         totals: {
             subTotal: 0,
             tax: 0,
             discount: 0,
-            payable: 0
+            payable: 0,
+            remainder: calculateRemainderFromLineItems(lineItemResponses),
         }
     };
 }
@@ -148,5 +148,5 @@ function calculateTotalsFromLineItems(transactionPlan: TransactionPlan): void {
         transactionPlan.totals.discount += item.lineTotal.discount;
         transactionPlan.totals.payable += item.lineTotal.payable;
     }
-    transactionPlan.remainder = calculateRemainderFromLineItems(transactionPlan.lineItems);
+    transactionPlan.totals.remainder = calculateRemainderFromLineItems(transactionPlan.lineItems);
 }

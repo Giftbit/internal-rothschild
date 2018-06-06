@@ -82,7 +82,7 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
                         amount: req.amount
                     }
                 ],
-                remainder: 0
+                totals: {remainder: 0}
             };
         }
     );
@@ -112,7 +112,7 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
                         amount: -amount
                     }
                 ],
-                remainder: req.amount - amount
+                totals: {remainder: req.amount - amount}
             };
         }
     );
@@ -181,7 +181,7 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
                         amount
                     }
                 ],
-                remainder: req.amount - amount
+                totals: {remainder: req.amount - amount}
             };
         }
     );

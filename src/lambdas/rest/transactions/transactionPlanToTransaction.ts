@@ -20,7 +20,6 @@ export function transactionPlanToTransaction(plan: TransactionPlan, simulated?: 
         totals: plan.totals,
         lineItems: plan.lineItems,
         steps: plan.steps.map(transactionPlanStepToTransactionStep),
-        remainder: plan.remainder
     };
     if (simulated) {
         transaction.simulated = true;
