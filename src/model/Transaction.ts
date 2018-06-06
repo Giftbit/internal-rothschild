@@ -37,7 +37,7 @@ export interface DbTransaction {
     requestedPaymentSources: string | null;
     remainder: number;
     createdDate: Date;
-    metadata?: string | null;
+    metadata: string | null;
 }
 
 export namespace DbTransaction {
