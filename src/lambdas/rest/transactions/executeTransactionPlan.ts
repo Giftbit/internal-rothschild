@@ -1,8 +1,8 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {Transaction} from "../../../model/Transaction";
-import {getKnexWrite} from "../../../dbUtils";
-import {DbValueStore} from "../../../model/ValueStore";
+import {getKnexWrite, nowInDbPrecision} from "../../../dbUtils";
+import {DbValue} from "../../../model/Value";
 import {transactionPlanToTransaction} from "./transactionPlanToTransaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 
@@ -20,7 +20,7 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
         try {
             const plan = await planner();
             if (plan.remainder && !options.allowRemainder) {
-                throw new giftbitRoutes.GiftbitRestError(409, "Insufficient value.", "InsufficientValue");
+                throw new giftbitRoutes.GiftbitRestError(409, "Insufficient value for the transaction.", "InsufficientValue");
             }
             if (options.simulate) {
                 return transactionPlanToTransaction(plan);
@@ -42,18 +42,17 @@ export function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authorization
 
 /**
  * Execute a transaction plan that can be done as a single SQL transaction
- * locking on ValueStores.
+ * locking on Values.
  */
 async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<Transaction> {
-    const now = new Date();
-    now.setMilliseconds(0);
+    const now = nowInDbPrecision();
     const knex = await getKnexWrite();
     await knex.transaction(async trx => {
         try {
             await trx.into("Transactions")
                 .insert({
                     userId: auth.giftbitUserId,
-                    transactionId: plan.transactionId,
+                    transactionId: plan.id,
                     transactionType: plan.transactionType,
                     lineItems: null,
                     requestedPaymentSources: null,
@@ -62,60 +61,60 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
                 });
         } catch (err) {
             if (err.code === "ER_DUP_ENTRY") {
-                throw new giftbitRoutes.GiftbitRestError(409, `A transaction with transactionId '${plan.transactionId}' already exists.`, "TransactionExists");
+                throw new giftbitRoutes.GiftbitRestError(409, `A transaction with transactionId '${plan.id}' already exists.`, "TransactionExists");
             }
         }
 
         for (let stepIx = 0; stepIx < plan.steps.length; stepIx++) {
             const step = plan.steps[stepIx] as LightrailTransactionPlanStep;
-            let query = trx.into("ValueStores")
+            let query = trx.into("Values")
                 .where({
                     userId: auth.giftbitUserId,
-                    valueStoreId: step.valueStore.valueStoreId
+                    valueId: step.value.id
                 })
                 .increment("value", step.amount);
             if (step.amount < 0) {
                 query = query.where("value", ">=", -step.amount);
             }
-            if (step.valueStore.uses !== null) {
+            if (step.value.uses !== null) {
                 query = query.where("uses", ">", 0)
                     .increment("uses", -1);
             }
 
             const res = await query;
             if (res !== 1) {
-                throw new TransactionPlanError(`Transaction execution canceled because value store updated ${res} rows.  userId=${auth.giftbitUserId} valueStoreId=${step.valueStore.valueStoreId} value=${step.valueStore.value} uses=${step.valueStore.uses} step.amount=${step.amount}`, {
+                throw new TransactionPlanError(`Transaction execution canceled because Value updated ${res} rows.  userId=${auth.giftbitUserId} valueId=${step.value.id} value=${step.value.balance} uses=${step.value.uses} step.amount=${step.amount}`, {
                     isReplanable: res === 0
                 });
             }
 
-            const res2: DbValueStore[] = await trx.from("ValueStores")
+            const res2: DbValue[] = await trx.from("Values")
                 .where({
                     userId: auth.giftbitUserId,
-                    valueStoreId: step.valueStore.valueStoreId
+                    valueId: step.value.id
                 })
                 .select();
 
             if (res2.length !== 1) {
-                throw new TransactionPlanError(`Transaction execution canceled because the value store that was updated could not be refetched.  This should never happen.  userId=${auth.giftbitUserId} valueStoreId=${step.valueStore.valueStoreId}`, {
+                throw new TransactionPlanError(`Transaction execution canceled because the Value that was updated could not be refetched.  This should never happen.  userId=${auth.giftbitUserId} valueId=${step.value.id}`, {
                     isReplanable: false
                 });
             }
 
             // Fix the plan to indicate the true value change.
-            step.valueStore.value = res2[0].value - step.amount;
+            step.value.balance = res2[0].balance - step.amount;
 
             await trx.into("LightrailTransactionSteps")
                 .insert({
                     userId: auth.giftbitUserId,
-                    lightrailTransactionStepId: `${plan.transactionId}-${stepIx}`,
-                    transactionId: plan.transactionId,
-                    valueStoreId: step.valueStore.valueStoreId,
-                    customerId: step.customerId,
+                    lightrailTransactionStepId: `${plan.id}-${stepIx}`,
+                    transactionId: plan.id,
+                    valueId: step.value.id,
+                    contactId: step.contactId,
                     codeLastFour: step.codeLastFour,
-                    valueBefore: res2[0].value - step.amount,
-                    valueAfter: res2[0].value,
-                    valueChange: step.amount
+                    balanceBefore: res2[0].balance - step.amount,
+                    balanceAfter: res2[0].balance,
+                    balanceChange: step.amount
                 });
         }
     });

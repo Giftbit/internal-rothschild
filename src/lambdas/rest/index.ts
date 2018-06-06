@@ -1,10 +1,11 @@
 import "babel-polyfill";
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {installCustomersRest} from "./customers";
+import {installContactsRest} from "./contacts";
 import {installTransactionsRest} from "./transactions/transactions";
-import {installValueStoresRest} from "./valueStores";
-import {installValueStoreTemplatesRest} from "./valueStoreTemplates";
+import {installValuesRest} from "./values";
+import {installValueTemplatesRest} from "./programs";
+import {installCurrenciesRest} from "./currencies";
 
 const router = new cassava.Router();
 
@@ -15,9 +16,17 @@ router.route(new cassava.routes.LoggingRoute());
 // router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(authConfigPromise, roleDefinitionsPromise));
 router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
 
-installCustomersRest(router);
-installValueStoresRest(router);
-installTransactionsRest(router);
-installValueStoreTemplatesRest(router);
+/**
+ * Install all the rest api routes.  This is exported for easy testing.
+ */
+export function installRest(router: cassava.Router): void {
+    installCurrenciesRest(router);
+    installContactsRest(router);
+    installValuesRest(router);
+    installTransactionsRest(router);
+    installValueTemplatesRest(router);
+}
+
+installRest(router);
 
 export const handler = router.getLambdaHandler();

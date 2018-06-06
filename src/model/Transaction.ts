@@ -2,7 +2,7 @@ import * as stripe from "stripe";
 import {LineItem} from "./LineItem";
 
 export interface Transaction {
-    transactionId: string;
+    id: string;
     transactionType: TransactionType;
     totals: TransactionTotal;
     lineItems?: LineItem[];
@@ -46,14 +46,13 @@ export type TransactionStep = LightrailTransactionStep | StripeTransactionStep |
 
 export interface LightrailTransactionStep {
     rail: "lightrail";
-    valueStoreId: string;
-    valueStoreType: string;
+    valueId: string;
     currency: string;
-    customerId?: string;
+    contactId?: string;
     codeLastFour?: string;
-    valueBefore: number;
-    valueAfter: number;
-    valueChange: number;
+    balanceBefore: number;
+    balanceAfter: number;
+    balanceChange: number;
 }
 
 export interface StripeTransactionStep {
@@ -66,9 +65,9 @@ export interface StripeTransactionStep {
 export interface InternalTransactionStep {
     rail: "internal";
     id: string;
-    valueBefore: number;
-    valueAfter: number;
-    valueChange: number;
+    balanceBefore: number;
+    balanceAfter: number;
+    balanceChange: number;
 }
 
 export interface TransactionTotal {

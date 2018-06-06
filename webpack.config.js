@@ -10,6 +10,7 @@ module.exports = function (env) {
 
     return functionsToBuild
         .map(fxn => ({
+            mode: 'production',
             context: path.resolve(__dirname),
             entry: path.join(lambdaFunctionDir, fxn, 'index.ts'),
             output: {
@@ -70,6 +71,10 @@ module.exports = function (env) {
             resolve: {
                 extensions: ['.ts', '.tsx', '.js']
             },
+            optimization: {
+                minimize: false,
+                namedModules: true
+            },
             plugins: [
                 new webpack.DefinePlugin({"global.GENTLY": false}), // see https://github.com/felixge/node-formidable/issues/337 for why
                 new ZipPlugin({
@@ -78,7 +83,6 @@ module.exports = function (env) {
                     filename: `${fxn}.zip`
                 })
             ],
-            mode: 'development',
             target: 'node',
             externals: {
                 // These modules are already installed on the Lambda instance.

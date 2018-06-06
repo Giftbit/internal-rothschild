@@ -1,6 +1,8 @@
 import * as cassava from "cassava";
+import * as chai from "chai";
 import * as fs from "fs";
 import * as mysql from "mysql2/promise";
+import papaparse = require("papaparse");
 import * as path from "path";
 import {getDbCredentials} from "./dbUtils";
 
@@ -83,9 +85,47 @@ export async function testAuthedRequest<T>(router: cassava.Router, url: string, 
         },
         body: body && JSON.stringify(body) || undefined
     }));
+
+    chai.assert.equal(resp.headers["Content-Type"], "application/json");
+
     return {
         statusCode: resp.statusCode,
         headers: resp.headers,
         body: resp.body && JSON.parse(resp.body) || undefined
+    };
+}
+
+export interface ParsedCsvProxyResponse<T> {
+    statusCode: number;
+    headers: {
+        [key: string]: string;
+    };
+    body: T[];
+}
+
+/**
+ * Make a simple authed request for CSV to the router with the default test user.
+ */
+export async function testAuthedCsvRequest<T>(router: cassava.Router, url: string, method: string, body?: any): Promise<ParsedCsvProxyResponse<T>> {
+    const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent(url, method, {
+        headers: {
+            Authorization: `Bearer ${defaultTestUser.jwt}`,
+            Accept: "text/csv"
+        },
+        body: body && JSON.stringify(body) || undefined
+    }));
+
+    const parseRes = papaparse.parse(resp.body, {
+        dynamicTyping: true,
+        header: true,
+        delimiter: ","
+    });
+    chai.assert.equal(resp.headers["Content-Type"], "text/csv");
+    chai.assert.deepEqual(parseRes.errors, [], "csv parsing 0 errors");
+
+    return {
+        statusCode: resp.statusCode,
+        headers: resp.headers,
+        body: parseRes.data
     };
 }
