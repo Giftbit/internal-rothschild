@@ -1,14 +1,16 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import {getKnexRead, getKnexWrite, nowInDbPrecision} from "../../dbUtils";
-import {Customer, DbCustomer} from "../../model/Customer";
+import {Contact, DbContact} from "../../model/Contact";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {pick, pickOrDefault} from "../../pick";
 import {csvSerializer} from "../../serializers";
+import {nowInDbPrecision} from "../../dbUtils";
+import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
+import {paginateQuery} from "../../dbUtils/paginateQuery";
 
-export function installCustomersRest(router: cassava.Router): void {
-    router.route("/v2/customers")
+export function installContactsRest(router: cassava.Router): void {
+    router.route("/v2/contacts")
         .method("GET")
         .serializers({
             "application/json": cassava.serializers.jsonSerializer,
@@ -17,24 +19,24 @@ export function installCustomersRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
-            const res = await getCustomers(auth, Pagination.getPaginationParams(evt));
+            const res = await getContacts(auth, Pagination.getPaginationParams(evt));
             return {
-                headers: Pagination.toHeaders(res.pagination),
-                body: res.customers
+                headers: Pagination.toHeaders(evt, res.pagination),
+                body: res.contacts
             };
         });
 
-    router.route("/v2/customers")
+    router.route("/v2/contacts")
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
-            evt.validateBody(customerSchema);
+            evt.validateBody(contactSchema);
 
             const now = nowInDbPrecision();
-            const customer = {
+            const contact = {
                 ...pickOrDefault(evt.body, {
-                    customerId: evt.body.customerId,
+                    id: "",
                     firstName: null,
                     lastName: null,
                     email: null,
@@ -45,96 +47,94 @@ export function installCustomersRest(router: cassava.Router): void {
             };
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
-                body: await createCustomer(auth, customer)
+                body: await createContact(auth, contact)
             };
         });
 
-    router.route("/v2/customers/{customerId}")
+    router.route("/v2/contacts/{id}")
         .method("GET")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
             return {
-                body: await getCustomer(auth, evt.pathParameters.customerId)
+                body: await getContact(auth, evt.pathParameters.id)
             };
         });
 
-    router.route("/v2/customers/{customerId}")
+    router.route("/v2/contacts/{id}")
         .method("PATCH")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
-            evt.validateBody(customerUpdateSchema);
+            evt.validateBody(contactUpdateSchema);
+
+            if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
+                throw new giftbitRoutes.GiftbitRestError(422, `The body id '${evt.body.id}' does not match the path id '${evt.pathParameters.id}'.  The id cannot be updated.`);
+            }
 
             const now = nowInDbPrecision();
-            const customer = {
-                ...pick<Customer>(evt.body, "firstName", "lastName", "email", "metadata"),
+            const contact = {
+                ...pick<Contact>(evt.body, "firstName", "lastName", "email", "metadata"),
                 updatedDate: now
             };
             return {
-                body: await updateCustomer(auth, evt.pathParameters.customerId, customer)
+                body: await updateContact(auth, evt.pathParameters.id, contact)
             };
         });
 
-    router.route("/v2/customers/{customerId}")
+    router.route("/v2/contacts/{id}")
         .method("DELETE")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
             return {
-                body: await deleteCustomer(auth, evt.pathParameters.customerId)
+                body: await deleteContact(auth, evt.pathParameters.id)
             };
         });
 }
 
-// TODO this should be filterable by firstName, lastName, email (includes, ignore case)
-export async function getCustomers(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ customers: Customer[], pagination: Pagination }> {
+export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ contacts: Contact[], pagination: Pagination }> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
-    const res: DbCustomer[] = await knex("Customers")
-        .select()
-        .where({
-            userId: auth.giftbitUserId
-        })
-        .orderBy("customerId")
-        .limit(pagination.limit)
-        .offset(pagination.offset);
+    const res = await paginateQuery<DbContact>(
+        knex("Contacts")
+            .where({
+                userId: auth.giftbitUserId
+            }),
+        pagination
+    );
     return {
-        customers: res.map(DbCustomer.toCustomer),
-        pagination: {
-            limit: pagination.limit,
-            maxLimit: pagination.maxLimit,
-            offset: pagination.offset
-        }
+        contacts: res.body.map(DbContact.toContact),
+        pagination: res.pagination
     };
 }
 
-export async function createCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, customer: Customer): Promise<Customer> {
+export async function createContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contact: Contact): Promise<Contact> {
     auth.requireIds("giftbitUserId");
 
     try {
         const knex = await getKnexWrite();
-        await knex("Customers")
-            .insert(Customer.toDbCustomer(auth, customer));
-        return customer;
+        await knex("Contacts")
+            .insert(Contact.toDbContact(auth, contact));
+        return contact;
     } catch (err) {
         if (err.code === "ER_DUP_ENTRY") {
-            throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Customer with customerId '${customer.customerId}' already exists.`);
+            throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Contact with id '${contact.id}' already exists.`);
         }
         throw err;
     }
 }
 
-export async function getCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, customerId: string): Promise<Customer> {
+export async function getContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Contact> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
-    const res: DbCustomer[] = await knex("Customers")
+    const res: DbContact[] = await knex("Contacts")
         .select()
         .where({
             userId: auth.giftbitUserId,
-            customerId
+            id: id
         });
     if (res.length === 0) {
         throw new cassava.RestError(404);
@@ -142,19 +142,19 @@ export async function getCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
-    return DbCustomer.toCustomer(res[0]);
+    return DbContact.toContact(res[0]);
 }
 
-export async function updateCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, customerId: string, customer: Partial<Customer>): Promise<Customer> {
+export async function updateContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, contact: Partial<Contact>): Promise<Contact> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexWrite();
-    const res = await knex("Customers")
+    const res = await knex("Contacts")
         .where({
             userId: auth.giftbitUserId,
-            customerId: customerId
+            id: id
         })
-        .update(Customer.toDbCustomerUpdate(customer));
+        .update(Contact.toDbContactUpdate(contact));
     if (res[0] === 0) {
         throw new cassava.RestError(404);
     }
@@ -162,19 +162,19 @@ export async function updateCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBa
         throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
     }
     return {
-        ...await getCustomer(auth, customerId),
-        ...customer
+        ...await getContact(auth, id),
+        ...contact
     };
 }
 
-export async function deleteCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, customerId: string): Promise<{ success: true }> {
+export async function deleteContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<{ success: true }> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexWrite();
-    const res: [number] = await knex("Customers")
+    const res: [number] = await knex("Contacts")
         .where({
             userId: auth.giftbitUserId,
-            customerId
+            id: id
         })
         .delete();
     if (res[0] === 0) {
@@ -186,12 +186,13 @@ export async function deleteCustomer(auth: giftbitRoutes.jwtauth.AuthorizationBa
     return {success: true};
 }
 
-const customerSchema: jsonschema.Schema = {
+const contactSchema: jsonschema.Schema = {
     type: "object",
+    additionalProperties: false,
     properties: {
-        customerId: {
+        id: {
             type: "string",
-            maxLength: 255,
+            maxLength: 32,
             minLength: 1
         },
         firstName: {
@@ -210,11 +211,11 @@ const customerSchema: jsonschema.Schema = {
             type: ["object", "null"]
         }
     },
-    required: ["customerId"]
+    required: ["id"]
 };
 
-const customerUpdateSchema: jsonschema.Schema = {
-    ...customerSchema,
+const contactUpdateSchema: jsonschema.Schema = {
+    ...contactSchema,
     required: []
 };
 

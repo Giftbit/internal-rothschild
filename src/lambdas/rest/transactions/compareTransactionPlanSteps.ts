@@ -1,5 +1,7 @@
 import {
-    InternalTransactionPlanStep, LightrailTransactionPlanStep, StripeTransactionPlanStep,
+    InternalTransactionPlanStep,
+    LightrailTransactionPlanStep,
+    StripeTransactionPlanStep,
     TransactionPlanStep
 } from "./TransactionPlan";
 
@@ -48,13 +50,19 @@ export function compareTransactionPlanSteps(a: TransactionPlanStep, b: Transacti
 
 function compareLightrailTransactionPlanSteps(a: LightrailTransactionPlanStep, b: LightrailTransactionPlanStep): number {
     // TODO this logic is blocked on defining the value store types
-    if (a.valueStore.pretax && !b.valueStore.pretax) {
+    if (a.value.pretax && !b.value.pretax) {
         return aFirst;
     }
-    if (!a.valueStore.pretax && b.valueStore.pretax) {
+    if (!a.value.pretax && b.value.pretax) {
         return bFirst;
     }
-    return a.valueStore.valueStoreId < b.valueStore.valueStoreId ? aFirst : bFirst;
+    if (a.value.discount) {
+        return aFirst;
+    }
+    if (b.value.discount) {
+        return bFirst;
+    }
+    return a.value.id < b.value.id ? aFirst : bFirst;
 }
 
 function compareStripeTransactionPlanSteps(a: StripeTransactionPlanStep, b: StripeTransactionPlanStep): number {

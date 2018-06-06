@@ -1,10 +1,10 @@
 import "babel-polyfill";
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {installCustomersRest} from "./customers";
+import {installContactsRest} from "./contacts";
 import {installTransactionsRest} from "./transactions/transactions";
-import {installValueStoresRest} from "./valueStores";
-import {installValueStoreTemplatesRest} from "./valueStoreTemplates";
+import {installValuesRest} from "./values";
+import {installValueTemplatesRest} from "./programs";
 import {installCurrenciesRest} from "./currencies";
 
 const router = new cassava.Router();
@@ -21,10 +21,10 @@ router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({se
  */
 export function installRest(router: cassava.Router): void {
     installCurrenciesRest(router);
-    installCustomersRest(router);
-    installValueStoresRest(router);
+    installContactsRest(router);
+    installValuesRest(router);
     installTransactionsRest(router);
-    installValueStoreTemplatesRest(router);
+    installValueTemplatesRest(router);
 }
 
 installRest(router);

@@ -1,22 +1,25 @@
 import * as stripe from "stripe";
-import {CartTransaction, TransactionType} from "../../../model/Transaction";
-import {ValueStore} from "../../../model/ValueStore";
+import {TransactionTotal, TransactionType} from "../../../model/Transaction";
+import {Value} from "../../../model/Value";
+import {LineItemResponse} from "../../../model/LineItem";
 
 export interface TransactionPlan {
-    transactionId: string;
+    id: string;
     transactionType: TransactionType;
-    cart?: CartTransaction;
+    totals: TransactionTotal;
+    lineItems?: LineItemResponse[];
     steps: TransactionPlanStep[];
-    remainder: number;
+    // remainder: number; // todo - should this be moved into totals?
 }
 
-export type TransactionPlanStep = LightrailTransactionPlanStep | StripeTransactionPlanStep | InternalTransactionPlanStep;
+export type TransactionPlanStep =
+    LightrailTransactionPlanStep
+    | StripeTransactionPlanStep
+    | InternalTransactionPlanStep;
 
 export interface LightrailTransactionPlanStep {
     rail: "lightrail";
-    valueStore: ValueStore;
-    codeLastFour: string | null;
-    customerId: string | null;
+    value: Value;
     amount: number;
 }
 
@@ -37,7 +40,7 @@ export interface StripeTransactionPlanStep {
 export interface InternalTransactionPlanStep {
     rail: "internal";
     internalId: string;
-    value: number;
+    balance: number;
     pretax: boolean;
     beforeLightrail: boolean;
     amount: number;

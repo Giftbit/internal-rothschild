@@ -1,21 +1,25 @@
 import {
     InternalTransactionStep,
-    LightrailTransactionStep, StripeTransactionStep, Transaction,
+    LightrailTransactionStep,
+    StripeTransactionStep,
+    Transaction,
     TransactionStep,
 } from "../../../model/Transaction";
 import {
     InternalTransactionPlanStep,
-    LightrailTransactionPlanStep, StripeTransactionPlanStep, TransactionPlan,
+    LightrailTransactionPlanStep,
+    StripeTransactionPlanStep,
+    TransactionPlan,
     TransactionPlanStep
 } from "./TransactionPlan";
 
 export function transactionPlanToTransaction(plan: TransactionPlan, simulated?: boolean): Transaction {
     const transaction: Transaction = {
-        transactionId: plan.transactionId,
+        id: plan.id,
         transactionType: plan.transactionType,
-        cart: plan.cart,
+        totals: plan.totals,
+        lineItems: plan.lineItems,
         steps: plan.steps.map(transactionPlanStepToTransactionStep),
-        remainder: plan.remainder
     };
     if (simulated) {
         transaction.simulated = true;
@@ -37,14 +41,13 @@ function transactionPlanStepToTransactionStep(step: TransactionPlanStep): Transa
 function lightrailTransactionPlanStepToTransactionStep(step: LightrailTransactionPlanStep): LightrailTransactionStep {
     return {
         rail: "lightrail",
-        valueStoreId: step.valueStore.valueStoreId,
-        valueStoreType: step.valueStore.valueStoreType,
-        currency: step.valueStore.currency,
-        customerId: step.customerId,
-        codeLastFour: step.codeLastFour,
-        valueBefore: step.valueStore.value,
-        valueAfter: step.valueStore.value + step.amount,
-        valueChange: step.amount
+        valueId: step.value.id,
+        currency: step.value.currency,
+        contactId: step.value.contactId,
+        code: step.value.code,
+        balanceBefore: step.value.balance,
+        balanceAfter: step.value.balance + step.amount,
+        balanceChange: step.amount
     };
 }
 
@@ -64,8 +67,8 @@ function internalTransactionPlanStepToTransactionStep(step: InternalTransactionP
     return {
         rail: "internal",
         id: step.internalId,
-        valueBefore: step.value,
-        valueAfter: step.value + step.amount,
-        valueChange: step.amount
+        balanceBefore: step.balance,
+        balanceAfter: step.balance + step.amount,
+        balanceChange: step.amount
     };
 }

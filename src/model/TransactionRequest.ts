@@ -1,6 +1,8 @@
+import {LineItemRequest} from "./LineItem";
+
 export interface OrderRequest {
-    transactionId: string;
-    cart: Cart;
+    id: string;
+    lineItems: LineItemRequest[];
     currency: string;
     sources: TransactionParty[];
     simulate?: boolean;
@@ -9,7 +11,7 @@ export interface OrderRequest {
 }
 
 export interface CreditRequest {
-    transactionId: string;
+    id: string;
     destination: TransactionParty;
     amount: number;
     currency: string;
@@ -18,7 +20,7 @@ export interface CreditRequest {
 }
 
 export interface DebitRequest {
-    transactionId: string;
+    id: string;
     source: TransactionParty;
     amount: number;
     currency: string;
@@ -27,17 +29,15 @@ export interface DebitRequest {
     // metadata: object | null; // TODO
 }
 
-export type Cart = any;
-
 export type TransferRequest = CreditRequest & DebitRequest;
 
 export type TransactionParty = LightrailTransactionParty | StripeTransactionParty | InternalTransactionParty;
 
 export interface LightrailTransactionParty {
     rail: "lightrail";
-    customerId?: string;
+    contactId?: string;
     code?: string;
-    valueStoreId?: string;
+    valueId?: string;
 }
 
 export interface StripeTransactionParty {
@@ -50,7 +50,7 @@ export interface StripeTransactionParty {
 export interface InternalTransactionParty {
     rail: "internal";
     id: string;
-    value: number;
+    balance: number;
     pretax?: boolean;
     beforeLightrail?: boolean;
 }
