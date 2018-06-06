@@ -1,9 +1,4 @@
-import {
-    calculateRemainder,
-    LightrailTransactionPlanStep,
-    TransactionPlan,
-    TransactionPlanStep
-} from "./TransactionPlan";
+import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "./TransactionPlan";
 import {OrderRequest} from "../../../model/TransactionRequest";
 import {getRuleFromCache} from "./getRuleFromCache";
 import {LineItemResponse} from "../../../model/LineItem";
@@ -11,34 +6,16 @@ import {Value} from "../../../model/Value";
 import * as bankersRounding from "bankers-rounding";
 
 export function buildOrderTransactionPlan(order: OrderRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
-    let transactionPlan = initializeTransactionResponse(order, preTaxSteps.concat(postTaxSteps));
-    transactionPlan = processTransactionSteps(preTaxSteps, transactionPlan);
-    transactionPlan = applyTax(transactionPlan);
-    transactionPlan.remainder = calculateRemainder(transactionPlan.lineItems);
-    transactionPlan = processTransactionSteps(postTaxSteps, transactionPlan);
-    transactionPlan.remainder = calculateRemainder(transactionPlan.lineItems);
-
-    // calculate payable on each lineItem
-    transactionPlan.totals = {
-        subTotal: 0,
-        tax: 0,
-        discount: 0,
-        payable: 0
-    };
-
-    for (let item of transactionPlan.lineItems) {
-        item.lineTotal.payable = item.lineTotal.subtotal + item.lineTotal.tax - item.lineTotal.discount;
-        transactionPlan.totals.subTotal += item.lineTotal.subtotal;
-        transactionPlan.totals.tax += item.lineTotal.tax;
-        transactionPlan.totals.discount += item.lineTotal.discount;
-        transactionPlan.totals.payable += item.lineTotal.payable;
-    }
-
+    let transactionPlan = initializeTransactionPlan(order, preTaxSteps.concat(postTaxSteps));
+    processTransactionSteps(preTaxSteps, transactionPlan);
+    applyTax(transactionPlan);
+    processTransactionSteps(postTaxSteps, transactionPlan);
+    calculateTotalsFromLineItems(transactionPlan);
     console.log(`transactionPlan: ${JSON.stringify(transactionPlan)}`);
     return transactionPlan;
 }
 
-function initializeTransactionResponse(order: OrderRequest, steps: TransactionPlanStep[]): TransactionPlan {
+function initializeTransactionPlan(order: OrderRequest, steps: TransactionPlanStep[]): TransactionPlan {
     let lineItemResponses: LineItemResponse[] = [];
     for (let lineItem of order.lineItems) {
         lineItem.quantity = lineItem.quantity ? lineItem.quantity : 1;
@@ -61,30 +38,37 @@ function initializeTransactionResponse(order: OrderRequest, steps: TransactionPl
         transactionType: "debit",
         lineItems: lineItemResponses,
         steps: steps,
-        remainder: calculateRemainder(lineItemResponses)
+        remainder: calculateRemainderFromLineItems(lineItemResponses),
+        totals: {
+            subTotal: 0,
+            tax: 0,
+            discount: 0,
+            payable: 0
+        }
     };
 }
 
-function isValueStoreInInvalidStateForRedemption(value: Value): boolean {
+function isValueRedeemable(value: Value): boolean {
     const now = new Date();
 
     if (value.frozen || !value.active || value.endDate > now || value.uses === 0) {
-        return true;
+        return false;
     }
     if (value.startDate && value.startDate > now) {
-        return true;
+        return false;
     }
     if (value.endDate && value.endDate < now) {
-        return true;
+        return false;
     }
+    return true;
 }
 
-function processTransactionSteps(steps: TransactionPlanStep[], transactionPlan: TransactionPlan): TransactionPlan {
-    for (let stepsIndex = 0; stepsIndex < steps.length /* && transactionPlan.remainder > 0 */; stepsIndex++) {
+function processTransactionSteps(steps: TransactionPlanStep[], transactionPlan: TransactionPlan): void {
+    for (let stepsIndex = 0; stepsIndex < steps.length; stepsIndex++) {
         const step = steps[stepsIndex];
         switch (step.rail) {
             case "lightrail":
-                transactionPlan = processLightrailTransactionStep(step, transactionPlan);
+                processLightrailTransactionStep(step, transactionPlan);
                 break;
             case "stripe":
                 throw new Error("not yet implemented");
@@ -92,19 +76,18 @@ function processTransactionSteps(steps: TransactionPlanStep[], transactionPlan: 
                 throw new Error("not yet implemented");
         }
     }
-    return transactionPlan;
 }
 
-function processLightrailTransactionStep(step: LightrailTransactionPlanStep, transactionPlan: TransactionPlan): TransactionPlan {
+function processLightrailTransactionStep(step: LightrailTransactionPlanStep, transactionPlan: TransactionPlan): void {
     console.log(`processing ValueStore ${JSON.stringify(step)}.`);
     let value = step.value;
-    if (isValueStoreInInvalidStateForRedemption(value)) {
-        return transactionPlan;
+    if (!isValueRedeemable(value)) {
+        return;
     }
     for (let index in transactionPlan.lineItems) {
         const item = transactionPlan.lineItems[index];
         if (item.lineTotal.remainder === 0) {
-            break; // the item has been paid for. you can skip.
+            break; // The item has been paid for, skip.
         }
         if (value.redemptionRule) {
             const context = {
@@ -134,10 +117,9 @@ function processLightrailTransactionStep(step: LightrailTransactionPlanStep, tra
             }
         }
     }
-    return transactionPlan;
 }
 
-function applyTax(transactionPlan: TransactionPlan): TransactionPlan {
+function applyTax(transactionPlan: TransactionPlan): void {
     for (let item of transactionPlan.lineItems) {
         let tax = 0;
         item.lineTotal.taxable = item.lineTotal.subtotal - item.lineTotal.discount;
@@ -148,5 +130,23 @@ function applyTax(transactionPlan: TransactionPlan): TransactionPlan {
         item.lineTotal.tax = tax;
         item.lineTotal.remainder += tax;
     }
-    return transactionPlan;
+}
+
+function calculateRemainderFromLineItems(lineItems: LineItemResponse[]): number {
+    let remainder = 0;
+    for (const item of lineItems) {
+        remainder += item.lineTotal.remainder;
+    }
+    return remainder;
+}
+
+function calculateTotalsFromLineItems(transactionPlan: TransactionPlan): void {
+    for (let item of transactionPlan.lineItems) {
+        item.lineTotal.payable = item.lineTotal.subtotal + item.lineTotal.tax - item.lineTotal.discount;
+        transactionPlan.totals.subTotal += item.lineTotal.subtotal;
+        transactionPlan.totals.tax += item.lineTotal.tax;
+        transactionPlan.totals.discount += item.lineTotal.discount;
+        transactionPlan.totals.payable += item.lineTotal.payable;
+    }
+    transactionPlan.remainder = calculateRemainderFromLineItems(transactionPlan.lineItems);
 }

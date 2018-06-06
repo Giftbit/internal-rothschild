@@ -9,15 +9,7 @@ export interface TransactionPlan {
     totals?: TransactionTotal;
     lineItems?: LineItemResponse[];
     steps: TransactionPlanStep[];
-    remainder: number;
-}
-
-export function calculateRemainder(lineItems: LineItemResponse[]) {
-    let remainder = 0;
-    for (const item of lineItems) {
-        remainder += item.lineTotal.remainder;
-    }
-    return remainder;
+    remainder: number; // todo - should this be moved into totals? 
 }
 
 export type TransactionPlanStep =

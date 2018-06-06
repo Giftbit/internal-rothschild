@@ -21,7 +21,7 @@ describe("/v2/transactions/order", () => {
         currencies.installCurrenciesRest(router);
     });
 
-    it("basic order", async () => {
+    it("processes basic order", async () => {
         const currency: Currency = {
             code: "CAD",
             name: "Monopoly Money",
