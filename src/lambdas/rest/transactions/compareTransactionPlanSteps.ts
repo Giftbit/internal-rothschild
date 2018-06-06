@@ -56,10 +56,10 @@ function compareLightrailTransactionPlanSteps(a: LightrailTransactionPlanStep, b
     if (!a.value.pretax && b.value.pretax) {
         return bFirst;
     }
-    if (a.valueStore.discount) {
+    if (a.value.discount) {
         return aFirst;
     }
-    if (b.valueStore.discount) {
+    if (b.value.discount) {
         return bFirst;
     }
     return a.value.id < b.value.id ? aFirst : bFirst;

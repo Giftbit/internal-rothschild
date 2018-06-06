@@ -12,7 +12,7 @@ export interface LineItemRequest {
 }
 
 export interface LineItemResponse extends LineItemRequest {
-    lineTotal: LineTotal
+    lineTotal: LineTotal;
 }
 
 export interface LineTotal {

@@ -1,8 +1,6 @@
 import * as stripe from "stripe";
-import {CartTransaction, TransactionType} from "../../../model/Transaction";
-import {Value} from "../../../model/Value";
-import {ValueStore} from "../../../model/ValueStore";
 import {TransactionTotal, TransactionType} from "../../../model/Transaction";
+import {Value} from "../../../model/Value";
 import {LineItemResponse} from "../../../model/LineItem";
 
 export interface TransactionPlan {

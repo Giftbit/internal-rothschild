@@ -59,7 +59,6 @@ CREATE TABLE rothschild.ProgramTags (
   CONSTRAINT fk_ProgramTags_Programs FOREIGN KEY (userId, programId) REFERENCES rothschild.Programs (userId, id)
 );
 
-# todo - tim I had added a discount boolean ie: discount             BOOL         NOT NULL,
 CREATE TABLE rothschild.Values (
   userId         VARCHAR(32) NOT NULL,
   id             VARCHAR(32) NOT NULL,
@@ -77,6 +76,7 @@ CREATE TABLE rothschild.Values (
   frozen         BOOL        NOT NULL,
   redemptionRule TEXT,
   valueRule      TEXT,
+  discount       BOOL        NOT NULL,
   startDate      DATETIME,
   endDate        DATETIME,
   metadata       TEXT,

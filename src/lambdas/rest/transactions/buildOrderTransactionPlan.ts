@@ -7,9 +7,8 @@ import {
 import {OrderRequest} from "../../../model/TransactionRequest";
 import {getRuleFromCache} from "./getRuleFromCache";
 import {LineItemResponse} from "../../../model/LineItem";
-import {ValueStore} from "../../../model/ValueStore";
-
-const bankersRounding = require('bankers-rounding');
+import {Value} from "../../../model/Value";
+import * as bankersRounding from "bankers-rounding";
 
 export function buildOrderTransactionPlan(order: OrderRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
     let transactionPlan = initializeTransactionResponse(order, preTaxSteps.concat(postTaxSteps));
@@ -28,11 +27,11 @@ export function buildOrderTransactionPlan(order: OrderRequest, preTaxSteps: Tran
     };
 
     for (let item of transactionPlan.lineItems) {
-        item.lineTotal.payable = item.lineTotal.subtotal + item.lineTotal.tax - item.lineTotal.discount
+        item.lineTotal.payable = item.lineTotal.subtotal + item.lineTotal.tax - item.lineTotal.discount;
         transactionPlan.totals.subTotal += item.lineTotal.subtotal;
         transactionPlan.totals.tax += item.lineTotal.tax;
         transactionPlan.totals.discount += item.lineTotal.discount;
-        transactionPlan.totals.payable += item.lineTotal.payable
+        transactionPlan.totals.payable += item.lineTotal.payable;
     }
 
     console.log(`transactionPlan: ${JSON.stringify(transactionPlan)}`);
@@ -55,10 +54,10 @@ function initializeTransactionResponse(order: OrderRequest, steps: TransactionPl
                 payable: 0
             }
         };
-        lineItemResponses.push(lineItemResponse)
+        lineItemResponses.push(lineItemResponse);
     }
     return {
-        transactionId: order.transactionId,
+        id: order.id,
         transactionType: "debit",
         lineItems: lineItemResponses,
         steps: steps,
@@ -66,16 +65,16 @@ function initializeTransactionResponse(order: OrderRequest, steps: TransactionPl
     };
 }
 
-function isValueStoreInInvalidStateForRedemption(valueStore: ValueStore): boolean {
+function isValueStoreInInvalidStateForRedemption(value: Value): boolean {
     const now = new Date();
 
-    if (valueStore.frozen || !valueStore.active || valueStore.expired || valueStore.uses === 0) {
+    if (value.frozen || !value.active || value.endDate > now || value.uses === 0) {
         return true;
     }
-    if (valueStore.startDate && valueStore.startDate > now) {
+    if (value.startDate && value.startDate > now) {
         return true;
     }
-    if (valueStore.endDate && valueStore.endDate < now) {
+    if (value.endDate && value.endDate < now) {
         return true;
     }
 }
@@ -98,8 +97,8 @@ function processTransactionSteps(steps: TransactionPlanStep[], transactionPlan: 
 
 function processLightrailTransactionStep(step: LightrailTransactionPlanStep, transactionPlan: TransactionPlan): TransactionPlan {
     console.log(`processing ValueStore ${JSON.stringify(step)}.`);
-    let valueStore = step.valueStore;
-    if (isValueStoreInInvalidStateForRedemption(valueStore)) {
+    let value = step.value;
+    if (isValueStoreInInvalidStateForRedemption(value)) {
         return transactionPlan;
     }
     for (let index in transactionPlan.lineItems) {
@@ -107,35 +106,35 @@ function processLightrailTransactionStep(step: LightrailTransactionPlanStep, tra
         if (item.lineTotal.remainder === 0) {
             break; // the item has been paid for. you can skip.
         }
-        if (valueStore.redemptionRule) {
+        if (value.redemptionRule) {
             const context = {
                 lineItems: transactionPlan.lineItems,
                 currentLineItem: item
             };
-            if (!getRuleFromCache(valueStore.redemptionRule.rule).evaluateToBoolean(context)) {
-                console.log(`ValueStore ${JSON.stringify(valueStore)} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
+            if (!getRuleFromCache(value.redemptionRule.rule).evaluateToBoolean(context)) {
+                console.log(`ValueStore ${JSON.stringify(value)} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
                 break;
             }
         }
 
-        console.log(`ValueStore ${JSON.stringify(valueStore)} CAN be applied to ${JSON.stringify(item)}.`);
+        console.log(`ValueStore ${JSON.stringify(value)} CAN be applied to ${JSON.stringify(item)}.`);
         if (item.lineTotal.remainder > 0) {
             let amount: number;
-            if (valueStore.valueRule) {
-                amount = Math.min(item.lineTotal.remainder, getRuleFromCache(valueStore.valueRule.rule).evaluateToNumber(context) | 0);
+            if (value.valueRule) {
+                amount = Math.min(item.lineTotal.remainder, getRuleFromCache(value.valueRule.rule).evaluateToNumber(context) | 0);
             } else {
-                amount = Math.min(item.lineTotal.remainder, valueStore.value);
-                valueStore.value -= amount;
+                amount = Math.min(item.lineTotal.remainder, value.balance);
+                value.balance -= amount;
                 step.amount -= amount;
             }
 
             item.lineTotal.remainder -= amount;
-            if (valueStore.discount) {
+            if (value.discount) {
                 item.lineTotal.discount += amount;
             }
         }
     }
-    return transactionPlan
+    return transactionPlan;
 }
 
 function applyTax(transactionPlan: TransactionPlan): TransactionPlan {

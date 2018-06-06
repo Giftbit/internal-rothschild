@@ -2,10 +2,12 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as transactions from "./transactions";
-import * as valueStores from "../valueStores";
+import * as valueStores from "../values";
+import * as currencies from "../currencies";
 import * as testUtils from "../../../testUtils";
-import {ValueStore} from "../../../model/ValueStore";
+import {Value} from "../../../model/Value";
 import {Transaction} from "../../../model/Transaction";
+import {Currency} from "../../../model/Currency";
 
 describe("/v2/transactions/order", () => {
 
@@ -15,26 +17,36 @@ describe("/v2/transactions/order", () => {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
         transactions.installTransactionsRest(router);
-        valueStores.installValueStoresRest(router);
+        valueStores.installValuesRest(router);
+        currencies.installCurrenciesRest(router);
     });
 
     it("basic order", async () => {
-        const giftCard: Partial<ValueStore> = {
-            valueStoreId: "basic-order-vs",
-            valueStoreType: "GIFTCARD",
+        const currency: Currency = {
+            code: "CAD",
+            name: "Monopoly Money",
+            symbol: "$",
+            decimalPlaces: 2
+        };
+        const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency);
+        chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
+
+        const giftCard: Partial<Value> = {
+            id: "basic-order-vs",
+            // type: "GIFTCARD",
             currency: "CAD",
-            value: 1000
+            balance: 1000
         };
 
-        const postValueStoreResp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/valueStores", "POST", giftCard);
+        const postValueStoreResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", giftCard);
         chai.assert.equal(postValueStoreResp.statusCode, 201, `body=${JSON.stringify(postValueStoreResp.body)}`);
 
         const request = {
-            transactionId: "order-1",
+            id: "order-1",
             sources: [
                 {
                     rail: "lightrail",
-                    valueStoreId: giftCard.valueStoreId
+                    valueId: giftCard.id
                 }
             ],
             lineItems: [
@@ -49,7 +61,7 @@ describe("/v2/transactions/order", () => {
         const postOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/order", "POST", request);
         chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
         chai.assert.deepEqualExcluding(postOrderResp.body, {
-            transactionId: "order-1",
+            id: "order-1",
             transactionType: "debit",
             remainder: 0,
             totals: {
@@ -77,54 +89,54 @@ describe("/v2/transactions/order", () => {
             steps: [
                 {
                     rail: "lightrail",
-                    valueStoreId: giftCard.valueStoreId,
-                    valueStoreType: giftCard.valueStoreType,
+                    valueId: giftCard.id,
+                    // valueStoreType: giftCard.valueStoreType,
                     currency: giftCard.currency,
-                    codeLastFour: null,
-                    customerId: null,
-                    valueBefore: 1000,
-                    valueAfter: 950,
-                    valueChange: -50
+                    code: null,
+                    contactId: null,
+                    balanceBefore: 1000,
+                    balanceAfter: 950,
+                    balanceChange: -50
                 }
             ]
         }, ["createdDate"]);
 
-        const getValueStoreResp = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${giftCard.valueStoreId}`, "GET");
+        const getValueStoreResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
         chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(getValueStoreResp.body)}`);
-        chai.assert.equal(getValueStoreResp.body.value, 950);
+        chai.assert.equal(getValueStoreResp.body.balance, 950);
     });
 
     it("order with two ValueStores", async () => {
-        const giftCard: Partial<ValueStore> = {
-            valueStoreId: "vs-order2-giftcard",
-            valueStoreType: "GIFTCARD",
+        const giftCard: Partial<Value> = {
+            id: "vs-order2-giftcard",
+            // valueStoreType: "GIFTCARD",
             currency: "CAD",
-            value: 1000
+            balance: 1000
         };
-        const promotion: Partial<ValueStore> = {
-            valueStoreId: "vs-order2-promotion",
-            valueStoreType: "PROMOTION",
+        const promotion: Partial<Value> = {
+            id: "vs-order2-promotion",
+            // valueStoreType: "PROMOTION",
             currency: "CAD",
-            value: 10,
+            balance: 10,
             discount: true
         };
 
-        const createGiftCardResp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/valueStores", "POST", giftCard);
+        const createGiftCardResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", giftCard);
         chai.assert.equal(createGiftCardResp.statusCode, 201, `body=${JSON.stringify(createGiftCardResp.body)}`);
 
-        const createPromotionResp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/valueStores", "POST", promotion);
+        const createPromotionResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", promotion);
         chai.assert.equal(createPromotionResp.statusCode, 201, `body=${JSON.stringify(createPromotionResp.body)}`);
 
         const request = {
-            transactionId: "order-2",
+            id: "order-2",
             sources: [
                 {
                     rail: "lightrail",
-                    valueStoreId: giftCard.valueStoreId
+                    valueId: giftCard.id
                 },
                 {
                     rail: "lightrail",
-                    valueStoreId: promotion.valueStoreId
+                    valueId: promotion.id
                 }
             ],
             lineItems: [
@@ -139,7 +151,7 @@ describe("/v2/transactions/order", () => {
         const postOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/order", "POST", request);
         chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
         chai.assert.deepEqualExcluding(postOrderResp.body, {
-            transactionId: request.transactionId,
+            id: request.id,
             transactionType: "debit",
             remainder: 0,
             totals: {
@@ -167,84 +179,84 @@ describe("/v2/transactions/order", () => {
             steps: [
                 {
                     rail: "lightrail",
-                    valueStoreId: promotion.valueStoreId,
-                    valueStoreType: promotion.valueStoreType,
+                    valueId: promotion.id,
+                    // valueStoreType: promotion.valueStoreType,
                     currency: promotion.currency,
-                    codeLastFour: null,
-                    customerId: null,
-                    valueBefore: 10,
-                    valueAfter: 0,
-                    valueChange: -10
+                    code: null,
+                    contactId: null,
+                    balanceBefore: 10,
+                    balanceAfter: 0,
+                    balanceChange: -10
                 },
                 {
                     rail: "lightrail",
-                    valueStoreId: giftCard.valueStoreId,
-                    valueStoreType: giftCard.valueStoreType,
+                    valueId: giftCard.id,
+                    // valueStoreType: giftCard.valueStoreType,
                     currency: giftCard.currency,
-                    codeLastFour: null,
-                    customerId: null,
-                    valueBefore: 1000,
-                    valueAfter: 960,
-                    valueChange: -40
+                    code: null,
+                    contactId: null,
+                    balanceBefore: 1000,
+                    balanceAfter: 960,
+                    balanceChange: -40
                 }
             ]
         }, ["createdDate"]);
 
-        const getPromotionVS = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${promotion.valueStoreId}`, "GET");
+        const getPromotionVS = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${promotion.id}`, "GET");
         chai.assert.equal(getPromotionVS.statusCode, 200, `body=${JSON.stringify(getPromotionVS.body)}`);
-        chai.assert.equal(getPromotionVS.body.value, 0);
+        chai.assert.equal(getPromotionVS.body.balance, 0);
 
-        const getGiftCardVS = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${giftCard.valueStoreId}`, "GET");
+        const getGiftCardVS = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
         chai.assert.equal(getGiftCardVS.statusCode, 200, `body=${JSON.stringify(getGiftCardVS.body)}`);
-        chai.assert.equal(getGiftCardVS.body.value, 960);
+        chai.assert.equal(getGiftCardVS.body.balance, 960);
     });
 
     it("order with 3 ValueStores with complicated tax implications", async () => {
-        const giftCard: Partial<ValueStore> = {
-            valueStoreId: "vs-order3-giftcard",
-            valueStoreType: "GIFTCARD",
+        const giftCard: Partial<Value> = {
+            id: "vs-order3-giftcard",
+            // valueStoreType: "GIFTCARD",
             currency: "CAD",
-            value: 1010
+            balance: 1010
         };
-        const preTaxPromotion: Partial<ValueStore> = {
-            valueStoreId: "vs-order3-promotion1",
-            valueStoreType: "PROMOTION",
+        const preTaxPromotion: Partial<Value> = {
+            id: "vs-order3-promotion1",
+            // valueStoreType: "PROMOTION",
             currency: "CAD",
-            value: 200,
+            balance: 200,
             pretax: true,
             discount: true
         };
-        const postTaxPromotion: Partial<ValueStore> = {
-            valueStoreId: "vs-order3-promotion2",
-            valueStoreType: "PROMOTION",
+        const postTaxPromotion: Partial<Value> = {
+            id: "vs-order3-promotion2",
+            // valueStoreType: "PROMOTION",
             currency: "CAD",
-            value: 25,
+            balance: 25,
             discount: true
         };
 
-        const createGiftCardResp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/valueStores", "POST", giftCard);
+        const createGiftCardResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", giftCard);
         chai.assert.equal(createGiftCardResp.statusCode, 201, `body=${JSON.stringify(createGiftCardResp.body)}`);
 
-        const createPromotion1Resp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/valueStores", "POST", preTaxPromotion);
+        const createPromotion1Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", preTaxPromotion);
         chai.assert.equal(createPromotion1Resp.statusCode, 201, `body=${JSON.stringify(createPromotion1Resp.body)}`);
 
-        const createPromotion2Resp = await testUtils.testAuthedRequest<ValueStore>(router, "/v2/valueStores", "POST", postTaxPromotion);
+        const createPromotion2Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", postTaxPromotion);
         chai.assert.equal(createPromotion2Resp.statusCode, 201, `body=${JSON.stringify(createPromotion2Resp.body)}`);
 
         const request = {
-            transactionId: "order-3",
+            id: "order-3",
             sources: [
                 {
                     rail: "lightrail",
-                    valueStoreId: giftCard.valueStoreId
+                    valueId: giftCard.id
                 },
                 {
                     rail: "lightrail",
-                    valueStoreId: preTaxPromotion.valueStoreId
+                    valueId: preTaxPromotion.id
                 },
                 {
                     rail: "lightrail",
-                    valueStoreId: postTaxPromotion.valueStoreId
+                    valueId: postTaxPromotion.id
                 }
             ],
             lineItems: [
@@ -267,7 +279,7 @@ describe("/v2/transactions/order", () => {
         const postOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/order", "POST", request);
         chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
         chai.assert.deepEqualExcluding(postOrderResp.body, {
-            transactionId: request.transactionId,
+            id: request.id,
             transactionType: "debit",
             remainder: 0,
             totals: {
@@ -311,50 +323,50 @@ describe("/v2/transactions/order", () => {
             steps: [
                 {
                     rail: "lightrail",
-                    valueStoreId: preTaxPromotion.valueStoreId,
-                    valueStoreType: preTaxPromotion.valueStoreType,
+                    valueId: preTaxPromotion.id,
+                    // valueStoreType: preTaxPromotion.valueStoreType,
                     currency: preTaxPromotion.currency,
-                    codeLastFour: null,
-                    customerId: null,
-                    valueBefore: 200,
-                    valueAfter: 0,
-                    valueChange: -200
+                    code: null,
+                    contactId: null,
+                    balanceBefore: 200,
+                    balanceAfter: 0,
+                    balanceChange: -200
                 },
                 {
                     rail: "lightrail",
-                    valueStoreId: postTaxPromotion.valueStoreId,
-                    valueStoreType: postTaxPromotion.valueStoreType,
+                    valueId: postTaxPromotion.id,
+                    // valueStoreType: postTaxPromotion.valueStoreType,
                     currency: postTaxPromotion.currency,
-                    codeLastFour: null,
-                    customerId: null,
-                    valueBefore: 25,
-                    valueAfter: 0,
-                    valueChange: -25
+                    code: null,
+                    contactId: null,
+                    balanceBefore: 25,
+                    balanceAfter: 0,
+                    balanceChange: -25
                 },
                 {
                     rail: "lightrail",
-                    valueStoreId: giftCard.valueStoreId,
-                    valueStoreType: giftCard.valueStoreType,
+                    valueId: giftCard.id,
+                    // valueStoreType: giftCard.valueStoreType,
                     currency: giftCard.currency,
-                    codeLastFour: null,
-                    customerId: null,
-                    valueBefore: 1010,
-                    valueAfter: 1,
-                    valueChange: -1009
+                    code: null,
+                    contactId: null,
+                    balanceBefore: 1010,
+                    balanceAfter: 1,
+                    balanceChange: -1009
                 }
             ]
         }, ["createdDate"]);
 
-        const getPreTaxPromo = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${preTaxPromotion.valueStoreId}`, "GET");
+        const getPreTaxPromo = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${preTaxPromotion.id}`, "GET");
         chai.assert.equal(getPreTaxPromo.statusCode, 200, `body=${JSON.stringify(getPreTaxPromo.body)}`);
-        chai.assert.equal(getPreTaxPromo.body.value, 0);
+        chai.assert.equal(getPreTaxPromo.body.balance, 0);
 
-        const getPostTaxPromo = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${postTaxPromotion.valueStoreId}`, "GET");
+        const getPostTaxPromo = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${postTaxPromotion.id}`, "GET");
         chai.assert.equal(getPostTaxPromo.statusCode, 200, `body=${JSON.stringify(getPostTaxPromo.body)}`);
-        chai.assert.equal(getPostTaxPromo.body.value, 0);
+        chai.assert.equal(getPostTaxPromo.body.balance, 0);
 
-        const getGiftCardVS = await testUtils.testAuthedRequest<ValueStore>(router, `/v2/valueStores/${giftCard.valueStoreId}`, "GET");
+        const getGiftCardVS = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
         chai.assert.equal(getGiftCardVS.statusCode, 200, `body=${JSON.stringify(getGiftCardVS.body)}`);
-        chai.assert.equal(getGiftCardVS.body.value, 1);
+        chai.assert.equal(getGiftCardVS.body.balance, 1);
     });
 });

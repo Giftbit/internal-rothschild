@@ -131,10 +131,10 @@ async function createOrder(auth: giftbitRoutes.jwtauth.AuthorizationBadge, order
             let postTaxSteps: TransactionPlanStep[] = [];
 
             for (const step of steps) {
-                if (step.rail === "lightrail" && step.valueStore.pretax) {
+                if (step.rail === "lightrail" && step.value.pretax) {
                     preTaxSteps.push(step);
                 } else {
-                    postTaxSteps.push(step)
+                    postTaxSteps.push(step);
                 }
             }
 

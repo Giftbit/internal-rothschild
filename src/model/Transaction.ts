@@ -4,10 +4,10 @@ import {LineItem} from "./LineItem";
 export interface Transaction {
     id: string;
     transactionType: TransactionType;
-    totals: TransactionTotal;
-    lineItems?: LineItem[];
     steps: TransactionStep[];
     remainder: number;
+    totals?: TransactionTotal;
+    lineItems?: LineItem[];
     paymentSources?: PaymentSource[];
     simulated?: true;
     metadata?: any;
