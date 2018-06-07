@@ -188,9 +188,6 @@ describe("/v2/transactions", () => {
 
     it("404s on getting an invalid id", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/iamnotavalidtransactionid", "GET");
-
-        console.log(JSON.stringify(resp));
-
         chai.assert.equal(resp.statusCode, 404, `body=${JSON.stringify(resp.body)}`);
     });
 
@@ -205,10 +202,36 @@ describe("/v2/transactions", () => {
 
     it("can't delete a transaction", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${debit1.id}`, "DELETE");
-
-        console.log(JSON.stringify(resp));
-
         chai.assert.equal(resp.statusCode, 403, `body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.messageCode, "CannotDeleteTransaction");
     });
+
+    describe("userId isolation", () => {
+        it("doesn't leak /transactions", async () => {
+            const resp1 = await testUtils.testAuthedRequest<any>(router, "/v2/transactions", "GET");
+            chai.assert.equal(resp1.statusCode, 200);
+            chai.assert.equal(resp1.body.length, 3);  // TODO 5 once filter tests are back in
+
+            const resp2 = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/transactions", "GET", {
+                headers: {
+                    Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`
+                }
+            }));
+
+            chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
+            chai.assert.deepEqual(JSON.parse(resp2.body), []);
+            chai.assert.equal(resp2.headers["Limit"], "100");
+            chai.assert.equal(resp2.headers["Max-Limit"], "1000");
+        });
+
+        it("doesn't leak GET /transactions/{id}", async () => {
+            const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent(`/v2/transactions/${debit1.id}`, "GET", {
+                headers: {
+                    Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`
+                }
+            }));
+            chai.assert.equal(resp.statusCode, 404, `body=${JSON.stringify(resp.body)}`);
+        });
+    });
+
 });
