@@ -6,9 +6,8 @@ const lookupHashSecret = "potatotrunkelevatorllamba"; // todo - this needs to be
 const CODEBASE_ENCRYPTION_PEPPER = "5aa348b6ff321a5b6b7701b7da0cc2dc";
 
 /**
- * The resulting encrypted value does not need to be unique in the database. This is why the giftbitUserId is not appended to the code value.
- * @param {string} code
- * @returns {string}
+ * The resulting encrypted value does not need to be unique in the database.
+ * This is why the userId is not appended to the code value.
  */
 export function encrypt(code: string): string {
     return cryptojs.AES.encrypt(addCodebasePepperToCode(code), encryptionSecret);
@@ -26,19 +25,18 @@ export function computeLookupHash(code: string, badge: AuthorizationBadge) {
 }
 
 /**
- * IMPORTANT: This cannot change.
- * This is used so that if the AWS account is compromised the codes can't be decrypted without access to the codebase.
- * @returns {string}
- */
-function addCodebasePepperToCode(code: string) {
+ * IMPORTANT: This is used so that if the AWS account is compromised
+ * the codes can't be decrypted without access to the codebase.
+ */ //todo - this should be exported. need a better way to test. going to wait to decide if we want this to be a thing or not though before doing that.
+export function addCodebasePepperToCode(code: string) {
     return code + CODEBASE_ENCRYPTION_PEPPER;
 }
 
-function removeCodebasePepperFromDecryptedCode(decryptedCode: string) {
+export function removeCodebasePepperFromDecryptedCode(decryptedCode: string) {
     return decryptedCode.replace(CODEBASE_ENCRYPTION_PEPPER, '')
 }
 
-// todo - temporary. remove after we've generated the key.
+// temporary. remove after we've generated the key.
 export function generateKey() {
     const secretPassphrase = cryptojs.lib.WordArray.random();
     const salt = cryptojs.lib.WordArray.random(128 / 8);
