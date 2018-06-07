@@ -16,7 +16,6 @@ export function encrypt(code: string): string {
 export function decrypt(encryptedCode: string): string {
     const bytes = cryptojs.AES.decrypt(encryptedCode.toString(), encryptionSecret);
     const decryptedCodeWithCodebasePepper = bytes.toString(cryptojs.enc.Utf8);
-    console.log("decryptedCodeWithCodebasePepper " + decryptedCodeWithCodebasePepper);
     return removeCodebasePepperFromDecryptedCode(decryptedCodeWithCodebasePepper);
 }
 
