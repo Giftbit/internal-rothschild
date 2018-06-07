@@ -7,11 +7,11 @@ import {resolveTransactionParties} from "./resolveTransactionParties";
 import {buildOrderTransactionPlan} from "./buildOrderTransactionPlan";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {executeTransactionPlanner} from "./executeTransactionPlan";
-import {LightrailTransactionPlanStep} from "./TransactionPlan";
 import {Pagination, PaginationParams} from "../../../model/Pagination";
 import {getKnexRead} from "../../../dbUtils/connection";
 import {Filters, TransactionFilterParams} from "../../../model/Filter";
 import {paginateQuery} from "../../../dbUtils/paginateQuery";
+import {LightrailTransactionPlanStep, TransactionPlanStep} from "./TransactionPlan";
 import getPaginationParams = Pagination.getPaginationParams;
 import getTransactionFilterParams = Filters.getTransactionFilterParams;
 
@@ -187,7 +187,7 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
                     }
                 ],
                 metadata: JSON.stringify(req.metadata),
-                remainder: 0
+                totals: {remainder: 0}
             };
         }
     );
@@ -218,7 +218,7 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
                     }
                 ],
                 metadata: JSON.stringify(req.metadata),
-                remainder: req.amount - amount
+                totals: {remainder: req.amount - amount}
             };
         }
     );
@@ -233,8 +233,22 @@ async function createOrder(auth: giftbitRoutes.jwtauth.AuthorizationBadge, order
         },
         async () => {
             const steps = await resolveTransactionParties(auth, order.currency, order.sources);
-            steps.sort(compareTransactionPlanSteps);
-            return buildOrderTransactionPlan(order, steps);
+            let preTaxSteps: TransactionPlanStep[] = [];
+            let postTaxSteps: TransactionPlanStep[] = [];
+
+            for (const step of steps) {
+                if (step.rail === "lightrail" && step.value.pretax) {
+                    preTaxSteps.push(step);
+                } else {
+                    postTaxSteps.push(step);
+                }
+            }
+
+            preTaxSteps = preTaxSteps.sort(compareTransactionPlanSteps);
+            postTaxSteps = postTaxSteps.sort(compareTransactionPlanSteps);
+            console.log(`preTaxSteps: ${JSON.stringify(preTaxSteps)}`);
+            console.log(`postTaxSteps: ${JSON.stringify(postTaxSteps)}`);
+            return buildOrderTransactionPlan(order, preTaxSteps, postTaxSteps);
         }
     );
 }
@@ -274,7 +288,7 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
                     }
                 ],
                 metadata: JSON.stringify(req.metadata),
-                remainder: req.amount - amount
+                totals: {remainder: req.amount - amount}
             };
         }
     );
@@ -478,8 +492,30 @@ const orderSchema: jsonschema.Schema = {
             type: "string",
             minLength: 1
         },
-        cart: {
-            type: "object"
+        lineItems: {
+            type: "array",
+            items: {
+                type: "object",
+                properties: {
+                    type: {
+                        type: "string",
+                        enum: ["product", "shipping", "fee"]
+                    },
+                    productId: {
+                        type: "string"
+                    },
+                    unitPrice: {
+                        type: "integer",
+                        minimum: 0
+                    },
+                    quantity: {
+                        type: "integer",
+                        minimum: 1
+                    }
+                },
+                required: ["unitPrice"],
+                minItems: 1
+            }
         },
         currency: {
             type: "string",
@@ -503,5 +539,5 @@ const orderSchema: jsonschema.Schema = {
             type: "boolean"
         }
     },
-    required: ["id", "cart", "currency", "sources"]
+    required: ["id", "lineItems", "currency", "sources"]
 };

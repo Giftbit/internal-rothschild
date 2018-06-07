@@ -1,16 +1,34 @@
 import * as stripe from "stripe";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {getKnexRead} from "../dbUtils/connection";
+import {LineItem} from "./LineItem";
 
 export interface Transaction {
     id: string;
     transactionType: TransactionType;
-    cart?: CartTransaction;
     steps: TransactionStep[];
-    remainder: number;
+    // remainder: number;
+    totals: TransactionTotal;
+    lineItems?: LineItem[];
+    paymentSources?: PaymentSource[];
     simulated?: true;
     createdDate: Date;
     metadata?: object | null;
+}
+
+export type PaymentSource =
+    LightrailCustomerPaymentSource
+    | LightrailCodePaymentSource
+    | LightrailValueStorePaymentSource;
+
+export interface LightrailCustomerPaymentSource {
+    rail: "lightrail";
+    customerId: string;
+}
+
+export interface LightrailCodePaymentSource {
+    rail: "lightrail";
+    code: string;
 }
 
 export namespace Transaction {
@@ -68,6 +86,13 @@ export namespace DbTransaction {
     }
 }
 
+export type TransactionType = "credit" | "debit" | "order" | "transfer" | "pending_create" | "pending_capture" | "pending_void";
+
+export interface LightrailValueStorePaymentSource {
+    rail: "lightrail";
+    valueStoreId: string;
+}
+
 export type TransactionType =
     "credit"
     | "debit"
@@ -76,8 +101,6 @@ export type TransactionType =
     | "pending_create"
     | "pending_capture"
     | "pending_void";
-
-export type CartTransaction = any;  // Cart + explanation of what happened
 
 export type TransactionStep = LightrailTransactionStep | StripeTransactionStep | InternalTransactionStep;
 
@@ -105,4 +128,12 @@ export interface InternalTransactionStep {
     balanceBefore: number;
     balanceAfter: number;
     balanceChange: number;
+}
+
+export interface TransactionTotal {
+    subTotal?: number;
+    tax?: number;
+    discount?: number;
+    payable?: number;
+    remainder: number;
 }

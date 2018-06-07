@@ -18,9 +18,9 @@ export function transactionPlanToTransaction(plan: TransactionPlan, simulated?: 
     const transaction: Transaction = {
         id: plan.id,
         transactionType: plan.transactionType,
-        cart: plan.cart,
+        totals: plan.totals,
+        lineItems: plan.lineItems,
         steps: plan.steps.map(transactionPlanStepToTransactionStep),
-        remainder: plan.remainder,
         createdDate: nowInDbPrecision()
     };
     if (simulated) {

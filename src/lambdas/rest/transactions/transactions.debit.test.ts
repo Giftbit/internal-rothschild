@@ -47,7 +47,7 @@ describe("/v2/transactions/debit", () => {
         chai.assert.deepEqualExcluding(postDebitResp.body, {
             id: "debit-1",
             transactionType: "debit",
-            remainder: 0,
+            totals: {remainder: 0},
             steps: [
                 {
                     rail: "lightrail",
@@ -97,7 +97,7 @@ describe("/v2/transactions/debit", () => {
         chai.assert.deepEqualExcluding(postDebitResp.body, {
             id: "debit-2",
             transactionType: "debit",
-            remainder: 0,
+            totals: {remainder: 0},
             steps: [
                 {
                     rail: "lightrail",
@@ -133,7 +133,7 @@ describe("/v2/transactions/debit", () => {
         chai.assert.deepEqualExcluding(postDebitResp.body, {
             id: "debit-3",
             transactionType: "debit",
-            remainder: 9500 - 401,
+            totals: {remainder: 9500 - 401},
             steps: [
                 {
                     rail: "lightrail",

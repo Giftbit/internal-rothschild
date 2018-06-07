@@ -48,6 +48,7 @@ export function installValuesRest(router: cassava.Router): void {
                     frozen: false,
                     redemptionRule: null,
                     valueRule: null,
+                    discount: false,
                     startDate: null,
                     endDate: null,
                     metadata: null
@@ -117,7 +118,7 @@ export function installValuesRest(router: cassava.Router): void {
         });
 }
 
-export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{values: Value[], pagination: Pagination}> {
+export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ values: Value[], pagination: Pagination }> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
@@ -207,7 +208,7 @@ async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
     };
 }
 
-async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<{success: true}> {
+async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<{ success: true }> {
     auth.requireIds("giftbitUserId");
 
     try {
@@ -308,6 +309,9 @@ const valueSchema: jsonschema.Schema = {
                     }
                 }
             ]
+        },
+        discount: {
+            type: "boolean"
         },
         startDate: {
             type: ["string", "null"],

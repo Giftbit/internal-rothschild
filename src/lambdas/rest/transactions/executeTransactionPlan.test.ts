@@ -47,6 +47,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             frozen: false,
             redemptionRule: "null",
             valueRule: "null",
+            discount: false,
             startDate: null,
             endDate: null,
             metadata: "null",
@@ -68,7 +69,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
                     amount: -3500    // more than is in the value
                 }
             ],
-            remainder: 0
+            totals: {remainder: 0}
         };
 
         let err: TransactionPlanError;
@@ -108,6 +109,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             frozen: false,
             redemptionRule: "null",
             valueRule: "null",
+            discount: false,
             startDate: null,
             endDate: null,
             metadata: "null",
@@ -128,7 +130,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
                     amount: 1200
                 }
             ],
-            remainder: null
+            totals: {remainder: null}
         };
 
         let err: TransactionPlanError;

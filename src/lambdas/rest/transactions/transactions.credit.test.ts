@@ -46,7 +46,7 @@ describe("/v2/transactions/credit", () => {
         chai.assert.deepEqualExcluding(postCreditResp.body, {
             id: "credit-1",
             transactionType: "credit",
-            remainder: 0,
+            totals: {remainder: 0},
             steps: [
                 {
                     rail: "lightrail",
@@ -96,7 +96,7 @@ describe("/v2/transactions/credit", () => {
         chai.assert.deepEqualExcluding(postCreditResp.body, {
             id: "credit-2",
             transactionType: "credit",
-            remainder: 0,
+            totals: {remainder: 0},
             steps: [
                 {
                     rail: "lightrail",
