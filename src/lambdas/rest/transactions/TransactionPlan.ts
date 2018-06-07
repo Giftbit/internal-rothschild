@@ -10,7 +10,6 @@ export interface TransactionPlan {
     lineItems?: LineItemResponse[];
     steps: TransactionPlanStep[];
     metadata?: string;
-    // remainder: number; // todo - should this be moved into totals?
 }
 
 export type TransactionPlanStep =

@@ -72,9 +72,9 @@ describe("/v2/transactions", () => {
         userId: "test-user-a",
         id: "transfer-2",
         transactionType: "transfer",
-        cart: null,
+        totals: null,
+        lineItems: null,
         requestedPaymentSources: null,
-        remainder: 0,
         createdDate: new Date("01 January 2000"),
         metadata: null
     };
@@ -82,9 +82,9 @@ describe("/v2/transactions", () => {
         userId: "test-user-a",
         id: "transfer-3",
         transactionType: "transfer",
-        cart: null,
+        totals: null,
+        lineItems: null,
         requestedPaymentSources: null,
-        remainder: 0,
         createdDate: new Date("01 January 2005"),
         metadata: null
     };

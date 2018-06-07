@@ -98,7 +98,8 @@ describe("/v2/transactions/order", () => {
                     balanceAfter: 950,
                     balanceChange: -50
                 }
-            ]
+            ],
+            createdDate: null
         }, ["createdDate"]);
 
         const getValueStoreResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
@@ -199,7 +200,8 @@ describe("/v2/transactions/order", () => {
                     balanceAfter: 960,
                     balanceChange: -40
                 }
-            ]
+            ],
+            createdDate: null
         }, ["createdDate"]);
 
         const getPromotionVS = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${promotion.id}`, "GET");
@@ -354,7 +356,8 @@ describe("/v2/transactions/order", () => {
                     balanceAfter: 1,
                     balanceChange: -1009
                 }
-            ]
+            ],
+            createdDate: null
         }, ["createdDate"]);
 
         const getPreTaxPromo = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${preTaxPromotion.id}`, "GET");

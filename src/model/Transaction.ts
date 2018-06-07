@@ -7,7 +7,6 @@ export interface Transaction {
     id: string;
     transactionType: TransactionType;
     steps: TransactionStep[];
-    // remainder: number;
     totals: TransactionTotal;
     lineItems?: LineItem[];
     paymentSources?: PaymentSource[];
@@ -16,19 +15,15 @@ export interface Transaction {
     metadata?: object | null;
 }
 
-export type PaymentSource =
-    LightrailCustomerPaymentSource
-    | LightrailCodePaymentSource
-    | LightrailValueStorePaymentSource;
-
-export interface LightrailCustomerPaymentSource {
-    rail: "lightrail";
-    customerId: string;
-}
-
-export interface LightrailCodePaymentSource {
-    rail: "lightrail";
-    code: string;
+export interface DbTransaction {
+    userId: string;
+    id: string;
+    transactionType: TransactionType;
+    totals: string | null;
+    lineItems: string | null;
+    requestedPaymentSources: string | null;
+    createdDate: Date;
+    metadata: string | null;
 }
 
 export namespace Transaction {
@@ -38,24 +33,13 @@ export namespace Transaction {
             userId: auth.giftbitUserId,
             id: t.id,
             transactionType: t.transactionType,
-            cart: JSON.stringify(t.cart),
-            requestedPaymentSources: "", // todo JSON.stringify(t.requestedPaymentSources)
-            remainder: t.remainder,
-            createdDate: t.createdDate,
-            metadata: JSON.stringify(t.metadata)
+            totals: JSON.stringify(t.totals),
+            lineItems: JSON.stringify(t.lineItems),
+            requestedPaymentSources: JSON.stringify(t.paymentSources),
+            metadata: JSON.stringify(t.metadata),
+            createdDate: t.createdDate
         };
     }
-}
-
-export interface DbTransaction {
-    userId: string;
-    id: string;
-    transactionType: TransactionType;
-    cart: string | null;
-    requestedPaymentSources: string | null;
-    remainder: number;
-    createdDate: Date;
-    metadata: string | null;
 }
 
 export namespace DbTransaction {
@@ -76,17 +60,29 @@ export namespace DbTransaction {
             return {
                 id: t.id,
                 transactionType: t.transactionType,
-                cart: t.cart,
+                totals: JSON.parse(t.totals),
+                lineItems: JSON.parse(t.lineItems),
                 steps: dbSteps.filter(step => step.transactionId === t.id),
-                remainder: t.remainder,
-                createdDate: t.createdDate,
-                metadata: JSON.parse(t.metadata)
+                metadata: JSON.parse(t.metadata),
+                createdDate: t.createdDate
             };
         });
     }
 }
+export type PaymentSource =
+    LightrailCustomerPaymentSource
+    | LightrailCodePaymentSource
+    | LightrailValueStorePaymentSource;
 
-export type TransactionType = "credit" | "debit" | "order" | "transfer" | "pending_create" | "pending_capture" | "pending_void";
+export interface LightrailCustomerPaymentSource {
+    rail: "lightrail";
+    customerId: string;
+}
+
+export interface LightrailCodePaymentSource {
+    rail: "lightrail";
+    code: string;
+}
 
 export interface LightrailValueStorePaymentSource {
     rail: "lightrail";
