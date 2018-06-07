@@ -41,25 +41,30 @@ export interface DbTransaction {
 }
 
 export namespace DbTransaction {
-    export async function toTransaction(t: DbTransaction): Promise<Transaction> {
+    export async function toTransactions(txns: DbTransaction[], userId: string): Promise<Transaction[]> {
         const knex = await getKnexRead();
-
+        let txIds: string[] = txns.map(tx => tx.id);
         let dbSteps: any[] = await knex("LightrailTransactionSteps")
-            .where("transactionId", t.id);
+            .where("userId", userId)
+            .whereIn("transactionId", txIds);
         dbSteps = dbSteps.concat(await knex("StripeTransactionSteps")
-            .where("transactionId", t.id));
+            .where("userId", userId)
+            .whereIn("transactionId", txIds));
         dbSteps = dbSteps.concat(await knex("InternalTransactionSteps")
-            .where("transactionId", t.id));
+            .where("userId", userId)
+            .whereIn("transactionId", txIds));
 
-        return {
-            id: t.id,
-            transactionType: t.transactionType,
-            cart: t.cart,
-            steps: dbSteps,
-            remainder: t.remainder,
-            createdDate: t.createdDate,
-            metadata: JSON.parse(t.metadata)
-        };
+        return txns.map(t => {
+            return {
+                id: t.id,
+                transactionType: t.transactionType,
+                cart: t.cart,
+                steps: dbSteps.filter(step => step.transactionId === t.id),
+                remainder: t.remainder,
+                createdDate: t.createdDate,
+                metadata: JSON.parse(t.metadata)
+            };
+        });
     }
 }
 

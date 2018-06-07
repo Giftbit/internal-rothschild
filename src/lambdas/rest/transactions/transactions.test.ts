@@ -232,6 +232,40 @@ describe("/v2/transactions", () => {
             }));
             chai.assert.equal(resp.statusCode, 404, `body=${JSON.stringify(resp.body)}`);
         });
+
+        it("doesn't leak transaction steps", async () => {
+            await testUtils.addCurrency(router, {
+                code: "CAD",
+                name: "Canadian bucks",
+                symbol: "$",
+                decimalPlaces: 2
+            }, true);
+
+            const postValueResp1 = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/values", "POST", {
+                headers: {Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`},
+                body: JSON.stringify(value1)
+            }));
+            chai.assert.equal(postValueResp1.statusCode, 201, `body=${JSON.stringify(postValueResp1.body)}`);
+            const postValueResp2 = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/values", "POST", {
+                headers: {Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`},
+                body: JSON.stringify(value2)
+            }));
+            chai.assert.equal(postValueResp2.statusCode, 201, `body=${JSON.stringify(postValueResp2.body)}`);
+
+            const transferResp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/transactions/transfer", "POST", {
+                headers: {Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`},
+                body: JSON.stringify(transfer1)
+            }));
+            chai.assert.equal(transferResp.statusCode, 201, `body=${JSON.stringify(transferResp.body)}`);
+
+            const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent(`/v2/transactions/${transfer1.id}`, "GET", {
+                headers: {
+                    Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`
+                }
+            }));
+            chai.assert.equal(JSON.parse(resp.body).id, transfer1.id);
+            chai.assert.equal(JSON.parse(resp.body).steps.length, 2);
+        });
     });
 
 });

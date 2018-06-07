@@ -135,10 +135,7 @@ async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, p
         pagination
     );
 
-    const transacs: Transaction[] = await Promise.all(paginatedRes.body.map(
-        async (tx) => {
-            return await DbTransaction.toTransaction(tx);
-        }));
+    const transacs: Transaction[] = await Promise.all(await DbTransaction.toTransactions(paginatedRes.body, auth.giftbitUserId));
 
     return {
         transactions: transacs,
@@ -162,7 +159,8 @@ export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBa
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
-    return DbTransaction.toTransaction(res[0]);
+    const transacs: Transaction[] = await Promise.all(await DbTransaction.toTransactions(res, auth.giftbitUserId));
+    return transacs[0];   // at this point there will only ever be one
 }
 
 async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CreditRequest): Promise<Transaction> {

@@ -131,8 +131,18 @@ export async function testAuthedCsvRequest<T>(router: cassava.Router, url: strin
     };
 }
 
-export async function addCurrency(router: cassava.Router, currency: Currency): Promise<Currency> {
-    const resp = await testAuthedRequest<Currency>(router, "/v2/currencies", "POST", currency);
+export async function addCurrency(router: cassava.Router, currency: Currency, alternateTester?: boolean): Promise<Currency> {
+    let resp;
+    if (alternateTester) {
+        resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/currencies", "POST", {
+            headers: {Authorization: `Bearer ${alternateTestUser.jwt}`},
+            body: JSON.stringify(currency)
+        }));
+        resp.body = JSON.parse(resp.body);
+    } else {
+        resp = await testAuthedRequest<Currency>(router, "/v2/currencies", "POST", currency);
+    }
+
     chai.assert.equal(resp.statusCode, 201, `body=${JSON.stringify(resp.body)}`);
     chai.assert.deepEqual(resp.body, currency);
     return resp.body;
