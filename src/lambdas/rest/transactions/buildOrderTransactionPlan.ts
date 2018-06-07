@@ -1,62 +1,152 @@
-import {TransactionPlan, TransactionPlanStep} from "./TransactionPlan";
+import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "./TransactionPlan";
 import {OrderRequest} from "../../../model/TransactionRequest";
 import {getRuleFromCache} from "./getRuleFromCache";
+import {LineItemResponse} from "../../../model/LineItem";
+import {Value} from "../../../model/Value";
+import * as bankersRounding from "bankers-rounding";
 
-export function buildOrderTransactionPlan(order: OrderRequest, steps: TransactionPlanStep[]): TransactionPlan {
-    const now = new Date();
+export function buildOrderTransactionPlan(order: OrderRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
+    let transactionPlan = initializeTransactionPlan(order, preTaxSteps.concat(postTaxSteps));
+    processTransactionSteps(preTaxSteps, transactionPlan);
+    applyTax(transactionPlan);
+    processTransactionSteps(postTaxSteps, transactionPlan);
+    calculateTotalsFromLineItems(transactionPlan);
+    console.log(`transactionPlan: ${JSON.stringify(transactionPlan)}`);
+    return transactionPlan;
+}
 
-    // TODO initialize from order.cart
-    const cart = null;
-
-    let remainder = 0;  // TODO get actual order total from cart
-    for (let stepIx = 0; stepIx < steps.length && remainder > 0; stepIx++) {
-        const step = steps[stepIx];
-        switch (step.rail) {
-            case "lightrail":
-                if (step.value.frozen || !step.value.active || step.value.canceled || step.value.uses === 0) {
-                    // Ideally those won't be returned in the query for efficiency but it's good to be paranoid here.
-                    break;
-                }
-                if (step.value.startDate && step.value.startDate > now) {
-                    break;
-                }
-                if (step.value.endDate && step.value.endDate < now) {
-                    break;
-                }
-                if (step.value.redemptionRule) {
-                    const context = {
-                        cart: order.cart
-                    };
-                    if (!getRuleFromCache(step.value.redemptionRule.rule).evaluateToBoolean(context)) {
-                        break;
-                    }
-                }
-
-                if (step.value.valueRule) {
-                    step.amount = -Math.min(remainder, getRuleFromCache(step.value.valueRule.rule).evaluateToNumber(context) | 0);
-                } else {
-                    step.amount = -Math.min(remainder, step.value.balance);
-                }
-                break;
-            case "stripe":
-                if (step.maxAmount) {
-                    step.amount = -Math.min(remainder, step.maxAmount);
-                } else {
-                    step.amount = -remainder;
-                }
-                break;
-            case "internal":
-                step.amount = -Math.min(remainder, step.balance);
-                break;
-        }
-        remainder += step.amount;
+function initializeTransactionPlan(order: OrderRequest, steps: TransactionPlanStep[]): TransactionPlan {
+    let lineItemResponses: LineItemResponse[] = [];
+    for (let lineItem of order.lineItems) {
+        lineItem.quantity = lineItem.quantity ? lineItem.quantity : 1;
+        const subtotal = lineItem.unitPrice * lineItem.quantity;
+        let lineItemResponse: LineItemResponse = {
+            ...lineItem,
+            lineTotal: {
+                subtotal: subtotal,
+                taxable: subtotal,
+                tax: 0,
+                discount: 0,
+                remainder: subtotal,
+                payable: 0
+            }
+        };
+        lineItemResponses.push(lineItemResponse);
     }
-
     return {
         id: order.id,
-        transactionType: "order",
-        cart,
+        transactionType: "debit",
+        lineItems: lineItemResponses,
         steps: steps,
-        remainder
+        totals: {
+            subTotal: 0,
+            tax: 0,
+            discount: 0,
+            payable: 0,
+            remainder: calculateRemainderFromLineItems(lineItemResponses),
+        }
     };
+}
+
+function isValueRedeemable(value: Value): boolean {
+    const now = new Date();
+
+    if (value.frozen || !value.active || value.endDate > now || value.uses === 0) {
+        return false;
+    }
+    if (value.startDate && value.startDate > now) {
+        return false;
+    }
+    if (value.endDate && value.endDate < now) {
+        return false;
+    }
+    return true;
+}
+
+function processTransactionSteps(steps: TransactionPlanStep[], transactionPlan: TransactionPlan): void {
+    for (let stepsIndex = 0; stepsIndex < steps.length; stepsIndex++) {
+        const step = steps[stepsIndex];
+        switch (step.rail) {
+            case "lightrail":
+                processLightrailTransactionStep(step, transactionPlan);
+                break;
+            case "stripe":
+                throw new Error("not yet implemented");
+            case "internal":
+                throw new Error("not yet implemented");
+        }
+    }
+}
+
+function processLightrailTransactionStep(step: LightrailTransactionPlanStep, transactionPlan: TransactionPlan): void {
+    console.log(`processing ValueStore ${JSON.stringify(step)}.`);
+    let value = step.value;
+    if (!isValueRedeemable(value)) {
+        return;
+    }
+    for (let index in transactionPlan.lineItems) {
+        const item = transactionPlan.lineItems[index];
+        if (item.lineTotal.remainder === 0) {
+            break; // The item has been paid for, skip.
+        }
+        if (value.redemptionRule) {
+            const context = {
+                lineItems: transactionPlan.lineItems,
+                currentLineItem: item
+            };
+            if (!getRuleFromCache(value.redemptionRule.rule).evaluateToBoolean(context)) {
+                console.log(`ValueStore ${JSON.stringify(value)} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
+                break;
+            }
+        }
+
+        console.log(`ValueStore ${JSON.stringify(value)} CAN be applied to ${JSON.stringify(item)}.`);
+        if (item.lineTotal.remainder > 0) {
+            let amount: number;
+            if (value.valueRule) {
+                amount = Math.min(item.lineTotal.remainder, getRuleFromCache(value.valueRule.rule).evaluateToNumber(context) | 0);
+            } else {
+                amount = Math.min(item.lineTotal.remainder, value.balance);
+                value.balance -= amount;
+                step.amount -= amount;
+            }
+
+            item.lineTotal.remainder -= amount;
+            if (value.discount) {
+                item.lineTotal.discount += amount;
+            }
+        }
+    }
+}
+
+function applyTax(transactionPlan: TransactionPlan): void {
+    for (let item of transactionPlan.lineItems) {
+        let tax = 0;
+        item.lineTotal.taxable = item.lineTotal.subtotal - item.lineTotal.discount;
+        if (item.taxRate >= 0) {
+            // todo export to utils
+            tax = bankersRounding(item.taxRate * item.lineTotal.taxable);
+        }
+        item.lineTotal.tax = tax;
+        item.lineTotal.remainder += tax;
+    }
+}
+
+function calculateRemainderFromLineItems(lineItems: LineItemResponse[]): number {
+    let remainder = 0;
+    for (const item of lineItems) {
+        remainder += item.lineTotal.remainder;
+    }
+    return remainder;
+}
+
+function calculateTotalsFromLineItems(transactionPlan: TransactionPlan): void {
+    for (let item of transactionPlan.lineItems) {
+        item.lineTotal.payable = item.lineTotal.subtotal + item.lineTotal.tax - item.lineTotal.discount;
+        transactionPlan.totals.subTotal += item.lineTotal.subtotal;
+        transactionPlan.totals.tax += item.lineTotal.tax;
+        transactionPlan.totals.discount += item.lineTotal.discount;
+        transactionPlan.totals.payable += item.lineTotal.payable;
+    }
+    transactionPlan.totals.remainder = calculateRemainderFromLineItems(transactionPlan.lineItems);
 }
