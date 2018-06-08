@@ -117,13 +117,13 @@ namespace PaginationCursor {
 
     export function decode(s: string): PaginationCursor {
         try {
-            return JSON.parse(Buffer.from(s, "base64").toString());
+            return JSON.parse(Buffer.from(s.replace(/_/g, "="), "base64").toString());
         } catch (unused) {
             throw new giftbitRoutes.GiftbitRestError(400);
         }
     }
 
     export function encode(c: PaginationCursor): string {
-        return Buffer.from(JSON.stringify(c)).toString("base64");
+        return Buffer.from(JSON.stringify(c)).toString("base64").replace(/=/g, "_");
     }
 }
