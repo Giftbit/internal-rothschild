@@ -62,7 +62,7 @@ describe("/v2/transactions/order", () => {
         chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
         chai.assert.deepEqualExcluding(postOrderResp.body, {
             id: "order-1",
-            transactionType: "debit",
+            transactionType: "order",
             totals: {
                 subTotal: 50,
                 tax: 0,
@@ -153,7 +153,7 @@ describe("/v2/transactions/order", () => {
         chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
         chai.assert.deepEqualExcluding(postOrderResp.body, {
             id: request.id,
-            transactionType: "debit",
+            transactionType: "order",
             totals: {
                 subTotal: 50,
                 tax: 0,
@@ -282,7 +282,7 @@ describe("/v2/transactions/order", () => {
         chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
         chai.assert.deepEqualExcluding(postOrderResp.body, {
             id: request.id,
-            transactionType: "debit",
+            transactionType: "order",
             totals: {
                 subTotal: 1166,
                 tax: 68,
@@ -432,7 +432,7 @@ describe("/v2/transactions/order", () => {
         chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
         chai.assert.deepEqualExcluding(postOrderResp.body, {
             id: request.id,
-            transactionType: "debit",
+            transactionType: "order",
             totals: {
                 subTotal: 1166,
                 tax: 68,

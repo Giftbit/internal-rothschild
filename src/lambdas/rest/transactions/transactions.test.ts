@@ -88,6 +88,27 @@ describe("/v2/transactions", () => {
         createdDate: new Date("01 January 2005"),
         metadata: null
     };
+    const order1 = {
+        id: "order-1",
+        sources: [
+            {
+                rail: "lightrail",
+                valueId: value1.id
+            },
+            {
+                rail: "lightrail",
+                valueId: value2.id
+            }
+        ],
+        lineItems: [
+            {
+                type: "product",
+                productId: "xyz-123",
+                unitPrice: 50
+            }
+        ],
+        currency: "CAD"
+    };
 
 
     it("can retrieve 0 transactions", async () => {
@@ -268,4 +289,14 @@ describe("/v2/transactions", () => {
         });
     });
 
+    describe("handles 'order' transactions", () => {
+        it("reads all order properties from from db", async () => {
+            const postOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/order", "POST", order1);
+            chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
+
+            const getOrderResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${order1.id}`, "GET");
+            chai.assert.equal(getOrderResp.statusCode, 200, `body=${JSON.stringify(getOrderResp.body)}`);
+            chai.assert.equal(getOrderResp.body.transactionType, "order", `body=${JSON.stringify(getOrderResp.body)}`);
+        });
+    });
 });

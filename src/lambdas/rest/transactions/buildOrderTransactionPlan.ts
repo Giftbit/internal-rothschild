@@ -6,7 +6,7 @@ import {Value} from "../../../model/Value";
 import * as bankersRounding from "bankers-rounding";
 
 export function buildOrderTransactionPlan(order: OrderRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
-    let transactionPlan = initializeTransactionPlan(order, preTaxSteps.concat(postTaxSteps));
+    let transactionPlan = initializeOrderTransactionPlan(order, preTaxSteps.concat(postTaxSteps));
     processTransactionSteps(preTaxSteps, transactionPlan);
     applyTax(transactionPlan);
     processTransactionSteps(postTaxSteps, transactionPlan);
@@ -15,7 +15,7 @@ export function buildOrderTransactionPlan(order: OrderRequest, preTaxSteps: Tran
     return transactionPlan;
 }
 
-function initializeTransactionPlan(order: OrderRequest, steps: TransactionPlanStep[]): TransactionPlan {
+function initializeOrderTransactionPlan(order: OrderRequest, steps: TransactionPlanStep[]): TransactionPlan {
     let lineItemResponses: LineItemResponse[] = [];
     for (let lineItem of order.lineItems) {
         lineItem.quantity = lineItem.quantity ? lineItem.quantity : 1;
@@ -35,7 +35,7 @@ function initializeTransactionPlan(order: OrderRequest, steps: TransactionPlanSt
     }
     return {
         id: order.id,
-        transactionType: "debit",
+        transactionType: "order",
         lineItems: lineItemResponses,
         steps: steps,
         totals: {
