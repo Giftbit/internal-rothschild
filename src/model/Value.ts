@@ -13,6 +13,7 @@ export interface Value {
     active: boolean;
     canceled: boolean;
     frozen: boolean;
+    discount: boolean;
     redemptionRule: Rule | null;
     valueRule: Rule | null;
     startDate: Date | null;
@@ -44,6 +45,7 @@ export namespace Value {
             active: v.active,
             canceled: v.canceled,
             frozen: v.frozen,
+            discount: v.discount,
             redemptionRule: JSON.stringify(v.redemptionRule),
             valueRule: JSON.stringify(v.valueRule),
             startDate: v.startDate,
@@ -56,7 +58,7 @@ export namespace Value {
 
     export function toDbValueUpdate(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Partial<Value>): Partial<DbValue> {
         if (v.canceled != null && !v.canceled) {
-            throw new giftbitRoutes.GiftbitRestError(422, "A Value cannot be uncanceled (cancel = false).", "UncancelValue");
+            throw new giftbitRoutes.GiftbitRestError(422, "A Value cannot be uncanceled (cancel = false).", "CannotUncancelValue");
         }
 
         return pickDefined({
@@ -90,6 +92,7 @@ export interface DbValue {
     active: boolean;
     canceled: boolean;
     frozen: boolean;
+    discount: boolean;
     redemptionRule: string;
     valueRule: string;
     startDate: Date | null;
@@ -113,6 +116,7 @@ export namespace DbValue {
             active: v.active,
             canceled: v.canceled,
             frozen: v.frozen,
+            discount: v.discount,
             redemptionRule: JSON.parse(v.redemptionRule),
             valueRule: JSON.parse(v.valueRule),
             startDate: v.startDate,

@@ -3,10 +3,10 @@ import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as testUtils from "../../testUtils";
 import {Value} from "../../model/Value";
-import chaiExclude = require("chai-exclude");
 import {Currency} from "../../model/Currency";
 import {installRest} from "./index";
 import {Contact} from "../../model/Contact";
+import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
@@ -25,7 +25,7 @@ describe("/v2/values/", () => {
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.deepEqual(resp.body, []);
         chai.assert.equal(resp.headers["Limit"], "100");
-        chai.assert.equal(resp.headers["MaxLimit"], "1000");
+        chai.assert.equal(resp.headers["Max-Limit"], "1000");
     });
 
     it("can list 0 values in csv", async () => {
@@ -33,7 +33,7 @@ describe("/v2/values/", () => {
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.deepEqual(resp.body, []);
         chai.assert.equal(resp.headers["Limit"], "100");
-        chai.assert.equal(resp.headers["MaxLimit"], "1000");
+        chai.assert.equal(resp.headers["Max-Limit"], "1000");
     });
 
     const currency: Currency = {
@@ -75,6 +75,7 @@ describe("/v2/values/", () => {
             endDate: null,
             redemptionRule: null,
             valueRule: null,
+            discount: false,
             metadata: null
         }, ["createdDate", "updatedDate"]);
         value1 = resp2.body;
@@ -87,7 +88,11 @@ describe("/v2/values/", () => {
     });
 
     it("409s on creating a duplicate value", async () => {
-        const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {id: value1.id, currency: value1.currency, balance: value1.balance});
+        const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: value1.id,
+            currency: value1.currency,
+            balance: value1.balance
+        });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
     });
 
@@ -169,7 +174,7 @@ describe("/v2/values/", () => {
     it("cannot uncancel a value", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value1.id}`, "PATCH", {canceled: false});
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.equal(resp.body.messageCode, "UncancelValue");
+        chai.assert.equal(resp.body.messageCode, "CannotUncancelValue");
     });
 
     let contact1: Partial<Contact> = {

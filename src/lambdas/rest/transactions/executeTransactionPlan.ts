@@ -20,7 +20,7 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
     while (true) {
         try {
             const plan = await planner();
-            if (plan.remainder && !options.allowRemainder) {
+            if (plan.totals.remainder && !options.allowRemainder) {
                 throw new giftbitRoutes.GiftbitRestError(409, "Insufficient value for the transaction.", "InsufficientValue");
             }
             if (options.simulate) {
@@ -55,9 +55,9 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
                     userId: auth.giftbitUserId,
                     id: plan.id,
                     transactionType: plan.transactionType,
-                    cart: null,
+                    lineItems: null,
                     requestedPaymentSources: null,
-                    remainder: plan.remainder,
+                    remainder: plan.totals.remainder,
                     createdDate: now
                 });
         } catch (err) {

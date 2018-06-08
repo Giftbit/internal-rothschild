@@ -1,16 +1,21 @@
 import * as stripe from "stripe";
-import {CartTransaction, TransactionType} from "../../../model/Transaction";
+import {TransactionTotal, TransactionType} from "../../../model/Transaction";
 import {Value} from "../../../model/Value";
+import {LineItemResponse} from "../../../model/LineItem";
 
 export interface TransactionPlan {
     id: string;
     transactionType: TransactionType;
-    cart?: CartTransaction;
+    totals: TransactionTotal;
+    lineItems?: LineItemResponse[];
     steps: TransactionPlanStep[];
-    remainder: number;
+    // remainder: number; // todo - should this be moved into totals?
 }
 
-export type TransactionPlanStep = LightrailTransactionPlanStep | StripeTransactionPlanStep | InternalTransactionPlanStep;
+export type TransactionPlanStep =
+    LightrailTransactionPlanStep
+    | StripeTransactionPlanStep
+    | InternalTransactionPlanStep;
 
 export interface LightrailTransactionPlanStep {
     rail: "lightrail";

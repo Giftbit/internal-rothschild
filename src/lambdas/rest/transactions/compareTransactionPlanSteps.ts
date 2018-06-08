@@ -1,5 +1,7 @@
 import {
-    InternalTransactionPlanStep, LightrailTransactionPlanStep, StripeTransactionPlanStep,
+    InternalTransactionPlanStep,
+    LightrailTransactionPlanStep,
+    StripeTransactionPlanStep,
     TransactionPlanStep
 } from "./TransactionPlan";
 
@@ -52,6 +54,12 @@ function compareLightrailTransactionPlanSteps(a: LightrailTransactionPlanStep, b
         return aFirst;
     }
     if (!a.value.pretax && b.value.pretax) {
+        return bFirst;
+    }
+    if (a.value.discount) {
+        return aFirst;
+    }
+    if (b.value.discount) {
         return bFirst;
     }
     return a.value.id < b.value.id ? aFirst : bFirst;
