@@ -74,7 +74,7 @@ describe("/v2/transactions", () => {
         transactionType: "transfer",
         totals: null,
         lineItems: null,
-        requestedPaymentSources: null,
+        paymentSources: null,
         createdDate: new Date("01 January 2000"),
         metadata: null
     };
@@ -84,7 +84,7 @@ describe("/v2/transactions", () => {
         transactionType: "transfer",
         totals: null,
         lineItems: null,
-        requestedPaymentSources: null,
+        paymentSources: null,
         createdDate: new Date("01 January 2005"),
         metadata: null
     };

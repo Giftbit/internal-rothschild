@@ -105,7 +105,7 @@ CREATE TABLE rothschild.Transactions (
   transactionType         VARCHAR(255) NOT NULL,
   totals                  TEXT,
   lineItems               MEDIUMTEXT,
-  requestedPaymentSources TEXT,
+  paymentSources          TEXT,
   metadata                TEXT,
   createdDate             DATETIME     NOT NULL,
   PRIMARY KEY pk_Transactions (userId, id)

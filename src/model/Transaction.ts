@@ -21,7 +21,7 @@ export interface DbTransaction {
     transactionType: TransactionType;
     totals: string | null;
     lineItems: string | null;
-    requestedPaymentSources: string | null;
+    paymentSources: string | null;
     createdDate: Date;
     metadata: string | null;
 }
@@ -35,7 +35,7 @@ export namespace Transaction {
             transactionType: t.transactionType,
             totals: JSON.stringify(t.totals),
             lineItems: JSON.stringify(t.lineItems),
-            requestedPaymentSources: JSON.stringify(t.paymentSources),
+            paymentSources: JSON.stringify(t.paymentSources),
             metadata: JSON.stringify(t.metadata),
             createdDate: t.createdDate
         };
