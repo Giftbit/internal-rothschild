@@ -297,6 +297,13 @@ describe("/v2/transactions", () => {
             const getOrderResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${order1.id}`, "GET");
             chai.assert.equal(getOrderResp.statusCode, 200, `body=${JSON.stringify(getOrderResp.body)}`);
             chai.assert.equal(getOrderResp.body.transactionType, "order", `body=${JSON.stringify(getOrderResp.body)}`);
+            chai.assert.deepEqual(getOrderResp.body.totals, {
+                subTotal: 50,
+                tax: 0,
+                discount: 0,
+                payable: 50,
+                remainder: 0
+            }, `body=${JSON.stringify(getOrderResp.body)}`);
         });
     });
 });
