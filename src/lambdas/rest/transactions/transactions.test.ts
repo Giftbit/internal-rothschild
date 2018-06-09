@@ -304,6 +304,22 @@ describe("/v2/transactions", () => {
                 payable: 50,
                 remainder: 0
             }, `body=${JSON.stringify(getOrderResp.body)}`);
+            chai.assert.deepEqual(getOrderResp.body.lineItems, [
+                {
+                    type: "product",
+                    productId: "xyz-123",
+                    unitPrice: 50,
+                    quantity: 1,
+                    lineTotal: {
+                        subtotal: 50,
+                        taxable: 50,
+                        tax: 0,
+                        discount: 0,
+                        payable: 50,
+                        remainder: 0
+                    }
+                }
+            ], `body=${JSON.stringify(getOrderResp.body)}`);
         });
     });
 });

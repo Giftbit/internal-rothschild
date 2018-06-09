@@ -56,7 +56,7 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
                     id: plan.id,
                     transactionType: plan.transactionType,
                     totals: JSON.stringify(plan.totals),
-                    lineItems: null,
+                    lineItems: JSON.stringify(plan.lineItems),
                     paymentSources: null,
                     metadata: plan.metadata,
                     createdDate: now

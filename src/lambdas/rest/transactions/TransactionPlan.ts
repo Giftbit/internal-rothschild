@@ -7,7 +7,7 @@ export interface TransactionPlan {
     id: string;
     transactionType: TransactionType;
     totals: TransactionTotal;
-    lineItems?: LineItemResponse[];
+    lineItems: LineItemResponse[] | null;
     steps: TransactionPlanStep[];
     metadata?: string;
 }
