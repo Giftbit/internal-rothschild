@@ -2,6 +2,7 @@ import * as stripe from "stripe";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {getKnexRead} from "../dbUtils/connection";
 import {LineItem} from "./LineItem";
+import {TransactionParty} from "./TransactionRequest";
 
 export interface Transaction {
     id: string;
@@ -9,7 +10,7 @@ export interface Transaction {
     steps: TransactionStep[];
     totals: TransactionTotal;
     lineItems?: LineItem[];
-    paymentSources?: PaymentSource[];
+    paymentSources: TransactionParty[] | null;
     simulated?: true;
     createdDate: Date;
     metadata?: object | null;
@@ -62,6 +63,7 @@ export namespace DbTransaction {
                 transactionType: t.transactionType,
                 totals: JSON.parse(t.totals),
                 lineItems: JSON.parse(t.lineItems),
+                paymentSources: JSON.parse(t.paymentSources),
                 steps: dbSteps.filter(step => step.transactionId === t.id),
                 metadata: JSON.parse(t.metadata),
                 createdDate: t.createdDate
@@ -86,7 +88,7 @@ export interface LightrailCodePaymentSource {
 
 export interface LightrailValueStorePaymentSource {
     rail: "lightrail";
-    valueStoreId: string;
+    valueId: string;
 }
 
 export type TransactionType =

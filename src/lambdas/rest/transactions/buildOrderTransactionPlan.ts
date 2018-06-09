@@ -44,7 +44,8 @@ function initializeOrderTransactionPlan(order: OrderRequest, steps: TransactionP
             discount: 0,
             payable: 0,
             remainder: calculateRemainderFromLineItems(lineItemResponses),
-        }
+        },
+        paymentSources: order.sources   // TODO if secure code, only return last four
     };
 }
 

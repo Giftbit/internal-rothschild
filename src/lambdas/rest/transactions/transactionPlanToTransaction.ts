@@ -21,6 +21,7 @@ export function transactionPlanToTransaction(plan: TransactionPlan, simulated?: 
         totals: plan.totals,
         lineItems: plan.lineItems,
         steps: plan.steps.map(transactionPlanStepToTransactionStep),
+        paymentSources: plan.paymentSources,
         createdDate: nowInDbPrecision()
     };
     if (simulated) {

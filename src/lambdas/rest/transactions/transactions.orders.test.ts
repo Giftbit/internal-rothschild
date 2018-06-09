@@ -99,6 +99,12 @@ describe("/v2/transactions/order", () => {
                     balanceChange: -50
                 }
             ],
+            "paymentSources": [
+                {
+                    "rail": "lightrail",
+                    "valueId": "basic-order-vs"
+                }
+            ],
             createdDate: null
         }, ["createdDate"]);
 
@@ -199,6 +205,16 @@ describe("/v2/transactions/order", () => {
                     balanceBefore: 1000,
                     balanceAfter: 960,
                     balanceChange: -40
+                }
+            ],
+            "paymentSources": [
+                {
+                    "rail": "lightrail",
+                    "valueId": "vs-order2-giftcard"
+                },
+                {
+                    "rail": "lightrail",
+                    "valueId": "vs-order2-promotion"
                 }
             ],
             createdDate: null
@@ -357,6 +373,20 @@ describe("/v2/transactions/order", () => {
                     balanceChange: -1009
                 }
             ],
+            "paymentSources": [
+                {
+                    "rail": "lightrail",
+                    "valueId": "vs-order3-giftcard"
+                },
+                {
+                    "rail": "lightrail",
+                    "valueId": "vs-order3-promotion1"
+                },
+                {
+                    "rail": "lightrail",
+                    "valueId": "vs-order3-promotion2"
+                }
+            ],
             createdDate: null
         }, ["createdDate"]);
 
@@ -494,6 +524,16 @@ describe("/v2/transactions/order", () => {
                     balanceBefore: 500,
                     balanceAfter: 0,
                     balanceChange: -500
+                }
+            ],
+            "paymentSources": [
+                {
+                    "rail": "lightrail",
+                    "valueId": "vs-order4-giftcard"
+                },
+                {
+                    "rail": "lightrail",
+                    "valueId": "vs-order4-promotion1"
                 }
             ]
         }, ["createdDate"]);

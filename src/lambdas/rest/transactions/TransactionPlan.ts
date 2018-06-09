@@ -2,12 +2,14 @@ import * as stripe from "stripe";
 import {TransactionTotal, TransactionType} from "../../../model/Transaction";
 import {Value} from "../../../model/Value";
 import {LineItemResponse} from "../../../model/LineItem";
+import {TransactionParty} from "../../../model/TransactionRequest";
 
 export interface TransactionPlan {
     id: string;
     transactionType: TransactionType;
     totals: TransactionTotal;
     lineItems: LineItemResponse[] | null;
+    paymentSources?: TransactionParty[];
     steps: TransactionPlanStep[];
     metadata?: string;
 }

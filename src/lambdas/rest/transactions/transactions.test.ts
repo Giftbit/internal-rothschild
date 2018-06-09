@@ -320,6 +320,16 @@ describe("/v2/transactions", () => {
                     }
                 }
             ], `body=${JSON.stringify(getOrderResp.body)}`);
+            chai.assert.deepEqual(getOrderResp.body.paymentSources, [
+                {
+                    "rail": "lightrail",
+                    "valueId": "vs-gc-1"
+                },
+                {
+                    "rail": "lightrail",
+                    "valueId": "vs-gc-2"
+                }
+            ], `body=${JSON.stringify(getOrderResp.body)}`);
         });
     });
 });
