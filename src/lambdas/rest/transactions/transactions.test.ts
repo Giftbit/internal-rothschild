@@ -72,6 +72,7 @@ describe("/v2/transactions", () => {
         userId: "test-user-a",
         id: "transfer-2",
         transactionType: "transfer",
+        currency: "CAD",
         totals: null,
         lineItems: null,
         paymentSources: null,
@@ -82,6 +83,7 @@ describe("/v2/transactions", () => {
         userId: "test-user-a",
         id: "transfer-3",
         transactionType: "transfer",
+        currency: "CAD",
         totals: null,
         lineItems: null,
         paymentSources: null,
@@ -299,6 +301,7 @@ describe("/v2/transactions", () => {
             chai.assert.deepEqualExcluding(getOrderResp.body, {
                 id: "order-1",
                 transactionType: "order",
+                currency: "CAD",
                 totals: {
                     subTotal: 50,
                     tax: 0,

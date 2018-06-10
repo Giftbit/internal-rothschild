@@ -63,6 +63,7 @@ describe("/v2/transactions/order", () => {
         chai.assert.deepEqualExcluding(postOrderResp.body, {
             id: "order-1",
             transactionType: "order",
+            currency: "CAD",
             totals: {
                 subTotal: 50,
                 tax: 0,
@@ -89,9 +90,8 @@ describe("/v2/transactions/order", () => {
             steps: [
                 {
                     rail: "lightrail",
+                    transactionId: "order-1",
                     valueId: giftCard.id,
-                    // valueStoreType: giftCard.valueStoreType,
-                    currency: giftCard.currency,
                     code: null,
                     contactId: null,
                     balanceBefore: 1000,
@@ -105,6 +105,7 @@ describe("/v2/transactions/order", () => {
                     "valueId": "basic-order-vs"
                 }
             ],
+            metadata: null,
             createdDate: null
         }, ["createdDate"]);
 
@@ -160,6 +161,7 @@ describe("/v2/transactions/order", () => {
         chai.assert.deepEqualExcluding(postOrderResp.body, {
             id: request.id,
             transactionType: "order",
+            currency: "CAD",
             totals: {
                 subTotal: 50,
                 tax: 0,
@@ -187,8 +189,7 @@ describe("/v2/transactions/order", () => {
                 {
                     rail: "lightrail",
                     valueId: promotion.id,
-                    // valueStoreType: promotion.valueStoreType,
-                    currency: promotion.currency,
+                    transactionId: request.id,
                     code: null,
                     contactId: null,
                     balanceBefore: 10,
@@ -197,9 +198,8 @@ describe("/v2/transactions/order", () => {
                 },
                 {
                     rail: "lightrail",
+                    transactionId: request.id,
                     valueId: giftCard.id,
-                    // valueStoreType: giftCard.valueStoreType,
-                    currency: giftCard.currency,
                     code: null,
                     contactId: null,
                     balanceBefore: 1000,
@@ -217,6 +217,7 @@ describe("/v2/transactions/order", () => {
                     "valueId": "vs-order2-promotion"
                 }
             ],
+            metadata: null,
             createdDate: null
         }, ["createdDate"]);
 
@@ -299,6 +300,7 @@ describe("/v2/transactions/order", () => {
         chai.assert.deepEqualExcluding(postOrderResp.body, {
             id: request.id,
             transactionType: "order",
+            currency: "CAD",
             totals: {
                 subTotal: 1166,
                 tax: 68,
@@ -341,9 +343,8 @@ describe("/v2/transactions/order", () => {
             steps: [
                 {
                     rail: "lightrail",
+                    transactionId: request.id,
                     valueId: preTaxPromotion.id,
-                    // valueStoreType: preTaxPromotion.valueStoreType,
-                    currency: preTaxPromotion.currency,
                     code: null,
                     contactId: null,
                     balanceBefore: 200,
@@ -352,9 +353,8 @@ describe("/v2/transactions/order", () => {
                 },
                 {
                     rail: "lightrail",
+                    transactionId: request.id,
                     valueId: postTaxPromotion.id,
-                    // valueStoreType: postTaxPromotion.valueStoreType,
-                    currency: postTaxPromotion.currency,
                     code: null,
                     contactId: null,
                     balanceBefore: 25,
@@ -363,9 +363,8 @@ describe("/v2/transactions/order", () => {
                 },
                 {
                     rail: "lightrail",
+                    transactionId: request.id,
                     valueId: giftCard.id,
-                    // valueStoreType: giftCard.valueStoreType,
-                    currency: giftCard.currency,
                     code: null,
                     contactId: null,
                     balanceBefore: 1010,
@@ -387,6 +386,7 @@ describe("/v2/transactions/order", () => {
                     "valueId": "vs-order3-promotion2"
                 }
             ],
+            metadata: null,
             createdDate: null
         }, ["createdDate"]);
 
@@ -463,6 +463,7 @@ describe("/v2/transactions/order", () => {
         chai.assert.deepEqualExcluding(postOrderResp.body, {
             id: request.id,
             transactionType: "order",
+            currency: "CAD",
             totals: {
                 subTotal: 1166,
                 tax: 68,
@@ -505,9 +506,8 @@ describe("/v2/transactions/order", () => {
             steps: [
                 {
                     rail: "lightrail",
+                    transactionId: request.id,
                     valueId: preTaxPromotion.id,
-                    // valueStoreType: preTaxPromotion.valueStoreType,
-                    currency: preTaxPromotion.currency,
                     code: null,
                     contactId: null,
                     balanceBefore: 200,
@@ -516,9 +516,8 @@ describe("/v2/transactions/order", () => {
                 },
                 {
                     rail: "lightrail",
+                    transactionId: request.id,
                     valueId: giftCard.id,
-                    // valueStoreType: giftCard.valueStoreType,
-                    currency: giftCard.currency,
                     code: null,
                     contactId: null,
                     balanceBefore: 500,
@@ -535,7 +534,8 @@ describe("/v2/transactions/order", () => {
                     "rail": "lightrail",
                     "valueId": "vs-order4-promotion1"
                 }
-            ]
+            ],
+            metadata: null
         }, ["createdDate"]);
 
         const getPreTaxPromo = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${preTaxPromotion.id}`, "GET");

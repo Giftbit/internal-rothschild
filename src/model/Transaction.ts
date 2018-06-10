@@ -7,19 +7,21 @@ import {TransactionParty} from "./TransactionRequest";
 export interface Transaction {
     id: string;
     transactionType: TransactionType;
+    currency: string;
     steps: TransactionStep[];
     totals: TransactionTotal;
-    lineItems?: LineItem[];
+    lineItems: LineItem[] | null;
     paymentSources: TransactionParty[] | null;
     simulated?: true;
     createdDate: Date;
-    metadata?: object | null;
+    metadata: object | null;
 }
 
 export interface DbTransaction {
     userId: string;
     id: string;
     transactionType: TransactionType;
+    currency: string;
     totals: string | null;
     lineItems: string | null;
     paymentSources: string | null;
@@ -34,6 +36,7 @@ export namespace Transaction {
             userId: auth.giftbitUserId,
             id: t.id,
             transactionType: t.transactionType,
+            currency: t.currency,
             totals: JSON.stringify(t.totals),
             lineItems: JSON.stringify(t.lineItems),
             paymentSources: JSON.stringify(t.paymentSources),
@@ -68,6 +71,7 @@ export namespace DbTransaction {
             return {
                 id: t.id,
                 transactionType: t.transactionType,
+                currency: t.currency,
                 totals: JSON.parse(t.totals),
                 lineItems: JSON.parse(t.lineItems),
                 paymentSources: JSON.parse(t.paymentSources),
@@ -120,7 +124,6 @@ export interface LightrailTransactionStep {
     rail: "lightrail";
     transactionId: string;
     valueId: string;
-    // currency: string;
     contactId?: string;
     code?: string;
     balanceBefore: number;

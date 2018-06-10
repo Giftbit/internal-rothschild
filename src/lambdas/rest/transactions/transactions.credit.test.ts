@@ -46,12 +46,13 @@ describe("/v2/transactions/credit", () => {
         chai.assert.deepEqualExcluding(postCreditResp.body, {
             id: "credit-1",
             transactionType: "credit",
+            currency: "CAD",
             totals: {remainder: 0},
             steps: [
                 {
                     rail: "lightrail",
+                    transactionId: "credit-1",
                     valueId: value.id,
-                    currency: value.currency,
                     code: null,
                     contactId: null,
                     balanceBefore: 0,
@@ -59,6 +60,9 @@ describe("/v2/transactions/credit", () => {
                     balanceChange: 1000
                 }
             ],
+            lineItems: null,
+            paymentSources: null,
+            metadata: null,
             createdDate: null
         }, ["createdDate"]);
 
@@ -96,12 +100,13 @@ describe("/v2/transactions/credit", () => {
         chai.assert.deepEqualExcluding(postCreditResp.body, {
             id: "credit-2",
             transactionType: "credit",
+            currency: "CAD",
             totals: {remainder: 0},
             steps: [
                 {
                     rail: "lightrail",
+                    transactionId: "credit-2",
                     valueId: value.id,
-                    currency: value.currency,
                     code: null,
                     contactId: null,
                     balanceBefore: 1000,
@@ -109,7 +114,10 @@ describe("/v2/transactions/credit", () => {
                     balanceChange: 1100
                 }
             ],
-            createdDate: null
+            lineItems: null,
+            paymentSources: null,
+            metadata: null,
+            createdDate: null,
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");

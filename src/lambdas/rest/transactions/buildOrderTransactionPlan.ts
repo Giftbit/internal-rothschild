@@ -36,6 +36,7 @@ function initializeOrderTransactionPlan(order: OrderRequest, steps: TransactionP
     return {
         id: order.id,
         transactionType: "order",
+        currency: order.currency,
         lineItems: lineItemResponses,
         steps: steps,
         totals: {
@@ -45,6 +46,7 @@ function initializeOrderTransactionPlan(order: OrderRequest, steps: TransactionP
             payable: 0,
             remainder: calculateRemainderFromLineItems(lineItemResponses),
         },
+        metadata: order.metadata,
         paymentSources: order.sources   // TODO if secure code, only return last four
     };
 }

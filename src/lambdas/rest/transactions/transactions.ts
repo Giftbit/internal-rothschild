@@ -179,6 +179,7 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
             return {
                 id: req.id,
                 transactionType: "credit",
+                currency: req.currency,
                 steps: [
                     {
                         rail: "lightrail",
@@ -187,7 +188,9 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
                     }
                 ],
                 metadata: JSON.stringify(req.metadata),
-                totals: {remainder: 0}
+                totals: {remainder: 0},
+                lineItems: null,
+                paymentSources: null
             };
         }
     );
@@ -210,6 +213,7 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
             return {
                 id: req.id,
                 transactionType: "debit",
+                currency: req.currency,
                 steps: [
                     {
                         rail: "lightrail",
@@ -218,7 +222,9 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
                     }
                 ],
                 metadata: JSON.stringify(req.metadata),
-                totals: {remainder: req.amount - amount}
+                totals: {remainder: req.amount - amount},
+                lineItems: null,
+                paymentSources: null  // TODO need to make sense of 'source' in req vs 'paymentSources' in db
             };
         }
     );
@@ -275,6 +281,7 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
             return {
                 id: req.id,
                 transactionType: "transfer",
+                currency: req.currency,
                 steps: [
                     {
                         rail: "lightrail",
@@ -288,7 +295,9 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
                     }
                 ],
                 metadata: JSON.stringify(req.metadata),
-                totals: {remainder: req.amount - amount}
+                totals: {remainder: req.amount - amount},
+                lineItems: null,
+                paymentSources: null  // TODO need to make sense of 'source' in req vs 'paymentSources' in db
             };
         }
     );

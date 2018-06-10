@@ -7,11 +7,12 @@ import {TransactionParty} from "../../../model/TransactionRequest";
 export interface TransactionPlan {
     id: string;
     transactionType: TransactionType;
+    currency: string;
     totals: TransactionTotal;
     lineItems: LineItemResponse[] | null;
-    paymentSources?: TransactionParty[];
+    paymentSources: TransactionParty[] | null;
     steps: TransactionPlanStep[];
-    metadata?: string;
+    metadata: object | null;
 }
 
 export type TransactionPlanStep =

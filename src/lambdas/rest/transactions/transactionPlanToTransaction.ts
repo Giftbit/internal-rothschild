@@ -18,10 +18,12 @@ export function transactionPlanToTransaction(plan: TransactionPlan, simulated?: 
     const transaction: Transaction = {
         id: plan.id,
         transactionType: plan.transactionType,
+        currency: plan.currency,
         totals: plan.totals,
         lineItems: plan.lineItems,
-        steps: plan.steps.map(transactionPlanStepToTransactionStep),
+        steps: plan.steps.map(step => transactionPlanStepToTransactionStep(step, plan)),
         paymentSources: plan.paymentSources,
+        metadata: plan.metadata || null,
         createdDate: nowInDbPrecision()
     };
     if (simulated) {
@@ -30,22 +32,22 @@ export function transactionPlanToTransaction(plan: TransactionPlan, simulated?: 
     return transaction;
 }
 
-function transactionPlanStepToTransactionStep(step: TransactionPlanStep): TransactionStep {
+function transactionPlanStepToTransactionStep(step: TransactionPlanStep, plan: TransactionPlan): TransactionStep {
     switch (step.rail) {
         case "lightrail":
-            return lightrailTransactionPlanStepToTransactionStep(step);
+            return lightrailTransactionPlanStepToTransactionStep(step, plan);
         case "stripe":
-            return stripeTransactionPlanStepToTransactionStep(step);
+            return stripeTransactionPlanStepToTransactionStep(step, plan);
         case "internal":
-            return internalTransactionPlanStepToTransactionStep(step);
+            return internalTransactionPlanStepToTransactionStep(step, plan);
     }
 }
 
-function lightrailTransactionPlanStepToTransactionStep(step: LightrailTransactionPlanStep): LightrailTransactionStep {
+function lightrailTransactionPlanStepToTransactionStep(step: LightrailTransactionPlanStep, plan: TransactionPlan): LightrailTransactionStep {
     return {
         rail: "lightrail",
+        transactionId: plan.id,
         valueId: step.value.id,
-        currency: step.value.currency,
         contactId: step.value.contactId,
         code: step.value.code,
         balanceBefore: step.value.balance,
@@ -54,9 +56,10 @@ function lightrailTransactionPlanStepToTransactionStep(step: LightrailTransactio
     };
 }
 
-function stripeTransactionPlanStepToTransactionStep(step: StripeTransactionPlanStep): StripeTransactionStep {
+function stripeTransactionPlanStepToTransactionStep(step: StripeTransactionPlanStep, plan: TransactionPlan): StripeTransactionStep {
     const res: StripeTransactionStep = {
         rail: "stripe",
+        transactionId: plan.id,
         amount: step.amount,
     };
     if (step.chargeResult) {
@@ -66,9 +69,10 @@ function stripeTransactionPlanStepToTransactionStep(step: StripeTransactionPlanS
     return res;
 }
 
-function internalTransactionPlanStepToTransactionStep(step: InternalTransactionPlanStep): InternalTransactionStep {
+function internalTransactionPlanStepToTransactionStep(step: InternalTransactionPlanStep, plan: TransactionPlan): InternalTransactionStep {
     return {
         rail: "internal",
+        transactionId: plan.id,
         id: step.internalId,
         balanceBefore: step.balance,
         balanceAfter: step.balance + step.amount,

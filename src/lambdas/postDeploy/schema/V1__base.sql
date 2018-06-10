@@ -103,6 +103,7 @@ CREATE TABLE rothschild.Transactions (
   userId                  VARCHAR(32)  NOT NULL,
   id                      VARCHAR(32)  NOT NULL,
   transactionType         VARCHAR(255) NOT NULL,
+  currency                VARCHAR(32)  NOT NULL,
   totals                  TEXT,
   lineItems               MEDIUMTEXT,
   paymentSources          TEXT,

@@ -47,12 +47,13 @@ describe("/v2/transactions/debit", () => {
         chai.assert.deepEqualExcluding(postDebitResp.body, {
             id: "debit-1",
             transactionType: "debit",
+            currency: "CAD",
             totals: {remainder: 0},
             steps: [
                 {
                     rail: "lightrail",
+                    transactionId: "debit-1",
                     valueId: value1.id,
-                    currency: value1.currency,
                     code: null,
                     contactId: null,
                     balanceBefore: 1000,
@@ -60,6 +61,9 @@ describe("/v2/transactions/debit", () => {
                     balanceChange: -599
                 }
             ],
+            lineItems: null,
+            paymentSources: null,
+            metadata: null,
             createdDate: null
         }, ["createdDate"]);
 
@@ -97,12 +101,13 @@ describe("/v2/transactions/debit", () => {
         chai.assert.deepEqualExcluding(postDebitResp.body, {
             id: "debit-2",
             transactionType: "debit",
+            currency: "CAD",
             totals: {remainder: 0},
             steps: [
                 {
                     rail: "lightrail",
+                    transactionId: "debit-2",
                     valueId: value1.id,
-                    currency: value1.currency,
                     code: null,
                     contactId: null,
                     balanceBefore: 401,
@@ -110,6 +115,9 @@ describe("/v2/transactions/debit", () => {
                     balanceChange: -300
                 }
             ],
+            lineItems: null,
+            paymentSources: null,
+            metadata: null,
             createdDate: null
         }, ["createdDate"]);
 
@@ -133,12 +141,13 @@ describe("/v2/transactions/debit", () => {
         chai.assert.deepEqualExcluding(postDebitResp.body, {
             id: "debit-3",
             transactionType: "debit",
+            currency: "CAD",
             totals: {remainder: 9500 - 401},
             steps: [
                 {
                     rail: "lightrail",
+                    transactionId: "debit-3",
                     valueId: value1.id,
-                    currency: value1.currency,
                     code: null,
                     contactId: null,
                     balanceBefore: 401,
@@ -146,6 +155,9 @@ describe("/v2/transactions/debit", () => {
                     balanceChange: -401
                 }
             ],
+            lineItems: null,
+            paymentSources: null,
+            metadata: null,
             createdDate: null
         }, ["createdDate"]);
 
