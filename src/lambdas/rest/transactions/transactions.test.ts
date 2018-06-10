@@ -296,40 +296,68 @@ describe("/v2/transactions", () => {
 
             const getOrderResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${order1.id}`, "GET");
             chai.assert.equal(getOrderResp.statusCode, 200, `body=${JSON.stringify(getOrderResp.body)}`);
-            chai.assert.equal(getOrderResp.body.transactionType, "order", `body=${JSON.stringify(getOrderResp.body)}`);
-            chai.assert.deepEqual(getOrderResp.body.totals, {
-                subTotal: 50,
-                tax: 0,
-                discount: 0,
-                payable: 50,
-                remainder: 0
-            }, `body=${JSON.stringify(getOrderResp.body)}`);
-            chai.assert.deepEqual(getOrderResp.body.lineItems, [
-                {
-                    type: "product",
-                    productId: "xyz-123",
-                    unitPrice: 50,
-                    quantity: 1,
-                    lineTotal: {
-                        subtotal: 50,
-                        taxable: 50,
-                        tax: 0,
-                        discount: 0,
-                        payable: 50,
-                        remainder: 0
-                    }
-                }
-            ], `body=${JSON.stringify(getOrderResp.body)}`);
-            chai.assert.deepEqual(getOrderResp.body.paymentSources, [
-                {
-                    "rail": "lightrail",
-                    "valueId": "vs-gc-1"
+            chai.assert.deepEqualExcluding(getOrderResp.body, {
+                id: "order-1",
+                transactionType: "order",
+                totals: {
+                    subTotal: 50,
+                    tax: 0,
+                    discount: 0,
+                    payable: 50,
+                    remainder: 0
                 },
-                {
-                    "rail": "lightrail",
-                    "valueId": "vs-gc-2"
-                }
-            ], `body=${JSON.stringify(getOrderResp.body)}`);
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "xyz-123",
+                        unitPrice: 50,
+                        quantity: 1,
+                        lineTotal: {
+                            subtotal: 50,
+                            taxable: 50,
+                            tax: 0,
+                            discount: 0,
+                            payable: 50,
+                            remainder: 0
+                        }
+                    }
+                ],
+                steps: [
+                    {
+                        transactionId: "order-1",
+                        rail: "lightrail",
+                        valueId: value1.id,
+                        code: null,
+                        contactId: null,
+                        balanceBefore: 995,
+                        balanceAfter: 945,
+                        balanceChange: -50
+                    },
+                    {
+                        transactionId: "order-1",
+                        rail: "lightrail",
+                        valueId: "vs-gc-2",
+                        balanceAfter: 1,
+                        balanceBefore: 1,
+                        balanceChange: 0,
+                        code: null,
+                        contactId: null,
+                    }
+
+                ],
+                paymentSources: [
+                    {
+                        "rail": "lightrail",
+                        "valueId": "vs-gc-1"
+                    },
+                    {
+                        "rail": "lightrail",
+                        "valueId": "vs-gc-2"
+                    }
+                ],
+                metadata: null,
+                createdDate: null
+            }, "createdDate");
         });
     });
 });
