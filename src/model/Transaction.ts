@@ -133,5 +133,5 @@ export interface TransactionTotal {
     tax?: number;
     discount?: number;
     payable?: number;
-    remainder: number;
+    remainder?: number;
 }
