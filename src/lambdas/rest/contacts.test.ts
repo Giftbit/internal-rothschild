@@ -576,6 +576,7 @@ describe("/v2/contacts", () => {
                 })
                 .where("firstName", "LIKE", "J%")
                 .orderBy("id");
+            chai.assert.isAtLeast(expected.length, 2, "expect results");
 
             const page1Size = Math.ceil(expected.length / 2);
             const page1 = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?firstName.like=${encodeURIComponent("J%")}&limit=${page1Size}`, "GET");
