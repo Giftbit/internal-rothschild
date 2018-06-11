@@ -7,6 +7,8 @@ import {Contact, DbContact} from "../../model/Contact";
 import {installRest} from "./index";
 import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
 import {defaultTestUser} from "../../testUtils";
+import {Value} from "../../model/Value";
+import {Currency} from "../../model/Currency";
 
 chai.use(require("chai-exclude"));
 
@@ -222,6 +224,54 @@ describe("/v2/contacts", () => {
         const resp = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/${contact4.id}`, "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
         chai.assert.deepEqual(resp.body, contact4);
+    });
+
+    it("can delete a Contact that is not in use", async () => {
+        const contact: Partial<Contact> = {
+            id: "jerry",
+            firstName: "Jerry",
+            lastName: "The Contact",
+            email: "jerry@contact.com"
+        };
+
+        const resp1 = await testUtils.testAuthedRequest<any>(router, "/v2/contacts", "POST", contact);
+        chai.assert.equal(resp1.statusCode, 201, `create body=${JSON.stringify(resp1.body)}`);
+
+        const resp3 = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}`, "DELETE");
+        chai.assert.equal(resp3.statusCode, 200, `delete body=${JSON.stringify(resp3.body)}`);
+
+        const resp4 = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}`, "GET");
+        chai.assert.equal(resp4.statusCode, 404, `get deleted body=${JSON.stringify(resp4.body)}`);
+    });
+
+    it("404s on deleting a Contact that does not exist", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/idonotexist`, "DELETE");
+        chai.assert.equal(resp.statusCode, 404, `delete body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("409s on deleting a Contact in use", async () => {
+        const currency: Currency = {
+            code: "USD",
+            name: "Eagle Feathers",
+            symbol: "$",
+            decimalPlaces: 2
+        };
+
+        const value: Partial<Value> = {
+            id: "contact4-value",
+            currency: "USD",
+            balance: 0,
+            contactId: contact4.id
+        };
+
+        const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency);
+        chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
+
+        const resp2 = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
+        chai.assert.equal(resp2.statusCode, 201, `create body=${JSON.stringify(resp2.body)}`);
+
+        const resp3 = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact4.id}`, "DELETE");
+        chai.assert.equal(resp3.statusCode, 409, `delete body=${JSON.stringify(resp3.body)}`);
     });
 
     describe("filters and pagination", () => {

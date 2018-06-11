@@ -247,13 +247,18 @@ describe("/v2/values/", () => {
         chai.assert.equal(resp4.statusCode, 404, `get deleted body=${JSON.stringify(resp4.body)}`);
     });
 
+    it("404s on deleting a Value that does not exist", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, `/v2/values/idonotexist`, "DELETE");
+        chai.assert.equal(resp.statusCode, 404, `delete body=${JSON.stringify(resp.body)}`);
+    });
+
     let value5: Partial<Value> = {
         id: "vjeff2",
         currency: "USD",
         balance: 1982   // creates an initial value transaction
     };
 
-    it.skip("409s on deleting a value that is in use", async () => {
+    it.skip("409s on deleting a Value that is in use", async () => {
         const resp1 = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value5);
         chai.assert.equal(resp1.statusCode, 201, `create body=${JSON.stringify(resp1.body)}`);
         value5 = resp1.body;

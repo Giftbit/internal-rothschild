@@ -7,7 +7,6 @@ import {pick, pickOrDefault} from "../../pick";
 import {csvSerializer} from "../../serializers";
 import {filterAndPaginateQuery, getSqlErrorConstraintName, nowInDbPrecision} from "../../dbUtils";
 import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
-import {paginateQuery} from "../../dbUtils/paginateQuery";
 
 export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
@@ -267,23 +266,24 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
 
     try {
         const knex = await getKnexWrite();
-        const res: [number] = await knex("Values")
+        const res: number = await knex("Values")
             .where({
                 userId: auth.giftbitUserId,
                 id
             })
             .delete();
-        if (res[0] === 0) {
+        if (res === 0) {
             throw new cassava.RestError(404);
         }
-        if (res[0] > 1) {
-            throw new Error(`Illegal DELETE query.  Deleted ${res.length} values.`);
+        if (res > 1) {
+            throw new Error(`Illegal DELETE query.  Deleted ${res} values.`);
         }
         return {success: true};
     } catch (err) {
         if (err.code === "ER_ROW_IS_REFERENCED_2") {
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Value '${id}' is in use.`, "ValueInUse");
         }
+        throw err;
     }
 }
 

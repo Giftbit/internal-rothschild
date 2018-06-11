@@ -187,20 +187,27 @@ export async function updateContact(auth: giftbitRoutes.jwtauth.AuthorizationBad
 export async function deleteContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<{ success: true }> {
     auth.requireIds("giftbitUserId");
 
-    const knex = await getKnexWrite();
-    const res: [number] = await knex("Contacts")
-        .where({
-            userId: auth.giftbitUserId,
-            id: id
-        })
-        .delete();
-    if (res[0] === 0) {
-        throw new cassava.RestError(404);
+    try {
+        const knex = await getKnexWrite();
+        const res: number = await knex("Contacts")
+            .where({
+                userId: auth.giftbitUserId,
+                id: id
+            })
+            .delete();
+        if (res === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (res > 1) {
+            throw new Error(`Illegal DELETE query.  Deleted ${res} values.`);
+        }
+        return {success: true};
+    } catch (err) {
+        if (err.code === "ER_ROW_IS_REFERENCED_2") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Contact '${id}' is in use.`, "ContactInUse");
+        }
+        throw err;
     }
-    if (res[0] > 1) {
-        throw new Error(`Illegal DELETE query.  Deleted ${res.length} values.`);
-    }
-    return {success: true};
 }
 
 const contactSchema: jsonschema.Schema = {
