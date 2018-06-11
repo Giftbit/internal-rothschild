@@ -17,6 +17,10 @@ describe("filterQuery()", () => {
 
     const filterTestFilterOptions: FilterQueryOptions = {
         properties: {
+            id: {
+                type: "string",
+                operators: ["eq", "in"]
+            },
             a: {
                 type: "string"
             },
@@ -201,6 +205,29 @@ describe("filterQuery()", () => {
                 .orderBy("id"),
             {
                 "b.gte": "650"
+            },
+            filterTestFilterOptions
+        );
+
+        chai.assert.deepEqual(actual, expected);
+    });
+
+    it("filters in", async () => {
+        const knex = await getKnexRead();
+
+        const expected = await knex("FilterTest")
+            .where({
+                userId: "user1"
+            })
+            .whereIn("id", ["id-1", "id-2", "id-3", "id-5", "id-8", "id-13", "id-21", "id-34", "id-55", "id-89", "id-144", "id-233", "id-377", "id-610", "id-987"])
+            .orderBy("id");
+
+        const actual: FilterTest[] = await filterQuery(
+            knex("FilterTest")
+                .where({userId: "user1"})
+                .orderBy("id"),
+            {
+                "id.in": "id-1,id-2,id-3,id-5,id-8,id-13,id-21,id-34,id-55,id-89,id-144,id-233,id-377,id-610,id-987"
             },
             filterTestFilterOptions
         );

@@ -38,7 +38,7 @@ export namespace Pagination {
         delete resQueryParams.last;
 
         // Link header corresponding to https://tools.ietf.org/html/rfc5988
-        let link: string;
+        let link: string = "";
         if (pagination.before) {
             link = toLink(evt.path, resQueryParams, "first") + "," + toLink(evt.path, {...resQueryParams, before: pagination.before}, "prev");
         }

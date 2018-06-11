@@ -5,13 +5,15 @@ import {LineItemResponse} from "../../../model/LineItem";
 import {Value} from "../../../model/Value";
 import * as bankersRounding from "bankers-rounding";
 
+const debug = false;
+
 export function buildOrderTransactionPlan(order: OrderRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
     let transactionPlan = initializeTransactionPlan(order, preTaxSteps.concat(postTaxSteps));
     processTransactionSteps(preTaxSteps, transactionPlan);
     applyTax(transactionPlan);
     processTransactionSteps(postTaxSteps, transactionPlan);
     calculateTotalsFromLineItems(transactionPlan);
-    console.log(`transactionPlan: ${JSON.stringify(transactionPlan)}`);
+    debug && console.log(`transactionPlan: ${JSON.stringify(transactionPlan)}`);
     return transactionPlan;
 }
 
@@ -79,7 +81,7 @@ function processTransactionSteps(steps: TransactionPlanStep[], transactionPlan: 
 }
 
 function processLightrailTransactionStep(step: LightrailTransactionPlanStep, transactionPlan: TransactionPlan): void {
-    console.log(`processing ValueStore ${JSON.stringify(step)}.`);
+    debug && console.log(`processing ValueStore ${JSON.stringify(step)}.`);
     let value = step.value;
     if (!isValueRedeemable(value)) {
         return;
@@ -95,12 +97,12 @@ function processLightrailTransactionStep(step: LightrailTransactionPlanStep, tra
                 currentLineItem: item
             };
             if (!getRuleFromCache(value.redemptionRule.rule).evaluateToBoolean(context)) {
-                console.log(`ValueStore ${JSON.stringify(value)} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
+                debug && console.log(`ValueStore ${JSON.stringify(value)} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
                 break;
             }
         }
 
-        console.log(`ValueStore ${JSON.stringify(value)} CAN be applied to ${JSON.stringify(item)}.`);
+        debug && console.log(`ValueStore ${JSON.stringify(value)} CAN be applied to ${JSON.stringify(item)}.`);
         if (item.lineTotal.remainder > 0) {
             let amount: number;
             if (value.valueRule) {

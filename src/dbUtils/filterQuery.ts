@@ -5,45 +5,67 @@ export interface FilterQueryOptions {
     properties: {[propertyName: string]: FilterQueryProperty};
 }
 
+/**
+ * Specifies what properties from the query string act as filters.
+ */
 export interface FilterQueryProperty {
+    /**
+     * The type controls parsing the property and default set of operators available.
+     */
     type: "string" | "number" | "boolean" | "Date";
+
+    /**
+     * The column name that is filtered.  By default the column name is the query parameter name.
+     */
+    columnName?: string;
+
+    // TODO when tagging is a this this will need to support searching for the IDs matching the tags in another table
+
+    /**
+     * Override the operators available for this property.
+     */
     operators?: FilterQueryOperator[];
 }
 
-export type FilterQueryOperator = "lt" | "lte" | "gt" | "gte" | "eq" | "ne" |  "like";
+export type FilterQueryOperator = "lt" | "lte" | "gt" | "gte" | "eq" | "ne" | "in" | "like";
 
 export function filterQuery(query: knex.QueryBuilder, filterParams: {[key: string]: string}, options: FilterQueryOptions): knex.QueryBuilder {
-    for (const filterKey of Object.keys(filterParams)) {
+    for (let filterKey of Object.keys(filterParams)) {
+        const filterValue = filterParams[filterKey];
+        let op: FilterQueryOperator = "eq";
         if (filterKey.indexOf(".") !== -1) {
             const keyAndOp = filterKey.split(".");
-            if (keyAndOp.length === 2 && options.properties.hasOwnProperty(keyAndOp[0]) && filterQueryPropertyAllowsOperator(options.properties[keyAndOp[0]], keyAndOp[1] as FilterQueryOperator)) {
-                query = addToQuery(
-                    query,
-                    options.properties[keyAndOp[0]],
-                    keyAndOp[0],
-                    keyAndOp[1] as FilterQueryOperator,
-                    filterParams[filterKey]
-                );
-            }
-        } else if (options.properties.hasOwnProperty(filterKey)) {
-            if (filterQueryPropertyAllowsOperator(options.properties[filterKey])) {
-                query = addToQuery(
-                    query,
-                    options.properties[filterKey],
-                    filterKey,
-                    "eq",
-                    filterParams[filterKey]
-                );
+            if (keyAndOp.length === 2) {
+                filterKey = keyAndOp[0];
+                op = keyAndOp[1] as FilterQueryOperator;
             }
         }
+
+        if (!options.properties.hasOwnProperty(filterKey)) {
+            // Not a filterable property.
+            continue;
+        }
+
+        const property = options.properties[filterKey];
+        if (!filterQueryPropertyAllowsOperator(property, op)) {
+            continue;
+        }
+
+        query = addFilterToQuery(
+            query,
+            property,
+            filterKey,
+            op,
+            filterValue
+        );
     }
 
     return query;
 }
 
-function filterQueryPropertyAllowsOperator(prop: FilterQueryProperty, op: FilterQueryOperator = "eq"): boolean {
+function filterQueryPropertyAllowsOperator(prop: FilterQueryProperty, op: string = "eq"): op is FilterQueryOperator {
     if (prop.operators) {
-        return prop.operators.indexOf(op) !== -1;
+        return prop.operators.indexOf(op as FilterQueryOperator) !== -1;
     }
     switch (prop.type) {
         case "boolean":
@@ -54,38 +76,45 @@ function filterQueryPropertyAllowsOperator(prop: FilterQueryProperty, op: Filter
         case "string":
             return ["lt", "lte", "gt", "gte", "eq", "ne", "like"].indexOf(op) !== -1;
     }
+    return false;
 }
 
-function addToQuery(query: knex.QueryBuilder, prop: FilterQueryProperty, key: string, op: FilterQueryOperator, value: string): knex.QueryBuilder {
-    let convertedValue: number | string | boolean | Date;
-    switch (prop.type) {
-        case "number":
-            convertedValue = +value;
-            if (isNaN(convertedValue)) {
-                throw new giftbitRoutes.GiftbitRestError(400, `Query filter ${key}=${value} value could not be parsed as a number.`);
-            }
-            break;
-        case "boolean":
-            convertedValue = value.toLowerCase() === "true";
-            break;
-        case "Date":
-            convertedValue = new Date(value);
-            if (isNaN(convertedValue.getTime())) {
-                throw new giftbitRoutes.GiftbitRestError(400, `Query filter ${key}=${value} value could not be parsed as an ISO Date.`);
-            }
-            break;
-        case "string":
-        default:
-            convertedValue = value;
+function addFilterToQuery(query: knex.QueryBuilder, prop: FilterQueryProperty, key: string, op: FilterQueryOperator, value: string): knex.QueryBuilder {
+    let columnName = key;
+    if (prop.columnName) {
+        columnName = prop.columnName;
     }
 
     switch (op) {
-        case "lt": return query.where(key, "<", convertedValue);
-        case "lte": return query.where(key, "<=", convertedValue);
-        case "gt": return query.where(key, ">", convertedValue);
-        case "gte": return query.where(key, ">=", convertedValue);
-        case "eq": return query.where(key, "=", convertedValue);
-        case "ne": return query.where(key, "!=", convertedValue);
-        case "like": return query.where(key, "LIKE", convertedValue);
+        case "lt": return query.where(columnName, "<", convertValue(prop, value));
+        case "lte": return query.where(columnName, "<=", convertValue(prop, value));
+        case "gt": return query.where(columnName, ">", convertValue(prop, value));
+        case "gte": return query.where(columnName, ">=", convertValue(prop, value));
+        case "eq": return query.where(columnName, "=", convertValue(prop, value));
+        case "ne": return query.where(columnName, "!=", convertValue(prop, value));
+        case "in": return query.whereIn(columnName, value.split(",").map(v => convertValue(prop, v)));
+        case "like": return query.where(columnName, "LIKE", convertValue(prop, value));
+    }
+}
+
+function convertValue(prop: FilterQueryProperty, value: string): number | string | boolean | Date {
+    switch (prop.type) {
+        case "number":
+            const numValue = +value;
+            if (isNaN(numValue)) {
+                throw new giftbitRoutes.GiftbitRestError(400, `Query filter value '${value}' could not be parsed as a number.`);
+            }
+            return numValue;
+        case "boolean":
+            return value.toLowerCase() === "true";
+        case "Date":
+            const dateValue = new Date(value);
+            if (isNaN(dateValue.getTime())) {
+                throw new giftbitRoutes.GiftbitRestError(400, `Query filter value '${value}' could not be parsed as an ISO Date.`);
+            }
+            return dateValue;
+        case "string":
+        default:
+            return value;
     }
 }

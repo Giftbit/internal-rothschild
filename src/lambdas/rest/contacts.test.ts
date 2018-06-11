@@ -1,10 +1,11 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import * as parseLinkHeader from "parse-link-header";
 import * as testUtils from "../../testUtils";
 import {Contact, DbContact} from "../../model/Contact";
 import {installRest} from "./index";
-import {getKnexWrite} from "../../dbUtils/connection";
+import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
 import {defaultTestUser} from "../../testUtils";
 
 chai.use(require("chai-exclude"));
@@ -223,7 +224,7 @@ describe("/v2/contacts", () => {
         chai.assert.deepEqual(resp.body, contact4);
     });
 
-    it.only("filters and paginates through many contacts", async () => {
+    describe("filters and pagination", () => {
         const contacts: Partial<DbContact>[] = [
             {
                 "id": "5b172001e2c81861deb1e277",
@@ -556,30 +557,64 @@ describe("/v2/contacts", () => {
                 "email": "knappdeleon@euron.com"
             }
         ];
-        for (const contact of contacts) {
-            contact.userId = defaultTestUser.userId;
-            contact.createdDate = new Date();
-            contact.updatedDate = new Date();
-        }
-        const knex = await getKnexWrite();
-        await knex("Contacts").insert(contacts);
 
-        const expected = await knex("Contacts")
-            .where({
-                userId: defaultTestUser.userId
-            })
-            .where("firstName", "LIKE", "J%")
-            .orderBy("id");
+        before(async () => {
+            for (const contact of contacts) {
+                contact.userId = defaultTestUser.userId;
+                contact.createdDate = new Date();
+                contact.updatedDate = new Date();
+            }
+            const knex = await getKnexWrite();
+            await knex("Contacts").insert(contacts);
+        });
 
-        const page1Size = Math.ceil(expected.length / 2);
-        const resp1 = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?firstName.like=${encodeURIComponent("J%")}&limit=${page1Size}`, "GET");
-        chai.assert.equal(resp1.statusCode, 200, `body=${JSON.stringify(resp1.body)}`);
-        chai.assert.deepEqualExcludingEvery(resp1.body, expected.slice(0, page1Size), ["userId", "createdDate", "updatedDate"]);
-        chai.assert.equal(resp1.headers["Limit"], `${page1Size}`);
-        chai.assert.equal(resp1.headers["MaxLimit"], "1000");
-        chai.assert.isDefined(resp1.headers["Link"]);
+        it("filters and paginates through many contacts", async () => {
+            const knex = await getKnexRead();
+            const expected = await knex("Contacts")
+                .where({
+                    userId: defaultTestUser.userId
+                })
+                .where("firstName", "LIKE", "J%")
+                .orderBy("id");
 
-        // TODO parse link, get next page
+            const page1Size = Math.ceil(expected.length / 2);
+            const page1 = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?firstName.like=${encodeURIComponent("J%")}&limit=${page1Size}`, "GET");
+            chai.assert.equal(page1.statusCode, 200, `body=${JSON.stringify(page1.body)}`);
+            chai.assert.deepEqualExcludingEvery(page1.body, expected.slice(0, page1Size), ["userId", "createdDate", "updatedDate"]);
+            chai.assert.equal(page1.headers["Limit"], `${page1Size}`);
+            chai.assert.equal(page1.headers["Max-Limit"], "1000");
+            chai.assert.isDefined(page1.headers["Link"]);
+
+            const page1Link = parseLinkHeader(page1.headers["Link"]);
+            const page2 = await testUtils.testAuthedRequest<Contact[]>(router, page1Link.next.url, "GET");
+            chai.assert.equal(page2.statusCode, 200, `url=${page1Link.next.url} body=${JSON.stringify(page2.body)}`);
+            chai.assert.deepEqualExcludingEvery(page2.body, expected.slice(page1Size), ["userId", "createdDate", "updatedDate"]);
+            chai.assert.equal(page1.headers["Limit"], `${page1Size}`);
+            chai.assert.equal(page1.headers["Max-Limit"], "1000");
+            chai.assert.isDefined(page1.headers["Link"]);
+
+            const page2Link = parseLinkHeader(page2.headers["Link"]);
+            const page2prev = await testUtils.testAuthedRequest<Contact[]>(router, page2Link.prev.url, "GET");
+            chai.assert.equal(page2prev.statusCode, 200, `url=${page2Link.prev.url} body=${JSON.stringify(page2prev.body)}`);
+            chai.assert.deepEqual(page2prev.body, page1.body);
+        });
+
+        it("supports id.in", async () => {
+            const ids = ["5b172001f6100a7feed5f211", "5b17200193583445e1b25f8f", "5b1720010f83d6177bc8bf6d", "5b172001460fdde20d4fc2f4"];
+
+            const knex = await getKnexRead();
+            const expected = await knex("Contacts")
+                .where({
+                    userId: defaultTestUser.userId
+                })
+                .whereIn("id", ids)
+                .orderBy("id");
+
+            const page1 = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?id.in=${ids.join(",")}`, "GET");
+            chai.assert.equal(page1.statusCode, 200, `body=${JSON.stringify(page1.body)}`);
+            chai.assert.deepEqualExcludingEvery(page1.body, expected, ["userId", "createdDate", "updatedDate"]);
+            chai.assert.isDefined(page1.headers["Link"]);
+        });
     });
 
     describe("userId isolation", () => {

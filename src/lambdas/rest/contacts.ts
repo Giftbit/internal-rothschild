@@ -104,9 +104,19 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         filterParams,
         {
             properties: {
-                "firstName": {type: "string"},
-                "lastName": {type: "string"},
-                "email": {type: "string"},
+                "id": {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
+                "firstName": {
+                    type: "string"
+                },
+                "lastName": {
+                    type: "string"
+                },
+                "email": {
+                    type: "string"
+                }
             }
         },
         pagination
