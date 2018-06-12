@@ -6,6 +6,7 @@ import {Rule, Value} from "../../../model/Value";
 import * as bankersRounding from "bankers-rounding";
 import {listPermutations} from "../../utils/combinatoricUtils";
 
+// todo - limit of 1 promotion per order rule. rule context needs to be created and decided on
 export function buildTransactionPlan(order: OrderRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
     let bestPlan: TransactionPlan;
 
