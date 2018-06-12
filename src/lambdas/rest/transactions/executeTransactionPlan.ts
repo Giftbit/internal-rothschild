@@ -59,7 +59,7 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
                     totals: JSON.stringify(plan.totals),
                     lineItems: JSON.stringify(plan.lineItems),
                     paymentSources: JSON.stringify(plan.paymentSources),
-                    metadata: plan.metadata,
+                    metadata: JSON.stringify(plan.metadata),
                     createdDate: now
                 });
         } catch (err) {

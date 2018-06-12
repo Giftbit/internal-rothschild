@@ -187,7 +187,7 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
                         amount: req.amount
                     }
                 ],
-                metadata: JSON.stringify(req.metadata),
+                metadata: req.metadata,
                 totals: {remainder: 0},
                 lineItems: null,
                 paymentSources: null
@@ -221,7 +221,7 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
                         amount: -amount
                     }
                 ],
-                metadata: JSON.stringify(req.metadata),
+                metadata: req.metadata,
                 totals: {remainder: req.amount - amount},
                 lineItems: null,
                 paymentSources: null  // TODO need to make sense of 'source' in req vs 'paymentSources' in db
@@ -294,7 +294,7 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
                         amount
                     }
                 ],
-                metadata: JSON.stringify(req.metadata),
+                metadata: req.metadata,
                 totals: {remainder: req.amount - amount},
                 lineItems: null,
                 paymentSources: null  // TODO need to make sense of 'source' in req vs 'paymentSources' in db
