@@ -5,7 +5,7 @@ Parameters:
   ProjectName:
     Type: String
     Description: The name of the project being built.  This name will be used on a number of resources.
-    Default: MyAwesomeProject
+    Default: Rothschild
   ProjectParameterOverrides:
     Type: String
     Description: JSON string for the parameters of the project template.
@@ -18,11 +18,11 @@ Parameters:
   GitHubRepoOwner:
     Type: String
     Description: GitHub repo owner.
-    Default: mycompany
+    Default: Giftbit
   GitHubRepo:
     Type: String
     Description: GitHub git repo.
-    Default: myreponame
+    Default: internal-rothschild
   GitHubBranch:
     Type: String
     Description: Git branch to build off of.

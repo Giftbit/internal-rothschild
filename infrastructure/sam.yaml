@@ -12,6 +12,10 @@ Parameters:
   Capacity:
     AllowedValues : ["high", "low"]
     Type: String
+  LightrailDomain:
+    Type: String
+    Description: The domain of the Lightrail REST API
+    AllowedPattern: (\w+\.)+\w{3}
   SecureConfigBucket:
     Type: String
     Description: Name of the S3 bucket holding the JWT secure config
