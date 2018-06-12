@@ -4,7 +4,7 @@ import * as jsonschema from "jsonschema";
 import {compareTransactionPlanSteps} from "./compareTransactionPlanSteps";
 import {CreditRequest, DebitRequest, OrderRequest, TransferRequest} from "../../../model/TransactionRequest";
 import {resolveTransactionParties} from "./resolveTransactionParties";
-import {buildOrderTransactionPlan} from "./buildOrderTransactionPlan";
+import {buildTransactionPlan} from "./buildOrderTransactionPlan";
 import {Transaction} from "../../../model/Transaction";
 import {executeTransactionPlanner} from "./executeTransactionPlan";
 import {LightrailTransactionPlanStep, TransactionPlanStep} from "./TransactionPlan";
@@ -142,7 +142,7 @@ async function createOrder(auth: giftbitRoutes.jwtauth.AuthorizationBadge, order
             postTaxSteps = postTaxSteps.sort(compareTransactionPlanSteps);
             console.log(`preTaxSteps: ${JSON.stringify(preTaxSteps)}`);
             console.log(`postTaxSteps: ${JSON.stringify(postTaxSteps)}`);
-            return buildOrderTransactionPlan(order, preTaxSteps, postTaxSteps);
+            return buildTransactionPlan(order, preTaxSteps, postTaxSteps);
         }
     );
 }

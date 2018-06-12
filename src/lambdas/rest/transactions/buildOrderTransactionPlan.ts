@@ -2,11 +2,61 @@ import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from
 import {OrderRequest} from "../../../model/TransactionRequest";
 import {getRuleFromCache} from "./getRuleFromCache";
 import {LineItemResponse} from "../../../model/LineItem";
-import {Value} from "../../../model/Value";
+import {Rule, Value} from "../../../model/Value";
 import * as bankersRounding from "bankers-rounding";
+import {listPermutations} from "../../utils/combinatoricUtils";
 
-export function buildOrderTransactionPlan(order: OrderRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
+export function buildTransactionPlan(order: OrderRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
+    let bestPlan: TransactionPlan;
+
+    if (preTaxSteps.length > 0 && postTaxSteps.length > 0) {
+        console.log("there are perms of each!");
+        let preTaxPerms = listPermutations(preTaxSteps);
+        for (let preTaxPerm of preTaxPerms) {
+            let postTaxPerms = listPermutations(postTaxSteps);
+            for (let postTaxPerm of postTaxPerms) {
+                bestPlan = calculateTransactionPlanAndCompareAndReturnBest(order, preTaxPerm, postTaxPerm, bestPlan)
+            }
+        }
+    } else if (preTaxSteps.length > 0 && postTaxSteps.length === 0) {
+        console.log("no post steps!");
+        let preTaxPerms = listPermutations(preTaxSteps);
+        for (let preTaxPerm of preTaxPerms) {
+            bestPlan = calculateTransactionPlanAndCompareAndReturnBest(order, preTaxPerm, [], bestPlan)
+        }
+    } else if (preTaxSteps.length === 0 && postTaxSteps.length > 0) {
+        console.log("no pre steps!");
+        let postTaxPerms = listPermutations(postTaxSteps);
+        console.log(`\n\npostTaxPerms: ${JSON.stringify(postTaxPerms)}\n\n`);
+        for (let postTaxPerm of postTaxPerms) {
+            bestPlan = calculateTransactionPlanAndCompareAndReturnBest(order, [], postTaxPerm, bestPlan)
+        }
+    } else {
+        console.log(`No steps!`)
+    }
+
+    console.log(`overall best plan = ${JSON.stringify(bestPlan)}\n\n\n\n`);
+    return bestPlan;
+}
+
+function calculateTransactionPlanAndCompareAndReturnBest(order: OrderRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[], best: TransactionPlan): TransactionPlan {
+    let newPlan = calculateTransactionPlan(order, preTaxSteps, postTaxSteps);
+    console.log(`new plans totals: ${JSON.stringify(newPlan.totals)}`);
+    if (!best || newPlan.totals.payable < best.totals.payable) {
+        best = newPlan;
+        console.log(`Found a better perm. ${JSON.stringify(best)}`);
+    } else {
+        console.log("old plan was better.")
+    }
+    return best
+}
+
+export function calculateTransactionPlan(order: OrderRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
     let transactionPlan = initializeTransactionPlan(order, preTaxSteps.concat(postTaxSteps));
+    console.log(`\nbuild order transaction plan:\n${JSON.stringify(transactionPlan)}\n\n`);
+    for (let step of preTaxSteps.concat(postTaxSteps)) {
+        console.log(JSON.stringify(step));
+    }
     processTransactionSteps(preTaxSteps, transactionPlan);
     applyTax(transactionPlan);
     processTransactionSteps(postTaxSteps, transactionPlan);
@@ -90,11 +140,10 @@ function processLightrailTransactionStep(step: LightrailTransactionPlanStep, tra
             break; // The item has been paid for, skip.
         }
         if (value.redemptionRule) {
-            const context = {
-                lineItems: transactionPlan.lineItems,
-                currentLineItem: item
-            };
-            if (!getRuleFromCache(value.redemptionRule.rule).evaluateToBoolean(context)) {
+            if (!evaluateRedemptionRule(value.redemptionRule, {
+                    currentLineItem: item,
+                    transactionPlan: transactionPlan
+                })) {
                 console.log(`ValueStore ${JSON.stringify(value)} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
                 break;
             }
@@ -104,7 +153,10 @@ function processLightrailTransactionStep(step: LightrailTransactionPlanStep, tra
         if (item.lineTotal.remainder > 0) {
             let amount: number;
             if (value.valueRule) {
-                amount = Math.min(item.lineTotal.remainder, getRuleFromCache(value.valueRule.rule).evaluateToNumber(context) | 0);
+                amount = Math.min(item.lineTotal.remainder, evaluateValueRule(value.valueRule, {
+                    currentLineItem: item,
+                    transactionPlan: transactionPlan
+                }) | 0);
             } else {
                 amount = Math.min(item.lineTotal.remainder, value.balance);
                 value.balance -= amount;
@@ -117,6 +169,7 @@ function processLightrailTransactionStep(step: LightrailTransactionPlanStep, tra
             }
         }
     }
+    // todo - if transacted against, reduce uses. This means that
 }
 
 function applyTax(transactionPlan: TransactionPlan): void {
@@ -149,4 +202,17 @@ function calculateTotalsFromLineItems(transactionPlan: TransactionPlan): void {
         transactionPlan.totals.payable += item.lineTotal.payable;
     }
     transactionPlan.totals.remainder = calculateRemainderFromLineItems(transactionPlan.lineItems);
+}
+
+export function evaluateValueRule(valueRule: Rule, context: ValueRuleInterface): number {
+    return getRuleFromCache(valueRule.rule).evaluateToNumber(context);
+}
+
+export function evaluateRedemptionRule(valueRule: Rule, context: ValueRuleInterface): boolean {
+    return getRuleFromCache(valueRule.rule).evaluateToBoolean(context);
+}
+
+interface ValueRuleInterface {
+    transactionPlan: TransactionPlan;
+    currentLineItem: LineItemResponse;
 }
