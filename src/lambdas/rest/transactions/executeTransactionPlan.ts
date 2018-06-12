@@ -69,10 +69,6 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
         }
 
         for (let stepIx = 0; stepIx < plan.steps.length; stepIx++) {
-            if (plan.steps[stepIx].amount === 0) {
-                continue;
-            }
-
             const step = plan.steps[stepIx] as LightrailTransactionPlanStep;
             let query = trx.into("Values")
                 .where({
