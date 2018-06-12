@@ -71,7 +71,9 @@ describe("rest/transactions/executeTransactionPlan", () => {
                 }
             ],
             totals: {remainder: 0},
-            lineItems: null
+            lineItems: null,
+            paymentSources: null,
+            metadata: null
         };
 
         let err: TransactionPlanError;
@@ -134,7 +136,9 @@ describe("rest/transactions/executeTransactionPlan", () => {
                 }
             ],
             totals: {remainder: null},
-            lineItems: null
+            lineItems: null,
+            paymentSources: null,
+            metadata: null
         };
 
         let err: TransactionPlanError;
