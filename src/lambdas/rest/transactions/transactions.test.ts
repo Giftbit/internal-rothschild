@@ -327,7 +327,6 @@ describe("/v2/transactions", () => {
                 ],
                 steps: [
                     {
-                        transactionId: "order-1",
                         rail: "lightrail",
                         valueId: value1.id,
                         code: null,
@@ -337,7 +336,6 @@ describe("/v2/transactions", () => {
                         balanceChange: -50
                     },
                     {
-                        transactionId: "order-1",
                         rail: "lightrail",
                         valueId: "vs-gc-2",
                         balanceAfter: 1,

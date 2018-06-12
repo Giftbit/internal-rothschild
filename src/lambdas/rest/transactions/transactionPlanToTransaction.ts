@@ -46,7 +46,6 @@ function transactionPlanStepToTransactionStep(step: TransactionPlanStep, plan: T
 function lightrailTransactionPlanStepToTransactionStep(step: LightrailTransactionPlanStep, plan: TransactionPlan): LightrailTransactionStep {
     return {
         rail: "lightrail",
-        transactionId: plan.id,
         valueId: step.value.id,
         contactId: step.value.contactId,
         code: step.value.code,
@@ -59,7 +58,6 @@ function lightrailTransactionPlanStepToTransactionStep(step: LightrailTransactio
 function stripeTransactionPlanStepToTransactionStep(step: StripeTransactionPlanStep, plan: TransactionPlan): StripeTransactionStep {
     const res: StripeTransactionStep = {
         rail: "stripe",
-        transactionId: plan.id,
         amount: step.amount,
     };
     if (step.chargeResult) {
@@ -72,7 +70,6 @@ function stripeTransactionPlanStepToTransactionStep(step: StripeTransactionPlanS
 function internalTransactionPlanStepToTransactionStep(step: InternalTransactionPlanStep, plan: TransactionPlan): InternalTransactionStep {
     return {
         rail: "internal",
-        transactionId: plan.id,
         id: step.internalId,
         balanceBefore: step.balance,
         balanceAfter: step.balance + step.amount,

@@ -52,7 +52,6 @@ describe("/v2/transactions/debit", () => {
             steps: [
                 {
                     rail: "lightrail",
-                    transactionId: "debit-1",
                     valueId: value1.id,
                     code: null,
                     contactId: null,
@@ -106,7 +105,6 @@ describe("/v2/transactions/debit", () => {
             steps: [
                 {
                     rail: "lightrail",
-                    transactionId: "debit-2",
                     valueId: value1.id,
                     code: null,
                     contactId: null,
@@ -146,7 +144,6 @@ describe("/v2/transactions/debit", () => {
             steps: [
                 {
                     rail: "lightrail",
-                    transactionId: "debit-3",
                     valueId: value1.id,
                     code: null,
                     contactId: null,

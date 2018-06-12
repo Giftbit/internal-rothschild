@@ -82,7 +82,6 @@ describe("/v2/transactions/transfer", () => {
         const sourceStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad1.id) as LightrailTransactionStep;
         chai.assert.deepEqual(sourceStep, {
             rail: "lightrail",
-            transactionId: "transfer-1",
             valueId: valueCad1.id,
             code: null,
             contactId: null,
@@ -94,7 +93,6 @@ describe("/v2/transactions/transfer", () => {
         const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad2.id) as LightrailTransactionStep;
         chai.assert.deepEqual(destStep, {
             rail: "lightrail",
-            transactionId: "transfer-1",
             valueId: valueCad2.id,
             code: null,
             contactId: null,
@@ -174,7 +172,6 @@ describe("/v2/transactions/transfer", () => {
         const sourceStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad1.id) as LightrailTransactionStep;
         chai.assert.deepEqual(sourceStep, {
             rail: "lightrail",
-            transactionId: "transfer-2",
             valueId: valueCad1.id,
             code: null,
             contactId: null,
@@ -186,7 +183,6 @@ describe("/v2/transactions/transfer", () => {
         const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad2.id) as LightrailTransactionStep;
         chai.assert.deepEqual(destStep, {
             rail: "lightrail",
-            transactionId: "transfer-2",
             valueId: valueCad2.id,
             code: null,
             contactId: null,
@@ -236,7 +232,6 @@ describe("/v2/transactions/transfer", () => {
         const sourceStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad1.id) as LightrailTransactionStep;
         chai.assert.deepEqual(sourceStep, {
             rail: "lightrail",
-            transactionId: "transfer-3",
             valueId: valueCad1.id,
             code: null,
             contactId: null,
@@ -248,7 +243,6 @@ describe("/v2/transactions/transfer", () => {
         const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad2.id) as LightrailTransactionStep;
         chai.assert.deepEqual(destStep, {
             rail: "lightrail",
-            transactionId: "transfer-3",
             valueId: valueCad2.id,
             code: null,
             contactId: null,

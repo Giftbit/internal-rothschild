@@ -51,7 +51,6 @@ describe("/v2/transactions/credit", () => {
             steps: [
                 {
                     rail: "lightrail",
-                    transactionId: "credit-1",
                     valueId: value.id,
                     code: null,
                     contactId: null,
@@ -105,7 +104,6 @@ describe("/v2/transactions/credit", () => {
             steps: [
                 {
                     rail: "lightrail",
-                    transactionId: "credit-2",
                     valueId: value.id,
                     code: null,
                     contactId: null,

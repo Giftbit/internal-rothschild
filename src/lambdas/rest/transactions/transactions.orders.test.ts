@@ -90,7 +90,6 @@ describe("/v2/transactions/order", () => {
             steps: [
                 {
                     rail: "lightrail",
-                    transactionId: "order-1",
                     valueId: giftCard.id,
                     code: null,
                     contactId: null,
@@ -189,7 +188,6 @@ describe("/v2/transactions/order", () => {
                 {
                     rail: "lightrail",
                     valueId: promotion.id,
-                    transactionId: request.id,
                     code: null,
                     contactId: null,
                     balanceBefore: 10,
@@ -198,7 +196,6 @@ describe("/v2/transactions/order", () => {
                 },
                 {
                     rail: "lightrail",
-                    transactionId: request.id,
                     valueId: giftCard.id,
                     code: null,
                     contactId: null,
@@ -343,7 +340,6 @@ describe("/v2/transactions/order", () => {
             steps: [
                 {
                     rail: "lightrail",
-                    transactionId: request.id,
                     valueId: preTaxPromotion.id,
                     code: null,
                     contactId: null,
@@ -353,7 +349,6 @@ describe("/v2/transactions/order", () => {
                 },
                 {
                     rail: "lightrail",
-                    transactionId: request.id,
                     valueId: postTaxPromotion.id,
                     code: null,
                     contactId: null,
@@ -363,7 +358,6 @@ describe("/v2/transactions/order", () => {
                 },
                 {
                     rail: "lightrail",
-                    transactionId: request.id,
                     valueId: giftCard.id,
                     code: null,
                     contactId: null,
@@ -506,7 +500,6 @@ describe("/v2/transactions/order", () => {
             steps: [
                 {
                     rail: "lightrail",
-                    transactionId: request.id,
                     valueId: preTaxPromotion.id,
                     code: null,
                     contactId: null,
@@ -516,7 +509,6 @@ describe("/v2/transactions/order", () => {
                 },
                 {
                     rail: "lightrail",
-                    transactionId: request.id,
                     valueId: giftCard.id,
                     code: null,
                     contactId: null,
