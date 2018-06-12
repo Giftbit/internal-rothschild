@@ -2,6 +2,8 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as testUtils from "../../../testUtils";
+import {alternateTestUser, defaultTestUser} from "../../../testUtils";
+import * as currencies from "../currencies";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
 import {installRest} from "../index";
@@ -16,7 +18,7 @@ describe("/v2/transactions", () => {
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
         installRest(router);
 
-        await testUtils.addCurrency(router, {
+        await currencies.createCurrency(defaultTestUser.auth, {
             code: "CAD",
             name: "Canadian bucks",
             symbol: "$",
@@ -257,12 +259,13 @@ describe("/v2/transactions", () => {
         });
 
         it("doesn't leak transaction steps", async () => {
-            await testUtils.addCurrency(router, {
+            await currencies.createCurrency(alternateTestUser.auth, {
                 code: "CAD",
                 name: "Canadian bucks",
                 symbol: "$",
                 decimalPlaces: 2
-            }, true);
+            });
+
 
             const postValueResp1 = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/values", "POST", {
                 headers: {Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`},
