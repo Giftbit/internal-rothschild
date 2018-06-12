@@ -111,6 +111,10 @@ describe("/v2/transactions/order", () => {
         const getValueStoreResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
         chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(getValueStoreResp.body)}`);
         chai.assert.equal(getValueStoreResp.body.balance, 950);
+
+        const getOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/order-1", "GET");
+        chai.assert.equal(getOrderResp.statusCode, 200, `body=${JSON.stringify(getOrderResp.body)}`);
+        chai.assert.deepEqualExcluding(getOrderResp.body, postOrderResp.body, "statusCode");
     });
 
     it("process order with two ValueStores", async () => {
@@ -225,6 +229,10 @@ describe("/v2/transactions/order", () => {
         const getGiftCardVS = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
         chai.assert.equal(getGiftCardVS.statusCode, 200, `body=${JSON.stringify(getGiftCardVS.body)}`);
         chai.assert.equal(getGiftCardVS.body.balance, 960);
+
+        const getOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/order-2", "GET");
+        chai.assert.equal(getOrderResp.statusCode, 200, `body=${JSON.stringify(getOrderResp.body)}`);
+        chai.assert.deepEqualExcluding(getOrderResp.body, postOrderResp.body, "statusCode");
     });
 
     it("process order with 3 ValueStores with complicated tax implications", async () => {
@@ -395,6 +403,10 @@ describe("/v2/transactions/order", () => {
         const getGiftCardVS = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
         chai.assert.equal(getGiftCardVS.statusCode, 200, `body=${JSON.stringify(getGiftCardVS.body)}`);
         chai.assert.equal(getGiftCardVS.body.balance, 1);
+
+        const getOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/order-3", "GET");
+        chai.assert.equal(getOrderResp.statusCode, 200, `body=${JSON.stringify(getOrderResp.body)}`);
+        chai.assert.deepEqualExcluding(getOrderResp.body, postOrderResp.body, "statusCode");
     });
 
 
@@ -537,5 +549,9 @@ describe("/v2/transactions/order", () => {
         const getGiftCardVS = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
         chai.assert.equal(getGiftCardVS.statusCode, 200, `body=${JSON.stringify(getGiftCardVS.body)}`);
         chai.assert.equal(getGiftCardVS.body.balance, 0);
+
+        const getOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/order-4", "GET");
+        chai.assert.equal(getOrderResp.statusCode, 200, `body=${JSON.stringify(getOrderResp.body)}`);
+        chai.assert.deepEqualExcluding(getOrderResp.body, postOrderResp.body, "statusCode");
     });
 });

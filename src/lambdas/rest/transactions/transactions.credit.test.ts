@@ -70,6 +70,10 @@ describe("/v2/transactions/credit", () => {
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(postValueResp.body)}`);
         chai.assert.equal(getValueResp.body.balance, 1000);
+
+        const getCreditResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit-1", "GET");
+        chai.assert.equal(getCreditResp.statusCode, 200, `body=${JSON.stringify(getCreditResp.body)}`);
+        chai.assert.deepEqualExcluding(getCreditResp.body, postCreditResp.body, "statusCode");
     });
 
     it("409s on reusing a transaction ID", async () => {

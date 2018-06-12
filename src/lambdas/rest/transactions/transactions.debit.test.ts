@@ -71,6 +71,12 @@ describe("/v2/transactions/debit", () => {
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
         chai.assert.equal(getValueResp.body.balance, 401);
+
+
+        const getDebitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit-1", "GET");
+        chai.assert.equal(getDebitResp.statusCode, 200, `body=${JSON.stringify(getDebitResp.body)}`);
+        chai.assert.deepEqualExcluding(getDebitResp.body, postDebitResp.body, "statusCode");
+
     });
 
     it("409s on reusing a transaction ID", async () => {

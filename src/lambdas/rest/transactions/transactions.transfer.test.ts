@@ -108,6 +108,10 @@ describe("/v2/transactions/transfer", () => {
         const getValue2Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCad2.id}`, "GET");
         chai.assert.equal(getValue2Resp.statusCode, 200, `body=${JSON.stringify(getValue2Resp.body)}`);
         chai.assert.equal(getValue2Resp.body.balance, 3500);
+
+        const getTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer-1", "GET");
+        chai.assert.equal(getTransferResp.statusCode, 200, `body=${JSON.stringify(getTransferResp.body)}`);
+        chai.assert.deepEqualExcluding(getTransferResp.body, postTransferResp.body, "statusCode");
     });
 
     it("409s on reusing an id", async () => {
@@ -258,6 +262,10 @@ describe("/v2/transactions/transfer", () => {
         const getValue2Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCad2.id}`, "GET");
         chai.assert.equal(getValue2Resp.statusCode, 200, `body=${JSON.stringify(getValue2Resp.body)}`);
         chai.assert.equal(getValue2Resp.body.balance, 4000);
+
+        const getTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer-3", "GET");
+        chai.assert.equal(getTransferResp.statusCode, 200, `body=${JSON.stringify(getTransferResp.body)}`);
+        chai.assert.deepEqualExcluding(getTransferResp.body, postTransferResp.body, "statusCode");
     });
 
     it("409s transferring between valueIds where the source has insufficient value", async () => {
