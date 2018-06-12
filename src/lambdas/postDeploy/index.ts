@@ -4,7 +4,7 @@ import * as childProcess from "child_process";
 import * as mysql from "mysql2/promise";
 import * as path from "path";
 import {sendCloudFormationResponse} from "../../sendCloudFormationResponse";
-import {getDbCredentials} from "../../dbUtils/index";
+import {getDbCredentials} from "../../dbUtils/connection";
 
 // Every SQL migration file needs to be named here to be included in the dist.
 // Files must be named V#__migration_name.sql where # is the next number sequentially.
