@@ -12,22 +12,22 @@ export function buildTransactionPlan(order: OrderRequest, preTaxSteps: Transacti
 
     if (preTaxSteps.length > 0 && postTaxSteps.length > 0) {
         console.log("there are perms of each!");
-        let preTaxPerms = listPermutations(preTaxSteps);
+        let preTaxPerms = getStepPermutations(preTaxSteps);
         for (let preTaxPerm of preTaxPerms) {
-            let postTaxPerms = listPermutations(postTaxSteps);
+            let postTaxPerms = getStepPermutations(postTaxSteps);
             for (let postTaxPerm of postTaxPerms) {
                 bestPlan = calculateTransactionPlanAndCompareAndReturnBest(order, preTaxPerm, postTaxPerm, bestPlan)
             }
         }
     } else if (preTaxSteps.length > 0 && postTaxSteps.length === 0) {
         console.log("no post steps!");
-        let preTaxPerms = listPermutations(preTaxSteps);
+        let preTaxPerms = getStepPermutations(preTaxSteps);
         for (let preTaxPerm of preTaxPerms) {
             bestPlan = calculateTransactionPlanAndCompareAndReturnBest(order, preTaxPerm, [], bestPlan)
         }
     } else if (preTaxSteps.length === 0 && postTaxSteps.length > 0) {
         console.log("no pre steps!");
-        let postTaxPerms = listPermutations(postTaxSteps);
+        let postTaxPerms = getStepPermutations(postTaxSteps);
         console.log(`\n\npostTaxPerms: ${JSON.stringify(postTaxPerms)}\n\n`);
         for (let postTaxPerm of postTaxPerms) {
             bestPlan = calculateTransactionPlanAndCompareAndReturnBest(order, [], postTaxPerm, bestPlan)
@@ -40,16 +40,16 @@ export function buildTransactionPlan(order: OrderRequest, preTaxSteps: Transacti
     return bestPlan;
 }
 
-function calculateTransactionPlanAndCompareAndReturnBest(order: OrderRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[], best: TransactionPlan): TransactionPlan {
+function calculateTransactionPlanAndCompareAndReturnBest(order: OrderRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[], bestPlan: TransactionPlan): TransactionPlan {
     let newPlan = calculateTransactionPlan(order, preTaxSteps, postTaxSteps);
     console.log(`new plans totals: ${JSON.stringify(newPlan.totals)}`);
-    if (!best || newPlan.totals.payable < best.totals.payable) {
-        best = newPlan;
-        console.log(`Found a better perm. ${JSON.stringify(best)}`);
+    if (!bestPlan || (newPlan.totals.payable < bestPlan.totals.payable)) {
+        bestPlan = newPlan;
+        console.log(`Found a better perm. ${JSON.stringify(bestPlan)}`);
     } else {
         console.log("old plan was better.")
     }
-    return best
+    return bestPlan
 }
 
 export function calculateTransactionPlan(order: OrderRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
@@ -213,7 +213,26 @@ export function evaluateRedemptionRule(valueRule: Rule, context: ValueRuleInterf
     return getRuleFromCache(valueRule.rule).evaluateToBoolean(context);
 }
 
+// todo - this needs to be revisited... (o.O)
 interface ValueRuleInterface {
     transactionPlan: TransactionPlan;
     currentLineItem: LineItemResponse;
+}
+
+/**
+ * This takes out non lightrail steps and always does them last in the permutations.
+ * It also preserves the order of the non-lightrail steps.
+ * todo - requires more testing if this is a thing we want to do.
+ */
+export function getStepPermutations(steps: TransactionPlanStep[]): Array<Array<TransactionPlanStep>> {
+    const nonLightrailSteps = steps.filter(it => it.rail !== "lightrail");
+    const lighrailSteps = steps.filter(it => it.rail === "lightrail");
+
+    let lightrailPerms = listPermutations(lighrailSteps);
+    for (let perm of lightrailPerms) {
+        for (let nonLightrailStep of nonLightrailSteps) {
+            perm.push(nonLightrailStep)
+        }
+    }
+    return lightrailPerms;
 }

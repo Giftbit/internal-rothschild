@@ -3,6 +3,11 @@ import {listPermutations} from "./combinatoricUtils";
 
 describe("combinatoricUtils tests", () => {
 
+    it("test perms on 0 primitive objects", async () => {
+        const result = listPermutations([]);
+        chai.assert.deepEqual(result, [[]])
+    });
+
     it("test perms on 1 primitive object", async () => {
         const result = listPermutations(["A"]);
         chai.assert.deepEqual(result, [["A"]]);
