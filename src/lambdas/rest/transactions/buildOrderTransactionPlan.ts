@@ -1,10 +1,10 @@
 import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "./TransactionPlan";
 import {OrderRequest} from "../../../model/TransactionRequest";
-import {getRuleFromCache} from "./getRuleFromCache";
 import {LineItemResponse} from "../../../model/LineItem";
-import {Rule, Value} from "../../../model/Value";
+import {Value} from "../../../model/Value";
 import * as bankersRounding from "bankers-rounding";
 import {listPermutations} from "../../utils/combinatoricUtils";
+import {RuleContext} from "./RuleContext";
 
 // todo - limit of 1 promotion per order rule. rule context needs to be created and decided on
 export function buildTransactionPlan(order: OrderRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
@@ -141,10 +141,7 @@ function processLightrailTransactionStep(step: LightrailTransactionPlanStep, tra
             break; // The item has been paid for, skip.
         }
         if (value.redemptionRule) {
-            if (!evaluateRedemptionRule(value.redemptionRule, {
-                    currentLineItem: item,
-                    transactionPlan: transactionPlan
-                })) {
+            if (!new RuleContext(transactionPlan, item).evaluateRedemptionRule(value.redemptionRule)) {
                 console.log(`ValueStore ${JSON.stringify(value)} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
                 break;
             }
@@ -154,10 +151,7 @@ function processLightrailTransactionStep(step: LightrailTransactionPlanStep, tra
         if (item.lineTotal.remainder > 0) {
             let amount: number;
             if (value.valueRule) {
-                amount = Math.min(item.lineTotal.remainder, evaluateValueRule(value.valueRule, {
-                    currentLineItem: item,
-                    transactionPlan: transactionPlan
-                }) | 0);
+                amount = Math.min(item.lineTotal.remainder, new RuleContext(transactionPlan, item).evaluateValueRule(value.valueRule) | 0);
             } else {
                 amount = Math.min(item.lineTotal.remainder, value.balance);
                 value.balance -= amount;
@@ -203,20 +197,6 @@ function calculateTotalsFromLineItems(transactionPlan: TransactionPlan): void {
         transactionPlan.totals.payable += item.lineTotal.payable;
     }
     transactionPlan.totals.remainder = calculateRemainderFromLineItems(transactionPlan.lineItems);
-}
-
-export function evaluateValueRule(valueRule: Rule, context: ValueRuleInterface): number {
-    return getRuleFromCache(valueRule.rule).evaluateToNumber(context);
-}
-
-export function evaluateRedemptionRule(valueRule: Rule, context: ValueRuleInterface): boolean {
-    return getRuleFromCache(valueRule.rule).evaluateToBoolean(context);
-}
-
-// todo - this needs to be revisited... (o.O)
-interface ValueRuleInterface {
-    transactionPlan: TransactionPlan;
-    currentLineItem: LineItemResponse;
 }
 
 /**
