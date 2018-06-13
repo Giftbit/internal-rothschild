@@ -5,11 +5,55 @@ import {compareTransactionPlanSteps} from "./compareTransactionPlanSteps";
 import {CreditRequest, DebitRequest, OrderRequest, TransferRequest} from "../../../model/TransactionRequest";
 import {resolveTransactionParties} from "./resolveTransactionParties";
 import {buildOrderTransactionPlan} from "./buildOrderTransactionPlan";
-import {Transaction} from "../../../model/Transaction";
+import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {executeTransactionPlanner} from "./executeTransactionPlan";
+import {Pagination, PaginationParams} from "../../../model/Pagination";
+import {getKnexRead} from "../../../dbUtils/connection";
+import {Filters, TransactionFilterParams} from "../../../model/Filter";
+import {paginateQuery} from "../../../dbUtils/paginateQuery";
 import {LightrailTransactionPlanStep, TransactionPlanStep} from "./TransactionPlan";
+import getPaginationParams = Pagination.getPaginationParams;
+import getTransactionFilterParams = Filters.getTransactionFilterParams;
 
 export function installTransactionsRest(router: cassava.Router): void {
+    router.route("/v2/transactions")
+        .method("GET")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("giftbitUserId");
+            const res = await getTransactions(auth, getPaginationParams(evt), getTransactionFilterParams(evt));
+            return {
+                headers: Pagination.toHeaders(evt, res.pagination),
+                body: res.transactions
+            };
+        });
+
+    router.route("/v2/transactions/{id}")
+        .method("GET")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("giftbitUserId");
+            return {
+                body: await getTransaction(auth, evt.pathParameters.id)
+            };
+        });
+
+    router.route("/v2/transactions/{id}")
+        .method("PATCH")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("giftbitUserId");
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.FORBIDDEN, "Cannot modify transactions.", "CannotModifyTransaction");
+        });
+
+    router.route("/v2/transactions/{id}")
+        .method("DELETE")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("giftbitUserId");
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.FORBIDDEN, "Cannot delete transactions.", "CannotDeleteTransaction");
+        });
+
     router.route("/v2/transactions/credit")
         .method("POST")
         .handler(async evt => {
@@ -59,6 +103,66 @@ export function installTransactionsRest(router: cassava.Router): void {
         });
 }
 
+async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams, filter: TransactionFilterParams): Promise<{ transactions: Transaction[], pagination: Pagination }> {
+    auth.requireIds("giftbitUserId");
+    const knex = await getKnexRead();
+
+    let query = knex("Transactions")
+        .select()
+        .where({
+            userId: auth.giftbitUserId
+        });
+
+    if (filter.transactionType) {
+        query.where("transactionType", filter.transactionType);
+    }
+    if (filter.minCreatedDate) {
+        query.where("createdDate", ">", filter.minCreatedDate);
+    }
+    if (filter.maxCreatedDate) {
+        query.where("createdDate", "<", filter.maxCreatedDate);
+    }
+
+    if (!pagination.sort) {     // TODO should we be more prescriptive about this?
+        pagination.sort = {
+            field: "createdDate",
+            asc: true
+        };
+    }
+
+    const paginatedRes = await paginateQuery<DbTransaction>(
+        query,
+        pagination
+    );
+
+    const transacs: Transaction[] = await Promise.all(await DbTransaction.toTransactions(paginatedRes.body, auth.giftbitUserId));
+
+    return {
+        transactions: transacs,
+        pagination: paginatedRes.pagination
+    };
+}
+
+export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Transaction> {
+    auth.requireIds("giftbitUserId");
+
+    const knex = await getKnexRead();
+    const res: DbTransaction[] = await knex("Transactions")
+        .select()
+        .where({
+            userId: auth.giftbitUserId,
+            id
+        });
+    if (res.length === 0) {
+        throw new cassava.RestError(404);
+    }
+    if (res.length > 1) {
+        throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
+    }
+    const transacs: Transaction[] = await Promise.all(await DbTransaction.toTransactions(res, auth.giftbitUserId));
+    return transacs[0];   // at this point there will only ever be one
+}
+
 async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CreditRequest): Promise<Transaction> {
     return await executeTransactionPlanner(
         auth,
@@ -75,6 +179,7 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
             return {
                 id: req.id,
                 transactionType: "credit",
+                currency: req.currency,
                 steps: [
                     {
                         rail: "lightrail",
@@ -82,7 +187,10 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
                         amount: req.amount
                     }
                 ],
-                totals: {remainder: 0}
+                metadata: req.metadata,
+                totals: {remainder: 0},
+                lineItems: null,
+                paymentSources: null
             };
         }
     );
@@ -105,6 +213,7 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
             return {
                 id: req.id,
                 transactionType: "debit",
+                currency: req.currency,
                 steps: [
                     {
                         rail: "lightrail",
@@ -112,7 +221,10 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
                         amount: -amount
                     }
                 ],
-                totals: {remainder: req.amount - amount}
+                metadata: req.metadata,
+                totals: {remainder: req.amount - amount},
+                lineItems: null,
+                paymentSources: null  // TODO need to make sense of 'source' in req vs 'paymentSources' in db
             };
         }
     );
@@ -169,6 +281,7 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
             return {
                 id: req.id,
                 transactionType: "transfer",
+                currency: req.currency,
                 steps: [
                     {
                         rail: "lightrail",
@@ -181,7 +294,10 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
                         amount
                     }
                 ],
-                totals: {remainder: req.amount - amount}
+                metadata: req.metadata,
+                totals: {remainder: req.amount - amount},
+                lineItems: null,
+                paymentSources: null  // TODO need to make sense of 'source' in req vs 'paymentSources' in db
             };
         }
     );

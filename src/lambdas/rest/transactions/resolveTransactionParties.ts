@@ -1,11 +1,15 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {
-    InternalTransactionParty, LightrailTransactionParty, StripeTransactionParty,
+    InternalTransactionParty,
+    LightrailTransactionParty,
+    StripeTransactionParty,
     TransactionParty
 } from "../../../model/TransactionRequest";
 import {
-    InternalTransactionPlanStep, LightrailTransactionPlanStep, StripeTransactionPlanStep,
+    InternalTransactionPlanStep,
+    LightrailTransactionPlanStep,
+    StripeTransactionPlanStep,
     TransactionPlanStep
 } from "./TransactionPlan";
 import {DbValue, Value} from "../../../model/Value";

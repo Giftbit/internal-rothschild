@@ -62,7 +62,8 @@ describe("/v2/transactions/order", () => {
         chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
         chai.assert.deepEqualExcluding(postOrderResp.body, {
             id: "order-1",
-            transactionType: "debit",
+            transactionType: "order",
+            currency: "CAD",
             totals: {
                 subTotal: 50,
                 tax: 0,
@@ -90,20 +91,30 @@ describe("/v2/transactions/order", () => {
                 {
                     rail: "lightrail",
                     valueId: giftCard.id,
-                    // valueStoreType: giftCard.valueStoreType,
-                    currency: giftCard.currency,
                     code: null,
                     contactId: null,
                     balanceBefore: 1000,
                     balanceAfter: 950,
                     balanceChange: -50
                 }
-            ]
+            ],
+            "paymentSources": [
+                {
+                    "rail": "lightrail",
+                    "valueId": "basic-order-vs"
+                }
+            ],
+            metadata: null,
+            createdDate: null
         }, ["createdDate"]);
 
         const getValueStoreResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
         chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(getValueStoreResp.body)}`);
         chai.assert.equal(getValueStoreResp.body.balance, 950);
+
+        const getOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/order-1", "GET");
+        chai.assert.equal(getOrderResp.statusCode, 200, `body=${JSON.stringify(getOrderResp.body)}`);
+        chai.assert.deepEqualExcluding(getOrderResp.body, postOrderResp.body, "statusCode");
     });
 
     it("process order with two ValueStores", async () => {
@@ -152,7 +163,8 @@ describe("/v2/transactions/order", () => {
         chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
         chai.assert.deepEqualExcluding(postOrderResp.body, {
             id: request.id,
-            transactionType: "debit",
+            transactionType: "order",
+            currency: "CAD",
             totals: {
                 subTotal: 50,
                 tax: 0,
@@ -180,8 +192,6 @@ describe("/v2/transactions/order", () => {
                 {
                     rail: "lightrail",
                     valueId: promotion.id,
-                    // valueStoreType: promotion.valueStoreType,
-                    currency: promotion.currency,
                     code: null,
                     contactId: null,
                     balanceBefore: 10,
@@ -191,15 +201,25 @@ describe("/v2/transactions/order", () => {
                 {
                     rail: "lightrail",
                     valueId: giftCard.id,
-                    // valueStoreType: giftCard.valueStoreType,
-                    currency: giftCard.currency,
                     code: null,
                     contactId: null,
                     balanceBefore: 1000,
                     balanceAfter: 960,
                     balanceChange: -40
                 }
-            ]
+            ],
+            "paymentSources": [
+                {
+                    "rail": "lightrail",
+                    "valueId": "vs-order2-giftcard"
+                },
+                {
+                    "rail": "lightrail",
+                    "valueId": "vs-order2-promotion"
+                }
+            ],
+            metadata: null,
+            createdDate: null
         }, ["createdDate"]);
 
         const getPromotionVS = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${promotion.id}`, "GET");
@@ -209,6 +229,10 @@ describe("/v2/transactions/order", () => {
         const getGiftCardVS = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
         chai.assert.equal(getGiftCardVS.statusCode, 200, `body=${JSON.stringify(getGiftCardVS.body)}`);
         chai.assert.equal(getGiftCardVS.body.balance, 960);
+
+        const getOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/order-2", "GET");
+        chai.assert.equal(getOrderResp.statusCode, 200, `body=${JSON.stringify(getOrderResp.body)}`);
+        chai.assert.deepEqualExcluding(getOrderResp.body, postOrderResp.body, "statusCode");
     });
 
     it("process order with 3 ValueStores with complicated tax implications", async () => {
@@ -280,7 +304,8 @@ describe("/v2/transactions/order", () => {
         chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
         chai.assert.deepEqualExcluding(postOrderResp.body, {
             id: request.id,
-            transactionType: "debit",
+            transactionType: "order",
+            currency: "CAD",
             totals: {
                 subTotal: 1166,
                 tax: 68,
@@ -324,8 +349,6 @@ describe("/v2/transactions/order", () => {
                 {
                     rail: "lightrail",
                     valueId: preTaxPromotion.id,
-                    // valueStoreType: preTaxPromotion.valueStoreType,
-                    currency: preTaxPromotion.currency,
                     code: null,
                     contactId: null,
                     balanceBefore: 200,
@@ -335,8 +358,6 @@ describe("/v2/transactions/order", () => {
                 {
                     rail: "lightrail",
                     valueId: postTaxPromotion.id,
-                    // valueStoreType: postTaxPromotion.valueStoreType,
-                    currency: postTaxPromotion.currency,
                     code: null,
                     contactId: null,
                     balanceBefore: 25,
@@ -346,15 +367,29 @@ describe("/v2/transactions/order", () => {
                 {
                     rail: "lightrail",
                     valueId: giftCard.id,
-                    // valueStoreType: giftCard.valueStoreType,
-                    currency: giftCard.currency,
                     code: null,
                     contactId: null,
                     balanceBefore: 1010,
                     balanceAfter: 1,
                     balanceChange: -1009
                 }
-            ]
+            ],
+            "paymentSources": [
+                {
+                    "rail": "lightrail",
+                    "valueId": "vs-order3-giftcard"
+                },
+                {
+                    "rail": "lightrail",
+                    "valueId": "vs-order3-promotion1"
+                },
+                {
+                    "rail": "lightrail",
+                    "valueId": "vs-order3-promotion2"
+                }
+            ],
+            metadata: null,
+            createdDate: null
         }, ["createdDate"]);
 
         const getPreTaxPromo = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${preTaxPromotion.id}`, "GET");
@@ -368,6 +403,10 @@ describe("/v2/transactions/order", () => {
         const getGiftCardVS = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
         chai.assert.equal(getGiftCardVS.statusCode, 200, `body=${JSON.stringify(getGiftCardVS.body)}`);
         chai.assert.equal(getGiftCardVS.body.balance, 1);
+
+        const getOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/order-3", "GET");
+        chai.assert.equal(getOrderResp.statusCode, 200, `body=${JSON.stringify(getOrderResp.body)}`);
+        chai.assert.deepEqualExcluding(getOrderResp.body, postOrderResp.body, "statusCode");
     });
 
 
@@ -429,7 +468,8 @@ describe("/v2/transactions/order", () => {
         chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
         chai.assert.deepEqualExcluding(postOrderResp.body, {
             id: request.id,
-            transactionType: "debit",
+            transactionType: "order",
+            currency: "CAD",
             totals: {
                 subTotal: 1166,
                 tax: 68,
@@ -473,8 +513,6 @@ describe("/v2/transactions/order", () => {
                 {
                     rail: "lightrail",
                     valueId: preTaxPromotion.id,
-                    // valueStoreType: preTaxPromotion.valueStoreType,
-                    currency: preTaxPromotion.currency,
                     code: null,
                     contactId: null,
                     balanceBefore: 200,
@@ -484,15 +522,24 @@ describe("/v2/transactions/order", () => {
                 {
                     rail: "lightrail",
                     valueId: giftCard.id,
-                    // valueStoreType: giftCard.valueStoreType,
-                    currency: giftCard.currency,
                     code: null,
                     contactId: null,
                     balanceBefore: 500,
                     balanceAfter: 0,
                     balanceChange: -500
                 }
-            ]
+            ],
+            "paymentSources": [
+                {
+                    "rail": "lightrail",
+                    "valueId": "vs-order4-giftcard"
+                },
+                {
+                    "rail": "lightrail",
+                    "valueId": "vs-order4-promotion1"
+                }
+            ],
+            metadata: null
         }, ["createdDate"]);
 
         const getPreTaxPromo = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${preTaxPromotion.id}`, "GET");
@@ -502,5 +549,9 @@ describe("/v2/transactions/order", () => {
         const getGiftCardVS = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
         chai.assert.equal(getGiftCardVS.statusCode, 200, `body=${JSON.stringify(getGiftCardVS.body)}`);
         chai.assert.equal(getGiftCardVS.body.balance, 0);
+
+        const getOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/order-4", "GET");
+        chai.assert.equal(getOrderResp.statusCode, 200, `body=${JSON.stringify(getOrderResp.body)}`);
+        chai.assert.deepEqualExcluding(getOrderResp.body, postOrderResp.body, "statusCode");
     });
 });
