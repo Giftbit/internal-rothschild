@@ -297,6 +297,7 @@ Resources:
           # Routing
           - Effect: Allow
             Action:
+              - ec2:AllocateAddress
               - ec2:AssociateRouteTable
               - ec2:AttachInternetGateway
               - ec2:AuthorizeSecurityGroupIngress
@@ -316,6 +317,7 @@ Resources:
               - ec2:DeleteVpc
               - ec2:Describe*
               - ec2:DetachInternetGateway
+              - ec2:DisassociateAddress
               - ec2:DisassociateRouteTable
               - ec2:ModifyVpcAttribute
               - ec2:RevokeSecurityGroupEgress
