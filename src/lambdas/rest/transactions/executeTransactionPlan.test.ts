@@ -62,6 +62,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
         const plan: TransactionPlan = {
             id: "xxx",
             transactionType: "debit",
+            currency: "CAD",
             steps: [
                 {
                     rail: "lightrail",
@@ -69,7 +70,10 @@ describe("rest/transactions/executeTransactionPlan", () => {
                     amount: -3500    // more than is in the value
                 }
             ],
-            totals: {remainder: 0}
+            totals: {remainder: 0},
+            lineItems: null,
+            paymentSources: null,
+            metadata: null
         };
 
         let err: TransactionPlanError;
@@ -123,6 +127,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
         const plan: TransactionPlan = {
             id: "xxx",
             transactionType: "credit",
+            currency: "CAD",
             steps: [
                 {
                     rail: "lightrail",
@@ -130,7 +135,10 @@ describe("rest/transactions/executeTransactionPlan", () => {
                     amount: 1200
                 }
             ],
-            totals: {remainder: null}
+            totals: {remainder: null},
+            lineItems: null,
+            paymentSources: null,
+            metadata: null
         };
 
         let err: TransactionPlanError;

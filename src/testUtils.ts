@@ -2,9 +2,10 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as fs from "fs";
 import * as mysql from "mysql2/promise";
-import papaparse = require("papaparse");
 import * as path from "path";
 import {getDbCredentials} from "./dbUtils/connection";
+import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
+import papaparse = require("papaparse");
 
 if (!process.env["TEST_ENV"]) {
     console.log("Env var TEST_ENV is undefined.  This is not a test environment!");
@@ -13,12 +14,56 @@ if (!process.env["TEST_ENV"]) {
 
 export const defaultTestUser = {
     userId: "default-test-user",
-    jwt: "eyJ2ZXIiOjIsInZhdiI6MSwiYWxnIjoiSFMyNTYiLCJ0eXAiOiJKV1QifQ.eyJnIjp7Imd1aSI6InRlc3QtdXNlci1hIiwiZ21pIjoidGVzdC11c2VyLWEifSwiaWF0IjoiMjAxNy0wMy0wN1QxODozNDowNi42MDMrMDAwMCIsImp0aSI6ImJhZGdlLWRkOTViOWI1ODJlODQwZWNiYTFjYmY0MTM2NWQ1N2UxIiwic2NvcGVzIjpbXSwicm9sZXMiOlsiYWNjb3VudE1hbmFnZXIiLCJjb250YWN0TWFuYWdlciIsImN1c3RvbWVyU2VydmljZU1hbmFnZXIiLCJjdXN0b21lclNlcnZpY2VSZXByZXNlbnRhdGl2ZSIsInBvaW50T2ZTYWxlIiwicHJvZ3JhbU1hbmFnZXIiLCJwcm9tb3RlciIsInJlcG9ydGVyIiwic2VjdXJpdHlNYW5hZ2VyIiwidGVhbUFkbWluIiwid2ViUG9ydGFsIl19.Pc1EQL77Z8SsIjlPJqOuVdksx8ZiyFfGwAgFVSOmuMQ"
+    jwt: "eyJ2ZXIiOjIsInZhdiI6MSwiYWxnIjoiSFMyNTYiLCJ0eXAiOiJKV1QifQ.eyJnIjp7Imd1aSI6InRlc3QtdXNlci1hIiwiZ21pIjoidGVzdC11c2VyLWEifSwiaWF0IjoiMjAxNy0wMy0wN1QxODozNDowNi42MDMrMDAwMCIsImp0aSI6ImJhZGdlLWRkOTViOWI1ODJlODQwZWNiYTFjYmY0MTM2NWQ1N2UxIiwic2NvcGVzIjpbXSwicm9sZXMiOlsiYWNjb3VudE1hbmFnZXIiLCJjb250YWN0TWFuYWdlciIsImN1c3RvbWVyU2VydmljZU1hbmFnZXIiLCJjdXN0b21lclNlcnZpY2VSZXByZXNlbnRhdGl2ZSIsInBvaW50T2ZTYWxlIiwicHJvZ3JhbU1hbmFnZXIiLCJwcm9tb3RlciIsInJlcG9ydGVyIiwic2VjdXJpdHlNYW5hZ2VyIiwidGVhbUFkbWluIiwid2ViUG9ydGFsIl19.Pc1EQL77Z8SsIjlPJqOuVdksx8ZiyFfGwAgFVSOmuMQ",
+    auth: new AuthorizationBadge({
+        "g": {
+            "gui": "test-user-a",
+            "gmi": "test-user-a"
+        },
+        "iat": "2017-03-07T18:34:06.603+0000",
+        "jti": "badge-dd95b9b582e840ecba1cbf41365d57e1",
+        "scopes": [],
+        "roles": [
+            "accountManager",
+            "contactManager",
+            "customerServiceManager",
+            "customerServiceRepresentative",
+            "pointOfSale",
+            "programManager",
+            "promoter",
+            "reporter",
+            "securityManager",
+            "teamAdmin",
+            "webPortal"
+        ]
+    })
 };
 
 export const alternateTestUser = {
     userId: "alternate-test-user",
-    jwt: "eyJ2ZXIiOjIsInZhdiI6MSwiYWxnIjoiSFMyNTYiLCJ0eXAiOiJKV1QifQ.eyJnIjp7Imd1aSI6InRlc3QtdXNlci1iIiwiZ21pIjoidGVzdC11c2VyLWIifSwiaWF0IjoiMjAxOC0wMy0yM1QyMToyNToyNi44MTIrMDAwMCIsImp0aSI6ImJhZGdlLTJmMThmZDI5NmJjZDQ4OGVhZDg1MzU5ZWI2NjgwNDE5Iiwic2NvcGVzIjpbXSwicm9sZXMiOlsiYWNjb3VudE1hbmFnZXIiLCJjb250YWN0TWFuYWdlciIsImN1c3RvbWVyU2VydmljZU1hbmFnZXIiLCJjdXN0b21lclNlcnZpY2VSZXByZXNlbnRhdGl2ZSIsInBvaW50T2ZTYWxlIiwicHJvZ3JhbU1hbmFnZXIiLCJwcm9tb3RlciIsInJlcG9ydGVyIiwic2VjdXJpdHlNYW5hZ2VyIiwidGVhbUFkbWluIiwid2ViUG9ydGFsIl19.yLyfSbgdDoLv4gD9aPkXWB40yj2_vg4WqUnZg6-yNBY"
+    jwt: "eyJ2ZXIiOjIsInZhdiI6MSwiYWxnIjoiSFMyNTYiLCJ0eXAiOiJKV1QifQ.eyJnIjp7Imd1aSI6InRlc3QtdXNlci1iIiwiZ21pIjoidGVzdC11c2VyLWIifSwiaWF0IjoiMjAxOC0wMy0yM1QyMToyNToyNi44MTIrMDAwMCIsImp0aSI6ImJhZGdlLTJmMThmZDI5NmJjZDQ4OGVhZDg1MzU5ZWI2NjgwNDE5Iiwic2NvcGVzIjpbXSwicm9sZXMiOlsiYWNjb3VudE1hbmFnZXIiLCJjb250YWN0TWFuYWdlciIsImN1c3RvbWVyU2VydmljZU1hbmFnZXIiLCJjdXN0b21lclNlcnZpY2VSZXByZXNlbnRhdGl2ZSIsInBvaW50T2ZTYWxlIiwicHJvZ3JhbU1hbmFnZXIiLCJwcm9tb3RlciIsInJlcG9ydGVyIiwic2VjdXJpdHlNYW5hZ2VyIiwidGVhbUFkbWluIiwid2ViUG9ydGFsIl19.yLyfSbgdDoLv4gD9aPkXWB40yj2_vg4WqUnZg6-yNBY",
+    auth: new AuthorizationBadge({
+        "g": {
+            "gui": "test-user-b",
+            "gmi": "test-user-b"
+        },
+        "iat": "2018-03-23T21:25:26.812+0000",
+        "jti": "badge-2f18fd296bcd488ead85359eb6680419",
+        "scopes": [],
+        "roles": [
+            "accountManager",
+            "contactManager",
+            "customerServiceManager",
+            "customerServiceRepresentative",
+            "pointOfSale",
+            "programManager",
+            "promoter",
+            "reporter",
+            "securityManager",
+            "teamAdmin",
+            "webPortal"
+        ]
+    })
 };
 
 export async function resetDb(): Promise<void> {

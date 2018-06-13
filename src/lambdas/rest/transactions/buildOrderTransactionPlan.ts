@@ -40,6 +40,8 @@ export function buildTransactionPlan(order: OrderRequest, preTaxSteps: Transacti
     return bestPlan;
 }
 
+const debug = false;
+
 function calculateTransactionPlanAndCompareAndReturnBest(order: OrderRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[], bestPlan: TransactionPlan): TransactionPlan {
     let newPlan = calculateTransactionPlan(order, preTaxSteps, postTaxSteps);
     console.log(`new plans totals: ${JSON.stringify(newPlan.totals)}`);
@@ -62,11 +64,13 @@ export function calculateTransactionPlan(order: OrderRequest, preTaxSteps: Trans
     applyTax(transactionPlan);
     processTransactionSteps(postTaxSteps, transactionPlan);
     calculateTotalsFromLineItems(transactionPlan);
-    console.log(`transactionPlan: ${JSON.stringify(transactionPlan)}`);
+    debug && console.log(`transactionPlan: ${JSON.stringify(transactionPlan)}`);
+
+    transactionPlan.steps = transactionPlan.steps.filter(s => s.amount !== 0);
     return transactionPlan;
 }
 
-function initializeTransactionPlan(order: OrderRequest, steps: TransactionPlanStep[]): TransactionPlan {
+function initializeOrderTransactionPlan(order: OrderRequest, steps: TransactionPlanStep[]): TransactionPlan {
     let lineItemResponses: LineItemResponse[] = [];
     for (let lineItem of order.lineItems) {
         lineItem.quantity = lineItem.quantity ? lineItem.quantity : 1;
@@ -86,7 +90,8 @@ function initializeTransactionPlan(order: OrderRequest, steps: TransactionPlanSt
     }
     return {
         id: order.id,
-        transactionType: "debit",
+        transactionType: "order",
+        currency: order.currency,
         lineItems: lineItemResponses,
         steps: steps,
         totals: {
@@ -95,7 +100,9 @@ function initializeTransactionPlan(order: OrderRequest, steps: TransactionPlanSt
             discount: 0,
             payable: 0,
             remainder: calculateRemainderFromLineItems(lineItemResponses),
-        }
+        },
+        metadata: order.metadata,
+        paymentSources: order.sources   // TODO if secure code, only return last four
     };
 }
 
@@ -130,7 +137,7 @@ function processTransactionSteps(steps: TransactionPlanStep[], transactionPlan: 
 }
 
 function processLightrailTransactionStep(step: LightrailTransactionPlanStep, transactionPlan: TransactionPlan): void {
-    console.log(`processing ValueStore ${JSON.stringify(step)}.`);
+    debug && console.log(`processing ValueStore ${JSON.stringify(step)}.`);
     let value = step.value;
     if (!isValueRedeemable(value)) {
         return;
@@ -141,13 +148,14 @@ function processLightrailTransactionStep(step: LightrailTransactionPlanStep, tra
             break; // The item has been paid for, skip.
         }
         if (value.redemptionRule) {
+            // todo - getRuleFromCache(value.redemptionRule.rule)
             if (!new RuleContext(transactionPlan, item).evaluateRedemptionRule(value.redemptionRule)) {
                 console.log(`ValueStore ${JSON.stringify(value)} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
                 break;
             }
         }
 
-        console.log(`ValueStore ${JSON.stringify(value)} CAN be applied to ${JSON.stringify(item)}.`);
+        debug && console.log(`ValueStore ${JSON.stringify(value)} CAN be applied to ${JSON.stringify(item)}.`);
         if (item.lineTotal.remainder > 0) {
             let amount: number;
             if (value.valueRule) {
