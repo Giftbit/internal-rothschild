@@ -326,7 +326,7 @@ Resources:
               - kms:DescribeKey
               - kms:TagResource
               - kms:UntagResource
-            Resource: !Sub "arn:aws:rds:${AWS::Region}:${AWS::AccountId}:key/*"
+            Resource: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*"
           # API Gateway (REST events)
 #          - Effect: Allow
 #            Action:
