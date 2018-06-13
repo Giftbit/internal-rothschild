@@ -319,6 +319,12 @@ Resources:
               - ec2:ModifyVpcAttribute
             Resource:
               "*"
+          # KMS
+          - Effect: Allow
+            Action:
+              - kms:CreateKey
+              - kms:DescribeKey
+            Resource: !Sub "arn:aws:rds:${AWS::Region}:${AWS::AccountId}:key/*"
           # API Gateway (REST events)
 #          - Effect: Allow
 #            Action:
