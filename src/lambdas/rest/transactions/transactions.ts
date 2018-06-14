@@ -78,7 +78,7 @@ export function installTransactionsRest(router: cassava.Router): void {
             };
         });
 
-    router.route("/v2/transactions/order")
+    router.route("/v2/transactions/checkout")
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
@@ -494,7 +494,7 @@ const transferSchema: jsonschema.Schema = {
 };
 
 const checkoutSchema: jsonschema.Schema = {
-    title: "order",
+    title: "checkout",
     type: "object",
     properties: {
         id: {
