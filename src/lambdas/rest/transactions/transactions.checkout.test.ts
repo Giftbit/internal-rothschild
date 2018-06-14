@@ -866,11 +866,11 @@ describe("/v2/transactions/checkout", () => {
             currency: "CAD"
         };
 
-        const postOrderResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/order", "POST", request);
+        const postOrderResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", request);
         chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
         chai.assert.deepEqualExcluding(postOrderResp.body, {
             "id": "order-453sert",
-            "transactionType": "order",
+            "transactionType": "checkout",
             "currency": "CAD",
             "totals": {
                 "subTotal": 750,
