@@ -99,7 +99,7 @@ export interface LightrailValueStorePaymentSource {
 export type TransactionType =
     "credit"
     | "debit"
-    | "order"
+    | "checkout"
     | "transfer"
     | "pending_create"
     | "pending_capture"

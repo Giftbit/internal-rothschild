@@ -1,8 +1,8 @@
 import * as chai from "chai";
 import {TransactionPlanStep} from "./TransactionPlan";
-import {getStepPermutations} from "./buildOrderTransactionPlan";
+import {getStepPermutations} from "./buildCheckoutTransactionPlan";
 
-describe("buildOrderTransactionPlan", () => {
+describe("buildCheckoutTransactionPlan", () => {
 
 
     const iBefore1: TransactionPlanStep = {

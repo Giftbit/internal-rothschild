@@ -2,7 +2,7 @@ import * as stripe from "stripe";
 import {TransactionPlanTotals, TransactionType} from "../../../model/Transaction";
 import {Value} from "../../../model/Value";
 import {LineItemResponse} from "../../../model/LineItem";
-import {OrderRequest, TransactionParty} from "../../../model/TransactionRequest";
+import {CheckoutRequest, TransactionParty} from "../../../model/TransactionRequest";
 
 export class TransactionPlan {
     id: string;
@@ -15,9 +15,9 @@ export class TransactionPlan {
     metadata: object | null;
 
 
-    constructor(order: OrderRequest, steps: TransactionPlanStep[]) {
+    constructor(checkout: CheckoutRequest, steps: TransactionPlanStep[]) {
         let lineItemResponses: LineItemResponse[] = [];
-        for (let lineItem of order.lineItems) {
+        for (let lineItem of checkout.lineItems) {
             lineItem.quantity = lineItem.quantity ? lineItem.quantity : 1;
             const subtotal = lineItem.unitPrice * lineItem.quantity;
             let lineItemResponse: LineItemResponse = {
@@ -33,13 +33,13 @@ export class TransactionPlan {
             };
             lineItemResponses.push(lineItemResponse);
         }
-        this.id = order.id;
-        this.transactionType = "order";
-        this.currency = order.currency;
+        this.id = checkout.id;
+        this.transactionType = "checkout";
+        this.currency = checkout.currency;
         this.lineItems = lineItemResponses;
         this.steps = steps;
-        this.metadata = order.metadata;
-        this.paymentSources = order.sources; // TODO if secure code, only return last four
+        this.metadata = checkout.metadata;
+        this.paymentSources = checkout.sources; // TODO if secure code, only return last four
         this.calculateTotalsFromLineItems();
     }
 
