@@ -132,6 +132,10 @@ Resources:
           Value: Rothschild
   PrivateSubnetRouting:
     Type: AWS::EC2::Route
+    DependsOn:
+      - PrivateSubnetARouteTableAssociation
+      - PrivateSubnetBRouteTableAssociation
+      - PrivateSubnetCRouteTableAssociation
     Properties:
       RouteTableId: !Ref PrivateSubnetRouteTable
       DestinationCidrBlock: 0.0.0.0/0
@@ -203,6 +207,8 @@ Resources:
           Value: Rothschild
   NatExitRouting:
     Type: AWS::EC2::Route
+    DependsOn:
+      - NatExitRouteTableAssociation
     Properties:
       RouteTableId: !Ref NatExitRouteTable
       DestinationCidrBlock: 0.0.0.0/0
