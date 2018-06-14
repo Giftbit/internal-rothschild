@@ -159,20 +159,17 @@ function applyTax(transactionPlan: TransactionPlan): void {
 export function getStepPermutations(steps: TransactionPlanStep[]): Array<Array<TransactionPlanStep>> {
     const stepsBeforeLightrail = steps.filter(it => it.rail === "internal" && it.beforeLightrail);
     const stepsAfterLightrail = steps.filter(it => it.rail !== "lightrail");
-    console.log("stepsAfterLightrail:  " + JSON.stringify(stepsAfterLightrail));
     const lighrailSteps = steps.filter(it => it.rail === "lightrail");
 
     let lightrailPerms = listPermutations(lighrailSteps);
-    console.log("1. " + JSON.stringify(lightrailPerms));
-    console.log("2. " + JSON.stringify(stepsBeforeLightrail));
+
+    let result: Array<Array<TransactionPlanStep>> = [];
     for (let perm of lightrailPerms) {
-        console.log("3. " + JSON.stringify(perm));
         perm = stepsBeforeLightrail.concat(perm);
-        console.log("4. " + JSON.stringify(perm));
         for (let nonLightrailStep of stepsAfterLightrail) {
             perm.push(nonLightrailStep);
-            console.log("5. " + JSON.stringify(perm));
         }
+        result.push(perm);
     }
-    return lightrailPerms;
+    return result;
 }
