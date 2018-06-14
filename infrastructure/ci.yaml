@@ -320,6 +320,8 @@ Resources:
               - ec2:DetachInternetGateway
               - ec2:DisassociateAddress
               - ec2:DisassociateRouteTable
+              - ec2:ModifyNetworkInterfaceAttribute
+              - ec2:ModifySubnetAttribute
               - ec2:ModifyVpcAttribute
               - ec2:ReleaseAddress
               - ec2:RevokeSecurityGroupEgress
