@@ -275,6 +275,7 @@ Resources:
             Action:
               - rds:AddTagsToResource
               - rds:CreateDBCluster
+              - rds:CreateDBClusterParameterGroup
               - rds:CreateDBInstance
               - rds:CreateDBInstanceReadReplica
               - rds:CreateDBSnapshot
@@ -283,15 +284,18 @@ Resources:
               - rds:Describe*
               - rds:ListTagsForResource
               - rds:ModifyDBCluster
+              - rds:ModifyDBClusterParameterGroup
               - rds:ModifyDBInstance
               - rds:ModifyDBSubnetGroup
               - rds:PromoteReadReplica
               - rds:PromoteReadReplicaDBCluster
               - rds:RemoveTagsFromResource
+              - rds:ResetDBClusterParameterGroup
               - rds:StartDBInstance
               - rds:StopDBInstance
             Resource:
               - !Sub "arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:*"
+              - !Sub "arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster-pg:*"
               - !Sub "arn:aws:rds:${AWS::Region}:${AWS::AccountId}:db:*"
               - !Sub "arn:aws:rds:${AWS::Region}:${AWS::AccountId}:subgrp:*"
           # Routing
