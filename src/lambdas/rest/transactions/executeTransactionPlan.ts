@@ -28,7 +28,9 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
             }
             return await executeTransactionPlan(auth, plan);
         } catch (err) {
+            console.log(`Err ${err} was thrown.`);
             if ((err as TransactionPlanError).isTransactionPlanError && (err as TransactionPlanError).isReplanable) {
+                console.log(`Retrying.`);
                 continue;
             }
             throw err;
@@ -76,7 +78,7 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
                     id: step.value.id
                 })
                 .increment("balance", step.amount);
-            if (step.amount < 0) {
+            if (step.amount < 0 && !step.value.valueRule /* if it has a valueRule then balance is 0 or null */) {
                 query = query.where("balance", ">=", -step.amount);
             }
             if (step.value.uses !== null) {

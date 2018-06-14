@@ -85,7 +85,7 @@ export interface StripeTransactionPlanStep {
     rail: "stripe";
     token: string;
     stripeSecretKey: string;
-    priority: number;
+    // priority: number; todo - do we want this? I don't think we do. Use order that stripe steps are passed in for prioritization.
     maxAmount: number | null;
     amount: number;
 

@@ -22,7 +22,7 @@ describe("/v2/transactions/order", () => {
         currencies.installCurrenciesRest(router);
     });
 
-    it("processes basic order", async () => {
+    it("setup", async () => {
         const currency: Currency = {
             code: "CAD",
             name: "Monopoly Money",
@@ -31,7 +31,9 @@ describe("/v2/transactions/order", () => {
         };
         const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency);
         chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
+    });
 
+    it("processes basic order", async () => {
         const giftCard: Partial<Value> = {
             id: "basic-order-vs",
             // type: "GIFTCARD",
@@ -119,7 +121,6 @@ describe("/v2/transactions/order", () => {
     });
 
     it("process order with two ValueStores", async () => {
-        console.log("wubawubawuba");
         const giftCard: Partial<Value> = {
             id: "vs-order2-giftcard",
             // valueStoreType: "GIFTCARD",
@@ -619,7 +620,6 @@ describe("/v2/transactions/order", () => {
         };
 
         const postOrderResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/order", "POST", request);
-        console.log(JSON.stringify(postOrderResp));
         chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
         chai.assert.deepEqualExcluding(postOrderResp.body, {
             "id": "order-5-valueRuleTest",
@@ -664,7 +664,17 @@ describe("/v2/transactions/order", () => {
                     }
                 }
             ],
-            "steps": [],
+            "steps": [
+                {
+                    "rail": "lightrail",
+                    "valueId": "test value rule 1",
+                    "contactId": null,
+                    "code": null,
+                    "balanceBefore": 0,
+                    "balanceAfter": -500,
+                    "balanceChange": -500
+                }
+            ],
             "paymentSources": [
                 {
                     "rail": "lightrail",
@@ -722,7 +732,6 @@ describe("/v2/transactions/order", () => {
         };
 
         const postOrderResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/order", "POST", request);
-        console.log(JSON.stringify(postOrderResp));
         chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
         chai.assert.deepEqualExcluding(postOrderResp.body, {
             "id": "order-5-234 ",
@@ -767,7 +776,17 @@ describe("/v2/transactions/order", () => {
                     }
                 }
             ],
-            "steps": [],
+            "steps": [
+                {
+                    "rail": "lightrail",
+                    "valueId": "test value rule324  1",
+                    "contactId": null,
+                    "code": null,
+                    "balanceBefore": 0,
+                    "balanceAfter": -250,
+                    "balanceChange": -250
+                }
+            ],
             "paymentSources": [
                 {
                     "rail": "lightrail",
@@ -775,6 +794,154 @@ describe("/v2/transactions/order", () => {
                 }
             ],
             "metadata": null
+        }, ["createdDate"]);
+    });
+
+    it("basic 10% off everything, and 20% off product promotion. ensure promotions don't stack and 20% is used.", async () => {
+        const cartPromotion: Partial<Value> = {
+            id: "test cart promotion",
+            currency: "CAD",
+            valueRule: {
+                rule: "currentLineItem.lineTotal.subtotal * 0.1",
+                explanation: "10% off everything"
+            },
+            redemptionRule: {
+                rule: "currentLineItem.lineTotal.discount == 0",
+                explanation: "limited to 1 promotion per item"
+            },
+            pretax: true,
+            discount: true
+        };
+
+        const productPromotion: Partial<Value> = {
+            id: "test product promotion p1",
+            currency: "CAD",
+            valueRule: {
+                rule: "currentLineItem.lineTotal.subtotal * 0.2",
+                explanation: "20% off p1"
+            },
+            redemptionRule: {
+                rule: "currentLineItem.lineTotal.discount == 0 && currentLineItem.productId == 'p1'",
+                explanation: "limited to 1 promotion per item"
+            },
+            pretax: true,
+            discount: true
+        };
+
+        const respCartPromo = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", cartPromotion);
+        chai.assert.equal(respCartPromo.statusCode, 201, `body=${JSON.stringify(respCartPromo.body)}`);
+
+        const respProductPromo = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", productPromotion);
+        chai.assert.equal(respProductPromo.statusCode, 201, `body=${JSON.stringify(respProductPromo.body)}`);
+
+        let request: any = {
+            id: "order-453sert",
+            allowRemainder: true,
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: cartPromotion.id
+                },
+                {
+                    rail: "lightrail",
+                    valueId: productPromotion.id
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "p1",
+                    unitPrice: 500,
+                    taxRate: 0.10
+                },
+                {
+                    type: "product",
+                    productId: "p2",
+                    unitPrice: 250,
+                    quantity: 1,
+                    taxRate: 0.10
+                }
+            ],
+            currency: "CAD"
+        };
+
+        const postOrderResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/order", "POST", request);
+        chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
+        chai.assert.deepEqualExcluding(postOrderResp.body, {
+            "id": "order-453sert",
+            "transactionType": "order",
+            "currency": "CAD",
+            "totals": {
+                "subTotal": 750,
+                "tax": 62,
+                "discount": 125,
+                "payable": 687,
+                "remainder": 687
+            },
+            "lineItems": [
+                {
+                    "type": "product",
+                    "productId": "p1",
+                    "unitPrice": 500,
+                    "taxRate": 0.1,
+                    "quantity": 1,
+                    "lineTotal": {
+                        "subtotal": 500,
+                        "taxable": 400,
+                        "tax": 40,
+                        "discount": 100,
+                        "remainder": 440,
+                        "payable": 440
+                    }
+                },
+                {
+                    "type": "product",
+                    "productId": "p2",
+                    "unitPrice": 250,
+                    "quantity": 1,
+                    "taxRate": 0.1,
+                    "lineTotal": {
+                        "subtotal": 250,
+                        "taxable": 225,
+                        "tax": 22,
+                        "discount": 25,
+                        "remainder": 247,
+                        "payable": 247
+                    }
+                }
+            ],
+            "steps": [
+                {
+                    "rail": "lightrail",
+                    "valueId": "test product promotion p1",
+                    "contactId": null,
+                    "code": null,
+                    "balanceBefore": 0,
+                    "balanceAfter": -100,
+                    "balanceChange": -100
+                },
+                {
+                    "rail": "lightrail",
+                    "valueId": "test cart promotion",
+                    "contactId": null,
+                    "code": null,
+                    "balanceBefore": 0,
+                    "balanceAfter": -25,
+                    "balanceChange": -25
+                }
+            ],
+            "paymentSources": [
+                {
+                    "rail": "lightrail",
+                    "valueId": "test cart promotion"
+                },
+                {
+                    "rail": "lightrail",
+                    "valueId": "test product promotion p1"
+                }
+            ],
+            "metadata": null,
+            "createdDate": "2018-06-14T21:30:26.000Z"
         }, ["createdDate"]);
     });
 });

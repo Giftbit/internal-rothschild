@@ -7,7 +7,7 @@ import {RuleContext} from "./RuleContext";
 
 // todo - limit of 1 promotion per order rule. rule context needs to be created and decided on
 export function buildOrderTransactionPlan(order: OrderRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
-    let bestPlan: TransactionPlan;
+    let bestPlan: TransactionPlan = null;
 
     if (preTaxSteps.length > 0 && postTaxSteps.length > 0) {
         console.log("there are perms of each!");
@@ -21,8 +21,9 @@ export function buildOrderTransactionPlan(order: OrderRequest, preTaxSteps: Tran
     } else if (preTaxSteps.length > 0 && postTaxSteps.length === 0) {
         console.log("no post steps!");
         let preTaxPerms = getStepPermutations(preTaxSteps);
+        console.log(`\n\npreTaxPerms: ${JSON.stringify(preTaxPerms)}\n\n`);
         for (let preTaxPerm of preTaxPerms) {
-            bestPlan = calculateTransactionPlanAndCompareAndReturnBest(order, preTaxPerm, [], bestPlan)
+            bestPlan = calculateTransactionPlanAndCompareAndReturnBest(order, preTaxPerm, [], bestPlan);
         }
     } else if (preTaxSteps.length === 0 && postTaxSteps.length > 0) {
         console.log("no pre steps!");
@@ -65,7 +66,7 @@ export function calculateTransactionPlan(order: OrderRequest, preTaxSteps: Trans
     transactionPlan.calculateTotalsFromLineItems();
     debug && console.log(`transactionPlan: ${JSON.stringify(transactionPlan)}`);
 
-    transactionPlan.steps = transactionPlan.steps.filter(s => s.amount !== 0);
+    transactionPlan.steps = transactionPlan.steps.filter(s => s.amount !== 0); // todo - I'm not sure if we want this?
     return transactionPlan;
 }
 
@@ -100,21 +101,24 @@ function processTransactionSteps(steps: TransactionPlanStep[], transactionPlan: 
 }
 
 function processLightrailTransactionStep(step: LightrailTransactionPlanStep, transactionPlan: TransactionPlan): void {
-    debug && console.log(`processing ValueStore ${JSON.stringify(step)}.`);
+    console.log(`processing ValueStore ${JSON.stringify(step)}.`);
     let value = step.value;
     if (!isValueRedeemable(value)) {
         return;
     }
+    const date = new Date();
     for (let index in transactionPlan.lineItems) {
+        console.log(date.getMilliseconds() + ": index = " + index);
         const item = transactionPlan.lineItems[index];
         if (item.lineTotal.remainder === 0) {
-            break; // The item has been paid for, skip.
+            continue; // The item has been paid for, skip.
         }
         if (value.redemptionRule) {
             // todo - getRuleFromCache(value.redemptionRule.rule)
+            console.log("current item: " + JSON.stringify(item));
             if (!new RuleContext(transactionPlan.totals, transactionPlan.lineItems, item).evaluateRedemptionRule(value.redemptionRule)) {
                 console.log(`ValueStore ${JSON.stringify(value)} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
-                break;
+                continue;
             }
         }
 
@@ -123,6 +127,8 @@ function processLightrailTransactionStep(step: LightrailTransactionPlanStep, tra
             let amount: number;
             if (value.valueRule) {
                 amount = Math.min(item.lineTotal.remainder, new RuleContext(transactionPlan.totals, transactionPlan.lineItems, item).evaluateValueRule(value.valueRule) | 0);
+                console.log("STEP.AMOUNT: " + step.amount);
+                step.amount -= amount;
             } else {
                 amount = Math.min(item.lineTotal.remainder, value.balance);
                 value.balance -= amount;
@@ -158,7 +164,7 @@ function applyTax(transactionPlan: TransactionPlan): void {
  */
 export function getStepPermutations(steps: TransactionPlanStep[]): Array<Array<TransactionPlanStep>> {
     const stepsBeforeLightrail = steps.filter(it => it.rail === "internal" && it.beforeLightrail);
-    const stepsAfterLightrail = steps.filter(it => it.rail !== "lightrail");
+    const stepsAfterLightrail = steps.filter(it => it.rail !== "lightrail" && !it["beforeLightrail"]);
     const lighrailSteps = steps.filter(it => it.rail === "lightrail");
 
     let lightrailPerms = listPermutations(lighrailSteps);
