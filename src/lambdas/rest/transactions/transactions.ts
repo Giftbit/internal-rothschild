@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {compareTransactionPlanSteps} from "./compareTransactionPlanSteps";
-import {CreditRequest, DebitRequest, OrderRequest, TransferRequest} from "../../../model/TransactionRequest";
+import {CheckoutRequest, CreditRequest, DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
 import {resolveTransactionParties} from "./resolveTransactionParties";
 import {buildCheckoutTransactionPlan} from "./buildCheckoutTransactionPlan";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
@@ -83,10 +83,10 @@ export function installTransactionsRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
-            evt.validateBody(orderSchema);
+            evt.validateBody(checkoutSchema);
             return {
                 statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
-                body: await createOrder(auth, evt.body)
+                body: await createCheckout(auth, evt.body)
             };
         });
 
@@ -230,15 +230,15 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
     );
 }
 
-async function createOrder(auth: giftbitRoutes.jwtauth.AuthorizationBadge, order: OrderRequest): Promise<Transaction> {
+async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, checkout: CheckoutRequest): Promise<Transaction> {
     return executeTransactionPlanner(
         auth,
         {
-            simulate: order.simulate,
-            allowRemainder: order.allowRemainder
+            simulate: checkout.simulate,
+            allowRemainder: checkout.allowRemainder
         },
         async () => {
-            const steps = await resolveTransactionParties(auth, order.currency, order.sources);
+            const steps = await resolveTransactionParties(auth, checkout.currency, checkout.sources);
             let preTaxSteps: TransactionPlanStep[] = [];
             let postTaxSteps: TransactionPlanStep[] = [];
 
@@ -254,7 +254,7 @@ async function createOrder(auth: giftbitRoutes.jwtauth.AuthorizationBadge, order
             postTaxSteps = postTaxSteps.sort(compareTransactionPlanSteps);
             console.log(`preTaxSteps: ${JSON.stringify(preTaxSteps)}`);
             console.log(`postTaxSteps: ${JSON.stringify(postTaxSteps)}`);
-            return buildCheckoutTransactionPlan(order, preTaxSteps, postTaxSteps);
+            return buildCheckoutTransactionPlan(checkout, preTaxSteps, postTaxSteps);
         }
     );
 }
@@ -493,7 +493,7 @@ const transferSchema: jsonschema.Schema = {
     required: ["id", "source", "amount", "currency"]
 };
 
-const orderSchema: jsonschema.Schema = {
+const checkoutSchema: jsonschema.Schema = {
     title: "order",
     type: "object",
     properties: {

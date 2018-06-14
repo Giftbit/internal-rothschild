@@ -1,6 +1,6 @@
 import {LineItemRequest} from "./LineItem";
 
-export interface OrderRequest {
+export interface CheckoutRequest {
     id: string;
     lineItems: LineItemRequest[];
     currency: string;
