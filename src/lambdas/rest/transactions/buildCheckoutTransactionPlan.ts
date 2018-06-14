@@ -6,7 +6,7 @@ import {listPermutations} from "../../utils/combinatoricUtils";
 import {RuleContext} from "./RuleContext";
 
 // todo - limit of 1 promotion per order rule. rule context needs to be created and decided on
-export function buildOrderTransactionPlan(order: OrderRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
+export function buildCheckoutTransactionPlan(order: OrderRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
     let bestPlan: TransactionPlan;
 
     if (preTaxSteps.length > 0 && postTaxSteps.length > 0) {

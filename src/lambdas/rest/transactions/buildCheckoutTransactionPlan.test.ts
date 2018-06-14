@@ -1,8 +1,8 @@
 import * as chai from "chai";
 import {TransactionPlanStep} from "./TransactionPlan";
-import {getStepPermutations} from "./buildOrderTransactionPlan";
+import {getStepPermutations} from "./buildCheckoutTransactionPlan";
 
-describe("buildOrderTransactionPlan", () => {
+describe("buildCheckoutTransactionPlan", () => {
     it("test external rails are appended to lightrail permutations and order is preserved", async () => {
         const steps: TransactionPlanStep[] = [
             {
