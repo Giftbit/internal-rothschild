@@ -50,7 +50,7 @@ async function handlerAsync(evt: awslambda.CloudFormationCustomResourceEvent, ct
             Value: password,
             Type: "SecureString",
             KeyId: evt.ResourceProperties.KmsKeyId,
-            Overwrite: evt.RequestType === "Update",
+            Overwrite: true,
             AllowedPattern: "^[a-zA-Z0-9]{8,41}$"
         }).promise();
 
