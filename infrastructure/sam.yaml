@@ -2,7 +2,7 @@
 
 AWSTemplateFormatVersion: 2010-09-09
 Transform: AWS::Serverless-2016-10-31
-Description: Rothschild banking proof of concept
+Description: Rothschild
 
 Parameters:
   BuildDate:
@@ -12,6 +12,10 @@ Parameters:
   Capacity:
     AllowedValues : ["high", "low"]
     Type: String
+  DbEncryptionKeyId:
+    Type: String
+    Description: ID of the KMS key the DB will be encrypted with.  This has to be passed in because letting the CI stack create and delete KMS keys is too dangerous.
+    AllowedPattern: "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
   LightrailDomain:
     Type: String
     Description: The domain of the Lightrail REST API
@@ -209,22 +213,6 @@ Resources:
       RouteTableId: !Ref NatExitRouteTable
       SubnetId: !Ref NatExitSubnet
 
-  # Database encryption
-  DbEncryptionKey:
-    Type: AWS::KMS::Key
-    Properties:
-      Description: !Sub "${AWS::StackName} database encryption key"
-      KeyPolicy:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              AWS:
-                !Sub "arn:aws:iam::${AWS::AccountId}:root"
-            Action:
-              - kms:*
-            Resource: "*"
-
   # Database credentials
   CredentialGenFunction:
     Type: AWS::Serverless::Function
@@ -250,7 +238,7 @@ Resources:
                 - kms:DescribeKey
                 - kms:Encrypt
               Resource:
-                - !GetAtt DbEncryptionKey.Arn
+                - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
       Tags:
         ShortName: CredentialGenFunction
         Service: Rothschild
@@ -258,7 +246,7 @@ Resources:
     Type: Custom::DbCredentials
     Properties:
       ServiceToken: !GetAtt CredentialGenFunction.Arn
-      KmsKeyId: !Ref DbEncryptionKey
+      KmsKeyId: !Ref DbEncryptionKeyId
       SsmPrefix: !Sub "${AWS::StackName}"
 
   # Database instance
@@ -284,7 +272,7 @@ Resources:
       PreferredMaintenanceWindow: sun:06:57-sun:07:57
       Port: 3306
       StorageEncrypted: true
-      KmsKeyId: !Ref DbEncryptionKey
+      KmsKeyId: !Ref DbEncryptionKeyId
       DBSubnetGroupName: !Ref DbSubnetGroup
       VpcSecurityGroupIds:
         - !Ref DbSecurityGroup
@@ -343,7 +331,7 @@ Resources:
                 - kms:Decrypt
                 - kms:DescribeKey
               Resource:
-                - !GetAtt DbEncryptionKey.Arn
+                - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
             - Effect: Allow
               Action:
                 - s3:GetObject
@@ -411,7 +399,7 @@ Resources:
                 - kms:Decrypt
                 - kms:DescribeKey
               Resource:
-                - !GetAtt DbEncryptionKey.Arn
+                - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
       Tags:
         ShortName: PostDeployFunction
         Service: Rothschild

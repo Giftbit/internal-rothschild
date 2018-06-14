@@ -324,14 +324,6 @@ Resources:
               - ec2:RevokeSecurityGroupIngress
             Resource:
               "*"
-          # KMS
-          - Effect: Allow
-            Action:
-              - kms:CreateKey
-              - kms:DescribeKey
-              - kms:TagResource
-              - kms:UntagResource
-            Resource: "*"
           # API Gateway (REST events)
 #          - Effect: Allow
 #            Action:
