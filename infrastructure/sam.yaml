@@ -272,7 +272,7 @@ Resources:
       PreferredMaintenanceWindow: sun:06:57-sun:07:57
       Port: 3306
       StorageEncrypted: true
-      KmsKeyId: !Ref DbEncryptionKeyId
+      KmsKeyId: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
       DBSubnetGroupName: !Ref DbSubnetGroup
       VpcSecurityGroupIds:
         - !Ref DbSecurityGroup
