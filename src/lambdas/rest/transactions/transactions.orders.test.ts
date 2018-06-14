@@ -619,70 +619,62 @@ describe("/v2/transactions/order", () => {
         };
 
         const postOrderResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/order", "POST", request);
+        console.log(JSON.stringify(postOrderResp));
         chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
         chai.assert.deepEqualExcluding(postOrderResp.body, {
-            id: request.id,
-            transactionType: "debit",
-            totals: {
-                subTotal: 1000,
-                tax: 50,
-                discount: 500,
-                payable: 550,
-                remainder: 550
+            "id": "order-5-valueRuleTest",
+            "transactionType": "order",
+            "currency": "CAD",
+            "totals": {
+                "subTotal": 1000,
+                "tax": 50,
+                "discount": 500,
+                "payable": 550,
+                "remainder": 550
             },
-            lineItems: [
+            "lineItems": [
                 {
-                    type: "product",
-                    productId: "p1",
-                    unitPrice: 500,
-                    taxRate: 0.10,
-                    quantity: 1,
-                    lineTotal: {
-                        subtotal: 500,
-                        taxable: 250,
-                        tax: 25,
-                        discount: 250,
-                        payable: 275,
-                        remainder: 275
+                    "type": "product",
+                    "productId": "p1",
+                    "unitPrice": 500,
+                    "taxRate": 0.1,
+                    "quantity": 1,
+                    "lineTotal": {
+                        "subtotal": 500,
+                        "taxable": 250,
+                        "tax": 25,
+                        "discount": 250,
+                        "remainder": 275,
+                        "payable": 275
                     }
                 },
                 {
-                    type: "product",
-                    productId: "p2",
-                    unitPrice: 250,
-                    quantity: 2,
-                    taxRate: 0.10,
-                    lineTotal: {
-                        subtotal: 500,
-                        taxable: 250,
-                        tax: 25,
-                        discount: 250,
-                        payable: 275,
-                        remainder: 275
+                    "type": "product",
+                    "productId": "p2",
+                    "unitPrice": 250,
+                    "quantity": 2,
+                    "taxRate": 0.1,
+                    "lineTotal": {
+                        "subtotal": 500,
+                        "taxable": 250,
+                        "tax": 25,
+                        "discount": 250,
+                        "remainder": 275,
+                        "payable": 275
                     }
                 }
             ],
-            steps: [
+            "steps": [],
+            "paymentSources": [
                 {
-                    rail: "lightrail",
-                    valueId: promotion.id,
-                    // valueStoreType: preTaxPromotion.valueStoreType,
-                    currency: promotion.currency,
-                    code: null,
-                    contactId: null,
-                    balanceBefore: 0,
-                    balanceAfter: 0,
-                    balanceChange: 0
+                    "rail": "lightrail",
+                    "valueId": "test value rule 1"
                 }
-            ]
+            ],
+            "metadata": null
         }, ["createdDate"]);
     });
 
-    /*
-    todo - Friday afternoon notes: think about how to limit a customer from doubling up on a promotion. Bryan may have some ideas.
-    todo - How do we order the application of promotions?
-    todo - How can we optimize the outcome for a user? Could try all combinations of ordering steps and see which one is the best.
-     */
     it("basic value rule test 2", async () => {
         const promotion: Partial<Value> = {
             id: "test value rule324  1",
@@ -730,62 +722,59 @@ describe("/v2/transactions/order", () => {
         };
 
         const postOrderResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/order", "POST", request);
+        console.log(JSON.stringify(postOrderResp));
         chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
         chai.assert.deepEqualExcluding(postOrderResp.body, {
-            id: request.id,
-            transactionType: "debit",
-            totals: {
-                subTotal: 1000,
-                tax: 75,
-                discount: 250,
-                payable: 825,
-                remainder: 825
+            "id": "order-5-234 ",
+            "transactionType": "order",
+            "currency": "CAD",
+            "totals": {
+                "subTotal": 1000,
+                "tax": 75,
+                "discount": 250,
+                "payable": 825,
+                "remainder": 825
             },
-            lineItems: [
+            "lineItems": [
                 {
-                    type: "product",
-                    productId: "p1",
-                    unitPrice: 500,
-                    taxRate: 0.10,
-                    quantity: 1,
-                    lineTotal: {
-                        subtotal: 500,
-                        taxable: 250,
-                        tax: 25,
-                        discount: 250,
-                        payable: 275,
-                        remainder: 275
+                    "type": "product",
+                    "productId": "p1",
+                    "unitPrice": 500,
+                    "taxRate": 0.1,
+                    "quantity": 1,
+                    "lineTotal": {
+                        "subtotal": 500,
+                        "taxable": 250,
+                        "tax": 25,
+                        "discount": 250,
+                        "remainder": 275,
+                        "payable": 275
                     }
                 },
                 {
-                    type: "product",
-                    productId: "p2",
-                    unitPrice: 250,
-                    quantity: 2,
-                    taxRate: 0.10,
-                    lineTotal: {
-                        subtotal: 500,
-                        taxable: 500,
-                        tax: 50,
-                        discount: 0,
-                        payable: 550,
-                        remainder: 550
+                    "type": "product",
+                    "productId": "p2",
+                    "unitPrice": 250,
+                    "quantity": 2,
+                    "taxRate": 0.1,
+                    "lineTotal": {
+                        "subtotal": 500,
+                        "taxable": 500,
+                        "tax": 50,
+                        "discount": 0,
+                        "remainder": 550,
+                        "payable": 550
                     }
                 }
             ],
-            steps: [
+            "steps": [],
+            "paymentSources": [
                 {
-                    rail: "lightrail",
-                    valueId: promotion.id,
-                    // valueStoreType: preTaxPromotion.valueStoreType,
-                    currency: promotion.currency,
-                    code: null,
-                    contactId: null,
-                    balanceBefore: 0,
-                    balanceAfter: 0,
-                    balanceChange: 0
+                    "rail": "lightrail",
+                    "valueId": "test value rule324  1"
                 }
-            ]
+            ],
+            "metadata": null
         }, ["createdDate"]);
     });
 });

@@ -33,6 +33,7 @@ describe("buildOrderTransactionPlan", () => {
             }
         ];
         const result = getStepPermutations(steps);
+        console.log(JSON.stringify(result));
         chai.assert.deepEqual(result,
             [
                 [

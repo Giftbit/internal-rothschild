@@ -254,7 +254,7 @@ async function createOrder(auth: giftbitRoutes.jwtauth.AuthorizationBadge, order
             postTaxSteps = postTaxSteps.sort(compareTransactionPlanSteps);
             console.log(`preTaxSteps: ${JSON.stringify(preTaxSteps)}`);
             console.log(`postTaxSteps: ${JSON.stringify(postTaxSteps)}`);
-            return buildTransactionPlan(order, preTaxSteps, postTaxSteps);
+            return buildOrderTransactionPlan(order, preTaxSteps, postTaxSteps);
         }
     );
 }

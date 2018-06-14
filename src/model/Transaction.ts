@@ -10,7 +10,7 @@ export interface Transaction {
     transactionType: TransactionType;
     currency: string;
     steps: TransactionStep[];
-    totals: TransactionTotal;
+    totals: TransactionPlanTotals;
     lineItems: LineItem[] | null;
     paymentSources: TransactionParty[] | null;
     simulated?: true;
@@ -132,7 +132,7 @@ export interface InternalTransactionStep {
     balanceChange: number;
 }
 
-export interface TransactionTotal {
+export interface TransactionPlanTotals {
     subTotal?: number;
     tax?: number;
     discount?: number;
