@@ -296,12 +296,12 @@ describe("/v2/transactions", () => {
 
     describe("handles 'checkout' transactions", () => {
         it("reads all checkout properties from from db", async () => {
-            const postOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout1);
-            chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
+            const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout1);
+            chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
 
-            const getOrderResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout1.id}`, "GET");
-            chai.assert.equal(getOrderResp.statusCode, 200, `body=${JSON.stringify(getOrderResp.body)}`);
-            chai.assert.deepEqualExcluding(getOrderResp.body, {
+            const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout1.id}`, "GET");
+            chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
+            chai.assert.deepEqualExcluding(getCheckoutResp.body, {
                 id: "checkout-1",
                 transactionType: "checkout",
                 currency: "CAD",
