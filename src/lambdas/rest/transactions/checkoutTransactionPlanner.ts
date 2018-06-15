@@ -17,7 +17,7 @@ export function optimizeCheckout(checkout: CheckoutRequest, steps: TransactionPl
         }
     }
 
-    console.log(`overall best plan = ${JSON.stringify(bestPlan)}\n\n\n\n`);
+    console.log(`Overall best plan: ${JSON.stringify(bestPlan)}`);
     return bestPlan;
 }
 
@@ -27,7 +27,6 @@ export interface StepPermutation {
 }
 
 export function getAllPermutations(steps: TransactionPlanStep[]): StepPermutation[] {
-    console.log(JSON.stringify(steps));
     const preTaxSteps: TransactionPlanStep[] = steps.filter(it => (it.rail === "internal" && it.pretax) || (it.rail === "lightrail" && it.value.pretax));
     const postTaxSteps: TransactionPlanStep[] = steps.filter(x => preTaxSteps.indexOf(x) < 0);
 
@@ -57,8 +56,6 @@ export function getAllPermutations(steps: TransactionPlanStep[]): StepPermutatio
     } else {
         console.log("No steps were supplied.")
     }
-    console.log("step permutations: " + JSON.stringify(stepPermutations));
-
     return stepPermutations
 }
 

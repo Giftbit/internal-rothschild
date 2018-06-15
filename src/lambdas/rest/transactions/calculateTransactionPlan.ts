@@ -4,16 +4,13 @@ import {Value} from "../../../model/Value";
 import {RuleContext} from "./RuleContext";
 import {bankersRounding} from "../../utils/moneyUtils";
 
-const debug = false;
-
 export function calculateTransactionPlan(checkout: CheckoutRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
     let transactionPlan = new TransactionPlan(checkout, preTaxSteps.concat(postTaxSteps));
-    console.log(`\nbuild checkout transaction plan:\n${JSON.stringify(transactionPlan)}\n\n`);
+    console.log(`Build checkout transaction plan: ${JSON.stringify(transactionPlan)}`);
     processTransactionSteps(preTaxSteps, transactionPlan);
     applyTax(transactionPlan);
     processTransactionSteps(postTaxSteps, transactionPlan);
     transactionPlan.calculateTotalsFromLineItems();
-    debug && console.log(`transactionPlan: ${JSON.stringify(transactionPlan)}`);
 
     transactionPlan.steps = transactionPlan.steps.filter(s => s.amount !== 0); // todo - I'm not sure if we want this?
     return transactionPlan;
@@ -50,30 +47,23 @@ function processTransactionSteps(steps: TransactionPlanStep[], transactionPlan: 
 }
 
 function processLightrailTransactionStep(step: LightrailTransactionPlanStep, transactionPlan: TransactionPlan): void {
-    console.log(`processing ValueStore ${JSON.stringify(step)}.`);
-    if (step.amount < 0) {
-        throw "wtf m8"
-    }
+    console.log(`Processing ValueStore ${JSON.stringify(step)}.`);
+
     let value = step.value;
     if (!isValueRedeemable(value)) {
         return;
     }
-    const date = new Date();
     for (let index in transactionPlan.lineItems) {
-        console.log(date.getMilliseconds() + ": index = " + index);
         const item = transactionPlan.lineItems[index];
-        if (item.lineTotal.remainder === 0) {
-            continue; // The item has been paid for, skip.
-        }
-        if (value.redemptionRule) {
-            if (!new RuleContext(transactionPlan.totals, transactionPlan.lineItems, item).evaluateRedemptionRule(value.redemptionRule)) {
-                console.log(`ValueStore ${JSON.stringify(value)} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
-                continue;
-            }
-        }
-
-        debug && console.log(`ValueStore ${JSON.stringify(value)} CAN be applied to ${JSON.stringify(item)}.`);
         if (item.lineTotal.remainder > 0) {
+            if (value.redemptionRule) {
+                if (!new RuleContext(transactionPlan.totals, transactionPlan.lineItems, item).evaluateRedemptionRule(value.redemptionRule)) {
+                    console.log(`ValueStore ${JSON.stringify(value)} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
+                    continue;
+                }
+            }
+
+            console.log(`ValueStore ${JSON.stringify(value)} CAN be applied to ${JSON.stringify(item)}.`);
             let amount: number;
             if (value.valueRule) {
                 amount = Math.min(item.lineTotal.remainder, new RuleContext(transactionPlan.totals, transactionPlan.lineItems, item).evaluateValueRule(value.valueRule) | 0);
@@ -83,17 +73,14 @@ function processLightrailTransactionStep(step: LightrailTransactionPlanStep, tra
                 value.balance -= amount;
                 step.amount -= amount;
             }
-
             item.lineTotal.remainder -= amount;
             if (value.discount) {
                 item.lineTotal.discount += amount;
             }
         } else {
-            // todo - this is an odd case? this can't really happen????
+            // The item has been paid for, skip.
         }
-
     }
-    // todo - if transacted against, reduce uses. This means that
 }
 
 function applyTax(transactionPlan: TransactionPlan): void {
