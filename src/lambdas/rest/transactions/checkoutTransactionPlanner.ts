@@ -40,23 +40,23 @@ export function getAllPermutations(steps: TransactionPlanStep[]): StepPermutatio
                 stepPermutations.push({
                     preTaxSteps: JSON.parse(JSON.stringify(preTaxPerm)) /* this is subtle, need to be clones, otherwise object gets modified */,
                     postTaxSteps: postTaxPerm
-                })
+                });
             }
         }
     } else if (preTaxSteps.length > 0 && postTaxSteps.length === 0) {
         let preTaxPerms = getStepPermutations(preTaxSteps);
         for (let preTaxPerm of preTaxPerms) {
-            stepPermutations.push({preTaxSteps: preTaxPerm, postTaxSteps: []})
+            stepPermutations.push({preTaxSteps: preTaxPerm, postTaxSteps: []});
         }
     } else if (preTaxSteps.length === 0 && postTaxSteps.length > 0) {
         let postTaxPerms = getStepPermutations(postTaxSteps);
         for (let postTaxPerm of postTaxPerms) {
-            stepPermutations.push({preTaxSteps: [], postTaxSteps: postTaxPerm})
+            stepPermutations.push({preTaxSteps: [], postTaxSteps: postTaxPerm});
         }
     } else {
-        console.log("No steps were supplied.")
+        console.log("No steps were supplied.");
     }
-    return stepPermutations
+    return stepPermutations;
 }
 
 export function getStepPermutations(steps: TransactionPlanStep[]): Array<Array<TransactionPlanStep>> {

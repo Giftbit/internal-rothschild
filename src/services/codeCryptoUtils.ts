@@ -26,13 +26,14 @@ export function computeLookupHash(code: string, badge: AuthorizationBadge) {
 /**
  * IMPORTANT: This is used so that if the AWS account is compromised
  * the codes can't be decrypted without access to the codebase.
- */ //todo - this shouldn't be exported. need a better way to test. going to wait to decide if we want this to be a thing or not though before doing that.
+ * todo - this shouldn't be exported. need a better way to test. going to wait to decide if we want this to be a thing or not though before doing that.
+ */
 export function addCodebasePepperToCode(code: string) {
     return code + CODEBASE_ENCRYPTION_PEPPER;
 }
 
 export function removeCodebasePepperFromDecryptedCode(decryptedCode: string) {
-    return decryptedCode.replace(CODEBASE_ENCRYPTION_PEPPER, '')
+    return decryptedCode.replace(CODEBASE_ENCRYPTION_PEPPER, "");
 }
 
 // temporary. remove after we've generated the key.

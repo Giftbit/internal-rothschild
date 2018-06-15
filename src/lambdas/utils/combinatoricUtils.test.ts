@@ -5,7 +5,7 @@ describe("combinatoricUtils tests", () => {
 
     it("test perms on 0 primitive objects", async () => {
         const result = listPermutations([]);
-        chai.assert.deepEqual(result, [[]])
+        chai.assert.deepEqual(result, [[]]);
     });
 
     it("test perms on 1 primitive object", async () => {

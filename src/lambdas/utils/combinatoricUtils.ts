@@ -27,7 +27,7 @@ export function listPermutations(input: Array<any>): Array<Array<any>> {
             i += 1;
         }
     }
-    return result
+    return result;
 }
 
 function swap(input: Array<any>, indexOne: number, indexTwo: number): void {

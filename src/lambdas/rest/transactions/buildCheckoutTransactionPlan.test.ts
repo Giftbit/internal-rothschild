@@ -82,23 +82,23 @@ describe("optimizeCheckout", () => {
 
     it("test 0 steps", async () => {
         const result = getStepPermutations([]);
-        chai.assert.deepEqual(result, [[]])
+        chai.assert.deepEqual(result, [[]]);
     });
 
     it("test 1 lightrail step", async () => {
         const result = getStepPermutations([l1]);
-        chai.assert.deepEqual(result, [[l1]])
+        chai.assert.deepEqual(result, [[l1]]);
     });
 
     it("test 2 lightrail steps", async () => {
         const result = getStepPermutations([l1, l2]);
-        chai.assert.deepEqual(result, [[l1, l2], [l2, l1]])
+        chai.assert.deepEqual(result, [[l1, l2], [l2, l1]]);
     });
 
     it("test 3 lightrail steps", async () => {
         const result = getStepPermutations([l1, l2, l3]);
         // console.log(JSON.stringify(result));
-        chai.assert.deepEqual(result, [[l1, l2, l3], [l2, l1, l3], [l3, l1, l2], [l1, l3, l2], [l2, l3, l1], [l3, l2, l1]])
+        chai.assert.deepEqual(result, [[l1, l2, l3], [l2, l1, l3], [l3, l1, l2], [l1, l3, l2], [l2, l3, l1], [l3, l2, l1]]);
     });
 
     it("test 4 lightrail steps", async () => {
@@ -109,7 +109,7 @@ describe("optimizeCheckout", () => {
 
     it("test 1 stripe step", async () => {
         const result = getStepPermutations([s1]);
-        chai.assert.deepEqual(result, [[s1]])
+        chai.assert.deepEqual(result, [[s1]]);
     });
 
     it("test 2 stripe steps", async () => {
@@ -117,13 +117,13 @@ describe("optimizeCheckout", () => {
         chai.assert.deepEqual(result, [[s1, s2]]);
 
         const resultReversedOrder = getStepPermutations([s2, s1]);
-        chai.assert.deepEqual(resultReversedOrder, [[s2, s1]])
+        chai.assert.deepEqual(resultReversedOrder, [[s2, s1]]);
     });
 
     it("test 1 internal step", async () => {
         const result = getStepPermutations([iBefore1]);
         console.log(JSON.stringify(result));
-        chai.assert.deepEqual(result, [[iBefore1]])
+        chai.assert.deepEqual(result, [[iBefore1]]);
     });
 
     it("test 2 internal steps", async () => {
@@ -131,7 +131,7 @@ describe("optimizeCheckout", () => {
         chai.assert.deepEqual(result, [[iBefore1, iBefore2]]);
 
         const resultReversedOrder = getStepPermutations([iBefore2, iBefore1]);
-        chai.assert.deepEqual(resultReversedOrder, [[iBefore2, iBefore1]])
+        chai.assert.deepEqual(resultReversedOrder, [[iBefore2, iBefore1]]);
     });
 
     it("test 2 internal steps but one before lightrail and one after. make sure before happens before even though no lightrail steps are supplied", async () => {

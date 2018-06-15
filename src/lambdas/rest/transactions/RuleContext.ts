@@ -9,14 +9,13 @@ export class RuleContext {
     lineItems: LineItemResponse[];
     date: DateContext;
 
-
     constructor(totals: TransactionPlanTotals, lineItems: LineItemResponse[], currentLineItem: LineItemResponse) {
         this.currentLineItem = currentLineItem;
         this.totals = totals;
         this.lineItems = lineItems;
         const now = new Date();
         this.date = {
-            // todo - this majory suffers from timezone problems...
+            // todo - this is a nice idea but majorly suffers from timezone problems...
             dayOfWeek: DAYS_OF_THE_WEEK[now.getDay()],
             minuteOfDay: now.getMinutes()
         };
