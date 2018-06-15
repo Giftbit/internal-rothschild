@@ -36,7 +36,7 @@ export class TransactionPlan {
         this.id = checkout.id;
         this.transactionType = "checkout";
         this.currency = checkout.currency;
-        this.lineItems = lineItemResponses;
+        this.lineItems = lineItemResponses.sort((a, b) => b.lineTotal.subtotal - a.lineTotal.subtotal);
         this.steps = steps;
         this.metadata = checkout.metadata;
         this.paymentSources = checkout.sources; // TODO if secure code, only return last four

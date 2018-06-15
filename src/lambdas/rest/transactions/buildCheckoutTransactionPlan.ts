@@ -1,38 +1,23 @@
 import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "./TransactionPlan";
 import {CheckoutRequest} from "../../../model/TransactionRequest";
 import {Value} from "../../../model/Value";
-import * as bankersRounding from "bankers-rounding";
 import {listPermutations} from "../../utils/combinatoricUtils";
 import {RuleContext} from "./RuleContext";
+import {bankersRounding} from "../../utils/moneyUtils";
 
-export function buildCheckoutTransactionPlan(checkout: CheckoutRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
+export function buildCheckoutTransactionPlan(checkout: CheckoutRequest, steps: TransactionPlanStep[]): TransactionPlan {
     let bestPlan: TransactionPlan = null;
-
-    if (preTaxSteps.length > 0 && postTaxSteps.length > 0) {
-        console.log("there are perms of each!");
-        let preTaxPerms = getStepPermutations(preTaxSteps);
-        for (let preTaxPerm of preTaxPerms) {
-            let postTaxPerms = getStepPermutations(postTaxSteps);
-            for (let postTaxPerm of postTaxPerms) {
-                bestPlan = calculateTransactionPlanAndCompareAndReturnBest(checkout, preTaxPerm, postTaxPerm, bestPlan);
-            }
+    const permutations = getAllPermutations(steps);
+    for (const perm of permutations) {
+        console.log("STARTING NEW PERMUTATION: " + JSON.stringify(perm));
+        let newPlan = calculateTransactionPlan(checkout, perm.preTaxSteps, perm.postTaxSteps);
+        console.log(`new plans totals: ${JSON.stringify(newPlan.totals)}`);
+        if (!bestPlan || (newPlan.totals.payable < bestPlan.totals.payable)) {
+            bestPlan = newPlan;
+            console.log(`Found a better perm. ${JSON.stringify(bestPlan)}`);
+        } else {
+            console.log("old plan was better.");
         }
-    } else if (preTaxSteps.length > 0 && postTaxSteps.length === 0) {
-        console.log("no post steps!");
-        let preTaxPerms = getStepPermutations(preTaxSteps);
-        console.log(`\n\npreTaxPerms: ${JSON.stringify(preTaxPerms)}\n\n`);
-        for (let preTaxPerm of preTaxPerms) {
-            bestPlan = calculateTransactionPlanAndCompareAndReturnBest(checkout, preTaxPerm, [], bestPlan);
-        }
-    } else if (preTaxSteps.length === 0 && postTaxSteps.length > 0) {
-        console.log("no pre steps!");
-        let postTaxPerms = getStepPermutations(postTaxSteps);
-        console.log(`\n\npostTaxPerms: ${JSON.stringify(postTaxPerms)}\n\n`);
-        for (let postTaxPerm of postTaxPerms) {
-            bestPlan = calculateTransactionPlanAndCompareAndReturnBest(checkout, [], postTaxPerm, bestPlan);
-        }
-    } else {
-        console.log("No steps were supplied.")
     }
 
     console.log(`overall best plan = ${JSON.stringify(bestPlan)}\n\n\n\n`);
@@ -40,18 +25,6 @@ export function buildCheckoutTransactionPlan(checkout: CheckoutRequest, preTaxSt
 }
 
 const debug = false;
-
-function calculateTransactionPlanAndCompareAndReturnBest(checkout: CheckoutRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[], bestPlan: TransactionPlan): TransactionPlan {
-    let newPlan = calculateTransactionPlan(checkout, preTaxSteps, postTaxSteps);
-    console.log(`new plans totals: ${JSON.stringify(newPlan.totals)}`);
-    if (!bestPlan || (newPlan.totals.payable < bestPlan.totals.payable)) {
-        bestPlan = newPlan;
-        console.log(`Found a better perm. ${JSON.stringify(bestPlan)}`);
-    } else {
-        console.log("old plan was better.");
-    }
-    return bestPlan;
-}
 
 export function calculateTransactionPlan(checkout: CheckoutRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
     let transactionPlan = new TransactionPlan(checkout, preTaxSteps.concat(postTaxSteps));
@@ -98,6 +71,9 @@ function processTransactionSteps(steps: TransactionPlanStep[], transactionPlan: 
 
 function processLightrailTransactionStep(step: LightrailTransactionPlanStep, transactionPlan: TransactionPlan): void {
     console.log(`processing ValueStore ${JSON.stringify(step)}.`);
+    if (step.amount < 0) {
+        throw "wtf m8"
+    }
     let value = step.value;
     if (!isValueRedeemable(value)) {
         return;
@@ -145,12 +121,52 @@ function applyTax(transactionPlan: TransactionPlan): void {
         let tax = 0;
         item.lineTotal.taxable = item.lineTotal.subtotal - item.lineTotal.discount;
         if (item.taxRate >= 0) {
-            // todo export to utils
-            tax = bankersRounding(item.taxRate * item.lineTotal.taxable);
+            tax = bankersRounding(item.taxRate * item.lineTotal.taxable, 0 /* todo - the currency and number of decimal places should be taken from the order or lineItem */);
         }
         item.lineTotal.tax = tax;
         item.lineTotal.remainder += tax;
     }
+}
+
+export interface StepPermutation {
+    preTaxSteps: TransactionPlanStep[];
+    postTaxSteps: TransactionPlanStep[];
+}
+
+export function getAllPermutations(steps: TransactionPlanStep[]): StepPermutation[] {
+    console.log(JSON.stringify(steps));
+    const preTaxSteps: TransactionPlanStep[] = steps.filter(it => (it.rail === "internal" && it.pretax) || (it.rail === "lightrail" && it.value.pretax));
+    const postTaxSteps: TransactionPlanStep[] = steps.filter(x => preTaxSteps.indexOf(x) < 0);
+
+    let stepPermutations: StepPermutation[] = [];
+
+    if (preTaxSteps.length > 0 && postTaxSteps.length > 0) {
+        let preTaxPerms = getStepPermutations(preTaxSteps);
+        for (let preTaxPerm of preTaxPerms) {
+            let postTaxPerms = getStepPermutations(postTaxSteps);
+            for (let postTaxPerm of postTaxPerms) {
+                stepPermutations.push({
+                    preTaxSteps: JSON.parse(JSON.stringify(preTaxPerm)) /* this is subtle, need to be clones, otherwise object gets modified */,
+                    postTaxSteps: postTaxPerm
+                })
+            }
+        }
+    } else if (preTaxSteps.length > 0 && postTaxSteps.length === 0) {
+        let preTaxPerms = getStepPermutations(preTaxSteps);
+        for (let preTaxPerm of preTaxPerms) {
+            stepPermutations.push({preTaxSteps: preTaxPerm, postTaxSteps: []})
+        }
+    } else if (preTaxSteps.length === 0 && postTaxSteps.length > 0) {
+        let postTaxPerms = getStepPermutations(postTaxSteps);
+        for (let postTaxPerm of postTaxPerms) {
+            stepPermutations.push({preTaxSteps: [], postTaxSteps: postTaxPerm})
+        }
+    } else {
+        console.log("No steps were supplied.")
+    }
+    console.log("step permutations: " + JSON.stringify(stepPermutations));
+
+    return stepPermutations
 }
 
 /**

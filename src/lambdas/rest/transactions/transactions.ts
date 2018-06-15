@@ -1,7 +1,6 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import {compareTransactionPlanSteps} from "./compareTransactionPlanSteps";
 import {CheckoutRequest, CreditRequest, DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
 import {resolveTransactionParties} from "./resolveTransactionParties";
 import {buildCheckoutTransactionPlan} from "./buildCheckoutTransactionPlan";
@@ -11,7 +10,7 @@ import {Pagination, PaginationParams} from "../../../model/Pagination";
 import {getKnexRead} from "../../../dbUtils/connection";
 import {Filters, TransactionFilterParams} from "../../../model/Filter";
 import {paginateQuery} from "../../../dbUtils/paginateQuery";
-import {LightrailTransactionPlanStep, TransactionPlanStep} from "./TransactionPlan";
+import {LightrailTransactionPlanStep} from "./TransactionPlan";
 import getPaginationParams = Pagination.getPaginationParams;
 import getTransactionFilterParams = Filters.getTransactionFilterParams;
 
@@ -239,23 +238,24 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
         },
         async () => {
             const steps = await resolveTransactionParties(auth, checkout.currency, checkout.sources);
-            let preTaxSteps: TransactionPlanStep[] = [];
-            let postTaxSteps: TransactionPlanStep[] = [];
-
-            // todo - need to look into this. internal can be pretax. why doesn't lightrail transaction plan step have pretax flag?
-            for (const step of steps) {
-                if (step.rail === "lightrail" && step.value.pretax) {
-                    preTaxSteps.push(step);
-                } else {
-                    postTaxSteps.push(step);
-                }
-            }
-
-            preTaxSteps = preTaxSteps.sort(compareTransactionPlanSteps);
-            postTaxSteps = postTaxSteps.sort(compareTransactionPlanSteps);
-            console.log(`preTaxSteps: ${JSON.stringify(preTaxSteps)}`);
-            console.log(`postTaxSteps: ${JSON.stringify(postTaxSteps)}`);
-            return buildCheckoutTransactionPlan(checkout, preTaxSteps, postTaxSteps);
+            // TODO - suggestion is we rip all of this out.
+            // let preTaxSteps: TransactionPlanStep[] = [];
+            // let postTaxSteps: TransactionPlanStep[] = [];
+            //
+            // // todo - need to look into this. internal can be pretax. why doesn't lightrail transaction plan step have pretax flag?
+            // for (const step of steps) {
+            //     if (step.rail === "lightrail" && step.value.pretax) {
+            //         preTaxSteps.push(step);
+            //     } else {
+            //         postTaxSteps.push(step);
+            //     }
+            // }
+            //
+            // preTaxSteps = preTaxSteps.sort(compareTransactionPlanSteps);
+            // postTaxSteps = postTaxSteps.sort(compareTransactionPlanSteps);
+            // console.log(`preTaxSteps: ${JSON.stringify(preTaxSteps)}`);
+            // console.log(`postTaxSteps: ${JSON.stringify(postTaxSteps)}`);
+            return buildCheckoutTransactionPlan(checkout, steps);
         }
     );
 }

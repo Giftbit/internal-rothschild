@@ -306,75 +306,75 @@ describe("/v2/transactions/checkout", () => {
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(postCheckoutResp.body, {
-            id: request.id,
-            transactionType: "checkout",
-            currency: "CAD",
-            totals: {
-                subTotal: 1166,
-                tax: 68,
-                discount: 225,
-                payable: 1009,
-                remainder: 0
+            "id": "checkout-3",
+            "transactionType": "checkout",
+            "currency": "CAD",
+            "totals": {
+                "subTotal": 1166,
+                "tax": 62,
+                "discount": 225,
+                "payable": 1003,
+                "remainder": 0
             },
-            lineItems: [
+            "lineItems": [
                 {
-                    type: "shipping",
-                    productId: "p1",
-                    unitPrice: 500,
-                    taxRate: 0.05,
-                    quantity: 1,
-                    lineTotal: {
-                        subtotal: 500,
-                        taxable: 300,
-                        tax: 15,
-                        discount: 225,
-                        payable: 290,
-                        remainder: 0
+                    "type": "product",
+                    "productId": "p2",
+                    "unitPrice": 333,
+                    "quantity": 2,
+                    "taxRate": 0.08,
+                    "lineTotal": {
+                        "subtotal": 666,
+                        "taxable": 466,
+                        "tax": 37,
+                        "discount": 225,
+                        "remainder": 0,
+                        "payable": 478
                     }
                 },
                 {
-                    type: "product",
-                    productId: "p2",
-                    unitPrice: 333,
-                    quantity: 2,
-                    taxRate: 0.08,
-                    lineTotal: {
-                        subtotal: 666,
-                        taxable: 666,
-                        tax: 53 /* 53.28 */,
-                        discount: 0,
-                        payable: 719,
-                        remainder: 0
+                    "type": "shipping",
+                    "productId": "p1",
+                    "unitPrice": 500,
+                    "taxRate": 0.05,
+                    "quantity": 1,
+                    "lineTotal": {
+                        "subtotal": 500,
+                        "taxable": 500,
+                        "tax": 25,
+                        "discount": 0,
+                        "remainder": 0,
+                        "payable": 525
                     }
                 }
             ],
-            steps: [
+            "steps": [
                 {
-                    rail: "lightrail",
-                    valueId: preTaxPromotion.id,
-                    code: null,
-                    contactId: null,
-                    balanceBefore: 200,
-                    balanceAfter: 0,
-                    balanceChange: -200
+                    "rail": "lightrail",
+                    "valueId": "vs-checkout3-promotion1",
+                    "contactId": null,
+                    "code": null,
+                    "balanceBefore": 200,
+                    "balanceAfter": 0,
+                    "balanceChange": -200
                 },
                 {
-                    rail: "lightrail",
-                    valueId: postTaxPromotion.id,
-                    code: null,
-                    contactId: null,
-                    balanceBefore: 25,
-                    balanceAfter: 0,
-                    balanceChange: -25
+                    "rail": "lightrail",
+                    "valueId": "vs-checkout3-promotion2",
+                    "contactId": null,
+                    "code": null,
+                    "balanceBefore": 25,
+                    "balanceAfter": 0,
+                    "balanceChange": -25
                 },
                 {
-                    rail: "lightrail",
-                    valueId: giftCard.id,
-                    code: null,
-                    contactId: null,
-                    balanceBefore: 1010,
-                    balanceAfter: 1,
-                    balanceChange: -1009
+                    "rail": "lightrail",
+                    "valueId": "vs-checkout3-giftcard",
+                    "contactId": null,
+                    "code": null,
+                    "balanceBefore": 1010,
+                    "balanceAfter": 7,
+                    "balanceChange": -1003
                 }
             ],
             "paymentSources": [
@@ -391,8 +391,8 @@ describe("/v2/transactions/checkout", () => {
                     "valueId": "vs-checkout3-promotion2"
                 }
             ],
-            metadata: null,
-            createdDate: null
+            "metadata": null,
+            "createdDate": null
         }, ["createdDate"]);
 
         const getPreTaxPromo = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${preTaxPromotion.id}`, "GET");
@@ -405,7 +405,7 @@ describe("/v2/transactions/checkout", () => {
 
         const getGiftCardVS = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
         chai.assert.equal(getGiftCardVS.statusCode, 200, `body=${JSON.stringify(getGiftCardVS.body)}`);
-        chai.assert.equal(getGiftCardVS.body.balance, 1);
+        chai.assert.equal(getGiftCardVS.body.balance, 7);
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout-3", "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
@@ -470,66 +470,66 @@ describe("/v2/transactions/checkout", () => {
         const postCheckoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", request);
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(postCheckoutResp.body, {
-            id: request.id,
-            transactionType: "checkout",
-            currency: "CAD",
-            totals: {
-                subTotal: 1166,
-                tax: 68,
-                discount: 200,
-                payable: 1034,
-                remainder: 534
+            "id": "checkout-4",
+            "transactionType": "checkout",
+            "currency": "CAD",
+            "totals": {
+                "subTotal": 1166,
+                "tax": 62,
+                "discount": 200,
+                "payable": 1028,
+                "remainder": 528
             },
-            lineItems: [
+            "lineItems": [
                 {
-                    type: "shipping",
-                    productId: "p1",
-                    unitPrice: 500,
-                    taxRate: 0.05,
-                    quantity: 1,
-                    lineTotal: {
-                        subtotal: 500,
-                        taxable: 300,
-                        tax: 15,
-                        discount: 200,
-                        payable: 315,
-                        remainder: 0
+                    "type": "product",
+                    "productId": "p2",
+                    "unitPrice": 333,
+                    "quantity": 2,
+                    "taxRate": 0.08,
+                    "lineTotal": {
+                        "subtotal": 666,
+                        "taxable": 466,
+                        "tax": 37,
+                        "discount": 200,
+                        "remainder": 3,
+                        "payable": 503
                     }
                 },
                 {
-                    type: "product",
-                    productId: "p2",
-                    unitPrice: 333,
-                    quantity: 2,
-                    taxRate: 0.08,
-                    lineTotal: {
-                        subtotal: 666,
-                        taxable: 666,
-                        tax: 53 /* 53.28 */,
-                        discount: 0,
-                        payable: 719,
-                        remainder: 534
+                    "type": "shipping",
+                    "productId": "p1",
+                    "unitPrice": 500,
+                    "taxRate": 0.05,
+                    "quantity": 1,
+                    "lineTotal": {
+                        "subtotal": 500,
+                        "taxable": 500,
+                        "tax": 25,
+                        "discount": 0,
+                        "remainder": 525,
+                        "payable": 525
                     }
                 }
             ],
-            steps: [
+            "steps": [
                 {
-                    rail: "lightrail",
-                    valueId: preTaxPromotion.id,
-                    code: null,
-                    contactId: null,
-                    balanceBefore: 200,
-                    balanceAfter: 0,
-                    balanceChange: -200
+                    "rail": "lightrail",
+                    "valueId": "vs-checkout4-promotion1",
+                    "contactId": null,
+                    "code": null,
+                    "balanceBefore": 200,
+                    "balanceAfter": 0,
+                    "balanceChange": -200
                 },
                 {
-                    rail: "lightrail",
-                    valueId: giftCard.id,
-                    code: null,
-                    contactId: null,
-                    balanceBefore: 500,
-                    balanceAfter: 0,
-                    balanceChange: -500
+                    "rail": "lightrail",
+                    "valueId": "vs-checkout4-giftcard",
+                    "contactId": null,
+                    "code": null,
+                    "balanceBefore": 500,
+                    "balanceAfter": 0,
+                    "balanceChange": -500
                 }
             ],
             "paymentSources": [
@@ -542,7 +542,7 @@ describe("/v2/transactions/checkout", () => {
                     "valueId": "vs-checkout4-promotion1"
                 }
             ],
-            metadata: null
+            "metadata": null
         }, ["createdDate"]);
 
         const getPreTaxPromo = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${preTaxPromotion.id}`, "GET");
@@ -732,7 +732,6 @@ describe("/v2/transactions/checkout", () => {
         };
 
         const postCheckoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", request);
-        console.log(JSON.stringify(postCheckoutResp));
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(postCheckoutResp.body, {
             "id": "checkout-5-234 ",
