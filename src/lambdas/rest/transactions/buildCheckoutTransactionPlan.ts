@@ -5,7 +5,6 @@ import * as bankersRounding from "bankers-rounding";
 import {listPermutations} from "../../utils/combinatoricUtils";
 import {RuleContext} from "./RuleContext";
 
-// todo - limit of 1 promotion per checkout rule. rule context needs to be created and decided on
 export function buildCheckoutTransactionPlan(checkout: CheckoutRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
     let bestPlan: TransactionPlan = null;
 
@@ -33,7 +32,7 @@ export function buildCheckoutTransactionPlan(checkout: CheckoutRequest, preTaxSt
             bestPlan = calculateTransactionPlanAndCompareAndReturnBest(checkout, [], postTaxPerm, bestPlan);
         }
     } else {
-        console.log(`No steps!`);
+        console.log("No steps were supplied.")
     }
 
     console.log(`overall best plan = ${JSON.stringify(bestPlan)}\n\n\n\n`);
@@ -57,9 +56,6 @@ function calculateTransactionPlanAndCompareAndReturnBest(checkout: CheckoutReque
 export function calculateTransactionPlan(checkout: CheckoutRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
     let transactionPlan = new TransactionPlan(checkout, preTaxSteps.concat(postTaxSteps));
     console.log(`\nbuild checkout transaction plan:\n${JSON.stringify(transactionPlan)}\n\n`);
-    for (let step of preTaxSteps.concat(postTaxSteps)) {
-        console.log(JSON.stringify(step));
-    }
     processTransactionSteps(preTaxSteps, transactionPlan);
     applyTax(transactionPlan);
     processTransactionSteps(postTaxSteps, transactionPlan);
@@ -136,7 +132,10 @@ function processLightrailTransactionStep(step: LightrailTransactionPlanStep, tra
             if (value.discount) {
                 item.lineTotal.discount += amount;
             }
+        } else {
+            // todo - this is an odd case? this can't really happen????
         }
+
     }
     // todo - if transacted against, reduce uses. This means that
 }
@@ -155,9 +154,9 @@ function applyTax(transactionPlan: TransactionPlan): void {
 }
 
 /**
- * This takes out non lightrail steps and always does them last in the permutations.
+ * TODO - UPDATE NOTE
  * It also preserves the order of the non-lightrail steps.
- * todo - requires more testing if this is a thing we want to do.
+ * TODO - can i make it clear that the steps should be all pretax = true XOR pretax = false?
  */
 export function getStepPermutations(steps: TransactionPlanStep[]): Array<Array<TransactionPlanStep>> {
     const stepsBeforeLightrail = steps.filter(it => it.rail === "internal" && it.beforeLightrail);
@@ -169,6 +168,7 @@ export function getStepPermutations(steps: TransactionPlanStep[]): Array<Array<T
     let result: Array<Array<TransactionPlanStep>> = [];
     for (let perm of lightrailPerms) {
         perm = stepsBeforeLightrail.concat(perm);
+        // todo - this can probably be another concat.
         for (let nonLightrailStep of stepsAfterLightrail) {
             perm.push(nonLightrailStep);
         }

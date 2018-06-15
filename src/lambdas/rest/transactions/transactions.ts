@@ -242,6 +242,7 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
             let preTaxSteps: TransactionPlanStep[] = [];
             let postTaxSteps: TransactionPlanStep[] = [];
 
+            // todo - need to look into this. internal can be pretax. why doesn't lightrail transaction plan step have pretax flag?
             for (const step of steps) {
                 if (step.rail === "lightrail" && step.value.pretax) {
                     preTaxSteps.push(step);

@@ -945,4 +945,117 @@ describe("/v2/transactions/checkout", () => {
             "createdDate": "2018-06-14T21:30:26.000Z"
         }, ["createdDate"]);
     });
+
+    it("basic 10% off everything", async () => {
+        const cartPromotion: Partial<Value> = {
+            id: "test cart promotion 2",
+            currency: "CAD",
+            valueRule: {
+                rule: "currentLineItem.lineTotal.subtotal * 0.1",
+                explanation: "10% off everything"
+            },
+            redemptionRule: {
+                rule: "currentLineItem.lineTotal.discount == 0",
+                explanation: "limited to 1 promotion per item"
+            },
+            pretax: true,
+            discount: true
+        };
+
+        const respCartPromo = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", cartPromotion);
+        chai.assert.equal(respCartPromo.statusCode, 201, `body=${JSON.stringify(respCartPromo.body)}`);
+
+        let request: any = {
+            id: "order-q234raeser",
+            allowRemainder: true,
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: cartPromotion.id
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "p1",
+                    unitPrice: 500,
+                    taxRate: 0.10
+                },
+                {
+                    type: "product",
+                    productId: "p2",
+                    unitPrice: 250,
+                    quantity: 1,
+                    taxRate: 0.10
+                }
+            ],
+            currency: "CAD"
+        };
+
+        const postOrderResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", request);
+        chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
+        chai.assert.deepEqualExcluding(postOrderResp.body, {
+            "id": "order-q234raeser",
+            "transactionType": "checkout",
+            "currency": "CAD",
+            "totals": {
+                "subTotal": 750,
+                "tax": 67,
+                "discount": 75,
+                "payable": 742,
+                "remainder": 742
+            },
+            "lineItems": [
+                {
+                    "type": "product",
+                    "productId": "p1",
+                    "unitPrice": 500,
+                    "taxRate": 0.1,
+                    "quantity": 1,
+                    "lineTotal": {
+                        "subtotal": 500,
+                        "taxable": 450,
+                        "tax": 45,
+                        "discount": 50,
+                        "remainder": 495,
+                        "payable": 495
+                    }
+                },
+                {
+                    "type": "product",
+                    "productId": "p2",
+                    "unitPrice": 250,
+                    "quantity": 1,
+                    "taxRate": 0.1,
+                    "lineTotal": {
+                        "subtotal": 250,
+                        "taxable": 225,
+                        "tax": 22,
+                        "discount": 25,
+                        "remainder": 247,
+                        "payable": 247
+                    }
+                }
+            ],
+            "steps": [
+                {
+                    "rail": "lightrail",
+                    "valueId": "test cart promotion 2",
+                    "contactId": null,
+                    "code": null,
+                    "balanceBefore": 0,
+                    "balanceAfter": -75,
+                    "balanceChange": -75
+                }
+            ],
+            "paymentSources": [
+                {
+                    "rail": "lightrail",
+                    "valueId": "test cart promotion 2"
+                }
+            ],
+            "metadata": null,
+            "createdDate": "2018-06-14T22:50:51.000Z"
+        }, ["createdDate"]);
+    });
 });
