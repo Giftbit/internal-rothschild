@@ -3,7 +3,6 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {CheckoutRequest, CreditRequest, DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
 import {resolveTransactionParties} from "./resolveTransactionParties";
-import {buildCheckoutTransactionPlan} from "./buildCheckoutTransactionPlan";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {executeTransactionPlanner} from "./executeTransactionPlan";
 import {Pagination, PaginationParams} from "../../../model/Pagination";
@@ -11,6 +10,7 @@ import {getKnexRead} from "../../../dbUtils/connection";
 import {Filters, TransactionFilterParams} from "../../../model/Filter";
 import {paginateQuery} from "../../../dbUtils/paginateQuery";
 import {LightrailTransactionPlanStep} from "./TransactionPlan";
+import {optimizeCheckout} from "./checkoutTransactionPlanner";
 import getPaginationParams = Pagination.getPaginationParams;
 import getTransactionFilterParams = Filters.getTransactionFilterParams;
 
@@ -255,7 +255,7 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
             // postTaxSteps = postTaxSteps.sort(compareTransactionPlanSteps);
             // console.log(`preTaxSteps: ${JSON.stringify(preTaxSteps)}`);
             // console.log(`postTaxSteps: ${JSON.stringify(postTaxSteps)}`);
-            return buildCheckoutTransactionPlan(checkout, steps);
+            return optimizeCheckout(checkout, steps);
         }
     );
 }

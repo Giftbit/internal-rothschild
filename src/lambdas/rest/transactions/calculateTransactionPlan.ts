@@ -1,28 +1,8 @@
 import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "./TransactionPlan";
 import {CheckoutRequest} from "../../../model/TransactionRequest";
 import {Value} from "../../../model/Value";
-import {listPermutations} from "../../utils/combinatoricUtils";
 import {RuleContext} from "./RuleContext";
 import {bankersRounding} from "../../utils/moneyUtils";
-
-export function buildCheckoutTransactionPlan(checkout: CheckoutRequest, steps: TransactionPlanStep[]): TransactionPlan {
-    let bestPlan: TransactionPlan = null;
-    const permutations = getAllPermutations(steps);
-    for (const perm of permutations) {
-        console.log("STARTING NEW PERMUTATION: " + JSON.stringify(perm));
-        let newPlan = calculateTransactionPlan(checkout, perm.preTaxSteps, perm.postTaxSteps);
-        console.log(`new plans totals: ${JSON.stringify(newPlan.totals)}`);
-        if (!bestPlan || (newPlan.totals.payable < bestPlan.totals.payable)) {
-            bestPlan = newPlan;
-            console.log(`Found a better perm. ${JSON.stringify(bestPlan)}`);
-        } else {
-            console.log("old plan was better.");
-        }
-    }
-
-    console.log(`overall best plan = ${JSON.stringify(bestPlan)}\n\n\n\n`);
-    return bestPlan;
-}
 
 const debug = false;
 
@@ -126,69 +106,4 @@ function applyTax(transactionPlan: TransactionPlan): void {
         item.lineTotal.tax = tax;
         item.lineTotal.remainder += tax;
     }
-}
-
-export interface StepPermutation {
-    preTaxSteps: TransactionPlanStep[];
-    postTaxSteps: TransactionPlanStep[];
-}
-
-export function getAllPermutations(steps: TransactionPlanStep[]): StepPermutation[] {
-    console.log(JSON.stringify(steps));
-    const preTaxSteps: TransactionPlanStep[] = steps.filter(it => (it.rail === "internal" && it.pretax) || (it.rail === "lightrail" && it.value.pretax));
-    const postTaxSteps: TransactionPlanStep[] = steps.filter(x => preTaxSteps.indexOf(x) < 0);
-
-    let stepPermutations: StepPermutation[] = [];
-
-    if (preTaxSteps.length > 0 && postTaxSteps.length > 0) {
-        let preTaxPerms = getStepPermutations(preTaxSteps);
-        for (let preTaxPerm of preTaxPerms) {
-            let postTaxPerms = getStepPermutations(postTaxSteps);
-            for (let postTaxPerm of postTaxPerms) {
-                stepPermutations.push({
-                    preTaxSteps: JSON.parse(JSON.stringify(preTaxPerm)) /* this is subtle, need to be clones, otherwise object gets modified */,
-                    postTaxSteps: postTaxPerm
-                })
-            }
-        }
-    } else if (preTaxSteps.length > 0 && postTaxSteps.length === 0) {
-        let preTaxPerms = getStepPermutations(preTaxSteps);
-        for (let preTaxPerm of preTaxPerms) {
-            stepPermutations.push({preTaxSteps: preTaxPerm, postTaxSteps: []})
-        }
-    } else if (preTaxSteps.length === 0 && postTaxSteps.length > 0) {
-        let postTaxPerms = getStepPermutations(postTaxSteps);
-        for (let postTaxPerm of postTaxPerms) {
-            stepPermutations.push({preTaxSteps: [], postTaxSteps: postTaxPerm})
-        }
-    } else {
-        console.log("No steps were supplied.")
-    }
-    console.log("step permutations: " + JSON.stringify(stepPermutations));
-
-    return stepPermutations
-}
-
-/**
- * TODO - UPDATE NOTE
- * It also preserves the order of the non-lightrail steps.
- * TODO - can i make it clear that the steps should be all pretax = true XOR pretax = false?
- */
-export function getStepPermutations(steps: TransactionPlanStep[]): Array<Array<TransactionPlanStep>> {
-    const stepsBeforeLightrail = steps.filter(it => it.rail === "internal" && it.beforeLightrail);
-    const stepsAfterLightrail = steps.filter(it => it.rail !== "lightrail" && !it["beforeLightrail"]);
-    const lighrailSteps = steps.filter(it => it.rail === "lightrail");
-
-    let lightrailPerms = listPermutations(lighrailSteps);
-
-    let result: Array<Array<TransactionPlanStep>> = [];
-    for (let perm of lightrailPerms) {
-        perm = stepsBeforeLightrail.concat(perm);
-        // todo - this can probably be another concat.
-        for (let nonLightrailStep of stepsAfterLightrail) {
-            perm.push(nonLightrailStep);
-        }
-        result.push(perm);
-    }
-    return result;
 }
