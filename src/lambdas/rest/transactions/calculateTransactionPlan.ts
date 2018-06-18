@@ -7,9 +7,9 @@ import {bankersRounding} from "../../utils/moneyUtils";
 export function calculateTransactionPlan(checkout: CheckoutRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
     let transactionPlan = new TransactionPlan(checkout, preTaxSteps.concat(postTaxSteps));
     console.log(`Build checkout transaction plan: ${JSON.stringify(transactionPlan)}`);
-    processTransactionSteps(preTaxSteps, transactionPlan);
+    evaluateTransactionSteps(preTaxSteps, transactionPlan);
     applyTax(transactionPlan);
-    processTransactionSteps(postTaxSteps, transactionPlan);
+    evaluateTransactionSteps(postTaxSteps, transactionPlan);
     transactionPlan.calculateTotalsFromLineItems();
 
     transactionPlan.steps = transactionPlan.steps.filter(s => s.amount !== 0); // todo - do we want to filter out steps that are not transacted against?
@@ -31,12 +31,12 @@ function isValueRedeemable(value: Value): boolean {
     return true;
 }
 
-function processTransactionSteps(steps: TransactionPlanStep[], transactionPlan: TransactionPlan): void {
+function evaluateTransactionSteps(steps: TransactionPlanStep[], transactionPlan: TransactionPlan): void {
     for (let stepsIndex = 0; stepsIndex < steps.length; stepsIndex++) {
         const step = steps[stepsIndex];
         switch (step.rail) {
             case "lightrail":
-                processLightrailTransactionStep(step, transactionPlan);
+                evaluateLightrailTransactionStep(step, transactionPlan);
                 break;
             case "stripe":
                 throw new Error("not yet implemented");
@@ -46,7 +46,7 @@ function processTransactionSteps(steps: TransactionPlanStep[], transactionPlan: 
     }
 }
 
-function processLightrailTransactionStep(step: LightrailTransactionPlanStep, transactionPlan: TransactionPlan): void {
+function evaluateLightrailTransactionStep(step: LightrailTransactionPlanStep, transactionPlan: TransactionPlan): void {
     console.log(`Processing ValueStore ${JSON.stringify(step)}.`);
 
     let value = step.value;

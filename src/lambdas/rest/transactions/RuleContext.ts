@@ -54,15 +54,14 @@ export class RuleContext {
 const WEEK_DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
 interface DateContext {
-    eastern: DateInfo,
-    central: DateInfo,
-    mountain: DateInfo,
-    pacific: DateInfo,
-
+    eastern: DateInfo;
+    central: DateInfo;
+    mountain: DateInfo;
+    pacific: DateInfo;
 }
 
 interface DateInfo {
-    dayOfWeek: string,
-    hourOfDay: number,
-    minuteOfDay: number
+    dayOfWeek: string;
+    hourOfDay: number;
+    minuteOfDay: number;
 }
