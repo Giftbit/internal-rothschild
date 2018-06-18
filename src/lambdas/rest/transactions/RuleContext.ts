@@ -19,22 +19,22 @@ export class RuleContext {
         const mountain = moment().tz("America/Edmonton");
         const pacific = moment().tz("America/Los_Angeles");
         this.date = {
-            EST: {
+            eastern: {
                 dayOfWeek: WEEK_DAYS[eastern.day()].toString(),
                 hourOfDay: eastern.hour(),
                 minuteOfDay: eastern.minute()
             },
-            CEN: {
+            central: {
                 dayOfWeek: WEEK_DAYS[central.day()].toString(),
                 hourOfDay: central.hour(),
                 minuteOfDay: central.minute()
             },
-            GMT: {
+            mountain: {
                 dayOfWeek: WEEK_DAYS[mountain.day()].toString(),
                 hourOfDay: mountain.hour(),
                 minuteOfDay: mountain.minute()
             },
-            PST: {
+            pacific: {
                 dayOfWeek: WEEK_DAYS[pacific.day()].toString(),
                 hourOfDay: pacific.hour(),
                 minuteOfDay: pacific.minute()
@@ -54,10 +54,10 @@ export class RuleContext {
 const WEEK_DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
 interface DateContext {
-    EST: DateInfo,
-    CEN: DateInfo,
-    GMT: DateInfo,
-    PST: DateInfo,
+    eastern: DateInfo,
+    central: DateInfo,
+    mountain: DateInfo,
+    pacific: DateInfo,
 
 }
 
