@@ -14,7 +14,6 @@ export class TransactionPlan {
     steps: TransactionPlanStep[];
     metadata: object | null;
 
-
     constructor(checkout: CheckoutRequest, steps: TransactionPlanStep[]) {
         let lineItemResponses: LineItemResponse[] = [];
         for (let lineItem of checkout.lineItems) {
@@ -85,7 +84,6 @@ export interface StripeTransactionPlanStep {
     rail: "stripe";
     token: string;
     stripeSecretKey: string;
-    priority?: number; // todo - do we want this? I don't think we do. Use order that stripe steps are passed in for prioritization. IF WE WANT IT MAKE IT NOT OPTIONAL
     maxAmount: number | null;
     amount: number;
 

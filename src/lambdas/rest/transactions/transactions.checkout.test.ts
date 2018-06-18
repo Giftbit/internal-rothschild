@@ -3,11 +3,9 @@ import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as transactions from "./transactions";
 import * as valueStores from "../values";
-import * as currencies from "../currencies";
 import * as testUtils from "../../../testUtils";
 import {Value} from "../../../model/Value";
 import {Transaction} from "../../../model/Transaction";
-import {Currency} from "../../../model/Currency";
 import {getRuleFromCache} from "./getRuleFromCache";
 
 describe("/v2/transactions/checkout", () => {
@@ -19,24 +17,12 @@ describe("/v2/transactions/checkout", () => {
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
         transactions.installTransactionsRest(router);
         valueStores.installValuesRest(router);
-        currencies.installCurrenciesRest(router);
-    });
-
-    it("processes basic checkout", async () => {
-        const currency: Currency = {
-            code: "CAD",
-            name: "Monopoly Money",
-            symbol: "$",
-            decimalPlaces: 2
-        };
-        const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency);
-        chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
+        await testUtils.createCurrency(router, "CAD");
     });
 
     it("processes basic order", async () => {
         const giftCard: Partial<Value> = {
             id: "basic-checkout-vs",
-            // type: "GIFTCARD",
             currency: "CAD",
             balance: 1000
         };

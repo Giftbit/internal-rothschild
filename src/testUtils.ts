@@ -5,6 +5,9 @@ import * as mysql from "mysql2/promise";
 import * as path from "path";
 import {getDbCredentials} from "./dbUtils/connection";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
+import {Currency} from "./model/Currency";
+import {Value} from "./model/Value";
+import * as currencies from "./lambdas/rest/currencies";
 import papaparse = require("papaparse");
 
 if (!process.env["TEST_ENV"]) {
@@ -173,4 +176,17 @@ export async function testAuthedCsvRequest<T>(router: cassava.Router, url: strin
         headers: resp.headers,
         body: parseRes.data
     };
+}
+
+export async function createCurrency(router: cassava.Router, isoCode: string): Promise<void> {
+    currencies.installCurrenciesRest(router);
+
+    const currency: Currency = {
+        code: isoCode,
+        name: "Monopoly Money",
+        symbol: "$",
+        decimalPlaces: 2
+    };
+    const resp1 = await testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency);
+    chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
 }
