@@ -49,6 +49,7 @@
     "knex": "^0.14.6",
     "lru-cache": "^4.1.2",
     "mocha": "^5.1.1",
+    "moment-timezone": "^0.5.20",
     "mysql2": "^1.5.3",
     "papaparse": "^4.4.0",
     "rimraf": "^2.6.2",

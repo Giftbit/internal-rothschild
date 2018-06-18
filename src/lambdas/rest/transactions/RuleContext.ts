@@ -2,6 +2,7 @@ import {LineItemResponse} from "../../../model/LineItem";
 import {TransactionPlanTotals} from "../../../model/Transaction";
 import {Rule} from "../../../model/Value";
 import {getRuleFromCache} from "./getRuleFromCache";
+import * as moment from "moment-timezone";
 
 export class RuleContext {
     currentLineItem: LineItemResponse;
@@ -13,11 +14,31 @@ export class RuleContext {
         this.currentLineItem = currentLineItem;
         this.totals = totals;
         this.lineItems = lineItems;
-        const now = new Date();
+        const eastern = moment().tz("America/New_York");
+        const central = moment().tz("America/North_Dakota/Center");
+        const mountain = moment().tz("America/Edmonton");
+        const pacific = moment().tz("America/Los_Angeles");
         this.date = {
-            // todo - this is a nice idea but majorly suffers from timezone problems...
-            dayOfWeek: DAYS_OF_THE_WEEK[now.getDay()],
-            minuteOfDay: now.getMinutes()
+            EST: {
+                dayOfWeek: WEEK_DAYS[eastern.day()].toString(),
+                hourOfDay: eastern.hour(),
+                minuteOfDay: eastern.minute()
+            },
+            CEN: {
+                dayOfWeek: WEEK_DAYS[central.day()].toString(),
+                hourOfDay: central.hour(),
+                minuteOfDay: central.minute()
+            },
+            GMT: {
+                dayOfWeek: WEEK_DAYS[mountain.day()].toString(),
+                hourOfDay: mountain.hour(),
+                minuteOfDay: mountain.minute()
+            },
+            PST: {
+                dayOfWeek: WEEK_DAYS[pacific.day()].toString(),
+                hourOfDay: pacific.hour(),
+                minuteOfDay: pacific.minute()
+            }
         };
     }
 
@@ -30,9 +51,18 @@ export class RuleContext {
     }
 }
 
-const DAYS_OF_THE_WEEK: DateContext["dayOfWeek"][] = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+const WEEK_DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
 interface DateContext {
-    dayOfWeek: "sunday" | "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday";
-    minuteOfDay: number;
+    EST: DateInfo,
+    CEN: DateInfo,
+    GMT: DateInfo,
+    PST: DateInfo,
+
+}
+
+interface DateInfo {
+    dayOfWeek: string,
+    hourOfDay: number,
+    minuteOfDay: number
 }
