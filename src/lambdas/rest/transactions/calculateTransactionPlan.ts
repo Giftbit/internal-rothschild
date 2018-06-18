@@ -12,7 +12,7 @@ export function calculateTransactionPlan(checkout: CheckoutRequest, preTaxSteps:
     processTransactionSteps(postTaxSteps, transactionPlan);
     transactionPlan.calculateTotalsFromLineItems();
 
-    transactionPlan.steps = transactionPlan.steps.filter(s => s.amount !== 0); // todo - I'm not sure if we want this?
+    transactionPlan.steps = transactionPlan.steps.filter(s => s.amount !== 0); // todo - do we want to filter out steps that are not transacted against?
     return transactionPlan;
 }
 
@@ -88,7 +88,7 @@ function applyTax(transactionPlan: TransactionPlan): void {
         let tax = 0;
         item.lineTotal.taxable = item.lineTotal.subtotal - item.lineTotal.discount;
         if (item.taxRate >= 0) {
-            tax = bankersRounding(item.taxRate * item.lineTotal.taxable, 0 /* todo - the currency and number of decimal places should be taken from the order or lineItem */);
+            tax = bankersRounding(item.taxRate * item.lineTotal.taxable, 0);
         }
         item.lineTotal.tax = tax;
         item.lineTotal.remainder += tax;

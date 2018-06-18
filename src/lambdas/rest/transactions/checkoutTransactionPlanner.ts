@@ -7,8 +7,9 @@ export function optimizeCheckout(checkout: CheckoutRequest, steps: TransactionPl
     let bestPlan: TransactionPlan = null;
     const permutations = getAllPermutations(steps);
     for (const perm of permutations) {
+        console.log(`Calculating transaction plan for permutation: ${JSON.stringify(perm)}.`);
         let newPlan = calculateTransactionPlan(checkout, perm.preTaxSteps, perm.postTaxSteps);
-        console.log(`Calculated new transaction plan: ${JSON.stringify(newPlan)}`);
+        console.log(`Calculated new transaction plan: ${JSON.stringify(newPlan)}.`);
         if (!bestPlan || (newPlan.totals.payable < bestPlan.totals.payable)) {
             bestPlan = newPlan;
             console.log(`Found a better transaction plan: ${JSON.stringify(bestPlan)}`);
