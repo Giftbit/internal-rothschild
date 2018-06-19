@@ -67,6 +67,7 @@ CREATE TABLE rothschild.Values (
   uses           INT,
   programId      VARCHAR(32),
   code           VARCHAR(255),
+  encryptedCode  VARCHAR(255),
   codeHashed     CHAR(255),
   codeLastFour   VARCHAR(4),
   contactId      VARCHAR(32),
@@ -100,15 +101,15 @@ CREATE TABLE rothschild.ValueTags (
 );
 
 CREATE TABLE rothschild.Transactions (
-  userId                  VARCHAR(32)  NOT NULL,
-  id                      VARCHAR(32)  NOT NULL,
-  transactionType         VARCHAR(255) NOT NULL,
-  currency                VARCHAR(32)  NOT NULL,
-  totals                  TEXT,
-  lineItems               MEDIUMTEXT,
-  paymentSources          TEXT,
-  metadata                TEXT,
-  createdDate             DATETIME     NOT NULL,
+  userId          VARCHAR(32)  NOT NULL,
+  id              VARCHAR(32)  NOT NULL,
+  transactionType VARCHAR(255) NOT NULL,
+  currency        VARCHAR(32)  NOT NULL,
+  totals          TEXT,
+  lineItems       MEDIUMTEXT,
+  paymentSources  TEXT,
+  metadata        TEXT,
+  createdDate     DATETIME     NOT NULL,
   PRIMARY KEY pk_Transactions (userId, id)
 );
 

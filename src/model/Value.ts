@@ -1,5 +1,6 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {pickDefined} from "../pick";
+import {Code} from "./Code";
 
 export interface Value {
     id: string;
@@ -29,8 +30,9 @@ export interface Rule {
 }
 
 export namespace Value {
-    export function toDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Value): DbValue {
-        return {
+    export function toDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Value, code: Code): DbValue {
+        console.log("encryptedCode " + code["encryptedCode"]);
+        const dbValue: DbValue = {
             userId: auth.giftbitUserId,
             id: v.id,
             currency: v.currency,
@@ -38,8 +40,8 @@ export namespace Value {
             uses: v.uses,
             programId: v.programId,
             code: v.code,
-            codeHashed: null,
-            codeLastFour: null,
+            encryptedCode: code && code["encryptedCode"] ? code["encryptedCode"].toString() : null,
+            codeHashed: code ? code.codeHashed : null,
             contactId: v.contactId,
             pretax: v.pretax,
             active: v.active,
@@ -54,6 +56,7 @@ export namespace Value {
             createdDate: v.createdDate,
             updatedDate: v.updatedDate
         };
+        return dbValue;
     }
 
     export function toDbValueUpdate(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Partial<Value>): Partial<DbValue> {
@@ -86,7 +89,7 @@ export interface DbValue {
     programId: string | null;
     code: string | null;
     codeHashed: string | null;
-    codeLastFour: string | null;
+    encryptedCode: string | null;
     contactId: string | null;
     pretax: boolean;
     active: boolean;
@@ -111,7 +114,7 @@ export namespace DbValue {
             uses: v.uses,
             programId: v.programId,
             contactId: v.contactId,
-            code: v.code || (v.codeLastFour && "…" + v.codeLastFour) || null,
+            code: v.code,
             pretax: v.pretax,
             active: v.active,
             canceled: v.canceled,

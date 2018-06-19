@@ -2,10 +2,13 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as testUtils from "../../testUtils";
-import {Value} from "../../model/Value";
+import {createCurrency} from "../../testUtils";
+import {DbValue, Value} from "../../model/Value";
 import {Currency} from "../../model/Currency";
 import {installRest} from "./index";
 import {Contact} from "../../model/Contact";
+import {getKnexRead} from "../../dbUtils/connection";
+import {computeLookupHash, encrypt} from "../../services/codeCryptoUtils";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -18,6 +21,7 @@ describe("/v2/values/", () => {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
         installRest(router);
+        createCurrency(router, "USD");
     });
 
     it("can list 0 values", async () => {
@@ -36,13 +40,6 @@ describe("/v2/values/", () => {
         chai.assert.equal(resp.headers["Max-Limit"], "1000");
     });
 
-    const currency: Currency = {
-        code: "USD",
-        name: "Freedom dollars",
-        symbol: "$",
-        decimalPlaces: 2
-    };
-
     let value1: Partial<Value> = {
         id: "1",
         currency: "USD",
@@ -50,15 +47,18 @@ describe("/v2/values/", () => {
     };
 
     it("cannot create a value with missing currency", async () => {
-        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value1);
+        let valueWithMissingCurrency: Partial<Value> = {
+            id: "1",
+            currency: "IDK",
+            balance: 0
+        };
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", valueWithMissingCurrency);
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.messageCode, "CurrencyNotFound");
     });
 
     it("can create a value with no code, no contact, no program", async () => {
-        const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency);
-        chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
-
         const resp2 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
         chai.assert.equal(resp2.statusCode, 201, `body=${JSON.stringify(resp2.body)}`);
         chai.assert.deepEqualExcluding(resp2.body, {
@@ -262,4 +262,70 @@ describe("/v2/values/", () => {
         const resp3 = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value5.id}`, "GET");
         chai.assert.equal(resp3.statusCode, 200, `still exists body=${JSON.stringify(resp3.body)}`);
     });
+
+    it.only("can create a value with public code", async () => {
+        let valueWithPublicCode: Partial<Value> = {
+            id: "valueWithPublicCode",
+            currency: "USD",
+            code: "PUBLICCODE",
+            balance: 0
+        };
+
+        const resp2 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueWithPublicCode);
+        chai.assert.equal(resp2.statusCode, 201, `body=${JSON.stringify(resp2.body)}`);
+        chai.assert.equal(resp2.body.code, valueWithPublicCode.code);
+
+        const knex = await getKnexRead();
+        const res: DbValue[] = await knex("Values")
+            .select()
+            .where({
+                userId: testUtils.defaultTestUser.userId,
+                id: valueWithPublicCode.id
+            });
+        console.log(JSON.stringify(res, null, 4));
+    });
+
+    it.only("can create a value with secure code", async () => {
+        let valueWithPublicCode = {
+            id: "valueWithSecureCode",
+            currency: "USD",
+            secureCode: "SECURECODE",
+            balance: 0
+        };
+
+        const respPost = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueWithPublicCode);
+        chai.assert.equal(respPost.statusCode, 201, `body=${JSON.stringify(respPost.body)}`);
+        chai.assert.equal(respPost.body.code, "...CODE");
+
+        const respGet = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueWithPublicCode.id}`, "GET");
+        chai.assert.equal(respGet.statusCode, 200, `body=${JSON.stringify(respGet.body)}`);
+        chai.assert.equal(respPost.body.code, "...CODE");
+
+        const respGetDisplaySecure = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueWithPublicCode.id}?displaySecure=true`, "GET");
+        chai.assert.equal(respGetDisplaySecure.statusCode, 200, `body=${JSON.stringify(respGetDisplaySecure.body)}`);
+        chai.assert.equal(respGetDisplaySecure.body.code, "SECURECODE");
+        console.log(JSON.stringify(respGetDisplaySecure));
+
+        const knex = await getKnexRead();
+        const res: DbValue[] = await knex("Values")
+            .select()
+            .where({
+                userId: testUtils.defaultTestUser.userId,
+                id: valueWithPublicCode.id
+            });
+        const encryptedCode: string = encrypt("SECURECODE");
+        console.log("encryptedCode here: " + encryptedCode);
+        console.log("encryptedCode from response: " + res[0].encryptedCode);
+        chai.assert.isNotNull(res[0].encryptedCode);
+        chai.assert.isNotNull(res[0].codeHashed);
+        chai.assert.equal(res[0].codeHashed, computeLookupHash("SECURECODE", testUtils.defaultTestUser.auth));
+        chai.assert.equal(respPost.body.code, "...CODE");
+
+        const list = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "GET");
+        console.log("list\n" + JSON.stringify(list.body, null, 4));
+        const listDisplaySecure = await testUtils.testAuthedRequest<Value>(router, `/v2/values?displaySecure=true`, "GET");
+        console.log("listDisplaySecure\n" + JSON.stringify(listDisplaySecure.body, null, 4));
+    });
+
+
 });
