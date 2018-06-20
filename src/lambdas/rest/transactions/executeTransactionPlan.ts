@@ -55,9 +55,11 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
                     userId: auth.giftbitUserId,
                     id: plan.id,
                     transactionType: plan.transactionType,
-                    lineItems: null,
-                    requestedPaymentSources: null,
-                    remainder: plan.totals.remainder,
+                    currency: plan.currency,
+                    totals: JSON.stringify(plan.totals),
+                    lineItems: JSON.stringify(plan.lineItems),
+                    paymentSources: JSON.stringify(plan.paymentSources),
+                    metadata: JSON.stringify(plan.metadata),
                     createdDate: now
                 });
         } catch (err) {

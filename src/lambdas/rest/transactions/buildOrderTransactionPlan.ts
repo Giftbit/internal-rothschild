@@ -8,16 +8,18 @@ import * as bankersRounding from "bankers-rounding";
 const debug = false;
 
 export function buildOrderTransactionPlan(order: OrderRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
-    let transactionPlan = initializeTransactionPlan(order, preTaxSteps.concat(postTaxSteps));
+    let transactionPlan = initializeOrderTransactionPlan(order, preTaxSteps.concat(postTaxSteps));
     processTransactionSteps(preTaxSteps, transactionPlan);
     applyTax(transactionPlan);
     processTransactionSteps(postTaxSteps, transactionPlan);
     calculateTotalsFromLineItems(transactionPlan);
     debug && console.log(`transactionPlan: ${JSON.stringify(transactionPlan)}`);
+
+    transactionPlan.steps = transactionPlan.steps.filter(s => s.amount !== 0);
     return transactionPlan;
 }
 
-function initializeTransactionPlan(order: OrderRequest, steps: TransactionPlanStep[]): TransactionPlan {
+function initializeOrderTransactionPlan(order: OrderRequest, steps: TransactionPlanStep[]): TransactionPlan {
     let lineItemResponses: LineItemResponse[] = [];
     for (let lineItem of order.lineItems) {
         lineItem.quantity = lineItem.quantity ? lineItem.quantity : 1;
@@ -37,7 +39,8 @@ function initializeTransactionPlan(order: OrderRequest, steps: TransactionPlanSt
     }
     return {
         id: order.id,
-        transactionType: "debit",
+        transactionType: "order",
+        currency: order.currency,
         lineItems: lineItemResponses,
         steps: steps,
         totals: {
@@ -46,7 +49,9 @@ function initializeTransactionPlan(order: OrderRequest, steps: TransactionPlanSt
             discount: 0,
             payable: 0,
             remainder: calculateRemainderFromLineItems(lineItemResponses),
-        }
+        },
+        metadata: order.metadata,
+        paymentSources: order.sources   // TODO if secure code, only return last four
     };
 }
 

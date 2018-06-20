@@ -103,10 +103,11 @@ CREATE TABLE rothschild.Transactions (
   userId                  VARCHAR(32)  NOT NULL,
   id                      VARCHAR(32)  NOT NULL,
   transactionType         VARCHAR(255) NOT NULL,
+  currency                VARCHAR(32)  NOT NULL,
   totals                  TEXT,
   lineItems               MEDIUMTEXT,
-  requestedPaymentSources TEXT,
-  remainder               INT          NOT NULL,
+  paymentSources          TEXT,
+  metadata                TEXT,
   createdDate             DATETIME     NOT NULL,
   PRIMARY KEY pk_Transactions (userId, id)
 );
@@ -121,7 +122,6 @@ CREATE TABLE rothschild.LightrailTransactionSteps (
   balanceBefore INT          NOT NULL,
   balanceAfter  INT          NOT NULL,
   balanceChange INT          NOT NULL,
-  createdDate   DATETIME     NOT NULL,
   PRIMARY KEY pk_LightrailTransactionSteps (userId, id),
   INDEX ix_LightrailTransactionSteps_transactionId (userId, transactionId),
   CONSTRAINT fk_LightrailTransactionSteps_Transactions FOREIGN KEY (userId, transactionId) REFERENCES rothschild.Transactions (userId, id),
