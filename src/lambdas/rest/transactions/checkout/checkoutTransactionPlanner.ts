@@ -1,14 +1,14 @@
-import {calculateTransactionPlan} from "./calculateTransactionPlan";
-import {CheckoutRequest} from "../../../model/TransactionRequest";
-import {TransactionPlan, TransactionPlanStep} from "./TransactionPlan";
-import {listPermutations} from "../../utils/combinatoricUtils";
+import {calculateCheckoutTransactionPlan} from "./calculateTransactionPlan";
+import {CheckoutRequest} from "../../../../model/TransactionRequest";
+import {TransactionPlan, TransactionPlanStep} from "../TransactionPlan";
+import {listPermutations} from "../../../utils/combinatoricUtils";
 
 export function optimizeCheckout(checkout: CheckoutRequest, steps: TransactionPlanStep[]): TransactionPlan {
     let bestPlan: TransactionPlan = null;
     const permutations = getAllPermutations(steps);
     for (const perm of permutations) {
         console.log(`Calculating transaction plan for permutation: ${JSON.stringify(perm)}.`);
-        let newPlan = calculateTransactionPlan(checkout, perm.preTaxSteps, perm.postTaxSteps);
+        let newPlan = calculateCheckoutTransactionPlan(checkout, perm.preTaxSteps, perm.postTaxSteps);
         console.log(`Calculated new transaction plan: ${JSON.stringify(newPlan)}.`);
         if (!bestPlan || (newPlan.totals.payable < bestPlan.totals.payable)) {
             bestPlan = newPlan;
@@ -61,15 +61,26 @@ export function getAllPermutations(steps: TransactionPlanStep[]): StepPermutatio
 }
 
 export function getStepPermutations(steps: TransactionPlanStep[]): Array<Array<TransactionPlanStep>> {
-    const stepsBeforeLightrail = steps.filter(it => it.rail === "internal" && it.beforeLightrail);
-    const stepsAfterLightrail = steps.filter(it => it.rail !== "lightrail" && !it["beforeLightrail"]);
-    const lighrailSteps = steps.filter(it => it.rail === "lightrail");
-
-    let lightrailPerms = listPermutations(lighrailSteps);
+    let filteredSteps = filterSteps(steps);
+    let lightrailPerms = listPermutations(filteredSteps.lighrailSteps);
 
     let result: Array<Array<TransactionPlanStep>> = [];
     for (let perm of lightrailPerms) {
-        result.push(stepsBeforeLightrail.concat(perm).concat(stepsAfterLightrail));
+        result.push(filteredSteps.stepsBeforeLightrail.concat(perm).concat(filteredSteps.stepsAfterLightrail));
     }
     return result;
+}
+
+export function filterSteps(steps: TransactionPlanStep[]): FilteredSteps {
+    return {
+        stepsBeforeLightrail: steps.filter(it => it.rail === "internal" && it.beforeLightrail),
+        stepsAfterLightrail: steps.filter(it => it.rail !== "lightrail" && !it["beforeLightrail"]),
+        lighrailSteps: steps.filter(it => it.rail === "lightrail"),
+    }
+}
+
+interface FilteredSteps {
+    stepsBeforeLightrail: TransactionPlanStep[];
+    stepsAfterLightrail: TransactionPlanStep[];
+    lighrailSteps: TransactionPlanStep[];
 }

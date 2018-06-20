@@ -10,7 +10,7 @@ import {getKnexRead} from "../../../dbUtils/connection";
 import {Filters, TransactionFilterParams} from "../../../model/Filter";
 import {paginateQuery} from "../../../dbUtils/paginateQuery";
 import {LightrailTransactionPlanStep} from "./TransactionPlan";
-import {optimizeCheckout} from "./checkoutTransactionPlanner";
+import {optimizeCheckout} from "./checkout/checkoutTransactionPlanner";
 import getPaginationParams = Pagination.getPaginationParams;
 import getTransactionFilterParams = Filters.getTransactionFilterParams;
 
