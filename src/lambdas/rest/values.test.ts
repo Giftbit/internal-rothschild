@@ -1,12 +1,15 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import * as parseLinkHeader from "parse-link-header";
 import * as testUtils from "../../testUtils";
-import {Value} from "../../model/Value";
+import {DbValue, Value} from "../../model/Value";
 import {Currency} from "../../model/Currency";
 import {installRest} from "./index";
 import {Contact} from "../../model/Contact";
 import chaiExclude = require("chai-exclude");
+import {defaultTestUser} from "../../testUtils";
+import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
 
 chai.use(chaiExclude);
 
@@ -244,13 +247,18 @@ describe("/v2/values/", () => {
         chai.assert.equal(resp4.statusCode, 404, `get deleted body=${JSON.stringify(resp4.body)}`);
     });
 
+    it("404s on deleting a Value that does not exist", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, `/v2/values/idonotexist`, "DELETE");
+        chai.assert.equal(resp.statusCode, 404, `delete body=${JSON.stringify(resp.body)}`);
+    });
+
     let value5: Partial<Value> = {
         id: "vjeff2",
         currency: "USD",
         balance: 1982   // creates an initial value transaction
     };
 
-    it.skip("409s on deleting a value that is in use", async () => {
+    it.skip("409s on deleting a Value that is in use", async () => {
         const resp1 = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value5);
         chai.assert.equal(resp1.statusCode, 201, `create body=${JSON.stringify(resp1.body)}`);
         value5 = resp1.body;
@@ -261,5 +269,83 @@ describe("/v2/values/", () => {
 
         const resp3 = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value5.id}`, "GET");
         chai.assert.equal(resp3.statusCode, 200, `still exists body=${JSON.stringify(resp3.body)}`);
+    });
+
+    describe("filtering and paging", () => {
+        before(async () => {
+            const values: Partial<DbValue>[] = [];
+            const date = new Date();
+
+            for (let i = 0; i < 1000; i++) {
+                values.push({
+                    userId: defaultTestUser.userId,
+                    id: `paging-${i}`,
+                    currency: "USD",
+                    balance: Math.max((Math.sin(i) * 1000) | 0, 0),
+                    pretax: true,
+                    active: true,
+                    canceled: !(i % 7),
+                    frozen: false,
+                    discount: true,
+                    startDate: date,
+                    endDate: date,
+                    createdDate: date,
+                    updatedDate: date
+                });
+            }
+
+            const knex = await getKnexWrite();
+            await knex("Values").insert(values);
+        });
+
+        it("pages and filters through many Values", async () => {
+            const knex = await getKnexRead();
+            const expected = await knex("Values")
+                .where({
+                    userId: defaultTestUser.userId,
+                    canceled: false
+                })
+                .where("balance", ">", 200)
+                .orderBy("id");
+            chai.assert.isAtLeast(expected.length, 2, "expect results");
+
+            const page1Size = Math.ceil(expected.length / 2);
+            const page1 = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/values?canceled=false&balance.gt=200&limit=${page1Size}`, "GET");
+            chai.assert.equal(page1.statusCode, 200, `body=${JSON.stringify(page1.body)}`);
+            chai.assert.deepEqualExcludingEvery(page1.body, expected.slice(0, page1Size), ["userId", "codeHashed", "codeLastFour", "startDate", "endDate", "createdDate", "updatedDate"]);
+            chai.assert.equal(page1.headers["Limit"], `${page1Size}`);
+            chai.assert.equal(page1.headers["Max-Limit"], "1000");
+            chai.assert.isDefined(page1.headers["Link"]);
+
+            const page1Link = parseLinkHeader(page1.headers["Link"]);
+            const page2 = await testUtils.testAuthedRequest<Contact[]>(router, page1Link.next.url, "GET");
+            chai.assert.equal(page2.statusCode, 200, `url=${page1Link.next.url} body=${JSON.stringify(page2.body)}`);
+            chai.assert.deepEqualExcludingEvery(page2.body, expected.slice(page1Size), ["userId", "codeHashed", "codeLastFour", "startDate", "endDate", "createdDate", "updatedDate"]);
+            chai.assert.equal(page1.headers["Limit"], `${page1Size}`);
+            chai.assert.equal(page1.headers["Max-Limit"], "1000");
+            chai.assert.isDefined(page1.headers["Link"]);
+
+            const page2Link = parseLinkHeader(page2.headers["Link"]);
+            const page2prev = await testUtils.testAuthedRequest<Contact[]>(router, page2Link.prev.url, "GET");
+            chai.assert.equal(page2prev.statusCode, 200, `url=${page2Link.prev.url} body=${JSON.stringify(page2prev.body)}`);
+            chai.assert.deepEqual(page2prev.body, page1.body);
+        });
+
+        it("supports id.in", async () => {
+            const ids = ["paging-1", "paging-10", "paging-11", "paging-101", "paging-100", "paging-110", "paging-111"];
+
+            const knex = await getKnexRead();
+            const expected = await knex("Values")
+                .where({
+                    userId: defaultTestUser.userId
+                })
+                .whereIn("id", ids)
+                .orderBy("id");
+
+            const page1 = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/values?id.in=${ids.join(",")}`, "GET");
+            chai.assert.equal(page1.statusCode, 200, `body=${JSON.stringify(page1.body)}`);
+            chai.assert.deepEqualExcludingEvery(page1.body, expected, ["userId", "codeHashed", "codeLastFour", "startDate", "endDate", "createdDate", "updatedDate"]);
+            chai.assert.isDefined(page1.headers["Link"]);
+        });
     });
 });

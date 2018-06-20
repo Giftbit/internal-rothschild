@@ -15,6 +15,8 @@ import {LightrailTransactionPlanStep, TransactionPlanStep} from "./TransactionPl
 import getPaginationParams = Pagination.getPaginationParams;
 import getTransactionFilterParams = Filters.getTransactionFilterParams;
 
+const debug = false;
+
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions")
         .method("GET")
@@ -252,8 +254,8 @@ async function createOrder(auth: giftbitRoutes.jwtauth.AuthorizationBadge, order
 
             preTaxSteps = preTaxSteps.sort(compareTransactionPlanSteps);
             postTaxSteps = postTaxSteps.sort(compareTransactionPlanSteps);
-            console.log(`preTaxSteps: ${JSON.stringify(preTaxSteps)}`);
-            console.log(`postTaxSteps: ${JSON.stringify(postTaxSteps)}`);
+            debug && console.log(`preTaxSteps: ${JSON.stringify(preTaxSteps)}`);
+            debug && console.log(`postTaxSteps: ${JSON.stringify(postTaxSteps)}`);
             return buildOrderTransactionPlan(order, preTaxSteps, postTaxSteps);
         }
     );
