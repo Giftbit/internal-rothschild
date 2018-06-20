@@ -19,7 +19,7 @@ export interface FilterQueryProperty {
      */
     columnName?: string;
 
-    // TODO when tagging is a this this will need to support searching for the IDs matching the tags in another table
+    // TODO when tagging is a thing this will need to support searching for the IDs matching the tags in another table
 
     /**
      * Override the operators available for this property.
@@ -29,16 +29,21 @@ export interface FilterQueryProperty {
 
 export type FilterQueryOperator = "lt" | "lte" | "gt" | "gte" | "eq" | "ne" | "in" | "like";
 
+/**
+ * Add where clauses to filter the given SQL query.
+ * @param query The SQL query to filter.
+ * @param filterParams A map of string filter values.  Most likely the URL query.
+ * @param options Specifies the filterable values.
+ * @returns The filtered SQL query.
+ */
 export function filterQuery(query: knex.QueryBuilder, filterParams: {[key: string]: string}, options: FilterQueryOptions): knex.QueryBuilder {
     for (let filterKey of Object.keys(filterParams)) {
         const filterValue = filterParams[filterKey];
-        let op: FilterQueryOperator = "eq";
+        let op: string = "eq";
         if (filterKey.indexOf(".") !== -1) {
-            const keyAndOp = filterKey.split(".");
-            if (keyAndOp.length === 2) {
-                filterKey = keyAndOp[0];
-                op = keyAndOp[1] as FilterQueryOperator;
-            }
+            const keyAndOp = filterKey.split(".", 2);
+            filterKey = keyAndOp[0];
+            op = keyAndOp[1];
         }
 
         if (!options.properties.hasOwnProperty(filterKey)) {
@@ -48,7 +53,7 @@ export function filterQuery(query: knex.QueryBuilder, filterParams: {[key: strin
 
         const property = options.properties[filterKey];
         if (!filterQueryPropertyAllowsOperator(property, op)) {
-            continue;
+            throw new giftbitRoutes.GiftbitRestError(400, `Query filter key '${filterKey}' does not support operator '${op}'.`);
         }
 
         query = addFilterToQuery(
@@ -63,7 +68,7 @@ export function filterQuery(query: knex.QueryBuilder, filterParams: {[key: strin
     return query;
 }
 
-function filterQueryPropertyAllowsOperator(prop: FilterQueryProperty, op: string = "eq"): op is FilterQueryOperator {
+function filterQueryPropertyAllowsOperator(prop: FilterQueryProperty, op: string): op is FilterQueryOperator {
     if (prop.operators) {
         return prop.operators.indexOf(op as FilterQueryOperator) !== -1;
     }

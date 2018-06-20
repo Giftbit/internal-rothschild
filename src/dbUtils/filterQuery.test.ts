@@ -361,4 +361,48 @@ describe("filterQuery()", () => {
         chai.assert.isTrue(ex.isRestError);
         chai.assert.equal(ex.statusCode, 400);
     });
+
+    it("throws a 400 exception if the property is known but the operator can't be used", async () => {
+        const knex = await getKnexRead();
+        let ex: giftbitRoutes.GiftbitRestError;
+
+        try {
+            filterQuery(
+                knex("FilterTest")
+                    .where({userId: "user1"})
+                    .orderBy("id"),
+                {
+                    "id.like": "?1234"
+                },
+                filterTestFilterOptions
+            );
+        } catch (e) {
+            ex = e;
+        }
+        chai.assert.isDefined(ex, "exception thrown");
+        chai.assert.isTrue(ex.isRestError);
+        chai.assert.equal(ex.statusCode, 400);
+    });
+
+    it("throws a 400 exception if the property is known but the operator is unknown", async () => {
+        const knex = await getKnexRead();
+        let ex: giftbitRoutes.GiftbitRestError;
+
+        try {
+            filterQuery(
+                knex("FilterTest")
+                    .where({userId: "user1"})
+                    .orderBy("id"),
+                {
+                    "b.kwyjibo": "what's up?"
+                },
+                filterTestFilterOptions
+            );
+        } catch (e) {
+            ex = e;
+        }
+        chai.assert.isDefined(ex, "exception thrown");
+        chai.assert.isTrue(ex.isRestError);
+        chai.assert.equal(ex.statusCode, 400);
+    });
 });
