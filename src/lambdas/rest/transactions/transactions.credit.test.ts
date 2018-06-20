@@ -2,10 +2,11 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as testUtils from "../../../testUtils";
+import {defaultTestUser} from "../../../testUtils";
 import {Value} from "../../../model/Value";
 import {Transaction} from "../../../model/Transaction";
-import {Currency} from "../../../model/Currency";
 import {installRest} from "../index";
+import * as currencies from "../currencies";
 
 describe("/v2/transactions/credit", () => {
 
@@ -15,14 +16,14 @@ describe("/v2/transactions/credit", () => {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
         installRest(router);
-    });
 
-    const currency: Currency = {
-        code: "CAD",
-        name: "Maple leaves",
-        symbol: "$",
-        decimalPlaces: 2
-    };
+        await currencies.createCurrency(defaultTestUser.auth, {
+            code: "CAD",
+            name: "Canadian bucks",
+            symbol: "$",
+            decimalPlaces: 2
+        });
+    });
 
     const value: Partial<Value> = {
         id: "v-credit-1",
@@ -31,9 +32,6 @@ describe("/v2/transactions/credit", () => {
     };
 
     it("can credit by valueId", async () => {
-        const postCurrencyResp = await testUtils.testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency);
-        chai.assert.equal(postCurrencyResp.statusCode, 201, `body=${JSON.stringify(postCurrencyResp.body)}`);
-
         const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
 
@@ -50,27 +48,35 @@ describe("/v2/transactions/credit", () => {
         chai.assert.deepEqualExcluding(postCreditResp.body, {
             id: "credit-1",
             transactionType: "credit",
+            currency: "CAD",
             totals: {remainder: 0},
             steps: [
                 {
                     rail: "lightrail",
                     valueId: value.id,
-                    currency: value.currency,
                     code: null,
                     contactId: null,
                     balanceBefore: 0,
                     balanceAfter: 1000,
                     balanceChange: 1000
                 }
-            ]
+            ],
+            lineItems: null,
+            paymentSources: null,
+            metadata: null,
+            createdDate: null
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(postValueResp.body)}`);
         chai.assert.equal(getValueResp.body.balance, 1000);
+
+        const getCreditResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit-1", "GET");
+        chai.assert.equal(getCreditResp.statusCode, 200, `body=${JSON.stringify(getCreditResp.body)}`);
+        chai.assert.deepEqualExcluding(getCreditResp.body, postCreditResp.body, "statusCode");
     });
 
-    it("409s on reusing an id", async () => {
+    it("409s on reusing a transaction ID", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
             id: "credit-1",  // same as above
             destination: {
@@ -84,7 +90,7 @@ describe("/v2/transactions/credit", () => {
         chai.assert.equal(resp.body.messageCode, "TransactionExists");
     });
 
-    it("can simulate a credit by valueId", async () => {
+    it("can simulate a credit by value ID", async () => {
         const postCreditResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", {
             id: "credit-2",
             destination: {
@@ -99,19 +105,23 @@ describe("/v2/transactions/credit", () => {
         chai.assert.deepEqualExcluding(postCreditResp.body, {
             id: "credit-2",
             transactionType: "credit",
+            currency: "CAD",
             totals: {remainder: 0},
             steps: [
                 {
                     rail: "lightrail",
                     valueId: value.id,
-                    currency: value.currency,
                     code: null,
                     contactId: null,
                     balanceBefore: 1000,
                     balanceAfter: 2100,
                     balanceChange: 1100
                 }
-            ]
+            ],
+            lineItems: null,
+            paymentSources: null,
+            metadata: null,
+            createdDate: null,
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
@@ -147,7 +157,7 @@ describe("/v2/transactions/credit", () => {
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
     });
 
-    it("422s crediting without an id", async () => {
+    it("422s crediting without a transaction ID", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
             destination: {
                 rail: "lightrail",
@@ -159,7 +169,7 @@ describe("/v2/transactions/credit", () => {
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 
-    it("422s crediting with an invalid id", async () => {
+    it("422s crediting with an invalid transaction ID", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
             id: 123,
             destination: {

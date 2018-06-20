@@ -5,9 +5,8 @@ import {Pagination, PaginationParams} from "../../model/Pagination";
 import {DbValue, Value} from "../../model/Value";
 import {pick, pickOrDefault} from "../../pick";
 import {csvSerializer} from "../../serializers";
-import {getSqlErrorConstraintName, nowInDbPrecision} from "../../dbUtils";
+import {filterAndPaginateQuery, getSqlErrorConstraintName, nowInDbPrecision} from "../../dbUtils";
 import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
-import {paginateQuery} from "../../dbUtils/paginateQuery";
 
 export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
@@ -19,7 +18,7 @@ export function installValuesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
-            const res = await getValues(auth, Pagination.getPaginationParams(evt));
+            const res = await getValues(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.values
@@ -118,15 +117,69 @@ export function installValuesRest(router: cassava.Router): void {
         });
 }
 
-export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ values: Value[], pagination: Pagination }> {
+export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: {[key: string]: string}, pagination: PaginationParams): Promise<{ values: Value[], pagination: Pagination }> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
-    const paginatedRes = await paginateQuery<DbValue>(
+    const paginatedRes = await filterAndPaginateQuery<DbValue>(
         knex("Values")
             .where({
                 userId: auth.giftbitUserId
             }),
+        filterParams,
+        {
+            properties: {
+                id: {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
+                programId: {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
+                currency: {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
+                contactId: {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
+                balance: {
+                    type: "number"
+                },
+                uses: {
+                    type: "number"
+                },
+                discount: {
+                    type: "boolean"
+                },
+                active: {
+                    type: "boolean"
+                },
+                frozen: {
+                    type: "boolean"
+                },
+                canceled: {
+                    type: "boolean"
+                },
+                preTax: {
+                    type: "boolean"
+                },
+                startDate: {
+                    type: "Date"
+                },
+                endDate: {
+                    type: "Date"
+                },
+                createdDate: {
+                    type: "Date"
+                },
+                updatedDate: {
+                    type: "Date"
+                }
+            }
+        },
         pagination
     );
     return {
@@ -213,23 +266,24 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
 
     try {
         const knex = await getKnexWrite();
-        const res: [number] = await knex("Values")
+        const res: number = await knex("Values")
             .where({
                 userId: auth.giftbitUserId,
                 id
             })
             .delete();
-        if (res[0] === 0) {
+        if (res === 0) {
             throw new cassava.RestError(404);
         }
-        if (res[0] > 1) {
-            throw new Error(`Illegal DELETE query.  Deleted ${res.length} values.`);
+        if (res > 1) {
+            throw new Error(`Illegal DELETE query.  Deleted ${res} values.`);
         }
         return {success: true};
     } catch (err) {
         if (err.code === "ER_ROW_IS_REFERENCED_2") {
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Value '${id}' is in use.`, "ValueInUse");
         }
+        throw err;
     }
 }
 
