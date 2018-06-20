@@ -14,6 +14,8 @@ import {optimizeCheckout} from "./checkoutTransactionPlanner";
 import getPaginationParams = Pagination.getPaginationParams;
 import getTransactionFilterParams = Filters.getTransactionFilterParams;
 
+const debug = false;
+
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions")
         .method("GET")

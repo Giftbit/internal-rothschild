@@ -1,4 +1,8 @@
+import * as knex from "knex";
 import {getKnexWrite} from "./connection";
+import {Pagination, PaginationParams} from "../model/Pagination";
+import {filterQuery, FilterQueryOptions} from "./filterQuery";
+import {paginateQuery} from "./paginateQuery";
 
 /**
  * Get a Date representing now in the same precision as the database.
@@ -36,4 +40,15 @@ export function getSqlErrorConstraintName(err: any): string {
         throw new Error("SQL error did not match expected error message despite the correct code 'ER_NO_REFERENCED_ROW_2'.");
     }
     return nameMatcher[1];
+}
+
+export async function filterAndPaginateQuery<T extends {id: string}>(
+    query: knex.QueryBuilder,
+    filterParams: {[key: string]: string},
+    filterOptions: FilterQueryOptions,
+    paginationParams: PaginationParams): Promise<{body: T[], pagination: Pagination}> {
+    return paginateQuery<T>(
+        filterQuery(query, filterParams, filterOptions),
+        paginationParams
+    );
 }
