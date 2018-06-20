@@ -41,6 +41,7 @@
     "cassava": "^2.0.0",
     "chai": "^4.1.0",
     "chai-exclude": "^1.0.8",
+    "crypto-js": "^3.1.9-1",
     "dynameh": "^2.10.3",
     "file-loader": "^1.1.11",
     "giftbit-cassava-routes": "git+ssh://git@github.com/Giftbit/giftbit-cassava-routes.git#semver:^6.0.0",
