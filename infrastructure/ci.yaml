@@ -279,6 +279,7 @@ Resources:
               - rds:CreateDBInstanceReadReplica
               - rds:CreateDBSnapshot
               - rds:CreateDBSubnetGroup
+              - rds:DeleteDBClusterParameterGroup
               - rds:DeleteDBSubnetGroup
               - rds:Describe*
               - rds:ListTagsForResource
@@ -288,6 +289,7 @@ Resources:
               - rds:ModifyDBSubnetGroup
               - rds:PromoteReadReplica
               - rds:PromoteReadReplicaDBCluster
+              - rds:RebootDBInstance
               - rds:RemoveTagsFromResource
               - rds:ResetDBClusterParameterGroup
               - rds:StartDBInstance
