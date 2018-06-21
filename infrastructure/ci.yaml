@@ -277,15 +277,18 @@ Resources:
               - rds:CreateDBClusterSnapshot
               - rds:CreateDBInstance
               - rds:CreateDBInstanceReadReplica
+              - rds:CreateDBParameterGroup
               - rds:CreateDBSnapshot
               - rds:CreateDBSubnetGroup
               - rds:DeleteDBClusterParameterGroup
+              - rds:DeleteDBParameterGroup
               - rds:DeleteDBSubnetGroup
               - rds:Describe*
               - rds:ListTagsForResource
               - rds:ModifyDBCluster
               - rds:ModifyDBClusterParameterGroup
               - rds:ModifyDBInstance
+              - rds:ModifyDBParameterGroup
               - rds:ModifyDBSubnetGroup
               - rds:PromoteReadReplica
               - rds:PromoteReadReplicaDBCluster
@@ -298,6 +301,7 @@ Resources:
               - !Sub "arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:*"
               - !Sub "arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster-pg:*"
               - !Sub "arn:aws:rds:${AWS::Region}:${AWS::AccountId}:db:*"
+              - !Sub "arn:aws:rds:${AWS::Region}:${AWS::AccountId}:pg:*"
               - !Sub "arn:aws:rds:${AWS::Region}:${AWS::AccountId}:subgrp:*"
           # Routing
           - Effect: Allow
