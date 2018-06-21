@@ -1,12 +1,12 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import * as transactions from "./transactions";
-import * as valueStores from "../values";
-import * as testUtils from "../../../testUtils";
-import {Value} from "../../../model/Value";
-import {Transaction} from "../../../model/Transaction";
-import {getRuleFromCache} from "./getRuleFromCache";
+import * as transactions from "../transactions";
+import * as valueStores from "../../values";
+import * as testUtils from "../../../../testUtils";
+import {Value} from "../../../../model/Value";
+import {Transaction} from "../../../../model/Transaction";
+import {getRuleFromCache} from "../getRuleFromCache";
 
 describe("/v2/transactions/checkout", () => {
 

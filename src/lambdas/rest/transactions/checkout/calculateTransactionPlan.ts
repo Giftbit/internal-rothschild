@@ -1,18 +1,18 @@
-import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "./TransactionPlan";
-import {CheckoutRequest} from "../../../model/TransactionRequest";
-import {Value} from "../../../model/Value";
-import {RuleContext} from "./RuleContext";
-import {bankersRounding} from "../../utils/moneyUtils";
+import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "../TransactionPlan";
+import {CheckoutRequest} from "../../../../model/TransactionRequest";
+import {Value} from "../../../../model/Value";
+import {RuleContext} from "../RuleContext";
+import {CheckoutTransactionPlan} from "./CheckoutTransactionPlan";
 
-export function calculateTransactionPlan(checkout: CheckoutRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
-    let transactionPlan = new TransactionPlan(checkout, preTaxSteps.concat(postTaxSteps));
+export function calculateCheckoutTransactionPlan(checkout: CheckoutRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
+    let transactionPlan = new CheckoutTransactionPlan(checkout, preTaxSteps.concat(postTaxSteps));
     console.log(`Build checkout transaction plan: ${JSON.stringify(transactionPlan)}`);
     evaluateTransactionSteps(preTaxSteps, transactionPlan);
-    applyTax(transactionPlan);
+    transactionPlan.applyTax();
     evaluateTransactionSteps(postTaxSteps, transactionPlan);
     transactionPlan.calculateTotalsFromLineItems();
 
-    transactionPlan.steps = transactionPlan.steps.filter(s => s.amount !== 0); // todo - do we want to filter out steps that are not transacted against?
+    transactionPlan.steps = transactionPlan.steps.filter(s => s.amount !== 0);
     return transactionPlan;
 }
 
@@ -80,17 +80,5 @@ function evaluateLightrailTransactionStep(step: LightrailTransactionPlanStep, tr
         } else {
             // The item has been paid for, skip.
         }
-    }
-}
-
-function applyTax(transactionPlan: TransactionPlan): void {
-    for (let item of transactionPlan.lineItems) {
-        let tax = 0;
-        item.lineTotal.taxable = item.lineTotal.subtotal - item.lineTotal.discount;
-        if (item.taxRate >= 0) {
-            tax = bankersRounding(item.taxRate * item.lineTotal.taxable, 0);
-        }
-        item.lineTotal.tax = tax;
-        item.lineTotal.remainder += tax;
     }
 }

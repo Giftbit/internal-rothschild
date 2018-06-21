@@ -5,9 +5,8 @@ import {Contact, DbContact} from "../../model/Contact";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {pick, pickOrDefault} from "../../pick";
 import {csvSerializer} from "../../serializers";
-import {nowInDbPrecision} from "../../dbUtils";
+import {filterAndPaginateQuery, nowInDbPrecision} from "../../dbUtils";
 import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
-import {paginateQuery} from "../../dbUtils/paginateQuery";
 
 export function installContactsRest(router: cassava.Router): void {
     router.route("/v2/contacts")
@@ -19,7 +18,7 @@ export function installContactsRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
-            const res = await getContacts(auth, Pagination.getPaginationParams(evt));
+            const res = await getContacts(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.contacts
@@ -93,15 +92,33 @@ export function installContactsRest(router: cassava.Router): void {
         });
 }
 
-export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ contacts: Contact[], pagination: Pagination }> {
+export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: {[key: string]: string}, pagination: PaginationParams): Promise<{ contacts: Contact[], pagination: Pagination }> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
-    const res = await paginateQuery<DbContact>(
+    const res = await filterAndPaginateQuery<DbContact>(
         knex("Contacts")
             .where({
                 userId: auth.giftbitUserId
             }),
+        filterParams,
+        {
+            properties: {
+                "id": {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
+                "firstName": {
+                    type: "string"
+                },
+                "lastName": {
+                    type: "string"
+                },
+                "email": {
+                    type: "string"
+                }
+            }
+        },
         pagination
     );
     return {
@@ -170,20 +187,27 @@ export async function updateContact(auth: giftbitRoutes.jwtauth.AuthorizationBad
 export async function deleteContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<{ success: true }> {
     auth.requireIds("giftbitUserId");
 
-    const knex = await getKnexWrite();
-    const res: [number] = await knex("Contacts")
-        .where({
-            userId: auth.giftbitUserId,
-            id: id
-        })
-        .delete();
-    if (res[0] === 0) {
-        throw new cassava.RestError(404);
+    try {
+        const knex = await getKnexWrite();
+        const res: number = await knex("Contacts")
+            .where({
+                userId: auth.giftbitUserId,
+                id: id
+            })
+            .delete();
+        if (res === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (res > 1) {
+            throw new Error(`Illegal DELETE query.  Deleted ${res} values.`);
+        }
+        return {success: true};
+    } catch (err) {
+        if (err.code === "ER_ROW_IS_REFERENCED_2") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Contact '${id}' is in use.`, "ContactInUse");
+        }
+        throw err;
     }
-    if (res[0] > 1) {
-        throw new Error(`Illegal DELETE query.  Deleted ${res.length} values.`);
-    }
-    return {success: true};
 }
 
 const contactSchema: jsonschema.Schema = {

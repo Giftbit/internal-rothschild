@@ -148,17 +148,17 @@ export async function deleteCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBa
 
     try {
         const knex = await getKnexWrite();
-        const res: [number] = await knex("Currencies")
+        const res: number = await knex("Currencies")
             .where({
                 userId: auth.giftbitUserId,
                 code: code
             })
             .delete();
-        if (res[0] === 0) {
+        if (res === 0) {
             throw new cassava.RestError(404);
         }
-        if (res[0] > 1) {
-            throw new Error(`Illegal DELETE query.  Deleted ${res.length} values.`);
+        if (res > 1) {
+            throw new Error(`Illegal DELETE query.  Deleted ${res} values.`);
         }
         return {success: true};
     } catch (err) {
