@@ -1,4 +1,3 @@
-import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {
     InternalTransactionParty,
@@ -43,15 +42,16 @@ export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.Auth
         .filter(p => p.rail === "stripe")
         .map((p: StripeTransactionParty): StripeTransactionPlanStep => ({
             rail: "stripe",
-            token: p.token,
+            source: p.source,
             maxAmount: p.maxAmount || null,
-            stripeSecretKey: null,
+            // stripeSecretKey: stripeKeys.lightrailStripeKey,
+            // stripeMerchantAccountId: stripeKeys.merchantStripeAccountId,
             amount: 0
         }));
-    if (stripeSteps.length > 0) {
-        // TODO fetch and fill in stripeSecretKey
-        throw new cassava.RestError(500, "stripe isn't supported yet");
-    }
+    // if (stripeSteps.length > 0) {
+    //     // TODO fetch and fill in stripeSecretKey
+    //     throw new cassava.RestError(500, "stripe isn't supported yet");
+    // }
 
     return [...lightrailSteps, ...internalSteps, ...stripeSteps];
 }

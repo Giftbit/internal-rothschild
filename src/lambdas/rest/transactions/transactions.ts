@@ -366,7 +366,7 @@ const stripePartySchema: jsonschema.Schema = {
             type: "string",
             enum: ["stripe"]
         },
-        token: {
+        source: {
             type: "string"
         }
     },

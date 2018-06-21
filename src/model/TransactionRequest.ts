@@ -42,8 +42,9 @@ export interface LightrailTransactionParty {
 
 export interface StripeTransactionParty {
     rail: "stripe";
-    token: string;
+    source: string;
     maxAmount?: number;
+    chargeId?: string;
     priority?: number;
 }
 

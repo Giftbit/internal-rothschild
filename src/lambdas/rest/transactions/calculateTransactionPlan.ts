@@ -39,7 +39,10 @@ function evaluateTransactionSteps(steps: TransactionPlanStep[], transactionPlan:
                 evaluateLightrailTransactionStep(step, transactionPlan);
                 break;
             case "stripe":
-                throw new Error("not yet implemented");
+                // console.log("\nTXN PLAN WHEN CALCULATING STRIPE STEP: \n" + JSON.stringify(transactionPlan, null, 4));
+                evaluateStripeTransactionStep(step, transactionPlan);
+                break;
+            // throw new Error("not yet implemented");
             case "internal":
                 throw new Error("not yet implemented");
         }
@@ -81,6 +84,32 @@ function evaluateLightrailTransactionStep(step: LightrailTransactionPlanStep, tr
             // The item has been paid for, skip.
         }
     }
+}
+
+function evaluateStripeTransactionStep(step, transactionPlan): void {
+    // console.log("STEP\n" + JSON.stringify(step, null, 4));
+
+    let amount: number = 0;
+
+    for (let item of transactionPlan.lineItems) {
+        if (step.maxAmount) {
+            if (amount + item.lineTotal.remainder <= step.maxAmount) {
+                amount += item.lineTotal.remainder;
+                item.lineTotal.remainder = 0;
+            } else {
+                const difference: number = step.maxAmount - amount;
+                amount = step.maxAmount;
+                item.lineTotal.remainder -= difference;
+            }
+        }
+        else {  // charge full remainder for each line item to Stripe
+            amount += item.lineTotal.remainder;
+            item.lineTotal.remainder = 0;
+        }
+    }
+
+    step.amount += amount;
+    // console.log("STEP after eval\n" + JSON.stringify(step, null, 4));
 }
 
 function applyTax(transactionPlan: TransactionPlan): void {
