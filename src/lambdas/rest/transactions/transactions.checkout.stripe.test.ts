@@ -118,12 +118,12 @@ describe.only("split tender checkout with Stripe", () => {
                 },
                 {
                     rail: "stripe",
-                    chargeId: "",
+                    source: "tok_visa",
                 }
             ],
             metadata: null,
             createdDate: null
-        }, ["createdDate", "charge"], /*JSON.stringify(postCheckoutResp.body, null, 4)*/);
+        }, ["createdDate", "chargeId", "charge"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
@@ -131,7 +131,7 @@ describe.only("split tender checkout with Stripe", () => {
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
-        chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, "statusCode");
+        chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["statusCode"], `body=${JSON.stringify(getCheckoutResp.body, null, 4)}`);
     });
 
     it.skip("updates the Stripe charge with LR transaction identifier");
