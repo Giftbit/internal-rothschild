@@ -71,9 +71,7 @@ describe("/v2/contacts", () => {
     it("can list 1 contact in csv", async () => {
         const resp = await testUtils.testAuthedCsvRequest<Contact>(router, "/v2/contacts", "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.deepEqualExcludingEvery(resp.body, [
-            contact1
-        ], ["createdDate", "updatedDate"]); // TODO don't ignore dates if my issue gets resolved https://github.com/mholt/PapaParse/issues/502
+        chai.assert.deepEqualExcludingEvery(resp.body, [contact1], ["createdDate", "updatedDate"]);
         chai.assert.equal(resp.headers["Limit"], "100");
         chai.assert.equal(resp.headers["Max-Limit"], "1000");
     });
@@ -161,6 +159,11 @@ describe("/v2/contacts", () => {
     it("409s on creating a duplicate contact", async () => {
         const resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contact1.id, firstName: "Duplicate"});
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("422s on creating a contact with an id that is too long", async () => {
+        const resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: "01234567890123456789012345678901234567890123456789012345678901234567890123456789"});
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 
     it("404s on getting invalid id", async () => {

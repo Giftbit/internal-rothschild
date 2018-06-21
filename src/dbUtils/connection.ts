@@ -28,7 +28,7 @@ export async function getDbCredentials(): Promise<{username: string, password: s
         region: process.env["AWS_REGION"]
     });
 
-    console.log("fetching db credential parameters");
+    !isTestEnv && console.log("fetching db credentials");
     const resp = await ssm.getParameter({
         Name: process.env["DB_PASSWORD_PARAMETER"],
         WithDecryption: true
@@ -37,6 +37,7 @@ export async function getDbCredentials(): Promise<{username: string, password: s
     if (!resp.Parameter) {
         throw new Error(`Could not find SSM parameter ${process.env["DB_PASSWORD_PARAMETER"]}`);
     }
+    !isTestEnv && console.log("got db credentials");
 
     return dbCredentials = {
         username: process.env["DB_USERNAME"],

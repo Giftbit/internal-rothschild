@@ -267,6 +267,16 @@ Resources:
       Tags:
         - Key: Service
           Value: Rothschild
+  DbClusterParameterGroup:
+    Type: AWS::RDS::DBClusterParameterGroup
+    Properties:
+      Description: !Sub "${AWS::StackName} cluster parameter group"
+      Family: aurora5.6
+      Parameters:
+        innodb_strict_mode: 1
+      Tags:
+        - Key: Service
+          Value: Rothschild
   DbCluster:
     Type: AWS::RDS::DBCluster
     Properties:
@@ -280,12 +290,23 @@ Resources:
       StorageEncrypted: true
       KmsKeyId: !Ref DbEncryptionKeyId
       DBSubnetGroupName: !Ref DbSubnetGroup
+      DBClusterParameterGroupName: !Ref DbClusterParameterGroup
       VpcSecurityGroupIds:
         - !Ref DbSecurityGroup
       Tags:
         - Key: Service
           Value: Rothschild
     DeletionPolicy: Snapshot
+  DbInstanceParameterGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Description: !Sub "${AWS::StackName} instance parameter group"
+      Family: aurora5.6
+      Parameters:
+        sql_mode: STRICT_TRANS_TABLES
+      Tags:
+        - Key: Service
+          Value: Rothschild
   DbPrimaryInstance:
     Type: AWS::RDS::DBInstance
     Properties:
@@ -293,6 +314,7 @@ Resources:
       DBClusterIdentifier: !Ref DbCluster
       DBInstanceClass: !If [HighCapacity, db.t2.medium, db.t2.medium]
       DBSubnetGroupName: !Ref DbSubnetGroup
+      DBParameterGroupName: !Ref DbInstanceParameterGroup
       Tags:
         - Key: Service
           Value: Rothschild
@@ -304,7 +326,7 @@ Resources:
       Handler: index.handler
       Runtime: nodejs8.10
       MemorySize: 128
-      Timeout: 120 # seconds, 300 max
+      Timeout: 180 # seconds, 300 max
       Environment:
         Variables:
           DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
