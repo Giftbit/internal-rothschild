@@ -11,7 +11,7 @@ import {Currency} from "../../../model/Currency";
 
 require("dotenv").config();
 
-describe.only("split tender checkout with Stripe", () => {
+describe("split tender checkout with Stripe", () => {
     const router = new cassava.Router();
 
     const value: Partial<Value> = {
@@ -41,7 +41,7 @@ describe.only("split tender checkout with Stripe", () => {
         chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
     });
 
-    it.only("processes basic checkout with Stripe only", async () => {
+    it("processes basic checkout with Stripe only", async () => {
         const request = {
             id: "checkout-with-stripe-only",
             sources: [
@@ -106,7 +106,7 @@ describe.only("split tender checkout with Stripe", () => {
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["statusCode"], `body=${JSON.stringify(getCheckoutResp.body, null, 4)}`);
     });
 
-    it.only("process basic split tender checkout", async () => {
+    it("process basic split tender checkout", async () => {
         const request = {
             id: "checkout-with-stripe",
             sources: [
@@ -250,7 +250,7 @@ describe.only("split tender checkout with Stripe", () => {
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["statusCode"], `body=${JSON.stringify(getCheckoutResp.body, null, 4)}`);
     });
 
-    it.only("does not charge Stripe when Lightrail value is sufficient", async () => {
+    it("does not charge Stripe when Lightrail value is sufficient", async () => {
         const sufficientValue: Partial<Value> = {
             id: "sufficient-value-for-checkout",
             currency: "CAD",
@@ -358,7 +358,7 @@ describe.only("split tender checkout with Stripe", () => {
 
     it.skip("rolls back the Lightrail transaction when the Stripe transaction fails");
 
-    it.only("processes split tender checkout with two Stripe sources", async () => {
+    it("processes split tender checkout with two Stripe sources", async () => {
         // todo - if we keep 'priority' in requested Stripe sources, check that sources are charged in the right order
         const value2: Partial<Value> = {
             id: "value-for-checkout2",
