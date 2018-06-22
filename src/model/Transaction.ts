@@ -146,7 +146,6 @@ export interface LightrailDbTransactionStep {
     userId: string;
     id: string;
     transactionId: string;
-    currency: string;
     valueId: string;
     contactId?: string;
     code?: string;

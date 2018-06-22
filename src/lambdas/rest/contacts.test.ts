@@ -634,7 +634,7 @@ describe("/v2/contacts", () => {
             const page1Size = Math.ceil(expected.length / 2);
             const page1 = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?firstName.like=${encodeURIComponent("J%")}&limit=${page1Size}`, "GET");
             chai.assert.equal(page1.statusCode, 200, `body=${JSON.stringify(page1.body)}`);
-            chai.assert.deepEqualExcludingEvery(page1.body, expected.slice(0, page1Size), ["userId", "createdDate", "updatedDate"]);
+            chai.assert.deepEqual(page1.body.map(c => c.id), expected.slice(0, page1Size).map(c => c.id), "the same ids in the same order");
             chai.assert.equal(page1.headers["Limit"], `${page1Size}`);
             chai.assert.equal(page1.headers["Max-Limit"], "1000");
             chai.assert.isDefined(page1.headers["Link"]);
@@ -642,7 +642,7 @@ describe("/v2/contacts", () => {
             const page1Link = parseLinkHeader(page1.headers["Link"]);
             const page2 = await testUtils.testAuthedRequest<Contact[]>(router, page1Link.next.url, "GET");
             chai.assert.equal(page2.statusCode, 200, `url=${page1Link.next.url} body=${JSON.stringify(page2.body)}`);
-            chai.assert.deepEqualExcludingEvery(page2.body, expected.slice(page1Size), ["userId", "createdDate", "updatedDate"]);
+            chai.assert.deepEqual(page2.body.map(c => c.id), expected.slice(page1Size).map(c => c.id), "the same ids in the same order");
             chai.assert.equal(page1.headers["Limit"], `${page1Size}`);
             chai.assert.equal(page1.headers["Max-Limit"], "1000");
             chai.assert.isDefined(page1.headers["Link"]);
