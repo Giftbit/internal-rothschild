@@ -14,17 +14,20 @@ require("dotenv").config();
 describe.only("split tender checkout with Stripe", () => {
     const router = new cassava.Router();
 
+    const value: Partial<Value> = {
+        id: "value-for-checkout-w-stripe",
+        currency: "CAD",
+        balance: 100
+    };
+    const source: string = "tok_visa";
+
     before(async function () {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
         transactions.installTransactionsRest(router);
         valueStores.installValuesRest(router);
         currencies.installCurrenciesRest(router);
-    });
 
-    it.skip("processes basic checkout with Stripe only");
-
-    it.only("process basic split tender checkout", async () => {
         const currency: Currency = {
             code: "CAD",
             name: "Monopoly Money",
@@ -34,16 +37,16 @@ describe.only("split tender checkout with Stripe", () => {
         const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency);
         chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
 
-        const value: Partial<Value> = {
-            id: "value-for-checkout-w-stripe",
-            currency: "CAD",
-            balance: 100
-        };
-        const source: string = "tok_visa";
-
         const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+    });
 
+    it.skip("processes basic checkout with Stripe only", async () => {
+
+
+    });
+
+    it.only("process basic split tender checkout", async () => {
         const request = {
             id: "checkout-with-stripe",
             sources: [
