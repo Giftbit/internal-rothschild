@@ -254,7 +254,13 @@ describe.only("split tender checkout with Stripe", () => {
 
     it.skip("processes split tender checkout with prepaid & discount LR value, plus Stripe");
 
-    it.skip("respects 'maxAmount' limit on Stripe source");
+    describe.skip("respects 'maxAmount' limit on Stripe source", async () => {
+        // Should handle multiple cases:
+        // - if LR value is sufficient, Stripe shouldn't even be assessed for its maxAmount
+        // - if LR value is not sufficient and Stripe maxAmount is hit, throw a clear error
+        // - if multiple Stripe sources are specified, use them in order and respect the maxAmount on each
+        // These calculations happen during plan step calculation
+    });
 
     it.skip("does not charge Stripe when Lightrail value is sufficient");
 
