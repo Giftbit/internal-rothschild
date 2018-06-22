@@ -10,7 +10,8 @@ const CODEBASE_ENCRYPTION_PEPPER = "5aa348b6ff321a5b6b7701b7da0cc2dc";
  * This is why the userId is not appended to the code value.
  */
 export function encrypt(code: string): string {
-    return cryptojs.AES.encrypt(addCodebasePepperToCode(code), encryptionSecret);
+    console.log("THIS CALLED HERE. CODE: " + code);
+    return cryptojs.AES.encrypt(addCodebasePepperToCode(code), encryptionSecret).toString();
 }
 
 export function decrypt(encryptedCode: string): string {

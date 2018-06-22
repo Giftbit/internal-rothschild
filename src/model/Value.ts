@@ -1,6 +1,6 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {pickDefined} from "../pick";
-import {Code} from "./Code";
+import {computeLookupHash, decrypt, encrypt} from "../services/codeCryptoUtils";
 
 export interface Value {
     id: string;
@@ -30,8 +30,7 @@ export interface Rule {
 }
 
 export namespace Value {
-    export function toDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Value, code: Code): DbValue {
-        console.log("encryptedCode " + code["encryptedCode"]);
+    export function toDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Value, genericCode: boolean): DbValue {
         const dbValue: DbValue = {
             userId: auth.giftbitUserId,
             id: v.id,
@@ -39,9 +38,10 @@ export namespace Value {
             balance: v.balance,
             uses: v.uses,
             programId: v.programId,
-            code: v.code,
-            encryptedCode: code && code["encryptedCode"] ? code["encryptedCode"].toString() : null,
-            codeHashed: code ? code.codeHashed : null,
+            code: v.code ? codeLastFour(v.code) : null,
+            genericCode: v.code ? genericCode : null,
+            encryptedCode: v.code ? encrypt(v.code) : null,
+            codeHashed: v.code ? computeLookupHash(v.code, auth) : null,
             contactId: v.contactId,
             pretax: v.pretax,
             active: v.active,
@@ -88,6 +88,7 @@ export interface DbValue {
     uses: number | null;
     programId: string | null;
     code: string | null;
+    genericCode: boolean | null;
     codeHashed: string | null;
     encryptedCode: string | null;
     contactId: string | null;
@@ -106,7 +107,7 @@ export interface DbValue {
 }
 
 export namespace DbValue {
-    export function toValue(v: DbValue): Value {
+    export function toValue(v: DbValue, showCode: boolean): Value {
         return {
             id: v.id,
             currency: v.currency,
@@ -114,7 +115,7 @@ export namespace DbValue {
             uses: v.uses,
             programId: v.programId,
             contactId: v.contactId,
-            code: v.code,
+            code: v.code && (v.genericCode || showCode) ? decrypt(v.encryptedCode) : v.code,
             pretax: v.pretax,
             active: v.active,
             canceled: v.canceled,
@@ -129,4 +130,8 @@ export namespace DbValue {
             updatedDate: v.updatedDate
         };
     }
+}
+
+export function codeLastFour(code: string) {
+    return "...".concat(code.substring(code.length - 4))
 }

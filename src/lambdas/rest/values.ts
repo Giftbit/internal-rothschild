@@ -2,14 +2,11 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
-import {DbValue, Value} from "../../model/Value";
+import {codeLastFour, DbValue, Value} from "../../model/Value";
 import {pick, pickOrDefault} from "../../pick";
 import {csvSerializer} from "../../serializers";
 import {filterAndPaginateQuery, getSqlErrorConstraintName, nowInDbPrecision} from "../../dbUtils";
 import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
-import {paginateQuery} from "../../dbUtils/paginateQuery";
-import {Code, constructPublicCode, constructSecureCode} from "../../model/Code";
-import {decrypt} from "../../services/codeCryptoUtils";
 
 export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
@@ -21,9 +18,8 @@ export function installValuesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
-            const displaySecure: boolean = (evt.queryStringParameters.displaySecure === 'true');
-            const res = await getValues(auth, Pagination.getPaginationParams(evt), displaySecure);
-            const res = await getValues(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt));
+            const showCode: boolean = (evt.queryStringParameters.showCode === 'true');
+            const res = await getValues(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt), showCode);
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.values
@@ -45,7 +41,7 @@ export function installValuesRest(router: cassava.Router): void {
                     balance: 0,
                     uses: null,
                     programId: null,
-                    code: null,
+                    code: evt.body.genericCode ? evt.body.genericCode : null,
                     contactId: null,
                     pretax: false,
                     active: true,
@@ -63,7 +59,7 @@ export function installValuesRest(router: cassava.Router): void {
             };
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
-                body: await createValue(auth, value, evt.body.secureCode)
+                body: await createValue(auth, value, !!evt.body.genericCode)
             };
         });
 
@@ -79,10 +75,9 @@ export function installValuesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
 
-            const displaySecure: boolean = (evt.queryStringParameters.displaySecure === 'true');
-            console.log(`displaySecure: ${displaySecure}`);
+            const showCode: boolean = (evt.queryStringParameters.showCode === 'true');
             return {
-                body: await getValue(auth, evt.pathParameters.id, displaySecure)
+                body: await getValue(auth, evt.pathParameters.id, showCode)
             };
         });
 
@@ -124,8 +119,7 @@ export function installValuesRest(router: cassava.Router): void {
         });
 }
 
-export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: {[key: string]: string}, pagination: PaginationParams): Promise<{ values: Value[], pagination: Pagination }> {
-export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams, displaySecure: boolean = false): Promise<{ values: Value[], pagination: Pagination }> {
+export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams, showCode: boolean = false): Promise<{ values: Value[], pagination: Pagination }> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
@@ -190,39 +184,31 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
         },
         pagination
     );
-    if (displaySecure) {
-        for (let value of paginatedRes.body) {
-            decryptCodeIfEncrypted(value)
-        }
-    }
     return {
-        values: paginatedRes.body.map(DbValue.toValue),
+        values: paginatedRes.body.map(function (v) {
+            return DbValue.toValue(v, showCode)
+        }),
         pagination: paginatedRes.pagination
     };
 }
 
-async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value: Value, secureCode: string): Promise<Value> {
+async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value: Value, genericCode: boolean): Promise<Value> {
     auth.requireIds("giftbitUserId");
-    let code: Code;
-
-    if (secureCode) {
-        value.code = "...".concat(secureCode.substring(secureCode.length - 4));
-        code = constructSecureCode(secureCode, auth);
-    } else if (value.code) {
-        code = constructPublicCode(secureCode, auth)
-    }
 
     try {
         const knex = await getKnexWrite();
 
         await knex.transaction(async trx => {
             await trx.into("Values")
-                .insert(Value.toDbValue(auth, value, code));
+                .insert(Value.toDbValue(auth, value, genericCode));
             if (value.balance) {
                 // TODO insert initialValue Transaction and LightrailTransactionStep
             }
         });
-
+        if (value.code && !genericCode) {
+            // obfuscate secure code from response.
+            value.code = codeLastFour(value.code);
+        }
         return value;
     } catch (err) {
         if (err.code === "ER_DUP_ENTRY") {
@@ -241,7 +227,7 @@ async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value
     }
 }
 
-async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, displaySecure: boolean = false): Promise<Value> {
+async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, showCode: boolean = false): Promise<Value> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
@@ -257,10 +243,7 @@ async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: stri
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
-    if (displaySecure) {
-        decryptCodeIfEncrypted(res[0])
-    }
-    return DbValue.toValue(res[0]);
+    return DbValue.toValue(res[0], showCode);
 }
 
 async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, value: Partial<Value>): Promise<Value> {
@@ -311,15 +294,32 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
     }
 }
 
-function decryptCodeIfEncrypted(value: DbValue): void {
-    if (value.encryptedCode) {
-        value.code = decrypt(value.encryptedCode)
-    }
-}
-
 const valueSchema: jsonschema.Schema = {
     type: "object",
     additionalProperties: false,
+    oneOf: [
+        {
+            required: ["genericCode"],
+            title: "genericCode"
+        },
+        {
+            required: ["code"],
+            title: "code"
+        },
+        {
+            not: {
+                anyOf: [
+                    {
+                        required: ["genericCode"]
+                    },
+                    {
+                        required: ["code"]
+                    }
+                ],
+            },
+            title: "neither genericCode or code"
+        }
+    ],
     properties: {
         id: {
             type: "string",
@@ -342,7 +342,7 @@ const valueSchema: jsonschema.Schema = {
             minLength: 1,
             maxLength: 255
         },
-        secureCode: {
+        genericCode: {
             type: ["string", "null"],
             minLength: 1,
             maxLength: 255
