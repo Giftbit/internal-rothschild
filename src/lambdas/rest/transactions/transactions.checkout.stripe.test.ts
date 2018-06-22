@@ -250,6 +250,94 @@ describe.only("split tender checkout with Stripe", () => {
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["statusCode"], `body=${JSON.stringify(getCheckoutResp.body, null, 4)}`);
     });
 
+    it.only("does not charge Stripe when Lightrail value is sufficient", async () => {
+        const sufficientValue: Partial<Value> = {
+            id: "sufficient-value-for-checkout",
+            currency: "CAD",
+            balance: 1000
+        };
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", sufficientValue);
+        chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+        const request = {
+            id: "checkout-stripe-not-charged",
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: sufficientValue.id
+                },
+                {
+                    rail: "stripe",
+                    source: source
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "xyz-123",
+                    unitPrice: 500
+                }
+            ],
+            currency: "CAD"
+        };
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+        chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
+        chai.assert.equal(postCheckoutResp.body.id, request.id);
+        chai.assert.deepEqual(postCheckoutResp.body.totals, {
+            subTotal: 500,
+            tax: 0,
+            discount: 0,
+            payable: 500,
+            remainder: 0
+        }, `body.totals=${JSON.stringify(postCheckoutResp.body.totals)}`);
+        chai.assert.deepEqual(postCheckoutResp.body.lineItems, [
+            {
+                type: "product",
+                productId: "xyz-123",
+                unitPrice: 500,
+                quantity: 1,
+                lineTotal: {
+                    subtotal: 500,
+                    taxable: 500,
+                    tax: 0,
+                    discount: 0,
+                    payable: 500,
+                    remainder: 0
+                }
+            }
+        ], `body.lineItems=${JSON.stringify(postCheckoutResp.body.lineItems)}`);
+        chai.assert.deepEqual(postCheckoutResp.body.steps, [
+            {
+                rail: "lightrail",
+                valueId: sufficientValue.id,
+                code: null,
+                contactId: null,
+                balanceBefore: 1000,
+                balanceAfter: 500,
+                balanceChange: -500
+            }
+        ], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
+        chai.assert.deepEqual(postCheckoutResp.body.paymentSources, [
+            {
+                rail: "lightrail",
+                valueId: sufficientValue.id
+            },
+            {
+                rail: "stripe",
+                source: "tok_visa",
+            }
+        ], `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
+
+        const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${sufficientValue.id}`, "GET");
+        chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
+        chai.assert.equal(getValueResp.body.balance, 500);
+
+        const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
+        chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
+        chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["statusCode"], `body=${JSON.stringify(getCheckoutResp.body, null, 4)}`);
+
+    });
+
     it.skip("updates the Stripe charge with LR transaction identifier");
 
     it.skip("processes split tender checkout with prepaid & discount LR value, plus Stripe");
@@ -261,8 +349,6 @@ describe.only("split tender checkout with Stripe", () => {
         // - if multiple Stripe sources are specified, use them in order and respect the maxAmount on each
         // These calculations happen during plan step calculation
     });
-
-    it.skip("does not charge Stripe when Lightrail value is sufficient");
 
     it.skip("does not charge Stripe when 'simulate: true'");
 
