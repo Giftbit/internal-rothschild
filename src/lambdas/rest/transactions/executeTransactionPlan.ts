@@ -8,6 +8,7 @@ import {transactionPlanToTransaction} from "./transactionPlanToTransaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {getKnexWrite} from "../../../dbUtils/connection";
 import {httpStatusCode} from "cassava";
+import {StripeTransactionParty} from "../../../model/TransactionRequest";
 import Knex = require("knex");
 import Stripe = require("stripe");
 import ICharge = Stripe.charges.ICharge;
@@ -73,76 +74,61 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
 
     const knex = await getKnexWrite();
 
-    /*
-    // useful functions from stripeRequests.ts in turnkey
-    // createStripeCharge()
-    // updateCharge()
-
-    try {
-        for each lightrail step {
-            create pending
-        }
-        // do we need to do this? can we just charge stripe and then write to our db?
-
-        for each stripe step {
-            charge
-        }
-
-        for each lightrail step {
-            capture
-        }
-
-    } catch (Stripe error) {
-        for each lightrail step {
-            metadata.explanation = stripe charge failed
-            void steps
-        }
-        rethrow error
-    }
-     */
-
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
     const lrSteps = plan.steps.filter(step => step.rail === "lightrail") as LightrailTransactionPlanStep[];
+
+    // try {
+    for (let stepIx in stripeSteps) {
+        const step = stripeSteps[stepIx];
+        const stepForStripe = translateStripeStep(step, plan.currency);
+        // todo handle edge case: stripeAmount < 50
+
+        const idempotentStepId = `${plan.id}-${stepIx}`;
+        const charge = await createStripeCharge(stepForStripe, process.env["STRIPE_KEY"], process.env["STRIPE_CONNECTED_ACC_ID"], idempotentStepId);  // TODO IMPORTANT: FIX AUTH -- test wiring only!!
+
+        // Update transaction plan with charge details
+        step.chargeResult = charge;
+        let stepSource = plan.paymentSources.find(source => source.rail === "stripe" && source.source === step.source) as StripeTransactionParty;
+        stepSource.chargeId = charge.id;
+    }
+    //    // await doFraudCheck(lightrailStripeConfig, merchantStripeConfig, params, charge, evt, auth);
+    // } catch (err) {
+    //     console.log("ERROR=" + JSON.stringify(err, null, 4));
+    //     // TODO tana - need to adapt this to fit this context: rollback should mean refund Stripe charges and refund LR charges (void if we use pending flow)
+    //     // console.log(`An error occurred during card creation. Error: ${JSON.stringify(err)}.`);
+    //     // await rollback(lightrailStripeConfig, merchantStripeConfig, charge, card, "Refunded due to an unexpected error during gift card creation in Lightrail.");
+    //     //
+    //     // if (err.status === 400) {
+    //     //     throw new RestError(httpStatusCode.clientError.BAD_REQUEST, err.body.message);
+    //     // } else {
+    //     //     throw new RestError(httpStatusCode.serverError.INTERNAL_SERVER_ERROR);
+    //     // }
+    // }
+
 
     // // const lightrailStripeAuth = lightrailStripeConfig.secretKey;
     // // const merchantStripeAccountId = merchantStripeConfig.stripe_user_id
     // const merchantStripeAuth = kvsGet(/*LR API KEY, */"", "stripeAuth" /*, authorizeAs ??*/);
 
-
     // await knex.transaction(async trx => {  // todo wrap everything
-    await insertTransaction(knex, auth, plan);  // todo - we should consider whether storing the requested stripe 'source' in 'paymentSources' is the right thing to do, but right now we need to store the Transaction before we get any other identifiers for the source by actually making the charge
-    // });
+    await insertTransaction(knex, auth, plan);
 
     try {
         for (let stepIx in stripeSteps) {
-            const step = stripeSteps[stepIx];
-
-            // TODO IMPORTANT: FIX AUTH -- test wiring only!!
-            const stepForStripe = translateStripeStep(step, plan.currency);
-
-            // todo handle edge case: stripeAmount < 50
-
-            const idempotentStepId = `${plan.id}-${stepIx}`;
-            const charge = await createStripeCharge(stepForStripe, process.env["STRIPE_KEY"], process.env["STRIPE_CONNECTED_ACC_ID"], idempotentStepId);
-
-            step.chargeResult = charge;
-            // todo - [see above note about storing requested stripe payment 'source'] this is where we have access to other identifiers for the source. At this point we'd need to update the Transaction stored in the db.
-            // let stepSource = plan.paymentSources.find(source => source.rail === "stripe" && source.source === step.source) as StripeTransactionParty;
-            // stepSource.source = charge.source.id;
-
+            let step = stripeSteps[stepIx];
             await knex.into("StripeTransactionSteps")
                 .insert({
                     userId: auth.giftbitUserId,
-                    id: idempotentStepId,
+                    id: `${plan.id}-${stepIx}`,
                     transactionId: plan.id,
-                    chargeId: charge.id,
-                    currency: charge.currency,
-                    amount: charge.amount,
-                    charge: JSON.stringify(charge)
+                    chargeId: step.chargeResult.id,
+                    currency: step.chargeResult.currency,
+                    amount: step.chargeResult.amount,
+                    charge: JSON.stringify(step.chargeResult)
                 });
 
             const sanityCheckStripeStep: DbTransactionStep[] = await knex.from("StripeTransactionSteps")
-                .where({chargeId: charge.id})
+                .where({chargeId: step.chargeResult.id})
                 .select();
             if (sanityCheckStripeStep.length !== 1) {
                 throw new TransactionPlanError(`Transaction execution canceled because Stripe transaction step updated ${sanityCheckStripeStep.length} rows.  rows: ${JSON.stringify(sanityCheckStripeStep)}`, {
@@ -153,20 +139,11 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
 
         await processLightrailSteps(auth, knex, lrSteps, plan.id);
 
-        // await doFraudCheck(lightrailStripeConfig, merchantStripeConfig, params, charge, evt, auth);
-
     } catch (err) {
         console.log("ERROR=" + JSON.stringify(err, null, 4));
         // TODO tana - need to adapt this to fit this context: rollback should mean refund Stripe charges and refund LR charges (void if we use pending flow)
-        // console.log(`An error occurred during card creation. Error: ${JSON.stringify(err)}.`);
-        // await rollback(lightrailStripeConfig, merchantStripeConfig, charge, card, "Refunded due to an unexpected error during gift card creation in Lightrail.");
-        //
-        // if (err.status === 400) {
-        //     throw new RestError(httpStatusCode.clientError.BAD_REQUEST, err.body.message);
-        // } else {
-        //     throw new RestError(httpStatusCode.serverError.INTERNAL_SERVER_ERROR);
-        // }
     }
+    // });
 
     // TODO FIX PLACEHOLDER: NEED TO UPDATE PLAN BEFORE CONVERTING
     return transactionPlanToTransaction(plan);
