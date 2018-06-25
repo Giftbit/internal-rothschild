@@ -4,11 +4,11 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as parseLinkHeader from "parse-link-header";
 import * as testUtils from "../../testUtils";
 import {Contact, DbContact} from "../../model/Contact";
-import {installRest} from "./index";
 import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
 import {defaultTestUser} from "../../testUtils";
 import {Value} from "../../model/Value";
 import {Currency} from "../../model/Currency";
+import {installRestRoutes} from "./installRestRoutes";
 
 chai.use(require("chai-exclude"));
 
@@ -19,7 +19,7 @@ describe("/v2/contacts", () => {
     before(async function () {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
-        installRest(router);
+        installRestRoutes(router);
     });
 
     it("can list 0 contacts", async () => {

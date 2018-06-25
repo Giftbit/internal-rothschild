@@ -5,12 +5,12 @@ import * as parseLinkHeader from "parse-link-header";
 import * as testUtils from "../../testUtils";
 import {DbValue, Value} from "../../model/Value";
 import {Currency} from "../../model/Currency";
-import {installRest} from "./index";
 import {Contact} from "../../model/Contact";
 import chaiExclude = require("chai-exclude");
 import {defaultTestUser} from "../../testUtils";
 import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
 import {LightrailTransactionStep, Transaction} from "../../model/Transaction";
+import {installRestRoutes} from "./installRestRoutes";
 
 chai.use(chaiExclude);
 
@@ -21,7 +21,7 @@ describe("/v2/values/", () => {
     before(async function () {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
-        installRest(router);
+        installRestRoutes(router);
     });
 
     it("can list 0 values", async () => {

@@ -1,11 +1,10 @@
+import * as bankersRounding from "bankers-rounding";
+import * as log from "loglevel";
 import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "./TransactionPlan";
 import {OrderRequest} from "../../../model/TransactionRequest";
 import {getRuleFromCache} from "./getRuleFromCache";
 import {LineItemResponse} from "../../../model/LineItem";
 import {Value} from "../../../model/Value";
-import * as bankersRounding from "bankers-rounding";
-
-const debug = false;
 
 export function buildOrderTransactionPlan(order: OrderRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
     let transactionPlan = initializeOrderTransactionPlan(order, preTaxSteps.concat(postTaxSteps));
@@ -13,7 +12,7 @@ export function buildOrderTransactionPlan(order: OrderRequest, preTaxSteps: Tran
     applyTax(transactionPlan);
     processTransactionSteps(postTaxSteps, transactionPlan);
     calculateTotalsFromLineItems(transactionPlan);
-    debug && console.log(`transactionPlan: ${JSON.stringify(transactionPlan)}`);
+    log.debug("transactionPlan:", transactionPlan);
 
     transactionPlan.steps = transactionPlan.steps.filter(s => s.amount !== 0);
     return transactionPlan;
@@ -86,7 +85,7 @@ function processTransactionSteps(steps: TransactionPlanStep[], transactionPlan: 
 }
 
 function processLightrailTransactionStep(step: LightrailTransactionPlanStep, transactionPlan: TransactionPlan): void {
-    debug && console.log(`processing ValueStore ${JSON.stringify(step)}.`);
+    log.debug("processing ValueStore", step);
     let value = step.value;
     if (!isValueRedeemable(value)) {
         return;
@@ -102,12 +101,12 @@ function processLightrailTransactionStep(step: LightrailTransactionPlanStep, tra
                 currentLineItem: item
             };
             if (!getRuleFromCache(value.redemptionRule.rule).evaluateToBoolean(context)) {
-                debug && console.log(`ValueStore ${JSON.stringify(value)} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
+                log.debug(`ValueStore ${JSON.stringify(value)} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
                 break;
             }
         }
 
-        debug && console.log(`ValueStore ${JSON.stringify(value)} CAN be applied to ${JSON.stringify(item)}.`);
+        log.debug(`ValueStore ${JSON.stringify(value)} CAN be applied to ${JSON.stringify(item)}.`);
         if (item.lineTotal.remainder > 0) {
             let amount: number;
             if (value.valueRule) {

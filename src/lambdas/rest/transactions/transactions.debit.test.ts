@@ -5,8 +5,8 @@ import * as testUtils from "../../../testUtils";
 import {defaultTestUser} from "../../../testUtils";
 import {Value} from "../../../model/Value";
 import {Transaction} from "../../../model/Transaction";
-import {installRest} from "../index";
 import * as currencies from "../currencies";
+import {installRestRoutes} from "../installRestRoutes";
 
 describe("/v2/transactions/debit", () => {
 
@@ -15,7 +15,7 @@ describe("/v2/transactions/debit", () => {
     before(async function () {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
-        installRest(router);
+        installRestRoutes(router);
 
         await currencies.createCurrency(defaultTestUser.auth, {
             code: "CAD",

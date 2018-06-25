@@ -1,6 +1,7 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
+import * as log from "loglevel";
 import {compareTransactionPlanSteps} from "./compareTransactionPlanSteps";
 import {CreditRequest, DebitRequest, OrderRequest, TransferRequest} from "../../../model/TransactionRequest";
 import {resolveTransactionParties} from "./resolveTransactionParties";
@@ -14,8 +15,6 @@ import {paginateQuery} from "../../../dbUtils/paginateQuery";
 import {LightrailTransactionPlanStep, TransactionPlanStep} from "./TransactionPlan";
 import getPaginationParams = Pagination.getPaginationParams;
 import getTransactionFilterParams = Filters.getTransactionFilterParams;
-
-const debug = false;
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions")
@@ -254,8 +253,8 @@ async function createOrder(auth: giftbitRoutes.jwtauth.AuthorizationBadge, order
 
             preTaxSteps = preTaxSteps.sort(compareTransactionPlanSteps);
             postTaxSteps = postTaxSteps.sort(compareTransactionPlanSteps);
-            debug && console.log(`preTaxSteps: ${JSON.stringify(preTaxSteps)}`);
-            debug && console.log(`postTaxSteps: ${JSON.stringify(postTaxSteps)}`);
+            log.debug(`preTaxSteps: ${JSON.stringify(preTaxSteps)}`);
+            log.debug(`postTaxSteps: ${JSON.stringify(postTaxSteps)}`);
             return buildOrderTransactionPlan(order, preTaxSteps, postTaxSteps);
         }
     );

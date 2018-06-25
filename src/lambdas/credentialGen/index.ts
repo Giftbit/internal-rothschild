@@ -1,23 +1,26 @@
 import * as aws from "aws-sdk";
 import * as awslambda from "aws-lambda";
+import * as log from "loglevel";
 import {sendCloudFormationResponse} from "../../sendCloudFormationResponse";
+
+log.setLevel(log.levels.DEBUG);
 
 /**
  * Handles a CloudFormationEvent and generates database credentials.
  */
 export function handler(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context, callback: awslambda.Callback): void {
-    console.log("event", JSON.stringify(evt, null, 2));
+    log.info("event", JSON.stringify(evt, null, 2));
     handlerAsync(evt, ctx)
         .then(data => {
             return sendCloudFormationResponse(evt, ctx, true, data);
         }, err => {
-            console.error(JSON.stringify(err, null, 2));
+            log.error(JSON.stringify(err, null, 2));
             return sendCloudFormationResponse(evt, ctx, false, null, err.message);
         })
         .then(() => {
             callback(undefined, {});
         }, err => {
-            console.error(JSON.stringify(err, null, 2));
+            log.error(JSON.stringify(err, null, 2));
             callback(err);
         });
 }
@@ -39,7 +42,7 @@ async function handlerAsync(evt: awslambda.CloudFormationCustomResourceEvent, ct
     const passwordParameter = `${evt.ResourceProperties.SsmPrefix}-password`;
 
     if (evt.RequestType === "Create" || evt.RequestType === "Update") {
-        console.log("setting credentials PasswordParameter=", passwordParameter, "KeyId=", evt.ResourceProperties.KmsKeyId);
+        log.info("setting credentials PasswordParameter=", passwordParameter, "KeyId=", evt.ResourceProperties.KmsKeyId);
 
         const password = generateString(36);
 

@@ -4,8 +4,8 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as testUtils from "../../../testUtils";
 import {Value} from "../../../model/Value";
 import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
-import {installRest} from "../index";
 import {Currency} from "../../../model/Currency";
+import {installRestRoutes} from "../installRestRoutes";
 
 describe("/v2/transactions/transfer", () => {
 
@@ -14,7 +14,7 @@ describe("/v2/transactions/transfer", () => {
     before(async function () {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
-        installRest(router);
+        installRestRoutes(router);
     });
 
     const currency: Currency = {
