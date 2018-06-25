@@ -1,4 +1,3 @@
-import "babel-polyfill";
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {installContactsRest} from "./contacts";

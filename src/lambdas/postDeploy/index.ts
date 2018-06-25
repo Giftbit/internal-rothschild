@@ -1,4 +1,3 @@
-import "babel-polyfill";
 import * as awslambda from "aws-lambda";
 import * as childProcess from "child_process";
 import * as mysql from "mysql2/promise";

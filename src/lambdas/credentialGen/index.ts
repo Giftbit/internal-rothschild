@@ -1,4 +1,3 @@
-import "babel-polyfill";
 import * as aws from "aws-sdk";
 import * as awslambda from "aws-lambda";
 import {sendCloudFormationResponse} from "../../sendCloudFormationResponse";
