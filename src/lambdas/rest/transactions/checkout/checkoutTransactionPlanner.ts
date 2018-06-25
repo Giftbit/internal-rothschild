@@ -76,7 +76,7 @@ export function filterSteps(steps: TransactionPlanStep[]): FilteredSteps {
         stepsBeforeLightrail: steps.filter(it => it.rail === "internal" && it.beforeLightrail),
         stepsAfterLightrail: steps.filter(it => it.rail !== "lightrail" && !it["beforeLightrail"]),
         lighrailSteps: steps.filter(it => it.rail === "lightrail"),
-    }
+    };
 }
 
 interface FilteredSteps {

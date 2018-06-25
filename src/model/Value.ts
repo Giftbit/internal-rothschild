@@ -1,6 +1,7 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {pickDefined} from "../pick";
-import {computeLookupHash, decrypt, encrypt} from "../services/codeCryptoUtils";
+import {decrypt} from "../services/codeCryptoUtils";
+import {DbCode} from "./DbCode";
 
 export interface Value {
     id: string;
@@ -30,18 +31,22 @@ export interface Rule {
 }
 
 export namespace Value {
-    export function toDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Value, genericCode: boolean): DbValue {
-        const dbValue: DbValue = {
+    export function toDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Value, isGeneric: boolean): DbValue {
+        let dbCode: DbCode = null;
+        if (v.code) {
+            dbCode = new DbCode(v.code, isGeneric, auth);
+        }
+        return {
             userId: auth.giftbitUserId,
             id: v.id,
             currency: v.currency,
             balance: v.balance,
             uses: v.uses,
             programId: v.programId,
-            code: v.code ? codeLastFour(v.code) : null,
-            genericCode: v.code ? genericCode : null,
-            encryptedCode: v.code ? encrypt(v.code) : null,
-            codeHashed: v.code ? computeLookupHash(v.code, auth) : null,
+            code: dbCode ? dbCode.lastFour : null,
+            genericCode: dbCode ? dbCode.genericCode : null,
+            encryptedCode: dbCode ? dbCode.encryptedCode : null,
+            codeHashed: dbCode ? dbCode.codeHashed : null,
             contactId: v.contactId,
             pretax: v.pretax,
             active: v.active,
@@ -56,7 +61,6 @@ export namespace Value {
             createdDate: v.createdDate,
             updatedDate: v.updatedDate
         };
-        return dbValue;
     }
 
     export function toDbValueUpdate(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Partial<Value>): Partial<DbValue> {
@@ -107,7 +111,7 @@ export interface DbValue {
 }
 
 export namespace DbValue {
-    export function toValue(v: DbValue, showCode: boolean): Value {
+    export function toValue(v: DbValue, showCode: boolean = false): Value {
         return {
             id: v.id,
             currency: v.currency,
@@ -130,8 +134,4 @@ export namespace DbValue {
             updatedDate: v.updatedDate
         };
     }
-}
-
-export function codeLastFour(code: string) {
-    return "...".concat(code.substring(code.length - 4))
 }

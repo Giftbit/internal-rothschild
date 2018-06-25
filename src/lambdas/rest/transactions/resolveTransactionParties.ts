@@ -84,5 +84,8 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             return q;
         });
 
-    return values.map(DbValue.toValue);
+    // todo - tim. does this need to allow showCode?
+    return values.map(function (value) {
+        return DbValue.toValue(value, false);
+    });
 }

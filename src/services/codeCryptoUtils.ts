@@ -1,8 +1,10 @@
 import * as cryptojs from "crypto-js";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
 
-const encryptionSecret = "correcthorsebatterystaple"; // todo - this needs to be put in config. Needs to be generated and should be 256 bits = 32 bytes
-const lookupHashSecret = "potatotrunkelevatorllamba"; // todo - this needs to be put in config. Needs to be generated and should be 256 bits = 32 bytes
+const encryptionSecret = "ca7589aef4ffed15783341414fe2f4a5edf9ddad75cf2e96ed2a16aee88673ea"; // todo - this needs to be put in config. Needs to be generated and should be 256 bits = 32 bytes
+const lookupHashSecret = "ca7589aef4ffed15783341414fe2f4a5edf9ddad75cf2e96ed2a16aee88673ea"; // todo - this needs to be put in config. Needs to be generated and should be 256 bits = 32 bytes
+// const encryptionSecret = "correcthorsebatterystapleswindle"; // todo - this needs to be put in config. Needs to be generated and should be 256 bits = 32 bytes
+// const lookupHashSecret = "potatotrunkelevatorllambawinders"; // todo - this needs to be put in config. Needs to be generated and should be 256 bits = 32 bytes
 const CODEBASE_ENCRYPTION_PEPPER = "5aa348b6ff321a5b6b7701b7da0cc2dc";
 
 /**
@@ -10,7 +12,6 @@ const CODEBASE_ENCRYPTION_PEPPER = "5aa348b6ff321a5b6b7701b7da0cc2dc";
  * This is why the userId is not appended to the code value.
  */
 export function encrypt(code: string): string {
-    console.log("THIS CALLED HERE. CODE: " + code);
     return cryptojs.AES.encrypt(addCodebasePepperToCode(code), encryptionSecret).toString();
 }
 
