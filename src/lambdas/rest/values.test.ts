@@ -218,6 +218,7 @@ describe("/v2/values/", () => {
         chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
         chai.assert.equal(resp2.body.transactionType, "credit");
         chai.assert.equal(resp2.body.currency, value3.currency);
+        chai.assert.equal(resp2.body.metadata, null);
         chai.assert.lengthOf(resp2.body.steps, 1);
         chai.assert.equal(resp2.body.steps[0].rail, "lightrail");
         chai.assert.deepEqual((resp2.body.steps[0] as LightrailTransactionStep), {
