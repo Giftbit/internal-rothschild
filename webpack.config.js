@@ -27,7 +27,7 @@ module.exports = function (env) {
                                 loader: 'babel-loader',
                                 options: {
                                     presets: ['es2015'],
-                                    plugins: ["transform-async-to-generator"],
+                                    plugins: [],
                                     compact: false,
                                     babelrc: false
                                 }
@@ -41,7 +41,7 @@ module.exports = function (env) {
                                 loader: 'babel-loader',
                                 options: {
                                     presets: ['es2015'],
-                                    plugins: ["transform-async-to-generator"],
+                                    plugins: [],
                                     compact: false,
                                     babelrc: false
                                 }
