@@ -337,6 +337,7 @@ Resources:
           SECURE_CONFIG_BUCKET: !Ref SecureConfigBucket
           SECURE_CONFIG_KEY_JWT: authentication_badge_key.json
           SECURE_CONFIG_KEY_ROLE_DEFINITIONS: RoleDefinitions.json
+          SECURE_CONFIG_KEY_SENTRY: sentry_lambda_services.json
       VpcConfig:
         SecurityGroupIds:
           - !GetAtt LambdaSecurityGroup.GroupId
@@ -366,6 +367,7 @@ Resources:
               Resource:
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/authentication_badge_key.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/RoleDefinitions.json"
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
             - Effect: Allow
               Action:
                 - kms:Decrypt
