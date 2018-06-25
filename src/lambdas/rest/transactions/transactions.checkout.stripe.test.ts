@@ -137,6 +137,72 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["statusCode"], `body=${JSON.stringify(getCheckoutResp.body, null, 4)}`);
     });
 
+    it.skip("processes basic checkout with Stripe only - `customer` as payment source", async () => {
+        // TODO - currently skipped because there appears to be an issue with charging a customer that exists in test mode in the connected account
+        const request = {
+            id: "checkout-with-stripe-cust",
+            sources: [
+                {
+                    rail: "stripe",
+                    customer: process.env["STRIPE_CUSTOMER_ID"]
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "xyz-123",
+                    unitPrice: 123
+                }
+            ],
+            currency: "CAD"
+        };
+
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+
+        chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
+        chai.assert.equal(postCheckoutResp.body.id, request.id);
+        chai.assert.deepEqual(postCheckoutResp.body.totals, {
+            subTotal: 123,
+            tax: 0,
+            discount: 0,
+            payable: 123,
+            remainder: 0
+        }, `body.totals=${JSON.stringify(postCheckoutResp.body.totals)}`);
+        chai.assert.deepEqual(postCheckoutResp.body.lineItems, [
+            {
+                type: "product",
+                productId: "xyz-123",
+                unitPrice: 123,
+                quantity: 1,
+                lineTotal: {
+                    subtotal: 123,
+                    taxable: 123,
+                    tax: 0,
+                    discount: 0,
+                    payable: 123,
+                    remainder: 0
+                }
+            }
+        ], `body.lineItems=${JSON.stringify(postCheckoutResp.body.lineItems)}`);
+        chai.assert.deepEqualExcluding(postCheckoutResp.body.steps, [
+            {
+                rail: "stripe",
+                chargeId: "",
+                amount: 123,
+                charge: null
+            }
+        ], ["chargeId", "charge"], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
+        chai.assert.deepEqualExcluding(postCheckoutResp.body.paymentSources[0], {
+            rail: "stripe",
+            customer: process.env["STRIPE_CUSTOMER_ID"],
+            chargeId: "",
+        }, "chargeId", `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
+
+        const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
+        chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
+        chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["statusCode"], `body=${JSON.stringify(getCheckoutResp.body, null, 4)}`);
+    });
+
     it("process basic split tender checkout", async () => {
         const request = {
             id: "checkout-with-stripe",

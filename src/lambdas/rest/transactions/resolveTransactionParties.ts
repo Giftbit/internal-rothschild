@@ -42,7 +42,8 @@ export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.Auth
         .filter(p => p.rail === "stripe")
         .map((p: StripeTransactionParty): StripeTransactionPlanStep => ({
             rail: "stripe",
-            source: p.source,
+            source: p.source || null,
+            customer: p.customer || null,
             maxAmount: p.maxAmount || null,
             amount: 0
         }));

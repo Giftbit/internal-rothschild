@@ -29,7 +29,8 @@ export interface LightrailTransactionPlanStep {
 
 export interface StripeTransactionPlanStep {
     rail: "stripe";
-    source: string;
+    source?: string;
+    customer?: string;
     // stripeSecretKey: string;
     // stripeMerchantAccountId: string;
     maxAmount: number | null;

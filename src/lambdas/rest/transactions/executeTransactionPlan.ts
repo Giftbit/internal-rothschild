@@ -155,12 +155,19 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
 // STRIPE HELPERS
 
 function translateStripeStep(step: StripeTransactionPlanStep, currency: string) { // TODO use existing interface/namespace? StripeChargeRequest or something? 4 versions of stripe steps (?!): TransactionPlanStep, TransactionStep, database, and what gets sent to stripe
-    return {
-        source: step.source,
+    let stepForStripe: any = {
         amount: step.amount,
         currency
         // todo metadata? incl send transactionId to start
     };
+    if (step.source) {
+        stepForStripe.source = step.source;
+    }
+    if (step.customer) {
+        stepForStripe.customer = step.customer;
+    }
+
+    return stepForStripe;
 }
 
 async function createStripeCharge(params: any, lightrailStripeSecretKey: string, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<ICharge> {
