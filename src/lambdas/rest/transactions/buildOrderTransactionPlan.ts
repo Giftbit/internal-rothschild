@@ -4,6 +4,7 @@ import {getRuleFromCache} from "./getRuleFromCache";
 import {LineItemResponse} from "../../../model/LineItem";
 import {Value} from "../../../model/Value";
 import * as bankersRounding from "bankers-rounding";
+import {nowInDbPrecision} from "../../../dbUtils";
 
 const debug = false;
 
@@ -50,13 +51,14 @@ function initializeOrderTransactionPlan(order: OrderRequest, steps: TransactionP
             payable: 0,
             remainder: calculateRemainderFromLineItems(lineItemResponses),
         },
+        createdDate: nowInDbPrecision(),
         metadata: order.metadata,
         paymentSources: order.sources   // TODO if secure code, only return last four
     };
 }
 
 function isValueRedeemable(value: Value): boolean {
-    const now = new Date();
+    const now = nowInDbPrecision();
 
     if (value.frozen || !value.active || value.endDate > now || value.uses === 0) {
         return false;
