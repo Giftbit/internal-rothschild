@@ -10,7 +10,7 @@ const CODEBASE_ENCRYPTION_PEPPER = "5aa348b6ff321a5b6b7701b7da0cc2dc";
  * This is why the userId is not appended to the code value.
  */
 export function encrypt(code: string): string {
-    return cryptojs.AES.encrypt(addCodebasePepperToCode(code), encryptionSecret);
+    return cryptojs.AES.encrypt(addCodebasePepperToCode(code), encryptionSecret).toString();
 }
 
 export function decrypt(encryptedCode: string): string {
@@ -28,7 +28,7 @@ export function computeLookupHash(code: string, badge: AuthorizationBadge) {
  * the codes can't be decrypted without access to the codebase.
  * todo - this shouldn't be exported. need a better way to test. going to wait to decide if we want this to be a thing or not though before doing that.
  */
-export function addCodebasePepperToCode(code: string) {
+export function addCodebasePepperToCode(code: string): string {
     return code + CODEBASE_ENCRYPTION_PEPPER;
 }
 
@@ -38,8 +38,8 @@ export function removeCodebasePepperFromDecryptedCode(decryptedCode: string) {
 
 // temporary. remove after we've generated the key.
 export function generateKey() {
-    const secretPassphrase = cryptojs.lib.WordArray.random();
-    const salt = cryptojs.lib.WordArray.random(128 / 8);
+    const secretPassphrase = (cryptojs.lib.WordArray as any).random();
+    const salt = (cryptojs.lib.WordArray as any).random(128 / 8);
     const key128Bits = cryptojs.PBKDF2(secretPassphrase, salt, {keySize: 128 / 32});
     const key256Bits = cryptojs.PBKDF2(secretPassphrase, salt, {keySize: 256 / 32});
     console.log("128bit key: " + key128Bits);

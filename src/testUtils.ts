@@ -9,6 +9,7 @@ import {Currency} from "./model/Currency";
 import {Value} from "./model/Value";
 import * as currencies from "./lambdas/rest/currencies";
 import papaparse = require("papaparse");
+import uuid = require("uuid");
 
 if (!process.env["TEST_ENV"]) {
     console.log("Env var TEST_ENV is undefined.  This is not a test environment!");
@@ -189,4 +190,8 @@ export async function createCurrency(router: cassava.Router, isoCode: string): P
     };
     const resp1 = await testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency);
     chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
+}
+
+export function generateId(): string {
+    return uuid.v4().substring(0, 20)
 }
