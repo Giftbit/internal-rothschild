@@ -15,6 +15,7 @@ import {paginateQuery} from "../../../dbUtils/paginateQuery";
 import {LightrailTransactionPlanStep, TransactionPlanStep} from "./TransactionPlan";
 import getPaginationParams = Pagination.getPaginationParams;
 import getTransactionFilterParams = Filters.getTransactionFilterParams;
+import {nowInDbPrecision} from "../../../dbUtils";
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions")
@@ -188,6 +189,7 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
                         amount: req.amount
                     }
                 ],
+                createdDate: nowInDbPrecision(),
                 metadata: req.metadata,
                 totals: {remainder: 0},
                 lineItems: null,
@@ -222,6 +224,7 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
                         amount: -amount
                     }
                 ],
+                createdDate: nowInDbPrecision(),
                 metadata: req.metadata,
                 totals: {remainder: req.amount - amount},
                 lineItems: null,
@@ -295,6 +298,7 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
                         amount
                     }
                 ],
+                createdDate: nowInDbPrecision(),
                 metadata: req.metadata,
                 totals: {remainder: req.amount - amount},
                 lineItems: null,

@@ -12,6 +12,7 @@ export interface TransactionPlan {
     lineItems: LineItemResponse[] | null;
     paymentSources: TransactionParty[] | null;
     steps: TransactionPlanStep[];
+    createdDate: Date;
     metadata: object | null;
 }
 

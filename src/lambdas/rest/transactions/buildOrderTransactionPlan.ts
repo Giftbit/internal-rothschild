@@ -5,6 +5,9 @@ import {OrderRequest} from "../../../model/TransactionRequest";
 import {getRuleFromCache} from "./getRuleFromCache";
 import {LineItemResponse} from "../../../model/LineItem";
 import {Value} from "../../../model/Value";
+import {nowInDbPrecision} from "../../../dbUtils";
+
+const debug = false;
 
 export function buildOrderTransactionPlan(order: OrderRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
     let transactionPlan = initializeOrderTransactionPlan(order, preTaxSteps.concat(postTaxSteps));
@@ -49,13 +52,14 @@ function initializeOrderTransactionPlan(order: OrderRequest, steps: TransactionP
             payable: 0,
             remainder: calculateRemainderFromLineItems(lineItemResponses),
         },
+        createdDate: nowInDbPrecision(),
         metadata: order.metadata,
         paymentSources: order.sources   // TODO if secure code, only return last four
     };
 }
 
 function isValueRedeemable(value: Value): boolean {
-    const now = new Date();
+    const now = nowInDbPrecision();
 
     if (value.frozen || !value.active || value.endDate > now || value.uses === 0) {
         return false;

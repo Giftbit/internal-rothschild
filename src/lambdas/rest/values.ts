@@ -209,10 +209,10 @@ async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value
                     id: transactionId,
                     transactionType: "credit",
                     currency: value.currency,
-                    totals: JSON.stringify(null),
-                    lineItems: JSON.stringify(null),
-                    paymentSources: JSON.stringify(null),
-                    metadata: JSON.stringify(null),
+                    totals: null,
+                    lineItems: null,
+                    paymentSources: null,
+                    metadata: null,
                     createdDate: value.createdDate
                 };
                 const initialBalanceTransactionStep: LightrailDbTransactionStep = {
