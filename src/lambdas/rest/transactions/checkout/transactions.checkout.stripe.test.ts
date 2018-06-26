@@ -1,17 +1,17 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import * as sinon from "sinon";
-import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as transactions from "../transactions";
 import * as valueStores from "../../values";
 import * as currencies from "../../currencies";
 import * as testUtils from "../../../../testUtils/index";
+import * as giftbitRoutes from "giftbit-cassava-routes";
+import * as sinon from "sinon";
+import {fetchFromS3ByEnvVar} from "giftbit-cassava-routes/dist/secureConfig";
 import {Value} from "../../../../model/Value";
 import {Transaction} from "../../../../model/Transaction";
 import {Currency} from "../../../../model/Currency";
-import {fetchFromS3ByEnvVar} from "giftbit-cassava-routes/dist/secureConfig";
-import * as kvsAccess from "../../../utils/kvsAccess";
 import {before, describe, it} from "mocha";
+import * as kvsAccess from "../../../utils/kvsAccess";
 
 require("dotenv").config();
 
@@ -44,33 +44,7 @@ describe("split tender checkout with Stripe", () => {
         const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
 
-        // set up stubs for getting things from kvs & s3
-
-        const testAssumeToken: giftbitRoutes.secureConfig.AssumeScopeToken = {
-            assumeToken: "this-is-an-assume-token"
-        };
-
-        let stubFetchFromS3ByEnvVar = sinon.stub(giftbitRoutes.secureConfig, "fetchFromS3ByEnvVar");
-        stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_CHECKOUT_TOKEN").resolves(testAssumeToken);
-        stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE").resolves({
-            email: "test@test.com",
-            test: {
-                clientId: "test-client-id",
-                secretKey: process.env["STRIPE_PLATFORM_KEY"],
-                publishableKey: "test-pk",
-            },
-            live: {
-                clientId: "test-live-client-id",
-                secretKey: process.env["STRIPE_PLATFORM_KEY"],  // this is a bit problematic: we should be testing with test keys (that's what this is right now)
-                publishableKey: "test-live-pk",
-            },
-        });
-
-        let stubKvsGet = sinon.stub(kvsAccess, "kvsGet");
-        stubKvsGet.withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string).resolves({
-            token_type: "bearer",
-            stripe_user_id: process.env["STRIPE_CONNECTED_ACCOUNT_ID"],
-        });
+        setStubsForStripeTests();
     });
 
     it("processes basic checkout with Stripe only", async () => {
@@ -447,7 +421,104 @@ describe("split tender checkout with Stripe", () => {
         // These calculations happen during plan step calculation
     });
 
-    it.skip("does not charge Stripe when 'simulate: true'");
+    it("does not charge Stripe when 'simulate: true'", async () => {
+        unsetStubsForStripeTests();
+
+        const valueForSimulate: Partial<Value> = {
+            id: "value-for-checkout-simulation",
+            currency: "CAD",
+            balance: 100
+        };
+
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueForSimulate);
+        chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+        chai.assert.equal(createValue.body.balance, 100, `body=${JSON.stringify(createValue.body)}`);
+
+        const request = {
+            id: "checkout-simulation-w-stripe",
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: valueForSimulate.id
+                },
+                {
+                    rail: "stripe",
+                    source: source
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "xyz-123",
+                    unitPrice: 500
+                }
+            ],
+            currency: "CAD",
+            simulate: true
+        };
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+
+        chai.assert.equal(postCheckoutResp.statusCode, 200, `body=${JSON.stringify(postCheckoutResp.body)}`);
+        chai.assert.equal(postCheckoutResp.body.id, request.id);
+        chai.assert.deepEqual(postCheckoutResp.body.totals, {
+            subTotal: 500,
+            tax: 0,
+            discount: 0,
+            payable: 500,
+            remainder: 0
+        }, `body.totals=${JSON.stringify(postCheckoutResp.body.totals)}`);
+        chai.assert.deepEqual(postCheckoutResp.body.lineItems, [
+            {
+                type: "product",
+                productId: "xyz-123",
+                unitPrice: 500,
+                quantity: 1,
+                lineTotal: {
+                    subtotal: 500,
+                    taxable: 500,
+                    tax: 0,
+                    discount: 0,
+                    payable: 500,
+                    remainder: 0
+                }
+            }
+        ], `body.lineItems=${JSON.stringify(postCheckoutResp.body.lineItems)}`);
+        chai.assert.deepEqual(postCheckoutResp.body.steps, [
+            {
+                rail: "lightrail",
+                valueId: valueForSimulate.id,
+                code: null,
+                contactId: null,
+                balanceBefore: 100,
+                balanceAfter: 0,
+                balanceChange: -100
+            },
+            {
+                rail: "stripe",
+                chargeId: null,
+                amount: 400,
+                charge: null
+            }
+        ], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
+        chai.assert.deepEqual(postCheckoutResp.body.paymentSources[0], {
+            rail: "lightrail",
+            valueId: valueForSimulate.id
+        }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
+        chai.assert.deepEqual(postCheckoutResp.body.paymentSources[1], {
+            rail: "stripe",
+            source: "tok_visa",
+        }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
+
+
+        const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueForSimulate.id}`, "GET");
+        chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
+        chai.assert.equal(getValueResp.body.balance, 100, "the value did not actually change");
+
+        const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
+        chai.assert.equal(getCheckoutResp.statusCode, 404, "the transaction was not actually created");
+
+        setStubsForStripeTests();
+    });
 
     it.skip("creates a charge auth in Stripe when 'pending: true'");
 
@@ -571,3 +642,36 @@ describe("split tender checkout with Stripe", () => {
     });
 
 });
+
+function setStubsForStripeTests() {
+    const testAssumeToken: giftbitRoutes.secureConfig.AssumeScopeToken = {
+        assumeToken: "this-is-an-assume-token"
+    };
+
+    let stubFetchFromS3ByEnvVar = sinon.stub(giftbitRoutes.secureConfig, "fetchFromS3ByEnvVar");
+    stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_CHECKOUT_TOKEN").resolves(testAssumeToken);
+    stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE").resolves({
+        email: "test@test.com",
+        test: {
+            clientId: "test-client-id",
+            secretKey: process.env["STRIPE_PLATFORM_KEY"],
+            publishableKey: "test-pk",
+        },
+        live: {
+            clientId: "test-live-client-id",
+            secretKey: process.env["STRIPE_PLATFORM_KEY"],  // this is a bit problematic: we should be testing with test keys (that's what this is right now)
+            publishableKey: "test-live-pk",
+        },
+    });
+
+    let stubKvsGet = sinon.stub(kvsAccess, "kvsGet");
+    stubKvsGet.withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string).resolves({
+        token_type: "bearer",
+        stripe_user_id: process.env["STRIPE_CONNECTED_ACCOUNT_ID"],
+    });
+}
+
+function unsetStubsForStripeTests() {
+    (giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as any).restore();
+    (kvsAccess.kvsGet as any).restore();
+}

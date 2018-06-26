@@ -62,6 +62,9 @@ function stripeTransactionPlanStepToTransactionStep(step: StripeTransactionPlanS
     if (step.chargeResult) {
         res.chargeId = step.chargeResult.id;
         res.charge = step.chargeResult;
+    } else {
+        res.chargeId = null;
+        res.charge = null;
     }
     return res;
 }
