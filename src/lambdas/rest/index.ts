@@ -27,4 +27,8 @@ router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(authConfigPromise, 
 
 installRestRoutes(router);
 
-export const handler = router.getLambdaHandler();
+export const handler = giftbitRoutes.sentry.wrapLambdaHandler({
+    router,
+    logger: log.error,
+    secureConfig: giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<any>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_SENTRY")
+});
