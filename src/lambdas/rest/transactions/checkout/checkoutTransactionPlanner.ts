@@ -6,16 +6,21 @@ import {listPermutations} from "../../../utils/combinatoricUtils";
 export function optimizeCheckout(checkout: CheckoutRequest, steps: TransactionPlanStep[]): TransactionPlan {
     let bestPlan: TransactionPlan = null;
     const permutations = getAllPermutations(steps);
-    for (const perm of permutations) {
-        console.log(`Calculating transaction plan for permutation: ${JSON.stringify(perm)}.`);
-        let newPlan = calculateCheckoutTransactionPlan(checkout, perm.preTaxSteps, perm.postTaxSteps);
-        console.log(`Calculated new transaction plan: ${JSON.stringify(newPlan)}.`);
-        if (!bestPlan || (newPlan.totals.payable < bestPlan.totals.payable)) {
-            bestPlan = newPlan;
-            console.log(`Found a better transaction plan: ${JSON.stringify(bestPlan)}`);
-        } else {
-            console.log(`Old bestPlan's payable ${bestPlan.totals.payable} < new plan's payable ${newPlan.totals.payable}.`);
+    if (permutations.length > 0) {
+        for (const perm of permutations) {
+            console.log(`Calculating transaction plan for permutation: ${JSON.stringify(perm)}.`);
+            let newPlan = calculateCheckoutTransactionPlan(checkout, perm.preTaxSteps, perm.postTaxSteps);
+            console.log(`Calculated new transaction plan: ${JSON.stringify(newPlan)}.`);
+            if (!bestPlan || (newPlan.totals.payable < bestPlan.totals.payable)) {
+                bestPlan = newPlan;
+                console.log(`Found a better transaction plan: ${JSON.stringify(bestPlan)}`);
+            } else {
+                console.log(`Old bestPlan's payable ${bestPlan.totals.payable} < new plan's payable ${newPlan.totals.payable}.`);
+            }
         }
+    } else {
+        console.log("No steps provided.");
+        bestPlan = calculateCheckoutTransactionPlan(checkout, [], []);
     }
 
     console.log(`Overall best plan: ${JSON.stringify(bestPlan)}`);

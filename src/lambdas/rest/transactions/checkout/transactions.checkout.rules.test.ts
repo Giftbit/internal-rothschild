@@ -599,4 +599,181 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             "createdDate": "2018-06-26T18:22:40.000Z"
         }, ["createdDate"]);
     });
+
+    it("basic 32% off select item, single use. test it can't be transacted against again.", async () => {
+        const promotion: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            valueRule: {
+                rule: "currentLineItem.lineTotal.subtotal * 0.32",
+                explanation: "32% off line item"
+            },
+            redemptionRule: {
+                rule: "currentLineItem.productId == 'p1'",
+                explanation: "product must be have productId p1"
+            },
+            pretax: true,
+            discount: true,
+            uses: 1
+        };
+
+        const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", promotion);
+        chai.assert.equal(resp.statusCode, 201, `body=${JSON.stringify(resp.body)}`);
+
+        let checkoutRequest: any = {
+            id: generateId(),
+            allowRemainder: true,
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: promotion.id
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "p1",
+                    unitPrice: 1200,
+                    taxRate: 0.10
+                },
+                {
+                    type: "product",
+                    productId: "p1",
+                    unitPrice: 1200,
+                    taxRate: 0.10
+                }
+            ],
+            currency: "CAD"
+        };
+
+        const postCheckoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        console.log(JSON.stringify(postCheckoutResp, null, 4));
+        chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
+        chai.assert.deepEqualExcluding(postCheckoutResp.body, {
+            "id": checkoutRequest.id,
+            "transactionType": "checkout",
+            "currency": "CAD",
+            "totals": {
+                "subTotal": 2400,
+                "tax": 164,
+                "discount": 768,
+                "payable": 1796,
+                "remainder": 1796
+            },
+            "lineItems": [
+                {
+                    "type": "product",
+                    "productId": "p1",
+                    "unitPrice": 1200,
+                    "taxRate": 0.1,
+                    "quantity": 1,
+                    "lineTotal": {
+                        "subtotal": 1200,
+                        "taxable": 816,
+                        "tax": 82,
+                        "discount": 384,
+                        "remainder": 898,
+                        "payable": 898
+                    }
+                },
+                {
+                    "type": "product",
+                    "productId": "p1",
+                    "unitPrice": 1200,
+                    "taxRate": 0.1,
+                    "quantity": 1,
+                    "lineTotal": {
+                        "subtotal": 1200,
+                        "taxable": 816,
+                        "tax": 82,
+                        "discount": 384,
+                        "remainder": 898,
+                        "payable": 898
+                    }
+                }
+            ],
+            "steps": [
+                {
+                    "rail": "lightrail",
+                    "valueId": promotion.id,
+                    "contactId": null,
+                    "code": null,
+                    "balanceBefore": 768,
+                    "balanceAfter": 0,
+                    "balanceChange": -768
+                }
+            ],
+            "paymentSources": [
+                {
+                    "rail": "lightrail",
+                    "valueId": promotion.id
+                }
+            ],
+            "metadata": null,
+        }, ["createdDate"]);
+
+        const lookupAfterCheckout = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${promotion.id}`, "GET", promotion);
+        chai.assert.equal(lookupAfterCheckout.statusCode, 200, `body=${JSON.stringify(lookupAfterCheckout.body)}`);
+        chai.assert.equal(lookupAfterCheckout.body.uses, 0, `body=${JSON.stringify(lookupAfterCheckout.body)}`);
+
+        const checkoutRequestTwo = {
+            ...checkoutRequest,
+            id: generateId()
+        };
+
+        const checkoutResponseTwo = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkoutRequestTwo);
+        chai.assert.deepEqualExcluding(checkoutResponseTwo.body, {
+            "id": checkoutRequestTwo.id,
+            "transactionType": "checkout",
+            "currency": "CAD",
+            "totals": {
+                "subTotal": 2400,
+                "tax": 240,
+                "discount": 0,
+                "payable": 2640,
+                "remainder": 2640
+            },
+            "lineItems": [
+                {
+                    "type": "product",
+                    "productId": "p1",
+                    "unitPrice": 1200,
+                    "taxRate": 0.1,
+                    "quantity": 1,
+                    "lineTotal": {
+                        "subtotal": 1200,
+                        "taxable": 1200,
+                        "tax": 120,
+                        "discount": 0,
+                        "remainder": 1320,
+                        "payable": 1320
+                    }
+                },
+                {
+                    "type": "product",
+                    "productId": "p1",
+                    "unitPrice": 1200,
+                    "taxRate": 0.1,
+                    "quantity": 1,
+                    "lineTotal": {
+                        "subtotal": 1200,
+                        "taxable": 1200,
+                        "tax": 120,
+                        "discount": 0,
+                        "remainder": 1320,
+                        "payable": 1320
+                    }
+                }
+            ],
+            "steps": [],
+            "paymentSources": [
+                {
+                    "rail": "lightrail",
+                    "valueId": promotion.id
+                }
+            ],
+            "metadata": null,
+        }, ["createdDate"]);
+
+    });
 });
