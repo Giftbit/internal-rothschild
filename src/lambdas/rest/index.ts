@@ -12,8 +12,8 @@ logPrefix.apply(log, {
     },
 });
 
-// Set the production log level.
-log.setLevel(log.levels.DEBUG);
+// Set the log level when running in Lambda.
+log.setLevel(log.levels.INFO);
 
 const router = new cassava.Router();
 
@@ -27,6 +27,7 @@ router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(authConfigPromise, 
 
 installRestRoutes(router);
 
+// Export the lambda handler with Sentry error logging supported.
 export const handler = giftbitRoutes.sentry.wrapLambdaHandler({
     router,
     logger: log.error,

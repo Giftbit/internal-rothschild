@@ -9,6 +9,7 @@
             true,
             "spaces"
         ],
+        "no-console": true,
         "no-duplicate-variable": true,
         "no-eval": true,
         "no-internal-module": true,

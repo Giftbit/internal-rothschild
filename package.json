@@ -7,6 +7,7 @@
     "clean": "rimraf ./dist",
     "lint": "tslint --project tsconfig.json",
     "test": "npm run test:startdb; TEST_ENV=true DB_USERNAME=root DB_PASSWORD=testpass DB_PORT=3306 DB_ENDPOINT=localhost DB_READ_ENDPOINT=localhost mocha --recursive --throw-deprecation --require ts-node/register --exit \"src/**/*.test.ts\"; npm run test:stopdb",
+    "test:debug": "npm run test:startdb; TEST_ENV=true DB_USERNAME=root DB_PASSWORD=testpass DB_PORT=3306 DB_ENDPOINT=localhost DB_READ_ENDPOINT=localhost mocha --recursive --throw-deprecation --require ts-node/register --require ./src/testUtils/setLogLevelDebug.ts --exit \"src/**/*.test.ts\"; npm run test:stopdb",
     "test:startdb": "docker start rothschild-test-mysql || docker run --name rothschild-test-mysql -e MYSQL_ROOT_PASSWORD=testpass -p 3306:3306 -d mysql:5.6",
     "test:stopdb": "docker stop rothschild-test-mysql"
   },
