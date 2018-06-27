@@ -2,7 +2,6 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as testUtils from "../../../testUtils";
-import {defaultTestUser} from "../../../testUtils";
 import {Value} from "../../../model/Value";
 import {Transaction} from "../../../model/Transaction";
 import * as currencies from "../currencies";
@@ -17,7 +16,7 @@ describe("/v2/transactions/debit", () => {
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
         installRestRoutes(router);
 
-        await currencies.createCurrency(defaultTestUser.auth, {
+        await currencies.createCurrency(testUtils.defaultTestUser.auth, {
             code: "CAD",
             name: "Canadian bucks",
             symbol: "$",
