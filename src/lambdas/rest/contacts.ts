@@ -90,6 +90,8 @@ export function installContactsRest(router: cassava.Router): void {
                 body: await deleteContact(auth, evt.pathParameters.id)
             };
         });
+
+
 }
 
 export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: {[key: string]: string}, pagination: PaginationParams): Promise<{ contacts: Contact[], pagination: Pagination }> {
@@ -154,7 +156,7 @@ export async function getContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
             id: id
         });
     if (res.length === 0) {
-        throw new cassava.RestError(404);
+        throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${id}' not found.`, "ContactNotFound");
     }
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
@@ -242,4 +244,3 @@ const contactUpdateSchema: jsonschema.Schema = {
     ...contactSchema,
     required: []
 };
-

@@ -247,7 +247,7 @@ async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value
     }
 }
 
-async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Value> {
+export async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Value> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
@@ -258,7 +258,7 @@ async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: stri
             id: id
         });
     if (res.length === 0) {
-        throw new cassava.RestError(404);
+        throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${id}' not found.`, "ValueNotFound");
     }
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
