@@ -1,5 +1,6 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
+import * as sinon from "sinon";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as transactions from "./transactions";
 import * as valueStores from "../values";
@@ -8,6 +9,8 @@ import * as testUtils from "../../../testUtils";
 import {Value} from "../../../model/Value";
 import {Transaction} from "../../../model/Transaction";
 import {Currency} from "../../../model/Currency";
+import {fetchFromS3ByEnvVar} from "giftbit-cassava-routes/dist/secureConfig";
+import * as kvsAccess from "../../utils/kvsAccess";
 
 require("dotenv").config();
 
@@ -39,6 +42,34 @@ describe("split tender checkout with Stripe", () => {
 
         const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+        // set up stubs for getting things from kvs & s3
+
+        const testAssumeToken: giftbitRoutes.secureConfig.AssumeScopeToken = {
+            assumeToken: "this-is-an-assume-token"
+        };
+
+        let stubFetchFromS3ByEnvVar = sinon.stub(giftbitRoutes.secureConfig, "fetchFromS3ByEnvVar");
+        stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_CHECKOUT_TOKEN").resolves(testAssumeToken);
+        stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE").resolves({
+            email: "test@test.com",
+            test: {
+                clientId: "test-client-id",
+                secretKey: process.env["STRIPE_PLATFORM_KEY"],
+                publishableKey: "test-pk",
+            },
+            live: {
+                clientId: "test-live-client-id",
+                secretKey: process.env["STRIPE_PLATFORM_KEY"],  // this is a bit problematic: we should be testing with test keys (that's what this is right now)
+                publishableKey: "test-live-pk",
+            },
+        });
+
+        let stubKvsGet = sinon.stub(kvsAccess, "kvsGet");
+        stubKvsGet.withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string).resolves({
+            token_type: "bearer",
+            stripe_user_id: process.env["STRIPE_CONNECTED_ACCOUNT_ID"],
+        });
     });
 
     it("processes basic checkout with Stripe only", async () => {

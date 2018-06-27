@@ -1,4 +1,4 @@
-// Copy-pasted from https://github.com/Giftbit/internal-turnkey/blob/10d96c37edb23ee5335bb096d4aefd128097c6c1/src/utils/kvsAccess.ts
+// Function definitions copied from internal-turnkey. Added to exports to facilitate testing.
 
 import * as superagent from "superagent";
 
@@ -29,3 +29,9 @@ export async function kvsPut(token: string, key: string, value: any): Promise<vo
         .set("Content-Type", "application/json")
         .send(value);
 }
+
+exports = {
+    kvsDelete: kvsDelete,
+    kvsGet: kvsGet,
+    kvsPut: kvsPut
+};

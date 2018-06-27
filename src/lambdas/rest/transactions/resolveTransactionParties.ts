@@ -44,8 +44,6 @@ export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.Auth
             rail: "stripe",
             source: p.source,
             maxAmount: p.maxAmount || null,
-            // stripeSecretKey: stripeKeys.lightrailStripeKey,
-            // stripeMerchantAccountId: stripeKeys.merchantStripeAccountId,
             amount: 0
         }));
     // if (stripeSteps.length > 0) {

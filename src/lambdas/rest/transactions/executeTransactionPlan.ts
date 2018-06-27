@@ -9,6 +9,7 @@ import {TransactionPlanError} from "./TransactionPlanError";
 import {getKnexWrite} from "../../../dbUtils/connection";
 import {httpStatusCode} from "cassava";
 import {StripeTransactionParty} from "../../../model/TransactionRequest";
+import {setupLightrailAndMerchantStripeConfig} from "../../utils/stripeUtils/stripeAccess";
 import Knex = require("knex");
 import Stripe = require("stripe");
 import ICharge = Stripe.charges.ICharge;
@@ -72,6 +73,8 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
         throw new Error("Not implemented");
     }
 
+    const stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
+
     const knex = await getKnexWrite();
 
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
@@ -84,7 +87,7 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
         // todo handle edge case: stripeAmount < 50
 
         const idempotentStepId = `${plan.id}-${stepIx}`;
-        const charge = await createStripeCharge(stepForStripe, process.env["STRIPE_KEY"], process.env["STRIPE_CONNECTED_ACC_ID"], idempotentStepId);  // TODO IMPORTANT: FIX AUTH -- test wiring only!!
+        const charge = await createStripeCharge(stepForStripe, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, idempotentStepId);
 
         // Update transaction plan with charge details
         step.chargeResult = charge;
@@ -105,10 +108,6 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
     //     // }
     // }
 
-
-    // // const lightrailStripeAuth = lightrailStripeConfig.secretKey;
-    // // const merchantStripeAccountId = merchantStripeConfig.stripe_user_id
-    // const merchantStripeAuth = kvsGet(/*LR API KEY, */"", "stripeAuth" /*, authorizeAs ??*/);
 
     // await knex.transaction(async trx => {  // todo wrap everything
     await insertTransaction(knex, auth, plan);
