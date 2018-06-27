@@ -693,8 +693,8 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "valueId": promotion.id,
                     "contactId": null,
                     "code": null,
-                    "balanceBefore": 768,
-                    "balanceAfter": 0,
+                    "balanceBefore": 0,
+                    "balanceAfter": -768,
                     "balanceChange": -768
                 }
             ],
@@ -769,6 +769,124 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             ],
             "metadata": null,
         }, ["createdDate"]);
+    });
 
+    it("stacking promotions: basic 10% off subtotal, 20% off remainder. ensure promotion that operates on remainder is used first", async () => {
+        // promotion off remainder should be applied first.
+        const promotion10PercentOffSubtotal: Partial<Value> = {
+            id: generateId() + "_p10",
+            currency: "CAD",
+            valueRule: {
+                rule: "currentLineItem.lineTotal.subtotal*0.1",
+                explanation: "10% off everything"
+            },
+            pretax: true,
+            discount: true,
+            uses: 1
+        };
+
+        const promotion20PercentOffRemainder: Partial<Value> = {
+            id: generateId() + "_p20",
+            currency: "CAD",
+            valueRule: {
+                rule: "currentLineItem.lineTotal.remainder*0.2",
+                explanation: "20% off everything"
+            },
+            pretax: true,
+            discount: true,
+            uses: 1
+        };
+
+        const createPromo10PercentOffSubtotal = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", promotion10PercentOffSubtotal);
+        chai.assert.equal(createPromo10PercentOffSubtotal.statusCode, 201, `body=${JSON.stringify(createPromo10PercentOffSubtotal.body)}`);
+
+        const createPromo20PercentOffRemainder = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", promotion20PercentOffRemainder);
+        chai.assert.equal(createPromo20PercentOffRemainder.statusCode, 201, `body=${JSON.stringify(createPromo20PercentOffRemainder.body)}`);
+
+        let checkoutRequest: any = {
+            id: generateId(),
+            allowRemainder: true,
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: promotion10PercentOffSubtotal.id
+                },
+                {
+                    rail: "lightrail",
+                    valueId: promotion20PercentOffRemainder.id
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "p1",
+                    unitPrice: 2399
+                }
+            ],
+            currency: "CAD"
+        };
+
+        const postCheckoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        console.log(JSON.stringify(postCheckoutResp, null, 4));
+        chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
+        chai.assert.deepEqualExcluding(postCheckoutResp.body, {
+            "id": checkoutRequest.id,
+            "transactionType": "checkout",
+            "currency": "CAD",
+            "totals": {
+                "subTotal": 2399,
+                "tax": 0,
+                "discount": 720,
+                "payable": 1679,
+                "remainder": 1679
+            },
+            "lineItems": [
+                {
+                    "type": "product",
+                    "productId": "p1",
+                    "unitPrice": 2399,
+                    "quantity": 1,
+                    "lineTotal": {
+                        "subtotal": 2399,
+                        "taxable": 1679,
+                        "tax": 0,
+                        "discount": 720,
+                        "remainder": 1679,
+                        "payable": 1679
+                    }
+                }
+            ],
+            "steps": [
+                {
+                    "rail": "lightrail",
+                    "valueId": promotion20PercentOffRemainder.id,
+                    "contactId": null,
+                    "code": null,
+                    "balanceBefore": 0,
+                    "balanceAfter": -480,
+                    "balanceChange": -480
+                },
+                {
+                    "rail": "lightrail",
+                    "valueId": promotion10PercentOffSubtotal.id,
+                    "contactId": null,
+                    "code": null,
+                    "balanceBefore": 0,
+                    "balanceAfter": -240,
+                    "balanceChange": -240
+                }
+            ],
+            "paymentSources": [
+                {
+                    "rail": "lightrail",
+                    "valueId": promotion10PercentOffSubtotal.id
+                },
+                {
+                    "rail": "lightrail",
+                    "valueId": promotion20PercentOffRemainder.id
+                }
+            ],
+            "metadata": null,
+        }, ["createdDate"]);
     });
 });

@@ -4,6 +4,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as transactions from "../transactions";
 import * as valueStores from "../../values";
 import * as testUtils from "../../../../testUtils";
+import {generateId} from "../../../../testUtils";
 import {Value} from "../../../../model/Value";
 import {Transaction} from "../../../../model/Transaction";
 
@@ -388,6 +389,100 @@ describe("/v2/transactions/checkout - basics", () => {
         chai.assert.equal(getGiftCardVS.body.balance, 7);
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout-3", "GET");
+        chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
+        chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, "statusCode");
+    });
+
+    it("checkout with duplicated values", async () => {
+        const giftCard: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balance: 1000
+        };
+
+        const postValueStoreResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", giftCard);
+        chai.assert.equal(postValueStoreResp.statusCode, 201, `body=${JSON.stringify(postValueStoreResp.body)}`);
+
+        const request = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: giftCard.id
+                },
+                {
+                    rail: "lightrail",
+                    valueId: giftCard.id
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "xyz-123",
+                    unitPrice: 50
+                }
+            ],
+            currency: "CAD"
+        };
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+        chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
+        chai.assert.deepEqualExcluding(postCheckoutResp.body, {
+            id: request.id,
+            transactionType: "checkout",
+            currency: "CAD",
+            totals: {
+                subTotal: 50,
+                tax: 0,
+                discount: 0,
+                payable: 50,
+                remainder: 0,
+            },
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "xyz-123",
+                    unitPrice: 50,
+                    quantity: 1,
+                    lineTotal: {
+                        subtotal: 50,
+                        taxable: 50,
+                        tax: 0,
+                        discount: 0,
+                        payable: 50,
+                        remainder: 0
+                    }
+                }
+            ],
+            steps: [
+                {
+                    rail: "lightrail",
+                    valueId: giftCard.id,
+                    code: null,
+                    contactId: null,
+                    balanceBefore: 1000,
+                    balanceAfter: 950,
+                    balanceChange: -50
+                }
+            ],
+            paymentSources: [
+                {
+                    rail: "lightrail",
+                    valueId: giftCard.id
+                },
+                {
+                    rail: "lightrail",
+                    valueId: giftCard.id
+                }
+            ],
+            metadata: null,
+            createdDate: null
+        }, ["createdDate"]);
+
+        const getValueStoreResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
+        chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(getValueStoreResp.body)}`);
+        chai.assert.equal(getValueStoreResp.body.balance, 950);
+
+        const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, "statusCode");
     });
