@@ -1,5 +1,6 @@
 import * as aws from "aws-sdk";
 import * as knex from "knex";
+import * as log from "loglevel";
 
 let dbCredentials: {username: string, password: string} = null;
 const isTestEnv = !!process.env["TEST_ENV"];
@@ -28,7 +29,7 @@ export async function getDbCredentials(): Promise<{username: string, password: s
         region: process.env["AWS_REGION"]
     });
 
-    !isTestEnv && console.log("fetching db credentials");
+    log.info("fetching db credentials");
     const resp = await ssm.getParameter({
         Name: process.env["DB_PASSWORD_PARAMETER"],
         WithDecryption: true
@@ -37,7 +38,7 @@ export async function getDbCredentials(): Promise<{username: string, password: s
     if (!resp.Parameter) {
         throw new Error(`Could not find SSM parameter ${process.env["DB_PASSWORD_PARAMETER"]}`);
     }
-    !isTestEnv && console.log("got db credentials");
+    log.info("got db credentials");
 
     return dbCredentials = {
         username: process.env["DB_USERNAME"],
@@ -91,7 +92,7 @@ export async function getKnexRead(): Promise<knex> {
 }
 
 function getKnex(username: string, password: string, endpoint: string, port: string): knex {
-    !isTestEnv && console.log(`connecting to ${endpoint}:${port}`);
+    log.info(`connecting to ${endpoint}:${port}`);
     return knex({
         client: "mysql2",
         connection: {

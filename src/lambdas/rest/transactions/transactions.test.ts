@@ -6,9 +6,9 @@ import {alternateTestUser, defaultTestUser} from "../../../testUtils";
 import * as currencies from "../currencies";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
-import {installRest} from "../index";
 import {Value} from "../../../model/Value";
 import {getKnexWrite} from "../../../dbUtils/connection";
+import {installRestRoutes} from "../installRestRoutes";
 
 describe("/v2/transactions", () => {
     const router = new cassava.Router();
@@ -16,7 +16,7 @@ describe("/v2/transactions", () => {
     before(async function () {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
-        installRest(router);
+        installRestRoutes(router);
 
         await currencies.createCurrency(defaultTestUser.auth, {
             code: "CAD",

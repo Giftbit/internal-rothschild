@@ -7,6 +7,7 @@ import {TransactionPlan} from "./TransactionPlan";
 import {executeTransactionPlan} from "./executeTransactionPlan";
 import {DbCurrency} from "../../../model/Currency";
 import {getKnexWrite} from "../../../dbUtils/connection";
+import {nowInDbPrecision} from "../../../dbUtils";
 
 describe("rest/transactions/executeTransactionPlan", () => {
 
@@ -73,6 +74,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             totals: {remainder: 0},
             lineItems: null,
             paymentSources: null,
+            createdDate: nowInDbPrecision(),
             metadata: null
         };
 
@@ -138,6 +140,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             totals: {remainder: null},
             lineItems: null,
             paymentSources: null,
+            createdDate: nowInDbPrecision(),
             metadata: null
         };
 
