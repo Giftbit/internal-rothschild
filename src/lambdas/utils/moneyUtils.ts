@@ -8,8 +8,9 @@
  * ie:
  *  - bankersRounding(0.5, 0) => 0
  *  - bankersRounding(1.5, 0) => 2
+ *
+ * source http://stackoverflow.com/a/3109234
  */
-// source http://stackoverflow.com/a/3109234
 export function bankersRounding(num, decimalPlaces) {
     let d = decimalPlaces || 0;
     let m = Math.pow(10, d);
