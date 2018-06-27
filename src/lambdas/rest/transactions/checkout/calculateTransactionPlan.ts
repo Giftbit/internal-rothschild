@@ -85,5 +85,5 @@ function evaluateLightrailTransactionStep(step: LightrailTransactionPlanStep, tr
 }
 
 function getAvailableBalance(value: Value, step: LightrailTransactionPlanStep): number {
-    return value.balance + step.amount
+    return value.balance + step.amount;
 }

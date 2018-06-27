@@ -193,5 +193,5 @@ export async function createCurrency(router: cassava.Router, isoCode: string): P
 }
 
 export function generateId(): string {
-    return uuid.v4().substring(0, 20)
+    return uuid.v4().substring(0, 20);
 }

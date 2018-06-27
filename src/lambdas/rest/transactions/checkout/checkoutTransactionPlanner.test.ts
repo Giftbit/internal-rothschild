@@ -98,13 +98,11 @@ describe("optimizeCheckout", () => {
 
         it("test 3 lightrail steps", async () => {
             const result = getStepPermutations([lrPostTax1, lrPostTax2, l3]);
-            // console.log(JSON.stringify(result));
             chai.assert.deepEqual(result, [[lrPostTax1, lrPostTax2, l3], [lrPostTax2, lrPostTax1, l3], [l3, lrPostTax1, lrPostTax2], [lrPostTax1, l3, lrPostTax2], [lrPostTax2, l3, lrPostTax1], [l3, lrPostTax2, lrPostTax1]]);
         });
 
         it("test 4 lightrail steps", async () => {
             const result = getStepPermutations([lrPostTax1, lrPostTax2, l3, l4]);
-            // console.log(JSON.stringify(result));
             chai.assert.equal(result.length, 24, `expected 4! = 24 entries.`);
         });
 
@@ -123,7 +121,6 @@ describe("optimizeCheckout", () => {
 
         it("test 1 internal step", async () => {
             const result = getStepPermutations([iBeforePostTax1]);
-            console.log(JSON.stringify(result));
             chai.assert.deepEqual(result, [[iBeforePostTax1]]);
         });
 
@@ -168,7 +165,6 @@ describe("optimizeCheckout", () => {
         value: getValue(true),
         amount: 2
     };
-
 
     const iBeforePreTax1: TransactionPlanStep = {
         rail: "internal",

@@ -73,11 +73,6 @@ export class CheckoutTransactionPlan implements TransactionPlan {
             let tax = 0;
             item.lineTotal.taxable = item.lineTotal.subtotal - item.lineTotal.discount;
             if (item.taxRate >= 0) {
-                console.log("item.taxRate " + item.taxRate);
-                console.log("item.lineTotal.taxable" + item.lineTotal.taxable);
-                console.log("item.taxRate * item.lineTotal.taxable " + item.taxRate * item.lineTotal.taxable);
-                console.log("try rounding 0.5 " + bankersRounding(0.5, 0));
-                console.log("try rounding 1.5 " + bankersRounding(1.5, 0));
                 tax = bankersRounding(item.taxRate * item.lineTotal.taxable, 0);
             }
             item.lineTotal.tax = tax;

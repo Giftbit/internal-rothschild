@@ -15,10 +15,7 @@ export class RuleContext {
     }
 
     evaluateValueRule(valueRule: Rule): number {
-        const here = getRuleFromCache(valueRule.rule).evaluateToNumber(this);
-        ;
-        console.log("\n\n\nHERE: " + here);
-        return here;
+        return getRuleFromCache(valueRule.rule).evaluateToNumber(this);
     }
 
     evaluateRedemptionRule(valueRule: Rule): boolean {

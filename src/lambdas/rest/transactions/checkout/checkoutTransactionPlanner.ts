@@ -34,7 +34,7 @@ export interface StepPermutation {
 
 // Todo - Trying all permutations of things that represent discounts + valueRules makes sense but gift cards, accounts etc should maybe be ordered by expiry or order passed in?
 // Todo - ie, a customer at checkout wants to use up a gift card and then charge the rest onto their account.
-// Todo - This can probably wait because it's not very likely to happen immediately. 
+// Todo - This can probably wait because it's not very likely to happen immediately.
 export function getAllPermutations(steps: TransactionPlanStep[]): StepPermutation[] {
     const preTaxSteps: TransactionPlanStep[] = steps.filter(it => (it.rail === "internal" && it.pretax) || (it.rail === "lightrail" && it.value.pretax));
     const postTaxSteps: TransactionPlanStep[] = steps.filter(x => preTaxSteps.indexOf(x) < 0);
@@ -84,7 +84,7 @@ export function filterSteps(steps: TransactionPlanStep[]): FilteredSteps {
         stepsBeforeLightrail: steps.filter(it => it.rail === "internal" && it.beforeLightrail),
         stepsAfterLightrail: steps.filter(it => it.rail !== "lightrail" && !it["beforeLightrail"]),
         lighrailSteps: steps.filter(it => it.rail === "lightrail"),
-    }
+    };
 }
 
 interface FilteredSteps {

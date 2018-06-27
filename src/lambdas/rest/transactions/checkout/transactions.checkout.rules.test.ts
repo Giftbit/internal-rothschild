@@ -194,7 +194,6 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
         };
 
         const postCheckoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-        console.log(JSON.stringify(postCheckoutResp, null, 4));
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(postCheckoutResp.body, {
             "id": checkoutRequest.id,
@@ -256,8 +255,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "valueId": promotion.id
                 }
             ],
-            "metadata": null,
-            "createdDate": "2018-06-26T22:29:58.000Z"
+            "metadata": null
         }, ["createdDate"]);
     });
 
@@ -493,7 +491,6 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
         };
 
         const postOrderResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-        console.log(JSON.stringify(postOrderResp, null, 4));
         chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
         chai.assert.deepEqualExcluding(postOrderResp.body, {
             "id": checkoutRequest.id,
@@ -596,7 +593,6 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 }
             ],
             "metadata": null,
-            "createdDate": "2018-06-26T18:22:40.000Z"
         }, ["createdDate"]);
     });
 
@@ -647,7 +643,6 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
         };
 
         const postCheckoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-        console.log(JSON.stringify(postCheckoutResp, null, 4));
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(postCheckoutResp.body, {
             "id": checkoutRequest.id,

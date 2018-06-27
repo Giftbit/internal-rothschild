@@ -19,7 +19,6 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
         await testUtils.createCurrency(router, "CAD");
     });
 
-
     it("process checkout with insufficientValue followed by allowRemainder = true", async () => {
         const giftCard: Partial<Value> = {
             id: "vs-checkout4-giftcard",
@@ -164,6 +163,4 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, "statusCode");
     });
-
-
 });
