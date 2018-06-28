@@ -84,9 +84,9 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
     for (let stepIx in stripeSteps) {
         const step = stripeSteps[stepIx];
         const stepForStripe = translateStripeStep(step, plan.currency);
-        // todo handle edge case: stripeAmount < 50
+        // todo handle edge case: stripeAmount < 50    --> do this in planner
 
-        const idempotentStepId = `${plan.id}-${stepIx}`;
+        const idempotentStepId = `${plan.id}-${stepIx}`;  // todo store this in the transactionPlanStep instead so it can be read consistently for both lr & stripe
         const charge = await createStripeCharge(stepForStripe, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, idempotentStepId);
 
         // Update transaction plan with charge details
@@ -110,7 +110,7 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
 
 
     // await knex.transaction(async trx => {  // todo wrap everything
-    await insertTransaction(knex, auth, plan);
+    await insertTransaction(knex, auth, plan);  // todo make sure we throw the right error message if duplicate transaction
 
     try {
         for (let stepIx in stripeSteps) {
@@ -156,12 +156,13 @@ function translateStripeStep(step: StripeTransactionPlanStep, currency: string) 
         source: step.source,
         amount: step.amount,
         currency
+        // todo metadata? incl send transactionId to start
     };
 }
 
 async function createStripeCharge(params: any, lightrailStripeSecretKey: string, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<ICharge> {
     const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
-    // params.description = "Lightrail Checkout transaction.";  // todo maybe add to StripeTransactionPlanStep? Need to consider interfaces used for posting Stripe charges.
+    // params.description = "Lightrail Checkout transaction.";  // todo what is this
     console.log(`Creating transaction ${JSON.stringify(params)}.`);
 
     let charge: ICharge;
@@ -171,19 +172,19 @@ async function createStripeCharge(params: any, lightrailStripeSecretKey: string,
             idempotency_key: stepIdempotencyKey
         });
     } catch (err) {
-        console.log("\n\nERROR CHARGING STRIPE: \n" + err);
+        console.log("\n\nERROR CHARGING STRIPE: \n" + err);   // todo add more detail: chargId? we will support more than one stripe source, needs to be identifiable
         switch (err.type) {
             case "StripeCardError":
                 throw new GiftbitRestError(httpStatusCode.clientError.BAD_REQUEST, "Failed to charge credit card..", "ChargeFailed");
             case "StripeInvalidRequestError":
                 throw new GiftbitRestError(httpStatusCode.clientError.BAD_REQUEST, "The stripeCardToken was invalid.", "StripeInvalidRequestError");
             case "RateLimitError":
-                throw new GiftbitRestError(httpStatusCode.clientError.TOO_MANY_REQUESTS, `Service was rate limited by dependent service.`, "DependentServiceRateLimited");
+                throw new GiftbitRestError(httpStatusCode.clientError.TOO_MANY_REQUESTS, `Service was rate limited by dependent service.`, "DependentServiceRateLimited"); // technically this is up to us to handle once we're past mvp stage
             default:
                 throw new Error(`An unexpected error occurred while attempting to charge card. error ${err}`);
         }
     }
-    console.log(`Created charge ${JSON.stringify(charge)}`);
+    console.log(`Created charge ${JSON.stringify(charge)}`); // todo is this safe to log?
     return charge;
 }
 
