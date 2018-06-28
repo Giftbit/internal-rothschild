@@ -9,7 +9,7 @@ export function calculateCheckoutTransactionPlan(checkout: CheckoutRequest, preT
     let transactionPlan = new CheckoutTransactionPlan(checkout, preTaxSteps.concat(postTaxSteps));
     console.log(`Build checkout transaction plan: ${JSON.stringify(transactionPlan)}`);
     evaluateTransactionSteps(preTaxSteps, transactionPlan);
-    transactionPlan.applyTax();
+    transactionPlan.calculateTaxAndSetOnLineItems();
     evaluateTransactionSteps(postTaxSteps, transactionPlan);
     transactionPlan.calculateTotalsFromLineItems();
 

@@ -68,22 +68,19 @@ export function getAllPermutations(steps: TransactionPlanStep[]): StepPermutatio
     return stepPermutations;
 }
 
-export function getStepPermutations(steps: TransactionPlanStep[]): Array<Array<TransactionPlanStep>> {
+export function getStepPermutations(steps: TransactionPlanStep[]): TransactionPlanStep[][] {
     let filteredSteps = filterSteps(steps);
-    let lightrailPerms = listPermutations(filteredSteps.lighrailSteps);
+    let lightrailPerms: TransactionPlanStep[][] = listPermutations(filteredSteps.lighrailSteps);
 
-    let result: Array<Array<TransactionPlanStep>> = [];
-    for (let perm of lightrailPerms) {
-        result.push(filteredSteps.stepsBeforeLightrail.concat(perm).concat(filteredSteps.stepsAfterLightrail));
-    }
+    const result = lightrailPerms.map(perm => [...filteredSteps.stepsBeforeLightrail, ...perm, ...filteredSteps.stepsAfterLightrail]);
     return result;
 }
 
 export function filterSteps(steps: TransactionPlanStep[]): FilteredSteps {
     return {
-        stepsBeforeLightrail: steps.filter(it => it.rail === "internal" && it.beforeLightrail),
-        stepsAfterLightrail: steps.filter(it => it.rail !== "lightrail" && !it["beforeLightrail"]),
-        lighrailSteps: steps.filter(it => it.rail === "lightrail"),
+        stepsBeforeLightrail: steps.filter(step => step.rail === "internal" && step.beforeLightrail),
+        stepsAfterLightrail: steps.filter(step => step.rail !== "lightrail" && !step["beforeLightrail"]),
+        lighrailSteps: steps.filter(step => step.rail === "lightrail"),
     };
 }
 

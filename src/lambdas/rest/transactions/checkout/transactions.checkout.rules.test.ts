@@ -827,7 +827,6 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
         };
 
         const postCheckoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-        console.log(JSON.stringify(postCheckoutResp, null, 4));
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(postCheckoutResp.body, {
             "id": checkoutRequest.id,
