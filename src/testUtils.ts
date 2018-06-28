@@ -179,14 +179,14 @@ export async function testAuthedCsvRequest<T>(router: cassava.Router, url: strin
     };
 }
 
-export async function createCurrency(router: cassava.Router, isoCode: string): Promise<void> {
+export async function createCurrency(router: cassava.Router, code: string, name: string = uuid.v4(), symbol: string = "$", decimalPlaces: number = 2): Promise<void> {
     currencies.installCurrenciesRest(router);
 
     const currency: Currency = {
-        code: isoCode,
-        name: "Monopoly Money",
-        symbol: "$",
-        decimalPlaces: 2
+        code: code,
+        name: name,
+        symbol: symbol,
+        decimalPlaces: decimalPlaces
     };
     const resp1 = await testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency);
     chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
