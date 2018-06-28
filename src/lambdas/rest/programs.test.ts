@@ -5,7 +5,7 @@ import * as chai from "chai";
 import {Program} from "../../model/Program";
 import {installRestRoutes} from "./installRestRoutes";
 
-describe.skip("/v2/programs", () => {
+describe.only("/v2/programs", () => {
 
     const router = new cassava.Router();
 
@@ -17,16 +17,9 @@ describe.skip("/v2/programs", () => {
 
     it("can list 0 programs", async () => {
         const resp = await testUtils.testAuthedRequest(router, "/v2/programs", "GET");
+        console.log(JSON.stringify(resp));
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.deepEqual(resp.body, {
-            valueTemplates: [],
-            pagination: {
-                count: 0,
-                limit: 100,
-                maxLimit: 1000,
-                offset: 0
-            }
-        });
+        chai.assert.deepEqual(resp.body, []);
     });
 
     let program1: Partial<Program> = {
