@@ -6,9 +6,9 @@ import * as mysql from "mysql2/promise";
 import * as path from "path";
 import {getDbCredentials} from "../dbUtils/connection";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
-import {Currency} from "./model/Currency";
-import {Value} from "./model/Value";
-import * as currencies from "./lambdas/rest/currencies";
+import {Currency} from "../model/Currency";
+import {Value} from "../model/Value";
+import * as currencies from "../lambdas/rest/currencies";
 import papaparse = require("papaparse");
 import uuid = require("uuid");
 

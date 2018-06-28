@@ -5,6 +5,10 @@ import {DbValue} from "../../../model/Value";
 import {transactionPlanToTransaction} from "./transactionPlanToTransaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {getKnexWrite} from "../../../dbUtils/connection";
+import {nowInDbPrecision} from "../../../dbUtils";
+import * as log from "loglevel";
+
+// import * as log from "loglevel";
 
 export interface ExecuteTransactionPlannerOptions {
     allowRemainder: boolean;
@@ -27,9 +31,9 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
             }
             return await executeTransactionPlan(auth, plan);
         } catch (err) {
-            console.log(`Err ${err} was thrown.`);
+            log.warn(`Err ${err} was thrown.`);
             if ((err as TransactionPlanError).isTransactionPlanError && (err as TransactionPlanError).isReplanable) {
-                console.log(`Retrying.`);
+                console.info(`Retrying. It's a transaction plan error and it is replanable.`);
                 continue;
             }
             throw err;
@@ -49,6 +53,7 @@ export function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authorization
 async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<Transaction> {
     const knex = await getKnexWrite();
     await knex.transaction(async trx => {
+        plan.createdDate = nowInDbPrecision(); // todo - should this be defined earlier?
         try {
             await trx.into("Transactions")
                 .insert({
@@ -72,7 +77,7 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
             const step = plan.steps[stepIx] as LightrailTransactionPlanStep;
 
             let updateProperties: any = {
-                updatedDate: now
+                updatedDate: plan.createdDate
             };
 
             let query = trx.into("Values")

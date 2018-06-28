@@ -12,6 +12,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
     lineItems: LineItemResponse[] | null;
     paymentSources: TransactionParty[] | null;
     steps: TransactionPlanStep[];
+    createdDate: Date;
     metadata: object | null;
 
     constructor(checkout: CheckoutRequest, steps: TransactionPlanStep[]) {

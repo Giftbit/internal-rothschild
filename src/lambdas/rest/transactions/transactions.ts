@@ -2,9 +2,6 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {CheckoutRequest, CreditRequest, DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
-import * as log from "loglevel";
-import {compareTransactionPlanSteps} from "./compareTransactionPlanSteps";
-import {CreditRequest, DebitRequest, OrderRequest, TransferRequest} from "../../../model/TransactionRequest";
 import {resolveTransactionParties} from "./resolveTransactionParties";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {executeTransactionPlanner} from "./executeTransactionPlan";
@@ -14,9 +11,9 @@ import {Filters, TransactionFilterParams} from "../../../model/Filter";
 import {paginateQuery} from "../../../dbUtils/paginateQuery";
 import {LightrailTransactionPlanStep} from "./TransactionPlan";
 import {optimizeCheckout} from "./checkout/checkoutTransactionPlanner";
+import {nowInDbPrecision} from "../../../dbUtils";
 import getPaginationParams = Pagination.getPaginationParams;
 import getTransactionFilterParams = Filters.getTransactionFilterParams;
-import {nowInDbPrecision} from "../../../dbUtils";
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions")
