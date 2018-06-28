@@ -8,6 +8,7 @@ import {pick, pickOrDefault} from "../../pick";
 import {csvSerializer} from "../../serializers";
 import {filterAndPaginateQuery, getSqlErrorConstraintName, nowInDbPrecision} from "../../dbUtils";
 import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
+import {DbTransaction, LightrailDbTransactionStep} from "../../model/Transaction";
 import {codeLastFour, DbCode} from "../../model/DbCode";
 import {generateCode} from "../../services/codeGenerator";
 
@@ -226,7 +227,33 @@ async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value
             await trx.into("Values")
                 .insert(Value.toDbValue(auth, value, isGeneric));
             if (value.balance) {
-                // TODO insert initialValue Transaction and LightrailTransactionStep
+                if (value.balance < 0) {
+                    throw new Error("balance cannot be negative");
+                }
+
+                const transactionId = value.id;
+                const initialBalanceTransaction: DbTransaction = {
+                    userId: auth.giftbitUserId,
+                    id: transactionId,
+                    transactionType: "credit",
+                    currency: value.currency,
+                    totals: null,
+                    lineItems: null,
+                    paymentSources: null,
+                    metadata: null,
+                    createdDate: value.createdDate
+                };
+                const initialBalanceTransactionStep: LightrailDbTransactionStep = {
+                    userId: auth.giftbitUserId,
+                    id: `${value.id}-0`,
+                    transactionId: transactionId,
+                    valueId: value.id,
+                    balanceBefore: 0,
+                    balanceAfter: value.balance,
+                    balanceChange: value.balance
+                };
+                await trx.into("Transactions").insert(initialBalanceTransaction);
+                await trx.into("LightrailTransactionSteps").insert(initialBalanceTransactionStep);
             }
         });
         if (value.code && !isGeneric) {
@@ -410,7 +437,8 @@ const valueSchema: jsonschema.Schema = {
             maxLength: 16
         },
         balance: {
-            type: ["number", "null"]
+            type: ["number", "null"],
+            minimum: 0
         },
         uses: {
             type: ["number", "null"]

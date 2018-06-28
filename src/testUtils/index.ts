@@ -1,17 +1,16 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as fs from "fs";
+import * as log from "loglevel";
 import * as mysql from "mysql2/promise";
 import * as path from "path";
-import {getDbCredentials} from "./dbUtils/connection";
+import {getDbCredentials} from "../dbUtils/connection";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
-import {Currency} from "./model/Currency";
-import {Value} from "./model/Value";
-import * as currencies from "./lambdas/rest/currencies";
 import papaparse = require("papaparse");
+import uuid = require("uuid");
 
 if (!process.env["TEST_ENV"]) {
-    console.log("Env var TEST_ENV is undefined.  This is not a test environment!");
+    log.error("Env var TEST_ENV is undefined.  This is not a test environment!");
     throw new Error("Env var TEST_ENV is undefined.  This is not a test environment!");
 }
 
@@ -90,23 +89,23 @@ export async function resetDb(): Promise<void> {
 
         await connection.query("CREATE DATABASE rothschild");
 
-        const sqlDir = path.join(__dirname, "lambdas", "postDeploy", "schema");
+        const sqlDir = path.join(__dirname, "..", "lambdas", "postDeploy", "schema");
         for (const sqlFile of fs.readdirSync(sqlDir).sort()) {
             const sql = fs.readFileSync(path.join(sqlDir, sqlFile)).toString("utf8");
             await connection.query(sql);
         }
     } catch (err) {
-        console.error("Error setting up DB for test.", err.message, "Fetching InnoDB status...");
+        log.error("Error setting up DB for test.", err.message, "Fetching InnoDB status...");
 
         try {
             const [statusRes] = await connection.query("SHOW ENGINE INNODB STATUS");
             if (statusRes.length === 1 && statusRes[0].Status) {
                 for (const line of statusRes[0].Status.split("\\n")) {
-                    console.error(line);
+                    log.error(line);
                 }
             }
         } catch (err2) {
-            console.error("Error fetching InnoDB status.", err2.message);
+            log.error("Error fetching InnoDB status.", err2.message);
         }
 
         throw err;
@@ -178,15 +177,6 @@ export async function testAuthedCsvRequest<T>(router: cassava.Router, url: strin
     };
 }
 
-export async function createCurrency(router: cassava.Router, isoCode: string): Promise<void> {
-    currencies.installCurrenciesRest(router);
-
-    const currency: Currency = {
-        code: isoCode,
-        name: "Monopoly Money",
-        symbol: "$",
-        decimalPlaces: 2
-    };
-    const resp1 = await testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency);
-    chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
+export function generateId(): string {
+    return uuid.v4().substring(0, 20);
 }

@@ -1,11 +1,14 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {Transaction} from "../../../model/Transaction";
-import {nowInDbPrecision} from "../../../dbUtils/index";
 import {DbValue} from "../../../model/Value";
 import {transactionPlanToTransaction} from "./transactionPlanToTransaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {getKnexWrite} from "../../../dbUtils/connection";
+import {nowInDbPrecision} from "../../../dbUtils";
+import * as log from "loglevel";
+
+// import * as log from "loglevel";
 
 export interface ExecuteTransactionPlannerOptions {
     allowRemainder: boolean;
@@ -28,9 +31,9 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
             }
             return await executeTransactionPlan(auth, plan);
         } catch (err) {
-            console.log(`Err ${err} was thrown.`);
+            log.warn(`Err ${err} was thrown.`);
             if ((err as TransactionPlanError).isTransactionPlanError && (err as TransactionPlanError).isReplanable) {
-                console.log(`Retrying.`);
+                console.info(`Retrying. It's a transaction plan error and it is replanable.`);
                 continue;
             }
             throw err;
@@ -48,9 +51,9 @@ export function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authorization
  * locking on Values.
  */
 async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<Transaction> {
-    const now = nowInDbPrecision();
     const knex = await getKnexWrite();
     await knex.transaction(async trx => {
+        plan.createdDate = nowInDbPrecision(); // todo - should this be defined earlier?
         try {
             await trx.into("Transactions")
                 .insert({
@@ -62,7 +65,7 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
                     lineItems: JSON.stringify(plan.lineItems),
                     paymentSources: JSON.stringify(plan.paymentSources),
                     metadata: JSON.stringify(plan.metadata),
-                    createdDate: now
+                    createdDate: plan.createdDate
                 });
         } catch (err) {
             if (err.code === "ER_DUP_ENTRY") {
@@ -72,19 +75,27 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
 
         for (let stepIx = 0; stepIx < plan.steps.length; stepIx++) {
             const step = plan.steps[stepIx] as LightrailTransactionPlanStep;
+
+            let updateProperties: any = {
+                updatedDate: plan.createdDate
+            };
+
             let query = trx.into("Values")
                 .where({
                     userId: auth.giftbitUserId,
                     id: step.value.id
-                })
-                .increment("balance", step.amount);
+                });
+            if (step.amount !== 0 && step.amount !== null) {
+                updateProperties.balance = knex.raw(`balance + ?`, [step.amount])
+            }
             if (step.amount < 0 && !step.value.valueRule /* if it has a valueRule then balance is 0 or null */) {
                 query = query.where("balance", ">=", -step.amount);
             }
             if (step.value.uses !== null) {
-                query = query.where("uses", ">", 0)
-                    .increment("uses", -1);
+                query = query.where("uses", ">", 0);
+                updateProperties.uses = knex.raw(`uses - 1`);
             }
+            query = query.update(updateProperties);
 
             const res = await query;
             if (res !== 1) {
@@ -106,8 +117,19 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
                 });
             }
 
-            // Fix the plan to indicate the true value change.
-            step.value.balance = res2[0].balance - step.amount;
+            let balanceInfo = {
+                balanceBefore: res2[0].balance - step.amount,
+                balanceAfter: res2[0].balance,
+                balanceChange: step.amount
+            };
+
+            if (step.value.valueRule !== null) {
+                balanceInfo.balanceBefore = 0;
+                balanceInfo.balanceAfter = 0;
+            } else {
+                // Fix the plan to indicate the true value change.
+                step.value.balance = res2[0].balance - step.amount;
+            }
 
             await trx.into("LightrailTransactionSteps")
                 .insert({
@@ -117,9 +139,7 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
                     valueId: step.value.id,
                     contactId: step.value.contactId,
                     code: step.value.code,
-                    balanceBefore: res2[0].balance - step.amount,
-                    balanceAfter: res2[0].balance,
-                    balanceChange: step.amount
+                    ...balanceInfo
                 });
         }
     });

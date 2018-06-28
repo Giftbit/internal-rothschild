@@ -12,6 +12,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
     lineItems: LineItemResponse[] | null;
     paymentSources: TransactionParty[] | null;
     steps: TransactionPlanStep[];
+    createdDate: Date;
     metadata: object | null;
 
     constructor(checkout: CheckoutRequest, steps: TransactionPlanStep[]) {
@@ -42,15 +43,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
         this.calculateTotalsFromLineItems();
     }
 
-    calculateRemainderFromLineItems?(): number {
-        let remainder = 0;
-        for (const item of this.lineItems) {
-            remainder += item.lineTotal.remainder;
-        }
-        return remainder;
-    }
-
-    calculateTotalsFromLineItems?(): void {
+    calculateTotalsFromLineItems(): void {
         this.totals = {
             subTotal: 0,
             tax: 0,
@@ -65,10 +58,12 @@ export class CheckoutTransactionPlan implements TransactionPlan {
             this.totals.discount += item.lineTotal.discount;
             this.totals.payable += item.lineTotal.payable;
         }
-        this.totals.remainder = this.calculateRemainderFromLineItems();
+        for (const item of this.lineItems) {
+            this.totals.remainder += item.lineTotal.remainder;
+        }
     }
 
-    applyTax() {
+    calculateTaxAndSetOnLineItems(): void {
         for (let item of this.lineItems) {
             let tax = 0;
             item.lineTotal.taxable = item.lineTotal.subtotal - item.lineTotal.discount;
