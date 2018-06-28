@@ -387,10 +387,6 @@ function getCodeFromRequest(evt: RouterEvent): { code: string, isGeneric: boolea
     return {code: code, isGeneric: isGeneric};
 }
 
-function isGenericCode(evt: RouterEvent) {
-    return !!evt.body.genericCode;
-}
-
 const valueSchema: jsonschema.Schema = {
     type: "object",
     additionalProperties: false,
