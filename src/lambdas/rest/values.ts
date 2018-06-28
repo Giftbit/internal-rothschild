@@ -314,7 +314,8 @@ async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
         throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
     }
     return {
-        ...await getValue(auth, id)
+        ...await getValue(auth, id),
+        ...value
     };
 }
 
