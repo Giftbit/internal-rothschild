@@ -6,7 +6,7 @@ chai.use(chaiExclude);
 
 const ALPHANUMERIC_CHARSET = "ABCDEFGHIJKLMNPQRSTUVWXYZ123456789"; // uppercase generator omits 0O
 const NUMERIC_CHARSET = "1234567890";
-describe("code generator tests", () => {
+describe.only("code generator tests", () => {
 
     it("test alphanumeric code generation", async () => {
         for (let i = 0; i < 100; i++) {
@@ -74,6 +74,16 @@ describe("code generator tests", () => {
             chai.assert.equal(res.length, length);
             for (let j = 0; j < length; j++) {
                 chai.assert.include(charset, res.charAt(j));
+            }
+        }
+
+        const charsetLowercase = "abc123";
+        for (let i = 0; i < 100; i++) {
+            const length = 5 + (i % 20);
+            const res = generateCode({length: length, charset: charsetLowercase});
+            chai.assert.equal(res.length, length);
+            for (let j = 0; j < length; j++) {
+                chai.assert.include(charsetLowercase, res.charAt(j));
             }
         }
     });

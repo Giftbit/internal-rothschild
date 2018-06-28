@@ -62,12 +62,12 @@ export function installValuesRest(router: cassava.Router): void {
                 updatedDate: now
             };
 
-            let code = getCodeFromRequest(evt);
-            value.code = code.code;
+            let codeParams = getCodeFromRequest(evt);
+            value.code = codeParams.code;
 
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
-                body: await createValue(auth, value, code.isGeneric)
+                body: await createValue(auth, value, codeParams.isGeneric)
             };
         });
 
@@ -128,9 +128,9 @@ export function installValuesRest(router: cassava.Router): void {
             evt.validateBody(valueChangeCodeSchema);
 
             const now = nowInDbPrecision();
-            const code = getCodeFromRequest(evt);
+            const codeParams = getCodeFromRequest(evt);
 
-            const dbCode = new DbCode(code.code, code.isGeneric, auth);
+            const dbCode = new DbCode(codeParams.code, codeParams.isGeneric, auth);
             let partialValue: Partial<DbValue> = {
                 code: dbCode.lastFour,
                 encryptedCode: dbCode.encryptedCode,
