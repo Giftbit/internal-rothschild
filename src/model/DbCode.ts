@@ -1,5 +1,5 @@
-import {computeLookupHash, encrypt} from "../services/codeCryptoUtils";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
+import {computeLookupHash, encrypt} from "../codeCryptoUtils";
 
 export class DbCode {
     encryptedCode: string;

@@ -1,7 +1,7 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {pickDefined} from "../pick";
-import {decrypt} from "../services/codeCryptoUtils";
 import {DbCode} from "./DbCode";
+import {decrypt} from "../codeCryptoUtils";
 
 export interface Value {
     id: string;

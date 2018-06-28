@@ -3,16 +3,17 @@ import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as parseLinkHeader from "parse-link-header";
 import * as testUtils from "../../testUtils";
-import {createCurrency, defaultTestUser} from "../../testUtils";
+import {defaultTestUser} from "../../testUtils";
 import {DbValue, Value} from "../../model/Value";
 import {Currency} from "../../model/Currency";
 import {Contact} from "../../model/Contact";
-import {computeLookupHash, decrypt} from "../../services/codeCryptoUtils";
 import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
 import {codeLastFour} from "../../model/DbCode";
-import chaiExclude = require("chai-exclude");
 import {LightrailTransactionStep, Transaction} from "../../model/Transaction";
 import {installRestRoutes} from "./installRestRoutes";
+import {computeLookupHash, decrypt} from "../../codeCryptoUtils";
+import {createCurrency} from "./currencies";
+import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
@@ -24,6 +25,12 @@ describe("/v2/values/", () => {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
         installRestRoutes(router);
+        await createCurrency(testUtils.defaultTestUser.auth, {
+            code: "USD",
+            name: "The Big Bucks",
+            symbol: "$",
+            decimalPlaces: 2
+        });
     });
 
     it("can list 0 values", async () => {
@@ -231,7 +238,11 @@ describe("/v2/values/", () => {
     });
 
     it("422s on creating a value with a negative balance", async () => {
-        const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {id: "negativebalance", currency: "USD", balance: -5000});
+        const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: "negativebalance",
+            currency: "USD",
+            balance: -5000
+        });
         chai.assert.equal(resp.statusCode, 422, `create body=${JSON.stringify(resp.body)}`);
     });
 
