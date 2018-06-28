@@ -2,7 +2,6 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
 import {LightrailTransactionPlanStep, StripeTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {DbTransactionStep, Transaction} from "../../../model/Transaction";
-import {nowInDbPrecision} from "../../../dbUtils/index";
 import {DbValue} from "../../../model/Value";
 import {transactionPlanToTransaction} from "./transactionPlanToTransaction";
 import {TransactionPlanError} from "./TransactionPlanError";
@@ -10,6 +9,8 @@ import {getKnexWrite} from "../../../dbUtils/connection";
 import {httpStatusCode} from "cassava";
 import {StripeTransactionParty} from "../../../model/TransactionRequest";
 import {setupLightrailAndMerchantStripeConfig} from "../../utils/stripeUtils/stripeAccess";
+import {nowInDbPrecision} from "../../../dbUtils";
+import * as log from "loglevel";
 import Knex = require("knex");
 import Stripe = require("stripe");
 import ICharge = Stripe.charges.ICharge;
@@ -35,9 +36,9 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
             }
             return await executeTransactionPlan(auth, plan);
         } catch (err) {
-            console.log(`Err ${err} was thrown.`);
+            log.warn(`Err ${err} was thrown.`);
             if ((err as TransactionPlanError).isTransactionPlanError && (err as TransactionPlanError).isReplanable) {
-                console.log(`Retrying.`);
+                // console.info(`Retrying. It's a transaction plan error and it is replanable.`);
                 continue;
             }
             throw err;
@@ -57,8 +58,9 @@ export function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authorization
 async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<Transaction> {
     const knex = await getKnexWrite();
     await knex.transaction(async trx => {
+        plan.createdDate = nowInDbPrecision(); // todo - should this be defined earlier?
         await insertTransaction(trx, auth, plan);
-        await processLightrailSteps(auth, trx, plan.steps as LightrailTransactionPlanStep[], plan.id);
+        await processLightrailSteps(auth, trx, plan.steps as LightrailTransactionPlanStep[], plan.id, plan.createdDate);
     });
 
     return transactionPlanToTransaction(plan);
@@ -110,6 +112,7 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
 
 
     // await knex.transaction(async trx => {  // todo wrap everything
+    plan.createdDate = nowInDbPrecision(); // todo - should this be defined earlier?
     await insertTransaction(knex, auth, plan);  // todo make sure we throw the right error message if duplicate transaction
 
     try {
@@ -136,10 +139,10 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
             }
         }
 
-        await processLightrailSteps(auth, knex, lrSteps, plan.id);
+        await processLightrailSteps(auth, knex, lrSteps, plan.id, plan.createdDate);
 
     } catch (err) {
-        console.log("ERROR=" + JSON.stringify(err, null, 4));
+        log.debug("ERROR=" + JSON.stringify(err, null, 4));
         // TODO tana - need to adapt this to fit this context: rollback should mean refund Stripe charges and refund LR charges (void if we use pending flow)
     }
     // });
@@ -163,7 +166,7 @@ function translateStripeStep(step: StripeTransactionPlanStep, currency: string) 
 async function createStripeCharge(params: any, lightrailStripeSecretKey: string, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<ICharge> {
     const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
     // params.description = "Lightrail Checkout transaction.";  // todo what is this
-    console.log(`Creating transaction ${JSON.stringify(params)}.`);
+    log.info(`Creating transaction ${JSON.stringify(params)}.`);
 
     let charge: ICharge;
     try {
@@ -172,7 +175,7 @@ async function createStripeCharge(params: any, lightrailStripeSecretKey: string,
             idempotency_key: stepIdempotencyKey
         });
     } catch (err) {
-        console.log("\n\nERROR CHARGING STRIPE: \n" + err);   // todo add more detail: chargId? we will support more than one stripe source, needs to be identifiable
+        log.info("\n\nERROR CHARGING STRIPE: \n" + err);   // todo add more detail: chargId? we will support more than one stripe source, needs to be identifiable
         switch (err.type) {
             case "StripeCardError":
                 throw new GiftbitRestError(httpStatusCode.clientError.BAD_REQUEST, "Failed to charge credit card..", "ChargeFailed");
@@ -184,7 +187,7 @@ async function createStripeCharge(params: any, lightrailStripeSecretKey: string,
                 throw new Error(`An unexpected error occurred while attempting to charge card. error ${err}`);
         }
     }
-    console.log(`Created charge ${JSON.stringify(charge)}`); // todo is this safe to log?
+    log.info(`Created charge ${JSON.stringify(charge)}`); // todo is this safe to log?
     return charge;
 }
 
@@ -211,7 +214,7 @@ async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.Authoriz
                 lineItems: JSON.stringify(plan.lineItems),
                 paymentSources: JSON.stringify(plan.paymentSources), // todo check format: stripe token?
                 metadata: JSON.stringify(plan.metadata),
-                createdDate: nowInDbPrecision()
+                createdDate: plan.createdDate
             });
     } catch (err) {
         if (err.code === "ER_DUP_ENTRY") {
@@ -220,22 +223,49 @@ async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.Authoriz
     }
 }
 
-async function processLightrailSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, steps: LightrailTransactionPlanStep[], transactionId: string) {
+async function processLightrailSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, steps: LightrailTransactionPlanStep[], transactionId: string, createdDate: Date) {
     for (let stepIx = 0; stepIx < steps.length; stepIx++) {
         const step = steps[stepIx] as LightrailTransactionPlanStep;
+
+        let updateProperties: any = {
+            updatedDate: createdDate
+        };
+
         let query = trx.into("Values")
             .where({
                 userId: auth.giftbitUserId,
                 id: step.value.id
-            })
-            .increment("balance", step.amount);
+            });
+        if (step.amount !== 0 && step.amount !== null) {
+            updateProperties.balance = trx.raw(`balance + ?`, [step.amount]);
+        }
         if (step.amount < 0 && !step.value.valueRule /* if it has a valueRule then balance is 0 or null */) {
             query = query.where("balance", ">=", -step.amount);
         }
         if (step.value.uses !== null) {
-            query = query.where("uses", ">", 0)
-                .increment("uses", -1);
+            query = query.where("uses", ">", 0);
+            updateProperties.uses = trx.raw(`uses - 1`);
         }
+        query = query.update(updateProperties);
+
+
+        // did this section get safely updated in the merge?
+        //
+        // for (let stepIx = 0; stepIx < steps.length; stepIx++) {
+        // const step = steps[stepIx] as LightrailTransactionPlanStep;
+        // let query = trx.into("Values")
+        //     .where({
+        //         userId: auth.giftbitUserId,
+        //         id: step.value.id
+        //     })
+        //     .increment("balance", step.amount);
+        // if (step.amount < 0 && !step.value.valueRule /* if it has a valueRule then balance is 0 or null */) {
+        //     query = query.where("balance", ">=", -step.amount);
+        // }
+        // if (step.value.uses !== null) {
+        //     query = query.where("uses", ">", 0)
+        //         .increment("uses", -1);
+        // }
 
         const res = await query;
         if (res !== 1) {
@@ -260,6 +290,21 @@ async function processLightrailSteps(auth: giftbitRoutes.jwtauth.AuthorizationBa
         // Fix the plan to indicate the true value change.
         step.value.balance = res2[0].balance - step.amount;
 
+        let balanceInfo = {
+            balanceBefore: res2[0].balance - step.amount,
+            balanceAfter: res2[0].balance,
+            balanceChange: step.amount
+        };
+
+        if (step.value.valueRule !== null) {
+            balanceInfo.balanceBefore = 0;
+            balanceInfo.balanceAfter = 0;
+        } else {
+            // Fix the plan to indicate the true value change.
+            step.value.balance = res2[0].balance - step.amount;
+        }
+
+
         await trx.into("LightrailTransactionSteps")
             .insert({
                 userId: auth.giftbitUserId,
@@ -268,9 +313,7 @@ async function processLightrailSteps(auth: giftbitRoutes.jwtauth.AuthorizationBa
                 valueId: step.value.id,
                 contactId: step.value.contactId,
                 code: step.value.code,
-                balanceBefore: res2[0].balance - step.amount,
-                balanceAfter: res2[0].balance,
-                balanceChange: step.amount
+                ...balanceInfo
             });
     }
 

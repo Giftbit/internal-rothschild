@@ -1,27 +1,26 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as fs from "fs";
+import * as log from "loglevel";
 import * as mysql from "mysql2/promise";
 import * as path from "path";
-import {getDbCredentials} from "./dbUtils/connection";
+import {getDbCredentials} from "../dbUtils/connection";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
-import {Currency} from "./model/Currency";
-import {Value} from "./model/Value";
-import * as currencies from "./lambdas/rest/currencies";
 import papaparse = require("papaparse");
+import uuid = require("uuid");
 
 if (!process.env["TEST_ENV"]) {
-    console.log("Env var TEST_ENV is undefined.  This is not a test environment!");
+    log.error("Env var TEST_ENV is undefined.  This is not a test environment!");
     throw new Error("Env var TEST_ENV is undefined.  This is not a test environment!");
 }
 
 export const defaultTestUser = {
     userId: "default-test-user",
-    jwt: "eyJ2ZXIiOjIsInZhdiI6MSwiYWxnIjoiSFMyNTYiLCJ0eXAiOiJKV1QifQ.eyJnIjp7Imd1aSI6InRlc3QtdXNlci1hIiwiZ21pIjoidGVzdC11c2VyLWEifSwiaWF0IjoiMjAxNy0wMy0wN1QxODozNDowNi42MDMrMDAwMCIsImp0aSI6ImJhZGdlLWRkOTViOWI1ODJlODQwZWNiYTFjYmY0MTM2NWQ1N2UxIiwic2NvcGVzIjpbXSwicm9sZXMiOlsiYWNjb3VudE1hbmFnZXIiLCJjb250YWN0TWFuYWdlciIsImN1c3RvbWVyU2VydmljZU1hbmFnZXIiLCJjdXN0b21lclNlcnZpY2VSZXByZXNlbnRhdGl2ZSIsInBvaW50T2ZTYWxlIiwicHJvZ3JhbU1hbmFnZXIiLCJwcm9tb3RlciIsInJlcG9ydGVyIiwic2VjdXJpdHlNYW5hZ2VyIiwidGVhbUFkbWluIiwid2ViUG9ydGFsIl19.Pc1EQL77Z8SsIjlPJqOuVdksx8ZiyFfGwAgFVSOmuMQ",
+    jwt: "eyJ2ZXIiOjIsInZhdiI6MSwiYWxnIjoiSFMyNTYiLCJ0eXAiOiJKV1QifQ.eyJnIjp7Imd1aSI6ImRlZmF1bHQtdGVzdC11c2VyIiwiZ21pIjoiZGVmYXVsdC10ZXN0LXVzZXIifSwiaWF0IjoiMjAxNy0wMy0wN1QxODozNDowNi42MDMrMDAwMCIsImp0aSI6ImJhZGdlLWRkOTViOWI1ODJlODQwZWNiYTFjYmY0MTM2NWQ1N2UxIiwic2NvcGVzIjpbXSwicm9sZXMiOlsiYWNjb3VudE1hbmFnZXIiLCJjb250YWN0TWFuYWdlciIsImN1c3RvbWVyU2VydmljZU1hbmFnZXIiLCJjdXN0b21lclNlcnZpY2VSZXByZXNlbnRhdGl2ZSIsInBvaW50T2ZTYWxlIiwicHJvZ3JhbU1hbmFnZXIiLCJwcm9tb3RlciIsInJlcG9ydGVyIiwic2VjdXJpdHlNYW5hZ2VyIiwidGVhbUFkbWluIiwid2ViUG9ydGFsIl19.YCIShbODZgYJ8T25iWaf13OMMfxhZVLPpzTLsC-p6-Y",
     auth: new AuthorizationBadge({
         "g": {
-            "gui": "test-user-a",
-            "gmi": "test-user-a"
+            "gui": "default-test-user",
+            "gmi": "default-test-user"
         },
         "iat": "2017-03-07T18:34:06.603+0000",
         "jti": "badge-dd95b9b582e840ecba1cbf41365d57e1",
@@ -44,11 +43,11 @@ export const defaultTestUser = {
 
 export const alternateTestUser = {
     userId: "alternate-test-user",
-    jwt: "eyJ2ZXIiOjIsInZhdiI6MSwiYWxnIjoiSFMyNTYiLCJ0eXAiOiJKV1QifQ.eyJnIjp7Imd1aSI6InRlc3QtdXNlci1iIiwiZ21pIjoidGVzdC11c2VyLWIifSwiaWF0IjoiMjAxOC0wMy0yM1QyMToyNToyNi44MTIrMDAwMCIsImp0aSI6ImJhZGdlLTJmMThmZDI5NmJjZDQ4OGVhZDg1MzU5ZWI2NjgwNDE5Iiwic2NvcGVzIjpbXSwicm9sZXMiOlsiYWNjb3VudE1hbmFnZXIiLCJjb250YWN0TWFuYWdlciIsImN1c3RvbWVyU2VydmljZU1hbmFnZXIiLCJjdXN0b21lclNlcnZpY2VSZXByZXNlbnRhdGl2ZSIsInBvaW50T2ZTYWxlIiwicHJvZ3JhbU1hbmFnZXIiLCJwcm9tb3RlciIsInJlcG9ydGVyIiwic2VjdXJpdHlNYW5hZ2VyIiwidGVhbUFkbWluIiwid2ViUG9ydGFsIl19.yLyfSbgdDoLv4gD9aPkXWB40yj2_vg4WqUnZg6-yNBY",
+    jwt: "eyJ2ZXIiOjIsInZhdiI6MSwiYWxnIjoiSFMyNTYiLCJ0eXAiOiJKV1QifQ.eyJnIjp7Imd1aSI6ImFsdGVybmF0ZS10ZXN0LXVzZXIiLCJnbWkiOiJhbHRlcm5hdGUtdGVzdC11c2VyIn0sImlhdCI6IjIwMTgtMDMtMjNUMjE6MjU6MjYuODEyKzAwMDAiLCJqdGkiOiJiYWRnZS0yZjE4ZmQyOTZiY2Q0ODhlYWQ4NTM1OWViNjY4MDQxOSIsInNjb3BlcyI6W10sInJvbGVzIjpbImFjY291bnRNYW5hZ2VyIiwiY29udGFjdE1hbmFnZXIiLCJjdXN0b21lclNlcnZpY2VNYW5hZ2VyIiwiY3VzdG9tZXJTZXJ2aWNlUmVwcmVzZW50YXRpdmUiLCJwb2ludE9mU2FsZSIsInByb2dyYW1NYW5hZ2VyIiwicHJvbW90ZXIiLCJyZXBvcnRlciIsInNlY3VyaXR5TWFuYWdlciIsInRlYW1BZG1pbiIsIndlYlBvcnRhbCJdfQ.6Vt9uBWbocSDKrj-l4tXkPdu1q4NU7wu669nFKGwOtY",
     auth: new AuthorizationBadge({
         "g": {
-            "gui": "test-user-b",
-            "gmi": "test-user-b"
+            "gui": "alternate-test-user",
+            "gmi": "alternate-test-user"
         },
         "iat": "2018-03-23T21:25:26.812+0000",
         "jti": "badge-2f18fd296bcd488ead85359eb6680419",
@@ -90,23 +89,23 @@ export async function resetDb(): Promise<void> {
 
         await connection.query("CREATE DATABASE rothschild");
 
-        const sqlDir = path.join(__dirname, "lambdas", "postDeploy", "schema");
+        const sqlDir = path.join(__dirname, "..", "lambdas", "postDeploy", "schema");
         for (const sqlFile of fs.readdirSync(sqlDir).sort()) {
             const sql = fs.readFileSync(path.join(sqlDir, sqlFile)).toString("utf8");
             await connection.query(sql);
         }
     } catch (err) {
-        console.error("Error setting up DB for test.", err.message, "Fetching InnoDB status...");
+        log.error("Error setting up DB for test.", err.message, "Fetching InnoDB status...");
 
         try {
             const [statusRes] = await connection.query("SHOW ENGINE INNODB STATUS");
             if (statusRes.length === 1 && statusRes[0].Status) {
                 for (const line of statusRes[0].Status.split("\\n")) {
-                    console.error(line);
+                    log.error(line);
                 }
             }
         } catch (err2) {
-            console.error("Error fetching InnoDB status.", err2.message);
+            log.error("Error fetching InnoDB status.", err2.message);
         }
 
         throw err;
@@ -178,15 +177,6 @@ export async function testAuthedCsvRequest<T>(router: cassava.Router, url: strin
     };
 }
 
-export async function createCurrency(router: cassava.Router, isoCode: string): Promise<void> {
-    currencies.installCurrenciesRest(router);
-
-    const currency: Currency = {
-        code: isoCode,
-        name: "Monopoly Money",
-        symbol: "$",
-        decimalPlaces: 2
-    };
-    const resp1 = await testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency);
-    chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
+export function generateId(): string {
+    return uuid.v4().substring(0, 20);
 }

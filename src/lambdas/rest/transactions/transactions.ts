@@ -10,7 +10,8 @@ import {getKnexRead} from "../../../dbUtils/connection";
 import {Filters, TransactionFilterParams} from "../../../model/Filter";
 import {paginateQuery} from "../../../dbUtils/paginateQuery";
 import {LightrailTransactionPlanStep} from "./TransactionPlan";
-import {optimizeCheckout} from "./checkoutTransactionPlanner";
+import {optimizeCheckout} from "./checkout/checkoutTransactionPlanner";
+import {nowInDbPrecision} from "../../../dbUtils";
 import getPaginationParams = Pagination.getPaginationParams;
 import getTransactionFilterParams = Filters.getTransactionFilterParams;
 
@@ -186,6 +187,7 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
                         amount: req.amount
                     }
                 ],
+                createdDate: nowInDbPrecision(),
                 metadata: req.metadata,
                 totals: {remainder: 0},
                 lineItems: null,
@@ -220,6 +222,7 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
                         amount: -amount
                     }
                 ],
+                createdDate: nowInDbPrecision(),
                 metadata: req.metadata,
                 totals: {remainder: req.amount - amount},
                 lineItems: null,
@@ -278,6 +281,7 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
                         amount
                     }
                 ],
+                createdDate: nowInDbPrecision(),
                 metadata: req.metadata,
                 totals: {remainder: req.amount - amount},
                 lineItems: null,
