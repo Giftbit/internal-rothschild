@@ -6,9 +6,6 @@ import * as mysql from "mysql2/promise";
 import * as path from "path";
 import {getDbCredentials} from "../dbUtils/connection";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
-import {Currency} from "../model/Currency";
-import {Value} from "../model/Value";
-import * as currencies from "../lambdas/rest/currencies";
 import papaparse = require("papaparse");
 import uuid = require("uuid");
 
@@ -178,19 +175,6 @@ export async function testAuthedCsvRequest<T>(router: cassava.Router, url: strin
         headers: resp.headers,
         body: parseRes.data
     };
-}
-
-export async function createCurrency(router: cassava.Router, code: string, name: string = uuid.v4(), symbol: string = "$", decimalPlaces: number = 2): Promise<void> {
-    currencies.installCurrenciesRest(router);
-
-    const currency: Currency = {
-        code: code,
-        name: name,
-        symbol: symbol,
-        decimalPlaces: decimalPlaces
-    };
-    const resp1 = await testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency);
-    chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
 }
 
 export function generateId(): string {

@@ -7,6 +7,7 @@ import * as testUtils from "../../../../testUtils";
 import {generateId} from "../../../../testUtils";
 import {Value} from "../../../../model/Value";
 import {Transaction} from "../../../../model/Transaction";
+import {createCurrency} from "../../currencies";
 
 describe("/v2/transactions/checkout - basics", () => {
 
@@ -17,7 +18,12 @@ describe("/v2/transactions/checkout - basics", () => {
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
         transactions.installTransactionsRest(router);
         valueStores.installValuesRest(router);
-        await testUtils.createCurrency(router, "CAD");
+        await createCurrency(testUtils.defaultTestUser.auth, {
+            code: "CAD",
+            name: "Canadian Tire Money",
+            symbol: "$",
+            decimalPlaces: 2
+        });
     });
 
     it("processes basic order", async () => {
