@@ -314,8 +314,7 @@ async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
         throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
     }
     return {
-        ...await getValue(auth, id),
-        ...value // todo - tim: what is the meaning of this intrusion?
+        ...await getValue(auth, id)
     };
 }
 
@@ -380,12 +379,12 @@ function getCodeFromRequest(evt: RouterEvent): { code: string, isGeneric: boolea
         isGeneric = true;
     } else if (evt.body.generateCode) {
         code = generateCode(evt.body.generateCode);
-        isGeneric = false
+        isGeneric = false;
     } else {
         code = null;
         isGeneric = null;
     }
-    return {code: code, isGeneric: isGeneric}
+    return {code: code, isGeneric: isGeneric};
 }
 
 function isGenericCode(evt: RouterEvent) {

@@ -398,7 +398,6 @@ describe("/v2/values/", () => {
         chai.assert.equal(showCode.statusCode, 200, `body=${JSON.stringify(showCode.body)}`);
         chai.assert.equal(showCode.body.code, "PUBLIC");
 
-
         const knex = await getKnexRead();
         const res: DbValue[] = await knex("Values")
             .select()
@@ -457,8 +456,8 @@ describe("/v2/values/", () => {
         const listShowCode = await testUtils.testAuthedRequest<any>(router, `/v2/values?showCode=true`, "GET");
         let codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === secureCode.id);
         chai.assert.equal(codeInListShowCodeTrue.code, "SECURE");
-
     });
+
     it("can change a code", async () => {
         let codesToTest: string[] = ["ABCDE", "ABCDEF12345", "FSSESFAWDWQCASAWD"];
 
@@ -564,7 +563,6 @@ describe("/v2/values/", () => {
             chai.assert.equal(changeCodeSecure.statusCode, 200, `body=${JSON.stringify(changeCodeSecure.body)}`);
 
             const get = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET", value);
-            console.log(JSON.stringify(get));
             const lastFour = get.body.code.substring(3);
             chai.assert.equal(get.body.code, "..." + lastFour);
             chai.assert.equal(lastFour.length, 4);

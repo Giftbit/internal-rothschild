@@ -8,7 +8,6 @@ const ALPHANUMERIC_CHARSET = "ABCDEFGHIJKLMNPQRSTUVWXYZ123456789"; // uppercase 
 const NUMERIC_CHARSET = "1234567890";
 describe("code generator tests", () => {
 
-
     it("test alphanumeric code generation", async () => {
         for (let i = 0; i < 100; i++) {
             const length = 5 + (i % 20);
