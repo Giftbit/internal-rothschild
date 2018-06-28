@@ -6,9 +6,9 @@ import {alternateTestUser, defaultTestUser} from "../../../testUtils";
 import * as currencies from "../currencies";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
-import {installRest} from "../index";
 import {Value} from "../../../model/Value";
 import {getKnexWrite} from "../../../dbUtils/connection";
+import {installRestRoutes} from "../installRestRoutes";
 
 describe("/v2/transactions", () => {
     const router = new cassava.Router();
@@ -16,7 +16,7 @@ describe("/v2/transactions", () => {
     before(async function () {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
-        installRest(router);
+        installRestRoutes(router);
 
         await currencies.createCurrency(defaultTestUser.auth, {
             code: "CAD",
@@ -123,7 +123,7 @@ describe("/v2/transactions", () => {
         chai.assert.equal(resp.headers["Max-Limit"], "1000");
     });
 
-    it("can retrieve 1 transactions with 2 steps", async () => {
+    it("can retrieve 2 transactions with 2 steps", async () => {
         const postValueResp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
         chai.assert.equal(postValueResp1.statusCode, 201, `body=${JSON.stringify(postValueResp1.body)}`);
         const postValueResp2 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value2);
@@ -132,24 +132,20 @@ describe("/v2/transactions", () => {
         const transferResp = await testUtils.testAuthedRequest<Value>(router, "/v2/transactions/transfer", "POST", transfer1);
         chai.assert.equal(transferResp.statusCode, 201, `body=${JSON.stringify(transferResp.body)}`);
 
-        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions", "GET");
+        const resp = await testUtils.testAuthedRequest<Transaction[]>(router, "/v2/transactions", "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.equal(resp.body.length, 1);
-        chai.assert.equal(resp.body[0].id, transfer1.id);
-        chai.assert.equal(resp.body[0].steps.length, 2);
+        chai.assert.equal(resp.body.length, 2);
+        chai.assert.deepInclude(resp.body, transferResp.body);
     });
 
-    it("can retrieve 2 transactions (1 or 2 steps)", async () => {
+    it("can retrieve 3 transactions (1 or 2 steps)", async () => {
         const debitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", debit1);
         chai.assert.equal(debitResp.statusCode, 201, `body=${JSON.stringify(debitResp.body)}`);
 
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions", "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.equal(resp.body.length, 2);
-        chai.assert.equal(resp.body[0].id, transfer1.id);
-        chai.assert.equal(resp.body[0].steps.length, 2);
-        chai.assert.equal(resp.body[1].id, debit1.id);
-        chai.assert.equal(resp.body[1].steps.length, 1);
+        chai.assert.equal(resp.body.length, 3);
+        chai.assert.deepInclude(resp.body, debitResp.body);
     });
 
     it("can get a transaction by id", async () => {
@@ -205,10 +201,12 @@ describe("/v2/transactions", () => {
     it("orders transactions by date created", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions", "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.equal(resp.body.length, 3);  // TODO 5 once filter tests are back in: transfer2 first, transfer3 second
-        chai.assert.include(resp.body[0].id, transfer1.id);
-        chai.assert.include(resp.body[1].id, debit1.id);
-        chai.assert.include(resp.body[2].id, debit2.id);
+        chai.assert.equal(resp.body.length, 4);  // TODO 6 once filter tests are back in: transfer2 first, transfer3 second
+
+        const ids = resp.body.map(t => t.id);
+        chai.assert.include(ids, transfer1.id);
+        chai.assert.include(ids, debit1.id);
+        chai.assert.include(ids, debit2.id);
     });
 
     it("404s on getting an invalid id", async () => {
@@ -235,7 +233,7 @@ describe("/v2/transactions", () => {
         it("doesn't leak /transactions", async () => {
             const resp1 = await testUtils.testAuthedRequest<any>(router, "/v2/transactions", "GET");
             chai.assert.equal(resp1.statusCode, 200);
-            chai.assert.equal(resp1.body.length, 3);  // TODO 5 once filter tests are back in
+            chai.assert.equal(resp1.body.length, 4);  // TODO 6 once filter tests are back in
 
             const resp2 = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/transactions", "GET", {
                 headers: {

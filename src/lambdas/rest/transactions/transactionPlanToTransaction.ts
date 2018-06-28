@@ -12,7 +12,6 @@ import {
     TransactionPlan,
     TransactionPlanStep
 } from "./TransactionPlan";
-import {nowInDbPrecision} from "../../../dbUtils";
 
 export function transactionPlanToTransaction(plan: TransactionPlan, simulated?: boolean): Transaction {
     const transaction: Transaction = {
@@ -24,7 +23,7 @@ export function transactionPlanToTransaction(plan: TransactionPlan, simulated?: 
         steps: plan.steps.map(step => transactionPlanStepToTransactionStep(step, plan)),
         paymentSources: plan.paymentSources,
         metadata: plan.metadata || null,
-        createdDate: nowInDbPrecision()
+        createdDate: plan.createdDate
     };
     if (simulated) {
         transaction.simulated = true;

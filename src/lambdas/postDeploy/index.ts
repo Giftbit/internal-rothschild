@@ -1,10 +1,12 @@
-import "babel-polyfill";
 import * as awslambda from "aws-lambda";
 import * as childProcess from "child_process";
+import * as log from "loglevel";
 import * as mysql from "mysql2/promise";
 import * as path from "path";
 import {sendCloudFormationResponse} from "../../sendCloudFormationResponse";
 import {getDbCredentials} from "../../dbUtils/connection";
+
+log.setLevel(log.levels.DEBUG);
 
 // Every SQL migration file needs to be named here to be included in the dist.
 // Files must be named V#__migration_name.sql where # is the next number sequentially.
@@ -20,10 +22,10 @@ const dropExistingDb = false;
  * Handles a CloudFormationEvent and upgrades the database.
  */
 export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context, callback: awslambda.Callback): Promise<any> {
-    console.log("event", JSON.stringify(evt, null, 2));
+    log.info("event", JSON.stringify(evt, null, 2));
 
     if (evt.RequestType === "Delete") {
-        console.log("This action cannot be rolled back.  Calling success without doing anything.");
+        log.info("This action cannot be rolled back.  Calling success without doing anything.");
         return sendCloudFormationResponse(evt, ctx, true, {});
     }
 
@@ -31,31 +33,31 @@ export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, 
         const res = await migrateDatabase(ctx);
         return sendCloudFormationResponse(evt, ctx, true, res);
     } catch (err) {
-        console.error(JSON.stringify(err, null, 2));
+        log.error(JSON.stringify(err, null, 2));
         return sendCloudFormationResponse(evt, ctx, false, null, err.message);
     }
 }
 
 async function migrateDatabase(ctx: awslambda.Context): Promise<any> {
-    console.log("downloading flyway", flywayVersion);
+    log.info("downloading flyway", flywayVersion);
     await spawn("curl", ["-o", `/tmp/flyway-commandline-${flywayVersion}.tar.gz`, `https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/${flywayVersion}/flyway-commandline-${flywayVersion}.tar.gz`]);
 
-    console.log("extracting flyway");
+    log.info("extracting flyway");
     await spawn("tar", ["-xf", `/tmp/flyway-commandline-${flywayVersion}.tar.gz`, "-C", "/tmp"]);
 
-    console.log("waiting for database to be connectable");
+    log.info("waiting for database to be connectable");
     const conn = await getConnection(ctx);
     if (dropExistingDb) {
         const [schemaRes] = await conn.query("SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?", ["rothschild"]);
         if (schemaRes.length > 0) {
-            console.log("dropping existing schema");
+            log.warn("dropping existing schema");
             const [dropRes] = await conn.execute("DROP DATABASE rothschild;");
-            console.log("dropRes=", dropRes);
+            log.debug("dropRes=", dropRes);
         }
     }
     conn.end();
 
-    console.log("invoking flyway");
+    log.info("invoking flyway");
     const credentials = await getDbCredentials();
     await spawn(`/tmp/flyway-${flywayVersion}/flyway`, ["-X", "migrate"], {
         env: {
@@ -78,16 +80,16 @@ function spawn(cmd: string, args?: string[], options?: childProcess.SpawnOptions
     child.stderr.on("data", data => stderr.push(data.toString()));
     return new Promise<{stdout: string[], stderr: string[]}>((resolve, reject) => {
         child.on("error", error => {
-            console.error("Error running", cmd, args.join(" "));
-            console.error(error);
-            stdout.length && console.log("stdout:", stdout.join(""));
-            stderr.length && console.log("stderr:", stderr.join(""));
+            log.error("Error running", cmd, args.join(" "));
+            log.error(error);
+            stdout.length && log.error("stdout:", stdout.join(""));
+            stderr.length && log.error("stderr:", stderr.join(""));
             reject(error);
         });
         child.on("close", code => {
-            console.log(cmd, args.join(" "));
-            stdout.length && console.log("stdout:", stdout.join(""));
-            stderr.length && console.log("stderr:", stderr.join(""));
+            log.info(cmd, args.join(" "));
+            stdout.length && log.info("stdout:", stdout.join(""));
+            stderr.length && log.info("stderr:", stderr.join(""));
             resolve({stdout, stderr});
         });
     });
@@ -98,7 +100,7 @@ async function getConnection(ctx: awslambda.Context): Promise<mysql.Connection> 
 
     while (true) {
         try {
-            console.log(`connecting to ${process.env["DB_ENDPOINT"]}:${process.env["DB_PORT"]}`);
+            log.info(`connecting to ${process.env["DB_ENDPOINT"]}:${process.env["DB_PORT"]}`);
             return await mysql.createConnection({
                 host: process.env["DB_ENDPOINT"],
                 port: +process.env["DB_PORT"],
@@ -107,9 +109,9 @@ async function getConnection(ctx: awslambda.Context): Promise<mysql.Connection> 
                 timezone: "Z"
             });
         } catch (err) {
-            console.log("error connecting to database", err);
+            log.error("error connecting to database", err);
             if (err.code && (err.code === "ETIMEDOUT" || err.code === "ENOTFOUND") && ctx.getRemainingTimeInMillis() > 60000) {
-                console.log("retrying...");
+                log.info("retrying...");
             } else {
                 throw err;
             }

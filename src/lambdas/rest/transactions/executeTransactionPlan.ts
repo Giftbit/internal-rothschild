@@ -1,7 +1,6 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {Transaction} from "../../../model/Transaction";
-import {nowInDbPrecision} from "../../../dbUtils/index";
 import {DbValue} from "../../../model/Value";
 import {transactionPlanToTransaction} from "./transactionPlanToTransaction";
 import {TransactionPlanError} from "./TransactionPlanError";
@@ -48,7 +47,6 @@ export function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authorization
  * locking on Values.
  */
 async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<Transaction> {
-    const now = nowInDbPrecision();
     const knex = await getKnexWrite();
     await knex.transaction(async trx => {
         try {
@@ -62,7 +60,7 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
                     lineItems: JSON.stringify(plan.lineItems),
                     paymentSources: JSON.stringify(plan.paymentSources),
                     metadata: JSON.stringify(plan.metadata),
-                    createdDate: now
+                    createdDate: plan.createdDate
                 });
         } catch (err) {
             if (err.code === "ER_DUP_ENTRY") {
