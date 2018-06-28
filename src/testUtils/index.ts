@@ -7,6 +7,7 @@ import * as path from "path";
 import {getDbCredentials} from "../dbUtils/connection";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
 import papaparse = require("papaparse");
+import uuid = require("uuid");
 
 if (!process.env["TEST_ENV"]) {
     log.error("Env var TEST_ENV is undefined.  This is not a test environment!");
@@ -174,4 +175,8 @@ export async function testAuthedCsvRequest<T>(router: cassava.Router, url: strin
         headers: resp.headers,
         body: parseRes.data
     };
+}
+
+export function generateId(): string {
+    return uuid.v4().substring(0, 20);
 }

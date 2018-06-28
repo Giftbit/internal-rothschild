@@ -10,7 +10,7 @@ export interface Transaction {
     transactionType: TransactionType;
     currency: string;
     steps: TransactionStep[];
-    totals: TransactionTotal;
+    totals: TransactionPlanTotals;
     lineItems: LineItem[] | null;
     paymentSources: TransactionParty[] | null;
     simulated?: true;
@@ -99,7 +99,7 @@ export interface LightrailValueStorePaymentSource {
 export type TransactionType =
     "credit"
     | "debit"
-    | "order"
+    | "checkout"
     | "transfer"
     | "pending_create"
     | "pending_capture"
@@ -132,7 +132,7 @@ export interface InternalTransactionStep {
     balanceChange: number;
 }
 
-export interface TransactionTotal {
+export interface TransactionPlanTotals {
     subTotal?: number;
     tax?: number;
     discount?: number;
