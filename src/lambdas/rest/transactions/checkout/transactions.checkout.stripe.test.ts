@@ -2,15 +2,16 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as sinon from "sinon";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import * as transactions from "./transactions";
-import * as valueStores from "../values";
-import * as currencies from "../currencies";
-import * as testUtils from "../../../testUtils";
-import {Value} from "../../../model/Value";
-import {Transaction} from "../../../model/Transaction";
-import {Currency} from "../../../model/Currency";
+import * as transactions from "../transactions";
+import * as valueStores from "../../values";
+import * as currencies from "../../currencies";
+import * as testUtils from "../../../../testUtils/index";
+import {Value} from "../../../../model/Value";
+import {Transaction} from "../../../../model/Transaction";
+import {Currency} from "../../../../model/Currency";
 import {fetchFromS3ByEnvVar} from "giftbit-cassava-routes/dist/secureConfig";
-import * as kvsAccess from "../../utils/kvsAccess";
+import * as kvsAccess from "../../../utils/kvsAccess";
+import {before, describe, it} from "mocha";
 
 require("dotenv").config();
 
@@ -137,8 +138,7 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["statusCode"], `body=${JSON.stringify(getCheckoutResp.body, null, 4)}`);
     });
 
-    it.skip("processes basic checkout with Stripe only - `customer` as payment source", async () => {
-        // TODO - currently skipped because there appears to be an issue with charging a customer that exists in test mode in the connected account
+    it("processes basic checkout with Stripe only - `customer` as payment source", async () => {
         const request = {
             id: "checkout-with-stripe-cust",
             sources: [

@@ -38,7 +38,7 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
         } catch (err) {
             log.warn(`Err ${err} was thrown.`);
             if ((err as TransactionPlanError).isTransactionPlanError && (err as TransactionPlanError).isReplanable) {
-                // console.info(`Retrying. It's a transaction plan error and it is replanable.`);
+                log.info(`Retrying. It's a transaction plan error and it is replanable.`);
                 continue;
             }
             throw err;
@@ -88,12 +88,16 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
         const stepForStripe = translateStripeStep(step, plan.currency);
         // todo handle edge case: stripeAmount < 50    --> do this in planner
 
-        const idempotentStepId = `${plan.id}-${stepIx}`;  // todo store this in the transactionPlanStep instead so it can be read consistently for both lr & stripe
-        const charge = await createStripeCharge(stepForStripe, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, idempotentStepId);
+        const charge = await createStripeCharge(stepForStripe, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, step.idempotentStepId);
 
         // Update transaction plan with charge details
         step.chargeResult = charge;
-        let stepSource = plan.paymentSources.find(source => source.rail === "stripe" && source.source === step.source) as StripeTransactionParty;
+        // trace back to the requested payment source that lists the right 'source' and/or 'customer' param
+        let stepSource = plan.paymentSources.find(
+            source => source.rail === "stripe" &&
+                (step.source ? source.source === step.source : true) &&
+                (step.customer ? source.customer === step.customer : true)
+        ) as StripeTransactionParty;
         stepSource.chargeId = charge.id;
     }
     //    // await doFraudCheck(lightrailStripeConfig, merchantStripeConfig, params, charge, evt, auth);
@@ -121,7 +125,7 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
             await knex.into("StripeTransactionSteps")
                 .insert({
                     userId: auth.giftbitUserId,
-                    id: `${plan.id}-${stepIx}`,
+                    id: step.idempotentStepId,
                     transactionId: plan.id,
                     chargeId: step.chargeResult.id,
                     currency: step.chargeResult.currency,

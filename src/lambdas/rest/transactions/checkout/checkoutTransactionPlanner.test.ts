@@ -70,14 +70,16 @@ describe("optimizeCheckout", () => {
         source: "tok_1",
         // stripeSecretKey: "secret",
         maxAmount: 1,
-        amount: 1
+        amount: 1,
+        idempotentStepId: "123"
     };
     const s2: TransactionPlanStep = {
         rail: "stripe",
         source: "tok_2",
         // stripeSecretKey: "secret",
         maxAmount: 2,
-        amount: 2
+        amount: 2,
+        idempotentStepId: "456"
     };
 
     describe("test getStepPermutations", function () {
