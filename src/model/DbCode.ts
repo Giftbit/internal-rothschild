@@ -16,5 +16,5 @@ export class DbCode {
 }
 
 export function codeLastFour(code: string) {
-    return "...".concat(code.substring(code.length - 4));
+    return "…" + code.slice(-4);
 }

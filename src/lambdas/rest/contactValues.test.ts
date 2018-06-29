@@ -89,7 +89,7 @@ describe.only("/v2/contacts/values", () => {
         chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
         value3 = resp1.body;
 
-        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/add`, "POST", {code: value3.code});
+        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/add`, "POST", {code: value3GenericCode});
         chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
         chai.assert.equal(resp2.body.id, value3.id);
         chai.assert.equal(resp2.body.contactId, contact.id);
@@ -97,21 +97,74 @@ describe.only("/v2/contacts/values", () => {
         value3.contactId = contact.id;
     });
 
-    it("can list the 3 values added to a contact", async () => {
+    const value4UniqueCode = "DROPITLIKEITSHOT";
+    let value4: Value;
+
+    it("can add a unique-code Value by code", async () => {
+        const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: "add-unique-by-id",
+            currency: currency.code,
+            code: value4UniqueCode
+        });
+        chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
+        value4 = resp1.body;
+
+        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/add`, "POST", {valueId: value4.id});
+        chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
+        chai.assert.equal(resp2.body.id, value4.id);
+        chai.assert.equal(resp2.body.contactId, contact.id);
+        chai.assert.equal(resp2.body.code, `…${value4UniqueCode.slice(-4)}`);
+        value4.contactId = contact.id;
+    });
+
+    const value5UniqueCode = "ANDPICKITBACKUP";
+    let value5: Value;
+
+    it("can add a unique-code Value by code", async () => {
+        const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: "add-unique-by-code",
+            currency: currency.code,
+            code: value5UniqueCode
+        });
+        chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
+        value5 = resp1.body;
+
+        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/add`, "POST", {code: value5UniqueCode});
+        chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
+        chai.assert.equal(resp2.body.id, value5.id);
+        chai.assert.equal(resp2.body.contactId, contact.id);
+        chai.assert.equal(resp2.body.code, `…${value5UniqueCode.slice(-4)}`);
+        value5.contactId = contact.id;
+    });
+
+    let value6: Value;
+
+    it("can add a unique-generated-code Value by code", async () => {
+        const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: "add-generated-by-code",
+            currency: currency.code,
+            generateCode: {
+                length: 12
+            }
+        });
+        chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
+        value6 = resp1.body;
+
+        const resp2 =  await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value6.id}?showCode=true`, "GET");
+        chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
+        const code = resp2.body.code;
+
+        const resp3 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/add`, "POST", {code});
+        chai.assert.equal(resp3.statusCode, 200, `body=${JSON.stringify(resp3.body)}`);
+        chai.assert.equal(resp3.body.id, value6.id);
+        chai.assert.equal(resp3.body.contactId, contact.id);
+        chai.assert.equal(resp3.body.code, `…${code.slice(-4)}`);
+        value6.contactId = contact.id;
+    });
+
+    it("can list values added to a contact", async () => {
         const resp1 = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${contact.id}/values`, "GET");
         chai.assert.equal(resp1.statusCode, 200, `body=${JSON.stringify(resp1.body)}`);
-        chai.assert.sameDeepMembers(resp1.body, [value1, value2, value3]);
-    });
-
-    it.skip("can add a unique-code Value by valueId", async () => {
-
-    });
-
-    it.skip("can add a unique-code Value by code", async () => {
-
-    });
-
-    it.skip("can list values added to a contact", async () => {
-
+        chai.assert.sameDeepMembers(resp1.body, [value1, value2, value3, value4, value5, value6]);
     });
 });
