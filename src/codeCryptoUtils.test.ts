@@ -24,7 +24,7 @@ describe("test codeCryptographicUtils", () => {
             badge.giftbitUserId = "user-123";
             const hash1 = codeCryptoUtils.computeLookupHash(code, badge);
             const hash2 = codeCryptoUtils.computeLookupHash(code, badge);
-            chai.assert.equal(hash1, hash2, `expected hash1 ${hash1} to equal ${hash2}`)
+            chai.assert.equal(hash1, hash2, `expected hash1 ${hash1} to equal ${hash2}`);
         }
     });
 
@@ -42,5 +42,5 @@ describe("test codeCryptographicUtils", () => {
         codeCryptoUtils.generateKey();
         codeCryptoUtils.generateKey();
         codeCryptoUtils.generateKey();
-    })
+    });
 });

@@ -45,7 +45,6 @@ export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.Auth
             rail: "stripe",
             token: p.token,
             maxAmount: p.maxAmount || null,
-            priority: p.priority || 0,
             stripeSecretKey: null,
             amount: 0
         }));
