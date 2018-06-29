@@ -1,4 +1,5 @@
 import * as cassava from "cassava";
+import {RouterEvent} from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
@@ -8,6 +9,8 @@ import {csvSerializer} from "../../serializers";
 import {filterAndPaginateQuery, getSqlErrorConstraintName, nowInDbPrecision} from "../../dbUtils";
 import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
 import {DbTransaction, LightrailDbTransactionStep} from "../../model/Transaction";
+import {codeLastFour, DbCode} from "../../model/DbCode";
+import {generateCode} from "../../services/codeGenerator";
 
 export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
@@ -19,7 +22,8 @@ export function installValuesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
-            const res = await getValues(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt));
+            const showCode: boolean = (evt.queryStringParameters.showCode === "true");
+            const res = await getValues(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt), showCode);
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.values
@@ -57,9 +61,13 @@ export function installValuesRest(router: cassava.Router): void {
                 createdDate: now,
                 updatedDate: now
             };
+
+            let codeParams = getCodeFromRequest(evt);
+            value.code = codeParams.code;
+
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
-                body: await createValue(auth, value)
+                body: await createValue(auth, value, codeParams.isGeneric)
             };
         });
 
@@ -75,8 +83,9 @@ export function installValuesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
 
+            const showCode: boolean = (evt.queryStringParameters.showCode === "true");
             return {
-                body: await getValue(auth, evt.pathParameters.id)
+                body: await getValue(auth, evt.pathParameters.id, showCode)
             };
         });
 
@@ -114,11 +123,28 @@ export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values/{id}/changeCode")
         .method("POST")
         .handler(async evt => {
-            throw new giftbitRoutes.GiftbitRestError(500, "Not implemented");   // TODO
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("giftbitUserId");
+            evt.validateBody(valueChangeCodeSchema);
+
+            const now = nowInDbPrecision();
+            const codeParams = getCodeFromRequest(evt);
+
+            const dbCode = new DbCode(codeParams.code, codeParams.isGeneric, auth);
+            let partialValue: Partial<DbValue> = {
+                code: dbCode.lastFour,
+                encryptedCode: dbCode.encryptedCode,
+                codeHashed: dbCode.codeHashed,
+                genericCode: dbCode.genericCode,
+                updatedDate: now
+            };
+            return {
+                body: await changeCode(auth, evt.pathParameters.id, partialValue)
+            };
         });
 }
 
-export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: {[key: string]: string}, pagination: PaginationParams): Promise<{ values: Value[], pagination: Pagination }> {
+export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams, showCode: boolean = false): Promise<{ values: Value[], pagination: Pagination }> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
@@ -184,12 +210,14 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
         pagination
     );
     return {
-        values: paginatedRes.body.map(DbValue.toValue),
+        values: paginatedRes.body.map(function (v) {
+            return DbValue.toValue(v, showCode);
+        }),
         pagination: paginatedRes.pagination
     };
 }
 
-async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value: Value): Promise<Value> {
+async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value: Value, isGeneric: boolean): Promise<Value> {
     auth.requireIds("giftbitUserId");
 
     try {
@@ -197,7 +225,7 @@ async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value
 
         await knex.transaction(async trx => {
             await trx.into("Values")
-                .insert(Value.toDbValue(auth, value));
+                .insert(Value.toDbValue(auth, value, isGeneric));
             if (value.balance) {
                 if (value.balance < 0) {
                     throw new Error("balance cannot be negative");
@@ -228,7 +256,10 @@ async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value
                 await trx.into("LightrailTransactionSteps").insert(initialBalanceTransactionStep);
             }
         });
-
+        if (value.code && !isGeneric) {
+            // obfuscate secure code from response.
+            value.code = codeLastFour(value.code); // todo i wonder if we should just look up the value from the database so that it's guaranteed to be the same thing returned from GET or LIST.
+        }
         return value;
     } catch (err) {
         if (err.code === "ER_DUP_ENTRY") {
@@ -247,7 +278,7 @@ async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value
     }
 }
 
-export async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Value> {
+export async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, showCode: boolean = false): Promise<Value> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
@@ -263,7 +294,7 @@ export async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, i
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
-    return DbValue.toValue(res[0]);
+    return DbValue.toValue(res[0], showCode);
 }
 
 async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, value: Partial<Value>): Promise<Value> {
@@ -285,6 +316,27 @@ async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
     return {
         ...await getValue(auth, id),
         ...value
+    };
+}
+
+async function changeCode(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, value: Partial<DbValue>): Promise<Value> {
+    auth.requireIds("giftbitUserId");
+
+    const knex = await getKnexWrite();
+    const res = await knex("Values")
+        .where({
+            userId: auth.giftbitUserId,
+            id: id
+        })
+        .update(value);
+    if (res[0] === 0) {
+        throw new cassava.RestError(404);
+    }
+    if (res[0] > 1) {
+        throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
+    }
+    return {
+        ...await getValue(auth, id)
     };
 }
 
@@ -314,9 +366,61 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
     }
 }
 
+/**
+ * Returns code if requested and whether it is a generic code. Also returns null for each if the Value is not associated with a code.
+ */
+function getCodeFromRequest(evt: RouterEvent): { code: string, isGeneric: boolean } {
+    let code: string;
+    let isGeneric: boolean;
+    if (evt.body.code) {
+        code = evt.body.code;
+        isGeneric = false;
+    } else if (evt.body.genericCode) {
+        code = evt.body.genericCode;
+        isGeneric = true;
+    } else if (evt.body.generateCode) {
+        code = generateCode(evt.body.generateCode);
+        isGeneric = false;
+    } else {
+        code = null;
+        isGeneric = null;
+    }
+    return {code: code, isGeneric: isGeneric};
+}
+
 const valueSchema: jsonschema.Schema = {
     type: "object",
     additionalProperties: false,
+    oneOf: [
+        {
+            required: ["genericCode"],
+            title: "genericCode"
+        },
+        {
+            required: ["code"],
+            title: "code"
+        },
+        {
+            required: ["generateCode"],
+            title: "generateCode"
+        },
+        {
+            not: {
+                anyOf: [
+                    {
+                        required: ["genericCode"]
+                    },
+                    {
+                        required: ["code"]
+                    },
+                    {
+                        required: ["generateCode"]
+                    }
+                ],
+            },
+            title: "neither genericCode or code"
+        }
+    ],
     properties: {
         id: {
             type: "string",
@@ -337,8 +441,32 @@ const valueSchema: jsonschema.Schema = {
         },
         code: {
             type: ["string", "null"],
-            minLength: 1,
+            minLength: 5,
             maxLength: 255
+        },
+        genericCode: {
+            type: ["string", "null"],
+            minLength: 5,
+            maxLength: 255
+        },
+        generateCode: {
+            title: "Code Generation Params",
+            type: ["object", "null"],
+            additionalProperties: false,
+            properties: {
+                length: {
+                    type: "number"
+                },
+                charset: {
+                    type: "string"
+                },
+                prefix: {
+                    type: "string"
+                },
+                suffix: {
+                    type: "string"
+                }
+            }
         },
         contactId: {
             type: ["string", "null"],
@@ -417,6 +545,57 @@ const valueUpdateSchema: jsonschema.Schema = {
         ...pick(valueSchema.properties, "id", "contactId", "active", "frozen", "pretax", "redemptionRule", "valueRule", "startDate", "endDate", "metadata"),
         canceled: {
             type: "boolean"
+        }
+    },
+    required: []
+};
+
+const valueChangeCodeSchema: jsonschema.Schema = {
+    type: "object",
+    additionalProperties: false,
+    oneOf: [
+        {
+            required: ["genericCode"],
+            title: "genericCode"
+        },
+        {
+            required: ["code"],
+            title: "code"
+        },
+        {
+            required: ["generateCode"],
+            title: "generateCode"
+        }
+    ],
+    properties: {
+        code: {
+            type: ["string", "null"],
+            minLength: 5,
+            maxLength: 255
+        },
+        genericCode: {
+            type: ["string", "null"],
+            minLength: 5,
+            maxLength: 255
+        },
+        generateCode: {
+            title: "Code Generation Params",
+            type: ["object", "null"],
+            additionalProperties: false,
+            properties: {
+                length: {
+                    type: "number"
+                },
+                charset: {
+                    type: "string"
+                },
+                prefix: {
+                    type: "string"
+                },
+                suffix: {
+                    type: "string"
+                }
+            }
         }
     },
     required: []

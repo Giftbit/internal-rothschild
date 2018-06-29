@@ -33,7 +33,7 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
         } catch (err) {
             log.warn(`Err ${err} was thrown.`);
             if ((err as TransactionPlanError).isTransactionPlanError && (err as TransactionPlanError).isReplanable) {
-                console.info(`Retrying. It's a transaction plan error and it is replanable.`);
+                log.info(`Retrying. It's a transaction plan error and it is replanable.`);
                 continue;
             }
             throw err;
@@ -86,7 +86,7 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
                     id: step.value.id
                 });
             if (step.amount !== 0 && step.amount !== null) {
-                updateProperties.balance = knex.raw(`balance + ?`, [step.amount])
+                updateProperties.balance = knex.raw(`balance + ?`, [step.amount]);
             }
             if (step.amount < 0 && !step.value.valueRule /* if it has a valueRule then balance is 0 or null */) {
                 query = query.where("balance", ">=", -step.amount);

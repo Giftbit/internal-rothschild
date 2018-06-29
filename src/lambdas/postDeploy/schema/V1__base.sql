@@ -67,6 +67,8 @@ CREATE TABLE rothschild.Values (
   uses           INT,
   programId      VARCHAR(32),
   code           VARCHAR(255),
+  genericCode    BOOL,
+  encryptedCode  VARCHAR(255),
   codeHashed     CHAR(255),
   codeLastFour   VARCHAR(4),
   contactId      VARCHAR(32),
@@ -86,7 +88,6 @@ CREATE TABLE rothschild.Values (
   CONSTRAINT fk_Values_Programs FOREIGN KEY (userId, programId) REFERENCES rothschild.Programs (userId, id),
   CONSTRAINT fk_Values_Currencies FOREIGN KEY (userId, currency) REFERENCES rothschild.Currencies (userId, code),
   CONSTRAINT fk_Values_Contacts FOREIGN KEY (userId, contactId) REFERENCES rothschild.Contacts (userId, id),
-  CONSTRAINT uq_Values_code UNIQUE (userId, code),
   CONSTRAINT uq_Values_codeHashed UNIQUE (userId, codeHashed)
 );
 

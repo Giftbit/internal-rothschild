@@ -1,5 +1,7 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {pickDefined} from "../pick";
+import {DbCode} from "./DbCode";
+import {decrypt} from "../codeCryptoUtils";
 
 export interface Value {
     id: string;
@@ -29,7 +31,11 @@ export interface Rule {
 }
 
 export namespace Value {
-    export function toDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Value): DbValue {
+    export function toDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Value, isGeneric: boolean): DbValue {
+        let dbCode: DbCode = null;
+        if (v.code) {
+            dbCode = new DbCode(v.code, isGeneric, auth);
+        }
         return {
             userId: auth.giftbitUserId,
             id: v.id,
@@ -37,9 +43,10 @@ export namespace Value {
             balance: v.balance,
             uses: v.uses,
             programId: v.programId,
-            code: v.code,
-            codeHashed: null,
-            codeLastFour: null,
+            code: dbCode ? dbCode.lastFour : null,
+            genericCode: dbCode ? dbCode.genericCode : null,
+            encryptedCode: dbCode ? dbCode.encryptedCode : null,
+            codeHashed: dbCode ? dbCode.codeHashed : null,
             contactId: v.contactId,
             pretax: v.pretax,
             active: v.active,
@@ -85,8 +92,9 @@ export interface DbValue {
     uses: number | null;
     programId: string | null;
     code: string | null;
+    genericCode: boolean | null;
     codeHashed: string | null;
-    codeLastFour: string | null;
+    encryptedCode: string | null;
     contactId: string | null;
     pretax: boolean;
     active: boolean;
@@ -103,7 +111,7 @@ export interface DbValue {
 }
 
 export namespace DbValue {
-    export function toValue(v: DbValue): Value {
+    export function toValue(v: DbValue, showCode: boolean = false): Value {
         return {
             id: v.id,
             currency: v.currency,
@@ -111,7 +119,7 @@ export namespace DbValue {
             uses: v.uses,
             programId: v.programId,
             contactId: v.contactId,
-            code: v.code || (v.codeLastFour && "…" + v.codeLastFour) || null,
+            code: v.code && (v.genericCode || showCode) ? decrypt(v.encryptedCode) : v.code,
             pretax: v.pretax,
             active: v.active,
             canceled: v.canceled,
