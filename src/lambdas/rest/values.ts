@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
-import {RouterEvent} from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
+import * as log from "loglevel";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {DbValue, Value} from "../../model/Value";
 import {pick, pickOrDefault} from "../../pick";
@@ -11,6 +11,7 @@ import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
 import {DbTransaction, LightrailDbTransactionStep} from "../../model/Transaction";
 import {codeLastFour, DbCode} from "../../model/DbCode";
 import {generateCode} from "../../services/codeGenerator";
+import {computeLookupHash} from "../../codeCryptoUtils";
 
 export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
@@ -224,8 +225,11 @@ async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value
         const knex = await getKnexWrite();
 
         await knex.transaction(async trx => {
+            const dbValue = Value.toDbValue(auth, value, isGeneric);
+            log.debug("createValue id=", dbValue.id);
+
             await trx.into("Values")
-                .insert(Value.toDbValue(auth, value, isGeneric));
+                .insert(dbValue);
             if (value.balance) {
                 if (value.balance < 0) {
                     throw new Error("balance cannot be negative");
@@ -290,6 +294,28 @@ export async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, i
         });
     if (res.length === 0) {
         throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${id}' not found.`, "ValueNotFound");
+    }
+    if (res.length > 1) {
+        throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
+    }
+    return DbValue.toValue(res[0], showCode);
+}
+
+export async function getValueByCode(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string, showCode: boolean = false): Promise<Value> {
+    auth.requireIds("giftbitUserId");
+
+    const codeHashed = computeLookupHash(code, auth);
+    log.debug("getValueByCode codeHashed=", codeHashed);
+
+    const knex = await getKnexRead();
+    const res: DbValue[] = await knex("Values")
+        .select()
+        .where({
+            userId: auth.giftbitUserId,
+            codeHashed
+        });
+    if (res.length === 0) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Value with code '${codeLastFour(code)}' not found.`, "ValueNotFound");
     }
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
@@ -369,7 +395,7 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
 /**
  * Returns code if requested and whether it is a generic code. Also returns null for each if the Value is not associated with a code.
  */
-function getCodeFromRequest(evt: RouterEvent): { code: string, isGeneric: boolean } {
+function getCodeFromRequest(evt: cassava.RouterEvent): { code: string, isGeneric: boolean } {
     let code: string;
     let isGeneric: boolean;
     if (evt.body.code) {

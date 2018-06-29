@@ -37,54 +37,77 @@ describe.only("/v2/contacts/values", () => {
         updatedDate: new Date()
     };
 
-    let value1: Partial<Value> = {
-        id: "add-unique-by-id",
-        currency: currency.code
-    };
+    let value1: Value;
 
-    it("can add a unique Value by valueId", async () => {
+    it("can add a code-less Value by valueId", async () => {
         await createCurrency(testUtils.defaultTestUser.auth, currency);
         await createContact(testUtils.defaultTestUser.auth, contact);
 
-        const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
-        chai.assert.equal(resp1.statusCode, 201);
+        const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: "add-code-less-by-id",
+            currency: currency.code
+        });
+        chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
         value1 = resp1.body;
 
         const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/add`, "POST", {valueId: value1.id});
         chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
         chai.assert.equal(resp2.body.id, value1.id);
         chai.assert.equal(resp2.body.contactId, contact.id);
+        value1.contactId = contact.id;
     });
 
-    let value2: Partial<Value> = {
-        id: "add-unique-by-id",
-        currency: currency.code,
-        code: "be1c8ee3-7038-4b48-b941-e0575206b0b5"
-    };
+    const value2GenericCode = "GETONUP";
+    let value2: Value;
 
-    it("can add a unique Value by code", async () => {
-        const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value2);
-        chai.assert.equal(resp1.statusCode, 201);
+    it("can add a generic-code Value by valueId", async () => {
+        const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: "add-generic-by-id",
+            currency: currency.code,
+            genericCode: value2GenericCode
+        });
+        chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
         value2 = resp1.body;
 
-        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/add`, "POST", {code: value2.code});
+        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/add`, "POST", {valueId: value2.id});
         chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
         chai.assert.equal(resp2.body.id, value2.id);
         chai.assert.equal(resp2.body.contactId, contact.id);
-        chai.assert.equal(resp2.body.code, `…${value2.code.slice(-4)}`);
+        chai.assert.equal(resp2.body.code, value2.code);
+        value2.contactId = contact.id;
     });
 
-    it("can list the 2 unique values added to a contact", async () => {
+    const value3GenericCode = "GETONDOWN";
+    let value3: Value;
+
+    it("can add a generic-code Value by code", async () => {
+        const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: "add-generic-by-code",
+            currency: currency.code,
+            genericCode: value3GenericCode
+        });
+        chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
+        value3 = resp1.body;
+
+        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/add`, "POST", {code: value3.code});
+        chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
+        chai.assert.equal(resp2.body.id, value3.id);
+        chai.assert.equal(resp2.body.contactId, contact.id);
+        chai.assert.equal(resp2.body.code, value3.code);
+        value3.contactId = contact.id;
+    });
+
+    it("can list the 3 values added to a contact", async () => {
         const resp1 = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${contact.id}/values`, "GET");
-        chai.assert.equal(resp1.statusCode, 200);
-        chai.assert.sameDeepMembers(resp1.body, [value1, value2]);
+        chai.assert.equal(resp1.statusCode, 200, `body=${JSON.stringify(resp1.body)}`);
+        chai.assert.sameDeepMembers(resp1.body, [value1, value2, value3]);
     });
 
-    it.skip("can add a generic Value by valueId", async () => {
+    it.skip("can add a unique-code Value by valueId", async () => {
 
     });
 
-    it.skip("can add a generic Value by code", async () => {
+    it.skip("can add a unique-code Value by code", async () => {
 
     });
 

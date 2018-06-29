@@ -1,6 +1,6 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {getValue, getValues} from "./values";
+import {getValue, getValueByCode, getValues} from "./values";
 import {csvSerializer} from "../../serializers";
 import {Pagination} from "../../model/Pagination";
 import {Value} from "../../model/Value";
@@ -52,34 +52,25 @@ export function installContactValuesRest(router: cassava.Router): void {
                 ]
             });
 
-            if (evt.body.valueId) {
-                return {
-                    body: await claimValueByValueId(auth, evt.pathParameters.id, evt.body.valueId)
-                };
-            } else if (evt.body.code) {
-                return {
-                    body: await claimValueByCode(auth, evt.pathParameters.id, evt.body.code)
-                };
-            }
-            throw new Error("body without valueId or code, shouldn't be reachable");
+            return {
+                body: await claimValue(auth, evt.pathParameters.id, evt.body)
+            };
         });
 }
 
-export async function claimValueByValueId(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, valueId: string): Promise<Value> {
+export async function claimValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, valueIdentifier: {valueId?: string, code?: string}): Promise<Value> {
     // This will throw a 404 if either aren't found.  Is that a good idea?
     const contact = await getContact(auth, contactId);
-    const value = await getValue(auth, valueId);
-
-    // TODO handle generic code
+    const value = await getValueByIdentifier(auth, valueIdentifier);
 
     const knex = await getKnexWrite();
     const res: number = await knex("Values")
         .where({
             userId: auth.giftbitUserId,
-            id: valueId
+            id: value.id
         })
         .update({
-            contactId
+            contactId: contact.id
         });
     if (res === 0) {
         throw new cassava.RestError(404);
@@ -89,10 +80,15 @@ export async function claimValueByValueId(auth: giftbitRoutes.jwtauth.Authorizat
     }
     return {
         ...value,
-        contactId
+        contactId: contact.id
     };
 }
 
-export async function claimValueByCode(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, code: string): Promise<Value> {
-    throw new Error("TODO");
+function getValueByIdentifier(auth: giftbitRoutes.jwtauth.AuthorizationBadge, identifier: {valueId?: string, code?: string}): Promise<Value> {
+    if (identifier.valueId) {
+        return getValue(auth, identifier.valueId);
+    } else if (identifier.code) {
+        return getValueByCode(auth, identifier.code);
+    }
+    throw new Error("Neither valueId nor code specified");
 }
