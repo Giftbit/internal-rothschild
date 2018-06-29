@@ -85,7 +85,7 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
     // try {
     for (let stepIx in stripeSteps) {
         const step = stripeSteps[stepIx];
-        const stepForStripe = translateStripeStep(step, plan.currency);
+        const stepForStripe = stripeTransactionPlanStepToStripeRequest(step, plan);
         // todo handle edge case: stripeAmount < 50    --> do this in planner
 
         const charge = await createStripeCharge(stepForStripe, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, step.idempotentStepId);
@@ -158,11 +158,14 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
 
 // STRIPE HELPERS
 
-function translateStripeStep(step: StripeTransactionPlanStep, currency: string) { // TODO use existing interface/namespace? StripeChargeRequest or something? 4 versions of stripe steps (?!): TransactionPlanStep, TransactionStep, database, and what gets sent to stripe
+function stripeTransactionPlanStepToStripeRequest(step: StripeTransactionPlanStep, plan: TransactionPlan) { // TODO use existing interface/namespace? StripeChargeRequest or something? 4 versions of stripe steps (?!): TransactionPlanStep, TransactionStep, database, and what gets sent to stripe
     let stepForStripe: any = {
         amount: step.amount,
-        currency
-        // todo metadata? incl send transactionId to start
+        currency: plan.currency,
+        metadata: {
+            ...plan.metadata,
+            lightrailTransactionId: plan.id
+        }
     };
     if (step.source) {
         stepForStripe.source = step.source;
