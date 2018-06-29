@@ -168,17 +168,17 @@ export async function updateContact(auth: giftbitRoutes.jwtauth.AuthorizationBad
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexWrite();
-    const res = await knex("Contacts")
+    const res: number = await knex("Contacts")
         .where({
             userId: auth.giftbitUserId,
             id: id
         })
         .update(Contact.toDbContactUpdate(contact));
-    if (res[0] === 0) {
+    if (res === 0) {
         throw new cassava.RestError(404);
     }
-    if (res[0] > 1) {
-        throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
+    if (res > 1) {
+        throw new Error(`Illegal UPDATE query.  Updated ${res} values.`);
     }
     return {
         ...await getContact(auth, id),

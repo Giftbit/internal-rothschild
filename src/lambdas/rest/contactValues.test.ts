@@ -10,7 +10,7 @@ import {createCurrency} from "./currencies";
 import {Value} from "../../model/Value";
 import {describe, it, before} from "mocha";
 
-describe("/v2/contacts/values", () => {
+describe.only("/v2/contacts/values", () => {
 
     const router = new cassava.Router();
 
@@ -47,11 +47,11 @@ describe("/v2/contacts/values", () => {
         await createContact(testUtils.defaultTestUser.auth, contact);
 
         const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
-        chai.assert.equal(resp1.statusCode, 200);
+        chai.assert.equal(resp1.statusCode, 201);
         value1 = resp1.body;
 
         const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/add`, "POST", {valueId: value1.id});
-        chai.assert.equal(resp2.statusCode, 200);
+        chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
         chai.assert.equal(resp2.body.id, value1.id);
         chai.assert.equal(resp2.body.contactId, contact.id);
     });
@@ -64,11 +64,11 @@ describe("/v2/contacts/values", () => {
 
     it("can add a unique Value by code", async () => {
         const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value2);
-        chai.assert.equal(resp1.statusCode, 200);
+        chai.assert.equal(resp1.statusCode, 201);
         value2 = resp1.body;
 
         const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/add`, "POST", {code: value2.code});
-        chai.assert.equal(resp2.statusCode, 200);
+        chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
         chai.assert.equal(resp2.body.id, value2.id);
         chai.assert.equal(resp2.body.contactId, contact.id);
         chai.assert.equal(resp2.body.code, `…${value2.code.slice(-4)}`);

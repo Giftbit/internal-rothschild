@@ -270,17 +270,17 @@ async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexWrite();
-    const res = await knex("Values")
+    const res: number = await knex("Values")
         .where({
             userId: auth.giftbitUserId,
             id: id
         })
         .update(Value.toDbValueUpdate(auth, value));
-    if (res[0] === 0) {
+    if (res === 0) {
         throw new cassava.RestError(404);
     }
-    if (res[0] > 1) {
-        throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
+    if (res > 1) {
+        throw new Error(`Illegal UPDATE query.  Updated ${res} values.`);
     }
     return {
         ...await getValue(auth, id),
