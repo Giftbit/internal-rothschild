@@ -24,6 +24,27 @@ describe("split tender checkout with Stripe", () => {
         balance: 100
     };
     const source: string = "tok_visa";
+    const basicRequest = {
+        id: "checkout-with-stripe",
+        sources: [
+            {
+                rail: "lightrail",
+                valueId: value.id
+            },
+            {
+                rail: "stripe",
+                source: source
+            }
+        ],
+        lineItems: [
+            {
+                type: "product",
+                productId: "xyz-123",
+                unitPrice: 500
+            }
+        ],
+        currency: "CAD"
+    };
 
     before(async function () {
         await testUtils.resetDb();
@@ -178,30 +199,9 @@ describe("split tender checkout with Stripe", () => {
     });
 
     it("process basic split tender checkout", async () => {
-        const request = {
-            id: "checkout-with-stripe",
-            sources: [
-                {
-                    rail: "lightrail",
-                    valueId: value.id
-                },
-                {
-                    rail: "stripe",
-                    source: source
-                }
-            ],
-            lineItems: [
-                {
-                    type: "product",
-                    productId: "xyz-123",
-                    unitPrice: 500
-                }
-            ],
-            currency: "CAD"
-        };
-        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", basicRequest);
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
-        chai.assert.equal(postCheckoutResp.body.id, request.id);
+        chai.assert.equal(postCheckoutResp.body.id, basicRequest.id);
         chai.assert.deepEqual(postCheckoutResp.body.totals, {
             subTotal: 500,
             tax: 0,
@@ -316,7 +316,7 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
         chai.assert.equal(getValueResp.body.balance, 0);
 
-        const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
+        const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${basicRequest.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["statusCode"], `body=${JSON.stringify(getCheckoutResp.body, null, 4)}`);
     });
@@ -434,27 +434,14 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
         chai.assert.equal(createValue.body.balance, 100, `body=${JSON.stringify(createValue.body)}`);
 
-        const request = {
+        let request = {
+            ...basicRequest,
             id: "checkout-simulation-w-stripe",
-            sources: [
-                {
-                    rail: "lightrail",
-                    valueId: valueForSimulate.id
-                },
-                {
-                    rail: "stripe",
-                    source: source
-                }
-            ],
-            lineItems: [
-                {
-                    type: "product",
-                    productId: "xyz-123",
-                    unitPrice: 500
-                }
-            ],
-            currency: "CAD",
             simulate: true
+        };
+        request.sources[0] = {
+            rail: "lightrail",
+            valueId: valueForSimulate.id
         };
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
 
@@ -486,7 +473,7 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.deepEqual(postCheckoutResp.body.steps, [
             {
                 rail: "lightrail",
-                valueId: valueForSimulate.id,
+                valueId: value.id,
                 code: null,
                 contactId: null,
                 balanceBefore: 100,
@@ -502,7 +489,7 @@ describe("split tender checkout with Stripe", () => {
         ], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
         chai.assert.deepEqual(postCheckoutResp.body.paymentSources[0], {
             rail: "lightrail",
-            valueId: valueForSimulate.id
+            valueId: value.id
         }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
         chai.assert.deepEqual(postCheckoutResp.body.paymentSources[1], {
             rail: "stripe",
@@ -510,7 +497,7 @@ describe("split tender checkout with Stripe", () => {
         }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
 
 
-        const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueForSimulate.id}`, "GET");
+        const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
         chai.assert.equal(getValueResp.body.balance, 100, "the value did not actually change");
 
