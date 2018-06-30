@@ -51,7 +51,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
             payable: 0,
             remainder: 0,
         };
-        for (let item of this.lineItems) {
+        for (const item of this.lineItems) {
             item.lineTotal.payable = item.lineTotal.subtotal + item.lineTotal.tax - item.lineTotal.discount;
             this.totals.subTotal += item.lineTotal.subtotal;
             this.totals.tax += item.lineTotal.tax;
@@ -61,6 +61,29 @@ export class CheckoutTransactionPlan implements TransactionPlan {
         for (const item of this.lineItems) {
             this.totals.remainder += item.lineTotal.remainder;
         }
+
+        this.calculateMarketplaceTotals();
+    }
+
+    private calculateMarketplaceTotals(): void {
+        if (!this.lineItems || !this.lineItems.find(lineItem => lineItem.marketplaceCommissionRate !== undefined)) {
+            // Marketplace totals are only set if an item has a marketplaceCommissionRate.
+            this.totals.marketplace = undefined;
+            return;
+        }
+
+        let sellerGross = 0;
+        for (const item of this.lineItems) {
+            const rate = item.marketplaceCommissionRate != null ? item.marketplaceCommissionRate : 0;
+            sellerGross += (1.0 - rate) * item.unitPrice * (item.quantity || 1);
+        }
+        sellerGross = bankersRounding(sellerGross, 0);
+
+        this.totals.marketplace = {
+            sellerGross: sellerGross,
+            sellerDiscount: 0,  // TODO implement marketplace discounts and seller discounts
+            sellerNet: sellerGross
+        };
     }
 
     calculateTaxAndSetOnLineItems(): void {

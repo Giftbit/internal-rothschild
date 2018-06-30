@@ -138,6 +138,13 @@ export interface TransactionPlanTotals {
     discount?: number;
     payable?: number;
     remainder?: number;
+    marketplace?: MarketplaceTransactionTotals;
+}
+
+export interface MarketplaceTransactionTotals {
+    sellerGross: number;
+    sellerDiscount: number;
+    sellerNet: number;
 }
 
 export type DbTransactionStep = LightrailDbTransactionStep | StripeDbTransactionStep | InternalDbTransactionStep;

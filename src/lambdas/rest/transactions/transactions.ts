@@ -294,35 +294,30 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
 const lightrailPartySchema: jsonschema.Schema = {
     title: "lightrail",
     type: "object",
+    additionalProperties: false,
     properties: {
         rail: {
             type: "string",
             enum: ["lightrail"]
+        },
+        contactId: {
+            type: "string"
+        },
+        code: {
+            type: "string"
+        },
+        valueId: {
+            type: "string"
         }
     },
     oneOf: [
         {
-            properties: {
-                contactId: {
-                    type: "string"
-                }
-            },
             required: ["contactId"]
         },
         {
-            properties: {
-                code: {
-                    type: "string"
-                }
-            },
             required: ["code"]
         },
         {
-            properties: {
-                valueId: {
-                    type: "string"
-                }
-            },
             required: ["valueId"]
         }
     ],
@@ -335,27 +330,24 @@ const lightrailPartySchema: jsonschema.Schema = {
 const lightrailUniquePartySchema: jsonschema.Schema = {
     title: "lightrail",
     type: "object",
+    additionalProperties: false,
     properties: {
         rail: {
             type: "string",
             enum: ["lightrail"]
+        },
+        code: {
+            type: "string"
+        },
+        valueId: {
+            type: "string"
         }
     },
     oneOf: [
         {
-            properties: {
-                code: {
-                    type: "string"
-                }
-            },
             required: ["code"]
         },
         {
-            properties: {
-                valueId: {
-                    type: "string"
-                }
-            },
             required: ["valueId"]
         }
     ],
@@ -365,6 +357,7 @@ const lightrailUniquePartySchema: jsonschema.Schema = {
 const stripePartySchema: jsonschema.Schema = {
     title: "stripe",
     type: "object",
+    additionalProperties: false,
     properties: {
         rail: {
             type: "string",
@@ -380,6 +373,7 @@ const stripePartySchema: jsonschema.Schema = {
 const internalPartySchema: jsonschema.Schema = {
     title: "internal",
     type: "object",
+    additionalProperties: false,
     properties: {
         rail: {
             type: "string",
@@ -402,6 +396,7 @@ const internalPartySchema: jsonschema.Schema = {
 const creditSchema: jsonschema.Schema = {
     title: "credit",
     type: "object",
+    additionalProperties: false,
     properties: {
         id: {
             type: "string",
@@ -419,6 +414,9 @@ const creditSchema: jsonschema.Schema = {
         },
         simulate: {
             type: "boolean"
+        },
+        metadata: {
+            type: ["object", "null"]
         }
     },
     required: ["id", "destination", "amount", "currency"]
@@ -427,6 +425,7 @@ const creditSchema: jsonschema.Schema = {
 const debitSchema: jsonschema.Schema = {
     title: "credit",
     type: "object",
+    additionalProperties: false,
     properties: {
         id: {
             type: "string",
@@ -447,6 +446,9 @@ const debitSchema: jsonschema.Schema = {
         },
         allowRemainder: {
             type: "boolean"
+        },
+        metadata: {
+            type: ["object", "null"]
         }
     },
     required: ["id", "source", "amount", "currency"]
@@ -455,6 +457,7 @@ const debitSchema: jsonschema.Schema = {
 const transferSchema: jsonschema.Schema = {
     title: "credit",
     type: "object",
+    additionalProperties: false,
     properties: {
         id: {
             type: "string",
@@ -476,6 +479,9 @@ const transferSchema: jsonschema.Schema = {
         },
         allowRemainder: {
             type: "boolean"
+        },
+        metadata: {
+            type: ["object", "null"]
         }
     },
     required: ["id", "source", "amount", "currency"]
@@ -484,6 +490,7 @@ const transferSchema: jsonschema.Schema = {
 const checkoutSchema: jsonschema.Schema = {
     title: "checkout",
     type: "object",
+    additionalProperties: false,
     properties: {
         id: {
             type: "string",
@@ -508,6 +515,15 @@ const checkoutSchema: jsonschema.Schema = {
                     quantity: {
                         type: "integer",
                         minimum: 1
+                    },
+                    taxRate: {
+                        type: "float",
+                        minimum: 0
+                    },
+                    marketplaceCommissionRate: {
+                        type: "float",
+                        minimum: 0,
+                        maximum: 1
                     }
                 },
                 required: ["unitPrice"],
@@ -534,6 +550,9 @@ const checkoutSchema: jsonschema.Schema = {
         },
         allowRemainder: {
             type: "boolean"
+        },
+        metadata: {
+            type: ["object", "null"]
         }
     },
     required: ["id", "lineItems", "currency", "sources"]
