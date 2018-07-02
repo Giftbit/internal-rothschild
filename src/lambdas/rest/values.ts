@@ -49,6 +49,7 @@ export function installValuesRest(router: cassava.Router): void {
                     redemptionRule: null,
                     valueRule: null,
                     discount: false,
+                    discountSellerLiability: null,
                     startDate: null,
                     endDate: null,
                     metadata: null
@@ -154,6 +155,10 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                 },
                 discount: {
                     type: "boolean"
+                },
+                discountOrigin: {
+                    type: "string",
+                    operators: ["eq"]
                 },
                 active: {
                     type: "boolean"
@@ -329,11 +334,11 @@ const valueSchema: jsonschema.Schema = {
             maxLength: 16
         },
         balance: {
-            type: ["number", "null"],
+            type: ["integer", "null"],
             minimum: 0
         },
         uses: {
-            type: ["number", "null"]
+            type: ["integer", "null"]
         },
         code: {
             type: ["string", "null"],
@@ -395,6 +400,11 @@ const valueSchema: jsonschema.Schema = {
         discount: {
             type: "boolean"
         },
+        discountSellerLiability: {
+            type: ["number", "null"],
+            minimum: 0,
+            maximum: 1
+        },
         startDate: {
             type: ["string", "null"],
             format: "date-time"
@@ -407,14 +417,23 @@ const valueSchema: jsonschema.Schema = {
             type: ["object", "null"]
         }
     },
-    required: ["id", "currency"]
+    required: ["id", "currency"],
+    dependencies: {
+        discountSellerLiability: {
+            properties: {
+                discount: {
+                    enum: [true]
+                }
+            }
+        }
+    }
 };
 
 const valueUpdateSchema: jsonschema.Schema = {
     type: "object",
     additionalProperties: false,
     properties: {
-        ...pick(valueSchema.properties, "id", "contactId", "active", "frozen", "pretax", "redemptionRule", "valueRule", "startDate", "endDate", "metadata"),
+        ...pick(valueSchema.properties, "id", "contactId", "active", "frozen", "pretax", "redemptionRule", "valueRule", "discount", "sellerOfferedDiscount", "startDate", "endDate", "metadata"),
         canceled: {
             type: "boolean"
         }

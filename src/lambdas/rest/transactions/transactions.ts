@@ -520,7 +520,7 @@ const checkoutSchema: jsonschema.Schema = {
                         type: "float",
                         minimum: 0
                     },
-                    marketplaceCommissionRate: {
+                    marketplaceRate: {
                         type: "float",
                         minimum: 0,
                         maximum: 1

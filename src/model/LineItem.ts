@@ -8,7 +8,7 @@ export interface LineItemRequest {
     quantity?: number;
     tags?: string[];
     taxRate?: number;
-    marketplaceCommissionRate?: number;
+    marketplaceRate?: number;
     metadata?: any;
 }
 

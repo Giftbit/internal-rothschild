@@ -1,7 +1,7 @@
-import {TransactionPlan, TransactionPlanStep} from "../TransactionPlan";
+import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "../TransactionPlan";
 import {CheckoutRequest, TransactionParty} from "../../../../model/TransactionRequest";
 import {LineItemResponse} from "../../../../model/LineItem";
-import {TransactionPlanTotals, TransactionType} from "../../../../model/Transaction";
+import {LightrailTransactionStep, TransactionPlanTotals, TransactionType} from "../../../../model/Transaction";
 import {bankersRounding} from "../../../utils/moneyUtils";
 
 export class CheckoutTransactionPlan implements TransactionPlan {
@@ -66,23 +66,30 @@ export class CheckoutTransactionPlan implements TransactionPlan {
     }
 
     private calculateMarketplaceTotals(): void {
-        if (!this.lineItems || !this.lineItems.find(lineItem => lineItem.marketplaceCommissionRate !== undefined)) {
-            // Marketplace totals are only set if an item has a marketplaceCommissionRate.
+        if (!this.lineItems || !this.lineItems.find(lineItem => lineItem.marketplaceRate !== undefined)) {
+            // Marketplace totals are only set if an item has a marketplaceRate.
             this.totals.marketplace = undefined;
             return;
         }
 
         let sellerGross = 0;
         for (const item of this.lineItems) {
-            const rate = item.marketplaceCommissionRate != null ? item.marketplaceCommissionRate : 0;
+            const rate = item.marketplaceRate != null ? item.marketplaceRate : 0;
             sellerGross += (1.0 - rate) * item.unitPrice * (item.quantity || 1);
         }
         sellerGross = bankersRounding(sellerGross, 0);
 
+        let sellerDiscount = 0;
+        for (const step of this.steps) {
+            if (step.rail === "lightrail" && (step as LightrailTransactionPlanStep).value.discount && (step as LightrailTransactionPlanStep).value.discountSellerLiability) {
+                sellerDiscount -= (step as LightrailTransactionPlanStep).amount * (step as LightrailTransactionPlanStep).value.discountSellerLiability;
+            }
+        }
+
         this.totals.marketplace = {
             sellerGross: sellerGross,
-            sellerDiscount: 0,  // TODO implement marketplace discounts and seller discounts
-            sellerNet: sellerGross
+            sellerDiscount: sellerDiscount,
+            sellerNet: sellerGross - sellerDiscount
         };
     }
 

@@ -80,6 +80,7 @@ describe("/v2/values/", () => {
             redemptionRule: null,
             valueRule: null,
             discount: false,
+            discountSellerLiability: null,
             metadata: null
         }, ["createdDate", "updatedDate"]);
         value1 = resp2.body;
@@ -234,6 +235,16 @@ describe("/v2/values/", () => {
 
     it("422s on creating a value with a negative balance", async () => {
         const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {id: "negativebalance", currency: "USD", balance: -5000});
+        chai.assert.equal(resp.statusCode, 422, `create body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("422s on creating a value with discountSellerLiability set and discount=false", async () => {
+        const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: "discount-origin-test",
+            currency: "USD",
+            discount: false,
+            discountSellerLiability: 1.0
+        });
         chai.assert.equal(resp.statusCode, 422, `create body=${JSON.stringify(resp.body)}`);
     });
 

@@ -9,7 +9,7 @@ import {Value} from "../../../../model/Value";
 import * as chai from "chai";
 import {Transaction} from "../../../../model/Transaction";
 
-describe.only("/v2/transactions/checkout - marketplaceCommissionRate", () => {
+describe("/v2/transactions/checkout - marketplaceRate", () => {
 
     const router = new cassava.Router();
 
@@ -28,11 +28,11 @@ describe.only("/v2/transactions/checkout - marketplaceCommissionRate", () => {
 
     let value: Value;
 
-    it("allows marketplaceCommissionRate to be set on every item", async () => {
+    it("allows marketplaceRate to be set on every item", async () => {
         const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
             id: "marketplace-test-gift-card",
             currency: "CAD",
-            balance: 65000
+            balance: 95000
         });
         chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
         value = postValueResp.body;
@@ -51,7 +51,7 @@ describe.only("/v2/transactions/checkout - marketplaceCommissionRate", () => {
                     productId: "cheeseburger",
                     unitPrice: 1299,
                     taxRate: 0.05,
-                    marketplaceCommissionRate: 0.2
+                    marketplaceRate: 0.2
                 },
                 {
                     type: "product",
@@ -59,14 +59,14 @@ describe.only("/v2/transactions/checkout - marketplaceCommissionRate", () => {
                     unitPrice: 399,
                     quantity: 2,
                     taxRate: 0.05,
-                    marketplaceCommissionRate: 0.2,
+                    marketplaceRate: 0.2,
                 },
                 {
                     type: "fee",
                     productId: "commission-fee",
                     unitPrice: 200,
                     taxRate: 0.15,
-                    marketplaceCommissionRate: 1
+                    marketplaceRate: 1
                 }
             ],
             currency: "CAD"
@@ -81,7 +81,7 @@ describe.only("/v2/transactions/checkout - marketplaceCommissionRate", () => {
         });
     });
 
-    it("allows marketplaceCommissionRate to be left off, and assumed to be 0", async () => {
+    it("allows marketplaceRate to be left off, and assumed to be 0", async () => {
         const checkoutRequest = {
             id: "checkout-2",
             sources: [
@@ -96,7 +96,7 @@ describe.only("/v2/transactions/checkout - marketplaceCommissionRate", () => {
                     productId: "cheeseburger",
                     unitPrice: 1299,
                     taxRate: 0.05,
-                    marketplaceCommissionRate: 0.2
+                    marketplaceRate: 0.2
                 },
                 {
                     type: "product",
@@ -104,7 +104,7 @@ describe.only("/v2/transactions/checkout - marketplaceCommissionRate", () => {
                     unitPrice: 399,
                     quantity: 2,
                     taxRate: 0.05,
-                    marketplaceCommissionRate: 0.2,
+                    marketplaceRate: 0.2,
                 },
                 {
                     type: "product",
@@ -118,7 +118,7 @@ describe.only("/v2/transactions/checkout - marketplaceCommissionRate", () => {
                     productId: "commission-fee",
                     unitPrice: 200,
                     taxRate: 0.15,
-                    marketplaceCommissionRate: 1
+                    marketplaceRate: 1
                 }
             ],
             currency: "CAD"
@@ -130,6 +130,112 @@ describe.only("/v2/transactions/checkout - marketplaceCommissionRate", () => {
             sellerGross: 2176,
             sellerDiscount: 0,
             sellerNet: 2176
+        });
+    });
+
+    let sellerDiscountValue: Value;
+
+    it("removes discountSellerLiability=1.0 from the seller net", async () => {
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: "marketplace-seller-discount",
+            currency: "CAD",
+            discount: true,
+            discountSellerLiability: 1.0,
+            balance: 500,
+            pretax: true
+        });
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
+        sellerDiscountValue = postValueResp.body;
+
+        const checkoutRequest = {
+            id: "checkout-3",
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: value.id
+                },
+                {
+                    rail: "lightrail",
+                    valueId: sellerDiscountValue.id
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "adventure",
+                    unitPrice: 20000,
+                    taxRate: 0.15,
+                    marketplaceRate: 0.2
+                },
+                {
+                    type: "fee",
+                    productId: "commission-fee",
+                    unitPrice: 1200,
+                    taxRate: 0.15,
+                    marketplaceRate: 1
+                }
+            ],
+            currency: "CAD"
+        };
+        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
+        chai.assert.equal(checkoutResp.body.totals.tax, 3105);
+        chai.assert.deepEqual(checkoutResp.body.totals.marketplace, {
+            sellerGross: 16000,
+            sellerDiscount: 500,
+            sellerNet: 15500
+        });
+    });
+
+    it("removes discountSellerLiability=0.5 from the seller net", async () => {
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: "marketplace-seller-half-discount",
+            currency: "CAD",
+            discount: true,
+            discountSellerLiability: 0.5,
+            balance: 500,
+            pretax: true
+        });
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
+        sellerDiscountValue = postValueResp.body;
+
+        const checkoutRequest = {
+            id: "checkout-4",
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: value.id
+                },
+                {
+                    rail: "lightrail",
+                    valueId: sellerDiscountValue.id
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "adventure",
+                    unitPrice: 20000,
+                    taxRate: 0.15,
+                    marketplaceRate: 0.2
+                },
+                {
+                    type: "fee",
+                    productId: "commission-fee",
+                    unitPrice: 1200,
+                    taxRate: 0.15,
+                    marketplaceRate: 1
+                }
+            ],
+            currency: "CAD"
+        };
+        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
+        chai.assert.equal(checkoutResp.body.totals.tax, 3105);
+        chai.assert.deepEqual(checkoutResp.body.totals.marketplace, {
+            sellerGross: 16000,
+            sellerDiscount: 250,
+            sellerNet: 15750
         });
     });
 });
