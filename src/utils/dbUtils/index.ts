@@ -1,6 +1,6 @@
 import * as knex from "knex";
 import {getKnexWrite} from "./connection";
-import {Pagination, PaginationParams} from "../model/Pagination";
+import {Pagination, PaginationParams} from "../../model/Pagination";
 import {filterQuery, FilterQueryOptions} from "./filterQuery";
 import {paginateQuery} from "./paginateQuery";
 

@@ -2,7 +2,7 @@ import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from
 import {CheckoutRequest, TransactionParty} from "../../../../model/TransactionRequest";
 import {LineItemResponse} from "../../../../model/LineItem";
 import {LightrailTransactionStep, TransactionPlanTotals, TransactionType} from "../../../../model/Transaction";
-import {bankersRounding} from "../../../utils/moneyUtils";
+import {bankersRounding} from "../../../../utils/moneyUtils";
 
 export class CheckoutTransactionPlan implements TransactionPlan {
     id: string;

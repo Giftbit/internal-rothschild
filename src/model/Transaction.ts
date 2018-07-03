@@ -1,6 +1,6 @@
 import * as stripe from "stripe";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {getKnexRead} from "../dbUtils/connection";
+import {getKnexRead} from "../utils/dbUtils/connection";
 import {LineItem} from "./LineItem";
 import {TransactionParty} from "./TransactionRequest";
 import {LightrailDbTransactionStep} from "./Transaction";

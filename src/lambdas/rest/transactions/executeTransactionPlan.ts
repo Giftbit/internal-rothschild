@@ -4,8 +4,8 @@ import {Transaction} from "../../../model/Transaction";
 import {DbValue} from "../../../model/Value";
 import {transactionPlanToTransaction} from "./transactionPlanToTransaction";
 import {TransactionPlanError} from "./TransactionPlanError";
-import {getKnexWrite} from "../../../dbUtils/connection";
-import {nowInDbPrecision} from "../../../dbUtils";
+import {getKnexWrite} from "../../../utils/dbUtils/connection";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
 import * as log from "loglevel";
 
 // import * as log from "loglevel";

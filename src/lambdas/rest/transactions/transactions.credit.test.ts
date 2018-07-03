@@ -1,8 +1,8 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import * as testUtils from "../../../testUtils";
-import {defaultTestUser} from "../../../testUtils";
+import * as testUtils from "../../../utils/testUtils";
+import {defaultTestUser} from "../../../utils/testUtils";
 import {Value} from "../../../model/Value";
 import {Transaction} from "../../../model/Transaction";
 import * as currencies from "../currencies";

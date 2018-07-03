@@ -2,13 +2,13 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as parseLinkHeader from "parse-link-header";
-import * as testUtils from "../../testUtils";
+import * as testUtils from "../../utils/testUtils";
 import {DbValue, Value} from "../../model/Value";
 import {Currency} from "../../model/Currency";
 import {Contact} from "../../model/Contact";
 import chaiExclude = require("chai-exclude");
-import {defaultTestUser} from "../../testUtils";
-import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
+import {defaultTestUser} from "../../utils/testUtils";
+import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {LightrailTransactionStep, Transaction} from "../../model/Transaction";
 import {installRestRoutes} from "./installRestRoutes";
 
