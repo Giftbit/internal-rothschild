@@ -1,10 +1,10 @@
 import {describe, it, before} from "mocha";
 import * as currencies from "../../currencies";
-import * as testUtils from "../../../../testUtils";
+import * as testUtils from "../../../../utils/testUtils";
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {installRestRoutes} from "../../installRestRoutes";
-import {defaultTestUser} from "../../../../testUtils";
+import {defaultTestUser} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
 import * as chai from "chai";
 import {Transaction} from "../../../../model/Transaction";
