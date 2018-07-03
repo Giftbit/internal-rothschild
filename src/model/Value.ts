@@ -16,6 +16,7 @@ export interface Value {
     canceled: boolean;
     frozen: boolean;
     discount: boolean;
+    discountSellerLiability: number | null;
     redemptionRule: Rule | null;
     valueRule: Rule | null;
     startDate: Date | null;
@@ -53,6 +54,7 @@ export namespace Value {
             canceled: v.canceled,
             frozen: v.frozen,
             discount: v.discount,
+            discountSellerLiability: v.discountSellerLiability,
             redemptionRule: JSON.stringify(v.redemptionRule),
             valueRule: JSON.stringify(v.valueRule),
             startDate: v.startDate,
@@ -74,6 +76,8 @@ export namespace Value {
             canceled: v.canceled,
             frozen: v.frozen,
             pretax: v.pretax,
+            discount: v.discount,
+            discountSellerLiability: v.discountSellerLiability,
             redemptionRule: JSON.stringify(v.redemptionRule),
             valueRule: JSON.stringify(v.valueRule),
             startDate: v.startDate,
@@ -101,6 +105,7 @@ export interface DbValue {
     canceled: boolean;
     frozen: boolean;
     discount: boolean;
+    discountSellerLiability: number | null;
     redemptionRule: string;
     valueRule: string;
     startDate: Date | null;
@@ -125,6 +130,7 @@ export namespace DbValue {
             canceled: v.canceled,
             frozen: v.frozen,
             discount: v.discount,
+            discountSellerLiability: v.discountSellerLiability,
             redemptionRule: JSON.parse(v.redemptionRule),
             valueRule: JSON.parse(v.valueRule),
             startDate: v.startDate,
