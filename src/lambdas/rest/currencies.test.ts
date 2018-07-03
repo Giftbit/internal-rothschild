@@ -1,13 +1,12 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import * as testUtils from "../../testUtils";
+import * as testUtils from "../../utils/testUtils";
 import {Currency} from "../../model/Currency";
-import {installRest} from ".";
-
 import chaiExclude = require("chai-exclude");
 import {Value} from "../../model/Value";
-import {Contact} from "../../model/Contact";
+import {installRestRoutes} from "./installRestRoutes";
+
 chai.use(chaiExclude);
 
 describe("/v2/currencies", () => {
@@ -17,7 +16,7 @@ describe("/v2/currencies", () => {
     before(async function () {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
-        installRest(router);
+        installRestRoutes(router);
     });
 
     it("can list 0 currencies", async () => {

@@ -1,21 +1,19 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import {compareTransactionPlanSteps} from "./compareTransactionPlanSteps";
-import {CreditRequest, DebitRequest, OrderRequest, TransferRequest} from "../../../model/TransactionRequest";
+import {CheckoutRequest, CreditRequest, DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
 import {resolveTransactionParties} from "./resolveTransactionParties";
-import {buildOrderTransactionPlan} from "./buildOrderTransactionPlan";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {executeTransactionPlanner} from "./executeTransactionPlan";
 import {Pagination, PaginationParams} from "../../../model/Pagination";
-import {getKnexRead} from "../../../dbUtils/connection";
+import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {Filters, TransactionFilterParams} from "../../../model/Filter";
-import {paginateQuery} from "../../../dbUtils/paginateQuery";
-import {LightrailTransactionPlanStep, TransactionPlanStep} from "./TransactionPlan";
+import {paginateQuery} from "../../../utils/dbUtils/paginateQuery";
+import {LightrailTransactionPlanStep} from "./TransactionPlan";
+import {optimizeCheckout} from "./checkout/checkoutTransactionPlanner";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
 import getPaginationParams = Pagination.getPaginationParams;
 import getTransactionFilterParams = Filters.getTransactionFilterParams;
-
-const debug = false;
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions")
@@ -80,15 +78,15 @@ export function installTransactionsRest(router: cassava.Router): void {
             };
         });
 
-    router.route("/v2/transactions/order")
+    router.route("/v2/transactions/checkout")
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
-            evt.validateBody(orderSchema);
+            evt.validateBody(checkoutSchema);
             return {
                 statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
-                body: await createOrder(auth, evt.body)
+                body: await createCheckout(auth, evt.body)
             };
         });
 
@@ -189,6 +187,7 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
                         amount: req.amount
                     }
                 ],
+                createdDate: nowInDbPrecision(),
                 metadata: req.metadata,
                 totals: {remainder: 0},
                 lineItems: null,
@@ -223,6 +222,7 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
                         amount: -amount
                     }
                 ],
+                createdDate: nowInDbPrecision(),
                 metadata: req.metadata,
                 totals: {remainder: req.amount - amount},
                 lineItems: null,
@@ -232,31 +232,16 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
     );
 }
 
-async function createOrder(auth: giftbitRoutes.jwtauth.AuthorizationBadge, order: OrderRequest): Promise<Transaction> {
+async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, checkout: CheckoutRequest): Promise<Transaction> {
     return executeTransactionPlanner(
         auth,
         {
-            simulate: order.simulate,
-            allowRemainder: order.allowRemainder
+            simulate: checkout.simulate,
+            allowRemainder: checkout.allowRemainder
         },
         async () => {
-            const steps = await resolveTransactionParties(auth, order.currency, order.sources);
-            let preTaxSteps: TransactionPlanStep[] = [];
-            let postTaxSteps: TransactionPlanStep[] = [];
-
-            for (const step of steps) {
-                if (step.rail === "lightrail" && step.value.pretax) {
-                    preTaxSteps.push(step);
-                } else {
-                    postTaxSteps.push(step);
-                }
-            }
-
-            preTaxSteps = preTaxSteps.sort(compareTransactionPlanSteps);
-            postTaxSteps = postTaxSteps.sort(compareTransactionPlanSteps);
-            debug && console.log(`preTaxSteps: ${JSON.stringify(preTaxSteps)}`);
-            debug && console.log(`postTaxSteps: ${JSON.stringify(postTaxSteps)}`);
-            return buildOrderTransactionPlan(order, preTaxSteps, postTaxSteps);
+            const steps = await resolveTransactionParties(auth, checkout.currency, checkout.sources);
+            return optimizeCheckout(checkout, steps);
         }
     );
 }
@@ -296,6 +281,7 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
                         amount
                     }
                 ],
+                createdDate: nowInDbPrecision(),
                 metadata: req.metadata,
                 totals: {remainder: req.amount - amount},
                 lineItems: null,
@@ -495,8 +481,8 @@ const transferSchema: jsonschema.Schema = {
     required: ["id", "source", "amount", "currency"]
 };
 
-const orderSchema: jsonschema.Schema = {
-    title: "order",
+const checkoutSchema: jsonschema.Schema = {
+    title: "checkout",
     type: "object",
     properties: {
         id: {

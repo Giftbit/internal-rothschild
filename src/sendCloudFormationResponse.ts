@@ -1,6 +1,9 @@
 import * as awslambda from "aws-lambda";
 import * as https from "https";
+import * as log from "loglevel";
 import * as url from "url";
+
+log.setLevel(log.levels.DEBUG);
 
 /**
  * PUT the result of this CloudFormation task to the web callback expecting it.
@@ -16,7 +19,7 @@ export async function sendCloudFormationResponse(evt: awslambda.CloudFormationCu
         Data: data
     };
 
-    console.log(`sending CloudFormationResponse`);
+    log.info(`sending CloudFormationResponse`);
 
     const responseJson = JSON.stringify(responseBody);
     const parsedUrl = url.parse(evt.ResponseURL);
@@ -33,15 +36,15 @@ export async function sendCloudFormationResponse(evt: awslambda.CloudFormationCu
 
     await new Promise((resolve, reject) => {
         const request = https.request(options, (response) => {
-            console.log(`CloudFormationResponse ack statusCode ${response.statusCode}`);
-            console.log(`CloudFormationResponse ack headers ${JSON.stringify(response.headers)}`);
+            log.info(`CloudFormationResponse ack statusCode ${response.statusCode}`);
+            log.info(`CloudFormationResponse ack headers ${JSON.stringify(response.headers)}`);
             const responseBody: string[] = [];
             response.setEncoding("utf8");
             response.on("data", d => {
                 responseBody.push(d as string);
             });
             response.on("end", () => {
-                console.log("CloudFormationResponse ack body", responseBody);
+                log.info("CloudFormationResponse ack body", responseBody);
                 if (response.statusCode >= 400) {
                     reject(new Error(responseBody.join("")));
                 } else {
@@ -51,12 +54,12 @@ export async function sendCloudFormationResponse(evt: awslambda.CloudFormationCu
         });
 
         request.on("error", error => {
-            console.log("error sending CloudFormationResponse", error);
+            log.error("error sending CloudFormationResponse", error);
             reject(error);
         });
 
         request.on("end", () => {
-            console.log("sent CloudFormationResponse");
+            log.info("sent CloudFormationResponse");
         });
 
         request.write(responseJson);

@@ -13,7 +13,7 @@ import {
     TransactionPlanStep
 } from "./TransactionPlan";
 import {DbValue, Value} from "../../../model/Value";
-import {getKnexRead} from "../../../dbUtils/connection";
+import {getKnexRead} from "../../../utils/dbUtils/connection";
 
 export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: string, parties: TransactionParty[]): Promise<TransactionPlanStep[]> {
     const lightrailValueIds = parties.filter(p => p.rail === "lightrail" && p.valueId).map(p => (p as LightrailTransactionParty).valueId);
@@ -45,7 +45,6 @@ export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.Auth
             rail: "stripe",
             token: p.token,
             maxAmount: p.maxAmount || null,
-            priority: p.priority || 0,
             stripeSecretKey: null,
             amount: 0
         }));

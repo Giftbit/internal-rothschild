@@ -8,15 +8,16 @@
 STACK_NAME="dev-Rothschild"
 
 # The name of an S3 bucket on your account to hold deployment artifacts.
-BUILD_ARTIFACT_BUCKET="lightrail-sandbox-deploymentartifacts"
+BUILD_ARTIFACT_BUCKET="dev-lightrailrothschild-deploymentartifactbucket-16sqvi4mh78ei"
 
 # Parameter values for the sam template.  see: `aws cloudformation deploy help`
 PARAMETER_OVERRIDES="--parameter-overrides"
 PARAMETER_OVERRIDES+=" BuildDate=`date +%s`"
 PARAMETER_OVERRIDES+=" Capacity=low"
+PARAMETER_OVERRIDES+=" DbEncryptionKeyId=9d52dd73-865a-4471-9ef3-bf2b762c0320"
 PARAMETER_OVERRIDES+=" SecureConfigBucket=dev-lightrailsecureconfig-1q7bltwyiihpq-bucket-id162gq711cc"
 PARAMETER_OVERRIDES+=" SecureConfigKmsArn=arn:aws:kms:us-west-2:757264843183:key/5240d853-a89f-4510-82ba-386bf2b977dc"
-PARAMETER_OVERRIDES+=" VpcUniqueNumber=101"
+PARAMETER_OVERRIDES+=" VpcUniqueNumber=2"
 USAGE="usage: $0 <command name>\nvalid command names: build delete deploy invoke upload"
 
 

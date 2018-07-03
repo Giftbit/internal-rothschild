@@ -2,7 +2,7 @@
 
 AWSTemplateFormatVersion: 2010-09-09
 Transform: AWS::Serverless-2016-10-31
-Description: Rothschild banking proof of concept
+Description: Rothschild
 
 Parameters:
   BuildDate:
@@ -12,6 +12,14 @@ Parameters:
   Capacity:
     AllowedValues : ["high", "low"]
     Type: String
+  DbEncryptionKeyId:
+    Type: String
+    Description: ID of the KMS key the DB will be encrypted with.  This has to be passed in because letting the CI stack create and delete KMS keys is too dangerous.
+    AllowedPattern: "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+  LightrailDomain:
+    Type: String
+    Description: The domain of the Lightrail REST API
+    AllowedPattern: (\w+\.)+\w{3}
   SecureConfigBucket:
     Type: String
     Description: Name of the S3 bucket holding the JWT secure config
@@ -124,6 +132,10 @@ Resources:
           Value: Rothschild
   PrivateSubnetRouting:
     Type: AWS::EC2::Route
+    DependsOn:
+      - PrivateSubnetARouteTableAssociation
+      - PrivateSubnetBRouteTableAssociation
+      - PrivateSubnetCRouteTableAssociation
     Properties:
       RouteTableId: !Ref PrivateSubnetRouteTable
       DestinationCidrBlock: 0.0.0.0/0
@@ -195,6 +207,8 @@ Resources:
           Value: Rothschild
   NatExitRouting:
     Type: AWS::EC2::Route
+    DependsOn:
+      - NatExitRouteTableAssociation
     Properties:
       RouteTableId: !Ref NatExitRouteTable
       DestinationCidrBlock: 0.0.0.0/0
@@ -204,22 +218,6 @@ Resources:
     Properties:
       RouteTableId: !Ref NatExitRouteTable
       SubnetId: !Ref NatExitSubnet
-
-  # Database encryption
-  DbEncryptionKey:
-    Type: AWS::KMS::Key
-    Properties:
-      Description: !Sub "${AWS::StackName} database encryption key"
-      KeyPolicy:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              AWS:
-                !Sub "arn:aws:iam::${AWS::AccountId}:root"
-            Action:
-              - kms:*
-            Resource: "*"
 
   # Database credentials
   CredentialGenFunction:
@@ -246,7 +244,7 @@ Resources:
                 - kms:DescribeKey
                 - kms:Encrypt
               Resource:
-                - !GetAtt DbEncryptionKey.Arn
+                - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
       Tags:
         ShortName: CredentialGenFunction
         Service: Rothschild
@@ -254,7 +252,7 @@ Resources:
     Type: Custom::DbCredentials
     Properties:
       ServiceToken: !GetAtt CredentialGenFunction.Arn
-      KmsKeyId: !Ref DbEncryptionKey
+      KmsKeyId: !Ref DbEncryptionKeyId
       SsmPrefix: !Sub "${AWS::StackName}"
 
   # Database instance
@@ -269,6 +267,16 @@ Resources:
       Tags:
         - Key: Service
           Value: Rothschild
+  DbClusterParameterGroup:
+    Type: AWS::RDS::DBClusterParameterGroup
+    Properties:
+      Description: !Sub "${AWS::StackName} cluster parameter group"
+      Family: aurora5.6
+      Parameters:
+        innodb_strict_mode: 1
+      Tags:
+        - Key: Service
+          Value: Rothschild
   DbCluster:
     Type: AWS::RDS::DBCluster
     Properties:
@@ -280,14 +288,25 @@ Resources:
       PreferredMaintenanceWindow: sun:06:57-sun:07:57
       Port: 3306
       StorageEncrypted: true
-      KmsKeyId: !Ref DbEncryptionKey
+      KmsKeyId: !Ref DbEncryptionKeyId
       DBSubnetGroupName: !Ref DbSubnetGroup
+      DBClusterParameterGroupName: !Ref DbClusterParameterGroup
       VpcSecurityGroupIds:
         - !Ref DbSecurityGroup
       Tags:
         - Key: Service
           Value: Rothschild
     DeletionPolicy: Snapshot
+  DbInstanceParameterGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Description: !Sub "${AWS::StackName} instance parameter group"
+      Family: aurora5.6
+      Parameters:
+        sql_mode: STRICT_TRANS_TABLES
+      Tags:
+        - Key: Service
+          Value: Rothschild
   DbPrimaryInstance:
     Type: AWS::RDS::DBInstance
     Properties:
@@ -295,6 +314,7 @@ Resources:
       DBClusterIdentifier: !Ref DbCluster
       DBInstanceClass: !If [HighCapacity, db.t2.medium, db.t2.medium]
       DBSubnetGroupName: !Ref DbSubnetGroup
+      DBParameterGroupName: !Ref DbInstanceParameterGroup
       Tags:
         - Key: Service
           Value: Rothschild
@@ -306,7 +326,7 @@ Resources:
       Handler: index.handler
       Runtime: nodejs8.10
       MemorySize: 128
-      Timeout: 120 # seconds, 300 max
+      Timeout: 180 # seconds, 300 max
       Environment:
         Variables:
           DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
@@ -317,6 +337,7 @@ Resources:
           SECURE_CONFIG_BUCKET: !Ref SecureConfigBucket
           SECURE_CONFIG_KEY_JWT: authentication_badge_key.json
           SECURE_CONFIG_KEY_ROLE_DEFINITIONS: RoleDefinitions.json
+          SECURE_CONFIG_KEY_SENTRY: sentry_lambda_services.json
       VpcConfig:
         SecurityGroupIds:
           - !GetAtt LambdaSecurityGroup.GroupId
@@ -339,13 +360,14 @@ Resources:
                 - kms:Decrypt
                 - kms:DescribeKey
               Resource:
-                - !GetAtt DbEncryptionKey.Arn
+                - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
             - Effect: Allow
               Action:
                 - s3:GetObject
               Resource:
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/authentication_badge_key.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/RoleDefinitions.json"
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
             - Effect: Allow
               Action:
                 - kms:Decrypt
@@ -407,7 +429,7 @@ Resources:
                 - kms:Decrypt
                 - kms:DescribeKey
               Resource:
-                - !GetAtt DbEncryptionKey.Arn
+                - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
       Tags:
         ShortName: PostDeployFunction
         Service: Rothschild

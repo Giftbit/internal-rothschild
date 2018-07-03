@@ -1,6 +1,6 @@
 import * as stripe from "stripe";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {getKnexRead} from "../dbUtils/connection";
+import {getKnexRead} from "../utils/dbUtils/connection";
 import {LineItem} from "./LineItem";
 import {TransactionParty} from "./TransactionRequest";
 import {LightrailDbTransactionStep} from "./Transaction";
@@ -10,7 +10,7 @@ export interface Transaction {
     transactionType: TransactionType;
     currency: string;
     steps: TransactionStep[];
-    totals: TransactionTotal;
+    totals: TransactionPlanTotals;
     lineItems: LineItem[] | null;
     paymentSources: TransactionParty[] | null;
     simulated?: true;
@@ -99,7 +99,7 @@ export interface LightrailValueStorePaymentSource {
 export type TransactionType =
     "credit"
     | "debit"
-    | "order"
+    | "checkout"
     | "transfer"
     | "pending_create"
     | "pending_capture"
@@ -132,7 +132,7 @@ export interface InternalTransactionStep {
     balanceChange: number;
 }
 
-export interface TransactionTotal {
+export interface TransactionPlanTotals {
     subTotal?: number;
     tax?: number;
     discount?: number;
@@ -146,7 +146,6 @@ export interface LightrailDbTransactionStep {
     userId: string;
     id: string;
     transactionId: string;
-    currency: string;
     valueId: string;
     contactId?: string;
     code?: string;

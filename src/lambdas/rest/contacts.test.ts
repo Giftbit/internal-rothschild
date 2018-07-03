@@ -2,13 +2,13 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as parseLinkHeader from "parse-link-header";
-import * as testUtils from "../../testUtils";
+import * as testUtils from "../../utils/testUtils";
 import {Contact, DbContact} from "../../model/Contact";
-import {installRest} from "./index";
-import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
-import {defaultTestUser} from "../../testUtils";
+import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
+import {defaultTestUser} from "../../utils/testUtils";
 import {Value} from "../../model/Value";
 import {Currency} from "../../model/Currency";
+import {installRestRoutes} from "./installRestRoutes";
 
 chai.use(require("chai-exclude"));
 
@@ -19,7 +19,7 @@ describe("/v2/contacts", () => {
     before(async function () {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
-        installRest(router);
+        installRestRoutes(router);
     });
 
     it("can list 0 contacts", async () => {
@@ -71,9 +71,7 @@ describe("/v2/contacts", () => {
     it("can list 1 contact in csv", async () => {
         const resp = await testUtils.testAuthedCsvRequest<Contact>(router, "/v2/contacts", "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.deepEqualExcludingEvery(resp.body, [
-            contact1
-        ], ["createdDate", "updatedDate"]); // TODO don't ignore dates if my issue gets resolved https://github.com/mholt/PapaParse/issues/502
+        chai.assert.deepEqualExcludingEvery(resp.body, [contact1], ["createdDate", "updatedDate"]);
         chai.assert.equal(resp.headers["Limit"], "100");
         chai.assert.equal(resp.headers["Max-Limit"], "1000");
     });
@@ -161,6 +159,11 @@ describe("/v2/contacts", () => {
     it("409s on creating a duplicate contact", async () => {
         const resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contact1.id, firstName: "Duplicate"});
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("422s on creating a contact with an id that is too long", async () => {
+        const resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: "01234567890123456789012345678901234567890123456789012345678901234567890123456789"});
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 
     it("404s on getting invalid id", async () => {
@@ -631,7 +634,7 @@ describe("/v2/contacts", () => {
             const page1Size = Math.ceil(expected.length / 2);
             const page1 = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?firstName.like=${encodeURIComponent("J%")}&limit=${page1Size}`, "GET");
             chai.assert.equal(page1.statusCode, 200, `body=${JSON.stringify(page1.body)}`);
-            chai.assert.deepEqualExcludingEvery(page1.body, expected.slice(0, page1Size), ["userId", "createdDate", "updatedDate"]);
+            chai.assert.deepEqual(page1.body.map(c => c.id), expected.slice(0, page1Size).map(c => c.id), "the same ids in the same order");
             chai.assert.equal(page1.headers["Limit"], `${page1Size}`);
             chai.assert.equal(page1.headers["Max-Limit"], "1000");
             chai.assert.isDefined(page1.headers["Link"]);
@@ -639,7 +642,7 @@ describe("/v2/contacts", () => {
             const page1Link = parseLinkHeader(page1.headers["Link"]);
             const page2 = await testUtils.testAuthedRequest<Contact[]>(router, page1Link.next.url, "GET");
             chai.assert.equal(page2.statusCode, 200, `url=${page1Link.next.url} body=${JSON.stringify(page2.body)}`);
-            chai.assert.deepEqualExcludingEvery(page2.body, expected.slice(page1Size), ["userId", "createdDate", "updatedDate"]);
+            chai.assert.deepEqual(page2.body.map(c => c.id), expected.slice(page1Size).map(c => c.id), "the same ids in the same order");
             chai.assert.equal(page1.headers["Limit"], `${page1Size}`);
             chai.assert.equal(page1.headers["Max-Limit"], "1000");
             chai.assert.isDefined(page1.headers["Link"]);

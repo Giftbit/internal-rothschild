@@ -1,9 +1,9 @@
-import * as testUtils from "../../testUtils";
+import * as testUtils from "../../utils/testUtils";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import * as chai from "chai";
 import {Program} from "../../model/Program";
-import {installRest} from "./index";
+import {installRestRoutes} from "./installRestRoutes";
 
 describe.skip("/v2/programs", () => {
 
@@ -12,7 +12,7 @@ describe.skip("/v2/programs", () => {
     before(async () => {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
-        installRest(router);
+        installRestRoutes(router);
     });
 
     it("can list 0 programs", async () => {

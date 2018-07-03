@@ -1,12 +1,13 @@
 import * as chai from "chai";
 import {TransactionPlanError} from "./TransactionPlanError";
-import * as testUtils from "../../../testUtils";
+import * as testUtils from "../../../utils/testUtils";
 import {DbValue} from "../../../model/Value";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {TransactionPlan} from "./TransactionPlan";
 import {executeTransactionPlan} from "./executeTransactionPlan";
 import {DbCurrency} from "../../../model/Currency";
-import {getKnexWrite} from "../../../dbUtils/connection";
+import {getKnexWrite} from "../../../utils/dbUtils/connection";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
 
 describe("rest/transactions/executeTransactionPlan", () => {
 
@@ -73,6 +74,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             totals: {remainder: 0},
             lineItems: null,
             paymentSources: null,
+            createdDate: nowInDbPrecision(),
             metadata: null
         };
 
@@ -138,6 +140,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             totals: {remainder: null},
             lineItems: null,
             paymentSources: null,
+            createdDate: nowInDbPrecision(),
             metadata: null
         };
 

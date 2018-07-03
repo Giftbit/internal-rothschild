@@ -7,7 +7,7 @@
 #   - UNIQUE: uq_<table name>_<unique field>
 
 CREATE TABLE rothschild.Contacts (
-  userId      VARCHAR(32) NOT NULL,
+  userId      VARCHAR(64) NOT NULL,
   id          VARCHAR(32) NOT NULL,
   email       VARCHAR(320),
   firstName   NVARCHAR(255),
@@ -100,28 +100,28 @@ CREATE TABLE rothschild.ValueTags (
 );
 
 CREATE TABLE rothschild.Transactions (
-  userId                  VARCHAR(32)  NOT NULL,
-  id                      VARCHAR(32)  NOT NULL,
-  transactionType         VARCHAR(255) NOT NULL,
-  currency                VARCHAR(32)  NOT NULL,
-  totals                  TEXT,
-  lineItems               MEDIUMTEXT,
-  paymentSources          TEXT,
-  metadata                TEXT,
-  createdDate             DATETIME     NOT NULL,
+  userId          VARCHAR(32)  NOT NULL,
+  id              VARCHAR(32)  NOT NULL,
+  transactionType VARCHAR(255) NOT NULL,
+  currency        VARCHAR(32)  NOT NULL,
+  totals          TEXT,
+  lineItems       MEDIUMTEXT,
+  paymentSources  TEXT,
+  metadata        TEXT,
+  createdDate     DATETIME     NOT NULL,
   PRIMARY KEY pk_Transactions (userId, id)
 );
 
 CREATE TABLE rothschild.LightrailTransactionSteps (
-  userId        VARCHAR(32)  NOT NULL,
-  id            VARCHAR(255) NOT NULL,
-  transactionId VARCHAR(32)  NOT NULL,
-  valueId       VARCHAR(32)  NOT NULL,
+  userId        VARCHAR(32) NOT NULL,
+  id            VARCHAR(32) NOT NULL,
+  transactionId VARCHAR(32) NOT NULL,
+  valueId       VARCHAR(32) NOT NULL,
   contactId     VARCHAR(32),
   code          CHAR(4),
-  balanceBefore INT          NOT NULL,
-  balanceAfter  INT          NOT NULL,
-  balanceChange INT          NOT NULL,
+  balanceBefore INT         NOT NULL,
+  balanceAfter  INT         NOT NULL,
+  balanceChange INT         NOT NULL,
   PRIMARY KEY pk_LightrailTransactionSteps (userId, id),
   INDEX ix_LightrailTransactionSteps_transactionId (userId, transactionId),
   CONSTRAINT fk_LightrailTransactionSteps_Transactions FOREIGN KEY (userId, transactionId) REFERENCES rothschild.Transactions (userId, id),
@@ -131,8 +131,8 @@ CREATE TABLE rothschild.LightrailTransactionSteps (
 
 CREATE TABLE rothschild.StripeTransactionSteps (
   userId        VARCHAR(32)  NOT NULL,
-  id            VARCHAR(255) NOT NULL,
-  transactionId VARCHAR(255) NOT NULL,
+  id            VARCHAR(32)  NOT NULL,
+  transactionId VARCHAR(32)  NOT NULL,
   chargeId      VARCHAR(255) NOT NULL,
   currency      CHAR(3)      NOT NULL,
   amount        INT          NOT NULL,
@@ -145,8 +145,8 @@ CREATE TABLE rothschild.StripeTransactionSteps (
 
 CREATE TABLE rothschild.InternalTransactionSteps (
   userId        VARCHAR(32)  NOT NULL,
-  id            VARCHAR(255) NOT NULL,
-  transactionId VARCHAR(255) NOT NULL,
+  id            VARCHAR(32)  NOT NULL,
+  transactionId VARCHAR(32)  NOT NULL,
   internalId    VARCHAR(255) NOT NULL,
   balanceBefore INT          NOT NULL,
   balanceAfter  INT          NOT NULL,

@@ -1,15 +1,15 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import * as transactions from "./transactions";
-import * as valueStores from "../values";
-import * as currencies from "../currencies";
-import * as testUtils from "../../../testUtils";
-import {Value} from "../../../model/Value";
-import {Transaction} from "../../../model/Transaction";
-import {Currency} from "../../../model/Currency";
+import * as transactions from "../transactions";
+import * as valueStores from "../../values";
+import * as testUtils from "../../../../utils/testUtils";
+import {generateId} from "../../../../utils/testUtils";
+import {Value} from "../../../../model/Value";
+import {Transaction} from "../../../../model/Transaction";
+import {createCurrency} from "../../currencies";
 
-describe("/v2/transactions/order", () => {
+describe("/v2/transactions/checkout - basics", () => {
 
     const router = new cassava.Router();
 
@@ -18,22 +18,17 @@ describe("/v2/transactions/order", () => {
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
         transactions.installTransactionsRest(router);
         valueStores.installValuesRest(router);
-        currencies.installCurrenciesRest(router);
+        await createCurrency(testUtils.defaultTestUser.auth, {
+            code: "CAD",
+            name: "Canadian Tire Money",
+            symbol: "$",
+            decimalPlaces: 2
+        });
     });
 
     it("processes basic order", async () => {
-        const currency: Currency = {
-            code: "CAD",
-            name: "Monopoly Money",
-            symbol: "$",
-            decimalPlaces: 2
-        };
-        const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency);
-        chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
-
         const giftCard: Partial<Value> = {
-            id: "basic-order-vs",
-            // type: "GIFTCARD",
+            id: "basic-checkout-vs",
             currency: "CAD",
             balance: 1000
         };
@@ -42,7 +37,7 @@ describe("/v2/transactions/order", () => {
         chai.assert.equal(postValueStoreResp.statusCode, 201, `body=${JSON.stringify(postValueStoreResp.body)}`);
 
         const request = {
-            id: "order-1",
+            id: "checkout-1",
             sources: [
                 {
                     rail: "lightrail",
@@ -58,11 +53,11 @@ describe("/v2/transactions/order", () => {
             ],
             currency: "CAD"
         };
-        const postOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/order", "POST", request);
-        chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
-        chai.assert.deepEqualExcluding(postOrderResp.body, {
-            id: "order-1",
-            transactionType: "order",
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+        chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
+        chai.assert.deepEqualExcluding(postCheckoutResp.body, {
+            id: "checkout-1",
+            transactionType: "checkout",
             currency: "CAD",
             totals: {
                 subTotal: 50,
@@ -101,7 +96,7 @@ describe("/v2/transactions/order", () => {
             "paymentSources": [
                 {
                     "rail": "lightrail",
-                    "valueId": "basic-order-vs"
+                    "valueId": "basic-checkout-vs"
                 }
             ],
             metadata: null,
@@ -112,21 +107,19 @@ describe("/v2/transactions/order", () => {
         chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(getValueStoreResp.body)}`);
         chai.assert.equal(getValueStoreResp.body.balance, 950);
 
-        const getOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/order-1", "GET");
-        chai.assert.equal(getOrderResp.statusCode, 200, `body=${JSON.stringify(getOrderResp.body)}`);
-        chai.assert.deepEqualExcluding(getOrderResp.body, postOrderResp.body, "statusCode");
+        const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout-1", "GET");
+        chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
+        chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, "statusCode");
     });
 
-    it("process order with two ValueStores", async () => {
+    it("process checkout with two ValueStores", async () => {
         const giftCard: Partial<Value> = {
-            id: "vs-order2-giftcard",
-            // valueStoreType: "GIFTCARD",
+            id: "vs-checkout2-giftcard",
             currency: "CAD",
             balance: 1000
         };
         const promotion: Partial<Value> = {
-            id: "vs-order2-promotion",
-            // valueStoreType: "PROMOTION",
+            id: "vs-checkout2-promotion",
             currency: "CAD",
             balance: 10,
             discount: true
@@ -139,7 +132,7 @@ describe("/v2/transactions/order", () => {
         chai.assert.equal(createPromotionResp.statusCode, 201, `body=${JSON.stringify(createPromotionResp.body)}`);
 
         const request = {
-            id: "order-2",
+            id: "checkout-2",
             sources: [
                 {
                     rail: "lightrail",
@@ -159,11 +152,11 @@ describe("/v2/transactions/order", () => {
             ],
             currency: "CAD"
         };
-        const postOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/order", "POST", request);
-        chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
-        chai.assert.deepEqualExcluding(postOrderResp.body, {
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+        chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
+        chai.assert.deepEqualExcluding(postCheckoutResp.body, {
             id: request.id,
-            transactionType: "order",
+            transactionType: "checkout",
             currency: "CAD",
             totals: {
                 subTotal: 50,
@@ -211,11 +204,11 @@ describe("/v2/transactions/order", () => {
             "paymentSources": [
                 {
                     "rail": "lightrail",
-                    "valueId": "vs-order2-giftcard"
+                    "valueId": "vs-checkout2-giftcard"
                 },
                 {
                     "rail": "lightrail",
-                    "valueId": "vs-order2-promotion"
+                    "valueId": "vs-checkout2-promotion"
                 }
             ],
             metadata: null,
@@ -230,29 +223,26 @@ describe("/v2/transactions/order", () => {
         chai.assert.equal(getGiftCardVS.statusCode, 200, `body=${JSON.stringify(getGiftCardVS.body)}`);
         chai.assert.equal(getGiftCardVS.body.balance, 960);
 
-        const getOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/order-2", "GET");
-        chai.assert.equal(getOrderResp.statusCode, 200, `body=${JSON.stringify(getOrderResp.body)}`);
-        chai.assert.deepEqualExcluding(getOrderResp.body, postOrderResp.body, "statusCode");
+        const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout-2", "GET");
+        chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
+        chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, "statusCode");
     });
 
-    it("process order with 3 ValueStores with complicated tax implications", async () => {
+    it("process checkout with 3 ValueStores with complicated tax implications", async () => {
         const giftCard: Partial<Value> = {
-            id: "vs-order3-giftcard",
-            // valueStoreType: "GIFTCARD",
+            id: "vs-checkout3-giftcard",
             currency: "CAD",
             balance: 1010
         };
         const preTaxPromotion: Partial<Value> = {
-            id: "vs-order3-promotion1",
-            // valueStoreType: "PROMOTION",
+            id: "vs-checkout3-promotion1",
             currency: "CAD",
             balance: 200,
             pretax: true,
             discount: true
         };
         const postTaxPromotion: Partial<Value> = {
-            id: "vs-order3-promotion2",
-            // valueStoreType: "PROMOTION",
+            id: "vs-checkout3-promotion2",
             currency: "CAD",
             balance: 25,
             discount: true
@@ -268,7 +258,7 @@ describe("/v2/transactions/order", () => {
         chai.assert.equal(createPromotion2Resp.statusCode, 201, `body=${JSON.stringify(createPromotion2Resp.body)}`);
 
         const request = {
-            id: "order-3",
+            id: "checkout-3",
             sources: [
                 {
                     rail: "lightrail",
@@ -300,96 +290,96 @@ describe("/v2/transactions/order", () => {
             ],
             currency: "CAD"
         };
-        const postOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/order", "POST", request);
-        chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
-        chai.assert.deepEqualExcluding(postOrderResp.body, {
-            id: request.id,
-            transactionType: "order",
-            currency: "CAD",
-            totals: {
-                subTotal: 1166,
-                tax: 68,
-                discount: 225,
-                payable: 1009,
-                remainder: 0
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+        chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
+        chai.assert.deepEqualExcluding(postCheckoutResp.body, {
+            "id": "checkout-3",
+            "transactionType": "checkout",
+            "currency": "CAD",
+            "totals": {
+                "subTotal": 1166,
+                "tax": 62,
+                "discount": 225,
+                "payable": 1003,
+                "remainder": 0
             },
-            lineItems: [
+            "lineItems": [
                 {
-                    type: "shipping",
-                    productId: "p1",
-                    unitPrice: 500,
-                    taxRate: 0.05,
-                    quantity: 1,
-                    lineTotal: {
-                        subtotal: 500,
-                        taxable: 300,
-                        tax: 15,
-                        discount: 225,
-                        payable: 290,
-                        remainder: 0
+                    "type": "product",
+                    "productId": "p2",
+                    "unitPrice": 333,
+                    "quantity": 2,
+                    "taxRate": 0.08,
+                    "lineTotal": {
+                        "subtotal": 666,
+                        "taxable": 466,
+                        "tax": 37,
+                        "discount": 225,
+                        "remainder": 0,
+                        "payable": 478
                     }
                 },
                 {
-                    type: "product",
-                    productId: "p2",
-                    unitPrice: 333,
-                    quantity: 2,
-                    taxRate: 0.08,
-                    lineTotal: {
-                        subtotal: 666,
-                        taxable: 666,
-                        tax: 53 /* 53.28 */,
-                        discount: 0,
-                        payable: 719,
-                        remainder: 0
+                    "type": "shipping",
+                    "productId": "p1",
+                    "unitPrice": 500,
+                    "taxRate": 0.05,
+                    "quantity": 1,
+                    "lineTotal": {
+                        "subtotal": 500,
+                        "taxable": 500,
+                        "tax": 25,
+                        "discount": 0,
+                        "remainder": 0,
+                        "payable": 525
                     }
                 }
             ],
-            steps: [
+            "steps": [
                 {
-                    rail: "lightrail",
-                    valueId: preTaxPromotion.id,
-                    code: null,
-                    contactId: null,
-                    balanceBefore: 200,
-                    balanceAfter: 0,
-                    balanceChange: -200
+                    "rail": "lightrail",
+                    "valueId": "vs-checkout3-promotion1",
+                    "contactId": null,
+                    "code": null,
+                    "balanceBefore": 200,
+                    "balanceAfter": 0,
+                    "balanceChange": -200
                 },
                 {
-                    rail: "lightrail",
-                    valueId: postTaxPromotion.id,
-                    code: null,
-                    contactId: null,
-                    balanceBefore: 25,
-                    balanceAfter: 0,
-                    balanceChange: -25
+                    "rail": "lightrail",
+                    "valueId": "vs-checkout3-promotion2",
+                    "contactId": null,
+                    "code": null,
+                    "balanceBefore": 25,
+                    "balanceAfter": 0,
+                    "balanceChange": -25
                 },
                 {
-                    rail: "lightrail",
-                    valueId: giftCard.id,
-                    code: null,
-                    contactId: null,
-                    balanceBefore: 1010,
-                    balanceAfter: 1,
-                    balanceChange: -1009
+                    "rail": "lightrail",
+                    "valueId": "vs-checkout3-giftcard",
+                    "contactId": null,
+                    "code": null,
+                    "balanceBefore": 1010,
+                    "balanceAfter": 7,
+                    "balanceChange": -1003
                 }
             ],
             "paymentSources": [
                 {
                     "rail": "lightrail",
-                    "valueId": "vs-order3-giftcard"
+                    "valueId": "vs-checkout3-giftcard"
                 },
                 {
                     "rail": "lightrail",
-                    "valueId": "vs-order3-promotion1"
+                    "valueId": "vs-checkout3-promotion1"
                 },
                 {
                     "rail": "lightrail",
-                    "valueId": "vs-order3-promotion2"
+                    "valueId": "vs-checkout3-promotion2"
                 }
             ],
-            metadata: null,
-            createdDate: null
+            "metadata": null,
+            "createdDate": null
         }, ["createdDate"]);
 
         const getPreTaxPromo = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${preTaxPromotion.id}`, "GET");
@@ -402,36 +392,25 @@ describe("/v2/transactions/order", () => {
 
         const getGiftCardVS = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
         chai.assert.equal(getGiftCardVS.statusCode, 200, `body=${JSON.stringify(getGiftCardVS.body)}`);
-        chai.assert.equal(getGiftCardVS.body.balance, 1);
+        chai.assert.equal(getGiftCardVS.body.balance, 7);
 
-        const getOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/order-3", "GET");
-        chai.assert.equal(getOrderResp.statusCode, 200, `body=${JSON.stringify(getOrderResp.body)}`);
-        chai.assert.deepEqualExcluding(getOrderResp.body, postOrderResp.body, "statusCode");
+        const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout-3", "GET");
+        chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
+        chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, "statusCode");
     });
 
-
-    it("process order with insufficientValue followed by allowRemainder = true", async () => {
+    it("checkout with duplicated values", async () => {
         const giftCard: Partial<Value> = {
-            id: "vs-order4-giftcard",
+            id: generateId(),
             currency: "CAD",
-            balance: 500
-        };
-        const preTaxPromotion: Partial<Value> = {
-            id: "vs-order4-promotion1",
-            currency: "CAD",
-            balance: 200,
-            pretax: true,
-            discount: true
+            balance: 1000
         };
 
-        const createGiftCardResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", giftCard);
-        chai.assert.equal(createGiftCardResp.statusCode, 201, `body=${JSON.stringify(createGiftCardResp.body)}`);
+        const postValueStoreResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", giftCard);
+        chai.assert.equal(postValueStoreResp.statusCode, 201, `body=${JSON.stringify(postValueStoreResp.body)}`);
 
-        const createPromotion1Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", preTaxPromotion);
-        chai.assert.equal(createPromotion1Resp.statusCode, 201, `body=${JSON.stringify(createPromotion1Resp.body)}`);
-
-        let request: any = {
-            id: "order-4",
+        const request = {
+            id: generateId(),
             sources: [
                 {
                     rail: "lightrail",
@@ -439,119 +418,78 @@ describe("/v2/transactions/order", () => {
                 },
                 {
                     rail: "lightrail",
-                    valueId: preTaxPromotion.id
+                    valueId: giftCard.id
                 }
             ],
             lineItems: [
                 {
-                    type: "shipping",
-                    productId: "p1",
-                    unitPrice: 500,
-                    taxRate: 0.05
-                },
-                {
                     type: "product",
-                    productId: "p2",
-                    unitPrice: 333,
-                    quantity: 2,
-                    taxRate: 0.08
+                    productId: "xyz-123",
+                    unitPrice: 50
                 }
             ],
             currency: "CAD"
         };
-        const postOrderRespInsufficientValue = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/order", "POST", request);
-        chai.assert.equal(postOrderRespInsufficientValue.statusCode, 409, `body=${JSON.stringify(postOrderRespInsufficientValue.body)}`);
-        chai.assert.equal(postOrderRespInsufficientValue.body.messageCode, "InsufficientValue", `body=${JSON.stringify(postOrderRespInsufficientValue.body)}`);
-
-        request.allowRemainder = true;
-        const postOrderResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/order", "POST", request);
-        chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
-        chai.assert.deepEqualExcluding(postOrderResp.body, {
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+        chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
+        chai.assert.deepEqualExcluding(postCheckoutResp.body, {
             id: request.id,
-            transactionType: "order",
+            transactionType: "checkout",
             currency: "CAD",
             totals: {
-                subTotal: 1166,
-                tax: 68,
-                discount: 200,
-                payable: 1034,
-                remainder: 534
+                subTotal: 50,
+                tax: 0,
+                discount: 0,
+                payable: 50,
+                remainder: 0,
             },
             lineItems: [
                 {
-                    type: "shipping",
-                    productId: "p1",
-                    unitPrice: 500,
-                    taxRate: 0.05,
+                    type: "product",
+                    productId: "xyz-123",
+                    unitPrice: 50,
                     quantity: 1,
                     lineTotal: {
-                        subtotal: 500,
-                        taxable: 300,
-                        tax: 15,
-                        discount: 200,
-                        payable: 315,
-                        remainder: 0
-                    }
-                },
-                {
-                    type: "product",
-                    productId: "p2",
-                    unitPrice: 333,
-                    quantity: 2,
-                    taxRate: 0.08,
-                    lineTotal: {
-                        subtotal: 666,
-                        taxable: 666,
-                        tax: 53 /* 53.28 */,
+                        subtotal: 50,
+                        taxable: 50,
+                        tax: 0,
                         discount: 0,
-                        payable: 719,
-                        remainder: 534
+                        payable: 50,
+                        remainder: 0
                     }
                 }
             ],
             steps: [
                 {
                     rail: "lightrail",
-                    valueId: preTaxPromotion.id,
-                    code: null,
-                    contactId: null,
-                    balanceBefore: 200,
-                    balanceAfter: 0,
-                    balanceChange: -200
-                },
-                {
-                    rail: "lightrail",
                     valueId: giftCard.id,
                     code: null,
                     contactId: null,
-                    balanceBefore: 500,
-                    balanceAfter: 0,
-                    balanceChange: -500
+                    balanceBefore: 1000,
+                    balanceAfter: 950,
+                    balanceChange: -50
                 }
             ],
-            "paymentSources": [
+            paymentSources: [
                 {
-                    "rail": "lightrail",
-                    "valueId": "vs-order4-giftcard"
+                    rail: "lightrail",
+                    valueId: giftCard.id
                 },
                 {
-                    "rail": "lightrail",
-                    "valueId": "vs-order4-promotion1"
+                    rail: "lightrail",
+                    valueId: giftCard.id
                 }
             ],
-            metadata: null
+            metadata: null,
+            createdDate: null
         }, ["createdDate"]);
 
-        const getPreTaxPromo = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${preTaxPromotion.id}`, "GET");
-        chai.assert.equal(getPreTaxPromo.statusCode, 200, `body=${JSON.stringify(getPreTaxPromo.body)}`);
-        chai.assert.equal(getPreTaxPromo.body.balance, 0);
+        const getValueStoreResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
+        chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(getValueStoreResp.body)}`);
+        chai.assert.equal(getValueStoreResp.body.balance, 950);
 
-        const getGiftCardVS = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
-        chai.assert.equal(getGiftCardVS.statusCode, 200, `body=${JSON.stringify(getGiftCardVS.body)}`);
-        chai.assert.equal(getGiftCardVS.body.balance, 0);
-
-        const getOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/order-4", "GET");
-        chai.assert.equal(getOrderResp.statusCode, 200, `body=${JSON.stringify(getOrderResp.body)}`);
-        chai.assert.deepEqualExcluding(getOrderResp.body, postOrderResp.body, "statusCode");
+        const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
+        chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
+        chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, "statusCode");
     });
 });
