@@ -94,7 +94,7 @@ export function installValuesRest(router: cassava.Router): void {
 
             const now = nowInDbPrecision();
             const value = {
-                ...pick<Value>(evt.body, "contactId", "pretax", "active", "canceled", "frozen", "pretax", "redemptionRule", "valueRule", "startDate", "endDate", "metadata"),
+                ...pick<Value>(evt.body, "contactId", "pretax", "active", "canceled", "frozen", "pretax", "discount", "discountSellerLiability", "redemptionRule", "valueRule", "startDate", "endDate", "metadata"),
                 updatedDate: now
             };
             return {
@@ -433,7 +433,7 @@ const valueUpdateSchema: jsonschema.Schema = {
     type: "object",
     additionalProperties: false,
     properties: {
-        ...pick(valueSchema.properties, "id", "contactId", "active", "frozen", "pretax", "redemptionRule", "valueRule", "discount", "sellerOfferedDiscount", "startDate", "endDate", "metadata"),
+        ...pick(valueSchema.properties, "id", "contactId", "active", "frozen", "pretax", "redemptionRule", "valueRule", "discount", "discountSellerLiability", "startDate", "endDate", "metadata"),
         canceled: {
             type: "boolean"
         }

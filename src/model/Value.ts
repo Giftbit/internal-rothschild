@@ -69,6 +69,8 @@ export namespace Value {
             canceled: v.canceled,
             frozen: v.frozen,
             pretax: v.pretax,
+            discount: v.discount,
+            discountSellerLiability: v.discountSellerLiability,
             redemptionRule: JSON.stringify(v.redemptionRule),
             valueRule: JSON.stringify(v.valueRule),
             startDate: v.startDate,

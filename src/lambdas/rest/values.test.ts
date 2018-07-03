@@ -116,6 +116,20 @@ describe("/v2/values/", () => {
         chai.assert.equal(resp2.statusCode, 422, `body=${JSON.stringify(resp2.body)}`);
     });
 
+    it("can change discount", async () => {
+        const resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "PATCH", {discount: true});
+        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.discount, true);
+        value1.discount = true;
+    });
+
+    it("can change discountSellerLiability", async () => {
+        const resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "PATCH", {discountSellerLiability: 1.0});
+        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.discountSellerLiability, 1.0);
+        value1.discountSellerLiability = 1.0;
+    });
+
     it("cannot change a value's balance", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value1.id}`, "PATCH", {balance: 123123});
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
