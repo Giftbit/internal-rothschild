@@ -4,7 +4,7 @@ import * as log from "loglevel";
 import * as mysql from "mysql2/promise";
 import * as path from "path";
 import {sendCloudFormationResponse} from "../../sendCloudFormationResponse";
-import {getDbCredentials} from "../../dbUtils/connection";
+import {getDbCredentials} from "../../utils/dbUtils/connection";
 
 log.setLevel(log.levels.DEBUG);
 

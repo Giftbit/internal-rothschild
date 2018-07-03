@@ -1,7 +1,7 @@
 import {calculateCheckoutTransactionPlan} from "./calculateTransactionPlan";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import {TransactionPlan, TransactionPlanStep} from "../TransactionPlan";
-import {listPermutations} from "../../../utils/combinatoricUtils";
+import {listPermutations} from "../../../../utils/combinatoricUtils";
 import * as log from "loglevel";
 
 export function optimizeCheckout(checkout: CheckoutRequest, steps: TransactionPlanStep[]): TransactionPlan {
