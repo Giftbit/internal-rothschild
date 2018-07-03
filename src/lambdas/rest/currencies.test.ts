@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import * as testUtils from "../../testUtils";
+import * as testUtils from "../../utils/testUtils";
 import {Currency} from "../../model/Currency";
 import chaiExclude = require("chai-exclude");
 import {Value} from "../../model/Value";

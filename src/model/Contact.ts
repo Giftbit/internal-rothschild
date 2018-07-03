@@ -1,5 +1,5 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {pickDefined} from "../pick";
+import {pickDefined} from "../utils/pick";
 
 export interface Contact {
     id: string;

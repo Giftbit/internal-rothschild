@@ -2,9 +2,9 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Currency, DbCurrency} from "../../model/Currency";
-import {pick} from "../../pick";
+import {pick} from "../../utils/pick";
 import {csvSerializer} from "../../serializers";
-import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
+import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 
 export function installCurrenciesRest(router: cassava.Router): void {
     router.route("/v2/currencies")

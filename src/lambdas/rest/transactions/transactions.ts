@@ -6,12 +6,12 @@ import {resolveTransactionParties} from "./resolveTransactionParties";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {executeTransactionPlanner} from "./executeTransactionPlan";
 import {Pagination, PaginationParams} from "../../../model/Pagination";
-import {getKnexRead} from "../../../dbUtils/connection";
+import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {Filters, TransactionFilterParams} from "../../../model/Filter";
-import {paginateQuery} from "../../../dbUtils/paginateQuery";
+import {paginateQuery} from "../../../utils/dbUtils/paginateQuery";
 import {LightrailTransactionPlanStep} from "./TransactionPlan";
 import {optimizeCheckout} from "./checkout/checkoutTransactionPlanner";
-import {nowInDbPrecision} from "../../../dbUtils";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
 import getPaginationParams = Pagination.getPaginationParams;
 import getTransactionFilterParams = Filters.getTransactionFilterParams;
 
