@@ -33,7 +33,7 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
         } catch (err) {
             log.warn(`Err ${err} was thrown.`);
             if ((err as TransactionPlanError).isTransactionPlanError && (err as TransactionPlanError).isReplanable) {
-                console.info(`Retrying. It's a transaction plan error and it is replanable.`);
+                log.info(`Retrying. It's a transaction plan error and it is replanable.`);
                 continue;
             }
             throw err;
