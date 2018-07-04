@@ -3,7 +3,6 @@ import * as chai from "chai";
 import * as transactions from "../transactions";
 import * as valueStores from "../../values";
 import * as currencies from "../../currencies";
-import * as testUtils from "../../../../testUtils/index";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as sinon from "sinon";
 import {fetchFromS3ByEnvVar} from "giftbit-cassava-routes/dist/secureConfig";
@@ -14,6 +13,7 @@ import {before, describe, it} from "mocha";
 import * as kvsAccess from "../../../utils/kvsAccess";
 import {TransactionPlanError} from "../TransactionPlanError";
 import {transactionUtility} from "../executeTransactionPlan";
+import * as testUtils from "../../../../utils/testUtils";
 
 require("dotenv").config();
 

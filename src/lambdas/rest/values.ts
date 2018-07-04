@@ -3,10 +3,10 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {DbValue, Value} from "../../model/Value";
-import {pick, pickOrDefault} from "../../pick";
+import {pick, pickOrDefault} from "../../utils/pick";
 import {csvSerializer} from "../../serializers";
-import {filterAndPaginateQuery, getSqlErrorConstraintName, nowInDbPrecision} from "../../dbUtils";
-import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
+import {filterAndPaginateQuery, getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
+import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {DbTransaction, LightrailDbTransactionStep} from "../../model/Transaction";
 
 export function installValuesRest(router: cassava.Router): void {
@@ -49,6 +49,7 @@ export function installValuesRest(router: cassava.Router): void {
                     redemptionRule: null,
                     valueRule: null,
                     discount: false,
+                    discountSellerLiability: null,
                     startDate: null,
                     endDate: null,
                     metadata: null
@@ -93,7 +94,7 @@ export function installValuesRest(router: cassava.Router): void {
 
             const now = nowInDbPrecision();
             const value = {
-                ...pick<Value>(evt.body, "contactId", "pretax", "active", "canceled", "frozen", "pretax", "redemptionRule", "valueRule", "startDate", "endDate", "metadata"),
+                ...pick<Value>(evt.body, "contactId", "pretax", "active", "canceled", "frozen", "pretax", "discount", "discountSellerLiability", "redemptionRule", "valueRule", "startDate", "endDate", "metadata"),
                 updatedDate: now
             };
             return {
@@ -154,6 +155,10 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                 },
                 discount: {
                     type: "boolean"
+                },
+                discountOrigin: {
+                    type: "string",
+                    operators: ["eq"]
                 },
                 active: {
                     type: "boolean"
@@ -329,11 +334,11 @@ const valueSchema: jsonschema.Schema = {
             maxLength: 16
         },
         balance: {
-            type: ["number", "null"],
+            type: ["integer", "null"],
             minimum: 0
         },
         uses: {
-            type: ["number", "null"]
+            type: ["integer", "null"]
         },
         code: {
             type: ["string", "null"],
@@ -395,6 +400,11 @@ const valueSchema: jsonschema.Schema = {
         discount: {
             type: "boolean"
         },
+        discountSellerLiability: {
+            type: ["number", "null"],
+            minimum: 0,
+            maximum: 1
+        },
         startDate: {
             type: ["string", "null"],
             format: "date-time"
@@ -407,14 +417,23 @@ const valueSchema: jsonschema.Schema = {
             type: ["object", "null"]
         }
     },
-    required: ["id", "currency"]
+    required: ["id", "currency"],
+    dependencies: {
+        discountSellerLiability: {
+            properties: {
+                discount: {
+                    enum: [true]
+                }
+            }
+        }
+    }
 };
 
 const valueUpdateSchema: jsonschema.Schema = {
     type: "object",
     additionalProperties: false,
     properties: {
-        ...pick(valueSchema.properties, "id", "contactId", "active", "frozen", "pretax", "redemptionRule", "valueRule", "startDate", "endDate", "metadata"),
+        ...pick(valueSchema.properties, "id", "contactId", "active", "frozen", "pretax", "redemptionRule", "valueRule", "discount", "discountSellerLiability", "startDate", "endDate", "metadata"),
         canceled: {
             type: "boolean"
         }

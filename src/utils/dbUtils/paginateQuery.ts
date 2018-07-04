@@ -1,6 +1,6 @@
 import * as knex from "knex";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {Pagination, PaginationParams} from "../model/Pagination";
+import {Pagination, PaginationParams} from "../../model/Pagination";
 
 /**
  * Apply cursor-based pagination to the given query.  All filtering is supported but sorting (ORDER BY)

@@ -89,7 +89,7 @@ export async function resetDb(): Promise<void> {
 
         await connection.query("CREATE DATABASE rothschild");
 
-        const sqlDir = path.join(__dirname, "..", "lambdas", "postDeploy", "schema");
+        const sqlDir = path.join(__dirname, "..", "..", "lambdas", "postDeploy", "schema");
         for (const sqlFile of fs.readdirSync(sqlDir).sort()) {
             const sql = fs.readFileSync(path.join(sqlDir, sqlFile)).toString("utf8");
             await connection.query(sql);

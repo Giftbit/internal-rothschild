@@ -2,13 +2,13 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as parseLinkHeader from "parse-link-header";
-import * as testUtils from "../../testUtils";
+import * as testUtils from "../../utils/testUtils";
 import {DbValue, Value} from "../../model/Value";
 import {Currency} from "../../model/Currency";
 import {Contact} from "../../model/Contact";
 import chaiExclude = require("chai-exclude");
-import {defaultTestUser} from "../../testUtils";
-import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
+import {defaultTestUser} from "../../utils/testUtils";
+import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {LightrailTransactionStep, Transaction} from "../../model/Transaction";
 import {installRestRoutes} from "./installRestRoutes";
 
@@ -80,6 +80,7 @@ describe("/v2/values/", () => {
             redemptionRule: null,
             valueRule: null,
             discount: false,
+            discountSellerLiability: null,
             metadata: null
         }, ["createdDate", "updatedDate"]);
         value1 = resp2.body;
@@ -113,6 +114,20 @@ describe("/v2/values/", () => {
 
         const resp2 = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value1.id}`, "PATCH", {currency: currency2.code});
         chai.assert.equal(resp2.statusCode, 422, `body=${JSON.stringify(resp2.body)}`);
+    });
+
+    it("can change discount", async () => {
+        const resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "PATCH", {discount: true});
+        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.discount, true);
+        value1.discount = true;
+    });
+
+    it("can change discountSellerLiability", async () => {
+        const resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "PATCH", {discountSellerLiability: 1.0});
+        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.discountSellerLiability, 1.0);
+        value1.discountSellerLiability = 1.0;
     });
 
     it("cannot change a value's balance", async () => {
@@ -234,6 +249,16 @@ describe("/v2/values/", () => {
 
     it("422s on creating a value with a negative balance", async () => {
         const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {id: "negativebalance", currency: "USD", balance: -5000});
+        chai.assert.equal(resp.statusCode, 422, `create body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("422s on creating a value with discountSellerLiability set and discount=false", async () => {
+        const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: "discount-origin-test",
+            currency: "USD",
+            discount: false,
+            discountSellerLiability: 1.0
+        });
         chai.assert.equal(resp.statusCode, 422, `create body=${JSON.stringify(resp.body)}`);
     });
 

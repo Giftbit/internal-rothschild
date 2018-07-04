@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import * as testUtils from "../../../testUtils";
+import * as testUtils from "../../../utils/testUtils";
 import {Value} from "../../../model/Value";
 import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
 import {Currency} from "../../../model/Currency";
@@ -69,7 +69,9 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.deepEqualExcluding(postTransferResp.body, {
             id: "transfer-1",
             transactionType: "transfer",
-            totals: {remainder: 0},
+            totals: {
+                remainder: 0
+            },
             currency: "CAD",
             lineItems: null,
             steps: null,
@@ -147,10 +149,12 @@ describe("/v2/transactions/transfer", () => {
             currency: "CAD",
             simulate: true
         });
-        const validObject = {
+        const validObject: Transaction = {
             id: "transfer-2",
             transactionType: "transfer",
-            totals: {remainder: 0},
+            totals: {
+                remainder: 0
+            },
             currency: "CAD",
             lineItems: null,
             steps: null,
@@ -159,18 +163,7 @@ describe("/v2/transactions/transfer", () => {
             createdDate: null
         };
         chai.assert.equal(postTransferResp.statusCode, 200, `body=${JSON.stringify(postTransferResp.body)}`);
-        // chai.assert.deepEqualExcluding(postTransferResp.body, validObject, ["steps", "createdDate"]);   // TODO this should be fine but the compiler complains. validObject copied directly into test below as temp measure.
-        chai.assert.deepEqualExcluding(postTransferResp.body, {
-            id: "transfer-2",
-            transactionType: "transfer",
-            totals: {remainder: 0},
-            currency: "CAD",
-            lineItems: null,
-            steps: null,
-            paymentSources: null,
-            metadata: null,
-            createdDate: null
-        }, ["steps", "createdDate"]);
+        chai.assert.deepEqualExcluding(postTransferResp.body, validObject, ["steps", "createdDate"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
         const sourceStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad1.id) as LightrailTransactionStep;
@@ -223,7 +216,9 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.deepEqualExcluding(postTransferResp.body, {
             id: "transfer-3",
             transactionType: "transfer",
-            totals: {remainder: 7500 - 500},
+            totals: {
+                remainder: 7500 - 500
+            },
             currency: "CAD",
             lineItems: null,
             steps: null,

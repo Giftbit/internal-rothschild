@@ -1,13 +1,13 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import * as chai from "chai";
-import * as testUtils from "../../../testUtils";
-import {alternateTestUser, defaultTestUser} from "../../../testUtils";
+import * as testUtils from "../../../utils/testUtils";
+import {alternateTestUser, defaultTestUser} from "../../../utils/testUtils";
 import * as currencies from "../currencies";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
 import {Value} from "../../../model/Value";
-import {getKnexWrite} from "../../../dbUtils/connection";
+import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import {installRestRoutes} from "../installRestRoutes";
 
 describe("/v2/transactions", () => {

@@ -221,6 +221,7 @@ describe("optimizeCheckout", () => {
             canceled: null,
             frozen: null,
             discount: null,
+            discountSellerLiability: null,
             redemptionRule: null,
             valueRule: null,
             startDate: null,

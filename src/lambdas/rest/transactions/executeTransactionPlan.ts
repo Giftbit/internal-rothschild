@@ -5,15 +5,15 @@ import {DbTransactionStep, Transaction} from "../../../model/Transaction";
 import {DbValue} from "../../../model/Value";
 import {transactionPlanToTransaction} from "./transactionPlanToTransaction";
 import {TransactionPlanError} from "./TransactionPlanError";
-import {getKnexWrite} from "../../../dbUtils/connection";
-import {StripeTransactionParty} from "../../../model/TransactionRequest";
-import {setupLightrailAndMerchantStripeConfig} from "../../utils/stripeUtils/stripeAccess";
-import {nowInDbPrecision} from "../../../dbUtils";
+import {getKnexWrite} from "../../../utils/dbUtils/connection";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
 import * as log from "loglevel";
 import {createStripeCharge, rollbackStripeSteps} from "../../utils/stripeUtils/stripeTransactions";
 import {StripeRestError} from "../../utils/stripeUtils/StripeRestError";
-import Knex = require("knex");
 import {StripeUpdateChargeParams} from "../../utils/stripeUtils/StripeUpdateChargeParams";
+import {setupLightrailAndMerchantStripeConfig} from "../../utils/stripeUtils/stripeAccess";
+import {StripeTransactionParty} from "../../../model/TransactionRequest";
+import Knex = require("knex");
 
 export interface ExecuteTransactionPlannerOptions {
     allowRemainder: boolean;

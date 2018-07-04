@@ -1,5 +1,5 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {pick} from "../pick";
+import {pick} from "../utils/pick";
 
 export interface Currency {
     code: string;
