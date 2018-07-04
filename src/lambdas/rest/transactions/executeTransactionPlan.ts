@@ -13,6 +13,7 @@ import * as log from "loglevel";
 import {createStripeCharge, rollbackStripeSteps} from "../../utils/stripeUtils/stripeTransactions";
 import {StripeRestError} from "../../utils/stripeUtils/StripeRestError";
 import Knex = require("knex");
+import {StripeUpdateChargeParams} from "../../utils/stripeUtils/StripeUpdateChargeParams";
 
 export interface ExecuteTransactionPlannerOptions {
     allowRemainder: boolean;
@@ -167,7 +168,7 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
 }
 
 
-function stripeTransactionPlanStepToStripeRequest(step: StripeTransactionPlanStep, plan: TransactionPlan) { // TODO use existing interface/namespace? StripeChargeRequest or something? 4 versions of stripe steps (?!): TransactionPlanStep, TransactionStep, database, and what gets sent to stripe
+function stripeTransactionPlanStepToStripeRequest(step: StripeTransactionPlanStep, plan: TransactionPlan): StripeUpdateChargeParams {
     let stepForStripe: any = {
         amount: step.amount,
         currency: plan.currency,
