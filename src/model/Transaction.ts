@@ -1,6 +1,6 @@
 import * as stripe from "stripe";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {getKnexRead} from "../dbUtils/connection";
+import {getKnexRead} from "../utils/dbUtils/connection";
 import {LineItem} from "./LineItem";
 import {TransactionParty} from "./TransactionRequest";
 import {LightrailDbTransactionStep} from "./Transaction";
@@ -138,6 +138,13 @@ export interface TransactionPlanTotals {
     discount?: number;
     payable?: number;
     remainder?: number;
+    marketplace?: MarketplaceTransactionTotals;
+}
+
+export interface MarketplaceTransactionTotals {
+    sellerGross: number;
+    sellerDiscount: number;
+    sellerNet: number;
 }
 
 export type DbTransactionStep = LightrailDbTransactionStep | StripeDbTransactionStep | InternalDbTransactionStep;

@@ -3,7 +3,7 @@ import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as transactions from "../transactions";
 import * as valueStores from "../../values";
-import * as testUtils from "../../../../testUtils";
+import * as testUtils from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
 import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";

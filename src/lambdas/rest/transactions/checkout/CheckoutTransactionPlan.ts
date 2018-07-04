@@ -1,8 +1,8 @@
-import {TransactionPlan, TransactionPlanStep} from "../TransactionPlan";
+import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "../TransactionPlan";
 import {CheckoutRequest, TransactionParty} from "../../../../model/TransactionRequest";
 import {LineItemResponse} from "../../../../model/LineItem";
-import {TransactionPlanTotals, TransactionType} from "../../../../model/Transaction";
-import {bankersRounding} from "../../../utils/moneyUtils";
+import {LightrailTransactionStep, TransactionPlanTotals, TransactionType} from "../../../../model/Transaction";
+import {bankersRounding} from "../../../../utils/moneyUtils";
 
 export class CheckoutTransactionPlan implements TransactionPlan {
     id: string;
@@ -51,7 +51,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
             payable: 0,
             remainder: 0,
         };
-        for (let item of this.lineItems) {
+        for (const item of this.lineItems) {
             item.lineTotal.payable = item.lineTotal.subtotal + item.lineTotal.tax - item.lineTotal.discount;
             this.totals.subTotal += item.lineTotal.subtotal;
             this.totals.tax += item.lineTotal.tax;
@@ -61,6 +61,36 @@ export class CheckoutTransactionPlan implements TransactionPlan {
         for (const item of this.lineItems) {
             this.totals.remainder += item.lineTotal.remainder;
         }
+
+        this.calculateMarketplaceTotals();
+    }
+
+    private calculateMarketplaceTotals(): void {
+        if (!this.lineItems || !this.lineItems.find(lineItem => lineItem.marketplaceRate !== undefined)) {
+            // Marketplace totals are only set if an item has a marketplaceRate.
+            this.totals.marketplace = undefined;
+            return;
+        }
+
+        let sellerGross = 0;
+        for (const item of this.lineItems) {
+            const rate = item.marketplaceRate != null ? item.marketplaceRate : 0;
+            sellerGross += (1.0 - rate) * item.unitPrice * (item.quantity || 1);
+        }
+        sellerGross = bankersRounding(sellerGross, 0);
+
+        let sellerDiscount = 0;
+        for (const step of this.steps) {
+            if (step.rail === "lightrail" && (step as LightrailTransactionPlanStep).value.discount && (step as LightrailTransactionPlanStep).value.discountSellerLiability) {
+                sellerDiscount -= (step as LightrailTransactionPlanStep).amount * (step as LightrailTransactionPlanStep).value.discountSellerLiability;
+            }
+        }
+
+        this.totals.marketplace = {
+            sellerGross: sellerGross,
+            sellerDiscount: sellerDiscount,
+            sellerNet: sellerGross - sellerDiscount
+        };
     }
 
     calculateTaxAndSetOnLineItems(): void {

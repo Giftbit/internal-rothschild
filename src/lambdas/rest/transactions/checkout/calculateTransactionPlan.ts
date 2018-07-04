@@ -3,7 +3,7 @@ import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import {Value} from "../../../../model/Value";
 import {RuleContext} from "../RuleContext";
 import {CheckoutTransactionPlan} from "./CheckoutTransactionPlan";
-import {bankersRounding} from "../../../utils/moneyUtils";
+import {bankersRounding} from "../../../../utils/moneyUtils";
 import * as log from "loglevel";
 
 export function calculateCheckoutTransactionPlan(checkout: CheckoutRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
