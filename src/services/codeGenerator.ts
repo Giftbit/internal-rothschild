@@ -39,17 +39,18 @@ export function generateCode(params: GenerateCodeParameters): string {
     return (params.prefix ? params.prefix : "") + generateRandomString(options.length, options.charset) + (params.suffix ? params.suffix : "");
 }
 
+// todo - this will need to be updated when supporting generating strings from emoji charsets.
 function generateRandomString(length: number, charset: string) {
     const randomBytes = crypto.randomBytes(length);
     let randomString: string = "";
     for (let i = 0; i < length; i++) {
         randomString += charset[randomBytes[i] % charset.length];
     }
-    return randomString
+    return randomString;
 }
 
 export function containsDuplicates(str: string) {
-    const arr = str.split('');
+    const arr = str.split("");
     const hash = new Map();
 
     for (let char of str) {

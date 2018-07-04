@@ -54,8 +54,8 @@ export function generateKey() {
     const salt = (cryptojs.lib.WordArray as any).random(128 / 8);
     const key128Bits = cryptojs.PBKDF2(secretPassphrase, salt, {keySize: 128 / 32});
     const key256Bits = cryptojs.PBKDF2(secretPassphrase, salt, {keySize: 256 / 32});
-    console.log("128bit key: " + key128Bits);
-    console.log("256bit key: " + key256Bits);
+    // console.log("128bit key: " + key128Bits);
+    // console.log("256bit key: " + key256Bits);
 }
 
 export interface CodeCryptographySecrets {

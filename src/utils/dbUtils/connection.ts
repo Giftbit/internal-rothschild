@@ -2,13 +2,13 @@ import * as aws from "aws-sdk";
 import * as knex from "knex";
 import * as log from "loglevel";
 
-let dbCredentials: {username: string, password: string} = null;
+let dbCredentials: { username: string, password: string } = null;
 const isTestEnv = !!process.env["TEST_ENV"];
 
 let knexWriteClient: knex = null;
 let knexReadClient: knex = null;
 
-export async function getDbCredentials(): Promise<{username: string, password: string}> {
+export async function getDbCredentials(): Promise<{ username: string, password: string }> {
     if (dbCredentials) {
         return dbCredentials;
     }
