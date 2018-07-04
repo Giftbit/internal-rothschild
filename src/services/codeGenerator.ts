@@ -4,6 +4,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 
 const ALPHANUMBERIC_CHARSET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const DEFAULT_LENGTH = 16;
 
 /**
  * @param {GenerateCodeParameters} params
@@ -19,7 +20,7 @@ const ALPHANUMBERIC_CHARSET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
  */
 export function generateCode(params: GenerateCodeParameters): string {
     let options = {
-        length: params.length,
+        length: params.length ? params.length : DEFAULT_LENGTH,
         charset: params.charset ? params.charset : ALPHANUMBERIC_CHARSET
     };
 

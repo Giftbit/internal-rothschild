@@ -716,9 +716,7 @@ describe("/v2/values/", () => {
         let value = {
             id: "generateCodeTest-1",
             currency: "USD",
-            generateCode: {
-                length: 20
-            },
+            generateCode: {},
             balance: 0
         };
         let firstGeneratedCode: string;
@@ -734,7 +732,7 @@ describe("/v2/values/", () => {
             const showCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}?showCode=true`, "GET");
             chai.assert.equal(showCode.statusCode, 200, `body=${JSON.stringify(showCode.body)}`);
             firstGeneratedCode = showCode.body.code;
-            chai.assert.equal(firstGeneratedCode.length, 20);
+            chai.assert.equal(firstGeneratedCode.length, 16);
 
             const knex = await getKnexRead();
             let res: DbValue[] = await knex("Values")
@@ -755,7 +753,8 @@ describe("/v2/values/", () => {
         it("can regenerate a code", async () => {
             const changeCodeSecure = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}/changeCode`, "POST", {
                 generateCode: {
-                    length: 15, prefix: "SPRING"
+                    length: 15,
+                    prefix: "SPRING"
                 }
             });
             chai.assert.equal(changeCodeSecure.statusCode, 200, `body=${JSON.stringify(changeCodeSecure.body)}`);

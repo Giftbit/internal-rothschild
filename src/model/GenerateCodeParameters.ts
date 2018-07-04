@@ -1,5 +1,5 @@
 export interface GenerateCodeParameters {
-    length: number;
+    length?: number;
     charset?: string;
     prefix?: string;
     suffix?: string;
