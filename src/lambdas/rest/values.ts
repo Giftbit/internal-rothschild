@@ -11,7 +11,7 @@ import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {DbTransaction, LightrailDbTransactionStep} from "../../model/Transaction";
 import {codeLastFour, DbCode} from "../../model/DbCode";
 import {generateCode} from "../../services/codeGenerator";
-import {computeLookupHash} from "../../codeCryptoUtils";
+import {computeCodeLookupHash} from "../../utils/codeCryptoUtils";
 
 export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
@@ -191,10 +191,6 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                 discount: {
                     type: "boolean"
                 },
-                discountOrigin: {
-                    type: "string",
-                    operators: ["eq"]
-                },
                 active: {
                     type: "boolean"
                 },
@@ -317,7 +313,7 @@ export async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, i
 export async function getValueByCode(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string, showCode: boolean = false): Promise<Value> {
     auth.requireIds("giftbitUserId");
 
-    const codeHashed = computeLookupHash(code, auth);
+    const codeHashed = computeCodeLookupHash(code, auth);
     log.debug("getValueByCode codeHashed=", codeHashed);
 
     const knex = await getKnexRead();

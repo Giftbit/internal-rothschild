@@ -5,7 +5,7 @@ import {csvSerializer} from "../../serializers";
 import {Pagination} from "../../model/Pagination";
 import {Value} from "../../model/Value";
 import {getContact} from "./contacts";
-import {getKnexWrite} from "../../dbUtils/connection";
+import {getKnexWrite} from "../../utils/dbUtils/connection";
 
 export function installContactValuesRest(router: cassava.Router): void {
     router.route("/v2/contacts/{id}/values")

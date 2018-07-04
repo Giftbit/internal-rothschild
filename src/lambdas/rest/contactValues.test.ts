@@ -3,12 +3,13 @@ import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {Contact} from "../../model/Contact";
 import {installRestRoutes} from "./installRestRoutes";
-import * as testUtils from "../../testUtils";
+import * as testUtils from "../../utils/testUtils";
 import {createContact} from "./contacts";
 import {Currency} from "../../model/Currency";
 import {createCurrency} from "./currencies";
 import {Value} from "../../model/Value";
 import {describe, it, before} from "mocha";
+import {initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils";
 
 describe.only("/v2/contacts/values", () => {
 
@@ -18,6 +19,10 @@ describe.only("/v2/contacts/values", () => {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
         installRestRoutes(router);
+        await initializeCodeCryptographySecrets(Promise.resolve({
+            encryptionSecret: "ca7589aef4ffed15783341414fe2f4a5edf9ddad75cf2e96ed2a16aee88673ea",
+            lookupHashSecret: "ae8645165cc7533dbcc84aeb21c7d6553a38271b7e3402f99d16b8a8717847e1"
+        }));
     });
 
     const currency: Currency = {
@@ -64,7 +69,8 @@ describe.only("/v2/contacts/values", () => {
         const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
             id: "add-generic-by-id",
             currency: currency.code,
-            genericCode: value2GenericCode
+            code: value2GenericCode,
+            isGenericCode: true
         });
         chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
         value2 = resp1.body;
@@ -84,7 +90,8 @@ describe.only("/v2/contacts/values", () => {
         const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
             id: "add-generic-by-code",
             currency: currency.code,
-            genericCode: value3GenericCode
+            code: value3GenericCode,
+            isGenericCode: true
         });
         chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
         value3 = resp1.body;
