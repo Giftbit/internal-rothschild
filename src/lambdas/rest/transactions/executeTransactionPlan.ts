@@ -141,21 +141,11 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
                         amount: step.chargeResult.amount,
                         charge: JSON.stringify(step.chargeResult)
                     });
-
-                const sanityCheckStripeStep: DbTransactionStep[] = await trx.from("StripeTransactionSteps")
-                    .where({chargeId: step.chargeResult.id})
-                    .select();
-                if (sanityCheckStripeStep.length !== 1) {
-                    throw new TransactionPlanError(`Transaction execution canceled because Stripe transaction step updated ${sanityCheckStripeStep.length} rows.  rows: ${JSON.stringify(sanityCheckStripeStep)}`, {
-                        isReplanable: false
-                    });
-                }
             }
-
             await transactionUtility.processLightrailSteps(auth, trx, lrSteps, plan.id, plan.createdDate);
-
         } catch (err) {
             await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side: ${JSON.stringify(err)}`);
+
             if (err.code === "ER_DUP_ENTRY") {
                 throw new giftbitRoutes.GiftbitRestError(409, `A transaction step in transaction '${plan.id}' already exists: stepId=${""}`, "TransactionStepExists");
             } else {
