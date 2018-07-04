@@ -58,8 +58,8 @@ async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.Authorizat
     const knex = await getKnexWrite();
     await knex.transaction(async trx => {
         plan.createdDate = nowInDbPrecision(); // todo - should this be defined earlier?
-        await insertTransaction(trx, auth, plan);
-        await stepProcessor.processLightrailSteps(auth, trx, plan.steps as LightrailTransactionPlanStep[], plan.id, plan.createdDate);
+        await transactionUtility.insertTransaction(trx, auth, plan);
+        await transactionUtility.processLightrailSteps(auth, trx, plan.steps as LightrailTransactionPlanStep[], plan.id, plan.createdDate);
     });
 
     return transactionPlanToTransaction(plan);
@@ -115,12 +115,14 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
     plan.createdDate = nowInDbPrecision(); // todo - should this be defined earlier?
 
     try {
-        await insertTransaction(knex, auth, plan);
+        await transactionUtility.insertTransaction(knex, auth, plan);
     } catch (err) {
-        if ((err as GiftbitRestError).statusCode === 409 && err.messageCode === "TransactionExists") {
-            await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side: ${JSON.stringify(err)}`);
+        if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "TransactionExists") {
+            await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded because transaction already exists on Lightrail side: ${JSON.stringify(err)}`);
+            err.message = `${err.message} The associated Stripe charge(s) '${stripeSteps.map(step => step.chargeResult.id)}' have been refunded.`;
             throw err;
         } else {
+            await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side: ${JSON.stringify(err)}`);
             throw err;
         }
     }
@@ -149,7 +151,7 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
             }
         }
 
-        await stepProcessor.processLightrailSteps(auth, knex, lrSteps, plan.id, plan.createdDate);
+        await transactionUtility.processLightrailSteps(auth, knex, lrSteps, plan.id, plan.createdDate);
 
     } catch (err) {
         await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side: ${JSON.stringify(err)}`);
@@ -164,8 +166,6 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
     return transactionPlanToTransaction(plan);
 }
 
-
-// STRIPE HELPERS
 
 function stripeTransactionPlanStepToStripeRequest(step: StripeTransactionPlanStep, plan: TransactionPlan) { // TODO use existing interface/namespace? StripeChargeRequest or something? 4 versions of stripe steps (?!): TransactionPlanStep, TransactionStep, database, and what gets sent to stripe
     let stepForStripe: any = {
@@ -186,28 +186,7 @@ function stripeTransactionPlanStepToStripeRequest(step: StripeTransactionPlanSte
     return stepForStripe;
 }
 
-async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan) {
-    try {
-        await trx.into("Transactions")
-            .insert({
-                userId: auth.giftbitUserId,
-                id: plan.id,
-                transactionType: plan.transactionType,
-                currency: plan.currency,
-                totals: JSON.stringify(plan.totals),
-                lineItems: JSON.stringify(plan.lineItems),
-                paymentSources: JSON.stringify(plan.paymentSources), // todo check format: stripe token?
-                metadata: JSON.stringify(plan.metadata),
-                createdDate: plan.createdDate
-            });
-    } catch (err) {
-        if (err.code === "ER_DUP_ENTRY") {
-            throw new giftbitRoutes.GiftbitRestError(409, `A transaction with transactionId '${plan.id}' already exists.`, "TransactionExists");
-        }
-    }
-}
-
-export const stepProcessor = {
+export const transactionUtility = {
     // this function is now a method on an exported object to make it easy to mock in tests that simulate errors
     processLightrailSteps: async function processLightrailSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, steps: LightrailTransactionPlanStep[], transactionId: string, createdDate: Date) {
 
@@ -304,6 +283,27 @@ export const stepProcessor = {
                 });
         }
 
-    }
+    },
 
+    // this function is now a method on an exported object to make it easy to mock in tests that simulate errors
+    insertTransaction: async function (trx: Knex, auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan) {
+        try {
+            await trx.into("Transactions")
+                .insert({
+                    userId: auth.giftbitUserId,
+                    id: plan.id,
+                    transactionType: plan.transactionType,
+                    currency: plan.currency,
+                    totals: JSON.stringify(plan.totals),
+                    lineItems: JSON.stringify(plan.lineItems),
+                    paymentSources: JSON.stringify(plan.paymentSources), // todo check format: stripe token?
+                    metadata: JSON.stringify(plan.metadata),
+                    createdDate: plan.createdDate
+                });
+        } catch (err) {
+            if (err.code === "ER_DUP_ENTRY") {
+                throw new giftbitRoutes.GiftbitRestError(409, `A Lightrail transaction with transactionId '${plan.id}' already exists.`, "TransactionExists");
+            }
+        }
+    }
 };

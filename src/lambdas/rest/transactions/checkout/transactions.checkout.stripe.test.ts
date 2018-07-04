@@ -13,7 +13,7 @@ import {Currency} from "../../../../model/Currency";
 import {before, describe, it} from "mocha";
 import * as kvsAccess from "../../../utils/kvsAccess";
 import {TransactionPlanError} from "../TransactionPlanError";
-import {stepProcessor} from "../executeTransactionPlan";
+import {transactionUtility} from "../executeTransactionPlan";
 
 require("dotenv").config();
 
@@ -586,7 +586,7 @@ describe("split tender checkout with Stripe", () => {
         }).timeout(3000);
 
         it("rolls back the Stripe transaction when the Lightrail transaction fails", async () => {
-            let stubProcessLightrailTransactionSteps = sinon.stub(stepProcessor, "processLightrailSteps");
+            let stubProcessLightrailTransactionSteps = sinon.stub(transactionUtility, "processLightrailSteps");
             stubProcessLightrailTransactionSteps.throws(new TransactionPlanError("error for tests", {isReplanable: false}));
 
             const request = {
@@ -597,10 +597,23 @@ describe("split tender checkout with Stripe", () => {
             chai.assert.equal(postCheckoutResp.statusCode, 500, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
             // todo check that metadata on Stripe charge gets updated with refund note
 
-            (stepProcessor.processLightrailSteps as any).restore();
+            (transactionUtility.processLightrailSteps as any).restore();
         }).timeout(3000);
 
-        it.skip("throws 'this id is already in use' if the Lightrail transaction fails for idempotency reasons");
+        it("throws 409 'transaction already exists' if the Lightrail transaction fails for idempotency reasons", async () => {
+            let stubInsertTransaction = sinon.stub(transactionUtility, "insertTransaction");
+            stubInsertTransaction.withArgs(sinon.match.any, sinon.match.any, sinon.match.any).throws(new giftbitRoutes.GiftbitRestError(409, `A transaction with transactionId 'TEST-ID-IRRELEVANT' already exists.`, "TransactionExists"));
+            const request = {
+                ...basicRequest,
+                id: `rollback-test-2-${Math.random()}`  // needs to be generated for every test so the Stripe refund succeeds (charges use idempotency keys, refunds can't)
+            };
+
+            const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+            chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
+            chai.assert.equal((postCheckoutResp.body as any).messageCode, "TransactionExists", `messageCode=${(postCheckoutResp.body as any).messageCode}`);
+
+            (transactionUtility.insertTransaction as any).restore();
+        }).timeout(3000);
     });
 
     it("processes split tender checkout with two Stripe sources", async () => {
