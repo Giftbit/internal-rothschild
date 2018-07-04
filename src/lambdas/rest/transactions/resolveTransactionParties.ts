@@ -48,10 +48,6 @@ export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.Auth
             maxAmount: p.maxAmount || null,
             amount: 0
         }));
-    // if (stripeSteps.length > 0) {
-    //     // TODO fetch and fill in stripeSecretKey
-    //     throw new cassava.RestError(500, "stripe isn't supported yet");
-    // }
 
     return [...lightrailSteps, ...internalSteps, ...stripeSteps];
 }

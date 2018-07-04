@@ -162,7 +162,6 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
         }
     }
 
-    // TODO FIX PLACEHOLDER: NEED TO UPDATE PLAN BEFORE CONVERTING
     return transactionPlanToTransaction(plan);
 }
 
@@ -213,25 +212,6 @@ export const transactionUtility = {
                 updateProperties.uses = trx.raw(`uses - 1`);
             }
             query = query.update(updateProperties);
-
-
-            // did this section get safely updated in the merge?
-            //
-            // for (let stepIx = 0; stepIx < steps.length; stepIx++) {
-            // const step = steps[stepIx] as LightrailTransactionPlanStep;
-            // let query = trx.into("Values")
-            //     .where({
-            //         userId: auth.giftbitUserId,
-            //         id: step.value.id
-            //     })
-            //     .increment("balance", step.amount);
-            // if (step.amount < 0 && !step.value.valueRule /* if it has a valueRule then balance is 0 or null */) {
-            //     query = query.where("balance", ">=", -step.amount);
-            // }
-            // if (step.value.uses !== null) {
-            //     query = query.where("uses", ">", 0)
-            //         .increment("uses", -1);
-            // }
 
             const res = await query;
             if (res !== 1) {
@@ -296,7 +276,7 @@ export const transactionUtility = {
                     currency: plan.currency,
                     totals: JSON.stringify(plan.totals),
                     lineItems: JSON.stringify(plan.lineItems),
-                    paymentSources: JSON.stringify(plan.paymentSources), // todo check format: stripe token?
+                    paymentSources: JSON.stringify(plan.paymentSources),
                     metadata: JSON.stringify(plan.metadata),
                     createdDate: plan.createdDate
                 });

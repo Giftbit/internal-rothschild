@@ -254,66 +254,6 @@ describe("split tender checkout with Stripe", () => {
             chargeId: "",
         }, "chargeId", `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
 
-        // doing a deepEqual on the whole response body would be nice, but isn't great for changing parts of the response (eg if all instances of chargeId are ignored it's hard to tell if it's coming back in the right places)
-        // chai.assert.deepEqualExcludingEvery(postCheckoutResp.body, {
-        //     id: request.id,
-        //     transactionType: "checkout",
-        //     currency: "CAD",
-        //     totals: {
-        //         subTotal: 500,
-        //         tax: 0,
-        //         discount: 0,
-        //         payable: 500,
-        //         remainder: 0
-        //     },
-        //     lineItems: [
-        //         {
-        //             type: "product",
-        //             productId: "xyz-123",
-        //             unitPrice: 500,
-        //             quantity: 1,
-        //             lineTotal: {
-        //                 subtotal: 500,
-        //                 taxable: 500,
-        //                 tax: 0,
-        //                 discount: 0,
-        //                 payable: 500,
-        //                 remainder: 0
-        //             }
-        //         }
-        //     ],
-        //     steps: [
-        //         {
-        //             rail: "lightrail",
-        //             valueId: value.id,
-        //             code: null,
-        //             contactId: null,
-        //             balanceBefore: 100,
-        //             balanceAfter: 0,
-        //             balanceChange: -100
-        //         },
-        //         {
-        //             rail: "stripe",
-        //             chargeId: "",
-        //             amount: 400,
-        //             charge: null
-        //         }
-        //     ],
-        //     paymentSources: [
-        //         {
-        //             rail: "lightrail",
-        //             valueId: value.id
-        //         },
-        //         {
-        //             rail: "stripe",
-        //             source: "tok_visa",
-        //             chargeId: "",
-        //         }
-        //     ],
-        //     metadata: null,
-        //     createdDate: null
-        // }, ["createdDate", "chargeId", "charge"]);
-
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
         chai.assert.equal(getValueResp.body.balance, 0);

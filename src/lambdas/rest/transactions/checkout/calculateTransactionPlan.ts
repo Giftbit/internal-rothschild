@@ -41,10 +41,8 @@ function evaluateTransactionSteps(steps: TransactionPlanStep[], transactionPlan:
                 evaluateLightrailTransactionStep(step, transactionPlan);
                 break;
             case "stripe":
-                // console.log("\nTXN PLAN WHEN CALCULATING STRIPE STEP: \n" + JSON.stringify(transactionPlan, null, 4));
                 evaluateStripeTransactionStep(step, transactionPlan);
                 break;
-            // throw new Error("not yet implemented");
             case "internal":
                 throw new Error("not yet implemented");
         }
@@ -89,8 +87,6 @@ function evaluateLightrailTransactionStep(step: LightrailTransactionPlanStep, tr
 }
 
 function evaluateStripeTransactionStep(step, transactionPlan): void {
-    // console.log("STEP\n" + JSON.stringify(step, null, 4));
-
     let amount: number = 0;
 
     for (let item of transactionPlan.lineItems) {
@@ -111,21 +107,7 @@ function evaluateStripeTransactionStep(step, transactionPlan): void {
     }
 
     step.amount += amount;
-    // console.log("STEP after eval\n" + JSON.stringify(step, null, 4));
 }
-
-// this seems to have disappeared in the merge: where did it go?
-//
-// function applyTax(transactionPlan: TransactionPlan): void {
-//     for (let item of transactionPlan.lineItems) {
-//         let tax = 0;
-//         item.lineTotal.taxable = item.lineTotal.subtotal - item.lineTotal.discount;
-//         if (item.taxRate >= 0) {
-//             tax = bankersRounding(item.taxRate * item.lineTotal.taxable, 0);
-//         }
-//         item.lineTotal.tax = tax;
-//         item.lineTotal.remainder += tax;
-//     }
 
 function getAvailableBalance(value: Value, step: LightrailTransactionPlanStep): number {
     return value.balance + step.amount;

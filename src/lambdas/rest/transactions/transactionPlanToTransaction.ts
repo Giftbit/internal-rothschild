@@ -21,7 +21,7 @@ export function transactionPlanToTransaction(plan: TransactionPlan, simulated?: 
         totals: plan.totals,
         lineItems: plan.lineItems,
         steps: plan.steps.map(step => transactionPlanStepToTransactionStep(step, plan)),
-        paymentSources: plan.paymentSources, // .map(source => transactionPlanSourcesToTransactionSources(source)),
+        paymentSources: plan.paymentSources,
         metadata: plan.metadata || null,
         createdDate: plan.createdDate
     };
@@ -78,19 +78,3 @@ function internalTransactionPlanStepToTransactionStep(step: InternalTransactionP
         balanceChange: step.amount
     };
 }
-
-// function transactionPlanSourcesToTransactionSources(source: TransactionParty) {
-//     switch (source.rail) {
-//         case "lightrail":
-//             return source;
-//         case "stripe":
-//             console.log("\n\nHERE");
-//             console.log(JSON.stringify(source, null, 4));
-//             return {
-//                 rail: source.rail,
-//                 source: source.source
-//             };
-//         case "internal":
-//             return source;
-//     }
-// }
