@@ -549,7 +549,7 @@ Resources:
                 Resource: "arn:aws:logs:*:*:*"
               - Effect: Allow
                 Action:
-                  - kms:decryptCode
+                  - kms:decrypt
                 Resource: !GetAtt StackKey.Arn
               - Effect: Allow
                 Action:
