@@ -1,4 +1,5 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import {GiftbitRestError} from "giftbit-cassava-routes";
 import {LightrailTransactionPlanStep, StripeTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {DbTransactionStep, Transaction} from "../../../model/Transaction";
 import {DbValue} from "../../../model/Value";
@@ -9,7 +10,7 @@ import {StripeTransactionParty} from "../../../model/TransactionRequest";
 import {setupLightrailAndMerchantStripeConfig} from "../../utils/stripeUtils/stripeAccess";
 import {nowInDbPrecision} from "../../../dbUtils";
 import * as log from "loglevel";
-import {createStripeCharge, rollbackStripeStep} from "../../utils/stripeUtils/stripeTransactions";
+import {createStripeCharge, rollbackStripeSteps} from "../../utils/stripeUtils/stripeTransactions";
 import {StripeRestError} from "../../utils/stripeUtils/StripeRestError";
 import Knex = require("knex");
 
@@ -113,7 +114,16 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
     // await knex.transaction(async trx => {  // todo wrap everything
     plan.createdDate = nowInDbPrecision(); // todo - should this be defined earlier?
 
-    await insertTransaction(knex, auth, plan);  // todo make sure we throw the right error message if duplicate transaction
+    try {
+        await insertTransaction(knex, auth, plan);
+    } catch (err) {
+        if ((err as GiftbitRestError).statusCode === 409 && err.messageCode === "TransactionExists") {
+            await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side: ${JSON.stringify(err)}`);
+            throw err;
+        } else {
+            throw err;
+        }
+    }
 
     try {
         for (let stepIx in stripeSteps) {
@@ -142,9 +152,7 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
         await stepProcessor.processLightrailSteps(auth, knex, lrSteps, plan.id, plan.createdDate);
 
     } catch (err) {
-        for (let step of stripeSteps) {
-            await rollbackStripeStep(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, step, `Refunded due to error on the Lightrail side: ${JSON.stringify(err)}`);
-        }
+        await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side: ${JSON.stringify(err)}`);
         if (err.code === "ER_DUP_ENTRY") {
             throw new giftbitRoutes.GiftbitRestError(409, `A transaction step in transaction '${plan.id}' already exists: stepId=${""}`, "TransactionStepExists");
         } else {

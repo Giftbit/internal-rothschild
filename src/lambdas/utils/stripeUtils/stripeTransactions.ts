@@ -36,9 +36,11 @@ export async function createStripeCharge(params: any, lightrailStripeSecretKey: 
     return charge;
 }
 
-export async function rollbackStripeStep(lightrailStripeSecretKey: string, merchantStripeAccountId: string, step: StripeTransactionPlanStep, reason: string): Promise<void> {
-    const refund = await createRefund(step, lightrailStripeSecretKey, merchantStripeAccountId, reason);
-    log.info(`Refunded charge ${step.chargeResult.id}. Refund: ${JSON.stringify(refund)}.`);
+export async function rollbackStripeSteps(lightrailStripeSecretKey: string, merchantStripeAccountId: string, steps: StripeTransactionPlanStep[], reason: string): Promise<void> {
+    for (const step of steps) {
+        const refund = await createRefund(step, lightrailStripeSecretKey, merchantStripeAccountId, reason);
+        log.info(`Refunded charge ${step.chargeResult.id}. Refund: ${JSON.stringify(refund)}.`);
+    }
 }
 
 export async function createRefund(step: StripeTransactionPlanStep, lightrailStripeSecretKey: string, merchantStripeAccountId: string, reason?: string): Promise<IRefund> {
