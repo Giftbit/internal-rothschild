@@ -564,9 +564,26 @@ describe("split tender checkout with Stripe", () => {
     it.skip("captures Lightrail and Stripe charges together");
 
     describe("rollback", () => {
-        it.skip("passes on the Stripe error", async () => {
+        it("passes on the Stripe error", async () => {
             // covers Stripe idempotency errors
-        });
+            const stripeChargeRequest = {
+                amount: 55,
+                currency: "CAD",
+                source: "tok_visa"
+            };
+            const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
+            await lightrailStripe.charges.create(stripeChargeRequest, {
+                stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"],
+                idempotency_key: "bad-idempotency-id-0"
+            });
+
+            const request = {
+                ...basicRequest,
+                id: "bad-idempotency-id"
+            };
+            const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+            chai.assert.equal(postCheckoutResp.statusCode, 400, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
+        }).timeout(3000);
 
         it("rolls back the Stripe transaction when the Lightrail transaction fails", async () => {
             let stubProcessLightrailTransactionSteps = sinon.stub(stepProcessor, "processLightrailSteps");
