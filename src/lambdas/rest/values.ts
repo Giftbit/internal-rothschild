@@ -1,5 +1,4 @@
 import * as cassava from "cassava";
-import {RouterEvent} from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
@@ -11,6 +10,7 @@ import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {DbTransaction, LightrailDbTransactionStep} from "../../model/Transaction";
 import {codeLastFour, DbCode} from "../../model/DbCode";
 import {generateCode} from "../../services/codeGenerator";
+import * as log from "loglevel";
 
 export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
@@ -46,6 +46,7 @@ export function installValuesRest(router: cassava.Router): void {
                     uses: null,
                     programId: null,
                     code: null,
+                    isGenericCode: false,
                     contactId: null,
                     pretax: false,
                     active: true,
@@ -63,12 +64,14 @@ export function installValuesRest(router: cassava.Router): void {
                 updatedDate: now
             };
 
-            let codeParams = getCodeFromRequest(evt);
-            value.code = codeParams.code;
+            if (evt.body.generateCode) {
+                value.code = generateCode(evt.body.generateCode);
+                value.isGenericCode = false;
+            }
 
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
-                body: await createValue(auth, value, codeParams.isGeneric)
+                body: await createValue(auth, value)
             };
         });
 
@@ -129,14 +132,19 @@ export function installValuesRest(router: cassava.Router): void {
             evt.validateBody(valueChangeCodeSchema);
 
             const now = nowInDbPrecision();
-            const codeParams = getCodeFromRequest(evt);
+            let code = evt.body.code;
+            let isGenericCode = evt.body.isGenericCode ? evt.body.isGenericCode : false;
+            if (evt.body.generateCode) {
+                code = generateCode(evt.body.generateCode);
+                isGenericCode = false;
+            }
 
-            const dbCode = new DbCode(codeParams.code, codeParams.isGeneric, auth);
+            const dbCode = new DbCode(code, isGenericCode, auth);
             let partialValue: Partial<DbValue> = {
                 code: dbCode.lastFour,
                 codeEncrypted: dbCode.codeEncrypted,
                 codeHashed: dbCode.codeHashed,
-                genericCode: dbCode.genericCode,
+                isGenericCode: isGenericCode,
                 updatedDate: now
             };
             return {
@@ -222,7 +230,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     };
 }
 
-async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value: Value, isGeneric: boolean): Promise<Value> {
+async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value: Value): Promise<Value> {
     auth.requireIds("giftbitUserId");
 
     try {
@@ -230,7 +238,7 @@ async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value
 
         await knex.transaction(async trx => {
             await trx.into("Values")
-                .insert(Value.toDbValue(auth, value, isGeneric));
+                .insert(Value.toDbValue(auth, value));
             if (value.balance) {
                 if (value.balance < 0) {
                     throw new Error("balance cannot be negative");
@@ -261,9 +269,9 @@ async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value
                 await trx.into("LightrailTransactionSteps").insert(initialBalanceTransactionStep);
             }
         });
-        if (value.code && !isGeneric) {
-            // obfuscate secure code from response.
-            value.code = codeLastFour(value.code); // todo i wonder if we should just look up the value from the database so that it's guaranteed to be the same thing returned from GET or LIST.
+        if (value.code && !value.isGenericCode) {
+            log.debug("obfuscating secure code from response");
+            value.code = codeLastFour(value.code);
         }
         return value;
     } catch (err) {
@@ -371,49 +379,32 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
     }
 }
 
-/**
- * Returns code if requested and whether it is a generic code. Also returns null for each if the Value is not associated with a code.
- */
-function getCodeFromRequest(evt: RouterEvent): { code: string, isGeneric: boolean } {
-    let code: string;
-    let isGeneric: boolean;
-    if (evt.body.code) {
-        code = evt.body.code;
-        isGeneric = false;
-    } else if (evt.body.genericCode) {
-        code = evt.body.genericCode;
-        isGeneric = true;
-    } else if (evt.body.generateCode) {
-        code = generateCode(evt.body.generateCode);
-        isGeneric = false;
-    } else {
-        code = null;
-        isGeneric = null;
-    }
-    return {code: code, isGeneric: isGeneric};
-}
-
 const valueSchema: jsonschema.Schema = {
     type: "object",
     additionalProperties: false,
     oneOf: [
         {
-            required: ["genericCode"],
-            title: "genericCode"
-        },
-        {
             required: ["code"],
             title: "code"
         },
         {
+            required: ["code, isGenericCode"],
+            title: "generic code"
+        },
+        {
             required: ["generateCode"],
-            title: "generateCode"
+            title: "generateCode",
+            not: {
+                anyOf: [
+                    {required: ["isGenericCode", "code"]}
+                ]
+            }
         },
         {
             not: {
                 anyOf: [
                     {
-                        required: ["genericCode"]
+                        required: ["isGenericCode"]
                     },
                     {
                         required: ["code"]
@@ -423,7 +414,7 @@ const valueSchema: jsonschema.Schema = {
                     }
                 ],
             },
-            title: "neither genericCode or code"
+            title: "no code provided or generated"
         }
     ],
     properties: {
@@ -446,13 +437,11 @@ const valueSchema: jsonschema.Schema = {
         },
         code: {
             type: ["string", "null"],
-            minLength: 5,
-            maxLength: 255
-        },
-        genericCode: {
-            type: ["string", "null"],
             minLength: 1,
             maxLength: 255
+        },
+        isGenericCode: {
+            type: ["boolean", "null"]
         },
         generateCode: {
             title: "Code Generation Params",
@@ -574,28 +563,31 @@ const valueChangeCodeSchema: jsonschema.Schema = {
     additionalProperties: false,
     oneOf: [
         {
-            required: ["genericCode"],
-            title: "genericCode"
-        },
-        {
             required: ["code"],
             title: "code"
         },
         {
+            required: ["code, isGenericCode"],
+            title: "generic code"
+        },
+        {
             required: ["generateCode"],
-            title: "generateCode"
+            title: "generateCode",
+            not: {
+                anyOf: [
+                    {required: ["isGenericCode", "code"]}
+                ]
+            }
         }
     ],
     properties: {
         code: {
             type: ["string", "null"],
-            minLength: 5,
+            minLength: 1,
             maxLength: 255
         },
-        genericCode: {
-            type: ["string", "null"],
-            minLength: 5,
-            maxLength: 255
+        isGenericCode: {
+            type: ["boolean", "null"],
         },
         generateCode: {
             title: "Code Generation Params",

@@ -29,11 +29,12 @@ export function generateCode(params: GenerateCodeParameters): string {
     if (options.charset.length < 5) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested charset ${options.charset} doesn't meet minimum charset size requirement of 5.`, "ValueInUse");
     }
+    if (options.charset.indexOf(" ") !== -1) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested charset ${options.charset} cannot contain a space.`, "ValueInUse");
+    }
     if (options.length < 6) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested code length ${options.length} doesn't meet minimum requirement of 6.`, "ValueInUse");
     }
-
-    let charset: string;
 
     return (params.prefix ? params.prefix : "") + generateRandomString(options.length, options.charset) + (params.suffix ? params.suffix : "");
 }

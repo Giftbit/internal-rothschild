@@ -1,12 +1,20 @@
 import * as chai from "chai";
 import * as codeCryptoUtils from "./codeCryptoUtils";
+import {initializeCodeCryptographySecrets} from "./codeCryptoUtils";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
 describe("test codeCryptographicUtils", () => {
-    const codes = ["ABCDEFGHIJKLMNOP", "10011011", "short", "a1x2bc3f305402", "1334123"];
+    const codes = ["ABCDEFGHIJKLMNOP", "10011011", "short", "a1x2bc3f305402", "1334123", "⻥⻧⻕⻓", "🧝🧜‍🙍🙆‍🏌"];
+
+    before(async function () {
+        await initializeCodeCryptographySecrets(Promise.resolve({
+            encryptionSecret: "ca7589aef4ffed15783341414fe2f4a5edf9ddad75cf2e96ed2a16aee88673ea",
+            lookupHashSecret: "ae8645165cc7533dbcc84aeb21c7d6553a38271b7e3402f99d16b8a8717847e1"
+        }));
+    });
 
     it("test encryptCode and decryptCode", async () => {
         for (let code of codes) {
@@ -35,12 +43,5 @@ describe("test codeCryptographicUtils", () => {
             chai.assert.equal(code, codeWithoutPepper);
             chai.assert.notEqual(code, codeWithPepper);
         }
-    });
-
-    it("generate key", async () => {
-        codeCryptoUtils.generateKey();
-        codeCryptoUtils.generateKey();
-        codeCryptoUtils.generateKey();
-        codeCryptoUtils.generateKey();
     });
 });

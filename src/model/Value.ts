@@ -10,6 +10,7 @@ export interface Value {
     uses: number | null;
     programId: string | null;
     code: string | null;
+    isGenericCode: boolean | null;
     contactId: string | null;
     pretax: boolean;
     active: boolean;
@@ -32,10 +33,10 @@ export interface Rule {
 }
 
 export namespace Value {
-    export function toDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Value, isGeneric: boolean): DbValue {
+    export function toDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Value): DbValue {
         let dbCode: DbCode = null;
         if (v.code) {
-            dbCode = new DbCode(v.code, isGeneric, auth);
+            dbCode = new DbCode(v.code, v.isGenericCode, auth);
         }
         return {
             userId: auth.giftbitUserId,
@@ -45,7 +46,7 @@ export namespace Value {
             uses: v.uses,
             programId: v.programId,
             code: dbCode ? dbCode.lastFour : null,
-            genericCode: dbCode ? dbCode.genericCode : null,
+            isGenericCode: v.isGenericCode,
             codeEncrypted: dbCode ? dbCode.codeEncrypted : null,
             codeHashed: dbCode ? dbCode.codeHashed : null,
             contactId: v.contactId,
@@ -96,7 +97,7 @@ export interface DbValue {
     uses: number | null;
     programId: string | null;
     code: string | null;
-    genericCode: boolean | null;
+    isGenericCode: boolean;
     codeHashed: string | null;
     codeEncrypted: string | null;
     contactId: string | null;
@@ -124,7 +125,8 @@ export namespace DbValue {
             uses: v.uses,
             programId: v.programId,
             contactId: v.contactId,
-            code: v.code && (v.genericCode || showCode) ? decryptCode(v.codeEncrypted) : v.code,
+            code: v.code && (v.isGenericCode || showCode) ? decryptCode(v.codeEncrypted) : v.code,
+            isGenericCode: v.isGenericCode,
             pretax: v.pretax,
             active: v.active,
             canceled: v.canceled,
