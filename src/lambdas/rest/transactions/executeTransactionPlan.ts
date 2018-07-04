@@ -8,13 +8,12 @@ import {TransactionPlanError} from "./TransactionPlanError";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import * as log from "loglevel";
-import {createStripeCharge, rollbackStripeSteps} from "../../utils/stripeUtils/stripeTransactions";
-import {StripeRestError} from "../../utils/stripeUtils/StripeRestError";
-import {StripeUpdateChargeParams} from "../../utils/stripeUtils/StripeUpdateChargeParams";
-import {setupLightrailAndMerchantStripeConfig} from "../../utils/stripeUtils/stripeAccess";
+import {createStripeCharge, rollbackStripeSteps} from "../../../utils/stripeUtils/stripeTransactions";
+import {StripeRestError} from "../../../utils/stripeUtils/StripeRestError";
+import {setupLightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/stripeAccess";
 import {StripeTransactionParty} from "../../../model/TransactionRequest";
+import {StripeCreateChargeParams} from "../../../utils/stripeUtils/StripeCreateChargeParams";
 import Knex = require("knex");
-import {StripeCreateChargeParams} from "../../utils/stripeUtils/StripeCreateChargeParams";
 
 export interface ExecuteTransactionPlannerOptions {
     allowRemainder: boolean;

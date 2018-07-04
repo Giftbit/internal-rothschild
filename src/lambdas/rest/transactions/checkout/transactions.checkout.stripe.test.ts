@@ -10,7 +10,7 @@ import {Value} from "../../../../model/Value";
 import {StripeTransactionStep, Transaction} from "../../../../model/Transaction";
 import {Currency} from "../../../../model/Currency";
 import {before, describe, it} from "mocha";
-import * as kvsAccess from "../../../utils/kvsAccess";
+import * as kvsAccess from "../../../../utils/kvsAccess";
 import {TransactionPlanError} from "../TransactionPlanError";
 import {transactionUtility} from "../executeTransactionPlan";
 import * as testUtils from "../../../../utils/testUtils";

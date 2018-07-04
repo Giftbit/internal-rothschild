@@ -1,5 +1,5 @@
 import {httpStatusCode} from "cassava";
-import {StripeTransactionPlanStep} from "../../rest/transactions/TransactionPlan";
+import {StripeTransactionPlanStep} from "../../lambdas/rest/transactions/TransactionPlan";
 import {StripeUpdateChargeParams} from "./StripeUpdateChargeParams";
 import {StripeRestError} from "./StripeRestError";
 import log = require("loglevel");
