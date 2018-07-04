@@ -17,15 +17,6 @@ export class DbCode {
  * Done this way to support unicode and emoji characters. Length of emoji characters is often 2.
  */
 export function codeLastFour(code: string) {
-    let codeArray = [];
-    for (let c of code) {
-        codeArray.push(c);
-    }
-    const codeArrayReversed = codeArray.reverse();
-    let lastFour = "";
-    const lengthForLastFour = Math.min(codeArray.length, 4);
-    for (let i = 0; i < lengthForLastFour; i++) {
-        lastFour = codeArrayReversed[i] + lastFour;
-    }
-    return "…" + lastFour;
+    const lengthForLastFour = Math.min(code.length, 4);
+    return "…" + code.substring(code.length - lengthForLastFour);
 }
