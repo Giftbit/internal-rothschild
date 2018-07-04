@@ -111,56 +111,57 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
         }
     }
 
-    // await knex.transaction(async trx => {  // todo wrap everything
-    plan.createdDate = nowInDbPrecision(); // todo - should this be defined earlier?
+    await knex.transaction(async trx => {
+        plan.createdDate = nowInDbPrecision(); // todo - should this be defined earlier?
 
-    try {
-        await transactionUtility.insertTransaction(knex, auth, plan);
-    } catch (err) {
-        if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "TransactionExists") {
-            await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded because transaction already exists on Lightrail side: ${JSON.stringify(err)}`);
-            err.message = `${err.message} The associated Stripe charge(s) '${stripeSteps.map(step => step.chargeResult.id)}' have been refunded.`;
-            throw err;
-        } else {
-            await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side: ${JSON.stringify(err)}`);
-            throw err;
-        }
-    }
-
-    try {
-        for (let stepIx in stripeSteps) {
-            let step = stripeSteps[stepIx];
-            await knex.into("StripeTransactionSteps")
-                .insert({
-                    userId: auth.giftbitUserId,
-                    id: step.idempotentStepId,
-                    transactionId: plan.id,
-                    chargeId: step.chargeResult.id,
-                    currency: step.chargeResult.currency,
-                    amount: step.chargeResult.amount,
-                    charge: JSON.stringify(step.chargeResult)
-                });
-
-            const sanityCheckStripeStep: DbTransactionStep[] = await knex.from("StripeTransactionSteps")
-                .where({chargeId: step.chargeResult.id})
-                .select();
-            if (sanityCheckStripeStep.length !== 1) {
-                throw new TransactionPlanError(`Transaction execution canceled because Stripe transaction step updated ${sanityCheckStripeStep.length} rows.  rows: ${JSON.stringify(sanityCheckStripeStep)}`, {
-                    isReplanable: false
-                });
+        try {
+            await transactionUtility.insertTransaction(trx, auth, plan);
+        } catch (err) {
+            if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "TransactionExists") {
+                await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded because transaction already exists on Lightrail side: ${JSON.stringify(err)}`);
+                err.message = `${err.message} The associated Stripe charge(s) '${stripeSteps.map(step => step.chargeResult.id)}' have been refunded.`;
+                throw err;
+            } else {
+                await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side: ${JSON.stringify(err)}`);
+                throw err;
             }
         }
 
-        await transactionUtility.processLightrailSteps(auth, knex, lrSteps, plan.id, plan.createdDate);
+        try {
+            for (let stepIx in stripeSteps) {
+                let step = stripeSteps[stepIx];
+                await trx.into("StripeTransactionSteps")
+                    .insert({
+                        userId: auth.giftbitUserId,
+                        id: step.idempotentStepId,
+                        transactionId: plan.id,
+                        chargeId: step.chargeResult.id,
+                        currency: step.chargeResult.currency,
+                        amount: step.chargeResult.amount,
+                        charge: JSON.stringify(step.chargeResult)
+                    });
 
-    } catch (err) {
-        await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side: ${JSON.stringify(err)}`);
-        if (err.code === "ER_DUP_ENTRY") {
-            throw new giftbitRoutes.GiftbitRestError(409, `A transaction step in transaction '${plan.id}' already exists: stepId=${""}`, "TransactionStepExists");
-        } else {
-            throw new giftbitRoutes.GiftbitRestError(500, `An error occurred while processing transaction '${plan.id}'. The Stripe charge(s) '${stripeSteps.map(step => step.chargeResult.id)}' have been refunded.`);
+                const sanityCheckStripeStep: DbTransactionStep[] = await trx.from("StripeTransactionSteps")
+                    .where({chargeId: step.chargeResult.id})
+                    .select();
+                if (sanityCheckStripeStep.length !== 1) {
+                    throw new TransactionPlanError(`Transaction execution canceled because Stripe transaction step updated ${sanityCheckStripeStep.length} rows.  rows: ${JSON.stringify(sanityCheckStripeStep)}`, {
+                        isReplanable: false
+                    });
+                }
+            }
+
+            await transactionUtility.processLightrailSteps(auth, trx, lrSteps, plan.id, plan.createdDate);
+
+        } catch (err) {
+            await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side: ${JSON.stringify(err)}`);
+            if (err.code === "ER_DUP_ENTRY") {
+                throw new giftbitRoutes.GiftbitRestError(409, `A transaction step in transaction '${plan.id}' already exists: stepId=${""}`, "TransactionStepExists");
+            } else {
+                throw new giftbitRoutes.GiftbitRestError(500, `An error occurred while processing transaction '${plan.id}'. The Stripe charge(s) '${stripeSteps.map(step => step.chargeResult.id)}' have been refunded.`);
+            }
         }
-    }
+    });
 
     return transactionPlanToTransaction(plan);
 }
