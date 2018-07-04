@@ -148,7 +148,7 @@ export function installValuesRest(router: cassava.Router): void {
                 updatedDate: now
             };
             return {
-                body: await changeCode(auth, evt.pathParameters.id, partialValue)
+                body: await updateDbValue(auth, evt.pathParameters.id, partialValue)
             };
         });
 }
@@ -332,7 +332,7 @@ async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
     };
 }
 
-async function changeCode(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, value: Partial<DbValue>): Promise<Value> {
+async function updateDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, value: Partial<DbValue>): Promise<Value> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexWrite();
