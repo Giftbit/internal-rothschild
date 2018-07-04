@@ -365,8 +365,22 @@ const stripePartySchema: jsonschema.Schema = {
         },
         source: {
             type: "string"
+        },
+        customer: {
+            type: "string"
+        },
+        maxAmount: {
+            type: "integer"
         }
     },
+    oneOf: [
+        {
+            required: ["source"]
+        },
+        {
+            required: ["customer"]
+        }
+    ],
     required: ["rail"]
 };
 
