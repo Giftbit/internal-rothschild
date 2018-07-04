@@ -134,7 +134,7 @@ export function installValuesRest(router: cassava.Router): void {
             const dbCode = new DbCode(codeParams.code, codeParams.isGeneric, auth);
             let partialValue: Partial<DbValue> = {
                 code: dbCode.lastFour,
-                encryptedCode: dbCode.encryptedCode,
+                codeEncrypted: dbCode.codeEncrypted,
                 codeHashed: dbCode.codeHashed,
                 genericCode: dbCode.genericCode,
                 updatedDate: now
@@ -451,7 +451,7 @@ const valueSchema: jsonschema.Schema = {
         },
         genericCode: {
             type: ["string", "null"],
-            minLength: 5,
+            minLength: 1,
             maxLength: 255
         },
         generateCode: {

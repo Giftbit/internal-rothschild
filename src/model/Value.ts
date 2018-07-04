@@ -1,7 +1,7 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {DbCode} from "./DbCode";
-import {decrypt} from "../codeCryptoUtils";
 import {pickDefined} from "../utils/pick";
+import {decryptCode} from "../utils/codeCryptoUtils";
 
 export interface Value {
     id: string;
@@ -46,7 +46,7 @@ export namespace Value {
             programId: v.programId,
             code: dbCode ? dbCode.lastFour : null,
             genericCode: dbCode ? dbCode.genericCode : null,
-            encryptedCode: dbCode ? dbCode.encryptedCode : null,
+            codeEncrypted: dbCode ? dbCode.codeEncrypted : null,
             codeHashed: dbCode ? dbCode.codeHashed : null,
             contactId: v.contactId,
             pretax: v.pretax,
@@ -98,7 +98,7 @@ export interface DbValue {
     code: string | null;
     genericCode: boolean | null;
     codeHashed: string | null;
-    encryptedCode: string | null;
+    codeEncrypted: string | null;
     contactId: string | null;
     pretax: boolean;
     active: boolean;
@@ -124,7 +124,7 @@ export namespace DbValue {
             uses: v.uses,
             programId: v.programId,
             contactId: v.contactId,
-            code: v.code && (v.genericCode || showCode) ? decrypt(v.encryptedCode) : v.code,
+            code: v.code && (v.genericCode || showCode) ? decryptCode(v.codeEncrypted) : v.code,
             pretax: v.pretax,
             active: v.active,
             canceled: v.canceled,

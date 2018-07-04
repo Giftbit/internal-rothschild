@@ -19,7 +19,7 @@ CREATE TABLE rothschild.Contacts (
 );
 
 CREATE TABLE rothschild.Currencies (
-  userId        VARCHAR(32)  NOT NULL,
+  userId        VARCHAR(64)  NOT NULL,
   code          VARCHAR(16)  NOT NULL,
   name          VARCHAR(255) NOT NULL,
   symbol        VARCHAR(16)  NOT NULL,
@@ -28,7 +28,7 @@ CREATE TABLE rothschild.Currencies (
 );
 
 CREATE TABLE rothschild.Programs (
-  userId               VARCHAR(32) NOT NULL,
+  userId               VARCHAR(64) NOT NULL,
   id                   VARCHAR(32) NOT NULL,
   name                 TEXT        NOT NULL,
   currency             VARCHAR(16) NOT NULL,
@@ -51,7 +51,7 @@ CREATE TABLE rothschild.Programs (
 );
 
 CREATE TABLE rothschild.ProgramTags (
-  userId    VARCHAR(32) NOT NULL,
+  userId    VARCHAR(64) NOT NULL,
   programId VARCHAR(32) NOT NULL,
   tag       VARCHAR(32) NOT NULL,
   PRIMARY KEY pk_ProgramTags (userId, programId, tag),
@@ -60,17 +60,16 @@ CREATE TABLE rothschild.ProgramTags (
 );
 
 CREATE TABLE rothschild.Values (
-  userId                  VARCHAR(32) NOT NULL,
+  userId                  VARCHAR(64) NOT NULL,
   id                      VARCHAR(32) NOT NULL,
   currency                VARCHAR(16) NOT NULL,
   balance                 INT,
   uses                    INT,
   programId               VARCHAR(32),
   code                    VARCHAR(255),
-  codeHashed              CHAR(255),
-  genericCode    BOOL,
-  encryptedCode  VARCHAR(255),
-  codeLastFour            VARCHAR(4),
+  genericCode             BOOL,
+  codeEncrypted           VARCHAR(255),
+  codeHashed              VARCHAR(255),
   contactId               VARCHAR(32),
   pretax                  BOOL        NOT NULL,
   active                  BOOL        NOT NULL,
@@ -93,7 +92,7 @@ CREATE TABLE rothschild.Values (
 );
 
 CREATE TABLE rothschild.ValueTags (
-  userId  VARCHAR(32) NOT NULL,
+  userId  VARCHAR(64) NOT NULL,
   valueId VARCHAR(32) NOT NULL,
   tag     VARCHAR(32) NOT NULL,
   PRIMARY KEY pk_ValueTags (userId, valueId, tag),
@@ -102,7 +101,7 @@ CREATE TABLE rothschild.ValueTags (
 );
 
 CREATE TABLE rothschild.Transactions (
-  userId          VARCHAR(32)  NOT NULL,
+  userId          VARCHAR(64)  NOT NULL,
   id              VARCHAR(32)  NOT NULL,
   transactionType VARCHAR(255) NOT NULL,
   currency        VARCHAR(32)  NOT NULL,
@@ -115,7 +114,7 @@ CREATE TABLE rothschild.Transactions (
 );
 
 CREATE TABLE rothschild.LightrailTransactionSteps (
-  userId        VARCHAR(32) NOT NULL,
+  userId        VARCHAR(64) NOT NULL,
   id            VARCHAR(32) NOT NULL,
   transactionId VARCHAR(32) NOT NULL,
   valueId       VARCHAR(32) NOT NULL,
@@ -132,7 +131,7 @@ CREATE TABLE rothschild.LightrailTransactionSteps (
 );
 
 CREATE TABLE rothschild.StripeTransactionSteps (
-  userId        VARCHAR(32)  NOT NULL,
+  userId        VARCHAR(64)  NOT NULL,
   id            VARCHAR(32)  NOT NULL,
   transactionId VARCHAR(32)  NOT NULL,
   chargeId      VARCHAR(255) NOT NULL,
@@ -146,7 +145,7 @@ CREATE TABLE rothschild.StripeTransactionSteps (
 );
 
 CREATE TABLE rothschild.InternalTransactionSteps (
-  userId        VARCHAR(32)  NOT NULL,
+  userId        VARCHAR(64)  NOT NULL,
   id            VARCHAR(32)  NOT NULL,
   transactionId VARCHAR(32)  NOT NULL,
   internalId    VARCHAR(255) NOT NULL,

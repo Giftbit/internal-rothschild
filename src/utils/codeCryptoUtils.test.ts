@@ -8,13 +8,13 @@ chai.use(chaiExclude);
 describe("test codeCryptographicUtils", () => {
     const codes = ["ABCDEFGHIJKLMNOP", "10011011", "short", "a1x2bc3f305402", "1334123"];
 
-    it("test encrypt and decrypt", async () => {
+    it("test encryptCode and decryptCode", async () => {
         for (let code of codes) {
-            const encryptedCode = codeCryptoUtils.encrypt(code);
-            chai.assert.notEqual(code, encryptedCode, `expected code ${code} to not equal encryptedCode ${encryptedCode}`);
+            const codeEncrypted = codeCryptoUtils.encryptCode(code);
+            chai.assert.notEqual(code, codeEncrypted, `expected code ${code} to not equal codeEncrypted ${codeEncrypted}`);
 
-            const decryptedCode = codeCryptoUtils.decrypt(encryptedCode);
-            chai.assert.equal(code, decryptedCode, `expected code ${code} to equal encryptedCode ${encryptedCode}`);
+            const decryptedCode = codeCryptoUtils.decryptCode(codeEncrypted);
+            chai.assert.equal(code, decryptedCode, `expected code ${code} to equal codeEncrypted ${codeEncrypted}`);
         }
     });
 
@@ -22,8 +22,8 @@ describe("test codeCryptographicUtils", () => {
         for (let code of codes) {
             const badge: AuthorizationBadge = new AuthorizationBadge();
             badge.giftbitUserId = "user-123";
-            const hash1 = codeCryptoUtils.computeLookupHash(code, badge);
-            const hash2 = codeCryptoUtils.computeLookupHash(code, badge);
+            const hash1 = codeCryptoUtils.computeCodeLookupHash(code, badge);
+            const hash2 = codeCryptoUtils.computeCodeLookupHash(code, badge);
             chai.assert.equal(hash1, hash2, `expected hash1 ${hash1} to equal ${hash2}`);
         }
     });
