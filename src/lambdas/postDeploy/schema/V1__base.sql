@@ -67,7 +67,7 @@ CREATE TABLE rothschild.Values (
   uses                    INT,
   programId               VARCHAR(32),
   code                    NVARCHAR(255),
-  isGenericCode           BOOL        NOT NULL,
+  isGenericCode           BOOL,
   codeEncrypted           VARCHAR(255),
   codeHashed              VARCHAR(255),
   contactId               VARCHAR(32),

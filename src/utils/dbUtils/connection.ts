@@ -102,10 +102,15 @@ function getKnex(username: string, password: string, endpoint: string, port: str
             password: password,
             database: "rothschild",
             timezone: "Z",
-            typeCast: function(field, next) {
+            typeCast: function (field, next) {
                 if (field.type === "TINY" && field.length === 1) {
                     // MySQL does not have a true boolean type.  Convert tinyint(1) to boolean.
-                    return field.string() === "1";
+                    const val = field.string();
+                    if (val === null) {
+                        return null;
+                    } else {
+                        return val === "1";
+                    }
                 }
                 if (field.type === "DATETIME") {
                     return new Date(field.string() + "Z");

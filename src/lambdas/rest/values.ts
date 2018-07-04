@@ -46,7 +46,7 @@ export function installValuesRest(router: cassava.Router): void {
                     uses: null,
                     programId: null,
                     code: null,
-                    isGenericCode: false,
+                    isGenericCode: null,
                     contactId: null,
                     pretax: false,
                     active: true,

@@ -97,7 +97,7 @@ export interface DbValue {
     uses: number | null;
     programId: string | null;
     code: string | null;
-    isGenericCode: boolean;
+    isGenericCode: boolean | null;
     codeHashed: string | null;
     codeEncrypted: string | null;
     contactId: string | null;
