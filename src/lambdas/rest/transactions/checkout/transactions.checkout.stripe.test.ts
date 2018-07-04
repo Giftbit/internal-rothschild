@@ -12,6 +12,8 @@ import {StripeTransactionStep, Transaction} from "../../../../model/Transaction"
 import {Currency} from "../../../../model/Currency";
 import {before, describe, it} from "mocha";
 import * as kvsAccess from "../../../utils/kvsAccess";
+import {TransactionPlanError} from "../TransactionPlanError";
+import {stepProcessor} from "../executeTransactionPlan";
 
 require("dotenv").config();
 
@@ -70,7 +72,7 @@ describe("split tender checkout with Stripe", () => {
 
     it("processes basic checkout with Stripe only", async () => {
         const request = {
-            id: "checkout-w-stripe-only",
+            id: "checkout-w-stripe-rail-only",
             sources: [
                 {
                     rail: "stripe",
@@ -561,7 +563,28 @@ describe("split tender checkout with Stripe", () => {
 
     it.skip("captures Lightrail and Stripe charges together");
 
-    it.skip("rolls back the Lightrail transaction when the Stripe transaction fails");
+    describe("rollback", () => {
+        it.skip("passes on the Stripe error", async () => {
+            // covers Stripe idempotency errors
+        });
+
+        it("rolls back the Stripe transaction when the Lightrail transaction fails", async () => {
+            let stubProcessLightrailTransactionSteps = sinon.stub(stepProcessor, "processLightrailSteps");
+            stubProcessLightrailTransactionSteps.throws(new TransactionPlanError("error for tests", {isReplanable: false}));
+
+            const request = {
+                ...basicRequest,
+                id: `rollback-test-${Math.random()}`  // needs to be generated for every test so the Stripe refund succeeds (charges use idempotency keys, refunds can't)
+            };
+            const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+            chai.assert.equal(postCheckoutResp.statusCode, 500, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
+            // todo check that metadata on Stripe charge gets updated with refund note
+
+            (stepProcessor.processLightrailSteps as any).restore();
+        }).timeout(3000);
+
+        it.skip("throws 'this id is already in use' if the Lightrail transaction fails for idempotency reasons");
+    });
 
     it("processes split tender checkout with two Stripe sources", async () => {
         // todo - if we keep 'priority' in requested Stripe sources, check that sources are charged in the right order
@@ -676,7 +699,7 @@ describe("split tender checkout with Stripe", () => {
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["statusCode"], `body=${JSON.stringify(getCheckoutResp.body, null, 4)}`);
-    });
+    }).timeout(3000);
 
 });
 
