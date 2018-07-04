@@ -1,12 +1,11 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
 import {LightrailTransactionPlanStep, StripeTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
-import {DbTransactionStep, Transaction} from "../../../model/Transaction";
+import {Transaction} from "../../../model/Transaction";
 import {DbValue} from "../../../model/Value";
 import {transactionPlanToTransaction} from "./transactionPlanToTransaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
-import {nowInDbPrecision} from "../../../utils/dbUtils";
 import * as log from "loglevel";
 import {createStripeCharge, rollbackStripeSteps} from "../../../utils/stripeUtils/stripeTransactions";
 import {StripeRestError} from "../../../utils/stripeUtils/StripeRestError";
@@ -58,9 +57,8 @@ export function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authorization
 async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<Transaction> {
     const knex = await getKnexWrite();
     await knex.transaction(async trx => {
-        plan.createdDate = nowInDbPrecision(); // todo - should this be defined earlier?
         await transactionUtility.insertTransaction(trx, auth, plan);
-        await transactionUtility.processLightrailSteps(auth, trx, plan.steps as LightrailTransactionPlanStep[], plan.id, plan.createdDate);
+        await transactionUtility.processLightrailSteps(auth, trx, plan);
     });
 
     return transactionPlanToTransaction(plan);
@@ -80,7 +78,6 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
     const knex = await getKnexWrite();
 
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
-    const lrSteps = plan.steps.filter(step => step.rail === "lightrail") as LightrailTransactionPlanStep[];
 
     try {
         for (let stepIx in stripeSteps) {
@@ -113,7 +110,6 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
     }
 
     await knex.transaction(async trx => {
-        plan.createdDate = nowInDbPrecision(); // todo - should this be defined earlier?
 
         try {
             await transactionUtility.insertTransaction(trx, auth, plan);
@@ -142,7 +138,7 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
                         charge: JSON.stringify(step.chargeResult)
                     });
             }
-            await transactionUtility.processLightrailSteps(auth, trx, lrSteps, plan.id, plan.createdDate);
+            await transactionUtility.processLightrailSteps(auth, trx, plan);
         } catch (err) {
             await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side: ${JSON.stringify(err)}`);
 
@@ -179,13 +175,13 @@ function stripeTransactionPlanStepToStripeRequest(step: StripeTransactionPlanSte
 
 export const transactionUtility = {
     // this function is now a method on an exported object to make it easy to mock in tests that simulate errors
-    processLightrailSteps: async function processLightrailSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, steps: LightrailTransactionPlanStep[], transactionId: string, createdDate: Date) {
-
+    processLightrailSteps: async function (auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan) {
+        const steps = plan.steps.filter(step => step.rail === "lightrail");
         for (let stepIx = 0; stepIx < steps.length; stepIx++) {
             const step = steps[stepIx] as LightrailTransactionPlanStep;
 
             let updateProperties: any = {
-                updatedDate: createdDate
+                updatedDate: plan.createdDate
             };
 
             let query = trx.into("Values")
@@ -246,8 +242,8 @@ export const transactionUtility = {
             await trx.into("LightrailTransactionSteps")
                 .insert({
                     userId: auth.giftbitUserId,
-                    id: `${transactionId}-${stepIx}`,
-                    transactionId: transactionId,
+                    id: `${plan.id}-${stepIx}`,
+                    transactionId: plan.id,
                     valueId: step.value.id,
                     contactId: step.value.contactId,
                     code: step.value.code,
