@@ -14,6 +14,7 @@ import {StripeUpdateChargeParams} from "../../utils/stripeUtils/StripeUpdateChar
 import {setupLightrailAndMerchantStripeConfig} from "../../utils/stripeUtils/stripeAccess";
 import {StripeTransactionParty} from "../../../model/TransactionRequest";
 import Knex = require("knex");
+import {StripeCreateChargeParams} from "../../utils/stripeUtils/StripeCreateChargeParams";
 
 export interface ExecuteTransactionPlannerOptions {
     allowRemainder: boolean;
@@ -168,8 +169,8 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
 }
 
 
-function stripeTransactionPlanStepToStripeRequest(step: StripeTransactionPlanStep, plan: TransactionPlan): StripeUpdateChargeParams {
-    let stepForStripe: any = {
+function stripeTransactionPlanStepToStripeRequest(step: StripeTransactionPlanStep, plan: TransactionPlan): StripeCreateChargeParams {
+    let stepForStripe: StripeCreateChargeParams = {
         amount: step.amount,
         currency: plan.currency,
         metadata: {

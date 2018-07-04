@@ -56,7 +56,7 @@ function evaluateLightrailTransactionStep(step: LightrailTransactionPlanStep, tr
     if (!isValueRedeemable(value)) {
         return;
     }
-    for (let index in transactionPlan.lineItems) {
+    for (const index in transactionPlan.lineItems) {
         const item = transactionPlan.lineItems[index];
         if (item.lineTotal.remainder > 0) {
             if (value.redemptionRule) {
@@ -89,7 +89,7 @@ function evaluateLightrailTransactionStep(step: LightrailTransactionPlanStep, tr
 function evaluateStripeTransactionStep(step, transactionPlan): void {
     let amount: number = 0;
 
-    for (let item of transactionPlan.lineItems) {
+    for (const item of transactionPlan.lineItems) {
         if (step.maxAmount) {
             if (amount + item.lineTotal.remainder <= step.maxAmount) {
                 amount += item.lineTotal.remainder;

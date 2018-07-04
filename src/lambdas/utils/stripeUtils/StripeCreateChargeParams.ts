@@ -1,11 +1,8 @@
-// copied from internal-turnkey
-
 export interface StripeCreateChargeParams {
     amount: number;
     currency: string;
+    source?: string;
+    customer?: string;
     description?: string;
     metadata?: any;
-    receipt_email: string;
-    source: string;
-    customer?: string;
 }
