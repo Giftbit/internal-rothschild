@@ -49,6 +49,11 @@ describe("split tender checkout with Stripe", () => {
     };
 
     before(async function () {
+        if (!process.env["STRIPE_PLATFORM_KEY"] || !process.env["STRIPE_CONNECTED_ACCOUNT_ID"] || !process.env["STRIPE_CUSTOMER_ID"]) {
+            this.skip();
+            return;
+        }
+
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
         transactions.installTransactionsRest(router);
@@ -504,6 +509,13 @@ describe("split tender checkout with Stripe", () => {
     it.skip("captures Lightrail and Stripe charges together");
 
     describe("rollback", () => {
+        before(async function () {
+            if (!process.env["STRIPE_PLATFORM_KEY"] || !process.env["STRIPE_CONNECTED_ACCOUNT_ID"] || !process.env["STRIPE_CUSTOMER_ID"]) {
+                this.skip();
+                return;
+            }
+        });
+
         it("passes on the Stripe error", async () => {
             // covers Stripe idempotency errors
             const stripeChargeRequest = {
