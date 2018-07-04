@@ -517,7 +517,6 @@ describe("/v2/values/", () => {
         chai.assert.isNotNull(res[0].codeEncrypted);
         chai.assert.isNotNull(res[0].codeHashed);
         chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(publicCode.genericCode, testUtils.defaultTestUser.auth));
-        chai.assert.equal(res[0].code, "…🚀");
 
         const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
         let codeInListShowCodeFalse: Value = list.body.find(it => it.id === publicCode.id);
