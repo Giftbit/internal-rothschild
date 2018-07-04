@@ -49,7 +49,9 @@ describe("/v2/transactions/debit", () => {
             id: "debit-1",
             transactionType: "debit",
             currency: "CAD",
-            totals: {remainder: 0},
+            totals: {
+                remainder: 0
+            },
             steps: [
                 {
                     rail: "lightrail",
@@ -108,7 +110,9 @@ describe("/v2/transactions/debit", () => {
             id: "debit-2",
             transactionType: "debit",
             currency: "CAD",
-            totals: {remainder: 0},
+            totals: {
+                remainder: 0
+            },
             steps: [
                 {
                     rail: "lightrail",
@@ -147,7 +151,9 @@ describe("/v2/transactions/debit", () => {
             id: "debit-3",
             transactionType: "debit",
             currency: "CAD",
-            totals: {remainder: 9500 - 401},
+            totals: {
+                remainder: 9500 - 401
+            },
             steps: [
                 {
                     rail: "lightrail",
