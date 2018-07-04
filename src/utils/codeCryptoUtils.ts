@@ -17,8 +17,7 @@ export function encryptCode(code: string): string {
     if (!codeCryptographySecrets) {
         throw "Code cryptography secrets have not been initialized.";
     }
-    const codeEncoded = encodeURIComponent(code);
-    return cryptojs.AES.encrypt(addCodebasePepperToCode(codeEncoded), codeCryptographySecrets.encryptionSecret).toString();
+    return cryptojs.AES.encrypt(addCodebasePepperToCode(code), codeCryptographySecrets.encryptionSecret).toString();
 }
 
 export function decryptCode(codeEncrypted: string): string {
@@ -27,8 +26,7 @@ export function decryptCode(codeEncrypted: string): string {
     }
     const bytes = cryptojs.AES.decrypt(codeEncrypted.toString(), codeCryptographySecrets.encryptionSecret);
     const decryptedCodeWithCodebasePepper = bytes.toString(cryptojs.enc.Utf8);
-    const codeEncoded = removeCodebasePepperFromDecryptedCode(decryptedCodeWithCodebasePepper);
-    return decodeURIComponent(codeEncoded);
+    return removeCodebasePepperFromDecryptedCode(decryptedCodeWithCodebasePepper);
 }
 
 export function computeCodeLookupHash(code: string, badge: AuthorizationBadge): string {

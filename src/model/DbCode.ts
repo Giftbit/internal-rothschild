@@ -13,8 +13,10 @@ export class DbCode {
     }
 }
 
+/**
+ * Done this way to support unicode and emoji characters. Length of emoji characters is often 2.
+ */
 export function codeLastFour(code: string) {
-    console.log(code);
     let codeArray = [];
     for (let c of code) {
         codeArray.push(c);
