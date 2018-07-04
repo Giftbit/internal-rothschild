@@ -51,7 +51,6 @@ function generateRandomString(length: number, charset: string) {
 }
 
 export function containsDuplicates(str: string) {
-    const arr = str.split("");
     const hash = new Map();
 
     for (let char of str) {
@@ -60,8 +59,6 @@ export function containsDuplicates(str: string) {
         } else {
             return true;
         }
-    }
-    for (let i = 0; i < arr.length; i++) {
     }
     return false;
 }
