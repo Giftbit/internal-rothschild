@@ -12,7 +12,7 @@ import {Currency} from "../../../../model/Currency";
 import {before, describe, it} from "mocha";
 import * as kvsAccess from "../../../../utils/kvsAccess";
 import {TransactionPlanError} from "../TransactionPlanError";
-import {transactionUtility} from "../executeTransactionPlan";
+import * as insertTransaction from "../../../../utils/dbUtils/insertTransactions";
 import * as testUtils from "../../../../utils/testUtils";
 
 require("dotenv").config();
@@ -538,7 +538,7 @@ describe("split tender checkout with Stripe", () => {
         }).timeout(3000);
 
         it("rolls back the Stripe transaction when the Lightrail transaction fails", async () => {
-            let stubProcessLightrailTransactionSteps = sinon.stub(transactionUtility, "processLightrailSteps");
+            let stubProcessLightrailTransactionSteps = sinon.stub(insertTransaction, "insertLightrailTransactionSteps");
             stubProcessLightrailTransactionSteps.throws(new TransactionPlanError("error for tests", {isReplanable: false}));
 
             const request = {
@@ -549,11 +549,11 @@ describe("split tender checkout with Stripe", () => {
             chai.assert.equal(postCheckoutResp.statusCode, 500, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
             // todo check that metadata on Stripe charge gets updated with refund note
 
-            (transactionUtility.processLightrailSteps as any).restore();
+            (insertTransaction.insertLightrailTransactionSteps as any).restore();
         }).timeout(3000);
 
         it("throws 409 'transaction already exists' if the Lightrail transaction fails for idempotency reasons", async () => {
-            let stubInsertTransaction = sinon.stub(transactionUtility, "insertTransaction");
+            let stubInsertTransaction = sinon.stub(insertTransaction, "insertTransaction");
             stubInsertTransaction.withArgs(sinon.match.any, sinon.match.any, sinon.match.any).throws(new giftbitRoutes.GiftbitRestError(409, `A transaction with transactionId 'TEST-ID-IRRELEVANT' already exists.`, "TransactionExists"));
             const request = {
                 ...basicRequest,
@@ -564,7 +564,7 @@ describe("split tender checkout with Stripe", () => {
             chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
             chai.assert.equal((postCheckoutResp.body as any).messageCode, "TransactionExists", `messageCode=${(postCheckoutResp.body as any).messageCode}`);
 
-            (transactionUtility.insertTransaction as any).restore();
+            (insertTransaction.insertTransaction as any).restore();
         }).timeout(3000);
     });
 

@@ -28,9 +28,3 @@ export async function kvsPut(token: string, key: string, value: any): Promise<vo
         .set("Content-Type", "application/json")
         .send(value);
 }
-
-exports = {
-    kvsDelete: kvsDelete,
-    kvsGet: kvsGet,
-    kvsPut: kvsPut
-};
