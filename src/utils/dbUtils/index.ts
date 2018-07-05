@@ -8,16 +8,22 @@ import {paginateQuery} from "./paginateQuery";
  * Get a Date representing now in the same precision as the database.
  */
 export function nowInDbPrecision(): Date {
-    const now = new Date();
-    now.setMilliseconds(0);
-    return now;
+    return dateInDbPrecision(new Date());
+}
+
+/**
+ * Convert a Date's precision to same precision as the database.
+ */
+export function dateInDbPrecision(date: Date): Date {
+    date.setMilliseconds(0);
+    return date;
 }
 
 /**
  * update + insert = upsert.
  * This pattern is a MySQL extension.  Knex does not support it natively.
  */
-export async function upsert(table: string, update: {[key: string]: any}, insert?: {[key: string]: any}): Promise<[number]> {
+export async function upsert(table: string, update: { [key: string]: any }, insert?: { [key: string]: any }): Promise<[number]> {
     const knex = await getKnexWrite();
     const insertQuery = knex(table).insert(insert || update).toString();
     const updateQuery = knex(table).insert(update).toString();
@@ -51,11 +57,10 @@ export function getSqlErrorConstraintName(err: any): string {
     return null;
 }
 
-export async function filterAndPaginateQuery<T extends {id: string}>(
-    query: knex.QueryBuilder,
-    filterParams: {[key: string]: string},
-    filterOptions: FilterQueryOptions,
-    paginationParams: PaginationParams): Promise<{body: T[], pagination: Pagination}> {
+export async function filterAndPaginateQuery<T extends { id: string }>(query: knex.QueryBuilder,
+                                                                       filterParams: { [key: string]: string },
+                                                                       filterOptions: FilterQueryOptions,
+                                                                       paginationParams: PaginationParams): Promise<{ body: T[], pagination: Pagination }> {
     return paginateQuery<T>(
         filterQuery(query, filterParams, filterOptions),
         paginationParams
