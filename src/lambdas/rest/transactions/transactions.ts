@@ -171,7 +171,7 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
             allowRemainder: false
         },
         async () => {
-            const parties = await resolveTransactionParties(auth, req.currency, [req.destination]);
+            const parties = await resolveTransactionParties(auth, req.currency, [req.destination], req.id);
             if (parties.length !== 1 || parties[0].rail !== "lightrail") {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable Value.", "InvalidParty");
             }
@@ -205,7 +205,7 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
             allowRemainder: req.allowRemainder
         },
         async () => {
-            const parties = await resolveTransactionParties(auth, req.currency, [req.source]);
+            const parties = await resolveTransactionParties(auth, req.currency, [req.source], req.id);
             if (parties.length !== 1 || parties[0].rail !== "lightrail") {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable Value.", "InvalidParty");
             }
@@ -240,7 +240,7 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
             allowRemainder: checkout.allowRemainder
         },
         async () => {
-            const steps = await resolveTransactionParties(auth, checkout.currency, checkout.sources);
+            const steps = await resolveTransactionParties(auth, checkout.currency, checkout.sources, checkout.id);
             return optimizeCheckout(checkout, steps);
         }
     );
@@ -254,12 +254,12 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
             allowRemainder: req.allowRemainder
         },
         async () => {
-            const sourceParties = await resolveTransactionParties(auth, req.currency, [req.source]);
+            const sourceParties = await resolveTransactionParties(auth, req.currency, [req.source], req.id);
             if (sourceParties.length !== 1 || sourceParties[0].rail !== "lightrail") {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable Value.", "InvalidParty");
             }
 
-            const destParties = await resolveTransactionParties(auth, req.currency, [req.destination]);
+            const destParties = await resolveTransactionParties(auth, req.currency, [req.destination], req.id);
             if (destParties.length !== 1 || destParties[0].rail !== "lightrail") {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable Value.", "InvalidParty");
             }
@@ -363,10 +363,24 @@ const stripePartySchema: jsonschema.Schema = {
             type: "string",
             enum: ["stripe"]
         },
-        token: {
+        source: {
             type: "string"
+        },
+        customer: {
+            type: "string"
+        },
+        maxAmount: {
+            type: "integer"
         }
     },
+    oneOf: [
+        {
+            required: ["source"]
+        },
+        {
+            required: ["customer"]
+        }
+    ],
     required: ["rail"]
 };
 

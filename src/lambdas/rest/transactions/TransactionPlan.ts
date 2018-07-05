@@ -29,8 +29,9 @@ export interface LightrailTransactionPlanStep {
 
 export interface StripeTransactionPlanStep {
     rail: "stripe";
-    token: string;
-    stripeSecretKey: string;
+    idempotentStepId: string;
+    source?: string;
+    customer?: string;
     maxAmount: number | null;
     amount: number;
 

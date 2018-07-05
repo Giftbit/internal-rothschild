@@ -48,6 +48,7 @@
     "chai-exclude": "^1.0.8",
     "crypto": "^1.0.1",
     "crypto-js": "^3.1.9-1",
+    "dotenv": "^6.0.0",
     "dynameh": "^2.10.3",
     "file-loader": "^1.1.11",
     "giftbit-cassava-routes": "git+ssh://git@github.com/Giftbit/giftbit-cassava-routes.git#semver:^7.0.1",
@@ -72,5 +73,8 @@
     "webpack": "^4.12.0",
     "webpack-cli": "^3.0.8",
     "zip-webpack-plugin": "^3.0.0"
+  },
+  "devDependencies": {
+    "sinon": "^6.0.1"
   }
 }

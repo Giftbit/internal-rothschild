@@ -9,9 +9,9 @@ import * as log from "loglevel";
 export function calculateCheckoutTransactionPlan(checkout: CheckoutRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
     let transactionPlan = new CheckoutTransactionPlan(checkout, preTaxSteps.concat(postTaxSteps));
     log.info(`Build checkout transaction plan: ${JSON.stringify(transactionPlan)}`);
-    evaluateTransactionSteps(preTaxSteps, transactionPlan);
+    calculateAmountsForTransactionSteps(preTaxSteps, transactionPlan);
     transactionPlan.calculateTaxAndSetOnLineItems();
-    evaluateTransactionSteps(postTaxSteps, transactionPlan);
+    calculateAmountsForTransactionSteps(postTaxSteps, transactionPlan);
     transactionPlan.calculateTotalsFromLineItems();
 
     transactionPlan.steps = transactionPlan.steps.filter(s => s.amount !== 0);
@@ -33,29 +33,30 @@ function isValueRedeemable(value: Value): boolean {
     return true;
 }
 
-function evaluateTransactionSteps(steps: TransactionPlanStep[], transactionPlan: TransactionPlan): void {
+function calculateAmountsForTransactionSteps(steps: TransactionPlanStep[], transactionPlan: TransactionPlan): void {
     for (let stepsIndex = 0; stepsIndex < steps.length; stepsIndex++) {
         const step = steps[stepsIndex];
         switch (step.rail) {
             case "lightrail":
-                evaluateLightrailTransactionStep(step, transactionPlan);
+                calculateAmountForLightrailTransactionStep(step, transactionPlan);
                 break;
             case "stripe":
-                throw new Error("not yet implemented");
+                calculateAmountForStripeTransactionStep(step, transactionPlan);
+                break;
             case "internal":
                 throw new Error("not yet implemented");
         }
     }
 }
 
-function evaluateLightrailTransactionStep(step: LightrailTransactionPlanStep, transactionPlan: TransactionPlan): void {
+function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPlanStep, transactionPlan: TransactionPlan): void {
     log.info(`Processing ValueStore ${JSON.stringify(step)}.`);
 
     let value = step.value;
     if (!isValueRedeemable(value)) {
         return;
     }
-    for (let index in transactionPlan.lineItems) {
+    for (const index in transactionPlan.lineItems) {
         const item = transactionPlan.lineItems[index];
         if (item.lineTotal.remainder > 0) {
             if (value.redemptionRule) {
@@ -83,6 +84,29 @@ function evaluateLightrailTransactionStep(step: LightrailTransactionPlanStep, tr
             // The item has been paid for, skip.
         }
     }
+}
+
+function calculateAmountForStripeTransactionStep(step, transactionPlan): void {
+    let amount: number = 0;
+
+    for (const item of transactionPlan.lineItems) {
+        if (step.maxAmount) {
+            if (amount + item.lineTotal.remainder <= step.maxAmount) {
+                amount += item.lineTotal.remainder;
+                item.lineTotal.remainder = 0;
+            } else {
+                const difference: number = step.maxAmount - amount;
+                amount = step.maxAmount;
+                item.lineTotal.remainder -= difference;
+            }
+        }
+        else {  // charge full remainder for each line item to Stripe
+            amount += item.lineTotal.remainder;
+            item.lineTotal.remainder = 0;
+        }
+    }
+
+    step.amount += amount;
 }
 
 function getAvailableBalance(value: Value, step: LightrailTransactionPlanStep): number {

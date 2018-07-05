@@ -67,17 +67,17 @@ describe("optimizeCheckout", () => {
 
     const s1: TransactionPlanStep = {
         rail: "stripe",
-        token: "tok_1",
-        stripeSecretKey: "secret",
+        source: "tok_1",
         maxAmount: 1,
-        amount: 1
+        amount: 1,
+        idempotentStepId: "123"
     };
     const s2: TransactionPlanStep = {
         rail: "stripe",
-        token: "tok_2",
-        stripeSecretKey: "secret",
+        source: "tok_2",
         maxAmount: 2,
-        amount: 2
+        amount: 2,
+        idempotentStepId: "456"
     };
 
     describe("test getStepPermutations", function () {

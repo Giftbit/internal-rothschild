@@ -3,6 +3,7 @@ import {CheckoutRequest, TransactionParty} from "../../../../model/TransactionRe
 import {LineItemResponse} from "../../../../model/LineItem";
 import {TransactionPlanTotals, TransactionType} from "../../../../model/Transaction";
 import {bankersRounding} from "../../../../utils/moneyUtils";
+import {nowInDbPrecision} from "../../../../utils/dbUtils";
 
 export class CheckoutTransactionPlan implements TransactionPlan {
     id: string;
@@ -40,6 +41,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
         this.steps = steps;
         this.metadata = checkout.metadata;
         this.paymentSources = checkout.sources; // TODO if secure code, only return last four
+        this.createdDate = nowInDbPrecision();
         this.calculateTotalsFromLineItems();
     }
 
