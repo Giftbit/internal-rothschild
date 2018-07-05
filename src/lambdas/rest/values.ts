@@ -61,7 +61,7 @@ export function installValuesRest(router: cassava.Router): void {
             const value: Value = {
                 ...pickOrDefault(evt.body, {
                     id: "",
-                    currency: program ? program.currency : "", // todo - can you override currency?
+                    currency: program ? program.currency : "",
                     balance: 0,
                     uses: null,
                     programId: program ? program.id : null,
@@ -77,7 +77,7 @@ export function installValuesRest(router: cassava.Router): void {
                     discountSellerLiability: program ? program.discountSellerLiability : null,
                     startDate: program ? program.startDate : null,
                     endDate: program ? program.endDate : null,
-                    metadata: null // todo - should this be copied over from program? I think not.
+                    metadata: null
                 }),
                 canceled: false,
                 createdDate: now,
@@ -446,6 +446,10 @@ function checkProgramConstraints(value: Value, program: Program): void {
 
     if (program.fixedInitialUses && (program.fixedInitialUses.indexOf(value.uses) === -1 || !value.uses)) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's uses ${value.uses} outside initial values defined by Program ${program.fixedInitialUses}.`);
+    }
+
+    if (program.currency != value.currency) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's currency ${value.currency} cannot differ from currency of Program ${program.currency}.`);
     }
 }
 

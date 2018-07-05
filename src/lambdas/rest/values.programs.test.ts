@@ -64,6 +64,14 @@ describe("/v2/values create from program", () => {
             programId: program.id
         };
 
+        it("currency must match Program", async () => {
+            const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                ...value,
+                currency: "CAD"
+            });
+            chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
+        });
+
         it("create Value", async () => {
             const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
             chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
@@ -315,7 +323,7 @@ describe("/v2/values create from program", () => {
             let value2 = {
                 id: generateId(),
                 programId: program.id,
-                currency: "CAD",
+                currency: "USD",
                 valueRule: {rule: "700", explanation: "$7 the hard way"},
                 pretax: !program.pretax,
                 active: !program.active,
@@ -330,8 +338,8 @@ describe("/v2/values create from program", () => {
             // these can't differ from program. it doesn't make sense since discountSellerLiability can only be set if discount = true.
             chai.assert.equal(valueResp.body.discount, program.discount);
             chai.assert.equal(valueResp.body.discountSellerLiability, program.discountSellerLiability);
+            chai.assert.equal(valueResp.body.currency, program.currency);
 
-            chai.assert.notEqual(valueResp.body.currency, program.currency);
             chai.assert.notEqual(valueResp.body.pretax, program.pretax);
             chai.assert.notEqual(valueResp.body.active, program.active);
             chai.assert.notEqual(valueResp.body.startDate.toString(), program.startDate);
