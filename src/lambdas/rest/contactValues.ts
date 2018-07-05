@@ -76,7 +76,7 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 
 async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, originalValue: Value): Promise<Value> {
     if (originalValue.uses === 0) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${originalValue.id}' cannot be claimed because it has 0 uses remaining.`, "InsufficientUses");
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${originalValue.id}' cannot be attached because it has a generic code and has 0 uses remaining.`, "InsufficientUses");
     }
 
     const claimedValue: Value = {
