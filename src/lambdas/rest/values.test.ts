@@ -514,6 +514,17 @@ describe("/v2/values/", () => {
         chai.assert.equal(value2Res.body.messageCode, "ValueCodeExists");
     });
 
+    it("cannot create a value with isGeneric=true and contactId set", async () => {
+        const value1Res = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: generateId(),
+            currency: "USD",
+            contactId: "abcd",
+            isGenericCode: true,
+            balance: 0
+        });
+        chai.assert.equal(value1Res.statusCode, 422, `body=${JSON.stringify(value1Res.body)}`);
+    });
+
     it.skip("can create a value with 🚀 emoji generic code", async () => {
         let value = {
             id: generateId(),

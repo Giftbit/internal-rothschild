@@ -234,6 +234,10 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value: Value): Promise<Value> {
     auth.requireIds("giftbitUserId");
 
+    if (value.contactId && value.isGenericCode) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "A Value with isGenericCode=true cannot have contactId set.");
+    }
+
     try {
         const knex = await getKnexWrite();
 
@@ -578,7 +582,7 @@ const valueUpdateSchema: jsonschema.Schema = {
     type: "object",
     additionalProperties: false,
     properties: {
-        ...pick(valueSchema.properties, "id", "contactId", "active", "frozen", "pretax", "redemptionRule", "valueRule", "discount", "discountSellerLiability", "startDate", "endDate", "metadata"),
+        ...pick(valueSchema.properties, "id", "active", "frozen", "pretax", "redemptionRule", "valueRule", "discount", "discountSellerLiability", "startDate", "endDate", "metadata"),
         canceled: {
             type: "boolean"
         }
