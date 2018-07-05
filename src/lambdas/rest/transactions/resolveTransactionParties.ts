@@ -1,4 +1,3 @@
-import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {
     InternalTransactionParty,
@@ -15,7 +14,7 @@ import {
 import {DbValue, Value} from "../../../model/Value";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 
-export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: string, parties: TransactionParty[]): Promise<TransactionPlanStep[]> {
+export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: string, parties: TransactionParty[], transactionId: string): Promise<TransactionPlanStep[]> {
     const lightrailValueIds = parties.filter(p => p.rail === "lightrail" && p.valueId).map(p => (p as LightrailTransactionParty).valueId);
     const lightrailCodes = parties.filter(p => p.rail === "lightrail" && p.code).map(p => (p as LightrailTransactionParty).code);
     const lightrailContactIds = parties.filter(p => p.rail === "lightrail" && p.contactId).map(p => (p as LightrailTransactionParty).contactId);
@@ -41,17 +40,14 @@ export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.Auth
 
     const stripeSteps = parties
         .filter(p => p.rail === "stripe")
-        .map((p: StripeTransactionParty): StripeTransactionPlanStep => ({
+        .map((p: StripeTransactionParty, index): StripeTransactionPlanStep => ({
             rail: "stripe",
-            token: p.token,
+            idempotentStepId: `${transactionId}-${index}`,
+            source: p.source || null,
+            customer: p.customer || null,
             maxAmount: p.maxAmount || null,
-            stripeSecretKey: null,
             amount: 0
         }));
-    if (stripeSteps.length > 0) {
-        // TODO fetch and fill in stripeSecretKey
-        throw new cassava.RestError(500, "stripe isn't supported yet");
-    }
 
     return [...lightrailSteps, ...internalSteps, ...stripeSteps];
 }
@@ -83,6 +79,7 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             }
             return q;
         });
-
-    return values.map(DbValue.toValue);
+    return values.map(function (value) {
+        return DbValue.toValue(value, false);
+    });
 }

@@ -1,5 +1,7 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import {DbCode} from "./DbCode";
 import {pickDefined} from "../utils/pick";
+import {decryptCode} from "../utils/codeCryptoUtils";
 
 export interface Value {
     id: string;
@@ -8,12 +10,14 @@ export interface Value {
     uses: number | null;
     programId: string | null;
     code: string | null;
+    isGenericCode: boolean | null;
     contactId: string | null;
     pretax: boolean;
     active: boolean;
     canceled: boolean;
     frozen: boolean;
     discount: boolean;
+    discountSellerLiability: number | null;
     redemptionRule: Rule | null;
     valueRule: Rule | null;
     startDate: Date | null;
@@ -30,6 +34,10 @@ export interface Rule {
 
 export namespace Value {
     export function toDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Value): DbValue {
+        let dbCode: DbCode = null;
+        if (v.code) {
+            dbCode = new DbCode(v.code, v.isGenericCode, auth);
+        }
         return {
             userId: auth.giftbitUserId,
             id: v.id,
@@ -37,15 +45,17 @@ export namespace Value {
             balance: v.balance,
             uses: v.uses,
             programId: v.programId,
-            code: v.code,
-            codeHashed: null,
-            codeLastFour: null,
+            code: dbCode ? dbCode.lastFour : null,
+            isGenericCode: v.isGenericCode,
+            codeEncrypted: dbCode ? dbCode.codeEncrypted : null,
+            codeHashed: dbCode ? dbCode.codeHashed : null,
             contactId: v.contactId,
             pretax: v.pretax,
             active: v.active,
             canceled: v.canceled,
             frozen: v.frozen,
             discount: v.discount,
+            discountSellerLiability: v.discountSellerLiability,
             redemptionRule: JSON.stringify(v.redemptionRule),
             valueRule: JSON.stringify(v.valueRule),
             startDate: v.startDate,
@@ -67,6 +77,8 @@ export namespace Value {
             canceled: v.canceled,
             frozen: v.frozen,
             pretax: v.pretax,
+            discount: v.discount,
+            discountSellerLiability: v.discountSellerLiability,
             redemptionRule: JSON.stringify(v.redemptionRule),
             valueRule: JSON.stringify(v.valueRule),
             startDate: v.startDate,
@@ -85,14 +97,16 @@ export interface DbValue {
     uses: number | null;
     programId: string | null;
     code: string | null;
+    isGenericCode: boolean | null;
     codeHashed: string | null;
-    codeLastFour: string | null;
+    codeEncrypted: string | null;
     contactId: string | null;
     pretax: boolean;
     active: boolean;
     canceled: boolean;
     frozen: boolean;
     discount: boolean;
+    discountSellerLiability: number | null;
     redemptionRule: string;
     valueRule: string;
     startDate: Date | null;
@@ -103,7 +117,7 @@ export interface DbValue {
 }
 
 export namespace DbValue {
-    export function toValue(v: DbValue): Value {
+    export function toValue(v: DbValue, showCode: boolean = false): Value {
         return {
             id: v.id,
             currency: v.currency,
@@ -111,12 +125,14 @@ export namespace DbValue {
             uses: v.uses,
             programId: v.programId,
             contactId: v.contactId,
-            code: v.code || (v.codeLastFour && "…" + v.codeLastFour) || null,
+            code: v.code && (v.isGenericCode || showCode) ? decryptCode(v.codeEncrypted) : v.code,
+            isGenericCode: v.isGenericCode,
             pretax: v.pretax,
             active: v.active,
             canceled: v.canceled,
             frozen: v.frozen,
             discount: v.discount,
+            discountSellerLiability: v.discountSellerLiability,
             redemptionRule: JSON.parse(v.redemptionRule),
             valueRule: JSON.parse(v.valueRule),
             startDate: v.startDate,

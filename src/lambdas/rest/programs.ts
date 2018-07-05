@@ -5,7 +5,7 @@ import {Pagination, PaginationParams} from "../../model/Pagination";
 import {DbProgram, Program} from "../../model/Program";
 import {csvSerializer} from "../../serializers";
 import {pick, pickOrDefault} from "../../utils/pick";
-import {nowInDbPrecision} from "../../utils/dbUtils";
+import {dateInDbPrecision, nowInDbPrecision} from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {paginateQuery} from "../../utils/dbUtils/paginateQuery";
 
@@ -41,6 +41,7 @@ export function installValueTemplatesRest(router: cassava.Router): void {
                         name: "",
                         currency: "",
                         discount: true,
+                        discountSellerLiability: null,
                         pretax: true,
                         active: true,
                         redemptionRule: null,
@@ -57,6 +58,9 @@ export function installValueTemplatesRest(router: cassava.Router): void {
                 createdDate: now,
                 updatedDate: now
             };
+
+            program.startDate = program.startDate ? dateInDbPrecision(new Date(program.startDate)) : null;
+            program.endDate = program.endDate ? dateInDbPrecision(new Date(program.endDate)) : null;
 
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
@@ -83,7 +87,7 @@ export function installValueTemplatesRest(router: cassava.Router): void {
 
             const now = nowInDbPrecision();
             const program: Partial<Program> = {
-                ...pick(evt.body as Program, "discount", "pretax", "active", "redemptionRule", "valueRule", "minInitialBalance", "maxInitialBalance", "fixedInitialBalances", "fixedInitialUses", "startDate", "endDate", "metadata"),
+                ...pick(evt.body as Program, "name", "discount", "pretax", "active", "redemptionRule", "valueRule", "minInitialBalance", "maxInitialBalance", "fixedInitialBalances", "fixedInitialUses", "startDate", "endDate", "metadata"),
                 updatedDate: now
             };
 
@@ -138,7 +142,7 @@ async function createProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pro
     }
 }
 
-async function getProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Program> {
+export async function getProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Program> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
@@ -221,6 +225,11 @@ const programSchema: jsonschema.Schema = {
         discount: {
             type: "boolean"
         },
+        discountSellerLiability: {
+            type: ["number", "null"],
+            minimum: 0,
+            maximum: 1
+        },
         pretax: {
             type: "boolean"
         },
@@ -266,11 +275,11 @@ const programSchema: jsonschema.Schema = {
             ]
         },
         minInitialBalance: {
-            type: ["string", "null"],
+            type: ["number", "null"],
             minimum: 0
         },
         maxInitialBalance: {
-            type: ["string", "null"],
+            type: ["number", "null"],
             minimum: 0
         },
         fixedInitialBalances: {

@@ -69,7 +69,9 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.deepEqualExcluding(postTransferResp.body, {
             id: "transfer-1",
             transactionType: "transfer",
-            totals: {remainder: 0},
+            totals: {
+                remainder: 0
+            },
             currency: "CAD",
             lineItems: null,
             steps: null,
@@ -147,10 +149,12 @@ describe("/v2/transactions/transfer", () => {
             currency: "CAD",
             simulate: true
         });
-        const validObject = {
+        const validObject: Transaction = {
             id: "transfer-2",
             transactionType: "transfer",
-            totals: {remainder: 0},
+            totals: {
+                remainder: 0
+            },
             currency: "CAD",
             lineItems: null,
             steps: null,
@@ -159,18 +163,7 @@ describe("/v2/transactions/transfer", () => {
             createdDate: null
         };
         chai.assert.equal(postTransferResp.statusCode, 200, `body=${JSON.stringify(postTransferResp.body)}`);
-        // chai.assert.deepEqualExcluding(postTransferResp.body, validObject, ["steps", "createdDate"]);   // TODO this should be fine but the compiler complains. validObject copied directly into test below as temp measure.
-        chai.assert.deepEqualExcluding(postTransferResp.body, {
-            id: "transfer-2",
-            transactionType: "transfer",
-            totals: {remainder: 0},
-            currency: "CAD",
-            lineItems: null,
-            steps: null,
-            paymentSources: null,
-            metadata: null,
-            createdDate: null
-        }, ["steps", "createdDate"]);
+        chai.assert.deepEqualExcluding(postTransferResp.body, validObject, ["steps", "createdDate"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
         const sourceStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad1.id) as LightrailTransactionStep;
@@ -223,7 +216,9 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.deepEqualExcluding(postTransferResp.body, {
             id: "transfer-3",
             transactionType: "transfer",
-            totals: {remainder: 7500 - 500},
+            totals: {
+                remainder: 7500 - 500
+            },
             currency: "CAD",
             lineItems: null,
             steps: null,
@@ -268,7 +263,7 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.deepEqualExcluding(getTransferResp.body, postTransferResp.body, "statusCode");
     });
 
-    it("409s transferring between valueIds where the source has insufficient value", async () => {
+    it("409s transferring between valueIds where the source has insufficient balance", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
             id: "transfer-4",
             source: {
@@ -283,7 +278,7 @@ describe("/v2/transactions/transfer", () => {
             currency: "CAD"
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.equal(resp.body.messageCode, "InsufficientValue");
+        chai.assert.equal(resp.body.messageCode, "InsufficientBalance");
     });
 
     it("409s transferring between valueIds in the wrong currency", async () => {

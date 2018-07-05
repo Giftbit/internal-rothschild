@@ -171,7 +171,7 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
             allowRemainder: false
         },
         async () => {
-            const parties = await resolveTransactionParties(auth, req.currency, [req.destination]);
+            const parties = await resolveTransactionParties(auth, req.currency, [req.destination], req.id);
             if (parties.length !== 1 || parties[0].rail !== "lightrail") {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable Value.", "InvalidParty");
             }
@@ -205,7 +205,7 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
             allowRemainder: req.allowRemainder
         },
         async () => {
-            const parties = await resolveTransactionParties(auth, req.currency, [req.source]);
+            const parties = await resolveTransactionParties(auth, req.currency, [req.source], req.id);
             if (parties.length !== 1 || parties[0].rail !== "lightrail") {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable Value.", "InvalidParty");
             }
@@ -240,7 +240,7 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
             allowRemainder: checkout.allowRemainder
         },
         async () => {
-            const steps = await resolveTransactionParties(auth, checkout.currency, checkout.sources);
+            const steps = await resolveTransactionParties(auth, checkout.currency, checkout.sources, checkout.id);
             return optimizeCheckout(checkout, steps);
         }
     );
@@ -254,12 +254,12 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
             allowRemainder: req.allowRemainder
         },
         async () => {
-            const sourceParties = await resolveTransactionParties(auth, req.currency, [req.source]);
+            const sourceParties = await resolveTransactionParties(auth, req.currency, [req.source], req.id);
             if (sourceParties.length !== 1 || sourceParties[0].rail !== "lightrail") {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable Value.", "InvalidParty");
             }
 
-            const destParties = await resolveTransactionParties(auth, req.currency, [req.destination]);
+            const destParties = await resolveTransactionParties(auth, req.currency, [req.destination], req.id);
             if (destParties.length !== 1 || destParties[0].rail !== "lightrail") {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable Value.", "InvalidParty");
             }
@@ -294,35 +294,30 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
 const lightrailPartySchema: jsonschema.Schema = {
     title: "lightrail",
     type: "object",
+    additionalProperties: false,
     properties: {
         rail: {
             type: "string",
             enum: ["lightrail"]
+        },
+        contactId: {
+            type: "string"
+        },
+        code: {
+            type: "string"
+        },
+        valueId: {
+            type: "string"
         }
     },
     oneOf: [
         {
-            properties: {
-                contactId: {
-                    type: "string"
-                }
-            },
             required: ["contactId"]
         },
         {
-            properties: {
-                code: {
-                    type: "string"
-                }
-            },
             required: ["code"]
         },
         {
-            properties: {
-                valueId: {
-                    type: "string"
-                }
-            },
             required: ["valueId"]
         }
     ],
@@ -335,27 +330,24 @@ const lightrailPartySchema: jsonschema.Schema = {
 const lightrailUniquePartySchema: jsonschema.Schema = {
     title: "lightrail",
     type: "object",
+    additionalProperties: false,
     properties: {
         rail: {
             type: "string",
             enum: ["lightrail"]
+        },
+        code: {
+            type: "string"
+        },
+        valueId: {
+            type: "string"
         }
     },
     oneOf: [
         {
-            properties: {
-                code: {
-                    type: "string"
-                }
-            },
             required: ["code"]
         },
         {
-            properties: {
-                valueId: {
-                    type: "string"
-                }
-            },
             required: ["valueId"]
         }
     ],
@@ -365,21 +357,37 @@ const lightrailUniquePartySchema: jsonschema.Schema = {
 const stripePartySchema: jsonschema.Schema = {
     title: "stripe",
     type: "object",
+    additionalProperties: false,
     properties: {
         rail: {
             type: "string",
             enum: ["stripe"]
         },
-        token: {
+        source: {
             type: "string"
+        },
+        customer: {
+            type: "string"
+        },
+        maxAmount: {
+            type: "integer"
         }
     },
+    oneOf: [
+        {
+            required: ["source"]
+        },
+        {
+            required: ["customer"]
+        }
+    ],
     required: ["rail"]
 };
 
 const internalPartySchema: jsonschema.Schema = {
     title: "internal",
     type: "object",
+    additionalProperties: false,
     properties: {
         rail: {
             type: "string",
@@ -402,6 +410,7 @@ const internalPartySchema: jsonschema.Schema = {
 const creditSchema: jsonschema.Schema = {
     title: "credit",
     type: "object",
+    additionalProperties: false,
     properties: {
         id: {
             type: "string",
@@ -419,6 +428,9 @@ const creditSchema: jsonschema.Schema = {
         },
         simulate: {
             type: "boolean"
+        },
+        metadata: {
+            type: ["object", "null"]
         }
     },
     required: ["id", "destination", "amount", "currency"]
@@ -427,6 +439,7 @@ const creditSchema: jsonschema.Schema = {
 const debitSchema: jsonschema.Schema = {
     title: "credit",
     type: "object",
+    additionalProperties: false,
     properties: {
         id: {
             type: "string",
@@ -447,6 +460,9 @@ const debitSchema: jsonschema.Schema = {
         },
         allowRemainder: {
             type: "boolean"
+        },
+        metadata: {
+            type: ["object", "null"]
         }
     },
     required: ["id", "source", "amount", "currency"]
@@ -455,6 +471,7 @@ const debitSchema: jsonschema.Schema = {
 const transferSchema: jsonschema.Schema = {
     title: "credit",
     type: "object",
+    additionalProperties: false,
     properties: {
         id: {
             type: "string",
@@ -476,6 +493,9 @@ const transferSchema: jsonschema.Schema = {
         },
         allowRemainder: {
             type: "boolean"
+        },
+        metadata: {
+            type: ["object", "null"]
         }
     },
     required: ["id", "source", "amount", "currency"]
@@ -484,6 +504,7 @@ const transferSchema: jsonschema.Schema = {
 const checkoutSchema: jsonschema.Schema = {
     title: "checkout",
     type: "object",
+    additionalProperties: false,
     properties: {
         id: {
             type: "string",
@@ -508,6 +529,15 @@ const checkoutSchema: jsonschema.Schema = {
                     quantity: {
                         type: "integer",
                         minimum: 1
+                    },
+                    taxRate: {
+                        type: "float",
+                        minimum: 0
+                    },
+                    marketplaceRate: {
+                        type: "float",
+                        minimum: 0,
+                        maximum: 1
                     }
                 },
                 required: ["unitPrice"],
@@ -534,6 +564,9 @@ const checkoutSchema: jsonschema.Schema = {
         },
         allowRemainder: {
             type: "boolean"
+        },
+        metadata: {
+            type: ["object", "null"]
         }
     },
     required: ["id", "lineItems", "currency", "sources"]

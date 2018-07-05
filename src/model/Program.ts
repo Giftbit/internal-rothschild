@@ -6,6 +6,7 @@ export interface Program {
     name: string;
     currency: string;
     discount: boolean;
+    discountSellerLiability: number | null;
     pretax: boolean;
     active: boolean;
     redemptionRule: Rule | null;
@@ -29,6 +30,7 @@ export namespace Program {
             name: v.name,
             currency: v.currency,
             discount: v.discount,
+            discountSellerLiability: v.discountSellerLiability,
             pretax: v.pretax,
             active: v.active,
             minInitialBalance: v.minInitialBalance,
@@ -52,6 +54,7 @@ export interface DbProgram {
     name: string;
     currency: string;
     discount: boolean;
+    discountSellerLiability: number | null;
     pretax: boolean;
     active: boolean;
     redemptionRule: string;
@@ -74,6 +77,7 @@ export namespace DbProgram {
             name: v.name,
             currency: v.currency,
             discount: v.discount,
+            discountSellerLiability: v.discountSellerLiability,
             pretax: v.pretax,
             active: v.active,
             minInitialBalance: v.minInitialBalance,

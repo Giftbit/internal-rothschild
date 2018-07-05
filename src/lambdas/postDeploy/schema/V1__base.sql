@@ -19,7 +19,7 @@ CREATE TABLE rothschild.Contacts (
 );
 
 CREATE TABLE rothschild.Currencies (
-  userId        VARCHAR(32)  NOT NULL,
+  userId        VARCHAR(64)  NOT NULL,
   code          VARCHAR(16)  NOT NULL,
   name          VARCHAR(255) NOT NULL,
   symbol        VARCHAR(16)  NOT NULL,
@@ -28,30 +28,32 @@ CREATE TABLE rothschild.Currencies (
 );
 
 CREATE TABLE rothschild.Programs (
-  userId               VARCHAR(32) NOT NULL,
-  id                   VARCHAR(32) NOT NULL,
-  name                 TEXT        NOT NULL,
-  currency             VARCHAR(16) NOT NULL,
-  discount             BOOL        NOT NULL,
-  pretax               BOOL        NOT NULL,
-  active               BOOL        NOT NULL,
-  redemptionRule       TEXT,
-  valueRule            TEXT,
-  minInitialBalance    INT,
-  maxInitialBalance    INT,
-  fixedInitialBalances TEXT,
-  fixedInitialUses     TEXT,
-  startDate            DATETIME,
-  endDate              DATETIME,
-  metadata             TEXT,
-  createdDate          DATETIME    NOT NULL,
-  updatedDate          DATETIME    NOT NULL,
+  userId                  VARCHAR(64) NOT NULL,
+  id                      VARCHAR(32) NOT NULL,
+  name                    TEXT        NOT NULL,
+  currency                VARCHAR(16) NOT NULL,
+  discount                BOOL        NOT NULL,
+  discountSellerLiability FLOAT,
+  pretax                  BOOL        NOT NULL,
+  active                  BOOL        NOT NULL,
+  generateCode            TEXT,
+  redemptionRule          TEXT,
+  valueRule               TEXT,
+  minInitialBalance       INT,
+  maxInitialBalance       INT,
+  fixedInitialBalances    TEXT,
+  fixedInitialUses        TEXT,
+  startDate               DATETIME,
+  endDate                 DATETIME,
+  metadata                TEXT,
+  createdDate             DATETIME    NOT NULL,
+  updatedDate             DATETIME    NOT NULL,
   PRIMARY KEY pk_Programs (userId, id),
   CONSTRAINT fk_Programs_Currencies FOREIGN KEY (userId, currency) REFERENCES rothschild.Currencies (userId, code)
 );
 
 CREATE TABLE rothschild.ProgramTags (
-  userId    VARCHAR(32) NOT NULL,
+  userId    VARCHAR(64) NOT NULL,
   programId VARCHAR(32) NOT NULL,
   tag       VARCHAR(32) NOT NULL,
   PRIMARY KEY pk_ProgramTags (userId, programId, tag),
@@ -60,38 +62,39 @@ CREATE TABLE rothschild.ProgramTags (
 );
 
 CREATE TABLE rothschild.Values (
-  userId         VARCHAR(32) NOT NULL,
-  id             VARCHAR(32) NOT NULL,
-  currency       VARCHAR(16) NOT NULL,
-  balance        INT,
-  uses           INT,
-  programId      VARCHAR(32),
-  code           VARCHAR(255),
-  codeHashed     CHAR(255),
-  codeLastFour   VARCHAR(4),
-  contactId      VARCHAR(32),
-  pretax         BOOL        NOT NULL,
-  active         BOOL        NOT NULL,
-  canceled       BOOL        NOT NULL,
-  frozen         BOOL        NOT NULL,
-  redemptionRule TEXT,
-  valueRule      TEXT,
-  discount       BOOL        NOT NULL,
-  startDate      DATETIME,
-  endDate        DATETIME,
-  metadata       TEXT,
-  createdDate    DATETIME    NOT NULL,
-  updatedDate    DATETIME    NOT NULL,
+  userId                  VARCHAR(64) NOT NULL,
+  id                      VARCHAR(32) NOT NULL,
+  currency                VARCHAR(16) NOT NULL,
+  balance                 INT,
+  uses                    INT,
+  programId               VARCHAR(32),
+  code                    NVARCHAR(255),
+  isGenericCode           BOOL,
+  codeEncrypted           VARCHAR(255),
+  codeHashed              VARCHAR(255),
+  contactId               VARCHAR(32),
+  pretax                  BOOL        NOT NULL,
+  active                  BOOL        NOT NULL,
+  canceled                BOOL        NOT NULL,
+  frozen                  BOOL        NOT NULL,
+  redemptionRule          TEXT,
+  valueRule               TEXT,
+  discount                BOOL        NOT NULL,
+  discountSellerLiability FLOAT,
+  startDate               DATETIME,
+  endDate                 DATETIME,
+  metadata                TEXT,
+  createdDate             DATETIME    NOT NULL,
+  updatedDate             DATETIME    NOT NULL,
   PRIMARY KEY pk_Values (userId, id),
   CONSTRAINT fk_Values_Programs FOREIGN KEY (userId, programId) REFERENCES rothschild.Programs (userId, id),
   CONSTRAINT fk_Values_Currencies FOREIGN KEY (userId, currency) REFERENCES rothschild.Currencies (userId, code),
   CONSTRAINT fk_Values_Contacts FOREIGN KEY (userId, contactId) REFERENCES rothschild.Contacts (userId, id),
-  CONSTRAINT uq_Values_code UNIQUE (userId, code),
   CONSTRAINT uq_Values_codeHashed UNIQUE (userId, codeHashed)
 );
 
 CREATE TABLE rothschild.ValueTags (
-  userId  VARCHAR(32) NOT NULL,
+  userId  VARCHAR(64) NOT NULL,
   valueId VARCHAR(32) NOT NULL,
   tag     VARCHAR(32) NOT NULL,
   PRIMARY KEY pk_ValueTags (userId, valueId, tag),
@@ -100,7 +103,7 @@ CREATE TABLE rothschild.ValueTags (
 );
 
 CREATE TABLE rothschild.Transactions (
-  userId          VARCHAR(32)  NOT NULL,
+  userId          VARCHAR(64)  NOT NULL,
   id              VARCHAR(32)  NOT NULL,
   transactionType VARCHAR(255) NOT NULL,
   currency        VARCHAR(32)  NOT NULL,
@@ -113,12 +116,12 @@ CREATE TABLE rothschild.Transactions (
 );
 
 CREATE TABLE rothschild.LightrailTransactionSteps (
-  userId        VARCHAR(32) NOT NULL,
+  userId        VARCHAR(64) NOT NULL,
   id            VARCHAR(32) NOT NULL,
   transactionId VARCHAR(32) NOT NULL,
   valueId       VARCHAR(32) NOT NULL,
   contactId     VARCHAR(32),
-  code          CHAR(4),
+  code          NVARCHAR(255),
   balanceBefore INT         NOT NULL,
   balanceAfter  INT         NOT NULL,
   balanceChange INT         NOT NULL,
@@ -130,7 +133,7 @@ CREATE TABLE rothschild.LightrailTransactionSteps (
 );
 
 CREATE TABLE rothschild.StripeTransactionSteps (
-  userId        VARCHAR(32)  NOT NULL,
+  userId        VARCHAR(64)  NOT NULL,
   id            VARCHAR(32)  NOT NULL,
   transactionId VARCHAR(32)  NOT NULL,
   chargeId      VARCHAR(255) NOT NULL,
@@ -144,7 +147,7 @@ CREATE TABLE rothschild.StripeTransactionSteps (
 );
 
 CREATE TABLE rothschild.InternalTransactionSteps (
-  userId        VARCHAR(32)  NOT NULL,
+  userId        VARCHAR(64)  NOT NULL,
   id            VARCHAR(32)  NOT NULL,
   transactionId VARCHAR(32)  NOT NULL,
   internalId    VARCHAR(255) NOT NULL,

@@ -277,6 +277,24 @@ describe("/v2/contacts", () => {
         chai.assert.equal(resp3.statusCode, 409, `delete body=${JSON.stringify(resp3.body)}`);
     });
 
+    it("can create a contact with unicode characters", async () => {
+        const contact: Partial<Contact> = {
+            id: "chinese-name",
+            firstName: "芷若",
+            lastName: "王",
+            email: null,
+            metadata: null
+        };
+
+        const resp1 = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact);
+        chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
+        chai.assert.deepEqualExcluding(resp1.body, contact, ["createdDate", "updatedDate"]);
+
+        const resp2 = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/${contact.id}`, "GET", contact);
+        chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
+        chai.assert.deepEqualExcluding(resp2.body, contact, ["createdDate", "updatedDate"]);
+    });
+
     describe("filters and pagination", () => {
         const contacts: Partial<DbContact>[] = [
             {
