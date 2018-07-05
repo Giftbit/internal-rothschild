@@ -448,7 +448,7 @@ function checkProgramConstraints(value: Value, program: Program): void {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's uses ${value.uses} outside initial values defined by Program ${program.fixedInitialUses}.`);
     }
 
-    if (program.currency != value.currency) {
+    if (program.currency !== value.currency) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's currency ${value.currency} cannot differ from currency of Program ${program.currency}.`);
     }
 }
