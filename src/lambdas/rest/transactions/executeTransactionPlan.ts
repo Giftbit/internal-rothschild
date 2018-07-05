@@ -13,6 +13,7 @@ import {
     insertStripeTransactionSteps,
     insertTransaction
 } from "../../../utils/dbUtils/insertTransactions";
+import {LightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/StripeConfig";
 
 export interface ExecuteTransactionPlannerOptions {
     allowRemainder: boolean;
@@ -45,66 +46,61 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
     }
 }
 
-export function executeTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<Transaction> {
-    const messy = plan.steps.find(step => step.rail !== "lightrail" && step.rail !== "internal");
-    return messy ? executeMessyTransactionPlan(auth, plan) : executePureTransactionPlan(auth, plan);
-}
-
-/**
- * Execute a transaction plan that can be done as a single SQL transaction
- * locking on Values.
- */
-async function executePureTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<Transaction> {
-    const knex = await getKnexWrite();
-    await knex.transaction(async trx => {
-        await insertTransaction(trx, auth, plan);
-        await insertLightrailTransactionSteps(auth, trx, plan);
-    });
-
-    return transactionPlanToTransaction(plan);
-}
-
-/**
- * Execute a transaction plan that transacts against other systems and requires
- * create-pending and capture-pending logic.
- */
-async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<Transaction> {
+export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<Transaction> {
     if (plan.steps.find(step => step.rail === "internal")) {
         throw new Error("Not implemented");
     }
 
-    const stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
+    let chargeStripe = false;
+    let stripeConfig: LightrailAndMerchantStripeConfig;
+    const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
+    if (stripeSteps.length > 0) {
+        chargeStripe = true;
+        stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
+        await chargeStripeSteps(stripeConfig, plan);
+    }
 
     const knex = await getKnexWrite();
-
-    const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
-
-    await chargeStripeSteps(stripeConfig, plan);
 
     await knex.transaction(async trx => {
         try {
             await insertTransaction(trx, auth, plan);
         } catch (err) {
             if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "TransactionExists") {
-                await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded because transaction already exists on Lightrail side: ${JSON.stringify(err)}`);
-                err.message = `${err.message} The associated Stripe charge(s) '${stripeSteps.map(step => step.chargeResult.id)}' have been refunded.`;
+                if (chargeStripe) {
+                    await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded because transaction already exists on Lightrail side: ${err}`);
+                    err.message = `${err.message} The associated Stripe charge(s) '${stripeSteps.map(step => step.chargeResult.id)}' have been refunded.`;
+                    log.debug(`An error occurred while processing transaction '${plan.id}'. The Stripe charge(s) '${stripeSteps.map(step => step.chargeResult.id)}' have been refunded.`);
+                }
                 throw err;
             } else {
-                await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side: ${JSON.stringify(err)}`);
+                if (chargeStripe) {
+                    await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side: ${err}`);
+                    log.debug(`An error occurred while processing transaction '${plan.id}'. The Stripe charge(s) '${stripeSteps.map(step => step.chargeResult.id)}' have been refunded.`);
+                }
                 throw err;
             }
         }
 
         try {
-            await insertStripeTransactionSteps(auth, trx, plan);
+            if (chargeStripe) {
+                await insertStripeTransactionSteps(auth, trx, plan);
+            }
             await insertLightrailTransactionSteps(auth, trx, plan);
         } catch (err) {
-            await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side: ${JSON.stringify(err)}`);
+            if (chargeStripe) {
+                await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side: ${err}`);
+                log.debug(`An error occurred while processing transaction '${plan.id}'. The Stripe charge(s) '${stripeSteps.map(step => step.chargeResult.id)}' have been refunded.`);
+            }
 
-            if (err.code === "ER_DUP_ENTRY") {
+            if ((err as TransactionPlanError).isTransactionPlanError) {
+                throw err;
+            } else if (err.code === "ER_DUP_ENTRY") {
+                log.debug(err);
                 throw new giftbitRoutes.GiftbitRestError(409, `A transaction step in transaction '${plan.id}' already exists. This should not be possible.`, "TransactionStepExists");
             } else {
-                throw new giftbitRoutes.GiftbitRestError(500, `An error occurred while processing transaction '${plan.id}'. The Stripe charge(s) '${stripeSteps.map(step => step.chargeResult.id)}' have been refunded.`);
+                log.debug(err);
+                throw new giftbitRoutes.GiftbitRestError(500, `An error occurred while processing transaction '${plan.id}': ${err}.`);
             }
         }
     });

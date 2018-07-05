@@ -25,6 +25,8 @@ export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.A
     } catch (err) {
         if (err.code === "ER_DUP_ENTRY") {
             throw new giftbitRoutes.GiftbitRestError(409, `A Lightrail transaction with transactionId '${plan.id}' already exists.`, "TransactionExists");
+        } else {
+            throw err;
         }
     }
 }
