@@ -2,17 +2,17 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as parseLinkHeader from "parse-link-header";
-import * as testUtils from "../../testUtils";
-import {defaultTestUser} from "../../testUtils";
+import * as testUtils from "../../utils/testUtils";
+import {defaultTestUser, generateId} from "../../utils/testUtils";
 import {DbValue, Value} from "../../model/Value";
 import {Currency} from "../../model/Currency";
 import {Contact} from "../../model/Contact";
-import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
 import {codeLastFour} from "../../model/DbCode";
+import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {LightrailTransactionStep, Transaction} from "../../model/Transaction";
 import {installRestRoutes} from "./installRestRoutes";
-import {computeLookupHash, decrypt} from "../../codeCryptoUtils";
 import {createCurrency} from "./currencies";
+import {computeCodeLookupHash, decryptCode, initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -25,6 +25,10 @@ describe("/v2/values/", () => {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
         installRestRoutes(router);
+        await initializeCodeCryptographySecrets(Promise.resolve({
+            encryptionSecret: "ca7589aef4ffed15783341414fe2f4a5edf9ddad75cf2e96ed2a16aee88673ea",
+            lookupHashSecret: "ae8645165cc7533dbcc84aeb21c7d6553a38271b7e3402f99d16b8a8717847e1"
+        }));
         await createCurrency(testUtils.defaultTestUser.auth, {
             code: "USD",
             name: "The Big Bucks",
@@ -76,6 +80,7 @@ describe("/v2/values/", () => {
             programId: null,
             contactId: null,
             code: null,
+            isGenericCode: null,
             active: true,
             canceled: false,
             frozen: false,
@@ -85,6 +90,7 @@ describe("/v2/values/", () => {
             redemptionRule: null,
             valueRule: null,
             discount: false,
+            discountSellerLiability: null,
             metadata: null
         }, ["createdDate", "updatedDate"]);
         value1 = resp2.body;
@@ -118,6 +124,20 @@ describe("/v2/values/", () => {
 
         const resp2 = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value1.id}`, "PATCH", {currency: currency2.code});
         chai.assert.equal(resp2.statusCode, 422, `body=${JSON.stringify(resp2.body)}`);
+    });
+
+    it("can change discount", async () => {
+        const resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "PATCH", {discount: true});
+        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.discount, true);
+        value1.discount = true;
+    });
+
+    it("can change discountSellerLiability", async () => {
+        const resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "PATCH", {discountSellerLiability: 1.0});
+        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.discountSellerLiability, 1.0);
+        value1.discountSellerLiability = 1.0;
     });
 
     it("cannot change a value's balance", async () => {
@@ -242,6 +262,16 @@ describe("/v2/values/", () => {
             id: "negativebalance",
             currency: "USD",
             balance: -5000
+        });
+        chai.assert.equal(resp.statusCode, 422, `create body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("422s on creating a value with discountSellerLiability set and discount=false", async () => {
+        const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: "discount-origin-test",
+            currency: "USD",
+            discount: false,
+            discountSellerLiability: 1.0
         });
         chai.assert.equal(resp.statusCode, 422, `create body=${JSON.stringify(resp.body)}`);
     });
@@ -373,22 +403,24 @@ describe("/v2/values/", () => {
 
             const page1 = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/values?id.in=${ids.join(",")}`, "GET");
             chai.assert.equal(page1.statusCode, 200, `body=${JSON.stringify(page1.body)}`);
-            chai.assert.deepEqualExcludingEvery(page1.body, expected, ["userId", "codeHashed", "codeLastFour", "startDate", "endDate", "createdDate", "updatedDate", "encryptedCode", "genericCode"]);
+            chai.assert.deepEqualExcludingEvery(page1.body, expected, ["userId", "codeHashed", "codeLastFour", "startDate", "endDate", "createdDate", "updatedDate", "codeEncrypted", "isGenericCode"]);
             chai.assert.isDefined(page1.headers["Link"]);
         });
     });
 
-    it("can create a value with public code", async () => {
+    it("can create a value with generic code", async () => {
         let publicCode = {
-            id: "valueWithPublicCode",
+            id: generateId(),
             currency: "USD",
-            genericCode: "PUBLIC",
+            code: "PUBLIC",
+            isGenericCode: true,
             balance: 0
         };
 
         const post = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", publicCode);
         chai.assert.equal(post.statusCode, 201, `body=${JSON.stringify(post.body)}`);
-        chai.assert.equal(post.body.code, publicCode.genericCode);
+        chai.assert.equal(post.body.code, publicCode.code);
+        chai.assert.isTrue(post.body.isGenericCode);
 
         const get = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${publicCode.id}`, "GET");
         chai.assert.equal(get.statusCode, 200, `body=${JSON.stringify(get.body)}`);
@@ -405,10 +437,10 @@ describe("/v2/values/", () => {
                 userId: testUtils.defaultTestUser.userId,
                 id: publicCode.id
             });
-        chai.assert.isNotNull(res[0].encryptedCode);
+        chai.assert.isNotNull(res[0].codeEncrypted);
         chai.assert.isNotNull(res[0].codeHashed);
-        chai.assert.equal(res[0].codeHashed, computeLookupHash(publicCode.genericCode, testUtils.defaultTestUser.auth));
-        chai.assert.equal(res[0].code, "...BLIC");
+        chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(publicCode.code, testUtils.defaultTestUser.auth));
+        chai.assert.equal(res[0].code, "…BLIC");
 
         const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
         let codeInListShowCodeFalse: Value = list.body.find(it => it.id === publicCode.id);
@@ -416,6 +448,167 @@ describe("/v2/values/", () => {
         const listShowCode = await testUtils.testAuthedRequest<any>(router, `/v2/values?showCode=true`, "GET");
         let codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === publicCode.id);
         chai.assert.equal(codeInListShowCodeTrue.code, "PUBLIC");
+    });
+
+    it("can create a value with 1 character generic code", async () => {
+        let publicCode = {
+            id: generateId(),
+            currency: "USD",
+            code: "A",
+            isGenericCode: true,
+            balance: 0
+        };
+
+        const post = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", publicCode);
+        chai.assert.equal(post.statusCode, 201, `body=${JSON.stringify(post.body)}`);
+        chai.assert.equal(post.body.code, publicCode.code);
+        chai.assert.isTrue(post.body.isGenericCode);
+
+        const get = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${publicCode.id}`, "GET");
+        chai.assert.equal(get.statusCode, 200, `body=${JSON.stringify(get.body)}`);
+        chai.assert.equal(get.body.code, "A");
+
+        const showCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${publicCode.id}?showCode=true`, "GET");
+        chai.assert.equal(showCode.statusCode, 200, `body=${JSON.stringify(showCode.body)}`);
+        chai.assert.equal(showCode.body.code, "A");
+
+        const knex = await getKnexRead();
+        const res: DbValue[] = await knex("Values")
+            .select()
+            .where({
+                userId: testUtils.defaultTestUser.userId,
+                id: publicCode.id
+            });
+        chai.assert.isNotNull(res[0].codeEncrypted);
+        chai.assert.isNotNull(res[0].codeHashed);
+        chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(publicCode.code, testUtils.defaultTestUser.auth));
+        chai.assert.equal(res[0].code, "…A");
+
+        const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
+        let codeInListShowCodeFalse: Value = list.body.find(it => it.id === publicCode.id);
+        chai.assert.equal(codeInListShowCodeFalse.code, "A");
+        const listShowCode = await testUtils.testAuthedRequest<any>(router, `/v2/values?showCode=true`, "GET");
+        let codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === publicCode.id);
+        chai.assert.equal(codeInListShowCodeTrue.code, "A");
+    });
+
+    it.skip("can create a value with 🚀 emoji generic code", async () => {
+        let value = {
+            id: generateId(),
+            currency: "USD",
+            code: "🚀",
+            isGenericCode: true,
+            balance: 0
+        };
+
+        const post = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(post.statusCode, 201, `body=${JSON.stringify(post.body)}`);
+        chai.assert.equal(post.body.code, value.code);
+        chai.assert.isTrue(post.body.isGenericCode);
+
+        const get = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
+        chai.assert.equal(get.statusCode, 200, `body=${JSON.stringify(get.body)}`);
+        chai.assert.equal(get.body.code, "🚀");
+
+        const showCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}?showCode=true`, "GET");
+        chai.assert.equal(showCode.statusCode, 200, `body=${JSON.stringify(showCode.body)}`);
+        chai.assert.equal(showCode.body.code, "🚀");
+
+        const knex = await getKnexRead();
+        const res: DbValue[] = await knex("Values")
+            .select()
+            .where({
+                userId: testUtils.defaultTestUser.userId,
+                id: value.id
+            });
+        chai.assert.isNotNull(res[0].codeEncrypted);
+        chai.assert.isNotNull(res[0].codeHashed);
+        chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(value.code, testUtils.defaultTestUser.auth));
+
+        const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
+        let codeInListShowCodeFalse: Value = list.body.find(it => it.id === value.id);
+        chai.assert.equal(codeInListShowCodeFalse.code, "🚀");
+        const listShowCode = await testUtils.testAuthedRequest<any>(router, `/v2/values?showCode=true`, "GET");
+        let codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === value.id);
+        chai.assert.equal(codeInListShowCodeTrue.code, "🚀");
+    });
+
+    it("can create a value with unicode secure code", async () => {
+        let value = {
+            id: generateId(),
+            currency: "USD",
+            code: "芷若⳥ⳢⳫⳂⳀ",
+            balance: 0
+        };
+
+        const post = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(post.statusCode, 201, `body=${JSON.stringify(post.body)}`);
+        chai.assert.equal(post.body.code, "…ⳢⳫⳂⳀ");
+
+        const get = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
+        chai.assert.equal(get.statusCode, 200, `body=${JSON.stringify(get.body)}`);
+        chai.assert.equal(get.body.code, "…ⳢⳫⳂⳀ");
+
+        const showCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}?showCode=true`, "GET");
+        chai.assert.equal(showCode.statusCode, 200, `body=${JSON.stringify(showCode.body)}`);
+        chai.assert.equal(showCode.body.code, "芷若⳥ⳢⳫⳂⳀ");
+
+        const knex = await getKnexRead();
+        const res: DbValue[] = await knex("Values")
+            .select()
+            .where({
+                userId: testUtils.defaultTestUser.userId,
+                id: value.id
+            });
+        chai.assert.isNotNull(res[0].codeEncrypted);
+        chai.assert.isNotNull(res[0].codeHashed);
+        chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(value.code, testUtils.defaultTestUser.auth));
+
+        const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
+        let codeInListShowCodeFalse: Value = list.body.find(it => it.id === value.id);
+        chai.assert.equal(codeInListShowCodeFalse.code, "…ⳢⳫⳂⳀ");
+        const listShowCode = await testUtils.testAuthedRequest<any>(router, `/v2/values?showCode=true`, "GET");
+        let codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === value.id);
+        chai.assert.equal(codeInListShowCodeTrue.code, "芷若⳥ⳢⳫⳂⳀ");
+    });
+
+    it.skip("can create a value with emoji secure code", async () => {
+        let value = {
+            id: generateId(),
+            currency: "USD",
+            code: "👮😭💀😒😴🙌😇🚀",
+            balance: 0
+        };
+
+        const post = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(post.statusCode, 201, `body=${JSON.stringify(post.body)}`);
+        chai.assert.equal(post.body.code, "…😴🙌😇🚀");
+
+        const get = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
+        chai.assert.equal(get.statusCode, 200, `body=${JSON.stringify(get.body)}`);
+        chai.assert.equal(get.body.code, "…😴🙌😇🚀");
+
+        const showCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}?showCode=true`, "GET");
+        chai.assert.equal(showCode.statusCode, 200, `body=${JSON.stringify(showCode.body)}`);
+        chai.assert.equal(showCode.body.code, "👮😭💀😒😴🙌😇🚀");
+
+        const knex = await getKnexRead();
+        const res: DbValue[] = await knex("Values")
+            .select()
+            .where({
+                userId: testUtils.defaultTestUser.userId,
+                id: value.id
+            });
+        chai.assert.isNotNull(res[0].codeEncrypted);
+        chai.assert.isNotNull(res[0].codeHashed);
+        chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(value.code, testUtils.defaultTestUser.auth));
+
+        const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
+        let codeInListShowCodeFalse: Value = list.body.find(it => it.id === value.id);
+        chai.assert.equal(codeInListShowCodeFalse.code, "…😴🙌😇🚀");
+        const listShowCode = await testUtils.testAuthedRequest<any>(router, `/v2/values?showCode=true`, "GET");
+        let codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === value.id);
+        chai.assert.equal(codeInListShowCodeTrue.code, "👮😭💀😒😴🙌😇🚀");
     });
 
     it("can create a value with secure code", async () => {
@@ -428,11 +621,11 @@ describe("/v2/values/", () => {
 
         const respPost = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", secureCode);
         chai.assert.equal(respPost.statusCode, 201, `body=${JSON.stringify(respPost.body)}`);
-        chai.assert.equal(respPost.body.code, "...CURE");
+        chai.assert.equal(respPost.body.code, "…CURE");
 
         const respGet = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${secureCode.id}`, "GET");
         chai.assert.equal(respGet.statusCode, 200, `body=${JSON.stringify(respGet.body)}`);
-        chai.assert.equal(respGet.body.code, "...CURE");
+        chai.assert.equal(respGet.body.code, "…CURE");
 
         const showCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${secureCode.id}?showCode=true`, "GET");
         chai.assert.equal(showCode.statusCode, 200, `body=${JSON.stringify(showCode.body)}`);
@@ -445,14 +638,14 @@ describe("/v2/values/", () => {
                 userId: testUtils.defaultTestUser.userId,
                 id: secureCode.id
             });
-        chai.assert.isNotNull(res[0].encryptedCode);
+        chai.assert.isNotNull(res[0].codeEncrypted);
         chai.assert.isNotNull(res[0].codeHashed);
-        chai.assert.equal(res[0].codeHashed, computeLookupHash(secureCode.code, testUtils.defaultTestUser.auth));
-        chai.assert.equal(res[0].code, "...CURE");
+        chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(secureCode.code, testUtils.defaultTestUser.auth));
+        chai.assert.equal(res[0].code, "…CURE");
 
         const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
         let codeInListShowCodeFalse: Value = list.body.find(it => it.id === secureCode.id);
-        chai.assert.equal(codeInListShowCodeFalse.code, "...CURE");
+        chai.assert.equal(codeInListShowCodeFalse.code, "…CURE");
         const listShowCode = await testUtils.testAuthedRequest<any>(router, `/v2/values?showCode=true`, "GET");
         let codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === secureCode.id);
         chai.assert.equal(codeInListShowCodeTrue.code, "SECURE");
@@ -465,15 +658,20 @@ describe("/v2/values/", () => {
             let value = {
                 id: "changeCodeTest1" + code,
                 currency: "USD",
-                genericCode: "CODEONE",
+                code: "CODEONE",
+                isGenericCode: true,
                 balance: 0
             };
 
             const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
             chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
-            chai.assert.equal(create.body.code, value.genericCode);
+            chai.assert.equal(create.body.code, value.code);
+            chai.assert.isTrue(create.body.isGenericCode);
 
-            const changeCodePublic = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}/changeCode`, "POST", {genericCode: code});
+            const changeCodePublic = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}/changeCode`, "POST", {
+                isGenericCode: true,
+                code: code
+            });
             chai.assert.equal(changeCodePublic.statusCode, 200, `body=${JSON.stringify(changeCodePublic.body)}`);
 
             const getNewPublicCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
@@ -487,11 +685,11 @@ describe("/v2/values/", () => {
                     userId: testUtils.defaultTestUser.userId,
                     id: value.id
                 });
-            chai.assert.isNotNull(res[0].encryptedCode);
+            chai.assert.isNotNull(res[0].codeEncrypted);
             chai.assert.isNotNull(res[0].codeHashed);
-            chai.assert.equal(res[0].codeHashed, computeLookupHash(code, testUtils.defaultTestUser.auth));
+            chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(code, testUtils.defaultTestUser.auth));
             chai.assert.equal(res[0].code, codeLastFour(code));
-            chai.assert.equal(decrypt(res[0].encryptedCode), code);
+            chai.assert.equal(decryptCode(res[0].codeEncrypted), code);
 
             const changeCodeSecure = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}/changeCode`, "POST", {code: code});
             chai.assert.equal(changeCodeSecure.statusCode, 200, `body=${JSON.stringify(changeCodeSecure.body)}`);
@@ -506,11 +704,11 @@ describe("/v2/values/", () => {
                     userId: testUtils.defaultTestUser.userId,
                     id: value.id
                 });
-            chai.assert.isNotNull(res[0].encryptedCode);
+            chai.assert.isNotNull(res[0].codeEncrypted);
             chai.assert.isNotNull(res[0].codeHashed);
-            chai.assert.equal(res[0].codeHashed, computeLookupHash(code, testUtils.defaultTestUser.auth));
+            chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(code, testUtils.defaultTestUser.auth));
             chai.assert.equal(res[0].code, codeLastFour(code));
-            chai.assert.equal(decrypt(res[0].encryptedCode), code);
+            chai.assert.equal(decryptCode(res[0].codeEncrypted), code);
         }
     });
 
@@ -518,9 +716,7 @@ describe("/v2/values/", () => {
         let value = {
             id: "generateCodeTest-1",
             currency: "USD",
-            generateCode: {
-                length: 20
-            },
+            generateCode: {},
             balance: 0
         };
         let firstGeneratedCode: string;
@@ -529,14 +725,14 @@ describe("/v2/values/", () => {
         it("can generate a code", async () => {
             const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
             chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
-            const lastFour = create.body.code.substring(3);
-            chai.assert.equal(create.body.code, "..." + lastFour);
+            const lastFour = create.body.code.substring(1);
+            chai.assert.equal(create.body.code, "…" + lastFour);
             chai.assert.equal(lastFour.length, 4);
 
             const showCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}?showCode=true`, "GET");
             chai.assert.equal(showCode.statusCode, 200, `body=${JSON.stringify(showCode.body)}`);
             firstGeneratedCode = showCode.body.code;
-            chai.assert.equal(firstGeneratedCode.length, 20);
+            chai.assert.equal(firstGeneratedCode.length, 16);
 
             const knex = await getKnexRead();
             let res: DbValue[] = await knex("Values")
@@ -545,26 +741,27 @@ describe("/v2/values/", () => {
                     userId: testUtils.defaultTestUser.userId,
                     id: value.id
                 });
-            chai.assert.isNotNull(res[0].encryptedCode);
+            chai.assert.isNotNull(res[0].codeEncrypted);
             chai.assert.isNotNull(res[0].codeHashed);
-            chai.assert.equal(res[0].codeHashed, computeLookupHash(firstGeneratedCode, testUtils.defaultTestUser.auth));
+            chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(firstGeneratedCode, testUtils.defaultTestUser.auth));
             chai.assert.equal(res[0].code, codeLastFour(firstGeneratedCode));
-            chai.assert.equal(decrypt(res[0].encryptedCode), firstGeneratedCode);
-            chai.assert.notEqual(res[0].encryptedCode, firstGeneratedCode);
+            chai.assert.equal(decryptCode(res[0].codeEncrypted), firstGeneratedCode);
+            chai.assert.notEqual(res[0].codeEncrypted, firstGeneratedCode);
             chai.assert.notEqual(res[0].codeHashed, firstGeneratedCode);
         });
 
         it("can regenerate a code", async () => {
             const changeCodeSecure = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}/changeCode`, "POST", {
                 generateCode: {
-                    length: 15, prefix: "SPRING"
+                    length: 15,
+                    prefix: "SPRING"
                 }
             });
             chai.assert.equal(changeCodeSecure.statusCode, 200, `body=${JSON.stringify(changeCodeSecure.body)}`);
 
             const get = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET", value);
-            const lastFour = get.body.code.substring(3);
-            chai.assert.equal(get.body.code, "..." + lastFour);
+            const lastFour = get.body.code.substring(1);
+            chai.assert.equal(get.body.code, "…" + lastFour);
             chai.assert.equal(lastFour.length, 4);
 
             const showCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}?showCode=true`, "GET");
@@ -579,31 +776,72 @@ describe("/v2/values/", () => {
                     userId: testUtils.defaultTestUser.userId,
                     id: value.id
                 });
-            chai.assert.isNotNull(res[0].encryptedCode);
+            chai.assert.isNotNull(res[0].codeEncrypted);
             chai.assert.isNotNull(res[0].codeHashed);
-            chai.assert.equal(res[0].codeHashed, computeLookupHash(secondGeneratedCode, testUtils.defaultTestUser.auth));
+            chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(secondGeneratedCode, testUtils.defaultTestUser.auth));
             chai.assert.equal(res[0].code, codeLastFour(secondGeneratedCode));
-            chai.assert.equal(decrypt(res[0].encryptedCode), secondGeneratedCode);
-            chai.assert.notEqual(res[0].encryptedCode, secondGeneratedCode);
+            chai.assert.equal(decryptCode(res[0].codeEncrypted), secondGeneratedCode);
+            chai.assert.notEqual(res[0].codeEncrypted, secondGeneratedCode);
             chai.assert.notEqual(res[0].codeHashed, secondGeneratedCode);
             chai.assert.notEqual(firstGeneratedCode, secondGeneratedCode);
+        });
+
+        it.skip("can generate a code using an emoji charset", async () => {
+            let value = {
+                id: generateId(),
+                currency: "USD",
+                generateCode: {
+                    charset: "👮😭💀😒😴🙌😇🚀",
+                    length: 16
+                },
+                balance: 0
+            };
+
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+            const lastFour = create.body.code.substring(1);
+            chai.assert.equal(create.body.code, "…😴🙌😇🚀");
+            chai.assert.equal(lastFour.length, 4);
+
+            const showCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}?showCode=true`, "GET");
+            chai.assert.equal(showCode.statusCode, 200, `body=${JSON.stringify(showCode.body)}`);
+            firstGeneratedCode = showCode.body.code;
+            chai.assert.equal(firstGeneratedCode.length, 20);
+
+            const knex = await getKnexRead();
+            let res: DbValue[] = await knex("Values")
+                .select()
+                .where({
+                    userId: testUtils.defaultTestUser.userId,
+                    id: value.id
+                });
+            chai.assert.isNotNull(res[0].codeEncrypted);
+            chai.assert.isNotNull(res[0].codeHashed);
+            chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(firstGeneratedCode, testUtils.defaultTestUser.auth));
+            chai.assert.equal(res[0].code, codeLastFour(firstGeneratedCode));
+            chai.assert.equal(decryptCode(res[0].codeEncrypted), firstGeneratedCode);
+            chai.assert.notEqual(res[0].codeEncrypted, firstGeneratedCode);
+            chai.assert.notEqual(res[0].codeHashed, firstGeneratedCode);
+        });
+
+        it("charset can't contain a space", async () => {
+            let value = {
+                id: generateId(),
+                currency: "USD",
+                generateCode: {
+                    charset: "A BCDEFG",
+                    length: 16
+                },
+                balance: 0
+            };
+
+            const create = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
+            chai.assert.equal(create.statusCode, 422, `body=${JSON.stringify(create.body)}`);
+            chai.assert.include(create.body.message, "cannot contain a space", `body=${JSON.stringify(create.body)}`);
         });
     });
 
     describe("can't create a Value with disjoint code properties", () => {
-        it("cannot create a Value with code and genericCode", async () => {
-            let valueWithPublicCode = {
-                id: "value",
-                currency: "USD",
-                code: "SECURE",
-                genericCode: "PUBLIC",
-                balance: 0
-            };
-
-            const res = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueWithPublicCode);
-            chai.assert.equal(res.statusCode, 422, `body=${JSON.stringify(res.body)}`);
-        });
-
         it("cannot create a Value with code and generateCode", async () => {
             let valueWithPublicCode = {
                 id: "value",
@@ -617,11 +855,11 @@ describe("/v2/values/", () => {
             chai.assert.equal(res.statusCode, 422, `body=${JSON.stringify(res.body)}`);
         });
 
-        it("cannot create a Value with genericCode and generateCode", async () => {
+        it("cannot create a Value with isGenericCode and generateCode", async () => {
             let valueWithPublicCode = {
                 id: "value",
                 currency: "USD",
-                genericCode: "PUBLIC",
+                isGenericCode: true,
                 generateCode: {length: 5},
                 balance: 0
             };
@@ -630,12 +868,12 @@ describe("/v2/values/", () => {
             chai.assert.equal(res.statusCode, 422, `body=${JSON.stringify(res.body)}`);
         });
 
-        it("cannot create a Value with code, genericCode, and generateCode", async () => {
+        it("cannot create a Value with code, isGenericCode, and generateCode", async () => {
             let valueWithPublicCode = {
                 id: "value",
                 currency: "USD",
                 code: "SECURE",
-                genericCode: "PUBLIC",
+                isGenericCode: true,
                 generateCode: {length: 5},
                 balance: 0
             };
@@ -658,16 +896,6 @@ describe("/v2/values/", () => {
     });
 
     describe("can't change a Value with disjoint code properties", () => {
-        it("cannot create a Value with code and genericCode", async () => {
-            let changeRequest = {
-                code: "SECURE",
-                genericCode: "PUBLIC",
-            };
-
-            const res = await testUtils.testAuthedRequest<Value>(router, "/v2/values/id/changeCode", "POST", changeRequest);
-            chai.assert.equal(res.statusCode, 422, `body=${JSON.stringify(res.body)}`);
-        });
-
         it("cannot create a Value with code and generateCode", async () => {
             let changeRequest = {
                 code: "SECURE",
@@ -678,9 +906,9 @@ describe("/v2/values/", () => {
             chai.assert.equal(res.statusCode, 422, `body=${JSON.stringify(res.body)}`);
         });
 
-        it("cannot create a Value with genericCode and generateCode", async () => {
+        it("cannot create a Value with isGenericCode and generateCode", async () => {
             let changeRequest = {
-                genericCode: "PUBLIC",
+                isGenericCode: true,
                 generateCode: {length: 5},
             };
 
@@ -688,10 +916,10 @@ describe("/v2/values/", () => {
             chai.assert.equal(res.statusCode, 422, `body=${JSON.stringify(res.body)}`);
         });
 
-        it("cannot create a Value with code, genericCode, and generateCode", async () => {
+        it("cannot create a Value with code, isGenericCode, and generateCode", async () => {
             let changeRequest = {
                 code: "SECURE",
-                genericCode: "PUBLIC",
+                isGenericCode: true,
                 generateCode: {length: 5},
             };
 

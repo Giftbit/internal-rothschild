@@ -1,20 +1,22 @@
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
-import {computeLookupHash, encrypt} from "../codeCryptoUtils";
+import {computeCodeLookupHash, encryptCode} from "../utils/codeCryptoUtils";
 
 export class DbCode {
-    encryptedCode: string;
+    codeEncrypted: string;
     codeHashed: string;
     lastFour: string;
-    genericCode: boolean;
 
     constructor(plaintextCode: string, genericCode: boolean, auth: AuthorizationBadge) {
-        this.encryptedCode = encrypt(plaintextCode);
-        this.codeHashed = computeLookupHash(plaintextCode, auth);
+        this.codeEncrypted = encryptCode(plaintextCode);
+        this.codeHashed = computeCodeLookupHash(plaintextCode, auth);
         this.lastFour = codeLastFour(plaintextCode);
-        this.genericCode = genericCode;
     }
 }
 
+/**
+ * Done this way to support unicode and emoji characters. Length of emoji characters is often 2.
+ */
 export function codeLastFour(code: string) {
-    return "...".concat(code.substring(code.length - 4));
+    const lengthForLastFour = Math.min(code.length, 4);
+    return "…" + code.substring(code.length - lengthForLastFour);
 }

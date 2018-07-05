@@ -4,10 +4,10 @@ import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {DbProgram, Program} from "../../model/Program";
 import {csvSerializer} from "../../serializers";
-import {pick, pickOrDefault} from "../../pick";
-import {nowInDbPrecision} from "../../dbUtils";
-import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
-import {paginateQuery} from "../../dbUtils/paginateQuery";
+import {pick, pickOrDefault} from "../../utils/pick";
+import {nowInDbPrecision} from "../../utils/dbUtils";
+import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
+import {paginateQuery} from "../../utils/dbUtils/paginateQuery";
 
 export function installValueTemplatesRest(router: cassava.Router): void {
     router.route("/v2/programs")

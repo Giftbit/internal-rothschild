@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import * as testUtils from "../../../testUtils";
+import * as testUtils from "../../../utils/testUtils";
 import {Value} from "../../../model/Value";
 import {Transaction} from "../../../model/Transaction";
 import * as currencies from "../currencies";
@@ -49,7 +49,9 @@ describe("/v2/transactions/debit", () => {
             id: "debit-1",
             transactionType: "debit",
             currency: "CAD",
-            totals: {remainder: 0},
+            totals: {
+                remainder: 0
+            },
             steps: [
                 {
                     rail: "lightrail",
@@ -108,7 +110,9 @@ describe("/v2/transactions/debit", () => {
             id: "debit-2",
             transactionType: "debit",
             currency: "CAD",
-            totals: {remainder: 0},
+            totals: {
+                remainder: 0
+            },
             steps: [
                 {
                     rail: "lightrail",
@@ -147,7 +151,9 @@ describe("/v2/transactions/debit", () => {
             id: "debit-3",
             transactionType: "debit",
             currency: "CAD",
-            totals: {remainder: 9500 - 401},
+            totals: {
+                remainder: 9500 - 401
+            },
             steps: [
                 {
                     rail: "lightrail",

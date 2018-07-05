@@ -10,7 +10,7 @@ describe("code generator tests", () => {
 
     it("test alphanumeric code generation", async () => {
         for (let i = 0; i < 100; i++) {
-            const length = 5 + (i % 20);
+            const length = 6 + (i % 20);
             const res = generateCode({length: length});
             chai.assert.isNotNull(res);
             chai.assert.equal(res.length, length);
@@ -19,7 +19,7 @@ describe("code generator tests", () => {
             }
         }
         for (let i = 0; i < 100; i++) {
-            const length = 5 + (i % 20);
+            const length = 6 + (i % 20);
             const res = generateCode({length: length, charset: ALPHANUMERIC_CHARSET});
             chai.assert.isNotNull(res);
             chai.assert.equal(res.length, length);
@@ -31,16 +31,7 @@ describe("code generator tests", () => {
 
     it("test numeric code generation", async () => {
         for (let i = 0; i < 100; i++) {
-            const length = 5 + (i % 20);
-            const res = generateCode({length: length, charset: "numeric"});
-            chai.assert.isNotNull(res);
-            chai.assert.equal(res.length, length);
-            for (let j = 0; j < length; j++) {
-                chai.assert.include(NUMERIC_CHARSET, res.charAt(j));
-            }
-        }
-        for (let i = 0; i < 100; i++) {
-            const length = 5 + (i % 20);
+            const length = 6 + (i % 20);
             const res = generateCode({length: length, charset: NUMERIC_CHARSET});
             chai.assert.isNotNull(res);
             chai.assert.equal(res.length, length);
@@ -54,7 +45,7 @@ describe("code generator tests", () => {
         const prefix = "prefix";
         const suffix = "suffix";
         for (let i = 0; i < 100; i++) {
-            const length = 5 + (i % 20);
+            const length = 6 + (i % 20);
             const res = generateCode({length: length, prefix: prefix, suffix: suffix});
             chai.assert.isNotNull(res);
             chai.assert.equal(res.substring(0, prefix.length), prefix);
@@ -67,14 +58,29 @@ describe("code generator tests", () => {
     });
 
     it("test custom charset", async () => {
-        const charset = "ABC";
+        const charset = "ABCDE";
         for (let i = 0; i < 100; i++) {
-            const length = 5 + (i % 20);
+            const length = 6 + (i % 20);
             const res = generateCode({length: length, charset: charset});
             chai.assert.equal(res.length, length);
             for (let j = 0; j < length; j++) {
                 chai.assert.include(charset, res.charAt(j));
             }
         }
+
+        const charsetLowercase = "abc123";
+        for (let i = 0; i < 100; i++) {
+            const length = 6 + (i % 20);
+            const res = generateCode({length: length, charset: charsetLowercase});
+            chai.assert.equal(res.length, length);
+            for (let j = 0; j < length; j++) {
+                chai.assert.include(charsetLowercase, res.charAt(j));
+            }
+        }
     });
+
+    // // todo
+    // it("minimum charset size is 5", async () => {
+    //     const res = generateCode({length: length, charset: "ABCDE"});
+    // });
 });

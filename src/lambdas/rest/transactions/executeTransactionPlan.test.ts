@@ -1,13 +1,13 @@
 import * as chai from "chai";
 import {TransactionPlanError} from "./TransactionPlanError";
-import * as testUtils from "../../../testUtils";
+import * as testUtils from "../../../utils/testUtils";
 import {DbValue} from "../../../model/Value";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {TransactionPlan} from "./TransactionPlan";
 import {executeTransactionPlan} from "./executeTransactionPlan";
 import {DbCurrency} from "../../../model/Currency";
-import {getKnexWrite} from "../../../dbUtils/connection";
-import {nowInDbPrecision} from "../../../dbUtils";
+import {getKnexWrite} from "../../../utils/dbUtils/connection";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
 
 describe("rest/transactions/executeTransactionPlan", () => {
 
@@ -38,8 +38,8 @@ describe("rest/transactions/executeTransactionPlan", () => {
             uses: null,
             programId: null,
             code: null,
-            genericCode: false,
-            encryptedCode: null,
+            isGenericCode: false,
+            codeEncrypted: null,
             codeHashed: null,
             contactId: null,
             balance: 1500,
@@ -50,6 +50,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             redemptionRule: "null",
             valueRule: "null",
             discount: false,
+            discountSellerLiability: null,
             startDate: null,
             endDate: null,
             metadata: "null",
@@ -107,8 +108,8 @@ describe("rest/transactions/executeTransactionPlan", () => {
             uses: 0,
             programId: null,
             code: null,
-            genericCode: false,
-            encryptedCode: null,
+            isGenericCode: false,
+            codeEncrypted: null,
             codeHashed: null,
             contactId: null,
             pretax: false,
@@ -118,6 +119,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             redemptionRule: "null",
             valueRule: "null",
             discount: false,
+            discountSellerLiability: null,
             startDate: null,
             endDate: null,
             metadata: "null",
