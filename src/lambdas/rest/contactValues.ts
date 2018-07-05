@@ -8,6 +8,7 @@ import {Pagination} from "../../model/Pagination";
 import {Value} from "../../model/Value";
 import {getContact} from "./contacts";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
+import {getSqlErrorConstraintName} from "../../utils/dbUtils";
 
 export function installContactValuesRest(router: cassava.Router): void {
     router.route("/v2/contacts/{id}/values")
@@ -110,8 +111,12 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 .insert(Value.toDbValue(auth, claimedValue));
         } catch (err) {
             log.debug(err);
-            if (err.code === "ER_DUP_ENTRY") {
+            const constraint = getSqlErrorConstraintName(err);
+            if (constraint === "PRIMARY") {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${originalValue.id}' has already been claimed by the Contact with id '${contactId}'.`, "ValueAlreadyClaimed");
+            }
+            if (constraint === "fk_Values_Contacts") {
+                throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${contactId}' not found.`, "ContactNotFound");
             }
             throw err;
         }
@@ -121,32 +126,47 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 }
 
 async function attachUniqueValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, value: Value): Promise<Value> {
-    const knex = await getKnexWrite();
-    const res: number = await knex("Values")
-        .where({
-            userId: auth.giftbitUserId,
-            id: value.id
-        })
-        .update({
+    try {
+        const knex = await getKnexWrite();
+        const res: number = await knex("Values")
+            .where({
+                userId: auth.giftbitUserId,
+                id: value.id
+            })
+            .update({
+                contactId: contactId
+            });
+        if (res === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (res > 1) {
+            throw new Error(`Illegal UPDATE query.  Updated ${res} values.`);
+        }
+        return {
+            ...value,
             contactId: contactId
-        });
-    if (res === 0) {
-        throw new cassava.RestError(404);
+        };
+    } catch (err) {
+        log.debug(err);
+        const constraint = getSqlErrorConstraintName(err);
+        if (constraint === "fk_Values_Contacts") {
+            throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${contactId}' not found.`, "ContactNotFound");
+        }
+        throw err;
     }
-    if (res > 1) {
-        throw new Error(`Illegal UPDATE query.  Updated ${res} values.`);
-    }
-    return {
-        ...value,
-        contactId: contactId
-    };
 }
 
 function getValueByIdentifier(auth: giftbitRoutes.jwtauth.AuthorizationBadge, identifier: {valueId?: string, code?: string}): Promise<Value> {
-    if (identifier.valueId) {
-        return getValue(auth, identifier.valueId);
-    } else if (identifier.code) {
-        return getValueByCode(auth, identifier.code);
+    try {
+        if (identifier.valueId) {
+            return getValue(auth, identifier.valueId);
+        } else if (identifier.code) {
+            return getValueByCode(auth, identifier.code);
+        }
+    } catch (err) {
+        if ((err as giftbitRoutes.GiftbitRestError).isRestError && (err as giftbitRoutes.GiftbitRestError).statusCode === 404) {
+            throw new giftbitRoutes.GiftbitRestError(409, (err as giftbitRoutes.GiftbitRestError).message, "ValueNotFound");
+        }
     }
     throw new Error("Neither valueId nor code specified");
 }
