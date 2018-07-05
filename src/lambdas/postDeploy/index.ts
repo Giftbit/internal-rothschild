@@ -15,9 +15,6 @@ require("./schema/V1__base.sql");
 // Flyway version to download and use.  Flyway does the migration.
 const flywayVersion = "5.0.7";
 
-// Remove this ability after firmly establishing V1.
-const dropExistingDb = true;
-
 /**
  * Handles a CloudFormationEvent and upgrades the database.
  */
@@ -47,14 +44,6 @@ async function migrateDatabase(ctx: awslambda.Context): Promise<any> {
 
     log.info("waiting for database to be connectable");
     const conn = await getConnection(ctx);
-    if (dropExistingDb) {
-        const [schemaRes] = await conn.query("SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?", ["rothschild"]);
-        if (schemaRes.length > 0) {
-            log.warn("dropping existing schema");
-            const [dropRes] = await conn.execute("DROP DATABASE rothschild;");
-            log.debug("dropRes=", dropRes);
-        }
-    }
     conn.end();
 
     log.info("invoking flyway");
