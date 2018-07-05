@@ -1,7 +1,7 @@
 import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "../TransactionPlan";
 import {CheckoutRequest, TransactionParty} from "../../../../model/TransactionRequest";
 import {LineItemResponse} from "../../../../model/LineItem";
-import {LightrailTransactionStep, TransactionPlanTotals, TransactionType} from "../../../../model/Transaction";
+import {TransactionPlanTotals, TransactionType} from "../../../../model/Transaction";
 import {bankersRounding} from "../../../../utils/moneyUtils";
 
 export class CheckoutTransactionPlan implements TransactionPlan {
@@ -45,7 +45,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
 
     calculateTotalsFromLineItems(): void {
         this.totals = {
-            subTotal: 0,
+            subtotal: 0,
             tax: 0,
             discount: 0,
             payable: 0,
@@ -53,7 +53,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
         };
         for (const item of this.lineItems) {
             item.lineTotal.payable = item.lineTotal.subtotal + item.lineTotal.tax - item.lineTotal.discount;
-            this.totals.subTotal += item.lineTotal.subtotal;
+            this.totals.subtotal += item.lineTotal.subtotal;
             this.totals.tax += item.lineTotal.tax;
             this.totals.discount += item.lineTotal.discount;
             this.totals.payable += item.lineTotal.payable;

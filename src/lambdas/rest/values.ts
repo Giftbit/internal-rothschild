@@ -1,6 +1,7 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
+import * as log from "loglevel";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {DbValue, Value} from "../../model/Value";
 import {pick, pickOrDefault} from "../../utils/pick";
@@ -11,10 +12,16 @@ import {
     getSqlErrorConstraintName,
     nowInDbPrecision
 } from "../../utils/dbUtils";
+import {
+    filterAndPaginateQuery,
+    getSqlErrorConstraintName,
+    nowInDbPrecision
+} from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {DbTransaction, LightrailDbTransactionStep} from "../../model/Transaction";
 import {codeLastFour, DbCode} from "../../model/DbCode";
 import {generateCode} from "../../services/codeGenerator";
+import {computeCodeLookupHash} from "../../utils/codeCryptoUtils";
 import * as log from "loglevel";
 import {getProgram} from "./programs";
 import {Program} from "../../model/Program";
@@ -216,10 +223,6 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                 discount: {
                     type: "boolean"
                 },
-                discountOrigin: {
-                    type: "string",
-                    operators: ["eq"]
-                },
                 active: {
                     type: "boolean"
                 },
@@ -259,12 +262,19 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value: Value): Promise<Value> {
     auth.requireIds("giftbitUserId");
 
+    if (value.contactId && value.isGenericCode) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "A Value with isGenericCode=true cannot have contactId set.");
+    }
+
     try {
         const knex = await getKnexWrite();
 
         await knex.transaction(async trx => {
+            const dbValue = Value.toDbValue(auth, value);
+            log.debug("createValue id=", dbValue.id);
+
             await trx.into("Values")
-                .insert(Value.toDbValue(auth, value));
+                .insert(dbValue);
             if (value.balance) {
                 if (value.balance < 0) {
                     throw new Error("balance cannot be negative");
@@ -301,23 +311,25 @@ async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value
         }
         return value;
     } catch (err) {
-        if (err.code === "ER_DUP_ENTRY") {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Values with id '${value.id}' already exists.`);
+        log.debug(err);
+        const constraint = getSqlErrorConstraintName(err);
+        if (constraint === "PRIMARY") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with id '${value.id}' already exists.`, "ValueIdExists");
         }
-        if (err.code === "ER_NO_REFERENCED_ROW_2") {
-            const constraint = getSqlErrorConstraintName(err);
-            if (constraint === "fk_Values_Currencies") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${value.currency}' does not exist.  See the documentation on creating currencies.`, "CurrencyNotFound");
-            }
-            if (constraint === "fk_Values_Contacts") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Contact '${value.contactId}' does not exist.`, "ContactNotFound");
-            }
+        if (constraint === "uq_Values_codeHashed") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with the given code already exists.`, "ValueCodeExists");
+        }
+        if (constraint === "fk_Values_Currencies") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${value.currency}' does not exist.  See the documentation on creating currencies.`, "CurrencyNotFound");
+        }
+        if (constraint === "fk_Values_Contacts") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Contact '${value.contactId}' does not exist.`, "ContactNotFound");
         }
         throw err;
     }
 }
 
-async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, showCode: boolean = false): Promise<Value> {
+export async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, showCode: boolean = false): Promise<Value> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
@@ -328,7 +340,29 @@ async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: stri
             id: id
         });
     if (res.length === 0) {
-        throw new cassava.RestError(404);
+        throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${id}' not found.`, "ValueNotFound");
+    }
+    if (res.length > 1) {
+        throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
+    }
+    return DbValue.toValue(res[0], showCode);
+}
+
+export async function getValueByCode(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string, showCode: boolean = false): Promise<Value> {
+    auth.requireIds("giftbitUserId");
+
+    const codeHashed = computeCodeLookupHash(code, auth);
+    log.debug("getValueByCode codeHashed=", codeHashed);
+
+    const knex = await getKnexRead();
+    const res: DbValue[] = await knex("Values")
+        .select()
+        .where({
+            userId: auth.giftbitUserId,
+            codeHashed
+        });
+    if (res.length === 0) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Value with code '${codeLastFour(code)}' not found.`, "ValueNotFound");
     }
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
@@ -340,17 +374,17 @@ async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexWrite();
-    const res = await knex("Values")
+    const res: number = await knex("Values")
         .where({
             userId: auth.giftbitUserId,
             id: id
         })
         .update(Value.toDbValueUpdate(auth, value));
-    if (res[0] === 0) {
+    if (res === 0) {
         throw new cassava.RestError(404);
     }
-    if (res[0] > 1) {
-        throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
+    if (res > 1) {
+        throw new Error(`Illegal UPDATE query.  Updated ${res} values.`);
     }
     return {
         ...await getValue(auth, id),
@@ -597,7 +631,7 @@ const valueUpdateSchema: jsonschema.Schema = {
     type: "object",
     additionalProperties: false,
     properties: {
-        ...pick(valueSchema.properties, "id", "contactId", "active", "frozen", "pretax", "redemptionRule", "valueRule", "discount", "discountSellerLiability", "startDate", "endDate", "metadata"),
+        ...pick(valueSchema.properties, "id", "active", "frozen", "pretax", "redemptionRule", "valueRule", "discount", "discountSellerLiability", "startDate", "endDate", "metadata"),
         canceled: {
             type: "boolean"
         }

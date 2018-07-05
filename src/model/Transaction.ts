@@ -133,7 +133,7 @@ export interface InternalTransactionStep {
 }
 
 export interface TransactionPlanTotals {
-    subTotal?: number;
+    subtotal?: number;
     tax?: number;
     discount?: number;
     payable?: number;

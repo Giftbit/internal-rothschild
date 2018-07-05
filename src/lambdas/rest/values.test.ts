@@ -102,13 +102,14 @@ describe("/v2/values/", () => {
         chai.assert.deepEqual(resp.body, value1);
     });
 
-    it("409s on creating a duplicate value", async () => {
-        const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+    it("409s on creating a value with a duplicate id", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", {
             id: value1.id,
             currency: value1.currency,
             balance: value1.balance
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.messageCode, "ValueIdExists");
     });
 
     it("cannot change a value's currency", async () => {
@@ -503,6 +504,38 @@ describe("/v2/values/", () => {
         chai.assert.equal(codeInListShowCodeTrue.code, "A");
     });
 
+    it("cannot create a value reusing an existing code", async () => {
+        const value1Res = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: generateId(),
+            currency: "USD",
+            code: "PANTSDANCE",
+            isGenericCode: true,
+            balance: 0
+        });
+        chai.assert.equal(value1Res.statusCode, 201, `body=${JSON.stringify(value1Res.body)}`);
+
+        const value2Res = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", {
+            id: generateId(),
+            currency: "USD",
+            code: "PANTSDANCE",
+            isGenericCode: true,
+            balance: 0
+        });
+        chai.assert.equal(value2Res.statusCode, 409, `body=${JSON.stringify(value2Res.body)}`);
+        chai.assert.equal(value2Res.body.messageCode, "ValueCodeExists");
+    });
+
+    it("cannot create a value with isGeneric=true and contactId set", async () => {
+        const value1Res = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: generateId(),
+            currency: "USD",
+            contactId: "abcd",
+            isGenericCode: true,
+            balance: 0
+        });
+        chai.assert.equal(value1Res.statusCode, 422, `body=${JSON.stringify(value1Res.body)}`);
+    });
+
     it.skip("can create a value with 🚀 emoji generic code", async () => {
         let value = {
             id: generateId(),
@@ -795,6 +828,20 @@ describe("/v2/values/", () => {
             chai.assert.notEqual(res[0].codeEncrypted, secondGeneratedCode);
             chai.assert.notEqual(res[0].codeHashed, secondGeneratedCode);
             chai.assert.notEqual(firstGeneratedCode, secondGeneratedCode);
+        });
+
+        it("can download Values with decrypted codes", async () => {
+            const resp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?id.in=${value.id},decoyid&showCode=true`, "GET");
+            chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+            chai.assert.lengthOf(resp.body, 1);
+            chai.assert.equal(resp.body[0].code, secondGeneratedCode);
+        });
+
+        it("can download a csv of Values with decrypted codes", async () => {
+            const resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/values?id.in=${value.id},decoyid&showCode=true`, "GET");
+            chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+            chai.assert.lengthOf(resp.body, 1);
+            chai.assert.equal(resp.body[0].code, secondGeneratedCode);
         });
 
         it.skip("can generate a code using an emoji charset", async () => {
