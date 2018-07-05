@@ -55,32 +55,32 @@ export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtaut
         }
         query = query.update(updateProperties);
 
-        const res = await query;
-        if (res !== 1) {
-            throw new TransactionPlanError(`Transaction execution canceled because Value updated ${res} rows.  userId=${auth.giftbitUserId} valueId=${step.value.id} value=${step.value.balance} uses=${step.value.uses} step.amount=${step.amount}`, {
-                isReplanable: res === 0
+        const updateRes = await query;
+        if (updateRes !== 1) {
+            throw new TransactionPlanError(`Transaction execution canceled because Value updated ${updateRes} rows.  userId=${auth.giftbitUserId} valueId=${step.value.id} value=${step.value.balance} uses=${step.value.uses} step.amount=${step.amount}`, {
+                isReplanable: updateRes === 0
             });
         }
 
-        const res2: DbValue[] = await trx.from("Values")
+        const selectRes: DbValue[] = await trx.from("Values")
             .where({
                 userId: auth.giftbitUserId,
                 id: step.value.id
             })
             .select();
 
-        if (res2.length !== 1) {
+        if (selectRes.length !== 1) {
             throw new TransactionPlanError(`Transaction execution canceled because the Value that was updated could not be refetched.  This should never happen.  userId=${auth.giftbitUserId} valueId=${step.value.id}`, {
                 isReplanable: false
             });
         }
 
         // Fix the plan to indicate the true value change.
-        step.value.balance = res2[0].balance - step.amount;
+        step.value.balance = selectRes[0].balance - step.amount;
 
         let balanceInfo = {
-            balanceBefore: res2[0].balance - step.amount,
-            balanceAfter: res2[0].balance,
+            balanceBefore: selectRes[0].balance - step.amount,
+            balanceAfter: selectRes[0].balance,
             balanceChange: step.amount
         };
 
@@ -89,7 +89,7 @@ export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtaut
             balanceInfo.balanceAfter = 0;
         } else {
             // Fix the plan to indicate the true value change.
-            step.value.balance = res2[0].balance - step.amount;
+            step.value.balance = selectRes[0].balance - step.amount;
         }
 
 
