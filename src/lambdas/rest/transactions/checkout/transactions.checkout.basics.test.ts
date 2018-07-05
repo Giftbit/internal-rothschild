@@ -60,7 +60,7 @@ describe("/v2/transactions/checkout - basics", () => {
             transactionType: "checkout",
             currency: "CAD",
             totals: {
-                subTotal: 50,
+                subtotal: 50,
                 tax: 0,
                 discount: 0,
                 payable: 50,
@@ -159,7 +159,7 @@ describe("/v2/transactions/checkout - basics", () => {
             transactionType: "checkout",
             currency: "CAD",
             totals: {
-                subTotal: 50,
+                subtotal: 50,
                 tax: 0,
                 discount: 10,
                 payable: 40,
@@ -297,7 +297,7 @@ describe("/v2/transactions/checkout - basics", () => {
             "transactionType": "checkout",
             "currency": "CAD",
             "totals": {
-                "subTotal": 1166,
+                "subtotal": 1166,
                 "tax": 62,
                 "discount": 225,
                 "payable": 1003,
@@ -437,7 +437,7 @@ describe("/v2/transactions/checkout - basics", () => {
             transactionType: "checkout",
             currency: "CAD",
             totals: {
-                subTotal: 50,
+                subtotal: 50,
                 tax: 0,
                 discount: 0,
                 payable: 50,

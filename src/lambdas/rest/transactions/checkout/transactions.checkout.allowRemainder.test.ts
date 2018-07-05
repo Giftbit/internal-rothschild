@@ -87,7 +87,7 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
             "transactionType": "checkout",
             "currency": "CAD",
             "totals": {
-                "subTotal": 1166,
+                "subtotal": 1166,
                 "tax": 62,
                 "discount": 200,
                 "payable": 1028,

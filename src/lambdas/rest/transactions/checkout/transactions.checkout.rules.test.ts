@@ -94,7 +94,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             "transactionType": "checkout",
             "currency": "CAD",
             "totals": {
-                "subTotal": 1000,
+                "subtotal": 1000,
                 "tax": 50,
                 "discount": 500,
                 "payable": 550,
@@ -206,7 +206,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             "transactionType": "checkout",
             "currency": "CAD",
             "totals": {
-                "subTotal": 1000,
+                "subtotal": 1000,
                 "tax": 88,
                 "discount": 125,
                 "payable": 963,
@@ -340,7 +340,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             "transactionType": "checkout",
             "currency": "CAD",
             "totals": {
-                "subTotal": 750,
+                "subtotal": 750,
                 "tax": 62,
                 "discount": 125,
                 "payable": 687,
@@ -503,7 +503,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             "transactionType": "checkout",
             "currency": "CAD",
             "totals": {
-                "subTotal": 847,
+                "subtotal": 847,
                 "tax": 27,
                 "discount": 105,
                 "payable": 769,
@@ -655,7 +655,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             "transactionType": "checkout",
             "currency": "CAD",
             "totals": {
-                "subTotal": 2400,
+                "subtotal": 2400,
                 "tax": 164,
                 "discount": 768,
                 "payable": 1796,
@@ -728,7 +728,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             "transactionType": "checkout",
             "currency": "CAD",
             "totals": {
-                "subTotal": 2400,
+                "subtotal": 2400,
                 "tax": 240,
                 "discount": 0,
                 "payable": 2640,
@@ -839,7 +839,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             "transactionType": "checkout",
             "currency": "CAD",
             "totals": {
-                "subTotal": 2399,
+                "subtotal": 2399,
                 "tax": 0,
                 "discount": 720,
                 "payable": 1679,
