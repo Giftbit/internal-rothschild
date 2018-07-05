@@ -121,7 +121,7 @@ CREATE TABLE rothschild.LightrailTransactionSteps (
   transactionId VARCHAR(32) NOT NULL,
   valueId       VARCHAR(32) NOT NULL,
   contactId     VARCHAR(32),
-  code          CHAR(4),
+  code          NVARCHAR(255),
   balanceBefore INT         NOT NULL,
   balanceAfter  INT         NOT NULL,
   balanceChange INT         NOT NULL,

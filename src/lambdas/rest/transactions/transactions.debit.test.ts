@@ -6,6 +6,7 @@ import {Value} from "../../../model/Value";
 import {Transaction} from "../../../model/Transaction";
 import * as currencies from "../currencies";
 import {installRestRoutes} from "../installRestRoutes";
+import {initializeCodeCryptographySecrets} from "../../../utils/codeCryptoUtils";
 
 describe("/v2/transactions/debit", () => {
 
@@ -15,6 +16,11 @@ describe("/v2/transactions/debit", () => {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
         installRestRoutes(router);
+
+        await initializeCodeCryptographySecrets(Promise.resolve({
+            encryptionSecret: "ca7589aef4ffed15783341414fe2f4a5edf9ddad75cf2e96ed2a16aee88673ea",
+            lookupHashSecret: "ae8645165cc7533dbcc84aeb21c7d6553a38271b7e3402f99d16b8a8717847e1"
+        }));
 
         await currencies.createCurrency(testUtils.defaultTestUser.auth, {
             code: "CAD",
@@ -27,6 +33,7 @@ describe("/v2/transactions/debit", () => {
     const value1: Partial<Value> = {
         id: "v-debit-1",
         currency: "CAD",
+        code: "IAMASECRETCODE",
         balance: 1000
     };
 
@@ -56,7 +63,7 @@ describe("/v2/transactions/debit", () => {
                 {
                     rail: "lightrail",
                     valueId: value1.id,
-                    code: null,
+                    code: "…CODE",
                     contactId: null,
                     balanceBefore: 1000,
                     balanceAfter: 401,
@@ -73,11 +80,9 @@ describe("/v2/transactions/debit", () => {
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
         chai.assert.equal(getValueResp.body.balance, 401);
 
-
         const getDebitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit-1", "GET");
         chai.assert.equal(getDebitResp.statusCode, 200, `body=${JSON.stringify(getDebitResp.body)}`);
         chai.assert.deepEqualExcluding(getDebitResp.body, postDebitResp.body, "statusCode");
-
     });
 
     it("409s on reusing a transaction ID", async () => {
@@ -117,7 +122,7 @@ describe("/v2/transactions/debit", () => {
                 {
                     rail: "lightrail",
                     valueId: value1.id,
-                    code: null,
+                    code: "…CODE",
                     contactId: null,
                     balanceBefore: 401,
                     balanceAfter: 101,
@@ -158,7 +163,7 @@ describe("/v2/transactions/debit", () => {
                 {
                     rail: "lightrail",
                     valueId: value1.id,
-                    code: null,
+                    code: "…CODE",
                     contactId: null,
                     balanceBefore: 401,
                     balanceAfter: 0,
