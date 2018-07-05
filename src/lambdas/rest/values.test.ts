@@ -819,6 +819,20 @@ describe("/v2/values/", () => {
             chai.assert.notEqual(firstGeneratedCode, secondGeneratedCode);
         });
 
+        it("can download Values with decrypted codes", async () => {
+            const resp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?id.in=${value.id},decoyid&showCode=true`, "GET");
+            chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+            chai.assert.lengthOf(resp.body, 1);
+            chai.assert.equal(resp.body[0].code, secondGeneratedCode);
+        });
+
+        it("can download a csv of Values with decrypted codes", async () => {
+            const resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/values?id.in=${value.id},decoyid&showCode=true`, "GET");
+            chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+            chai.assert.lengthOf(resp.body, 1);
+            chai.assert.equal(resp.body[0].code, secondGeneratedCode);
+        });
+
         it.skip("can generate a code using an emoji charset", async () => {
             let value = {
                 id: generateId(),
