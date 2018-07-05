@@ -102,7 +102,7 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
             await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side: ${JSON.stringify(err)}`);
 
             if (err.code === "ER_DUP_ENTRY") {
-                throw new giftbitRoutes.GiftbitRestError(409, `A transaction step in transaction '${plan.id}' already exists: stepId=${""}`, "TransactionStepExists");
+                throw new giftbitRoutes.GiftbitRestError(409, `A transaction step in transaction '${plan.id}' already exists. This should not be possible.`, "TransactionStepExists");
             } else {
                 throw new giftbitRoutes.GiftbitRestError(500, `An error occurred while processing transaction '${plan.id}'. The Stripe charge(s) '${stripeSteps.map(step => step.chargeResult.id)}' have been refunded.`);
             }
