@@ -257,6 +257,17 @@ describe("/v2/values/", () => {
         });
     });
 
+    it("can't create Value with balance and valueRule", async () => {
+        let value: Partial<Value> = {
+            id: generateId(),
+            balance: 50,
+            valueRule: {rule: "500", explanation: "$5 the hard way"},
+            currency: "USD"
+        };
+        const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
+    });
+
     it("422s on creating a value with a negative balance", async () => {
         const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
             id: "negativebalance",

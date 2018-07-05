@@ -5,12 +5,19 @@ import {Pagination, PaginationParams} from "../../model/Pagination";
 import {DbValue, Value} from "../../model/Value";
 import {pick, pickOrDefault} from "../../utils/pick";
 import {csvSerializer} from "../../serializers";
-import {filterAndPaginateQuery, getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
+import {
+    dateInDbPrecision,
+    filterAndPaginateQuery,
+    getSqlErrorConstraintName,
+    nowInDbPrecision
+} from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {DbTransaction, LightrailDbTransactionStep} from "../../model/Transaction";
 import {codeLastFour, DbCode} from "../../model/DbCode";
 import {generateCode} from "../../services/codeGenerator";
 import * as log from "loglevel";
+import {getProgram} from "./programs";
+import {Program} from "../../model/Program";
 
 export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
@@ -36,38 +43,57 @@ export function installValuesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
             evt.validateBody(valueSchema);
+            let program: Program = null;
+            if (evt.body.programId) {
+                try {
+                    program = await getProgram(auth, evt.body.programId);
+                } catch (err) {
+                    if (err instanceof cassava.RestError && err.statusCode === 404) {
+                        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `No Program found for id ${evt.body.programId}.`)
+                    } else {
+                        throw err;
+                    }
+                }
+            }
 
             const now = nowInDbPrecision();
             const value: Value = {
                 ...pickOrDefault(evt.body, {
                     id: "",
-                    currency: "",
+                    currency: program ? program.currency : "", // todo - can you override currency?
                     balance: 0,
                     uses: null,
-                    programId: null,
-                    code: null,
-                    isGenericCode: null,
+                    programId: program ? program.id : null,
+                    code: evt.body.generateCode ? generateCode(evt.body.generateCode) : null,
+                    isGenericCode: evt.body.generateCode ? false : null,
                     contactId: null,
-                    pretax: false,
-                    active: true,
+                    pretax: program ? program.pretax : false,
+                    active: program ? program.active : true,
                     frozen: false,
-                    redemptionRule: null,
-                    valueRule: null,
-                    discount: false,
-                    discountSellerLiability: null,
-                    startDate: null,
-                    endDate: null,
-                    metadata: null
+                    redemptionRule: program ? program.redemptionRule : null,
+                    valueRule: program ? program.valueRule : null,
+                    discount: program ? program.discount : false,
+                    discountSellerLiability: program ? program.discountSellerLiability : null,
+                    startDate: program ? program.startDate : null,
+                    endDate: program ? program.endDate : null,
+                    metadata: null // todo - should this be copied over from program? I think not.
                 }),
                 canceled: false,
                 createdDate: now,
                 updatedDate: now
             };
 
-            if (evt.body.generateCode) {
-                value.code = generateCode(evt.body.generateCode);
-                value.isGenericCode = false;
+            if (value.balance && value.valueRule) {
+                throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a balance and valueRule.`)
             }
+            if (value.discountSellerLiability !== null && !value.discount) {
+                throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have discountSellerLiability if it is not a discount.`)
+            }
+            if (program) {
+                checkProgramConstraints(value, program);
+            }
+            value.startDate = value.startDate ? dateInDbPrecision(new Date(value.startDate)) : null;
+            value.endDate = value.endDate ? dateInDbPrecision(new Date(value.endDate)) : null;
 
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
@@ -379,6 +405,22 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
     }
 }
 
+function checkProgramConstraints(value: Value, program: Program): void {
+    if (program.fixedInitialBalances && (program.fixedInitialBalances.indexOf(value.balance) === -1 || !value.balance)) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's balance ${value.balance} outside initial values defined by Program ${program.fixedInitialBalances}.`)
+    }
+    if (program.minInitialBalance && (value.balance < program.minInitialBalance || !value.balance)) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's balance ${value.balance} is less than minInitialBalance ${program.minInitialBalance}.`)
+    }
+    if (program.maxInitialBalance && (value.balance > program.maxInitialBalance || !value.balance)) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's balance ${value.balance} is less than minInitialBalance ${program.minInitialBalance}.`)
+    }
+
+    if (program.fixedInitialUses && (program.fixedInitialUses.indexOf(value.uses) === -1 || !value.uses)) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's uses ${value.uses} outside initial values defined by Program ${program.fixedInitialUses}.`)
+    }
+}
+
 const valueSchema: jsonschema.Schema = {
     type: "object",
     additionalProperties: false,
@@ -427,6 +469,11 @@ const valueSchema: jsonschema.Schema = {
             type: "string",
             minLength: 1,
             maxLength: 16
+        },
+        programId: {
+            type: "string",
+            maxLength: 32,
+            minLength: 1
         },
         balance: {
             type: ["integer", "null"],
@@ -534,7 +581,7 @@ const valueSchema: jsonschema.Schema = {
             type: ["object", "null"]
         }
     },
-    required: ["id", "currency"],
+    required: ["id"],
     dependencies: {
         discountSellerLiability: {
             properties: {

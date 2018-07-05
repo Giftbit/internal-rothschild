@@ -1,15 +1,14 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {Rule} from "./Value";
-import {GenerateCodeParameters} from "./GenerateCodeParameters";
 
 export interface Program {
     id: string;
     name: string;
     currency: string;
     discount: boolean;
+    discountSellerLiability: number | null;
     pretax: boolean;
     active: boolean;
-    generateCode: GenerateCodeParameters | null;
     redemptionRule: Rule | null;
     valueRule: Rule | null;
     minInitialBalance: number | null;
@@ -31,9 +30,9 @@ export namespace Program {
             name: v.name,
             currency: v.currency,
             discount: v.discount,
+            discountSellerLiability: v.discountSellerLiability,
             pretax: v.pretax,
             active: v.active,
-            generateCode: JSON.stringify(v.generateCode),
             minInitialBalance: v.minInitialBalance,
             maxInitialBalance: v.maxInitialBalance,
             fixedInitialBalances: JSON.stringify(v.fixedInitialBalances),
@@ -55,9 +54,9 @@ export interface DbProgram {
     name: string;
     currency: string;
     discount: boolean;
+    discountSellerLiability: number | null;
     pretax: boolean;
     active: boolean;
-    generateCode: string | null;
     redemptionRule: string;
     valueRule: string;
     minInitialBalance: number | null;
@@ -78,9 +77,9 @@ export namespace DbProgram {
             name: v.name,
             currency: v.currency,
             discount: v.discount,
+            discountSellerLiability: v.discountSellerLiability,
             pretax: v.pretax,
             active: v.active,
-            generateCode: JSON.parse(v.generateCode),
             minInitialBalance: v.minInitialBalance,
             maxInitialBalance: v.maxInitialBalance,
             fixedInitialBalances: JSON.parse(v.fixedInitialBalances),
