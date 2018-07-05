@@ -1,5 +1,7 @@
 import * as cassava from "cassava";
+import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import * as log from "loglevel";
 import {getValue, getValueByCode, getValues} from "./values";
 import {csvSerializer} from "../../serializers";
 import {Pagination} from "../../model/Pagination";
@@ -17,14 +19,15 @@ export function installContactValuesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
-            const res = await getValues(auth, {...evt.queryStringParameters, contactId: evt.pathParameters.id}, Pagination.getPaginationParams(evt));
+            const showCode: boolean = (evt.queryStringParameters.showCode === "true");
+            const res = await getValues(auth, {...evt.queryStringParameters, contactId: evt.pathParameters.id}, Pagination.getPaginationParams(evt), showCode);
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.values
             };
         });
 
-    router.route("/v2/contacts/{id}/values/add")
+    router.route("/v2/contacts/{id}/values/attach")
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
@@ -53,16 +56,71 @@ export function installContactValuesRest(router: cassava.Router): void {
             });
 
             return {
-                body: await claimValue(auth, evt.pathParameters.id, evt.body)
+                body: await attachValue(auth, evt.pathParameters.id, evt.body)
             };
         });
 }
 
-export async function claimValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, valueIdentifier: {valueId?: string, code?: string}): Promise<Value> {
+export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, valueIdentifier: {valueId?: string, code?: string}): Promise<Value> {
     // This will throw a 404 if either aren't found.  Is that a good idea?
     const contact = await getContact(auth, contactId);
     const value = await getValueByIdentifier(auth, valueIdentifier);
 
+    if (value.isGenericCode) {
+        return attachGenericValue(auth, contact.id, value);
+    } else {
+        return attachUniqueValue(auth, contact.id, value);
+    }
+}
+
+async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, originalValue: Value): Promise<Value> {
+    if (originalValue.uses === 0) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${originalValue.id}' cannot be claimed because it has 0 uses remaining.`, "InsufficientUses");
+    }
+
+    const claimedValue: Value = {
+        ...originalValue,
+        id: crypto.createHash("sha1").update(originalValue.id + "/" + contactId).digest("base64"),
+        code: null,
+        isGenericCode: null,
+        contactId: contactId,
+        uses: 1
+    };
+
+    const knex = await getKnexWrite();
+    await knex.transaction(async trx => {
+        if (originalValue.uses != null) {
+            const usesDecrementRes: number = await trx("Values")
+                .where({
+                    userId: auth.giftbitUserId,
+                    id: originalValue.id
+                })
+                .where("uses", ">", 0)
+                .increment("uses", -1);
+            if (usesDecrementRes === 0) {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${originalValue.id}' cannot be claimed because it has 0 uses remaining.`, "InsufficientUses");
+            }
+            if (usesDecrementRes > 1) {
+                throw new Error(`Illegal UPDATE query.  Updated ${usesDecrementRes} values.`);
+            }
+        }
+
+        try {
+            await trx("Values")
+                .insert(Value.toDbValue(auth, claimedValue));
+        } catch (err) {
+            log.debug(err);
+            if (err.code === "ER_DUP_ENTRY") {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${originalValue.id}' has already been claimed by the Contact with id '${contactId}'.`, "ValueAlreadyClaimed");
+            }
+            throw err;
+        }
+    });
+
+    return claimedValue;
+}
+
+async function attachUniqueValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, value: Value): Promise<Value> {
     const knex = await getKnexWrite();
     const res: number = await knex("Values")
         .where({
@@ -70,7 +128,7 @@ export async function claimValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
             id: value.id
         })
         .update({
-            contactId: contact.id
+            contactId: contactId
         });
     if (res === 0) {
         throw new cassava.RestError(404);
@@ -80,7 +138,7 @@ export async function claimValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
     }
     return {
         ...value,
-        contactId: contact.id
+        contactId: contactId
     };
 }
 

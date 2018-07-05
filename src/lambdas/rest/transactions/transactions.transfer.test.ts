@@ -263,7 +263,7 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.deepEqualExcluding(getTransferResp.body, postTransferResp.body, "statusCode");
     });
 
-    it("409s transferring between valueIds where the source has insufficient value", async () => {
+    it("409s transferring between valueIds where the source has insufficient balance", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
             id: "transfer-4",
             source: {
@@ -278,7 +278,7 @@ describe("/v2/transactions/transfer", () => {
             currency: "CAD"
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.equal(resp.body.messageCode, "InsufficientValue");
+        chai.assert.equal(resp.body.messageCode, "InsufficientBalance");
     });
 
     it("409s transferring between valueIds in the wrong currency", async () => {
