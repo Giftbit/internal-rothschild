@@ -304,7 +304,7 @@ describe("/v2/transactions", () => {
                 transactionType: "checkout",
                 currency: "CAD",
                 totals: {
-                    subTotal: 50,
+                    subtotal: 50,
                     tax: 0,
                     discount: 0,
                     payable: 50,
