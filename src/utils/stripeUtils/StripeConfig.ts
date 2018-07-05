@@ -1,4 +1,6 @@
-// Copied from internal-turnkey
+// First two copied from internal-turnkey
+
+import {StripeAuth} from "./StripeAuth";
 
 /**
  * Stripe configuration values stored in secure config.
@@ -16,4 +18,9 @@ export interface StripeModeConfig {
     clientId: string;
     secretKey: string;
     publishableKey: string;
+}
+
+export interface LightrailAndMerchantStripeConfig {
+    lightrailStripeConfig: StripeModeConfig;
+    merchantStripeConfig: StripeAuth;
 }

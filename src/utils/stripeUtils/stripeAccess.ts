@@ -3,10 +3,11 @@
 
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
-import {StripeConfig, StripeModeConfig} from "./StripeConfig";
+import {LightrailAndMerchantStripeConfig, StripeConfig, StripeModeConfig} from "./StripeConfig";
 import {StripeAuth} from "./StripeAuth";
 import {httpStatusCode, RestError} from "cassava";
 import * as kvsAccess from "../kvsAccess";
+import log = require("loglevel");
 
 /**
  * Get Stripe credentials for test or live mode.  Test mode credentials allow
@@ -27,13 +28,13 @@ export function validateStripeConfig(merchantStripeConfig: StripeAuth, lightrail
         throw new GiftbitRestError(424, "Merchant stripe config stripe_user_id must be set.", "MissingStripeUserId");
     }
     if (!lightrailStripeConfig || !lightrailStripeConfig.secretKey) {
-        console.log("Lightrail stripe secretKey could not be loaded from s3 secure config.");
+        log.debug("Lightrail stripe secretKey could not be loaded from s3 secure config.");
         throw new RestError(httpStatusCode.serverError.INTERNAL_SERVER_ERROR);
     }
 }
 
 // This is a draft that's waiting for the rest of the system to get put together: might work but likely need to revisit assume token
-export async function setupLightrailAndMerchantStripeConfig(auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
+export async function setupLightrailAndMerchantStripeConfig(auth: giftbitRoutes.jwtauth.AuthorizationBadge): Promise<LightrailAndMerchantStripeConfig> {
     const authorizeAs = auth.getAuthorizeAsPayload();
     const assumeCheckoutToken = giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<giftbitRoutes.secureConfig.AssumeScopeToken>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_CHECKOUT_TOKEN");
 

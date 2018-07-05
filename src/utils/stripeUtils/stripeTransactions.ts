@@ -1,11 +1,15 @@
 import {httpStatusCode} from "cassava";
-import {StripeTransactionPlanStep} from "../../lambdas/rest/transactions/TransactionPlan";
+import {StripeTransactionPlanStep, TransactionPlan} from "../../lambdas/rest/transactions/TransactionPlan";
 import {StripeUpdateChargeParams} from "./StripeUpdateChargeParams";
 import {StripeRestError} from "./StripeRestError";
+import {LightrailAndMerchantStripeConfig} from "./StripeConfig";
+import {StripeTransactionParty} from "../../model/TransactionRequest";
+import {TransactionPlanError} from "../../lambdas/rest/transactions/TransactionPlanError";
+import {StripeCreateChargeParams} from "./StripeCreateChargeParams";
 import log = require("loglevel");
 import Stripe = require("stripe");
-import ICharge = Stripe.charges.ICharge;
 import IRefund = Stripe.refunds.IRefund;
+import ICharge = Stripe.charges.ICharge;
 
 export async function createStripeCharge(params: any, lightrailStripeSecretKey: string, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<ICharge> {
     const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
@@ -74,4 +78,55 @@ export async function updateCharge(chargeId: string, params: StripeUpdateChargeP
 }
 
 
+export async function chargeStripeSteps(stripeConfig: LightrailAndMerchantStripeConfig, plan: TransactionPlan) {
+    const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
 
+    try {
+        for (let stepIx in stripeSteps) {
+            const step = stripeSteps[stepIx];
+            const stepForStripe = stripeTransactionPlanStepToStripeRequest(step, plan);
+            // todo handle edge case: stripeAmount < 50    --> do this in planner
+
+            const charge = await createStripeCharge(stepForStripe, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, step.idempotentStepId);
+
+            // Update transaction plan with charge details
+            step.chargeResult = charge;
+            // trace back to the requested payment source that lists the right 'source' and/or 'customer' param
+            let stepSource = plan.paymentSources.find(
+                source => source.rail === "stripe" &&
+                    (step.source ? source.source === step.source : true) &&
+                    (step.customer ? source.customer === step.customer : true)
+            ) as StripeTransactionParty;
+            stepSource.chargeId = charge.id;
+        }
+        // await doFraudCheck(lightrailStripeConfig, merchantStripeConfig, params, charge, evt, auth);
+    } catch (err) {
+        // todo: differentiate between stripe errors / db step errors, and fraud check errors once we do fraud checking: rollback if appropriate & make sure message is clear
+        if ((err as StripeRestError).additionalParams.stripeError) {
+            throw err;
+        } else {
+            throw new TransactionPlanError(`Transaction execution canceled because there was a problem charging Stripe: ${err}`, {
+                isReplanable: false
+            });
+        }
+    }
+}
+
+function stripeTransactionPlanStepToStripeRequest(step: StripeTransactionPlanStep, plan: TransactionPlan): StripeCreateChargeParams {
+    let stepForStripe: StripeCreateChargeParams = {
+        amount: step.amount,
+        currency: plan.currency,
+        metadata: {
+            ...plan.metadata,
+            lightrailTransactionId: plan.id
+        }
+    };
+    if (step.source) {
+        stepForStripe.source = step.source;
+    }
+    if (step.customer) {
+        stepForStripe.customer = step.customer;
+    }
+
+    return stepForStripe;
+}

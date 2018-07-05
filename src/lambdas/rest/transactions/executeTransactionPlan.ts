@@ -6,11 +6,8 @@ import {transactionPlanToTransaction} from "./transactionPlanToTransaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import * as log from "loglevel";
-import {createStripeCharge, rollbackStripeSteps} from "../../../utils/stripeUtils/stripeTransactions";
-import {StripeRestError} from "../../../utils/stripeUtils/StripeRestError";
+import {chargeStripeSteps, rollbackStripeSteps} from "../../../utils/stripeUtils/stripeTransactions";
 import {setupLightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/stripeAccess";
-import {StripeTransactionParty} from "../../../model/TransactionRequest";
-import {StripeCreateChargeParams} from "../../../utils/stripeUtils/StripeCreateChargeParams";
 import {
     insertLightrailTransactionSteps,
     insertStripeTransactionSteps,
@@ -82,38 +79,9 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
 
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
 
-    try {
-        for (let stepIx in stripeSteps) {
-            const step = stripeSteps[stepIx];
-            const stepForStripe = stripeTransactionPlanStepToStripeRequest(step, plan);
-            // todo handle edge case: stripeAmount < 50    --> do this in planner
-
-            const charge = await createStripeCharge(stepForStripe, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, step.idempotentStepId);
-
-            // Update transaction plan with charge details
-            step.chargeResult = charge;
-            // trace back to the requested payment source that lists the right 'source' and/or 'customer' param
-            let stepSource = plan.paymentSources.find(
-                source => source.rail === "stripe" &&
-                    (step.source ? source.source === step.source : true) &&
-                    (step.customer ? source.customer === step.customer : true)
-            ) as StripeTransactionParty;
-            stepSource.chargeId = charge.id;
-        }
-        // await doFraudCheck(lightrailStripeConfig, merchantStripeConfig, params, charge, evt, auth);
-    } catch (err) {
-        // todo: differentiate between stripe errors / db step errors, and fraud check errors once we do fraud checking: rollback if appropriate & make sure message is clear
-        if ((err as StripeRestError).additionalParams.stripeError) {
-            throw err;
-        } else {
-            throw new TransactionPlanError(`Transaction execution canceled because there was a problem charging Stripe: ${err}`, {
-                isReplanable: false
-            });
-        }
-    }
+    await chargeStripeSteps(stripeConfig, plan);
 
     await knex.transaction(async trx => {
-
         try {
             await insertTransaction(trx, auth, plan);
         } catch (err) {
@@ -142,24 +110,4 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
     });
 
     return transactionPlanToTransaction(plan);
-}
-
-
-function stripeTransactionPlanStepToStripeRequest(step: StripeTransactionPlanStep, plan: TransactionPlan): StripeCreateChargeParams {
-    let stepForStripe: StripeCreateChargeParams = {
-        amount: step.amount,
-        currency: plan.currency,
-        metadata: {
-            ...plan.metadata,
-            lightrailTransactionId: plan.id
-        }
-    };
-    if (step.source) {
-        stepForStripe.source = step.source;
-    }
-    if (step.customer) {
-        stepForStripe.customer = step.customer;
-    }
-
-    return stepForStripe;
 }
