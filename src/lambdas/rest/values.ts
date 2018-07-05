@@ -12,17 +12,11 @@ import {
     getSqlErrorConstraintName,
     nowInDbPrecision
 } from "../../utils/dbUtils";
-import {
-    filterAndPaginateQuery,
-    getSqlErrorConstraintName,
-    nowInDbPrecision
-} from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {DbTransaction, LightrailDbTransactionStep} from "../../model/Transaction";
 import {codeLastFour, DbCode} from "../../model/DbCode";
 import {generateCode} from "../../services/codeGenerator";
 import {computeCodeLookupHash} from "../../utils/codeCryptoUtils";
-import * as log from "loglevel";
 import {getProgram} from "./programs";
 import {Program} from "../../model/Program";
 
