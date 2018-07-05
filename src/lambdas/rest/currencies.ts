@@ -125,17 +125,17 @@ export async function updateCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBa
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexWrite();
-    const res: [number] = await knex("Currencies")
+    const res: number = await knex("Currencies")
         .where({
             userId: auth.giftbitUserId,
             code: code
         })
         .update(Currency.toDbCurrencyUpdate(currency));
-    if (res[0] === 0) {
+    if (res === 0) {
         throw new cassava.RestError(404);
     }
-    if (res[0] > 1) {
-        throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
+    if (res > 1) {
+        throw new Error(`Illegal UPDATE query.  Updated ${res} values.`);
     }
     return {
         ...await getCurrency(auth, code),

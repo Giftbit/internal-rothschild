@@ -16,7 +16,7 @@ require("./schema/V1__base.sql");
 const flywayVersion = "5.0.7";
 
 // Remove this ability after firmly establishing V1.
-const dropExistingDb = false;
+const dropExistingDb = true;
 
 /**
  * Handles a CloudFormationEvent and upgrades the database.
@@ -71,14 +71,14 @@ async function migrateDatabase(ctx: awslambda.Context): Promise<any> {
     });
 }
 
-function spawn(cmd: string, args?: string[], options?: childProcess.SpawnOptions): Promise<{stdout: string[], stderr: string[]}> {
+function spawn(cmd: string, args?: string[], options?: childProcess.SpawnOptions): Promise<{ stdout: string[], stderr: string[] }> {
     const child = childProcess.spawn(cmd, args, options);
 
     const stdout: string[] = [];
     const stderr: string[] = [];
     child.stdout.on("data", data => stdout.push(data.toString()));
     child.stderr.on("data", data => stderr.push(data.toString()));
-    return new Promise<{stdout: string[], stderr: string[]}>((resolve, reject) => {
+    return new Promise<{ stdout: string[], stderr: string[] }>((resolve, reject) => {
         child.on("error", error => {
             log.error("Error running", cmd, args.join(" "));
             log.error(error);

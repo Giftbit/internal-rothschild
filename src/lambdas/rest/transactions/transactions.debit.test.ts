@@ -201,7 +201,7 @@ describe("/v2/transactions/debit", () => {
             currency: "CAD"
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.equal(resp.body.messageCode, "InsufficientValue");
+        chai.assert.equal(resp.body.messageCode, "InsufficientBalance");
     });
 
     it("409s debiting a value ID that does not exist", async () => {

@@ -213,6 +213,7 @@ describe("optimizeCheckout", () => {
             uses: 5,
             programId: null,
             code: null,
+            isGenericCode: null,
             contactId: null,
             pretax: preTax,
             active: null,

@@ -28,7 +28,7 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
         try {
             const plan = await planner();
             if (plan.totals.remainder && !options.allowRemainder) {
-                throw new giftbitRoutes.GiftbitRestError(409, "Insufficient value for the transaction.", "InsufficientValue");
+                throw new giftbitRoutes.GiftbitRestError(409, "Insufficient balance for the transaction.", "InsufficientBalance");
             }
             if (options.simulate) {
                 return transactionPlanToTransaction(plan);

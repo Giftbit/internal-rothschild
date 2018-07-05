@@ -99,7 +99,7 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.equal(postCheckoutResp.body.id, request.id);
         chai.assert.deepEqual(postCheckoutResp.body.totals, {
-            subTotal: 123,
+            subtotal: 123,
             tax: 0,
             discount: 0,
             payable: 123,
@@ -164,7 +164,7 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.equal(postCheckoutResp.body.id, request.id);
         chai.assert.deepEqual(postCheckoutResp.body.totals, {
-            subTotal: 123,
+            subtotal: 123,
             tax: 0,
             discount: 0,
             payable: 123,
@@ -210,7 +210,7 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.equal(postCheckoutResp.body.id, basicRequest.id);
         chai.assert.deepEqual(postCheckoutResp.body.totals, {
-            subTotal: 500,
+            subtotal: 500,
             tax: 0,
             discount: 0,
             payable: 500,
@@ -302,7 +302,7 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.equal(postCheckoutResp.body.id, request.id);
         chai.assert.deepEqual(postCheckoutResp.body.totals, {
-            subTotal: 500,
+            subtotal: 500,
             tax: 0,
             discount: 0,
             payable: 500,
@@ -428,7 +428,7 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.equal(postCheckoutResp.statusCode, 200, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.equal(postCheckoutResp.body.id, request.id);
         chai.assert.deepEqual(postCheckoutResp.body.totals, {
-            subTotal: 500,
+            subtotal: 500,
             tax: 0,
             discount: 0,
             payable: 500,
@@ -609,7 +609,7 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.equal(postCheckoutResp.body.id, request.id);
         chai.assert.deepEqual(postCheckoutResp.body.totals, {
-            subTotal: 500,
+            subtotal: 500,
             tax: 0,
             discount: 0,
             payable: 500,
