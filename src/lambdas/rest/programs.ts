@@ -236,32 +236,6 @@ const programSchema: jsonschema.Schema = {
         active: {
             type: "boolean"
         },
-        generateCode: {
-            oneOf: [
-                {
-                    type: "null"
-                },
-                {
-                    title: "Code Generation Params",
-                    type: ["object", "null"],
-                    additionalProperties: false,
-                    properties: {
-                        length: {
-                            type: "number"
-                        },
-                        charset: {
-                            type: "string"
-                        },
-                        prefix: {
-                            type: "string"
-                        },
-                        suffix: {
-                            type: "string"
-                        }
-                    }
-                }
-            ]
-        },
         redemptionRule: {
             oneOf: [ // todo can we export this schema for a rule so that it's not duplicated?
                 {

@@ -31,6 +31,18 @@ describe("/v2/values create from program", () => {
         });
     });
 
+    it("can't create a value with a programId that doesn't exist - results in 409", async () => {
+        let value: Partial<Value> = {
+            id: generateId(),
+            programId: generateId()
+        };
+
+        it("create Value", async () => {
+            const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(valueResp.statusCode, 409, JSON.stringify(valueResp.body));
+        });
+    });
+
     describe(`test basic program with no balance constraints or value valueRule`, () => {
         let program = {
             id: generateId(),
@@ -241,11 +253,11 @@ describe("/v2/values create from program", () => {
             const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
             chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
             chai.assert.deepEqual(valueResp.body.valueRule, value.valueRule);
-            chai.assert.notDeepEqual(valueResp.body.valueRule, program.valueRule)
+            chai.assert.notDeepEqual(valueResp.body.valueRule, program.valueRule);
         });
     });
 
-    describe(`test program with more properties`, () => {
+    describe(`test program with many properties`, () => {
         const now = new Date();
         let program = {
             id: generateId(),

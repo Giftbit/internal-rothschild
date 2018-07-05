@@ -269,6 +269,17 @@ describe("/v2/values/", () => {
         chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
     });
 
+    it("can't create Value with discount = false and discountSellerLiability", async () => {
+        let value: Partial<Value> = {
+            id: generateId(),
+            balance: 50,
+            discount: false,
+            discountSellerLiability: 1
+        };
+        const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
+    });
+
     it("422s on creating a value with a negative balance", async () => {
         const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
             id: "negativebalance",

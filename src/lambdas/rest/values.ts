@@ -50,7 +50,7 @@ export function installValuesRest(router: cassava.Router): void {
                     program = await getProgram(auth, evt.body.programId);
                 } catch (err) {
                     if (err instanceof cassava.RestError && err.statusCode === 404) {
-                        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `No Program found for id ${evt.body.programId}.`)
+                        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `No Program found for id ${evt.body.programId}.`);
                     } else {
                         throw err;
                     }
@@ -85,10 +85,10 @@ export function installValuesRest(router: cassava.Router): void {
             };
 
             if (value.balance && value.valueRule) {
-                throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a balance and valueRule.`)
+                throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a balance and valueRule.`);
             }
             if (value.discountSellerLiability !== null && !value.discount) {
-                throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have discountSellerLiability if it is not a discount.`)
+                throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have discountSellerLiability if it is not a discount.`);
             }
             if (program) {
                 checkProgramConstraints(value, program);
@@ -435,17 +435,17 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
 
 function checkProgramConstraints(value: Value, program: Program): void {
     if (program.fixedInitialBalances && (program.fixedInitialBalances.indexOf(value.balance) === -1 || !value.balance)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's balance ${value.balance} outside initial values defined by Program ${program.fixedInitialBalances}.`)
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's balance ${value.balance} outside initial values defined by Program ${program.fixedInitialBalances}.`);
     }
     if (program.minInitialBalance && (value.balance < program.minInitialBalance || !value.balance)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's balance ${value.balance} is less than minInitialBalance ${program.minInitialBalance}.`)
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's balance ${value.balance} is less than minInitialBalance ${program.minInitialBalance}.`);
     }
     if (program.maxInitialBalance && (value.balance > program.maxInitialBalance || !value.balance)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's balance ${value.balance} is less than minInitialBalance ${program.minInitialBalance}.`)
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's balance ${value.balance} is less than minInitialBalance ${program.minInitialBalance}.`);
     }
 
     if (program.fixedInitialUses && (program.fixedInitialUses.indexOf(value.uses) === -1 || !value.uses)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's uses ${value.uses} outside initial values defined by Program ${program.fixedInitialUses}.`)
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's uses ${value.uses} outside initial values defined by Program ${program.fixedInitialUses}.`);
     }
 }
 

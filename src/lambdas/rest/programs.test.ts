@@ -24,7 +24,6 @@ describe("/v2/programs", () => {
 
     it("can list 0 programs", async () => {
         const resp = await testUtils.testAuthedRequest(router, "/v2/programs", "GET");
-        console.log(JSON.stringify(resp));
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.deepEqual(resp.body, []);
     });
