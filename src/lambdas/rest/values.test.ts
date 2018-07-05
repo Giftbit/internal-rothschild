@@ -102,13 +102,14 @@ describe("/v2/values/", () => {
         chai.assert.deepEqual(resp.body, value1);
     });
 
-    it("409s on creating a duplicate value", async () => {
-        const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+    it("409s on creating a value with a duplicate id", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", {
             id: value1.id,
             currency: value1.currency,
             balance: value1.balance
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.messageCode, "ValueIdExists");
     });
 
     it("cannot change a value's currency", async () => {
@@ -490,6 +491,38 @@ describe("/v2/values/", () => {
         const listShowCode = await testUtils.testAuthedRequest<any>(router, `/v2/values?showCode=true`, "GET");
         let codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === publicCode.id);
         chai.assert.equal(codeInListShowCodeTrue.code, "A");
+    });
+
+    it("cannot create a value reusing an existing code", async () => {
+        const value1Res = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: generateId(),
+            currency: "USD",
+            code: "PANTSDANCE",
+            isGenericCode: true,
+            balance: 0
+        });
+        chai.assert.equal(value1Res.statusCode, 201, `body=${JSON.stringify(value1Res.body)}`);
+
+        const value2Res = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", {
+            id: generateId(),
+            currency: "USD",
+            code: "PANTSDANCE",
+            isGenericCode: true,
+            balance: 0
+        });
+        chai.assert.equal(value2Res.statusCode, 409, `body=${JSON.stringify(value2Res.body)}`);
+        chai.assert.equal(value2Res.body.messageCode, "ValueCodeExists");
+    });
+
+    it("cannot create a value with isGeneric=true and contactId set", async () => {
+        const value1Res = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: generateId(),
+            currency: "USD",
+            contactId: "abcd",
+            isGenericCode: true,
+            balance: 0
+        });
+        chai.assert.equal(value1Res.statusCode, 422, `body=${JSON.stringify(value1Res.body)}`);
     });
 
     it.skip("can create a value with 🚀 emoji generic code", async () => {

@@ -26,7 +26,7 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
         });
     });
 
-    it("process checkout with insufficientValue followed by allowRemainder = true", async () => {
+    it("process checkout with InsufficientBalance followed by allowRemainder = true", async () => {
         const giftCard: Partial<Value> = {
             id: "vs-checkout4-giftcard",
             currency: "CAD",
@@ -75,9 +75,9 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
             ],
             currency: "CAD"
         };
-        const postCheckoutRespInsufficientValue = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", request);
-        chai.assert.equal(postCheckoutRespInsufficientValue.statusCode, 409, `body=${JSON.stringify(postCheckoutRespInsufficientValue.body)}`);
-        chai.assert.equal(postCheckoutRespInsufficientValue.body.messageCode, "InsufficientValue", `body=${JSON.stringify(postCheckoutRespInsufficientValue.body)}`);
+        const postCheckoutRespInsufficientBalance = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", request);
+        chai.assert.equal(postCheckoutRespInsufficientBalance.statusCode, 409, `body=${JSON.stringify(postCheckoutRespInsufficientBalance.body)}`);
+        chai.assert.equal(postCheckoutRespInsufficientBalance.body.messageCode, "InsufficientBalance", `body=${JSON.stringify(postCheckoutRespInsufficientBalance.body)}`);
 
         request.allowRemainder = true;
         const postCheckoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", request);
