@@ -11,7 +11,11 @@ import {StripeRestError} from "../../../utils/stripeUtils/StripeRestError";
 import {setupLightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/stripeAccess";
 import {StripeTransactionParty} from "../../../model/TransactionRequest";
 import {StripeCreateChargeParams} from "../../../utils/stripeUtils/StripeCreateChargeParams";
-import {insertLightrailTransactionSteps, insertTransaction} from "../../../utils/dbUtils/insertTransactions";
+import {
+    insertLightrailTransactionSteps,
+    insertStripeTransactionSteps,
+    insertTransaction
+} from "../../../utils/dbUtils/insertTransactions";
 
 export interface ExecuteTransactionPlannerOptions {
     allowRemainder: boolean;
@@ -124,19 +128,7 @@ async function executeMessyTransactionPlan(auth: giftbitRoutes.jwtauth.Authoriza
         }
 
         try {
-            for (let stepIx in stripeSteps) {
-                let step = stripeSteps[stepIx];
-                await trx.into("StripeTransactionSteps")
-                    .insert({
-                        userId: auth.giftbitUserId,
-                        id: step.idempotentStepId,
-                        transactionId: plan.id,
-                        chargeId: step.chargeResult.id,
-                        currency: step.chargeResult.currency,
-                        amount: step.chargeResult.amount,
-                        charge: JSON.stringify(step.chargeResult)
-                    });
-            }
+            await insertStripeTransactionSteps(auth, trx, plan);
             await insertLightrailTransactionSteps(auth, trx, plan);
         } catch (err) {
             await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side: ${JSON.stringify(err)}`);
