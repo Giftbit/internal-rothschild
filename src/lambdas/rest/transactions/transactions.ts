@@ -12,8 +12,8 @@ import {paginateQuery} from "../../../utils/dbUtils/paginateQuery";
 import {LightrailTransactionPlanStep} from "./TransactionPlan";
 import {optimizeCheckout} from "./checkout/checkoutTransactionPlanner";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
-import getPaginationParams = Pagination.getPaginationParams;
 import getTransactionFilterParams = Filters.getTransactionFilterParams;
+import getPaginationParams = Pagination.getPaginationParams;
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions")
@@ -255,7 +255,7 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
         },
         async () => {
             const sourceParties = await resolveTransactionParties(auth, req.currency, [req.source], req.id);
-            if (sourceParties.length !== 1 || sourceParties[0].rail !== "lightrail") {
+            if (sourceParties.length !== 1 || (sourceParties[0].rail !== "lightrail" && sourceParties[0].rail !== "stripe")) {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable Value.", "InvalidParty");
             }
 
@@ -477,7 +477,13 @@ const transferSchema: jsonschema.Schema = {
             type: "string",
             minLength: 1
         },
-        source: lightrailUniquePartySchema,
+        source: {
+            oneOf: [
+                lightrailPartySchema,
+                stripePartySchema
+            ]
+        }
+        ,
         destination: lightrailUniquePartySchema,
         amount: {
             type: "integer",
