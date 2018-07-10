@@ -615,6 +615,23 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.equal(postTransferResp.statusCode, 409, `body=${JSON.stringify(postTransferResp.body)}`);
         });
 
+        it("422s transferring to Stripe from Lightrail", async () => {
+            const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
+                id: "stripe-transfer-3",
+                source: {
+                    rail: "lightrail",
+                    valueId: valueCadStripe.id
+                },
+                destination: {
+                    rail: "stripe",
+                    source: "tok_visa",
+                },
+                amount: 1000,
+                currency: "CAD",
+            });
+            chai.assert.equal(postTransferResp.statusCode, 422, `body=${JSON.stringify(postTransferResp.body)}`);
+        });
+
         it("respects Stripe minimum of $0.50");
     });
 });
