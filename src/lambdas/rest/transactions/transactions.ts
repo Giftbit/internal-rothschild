@@ -264,6 +264,9 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
             if (sourceParties.length !== 1 || (sourceParties[0].rail !== "lightrail" && sourceParties[0].rail !== "stripe")) {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable Value.", "InvalidParty");
             }
+            if (sourceParties[0].rail === "stripe" && !req.allowRemainder && (sourceParties[0] as StripeTransactionParty).maxAmount && (sourceParties[0] as StripeTransactionParty).maxAmount < req.amount) {
+                throw new giftbitRoutes.GiftbitRestError(409, `Stripe source 'maxAmount' of ${(sourceParties[0] as StripeTransactionParty).maxAmount} is less than transfer amount ${req.amount}.`);
+            }
 
             const destParties = await resolveTransactionParties(auth, req.currency, [req.destination], req.id);
             if (destParties.length !== 1 || destParties[0].rail !== "lightrail") {
