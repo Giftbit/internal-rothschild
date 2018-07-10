@@ -18,8 +18,8 @@ import {paginateQuery} from "../../../utils/dbUtils/paginateQuery";
 import {LightrailTransactionPlanStep, StripeTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {optimizeCheckout} from "./checkout/checkoutTransactionPlanner";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
-import getTransactionFilterParams = Filters.getTransactionFilterParams;
 import getPaginationParams = Pagination.getPaginationParams;
+import getTransactionFilterParams = Filters.getTransactionFilterParams;
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions")
@@ -308,6 +308,7 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
             } else if (sourceParties[0].rail === "stripe") {
                 const party = sourceParties[0] as StripeTransactionParty;
                 const maxAmount = (sourceParties[0] as StripeTransactionPlanStep).maxAmount || null;
+                const amount = maxAmount ? (Math.min(maxAmount, req.amount)) : req.amount;
 
                 return ({
                     ...plan,
@@ -316,14 +317,14 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
                             rail: sourceParties[0].rail,
                             source: party.source || null,
                             customer: party.customer || null,
-                            amount: req.amount,
+                            amount,
                             idempotentStepId: `${req.id}-transfer-source`,
                             maxAmount: maxAmount ? maxAmount : null
                         },
                         {
                             rail: "lightrail",
                             value: (destParties[0] as LightrailTransactionPlanStep).value,
-                            amount: maxAmount ? Math.min(maxAmount, req.amount) : req.amount
+                            amount
                         }
                     ],
                     totals: {
