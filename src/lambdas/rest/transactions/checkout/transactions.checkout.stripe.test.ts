@@ -8,7 +8,7 @@ import * as sinon from "sinon";
 import {Value} from "../../../../model/Value";
 import {StripeTransactionStep, Transaction} from "../../../../model/Transaction";
 import {Currency} from "../../../../model/Currency";
-import {before, describe, it} from "mocha";
+import {afterEach, before, beforeEach, describe, it} from "mocha";
 import * as kvsAccess from "../../../../utils/kvsAccess";
 import {TransactionPlanError} from "../TransactionPlanError";
 import * as insertTransaction from "../../../../utils/dbUtils/insertTransactions";
@@ -71,8 +71,15 @@ describe("split tender checkout with Stripe", () => {
 
         const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+    });
 
+    beforeEach(() => {
         setStubsForStripeTests();
+
+    });
+
+    afterEach(() => {
+        unsetStubsForStripeTests();
     });
 
     it("processes basic checkout with Stripe only", async () => {
