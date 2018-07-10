@@ -542,7 +542,7 @@ describe("split tender checkout with Stripe", () => {
             };
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
             chai.assert.equal(postCheckoutResp.statusCode, 400, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
-        }).timeout(3000);
+        }).timeout(3500);
 
         it("rolls back the Stripe transaction when the Lightrail transaction fails", async () => {
             let stubProcessLightrailTransactionSteps = sinon.stub(insertTransaction, "insertLightrailTransactionSteps");
@@ -557,7 +557,7 @@ describe("split tender checkout with Stripe", () => {
             // todo check that metadata on Stripe charge gets updated with refund note
 
             (insertTransaction.insertLightrailTransactionSteps as any).restore();
-        }).timeout(3000);
+        }).timeout(3500);
 
         it("throws 409 'transaction already exists' if the Lightrail transaction fails for idempotency reasons", async () => {
             let stubInsertTransaction = sinon.stub(insertTransaction, "insertTransaction");

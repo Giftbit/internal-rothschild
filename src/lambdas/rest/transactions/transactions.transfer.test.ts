@@ -614,5 +614,7 @@ describe("/v2/transactions/transfer", () => {
             });
             chai.assert.equal(postTransferResp.statusCode, 409, `body=${JSON.stringify(postTransferResp.body)}`);
         });
+
+        it("respects Stripe minimum of $0.50");
     });
 });
