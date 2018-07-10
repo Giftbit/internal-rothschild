@@ -503,5 +503,22 @@ describe("/v2/transactions/transfer", () => {
             });
             chai.assert.deepEqual(stripeCharge, sourceStep.charge);
         });
+
+        it("422s transferring a negative amount from Stripe", async () => {
+            const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
+                id: "transfer-stripe-2",
+                source: {
+                    rail: "stripe",
+                    source: "tok_visa"
+                },
+                destination: {
+                    rail: "lightrail",
+                    valueId: valueCadStripe.id
+                },
+                amount: -1000,
+                currency: "CAD"
+            });
+            chai.assert.equal(postTransferResp.statusCode, 422, `body=${JSON.stringify(postTransferResp.body)}`);
+        });
     });
 });
