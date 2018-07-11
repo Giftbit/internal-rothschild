@@ -458,7 +458,7 @@ function checkProgramConstraints(value: Value, program: Program): void {
 
 function checkCodeParameters(evt: RouterEvent): void {
     if (evt.body.generateCode && (evt.body.code || evt.body.isGenericCode)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Parameters generateCode is not allowed is isGenericCode=true.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Parameter generateCode is not allowed with parameters code or isGenericCode:true.`);
     }
 }
 
