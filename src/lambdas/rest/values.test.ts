@@ -71,6 +71,11 @@ describe("/v2/values/", () => {
         chai.assert.equal(resp.body.messageCode, "CurrencyNotFound");
     });
 
+    it("cannot update valueId", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value1.id}`, "PATCH", {id: generateId()});
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
     it("can create a value with no code, no contact, no program", async () => {
         const resp2 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
         chai.assert.equal(resp2.statusCode, 201, `body=${JSON.stringify(resp2.body)}`);
