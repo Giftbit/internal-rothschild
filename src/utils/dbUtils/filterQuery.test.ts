@@ -3,6 +3,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {getKnexRead, getKnexWrite} from "./connection";
 import * as testUtils from "../testUtils";
 import {filterQuery, FilterQueryOptions} from "./filterQuery";
+import * as cryptojs from "crypto-js";
 
 describe("filterQuery()", () => {
 
@@ -13,6 +14,29 @@ describe("filterQuery()", () => {
         b: number;
         c: boolean;
         d: Date;
+        code: string;
+    }
+
+    interface FilterTestDb {
+        userId: string;
+        id: string;
+        a: string;
+        b: number;
+        c: boolean;
+        d: Date;
+        codeHashed: string;
+    }
+
+    function filterTestToFilterTestDb(v: FilterTest): FilterTestDb {
+        return {
+            userId: v.userId,
+            id: v.id,
+            a: v.a,
+            b: v.b,
+            c: v.c,
+            d: v.d,
+            codeHashed: hashCode(v.code)
+        }
     }
 
     const filterTestFilterOptions: FilterQueryOptions = {
@@ -32,21 +56,32 @@ describe("filterQuery()", () => {
             },
             d: {
                 type: "Date"
+            },
+            code: {
+                type: "string",
+                columnName: "codeHashed",
+                valueMap: value => hashCode(value),
+                operators: ["eq", "in"]
             }
         }
     };
+
+    function hashCode(value: string) {
+        return cryptojs.SHA512(value).toString();
+    }
 
     before(async () => {
         await testUtils.resetDb();
 
         const knex = await getKnexWrite();
         await knex.raw("CREATE TABLE rothschild.FilterTest (\n" +
-            "  userId VARCHAR(32)  NOT NULL,\n" +
-            "  id     VARCHAR(32)  NOT NULL," +
-            "  a      VARCHAR(255) NOT NULL,\n" +
-            "  b      INT          NOT NULL,\n" +
-            "  c      BOOLEAN      NOT NULL,\n" +
-            "  d      DATETIME     NOT NULL,\n" +
+            "  userId     VARCHAR(32)  NOT NULL,\n" +
+            "  id         VARCHAR(32)  NOT NULL," +
+            "  a          VARCHAR(255) NOT NULL,\n" +
+            "  b          INT          NOT NULL,\n" +
+            "  c          BOOLEAN      NOT NULL,\n" +
+            "  d          DATETIME     NOT NULL,\n" +
+            "  codeHashed TEXT,\n" +
             "  PRIMARY KEY pk_Row (userId, id)\n" +
             ");");
 
@@ -59,11 +94,13 @@ describe("filterQuery()", () => {
                 a: Math.abs(Math.sin(i)).toString(36).substring(2),
                 b: Math.floor(Math.abs(Math.tan(i))) * 10,
                 c: !!(i % 3),
-                d: new Date(400464000000 + i * 1000)
+                d: new Date(400464000000 + i * 1000),
+                code: `CODE-${i.toString()}`
             });
         }
 
-        await knex.into("FilterTest").insert(rows);
+        const rowsForInsert: FilterTestDb[] = rows.map(v => filterTestToFilterTestDb(v));
+        await knex.into("FilterTest").insert(rowsForInsert);
     });
 
     it("filters eq by default", async () => {
@@ -78,7 +115,7 @@ describe("filterQuery()", () => {
             .orderBy("id");
         chai.assert.isAtLeast(expected.length, 1, "at least 1 row expected");
 
-        const actual: FilterTest[] = await filterQuery(
+        const actual: FilterTestDb[] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
@@ -103,7 +140,7 @@ describe("filterQuery()", () => {
             .orderBy("id");
         chai.assert.isAtLeast(expected.length, 1, "at least 1 row expected");
 
-        const actual: FilterTest[] = await filterQuery(
+        const actual: FilterTestDb[] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
@@ -127,7 +164,7 @@ describe("filterQuery()", () => {
             .orderBy("id");
         chai.assert.isAtLeast(expected.length, 1, "at least 1 row expected");
 
-        const actual: FilterTest[] = await filterQuery(
+        const actual: FilterTestDb[] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
@@ -151,7 +188,7 @@ describe("filterQuery()", () => {
             .orderBy("id");
         chai.assert.isAtLeast(expected.length, 1, "at least 1 row expected");
 
-        const actual: FilterTest[] = await filterQuery(
+        const actual: FilterTestDb[] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
@@ -175,7 +212,7 @@ describe("filterQuery()", () => {
             .orderBy("id");
         chai.assert.isAtLeast(expected.length, 1, "at least 1 row expected");
 
-        const actual: FilterTest[] = await filterQuery(
+        const actual: FilterTestDb[] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
@@ -199,7 +236,7 @@ describe("filterQuery()", () => {
             .orderBy("id");
         chai.assert.isAtLeast(expected.length, 1, "at least 1 row expected");
 
-        const actual: FilterTest[] = await filterQuery(
+        const actual: FilterTestDb[] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
@@ -222,7 +259,7 @@ describe("filterQuery()", () => {
             .whereIn("id", ["id-1", "id-2", "id-3", "id-5", "id-8", "id-13", "id-21", "id-34", "id-55", "id-89", "id-144", "id-233", "id-377", "id-610", "id-987"])
             .orderBy("id");
 
-        const actual: FilterTest[] = await filterQuery(
+        const actual: FilterTestDb[] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
@@ -246,7 +283,7 @@ describe("filterQuery()", () => {
             .orderBy("id");
         chai.assert.isAtLeast(expected.length, 1, "at least 1 row expected");
 
-        const actual: FilterTest[] = await filterQuery(
+        const actual: FilterTestDb[] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
@@ -272,7 +309,7 @@ describe("filterQuery()", () => {
             .orderBy("id");
         chai.assert.isAtLeast(expected.length, 1, "at least 1 row expected");
 
-        const actual: FilterTest[] = await filterQuery(
+        const actual: FilterTestDb[] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
@@ -284,6 +321,76 @@ describe("filterQuery()", () => {
             filterTestFilterOptions
         );
 
+        chai.assert.deepEqual(actual, expected);
+    });
+
+    it("querying by code which becomes hashed when persisted to the database", async () => {
+        const knex = await getKnexRead();
+
+        const expected: FilterTestDb[] = await knex("FilterTest")
+            .where({
+                userId: "user1"
+            })
+            .where("codeHashed", hashCode("CODE-623"));
+        chai.assert.lengthOf(expected, 1, "expected exactly 1 row");
+        chai.assert.equal(expected[0].id, "id-623", "expected id=id-623");
+
+        const actual: FilterTestDb[] = await filterQuery(
+            knex("FilterTest")
+                .where({userId: "user1"})
+                .orderBy("id"),
+            {
+                "code": "CODE-623"
+            },
+            filterTestFilterOptions
+        );
+        chai.assert.deepEqual(actual, expected);
+    });
+
+    it("querying by hashed value with 'in' operator and single value", async () => {
+        const knex = await getKnexRead();
+
+        const expected: FilterTestDb[] = await knex("FilterTest")
+            .where({
+                userId: "user1"
+            })
+            .whereIn("codeHashed", [hashCode("CODE-623")])
+            .orderBy("id");
+        chai.assert.lengthOf(expected, 1, "expected exactly 1 row");
+        chai.assert.equal(expected[0].id, "id-623", "expected id=id-623");
+
+        const actual: FilterTestDb[] = await filterQuery(
+            knex("FilterTest")
+                .where({userId: "user1"})
+                .orderBy("id"),
+            {
+                "code.in": "CODE-623"
+            },
+            filterTestFilterOptions
+        );
+        chai.assert.deepEqual(actual, expected);
+    });
+
+
+    it("querying by hashed value with 'in' operator and multiple values", async () => {
+        const knex = await getKnexRead();
+
+        const expected: FilterTestDb[] = await knex("FilterTest")
+            .whereIn("codeHashed", [hashCode("CODE-623"), hashCode("CODE-821")])
+            .orderBy("id");
+        chai.assert.lengthOf(expected, 2, "expected exactly 2 rows");
+        chai.assert.equal(expected[0].id, "id-623", "expected id=id-623");
+        chai.assert.equal(expected[1].id, "id-821", "expected id=id-821");
+
+        const actual: FilterTestDb[] = await filterQuery(
+            knex("FilterTest")
+                .where({userId: "user1"})
+                .orderBy("id"),
+            {
+                "code.in": "CODE-623,CODE-821"
+            },
+            filterTestFilterOptions
+        );
         chai.assert.deepEqual(actual, expected);
     });
 
@@ -299,7 +406,7 @@ describe("filterQuery()", () => {
             .orderBy("id");
         chai.assert.isAtLeast(expected.length, 1, "at least 1 row expected");
 
-        const actual: FilterTest[] = await filterQuery(
+        const actual: FilterTestDb[] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),

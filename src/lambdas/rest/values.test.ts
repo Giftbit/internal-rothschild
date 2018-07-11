@@ -1006,7 +1006,7 @@ describe("/v2/values/", () => {
         });
     });
 
-    describe("test searching values by code", () => {
+    describe("searching values by code", () => {
         it("search by a code that doesn't exit", async () => {
             const listResponse = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?code=${generateId()}`, "GET");
             chai.assert.equal(listResponse.statusCode, 200, `body=${JSON.stringify(listResponse.body)}`);
@@ -1039,9 +1039,13 @@ describe("/v2/values/", () => {
 
             const listResponse = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?code=${importedCode.code}`, "GET");
             chai.assert.equal(listResponse.statusCode, 200, `body=${JSON.stringify(listResponse.body)}`);
-            chai.assert.equal(listResponse.body.length, 1);
+            chai.assert.lengthOf(listResponse.body, 1);
             chai.assert.equal(listResponse.body[0].id, importedCode.id);
+            chai.assert.notInclude(listResponse.headers["Link"], "codeHashed", "Returned headers should not include codeHashed. This is an implementation detail.");
+
+            console.log("HIHIHIH: \n" + JSON.stringify(listResponse, null, 4));
         });
+
         it("secure generated code", async () => {
             const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", generatedCode);
             chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);

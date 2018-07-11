@@ -2,7 +2,7 @@ import * as knex from "knex";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 
 export interface FilterQueryOptions {
-    properties: {[propertyName: string]: FilterQueryProperty};
+    properties: { [propertyName: string]: FilterQueryProperty };
 }
 
 /**
@@ -25,6 +25,11 @@ export interface FilterQueryProperty {
      * Override the operators available for this property.
      */
     operators?: FilterQueryOperator[];
+
+    /**
+     * Allows you to pass in a function to be able to query by properties that are stored after a computation.
+     */
+    valueMap?: Function;
 }
 
 export type FilterQueryOperator = "lt" | "lte" | "gt" | "gte" | "eq" | "ne" | "in" | "like";
@@ -36,7 +41,7 @@ export type FilterQueryOperator = "lt" | "lte" | "gt" | "gte" | "eq" | "ne" | "i
  * @param options Specifies the filterable values.
  * @returns The filtered SQL query.
  */
-export function filterQuery(query: knex.QueryBuilder, filterParams: {[key: string]: string}, options: FilterQueryOptions): knex.QueryBuilder {
+export function filterQuery(query: knex.QueryBuilder, filterParams: { [key: string]: string }, options: FilterQueryOptions): knex.QueryBuilder {
     for (let filterKey of Object.keys(filterParams)) {
         const filterValue = filterParams[filterKey];
         let op: string = "eq";
@@ -90,15 +95,31 @@ function addFilterToQuery(query: knex.QueryBuilder, prop: FilterQueryProperty, k
         columnName = prop.columnName;
     }
 
+    if (prop.valueMap) {
+        if (op === "in") {
+            value = value.split(",").map(v => prop.valueMap(v)).join(",");
+        } else {
+            value = prop.valueMap(value);
+        }
+    }
+
     switch (op) {
-        case "lt": return query.where(columnName, "<", convertValue(prop, value));
-        case "lte": return query.where(columnName, "<=", convertValue(prop, value));
-        case "gt": return query.where(columnName, ">", convertValue(prop, value));
-        case "gte": return query.where(columnName, ">=", convertValue(prop, value));
-        case "eq": return query.where(columnName, "=", convertValue(prop, value));
-        case "ne": return query.where(columnName, "!=", convertValue(prop, value));
-        case "in": return query.whereIn(columnName, value.split(",").map(v => convertValue(prop, v)));
-        case "like": return query.where(columnName, "LIKE", convertValue(prop, value));
+        case "lt":
+            return query.where(columnName, "<", convertValue(prop, value));
+        case "lte":
+            return query.where(columnName, "<=", convertValue(prop, value));
+        case "gt":
+            return query.where(columnName, ">", convertValue(prop, value));
+        case "gte":
+            return query.where(columnName, ">=", convertValue(prop, value));
+        case "eq":
+            return query.where(columnName, "=", convertValue(prop, value));
+        case "ne":
+            return query.where(columnName, "!=", convertValue(prop, value));
+        case "in":
+            return query.whereIn(columnName, value.split(",").map(v => convertValue(prop, v)));
+        case "like":
+            return query.where(columnName, "LIKE", convertValue(prop, value));
     }
 }
 
