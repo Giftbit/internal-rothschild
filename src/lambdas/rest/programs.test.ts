@@ -1,4 +1,5 @@
 import * as testUtils from "../../utils/testUtils";
+import {generateId} from "../../utils/testUtils";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import * as chai from "chai";
@@ -52,14 +53,45 @@ describe("/v2/programs", () => {
     });
 
     it("can update a program", async () => {
-        let request = {...programRequest};
-        request.name = "The revised program.";
-        const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${request.id}`, "PATCH", request);
-        chai.assert.equal(resp.statusCode, 200);
-        chai.assert.equal(resp.body.id, request.id);
-        chai.assert.equal(resp.body.name, request.name);
-        chai.assert.isNotNull(resp.body.createdDate);
-        chai.assert.isNotNull(resp.body.updatedDate);
+        const request1: Partial<Program> = {
+            name: "The revised program."
+        };
+        const update1 = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${programRequest.id}`, "PATCH", request1);
+        chai.assert.equal(update1.statusCode, 200);
+        chai.assert.equal(update1.body.name, "The revised program.");
+        chai.assert.isNotNull(update1.body.createdDate);
+        chai.assert.isNotNull(update1.body.updatedDate);
+
+        const request2: Partial<Program> = {
+            minInitialBalance: 50,
+            maxInitialBalance: 500
+        };
+        const update2 = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${programRequest.id}`, "PATCH", request2);
+        chai.assert.equal(update2.statusCode, 200);
+        chai.assert.equal(update2.body.minInitialBalance, request2.minInitialBalance);
+        chai.assert.equal(update2.body.maxInitialBalance, request2.maxInitialBalance);
+
+        const request3: Partial<Program> = {
+            minInitialBalance: null,
+            maxInitialBalance: null,
+            valueRule: {
+                rule: "500",
+                explanation: "$5 the hard way"
+            }
+        };
+        const update3 = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${programRequest.id}`, "PATCH", request3);
+        chai.assert.equal(update3.statusCode, 200);
+        chai.assert.equal(update3.body.minInitialBalance, request3.minInitialBalance);
+        chai.assert.equal(update3.body.maxInitialBalance, request3.maxInitialBalance);
+        chai.assert.deepEqual(update3.body.valueRule, request3.valueRule);
+    });
+
+    it("can't update a program id", async () => {
+        let request = {
+            id: generateId()
+        };
+        const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${programRequest.id}`, "PATCH", request);
+        chai.assert.equal(resp.statusCode, 422);
     });
 
     it("can delete a program", async () => {
