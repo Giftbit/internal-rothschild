@@ -1,4 +1,5 @@
 import * as cassava from "cassava";
+import {RouterEvent} from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import * as log from "loglevel";
@@ -44,6 +45,7 @@ export function installValuesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
             evt.validateBody(valueSchema);
+            checkCodeParameters(evt);
             let program: Program = null;
             if (evt.body.programId) {
                 try {
@@ -157,6 +159,7 @@ export function installValuesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
             evt.validateBody(valueChangeCodeSchema);
+            checkCodeParameters(evt);
 
             const now = nowInDbPrecision();
             let code = evt.body.code;
@@ -334,6 +337,7 @@ export async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, i
             id: id
         });
     if (res.length === 0) {
+        console.log("This is happening");
         throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${id}' not found.`, "ValueNotFound");
     }
     if (res.length > 1) {
@@ -396,10 +400,10 @@ async function updateDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
             id: id
         })
         .update(value);
-    if (res[0] === 0) {
+    if (res === 0) {
         throw new cassava.RestError(404);
     }
-    if (res[0] > 1) {
+    if (res > 1) {
         throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
     }
     return {
@@ -453,44 +457,15 @@ function checkProgramConstraints(value: Value, program: Program): void {
     }
 }
 
+function checkCodeParameters(evt: RouterEvent): void {
+    if (evt.body.generateCode && (evt.body.code || evt.body.isGenericCode)) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Parameters generateCode is not allowed is isGenericCode=true.`);
+    }
+}
+
 const valueSchema: jsonschema.Schema = {
     type: "object",
     additionalProperties: false,
-    oneOf: [
-        {
-            required: ["code"],
-            title: "code"
-        },
-        {
-            required: ["code, isGenericCode"],
-            title: "generic code"
-        },
-        {
-            required: ["generateCode"],
-            title: "generateCode",
-            not: {
-                anyOf: [
-                    {required: ["isGenericCode", "code"]}
-                ]
-            }
-        },
-        {
-            not: {
-                anyOf: [
-                    {
-                        required: ["isGenericCode"]
-                    },
-                    {
-                        required: ["code"]
-                    },
-                    {
-                        required: ["generateCode"]
-                    }
-                ],
-            },
-            title: "no code provided or generated"
-        }
-    ],
     properties: {
         id: {
             type: "string",
@@ -640,53 +615,8 @@ const valueUpdateSchema: jsonschema.Schema = {
 const valueChangeCodeSchema: jsonschema.Schema = {
     type: "object",
     additionalProperties: false,
-    oneOf: [
-        {
-            required: ["code"],
-            title: "code"
-        },
-        {
-            required: ["code, isGenericCode"],
-            title: "generic code"
-        },
-        {
-            required: ["generateCode"],
-            title: "generateCode",
-            not: {
-                anyOf: [
-                    {required: ["isGenericCode", "code"]}
-                ]
-            }
-        }
-    ],
     properties: {
-        code: {
-            type: ["string", "null"],
-            minLength: 1,
-            maxLength: 255
-        },
-        isGenericCode: {
-            type: ["boolean", "null"],
-        },
-        generateCode: {
-            title: "Code Generation Params",
-            type: ["object", "null"],
-            additionalProperties: false,
-            properties: {
-                length: {
-                    type: "number"
-                },
-                charset: {
-                    type: "string"
-                },
-                prefix: {
-                    type: "string"
-                },
-                suffix: {
-                    type: "string"
-                }
-            }
-        }
+        ...pick(valueSchema.properties, "code", "isGenericCode", "generateCode"),
     },
     required: []
 };

@@ -27,9 +27,6 @@ export function generateCode(params: GenerateCodeParameters): string {
     if (containsDuplicates(options.charset)) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested charset ${options.charset} contains duplicates.`, "ValueInUse");
     }
-    if (options.charset.length < 5) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested charset ${options.charset} doesn't meet minimum charset size requirement of 5.`, "ValueInUse");
-    }
     if (options.charset.indexOf(" ") !== -1) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested charset ${options.charset} cannot contain a space.`, "ValueInUse");
     }
