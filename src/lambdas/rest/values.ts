@@ -183,6 +183,14 @@ export function installValuesRest(router: cassava.Router): void {
 export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams, showCode: boolean = false): Promise<{ values: Value[], pagination: Pagination }> {
     auth.requireIds("giftbitUserId");
 
+    if (filterParams.code) {
+        filterParams.codeHashed = computeCodeLookupHash(filterParams.code, auth);
+    }
+    if (filterParams["code.in"]) {
+        filterParams["codeHashed.in"] = filterParams["code.in"].split(",").map((code) => computeCodeLookupHash(code, auth)).join(",");
+        console.log(JSON.stringify(filterParams));
+    }
+
     const knex = await getKnexRead();
     const paginatedRes = await filterAndPaginateQuery<DbValue>(
         knex("Values")
@@ -197,6 +205,10 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                     operators: ["eq", "in"]
                 },
                 programId: {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
+                codeHashed: {
                     type: "string",
                     operators: ["eq", "in"]
                 },
