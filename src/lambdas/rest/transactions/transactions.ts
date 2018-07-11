@@ -1,13 +1,7 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import {
-    CheckoutRequest,
-    CreditRequest,
-    DebitRequest,
-    StripeTransactionParty,
-    TransferRequest
-} from "../../../model/TransactionRequest";
+import {CheckoutRequest, CreditRequest, DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
 import {resolveTransactionParties} from "./resolveTransactionParties";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {executeTransactionPlanner} from "./executeTransactionPlan";
@@ -15,9 +9,10 @@ import {Pagination, PaginationParams} from "../../../model/Pagination";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {Filters, TransactionFilterParams} from "../../../model/Filter";
 import {paginateQuery} from "../../../utils/dbUtils/paginateQuery";
-import {LightrailTransactionPlanStep, StripeTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
+import {LightrailTransactionPlanStep} from "./TransactionPlan";
 import {optimizeCheckout} from "./checkout/checkoutTransactionPlanner";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
+import {createTransferTransactionPlan, resolveTransferTransactionParties} from "./transferTransactionPlanner";
 import getPaginationParams = Pagination.getPaginationParams;
 import getTransactionFilterParams = Filters.getTransactionFilterParams;
 
@@ -260,81 +255,8 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
             allowRemainder: req.allowRemainder
         },
         async () => {
-            const sourceParties = await resolveTransactionParties(auth, req.currency, [req.source], req.id);
-            if (sourceParties.length !== 1 || (sourceParties[0].rail !== "lightrail" && sourceParties[0].rail !== "stripe")) {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable Value.", "InvalidParty");
-            }
-            if (sourceParties[0].rail === "stripe" && !req.allowRemainder && (sourceParties[0] as StripeTransactionParty).maxAmount && (sourceParties[0] as StripeTransactionParty).maxAmount < req.amount) {
-                throw new giftbitRoutes.GiftbitRestError(409, `Stripe source 'maxAmount' of ${(sourceParties[0] as StripeTransactionParty).maxAmount} is less than transfer amount ${req.amount}.`);
-            }
-
-            const destParties = await resolveTransactionParties(auth, req.currency, [req.destination], req.id);
-            if (destParties.length !== 1 || destParties[0].rail !== "lightrail") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable Value.", "InvalidParty");
-            }
-
-            let plan = {
-                id: req.id,
-                transactionType: "transfer",
-                currency: req.currency,
-                steps: null,
-                totals: null,
-                createdDate: nowInDbPrecision(),
-                metadata: req.metadata,
-                lineItems: null,
-                paymentSources: null  // TODO need to make sense of 'source' in req vs 'paymentSources' in db
-            };
-
-            if (sourceParties[0].rail === "lightrail") {
-                const amount = Math.min(req.amount, (sourceParties[0] as LightrailTransactionPlanStep).value.balance);
-
-                return ({
-                    ...plan,
-                    steps: [
-                        {
-                            rail: "lightrail",
-                            value: (sourceParties[0] as LightrailTransactionPlanStep).value,
-                            amount: -amount
-                        },
-                        {
-                            rail: "lightrail",
-                            value: (destParties[0] as LightrailTransactionPlanStep).value,
-                            amount: amount
-                        }
-
-                    ],
-                    totals: {
-                        remainder: req.amount - amount
-                    }
-                } as TransactionPlan);  // casting: otherwise throws "Type 'string' is not assignable to type 'TransactionType'."
-
-            } else if (sourceParties[0].rail === "stripe") {
-                const party = sourceParties[0] as StripeTransactionParty;
-                const maxAmount = (sourceParties[0] as StripeTransactionPlanStep).maxAmount || null;
-                const amount = maxAmount ? (Math.min(maxAmount, req.amount)) : req.amount;
-
-                return ({
-                    ...plan,
-                    steps: [
-                        {
-                            rail: sourceParties[0].rail,
-                            source: party.source || null,
-                            customer: party.customer || null,
-                            amount,
-                            idempotentStepId: `${req.id}-transfer-source`,
-                            maxAmount: maxAmount ? maxAmount : null
-                        },
-                        {
-                            rail: "lightrail",
-                            value: (destParties[0] as LightrailTransactionPlanStep).value,
-                            amount
-                        }
-                    ],
-                    totals: {
-                        remainder: party.maxAmount ? Math.max(req.amount - party.maxAmount, 0) : 0
-                    }
-                } as TransactionPlan);  // casting: otherwise throws "Type 'string' is not assignable to type 'TransactionType'."
-            }
+            const parties = await resolveTransferTransactionParties(auth, req);
+            return await createTransferTransactionPlan(req, parties);
         }
     );
 }
