@@ -2,12 +2,14 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as testUtils from "../../../utils/testUtils";
+import {defaultTestUser} from "../../../utils/testUtils";
 import {Value} from "../../../model/Value";
 import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../model/Transaction";
 import {Currency} from "../../../model/Currency";
 import {installRestRoutes} from "../installRestRoutes";
 import {afterEach, before, beforeEach, describe, it} from "mocha";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeStubs";
+import {createCurrency} from "../currencies";
 
 
 describe("/v2/transactions/transfer", () => {
@@ -19,8 +21,8 @@ describe("/v2/transactions/transfer", () => {
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
         installRestRoutes(router);
 
-        const postCurrencyResp = await testUtils.testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency);
-        chai.assert.equal(postCurrencyResp.statusCode, 201, `body=${JSON.stringify(postCurrencyResp.body)}`);
+        const postCurrencyResp = await createCurrency(defaultTestUser.auth, currency);
+        chai.assert.equal(postCurrencyResp.code, "CAD", `currencyResp=${JSON.stringify(postCurrencyResp)}`);
 
         const postValue1Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueCad1);
         chai.assert.equal(postValue1Resp.statusCode, 201, `body=${JSON.stringify(postValue1Resp.body)}`);
@@ -28,7 +30,7 @@ describe("/v2/transactions/transfer", () => {
         const postValue2Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueCad2);
         chai.assert.equal(postValue2Resp.statusCode, 201, `body=${JSON.stringify(postValue2Resp.body)}`);
 
-        const postValue3Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueCadStripe);
+        const postValue3Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueCadForStripeTests);
         chai.assert.equal(postValue3Resp.statusCode, 201, `body=${JSON.stringify(postValue3Resp.body)}`);
     });
 
@@ -57,7 +59,7 @@ describe("/v2/transactions/transfer", () => {
         balance: 3500
     };
 
-    const valueCadStripe: Partial<Value> = {
+    const valueCadForStripeTests: Partial<Value> = {
         id: "v-transfer-stripe",
         currency: "CAD",
     };
@@ -439,7 +441,7 @@ describe("/v2/transactions/transfer", () => {
                 },
                 destination: {
                     rail: "lightrail",
-                    valueId: valueCadStripe.id
+                    valueId: valueCadForStripeTests.id
                 },
                 amount: 1000,
                 currency: "CAD"
@@ -471,10 +473,10 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.equal(sourceStep.charge.amount, 1000);
             chai.assert.deepEqual(sourceStep.charge.metadata, {"lightrailTransactionId": "transfer-stripe-1"});
 
-            const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCadStripe.id) as LightrailTransactionStep;
+            const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCadForStripeTests.id) as LightrailTransactionStep;
             chai.assert.deepEqual(destStep, {
                 rail: "lightrail",
-                valueId: valueCadStripe.id,
+                valueId: valueCadForStripeTests.id,
                 code: null,
                 contactId: null,
                 balanceBefore: 0,
@@ -482,7 +484,7 @@ describe("/v2/transactions/transfer", () => {
                 balanceChange: 1000
             });
 
-            const getValue3Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCadStripe.id}`, "GET");
+            const getValue3Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCadForStripeTests.id}`, "GET");
             chai.assert.equal(getValue3Resp.statusCode, 200, `body=${JSON.stringify(getValue3Resp.body)}`);
             chai.assert.equal(getValue3Resp.body.balance, 1000);
 
@@ -513,7 +515,7 @@ describe("/v2/transactions/transfer", () => {
                 },
                 destination: {
                     rail: "lightrail",
-                    valueId: valueCadStripe.id
+                    valueId: valueCadForStripeTests.id
                 },
                 amount: -1000,
                 currency: "CAD"
@@ -531,7 +533,7 @@ describe("/v2/transactions/transfer", () => {
                 },
                 destination: {
                     rail: "lightrail",
-                    valueId: valueCadStripe.id
+                    valueId: valueCadForStripeTests.id
                 },
                 amount: 1000,
                 currency: "CAD",
@@ -564,10 +566,10 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.equal(sourceStep.charge.amount, 900);
             chai.assert.deepEqual(sourceStep.charge.metadata, {"lightrailTransactionId": "stripe-transfer-3"});
 
-            const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCadStripe.id) as LightrailTransactionStep;
+            const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCadForStripeTests.id) as LightrailTransactionStep;
             chai.assert.deepEqual(destStep, {
                 rail: "lightrail",
-                valueId: valueCadStripe.id,
+                valueId: valueCadForStripeTests.id,
                 code: null,
                 contactId: null,
                 balanceBefore: 1000,
@@ -575,7 +577,7 @@ describe("/v2/transactions/transfer", () => {
                 balanceChange: 900
             });
 
-            const getValue3Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCadStripe.id}`, "GET");
+            const getValue3Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCadForStripeTests.id}`, "GET");
             chai.assert.equal(getValue3Resp.statusCode, 200, `body=${JSON.stringify(getValue3Resp.body)}`);
             chai.assert.equal(getValue3Resp.body.balance, 1900);
 
@@ -607,7 +609,7 @@ describe("/v2/transactions/transfer", () => {
                 },
                 destination: {
                     rail: "lightrail",
-                    valueId: valueCadStripe.id
+                    valueId: valueCadForStripeTests.id
                 },
                 amount: 1000,
                 currency: "CAD",
@@ -620,7 +622,7 @@ describe("/v2/transactions/transfer", () => {
                 id: "stripe-transfer-3",
                 source: {
                     rail: "lightrail",
-                    valueId: valueCadStripe.id
+                    valueId: valueCadForStripeTests.id
                 },
                 destination: {
                     rail: "stripe",
@@ -632,6 +634,6 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.equal(postTransferResp.statusCode, 422, `body=${JSON.stringify(postTransferResp.body)}`);
         });
 
-        it("respects Stripe minimum of $0.50");
+        it("respects Stripe minimum of $0.50");  // todo write test(s) when we decide how to handle this
     });
 });
