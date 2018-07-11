@@ -337,7 +337,6 @@ export async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, i
             id: id
         });
     if (res.length === 0) {
-        console.log("This is happening");
         throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${id}' not found.`, "ValueNotFound");
     }
     if (res.length > 1) {
