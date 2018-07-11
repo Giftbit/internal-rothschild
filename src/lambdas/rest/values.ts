@@ -188,7 +188,6 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     }
     if (filterParams["code.in"]) {
         filterParams["codeHashed.in"] = filterParams["code.in"].split(",").map((code) => computeCodeLookupHash(code, auth)).join(",");
-        console.log(JSON.stringify(filterParams));
     }
 
     const knex = await getKnexRead();
