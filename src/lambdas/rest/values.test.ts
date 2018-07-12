@@ -850,7 +850,7 @@ describe("/v2/values/", () => {
         let firstGeneratedCode: string;
         let secondGeneratedCode: string;
 
-        it("can generate a code", async () => {
+        it("can generate a code with empty generateCode parameters", async () => {
             const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
             chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
             const lastFour = create.body.code.substring(1);
@@ -983,13 +983,13 @@ describe("/v2/values/", () => {
         });
     });
 
-    describe("can't create a Value with disjoint code properties", () => {
+    describe("can't create a Value with bad code properties", () => {
         it("cannot create a Value with code and generateCode", async () => {
             let valueWithPublicCode = {
                 id: "value",
                 currency: "USD",
                 code: "SECURE",
-                generateCode: {length: 5},
+                generateCode: {length: 6},
                 balance: 0
             };
 
@@ -1002,7 +1002,7 @@ describe("/v2/values/", () => {
                 id: "value",
                 currency: "USD",
                 isGenericCode: true,
-                generateCode: {length: 5},
+                generateCode: {length: 6},
                 balance: 0
             };
 
@@ -1016,7 +1016,7 @@ describe("/v2/values/", () => {
                 currency: "USD",
                 code: "SECURE",
                 isGenericCode: true,
-                generateCode: {length: 5},
+                generateCode: {length: 6},
                 balance: 0
             };
 
@@ -1028,7 +1028,7 @@ describe("/v2/values/", () => {
             let valueWithPublicCode = {
                 id: "value",
                 currency: "USD",
-                generateCode: {length: 5, unknown: "property"},
+                generateCode: {length: 6, unknown: "property"},
                 balance: 0
             };
 
@@ -1041,7 +1041,7 @@ describe("/v2/values/", () => {
         it("cannot create a Value with code and generateCode", async () => {
             let changeRequest = {
                 code: "SECURE",
-                generateCode: {length: 5},
+                generateCode: {length: 6},
             };
 
             const res = await testUtils.testAuthedRequest<Value>(router, "/v2/values/id/changeCode", "POST", changeRequest);
@@ -1051,7 +1051,7 @@ describe("/v2/values/", () => {
         it("cannot create a Value with isGenericCode and generateCode", async () => {
             let changeRequest = {
                 isGenericCode: true,
-                generateCode: {length: 5},
+                generateCode: {length: 6},
             };
 
             const res = await testUtils.testAuthedRequest<Value>(router, "/v2/values/id/changeCode", "POST", changeRequest);
@@ -1062,7 +1062,7 @@ describe("/v2/values/", () => {
             let changeRequest = {
                 code: "SECURE",
                 isGenericCode: true,
-                generateCode: {length: 5},
+                generateCode: {length: 6},
             };
 
             const res = await testUtils.testAuthedRequest<Value>(router, "/v2/values/id/changeCode", "POST", changeRequest);
@@ -1071,7 +1071,26 @@ describe("/v2/values/", () => {
 
         it("generateCode can't have unknown properties", async () => {
             let changeRequest = {
-                generateCode: {length: 5, unknown: "property"},
+                generateCode: {length: 6, unknown: "property"},
+            };
+
+            const res = await testUtils.testAuthedRequest<Value>(router, "/v2/values/id/changeCode", "POST", changeRequest);
+            chai.assert.equal(res.statusCode, 422, `body=${JSON.stringify(res.body)}`);
+        });
+
+        it("changeCode can't have unknown properties", async () => {
+            let changeRequest = {
+                something: "not defined in schema",
+            };
+
+            const res = await testUtils.testAuthedRequest<Value>(router, "/v2/values/id/changeCode", "POST", changeRequest);
+            chai.assert.equal(res.statusCode, 422, `body=${JSON.stringify(res.body)}`);
+        });
+
+        it("changeCode can't known and unknown properties", async () => {
+            let changeRequest = {
+                generateCode: {},
+                something: "not defined in schema",
             };
 
             const res = await testUtils.testAuthedRequest<Value>(router, "/v2/values/id/changeCode", "POST", changeRequest);
