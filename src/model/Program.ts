@@ -1,5 +1,6 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {Rule} from "./Value";
+import {pickDefined} from "../utils/pick";
 
 export interface Program {
     id: string;
@@ -45,6 +46,27 @@ export namespace Program {
             createdDate: v.createdDate,
             updatedDate: v.updatedDate
         };
+    }
+
+    export function toDbProgramUpdate(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Partial<Program>): Partial<DbProgram> {
+        return pickDefined({
+            name: v.name,
+            currency: v.currency,
+            discount: v.discount,
+            discountSellerLiability: v.discountSellerLiability,
+            pretax: v.pretax,
+            active: v.active,
+            redemptionRule: JSON.stringify(v.redemptionRule),
+            valueRule: JSON.stringify(v.valueRule),
+            minInitialBalance: v.minInitialBalance,
+            maxInitialBalance: v.maxInitialBalance,
+            fixedInitialBalances: JSON.stringify(v.fixedInitialBalances),
+            fixedInitialUses: JSON.stringify(v.fixedInitialUses),
+            startDate: v.startDate,
+            endDate: v.endDate,
+            metadata: JSON.stringify(v.metadata),
+            updatedDate: v.updatedDate
+        });
     }
 }
 
