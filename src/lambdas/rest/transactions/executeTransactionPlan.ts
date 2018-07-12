@@ -75,7 +75,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
                 throw err;
             } else {
                 if (chargeStripe) {
-                    await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side: ${err}`);
+                    await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side`);
                     log.debug(`An error occurred while processing transaction '${plan.id}'. The Stripe charge(s) '${stripeSteps.map(step => step.chargeResult.id)}' have been refunded.`);
                 }
                 throw err;
@@ -88,8 +88,9 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
             }
             await insertLightrailTransactionSteps(auth, trx, plan);
         } catch (err) {
+            log.warn(`Error inserting transaction step: ${err}`);
             if (chargeStripe) {
-                await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side: ${err}`);
+                await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side`);
                 log.debug(`An error occurred while processing transaction '${plan.id}'. The Stripe charge(s) '${stripeSteps.map(step => step.chargeResult.id)}' have been refunded.`);
             }
 
@@ -100,7 +101,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
                 throw new giftbitRoutes.GiftbitRestError(409, `A transaction step in transaction '${plan.id}' already exists. This should not be possible.`, "TransactionStepExists");
             } else {
                 log.debug(err);
-                throw new giftbitRoutes.GiftbitRestError(500, `An error occurred while processing transaction '${plan.id}': ${err}.`);
+                throw new giftbitRoutes.GiftbitRestError(500, `An error occurred while processing transaction '${plan.id}'.`);
             }
         }
     });
