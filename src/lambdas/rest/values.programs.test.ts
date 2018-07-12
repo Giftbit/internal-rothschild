@@ -44,7 +44,7 @@ describe("/v2/values create from program", () => {
     });
 
     describe(`test basic program with no balance constraints or value valueRule`, () => {
-        let program = {
+        let program: Partial<Program> = {
             id: generateId(),
             name: "program with no balance constraints or valueRule",
             currency: "USD"
@@ -80,7 +80,7 @@ describe("/v2/values create from program", () => {
     });
 
     describe(`test program with fixedInitialBalance constraints`, () => {
-        let program = {
+        let program: Partial<Program> = {
             id: generateId(),
             name: "program with fixedInitialBalance constraints",
             currency: "USD",
@@ -121,7 +121,7 @@ describe("/v2/values create from program", () => {
     });
 
     describe(`test program with fixedInitialUses constraints`, () => {
-        let program = {
+        let program: Partial<Program> = {
             id: generateId(),
             name: "program with fixedInitialUses constraints",
             currency: "USD",
@@ -162,7 +162,7 @@ describe("/v2/values create from program", () => {
     });
 
     describe(`test program with minInitialBalance and maxInitialBalance constraints`, () => {
-        let program = {
+        let program: Partial<Program> = {
             id: generateId(),
             name: "program with minInitialBalance and maxInitialBalance constraints",
             currency: "USD",
@@ -219,8 +219,62 @@ describe("/v2/values create from program", () => {
         });
     });
 
+    describe(`test program with minInitialBalance=0`, () => {
+        let program: Partial<Program> = {
+            id: generateId(),
+            name: "program with minInitialBalance and maxInitialBalance constraints",
+            currency: "USD",
+            minInitialBalance: 0
+        };
+
+        let programProperties = Object.keys(program);
+        it("create Program", async () => {
+            const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
+            chai.assert.equal(programResp.statusCode, 201, JSON.stringify(programResp.body));
+            for (let prop of programProperties) {
+                chai.assert.equal(JSON.stringify(programResp.body[prop]), JSON.stringify(program[prop]));
+            }
+        });
+
+        let value: Partial<Value> = {
+            id: generateId(),
+            programId: program.id
+        };
+
+        it("create Value with balance in range succeeds", async () => {
+            value.balance = 2500;
+            const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
+            chai.assert.equal(valueResp.body.balance, value.balance);
+        });
+
+        it("create Value with balance exactly on minInitialBalance succeeds", async () => {
+            value.balance = program.minInitialBalance;
+            value.id = generateId();
+            const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
+            chai.assert.equal(valueResp.body.balance, value.balance);
+        });
+    });
+
+    // todo
+    it("test can't create a program with minInitialBalance > maxInitialBalance", async () => {
+        let program: Partial<Program> = {
+            id: generateId(),
+            name: "program with minInitialBalance and maxInitialBalance constraints",
+            currency: "USD",
+            minInitialBalance: 50,
+            maxInitialBalance: 25
+        };
+
+        it("create Program", async () => {
+            const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
+            chai.assert.equal(programResp.statusCode, 422, JSON.stringify(programResp.body));
+        });
+    });
+
     describe(`test program with valueRule`, () => {
-        let program = {
+        let program: Partial<Program> = {
             id: generateId(),
             name: "program with valueRule",
             currency: "USD",
