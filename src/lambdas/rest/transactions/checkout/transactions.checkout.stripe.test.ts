@@ -378,7 +378,7 @@ describe("split tender checkout with Stripe", () => {
     it("writes metadata to both LR & Stripe transactions", async () => {
         const request = {
             ...basicRequest,
-            id: "stripe-lr-metadata",
+            id: "stripe-lr-w-meta",
             metadata: {"meta": "data"}
         };
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
@@ -685,5 +685,49 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["statusCode"], `body=${JSON.stringify(getCheckoutResp.body, null, 4)}`);
     }).timeout(3000);
+
+    describe("respects Stripe minimum charge of $0.50", () => {
+        before(async function () {
+            if (!process.env["STRIPE_PLATFORM_KEY"] || !process.env["STRIPE_CONNECTED_ACCOUNT_ID"] || !process.env["STRIPE_CUSTOMER_ID"]) {
+                this.skip();
+                return;
+            }
+        });
+
+        it("fails the transaction by default", async () => {
+            const value3: Partial<Value> = {
+                id: "value-for-checkout3",
+                currency: "CAD",
+                balance: 100
+            };
+            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value3);
+            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+            const request = {
+                id: "checkout-w-stripe-2-sources",
+                sources: [
+                    {
+                        rail: "lightrail",
+                        valueId: value3.id
+                    },
+                    {
+                        rail: "stripe",
+                        source: source,
+                    },
+                ],
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "xyz-123",
+                        unitPrice: 125
+                    }
+                ],
+                currency: "CAD"
+            };
+            const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+            chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body)}`);
+
+        });
+    });
 
 });
