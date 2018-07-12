@@ -378,7 +378,7 @@ describe("split tender checkout with Stripe", () => {
     it("writes metadata to both LR & Stripe transactions", async () => {
         const request = {
             ...basicRequest,
-            id: "split-tender-w-metadata",
+            id: "stripe-lr-metadata",
             metadata: {"meta": "data"}
         };
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
@@ -583,7 +583,7 @@ describe("split tender checkout with Stripe", () => {
 
         const source2 = "tok_mastercard";
         const request = {
-            id: "checkout-w-stripe-2-sources",
+            id: "checkout-2-stripe-sources",
             sources: [
                 {
                     rail: "lightrail",

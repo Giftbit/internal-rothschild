@@ -76,7 +76,7 @@ export async function createTransferTransactionPlan(req: TransferRequest, partie
                     source: party.source || null,
                     customer: party.customer || null,
                     amount,
-                    idempotentStepId: `${req.id}-transfer-source`,
+                    idempotentStepId: `${req.id}-src`,
                     maxAmount: maxAmount ? maxAmount : null
                 },
                 {
