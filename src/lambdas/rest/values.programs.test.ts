@@ -257,7 +257,6 @@ describe("/v2/values create from program", () => {
         });
     });
 
-    // todo
     it("test can't create a program with minInitialBalance > maxInitialBalance", async () => {
         let program: Partial<Program> = {
             id: generateId(),
