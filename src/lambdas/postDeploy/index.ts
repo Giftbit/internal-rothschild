@@ -11,6 +11,7 @@ log.setLevel(log.levels.DEBUG);
 // Every SQL migration file needs to be named here to be included in the dist.
 // Files must be named V#__migration_name.sql where # is the next number sequentially.
 require("./schema/V1__base.sql");
+require("./schema/V2__no_currencies_in_transaction_steps.sql");
 
 // Flyway version to download and use.  Flyway does the migration.
 const flywayVersion = "5.0.7";
