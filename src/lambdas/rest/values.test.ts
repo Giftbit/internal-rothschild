@@ -1077,8 +1077,11 @@ describe("/v2/values/", () => {
             listResponse = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?code.in=${genericCode.code},${importedCode.code}`, "GET");
             chai.assert.equal(listResponse.statusCode, 200, `body=${JSON.stringify(listResponse.body)}`);
             chai.assert.equal(listResponse.body.length, 2);
-            chai.assert.equal(listResponse.body[0].id, genericCode.id);
-            chai.assert.equal(listResponse.body[1].id, importedCode.id);
+            const value0 = listResponse.body[0];
+            const value1 = listResponse.body[1];
+            chai.assert.include([genericCode.id, importedCode.id], value0.id);
+            chai.assert.include([genericCode.id, importedCode.id], value1.id);
+            chai.assert.notEqual(value0.id, value1.id);
         });
     });
 });

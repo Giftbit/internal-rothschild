@@ -95,14 +95,6 @@ function addFilterToQuery(query: knex.QueryBuilder, prop: FilterQueryProperty, k
         columnName = prop.columnName;
     }
 
-    if (prop.valueMap) {
-        if (op === "in") {
-            value = value.split(",").map(v => prop.valueMap(convertValue(prop, v))).join(",");
-        } else {
-            value = prop.valueMap(convertValue(prop, value));
-        }
-    }
-
     switch (op) {
         case "lt":
             return query.where(columnName, "<", convertValue(prop, value));
@@ -124,23 +116,32 @@ function addFilterToQuery(query: knex.QueryBuilder, prop: FilterQueryProperty, k
 }
 
 function convertValue(prop: FilterQueryProperty, value: string): number | string | boolean | Date {
+    let result: number | string | boolean | Date;
     switch (prop.type) {
         case "number":
             const numValue = +value;
             if (isNaN(numValue)) {
                 throw new giftbitRoutes.GiftbitRestError(400, `Query filter value '${value}' could not be parsed as a number.`);
             }
-            return numValue;
+            result = numValue;
+            break;
         case "boolean":
-            return value.toLowerCase() === "true";
+            result = value.toLowerCase() === "true";
+            break;
         case "Date":
             const dateValue = new Date(value);
             if (isNaN(dateValue.getTime())) {
                 throw new giftbitRoutes.GiftbitRestError(400, `Query filter value '${value}' could not be parsed as an ISO Date.`);
             }
-            return dateValue;
+            result = dateValue;
+            break;
         case "string":
         default:
-            return value;
+            result = value;
+            break;
     }
+    if (prop.valueMap) {
+        result = prop.valueMap(result);
+    }
+    return result;
 }
