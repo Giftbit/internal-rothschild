@@ -83,7 +83,11 @@ export function installValueTemplatesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
-            evt.validateBody(programSchema);
+            evt.validateBody(updateProgramSchema);
+
+            if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
+                throw new giftbitRoutes.GiftbitRestError(422, `The body id '${evt.body.id}' does not match the path id '${evt.pathParameters.id}'.  The id cannot be updated.`);
+            }
 
             const now = nowInDbPrecision();
             const program: Partial<Program> = {
@@ -170,11 +174,11 @@ async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
             userId: auth.giftbitUserId,
             id: id
         })
-        .update(program);
-    if (res[0] === 0) {
+        .update(Program.toDbProgramUpdate(auth, program));
+    if (res === 0) {
         throw new cassava.RestError(404);
     }
-    if (res[0] > 1) {
+    if (res > 1) {
         throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
     }
     return {
@@ -309,4 +313,8 @@ const programSchema: jsonschema.Schema = {
         }
     },
     required: ["id", "name", "currency"]
+};
+const updateProgramSchema: jsonschema.Schema = {
+    ...programSchema,
+    required: []
 };

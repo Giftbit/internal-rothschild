@@ -71,6 +71,11 @@ describe("/v2/values/", () => {
         chai.assert.equal(resp.body.messageCode, "CurrencyNotFound");
     });
 
+    it("cannot update valueId", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value1.id}`, "PATCH", {id: generateId()});
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
     it("can create a value with no code, no contact, no program", async () => {
         const resp2 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
         chai.assert.equal(resp2.statusCode, 201, `body=${JSON.stringify(resp2.body)}`);
@@ -94,6 +99,74 @@ describe("/v2/values/", () => {
             metadata: null
         }, ["createdDate", "updatedDate"]);
         value1 = resp2.body;
+    });
+
+    it("can create a Value with a valueRule and redemptionRule and then update rules", async () => {
+        const createValueRequest: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            valueRule: {
+                rule: "500",
+                explanation: "$5 the hard way"
+            },
+            redemptionRule: {
+                rule: "1 == 1",
+                explanation: "always true"
+            }
+        };
+        const createRes = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", createValueRequest);
+        chai.assert.equal(createRes.statusCode, 201, `body=${JSON.stringify(createRes.body)}`);
+        chai.assert.deepEqualExcluding(createRes.body, {
+            ...createValueRequest,
+            uses: null,
+            programId: null,
+            contactId: null,
+            code: null,
+            isGenericCode: null,
+            balance: 0,
+            active: true,
+            canceled: false,
+            frozen: false,
+            pretax: false,
+            startDate: null,
+            endDate: null,
+            discount: false,
+            discountSellerLiability: null,
+            metadata: null
+        }, ["createdDate", "updatedDate"]);
+
+        const updateValueRequest: Partial<Value> = {
+            valueRule: {
+                rule: "600",
+                explanation: "$6 the hard way"
+            },
+            redemptionRule: {
+                rule: "2 == 2",
+                explanation: "always true"
+            }
+        };
+        const updateRes = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${createValueRequest.id}`, "PATCH", updateValueRequest);
+        chai.assert.equal(updateRes.statusCode, 200, `body=${JSON.stringify(updateRes.body)}`);
+        chai.assert.deepEqualExcluding(updateRes.body, {
+            ...updateValueRequest,
+            id: createValueRequest.id,
+            currency: createValueRequest.currency,
+            uses: null,
+            programId: null,
+            contactId: null,
+            code: null,
+            isGenericCode: null,
+            balance: 0,
+            active: true,
+            canceled: false,
+            frozen: false,
+            pretax: false,
+            startDate: null,
+            endDate: null,
+            discount: false,
+            discountSellerLiability: null,
+            metadata: null
+        }, ["createdDate", "updatedDate"]);
     });
 
     it("can get the value", async () => {
