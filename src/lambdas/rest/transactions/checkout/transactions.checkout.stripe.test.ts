@@ -499,11 +499,7 @@ describe("split tender checkout with Stripe", () => {
                 secretKey: process.env["STRIPE_PLATFORM_KEY"],
                 publishableKey: "test-pk",
             },
-            live: {
-                clientId: "test-live-client-id",
-                secretKey: process.env["STRIPE_PLATFORM_KEY"],  // this is a bit problematic: we should be testing with test keys (that's what this is right now)
-                publishableKey: "test-live-pk",
-            },
+            live: {},
         });
         chai.assert.deepEqual(await kvsAccess.kvsGet("this-is-an-assume-token", "stripeAuth", ""), {
             token_type: "bearer",

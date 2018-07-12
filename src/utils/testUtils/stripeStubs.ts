@@ -16,11 +16,7 @@ export function setStubsForStripeTests() {
             secretKey: process.env["STRIPE_PLATFORM_KEY"],
             publishableKey: "test-pk",
         },
-        live: {
-            clientId: "test-live-client-id",
-            secretKey: process.env["STRIPE_PLATFORM_KEY"],  // this is a bit problematic: we should be testing with test keys (that's what this is right now)
-            publishableKey: "test-live-pk",
-        },
+        live: {}
     });
 
     let stubKvsGet = sinon.stub(kvsAccess, "kvsGet");
