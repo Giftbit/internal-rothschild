@@ -97,9 +97,9 @@ function addFilterToQuery(query: knex.QueryBuilder, prop: FilterQueryProperty, k
 
     if (prop.valueMap) {
         if (op === "in") {
-            value = value.split(",").map(v => prop.valueMap(v)).join(",");
+            value = value.split(",").map(v => prop.valueMap(convertValue(prop, v))).join(",");
         } else {
-            value = prop.valueMap(value);
+            value = prop.valueMap(convertValue(prop, value));
         }
     }
 

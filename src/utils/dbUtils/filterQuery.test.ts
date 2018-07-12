@@ -10,6 +10,7 @@ describe("filterQuery()", () => {
     interface FilterTest {
         userId: string;
         id: string;
+        index: number;
         a: string;
         b: number;
         c: boolean;
@@ -20,6 +21,7 @@ describe("filterQuery()", () => {
     interface FilterTestDb {
         userId: string;
         id: string;
+        indexPlus25: number;
         a: string;
         b: number;
         c: boolean;
@@ -31,6 +33,7 @@ describe("filterQuery()", () => {
         return {
             userId: v.userId,
             id: v.id,
+            indexPlus25: v.index + 25,
             a: v.a,
             b: v.b,
             c: v.c,
@@ -44,6 +47,12 @@ describe("filterQuery()", () => {
             id: {
                 type: "string",
                 operators: ["eq", "in"]
+            },
+            index: {
+                type: "number",
+                columnName: "indexPlus25",
+                valueMap: value => value + 25,
+                operators: ["lt", "lte", "gt", "gte", "eq", "ne", "in"]
             },
             a: {
                 type: "string"
@@ -75,12 +84,13 @@ describe("filterQuery()", () => {
 
         const knex = await getKnexWrite();
         await knex.raw("CREATE TABLE rothschild.FilterTest (\n" +
-            "  userId     VARCHAR(32)  NOT NULL,\n" +
-            "  id         VARCHAR(32)  NOT NULL," +
-            "  a          VARCHAR(255) NOT NULL,\n" +
-            "  b          INT          NOT NULL,\n" +
-            "  c          BOOLEAN      NOT NULL,\n" +
-            "  d          DATETIME     NOT NULL,\n" +
+            "  userId      VARCHAR(32)  NOT NULL,\n" +
+            "  id          VARCHAR(32)  NOT NULL," +
+            "  indexPlus25 INT          NOT NULL," +
+            "  a           VARCHAR(255) NOT NULL,\n" +
+            "  b           INT          NOT NULL,\n" +
+            "  c           BOOLEAN      NOT NULL,\n" +
+            "  d           DATETIME     NOT NULL,\n" +
             "  codeHashed TEXT,\n" +
             "  PRIMARY KEY pk_Row (userId, id)\n" +
             ");");
@@ -91,6 +101,7 @@ describe("filterQuery()", () => {
             rows.push({
                 userId: i < 1000 ? "user1" : "user2",
                 id: `id-${i}`,
+                index: i,
                 a: Math.abs(Math.sin(i)).toString(36).substring(2),
                 b: Math.floor(Math.abs(Math.tan(i))) * 10,
                 c: !!(i % 3),
@@ -371,6 +382,173 @@ describe("filterQuery()", () => {
         chai.assert.deepEqual(actual, expected);
     });
 
+    describe("filtering by index which becomes index + 25 when persisted to the database", () => {
+        it("eq", async () => {
+            const knex = await getKnexRead();
+
+            const expected: FilterTestDb[] = await knex("FilterTest")
+                .where({
+                    userId: "user1"
+                })
+                .where("indexPlus25", 75)
+                .orderBy("id");
+            chai.assert.lengthOf(expected, 1);
+            chai.assert.equal(expected[0].id, "id-50",);
+
+            const actual: FilterTestDb[] = await filterQuery(
+                knex("FilterTest")
+                    .where({userId: "user1"})
+                    .orderBy("id"),
+                {
+                    "index.eq": "50"
+                },
+                filterTestFilterOptions
+            );
+            chai.assert.deepEqual(actual, expected);
+        });
+
+        it("in", async () => {
+            const knex = await getKnexRead();
+
+            const expected: FilterTestDb[] = await knex("FilterTest")
+                .where({
+                    userId: "user1"
+                })
+                .whereIn("indexPlus25", [75, 76])
+                .orderBy("id");
+            chai.assert.lengthOf(expected, 2);
+            chai.assert.equal(expected[0].id, "id-50");
+            chai.assert.equal(expected[1].id, "id-51");
+
+            const actual: FilterTestDb[] = await filterQuery(
+                knex("FilterTest")
+                    .where({userId: "user1"})
+                    .orderBy("id"),
+                {
+                    "index.in": "50,51"
+                },
+                filterTestFilterOptions
+            );
+            chai.assert.deepEqual(actual, expected);
+        });
+
+        it("gt", async () => {
+            const knex = await getKnexRead();
+
+            const expected: FilterTestDb[] = await knex("FilterTest")
+                .where({
+                    userId: "user1"
+                })
+                .where("indexPlus25", ">", 1020)
+                .orderBy("id");
+            chai.assert.lengthOf(expected, 4);
+
+            const actual: FilterTestDb[] = await filterQuery(
+                knex("FilterTest")
+                    .where({userId: "user1"})
+                    .orderBy("id"),
+                {
+                    "index.gt": "995"
+                },
+                filterTestFilterOptions
+            );
+            chai.assert.deepEqual(actual, expected);
+        });
+
+
+        it("gte", async () => {
+            const knex = await getKnexRead();
+
+            const expected: FilterTestDb[] = await knex("FilterTest")
+                .where({
+                    userId: "user1"
+                })
+                .where("indexPlus25", ">=", 1020)
+                .orderBy("id");
+            chai.assert.lengthOf(expected, 5);
+
+            const actual: FilterTestDb[] = await filterQuery(
+                knex("FilterTest")
+                    .where({userId: "user1"})
+                    .orderBy("id"),
+                {
+                    "index.gte": "995"
+                },
+                filterTestFilterOptions
+            );
+            chai.assert.deepEqual(actual, expected);
+        });
+
+        it("lt", async () => {
+            const knex = await getKnexRead();
+
+            const expected: FilterTestDb[] = await knex("FilterTest")
+                .where({
+                    userId: "user1"
+                })
+                .where("indexPlus25", "<", 29)
+                .orderBy("id");
+            chai.assert.lengthOf(expected, 4);
+
+            const actual: FilterTestDb[] = await filterQuery(
+                knex("FilterTest")
+                    .where({userId: "user1"})
+                    .orderBy("id"),
+                {
+                    "index.lt": "4"
+                },
+                filterTestFilterOptions
+            );
+            chai.assert.deepEqual(actual, expected);
+        });
+
+        it("lte", async () => {
+            const knex = await getKnexRead();
+
+            const expected: FilterTestDb[] = await knex("FilterTest")
+                .where({
+                    userId: "user1"
+                })
+                .where("indexPlus25", "<=", 29)
+                .orderBy("id");
+            chai.assert.lengthOf(expected, 5);
+
+            const actual: FilterTestDb[] = await filterQuery(
+                knex("FilterTest")
+                    .where({userId: "user1"})
+                    .orderBy("id"),
+                {
+                    "index.lte": "4"
+                },
+                filterTestFilterOptions
+            );
+            chai.assert.deepEqual(actual, expected);
+        });
+
+        it("ne", async () => {
+            const knex = await getKnexRead();
+
+            const expected: FilterTestDb[] = await knex("FilterTest")
+                .where({
+                    userId: "user1"
+                })
+                .where("indexPlus25", "!=", 50)
+                .orderBy("id");
+            chai.assert.lengthOf(expected, 999);
+
+            const actual: FilterTestDb[] = await filterQuery(
+                knex("FilterTest")
+                    .where({userId: "user1"})
+                    .orderBy("id"),
+                {
+                    "index.ne": "25"
+                },
+                filterTestFilterOptions
+            );
+            chai.assert.deepEqual(actual, expected);
+        });
+    });
+    //"lt", "lte", "ne"
 
     it("querying by hashed value with 'in' operator and multiple values", async () => {
         const knex = await getKnexRead();
