@@ -136,6 +136,13 @@ export function installValuesRest(router: cassava.Router): void {
                 ...pick<Value>(evt.body, "contactId", "pretax", "active", "canceled", "frozen", "pretax", "discount", "discountSellerLiability", "redemptionRule", "valueRule", "startDate", "endDate", "metadata"),
                 updatedDate: now
             };
+            if (value.startDate) {
+                value.startDate = dateInDbPrecision(new Date(value.startDate));
+            }
+            if (value.endDate) {
+                value.endDate = dateInDbPrecision(new Date(value.endDate));
+            }
+
             return {
                 body: await updateValue(auth, evt.pathParameters.id, value)
             };
@@ -367,13 +374,14 @@ export async function getValueByCode(auth: giftbitRoutes.jwtauth.AuthorizationBa
 async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, value: Partial<Value>): Promise<Value> {
     auth.requireIds("giftbitUserId");
 
+    const dbValue = Value.toDbValueUpdate(auth, value);
     const knex = await getKnexWrite();
     const res: number = await knex("Values")
         .where({
             userId: auth.giftbitUserId,
             id: id
         })
-        .update(Value.toDbValueUpdate(auth, value));
+        .update(dbValue);
     if (res === 0) {
         throw new cassava.RestError(404);
     }
