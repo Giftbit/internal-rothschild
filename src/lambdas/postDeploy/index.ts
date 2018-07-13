@@ -18,7 +18,7 @@ const flywayVersion = "5.0.7";
 /**
  * Handles a CloudFormationEvent and upgrades the database.
  */
-export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context, callback: awslambda.Callback): Promise<any> {
+export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context): Promise<any> {
     log.info("event", JSON.stringify(evt, null, 2));
 
     if (evt.RequestType === "Delete") {
@@ -48,16 +48,22 @@ async function migrateDatabase(ctx: awslambda.Context): Promise<any> {
 
     log.info("invoking flyway");
     const credentials = await getDbCredentials();
-    await spawn(`/tmp/flyway-${flywayVersion}/flyway`, ["-X", "migrate"], {
-        env: {
-            FLYWAY_USER: credentials.username,
-            FLYWAY_PASSWORD: credentials.password,
-            FLYWAY_DRIVER: "com.mysql.jdbc.Driver",
-            FLYWAY_URL: `jdbc:mysql://${process.env["DB_ENDPOINT"]}:${process.env["DB_PORT"]}/`,
-            FLYWAY_LOCATIONS: `filesystem:${path.resolve(".", "schema")}`,
-            FLYWAY_SCHEMAS: "rothschild"
-        }
-    });
+    try {
+        await spawn(`/tmp/flyway-${flywayVersion}/flyway`, ["-X", "migrate"], {
+            env: {
+                FLYWAY_USER: credentials.username,
+                FLYWAY_PASSWORD: credentials.password,
+                FLYWAY_DRIVER: "com.mysql.jdbc.Driver",
+                FLYWAY_URL: `jdbc:mysql://${process.env["DB_ENDPOINT"]}:${process.env["DB_PORT"]}/`,
+                FLYWAY_LOCATIONS: `filesystem:${path.resolve(".", "schema")}`,
+                FLYWAY_SCHEMAS: "rothschild"
+            }
+        });
+    } catch (err) {
+        log.info("error performing flyway migrate, attempting to fetch schema history table");
+        await logFlywayTable(ctx);
+        throw err;
+    }
 }
 
 function spawn(cmd: string, args?: string[], options?: childProcess.SpawnOptions): Promise<{ stdout: string[], stderr: string[] }> {
@@ -78,8 +84,8 @@ function spawn(cmd: string, args?: string[], options?: childProcess.SpawnOptions
         child.on("close", code => {
             log.info(cmd, args.join(" "));
             stdout.length && log.info("stdout:", stdout.join(""));
-            stderr.length && log.info("stderr:", stderr.join(""));
-            resolve({stdout, stderr});
+            stderr.length && log.error("stderr:", stderr.join(""));
+            code === 0 ? resolve({stdout, stderr}) : reject(new Error("Migration failed.  Look at the logs."));
         });
     });
 }
@@ -106,4 +112,12 @@ async function getConnection(ctx: awslambda.Context): Promise<mysql.Connection> 
             }
         }
     }
+}
+
+async function logFlywayTable(ctx: awslambda.Context): Promise<void> {
+    const connection = await getConnection(ctx);
+    const res = await connection.query(
+        "SELECT * FROM rothschild.flyway_schema_history"
+    );
+    log.info("flyway schema history:\n", JSON.stringify(res[0]));
 }
