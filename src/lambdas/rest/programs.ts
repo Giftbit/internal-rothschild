@@ -143,7 +143,7 @@ async function createProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pro
         log.debug(err);
         const constraint = getSqlErrorConstraintName(err);
         if (constraint === "PRIMARY") {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Program with id '${program.id}' already exists.`, "ValueIdExists");
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Program with id '${program.id}' already exists.`, "ProgramIdExists");
         }
         if (constraint === "fk_Programs_Currencies") {
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${program.currency}' does not exist. See the documentation on creating currencies.`, "CurrencyNotFound");
