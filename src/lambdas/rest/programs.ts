@@ -5,9 +5,10 @@ import {Pagination, PaginationParams} from "../../model/Pagination";
 import {DbProgram, Program} from "../../model/Program";
 import {csvSerializer} from "../../serializers";
 import {pick, pickOrDefault} from "../../utils/pick";
-import {dateInDbPrecision, nowInDbPrecision} from "../../utils/dbUtils";
+import {dateInDbPrecision, getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {paginateQuery} from "../../utils/dbUtils/paginateQuery";
+import * as log from "loglevel";
 
 export function installValueTemplatesRest(router: cassava.Router): void {
     router.route("/v2/programs")
@@ -83,7 +84,11 @@ export function installValueTemplatesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
-            evt.validateBody(programSchema);
+            evt.validateBody(updateProgramSchema);
+
+            if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
+                throw new giftbitRoutes.GiftbitRestError(422, `The body id '${evt.body.id}' does not match the path id '${evt.pathParameters.id}'.  The id cannot be updated.`);
+            }
 
             const now = nowInDbPrecision();
             const program: Partial<Program> = {
@@ -135,8 +140,13 @@ async function createProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pro
             .insert(Program.toDbProgram(auth, program));
         return program;
     } catch (err) {
-        if (err.code === "ER_DUP_ENTRY") {
-            throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `ValueTemplate with valueTemplateId '${program.id}' already exists.`);
+        log.debug(err);
+        const constraint = getSqlErrorConstraintName(err);
+        if (constraint === "PRIMARY") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Program with id '${program.id}' already exists.`, "ProgramIdExists");
+        }
+        if (constraint === "fk_Programs_Currencies") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${program.currency}' does not exist. See the documentation on creating currencies.`, "CurrencyNotFound");
         }
         throw err;
     }
@@ -170,11 +180,11 @@ async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
             userId: auth.giftbitUserId,
             id: id
         })
-        .update(program);
-    if (res[0] === 0) {
+        .update(Program.toDbProgramUpdate(auth, program));
+    if (res === 0) {
         throw new cassava.RestError(404);
     }
-    if (res[0] > 1) {
+    if (res > 1) {
         throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
     }
     return {
@@ -309,4 +319,8 @@ const programSchema: jsonschema.Schema = {
         }
     },
     required: ["id", "name", "currency"]
+};
+const updateProgramSchema: jsonschema.Schema = {
+    ...programSchema,
+    required: []
 };
