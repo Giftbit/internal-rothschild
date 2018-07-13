@@ -184,12 +184,12 @@ describe("/v2/values create from program", () => {
             programId: program.id
         };
 
-        it("create Value with no balance fails", async () => {
+        it("create Value with no balance (outside of range) 409s", async () => {
             const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
             chai.assert.equal(valueResp.statusCode, 409, JSON.stringify(valueResp.body));
         });
 
-        it("create Value with balance outside of range fails", async () => {
+        it("create Value with balance outside of range 409s", async () => {
             value.balance = 1;
             const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
             chai.assert.equal(valueResp.statusCode, 409, JSON.stringify(valueResp.body));
