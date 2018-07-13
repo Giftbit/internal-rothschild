@@ -317,7 +317,7 @@ async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with the given code already exists.`, "ValueCodeExists");
         }
         if (constraint === "fk_Values_Currencies") {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${value.currency}' does not exist.  See the documentation on creating currencies.`, "CurrencyNotFound");
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${value.currency}' does not exist. See the documentation on creating currencies.`, "CurrencyNotFound");
         }
         if (constraint === "fk_Values_Contacts") {
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Contact '${value.contactId}' does not exist.`, "ContactNotFound");
@@ -438,21 +438,21 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
 
 function checkProgramConstraints(value: Value, program: Program): void {
     if (program.fixedInitialBalances && (program.fixedInitialBalances.indexOf(value.balance) === -1 || !value.balance)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's balance ${value.balance} outside initial values defined by Program ${program.fixedInitialBalances}.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} outside initial values defined by Program ${program.fixedInitialBalances}.`);
     }
     if (program.minInitialBalance && (value.balance < program.minInitialBalance || !value.balance)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's balance ${value.balance} is less than minInitialBalance ${program.minInitialBalance}.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} is less than minInitialBalance ${program.minInitialBalance}.`);
     }
     if (program.maxInitialBalance && (value.balance > program.maxInitialBalance || !value.balance)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's balance ${value.balance} is less than minInitialBalance ${program.minInitialBalance}.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} is less than minInitialBalance ${program.minInitialBalance}.`);
     }
 
     if (program.fixedInitialUses && (program.fixedInitialUses.indexOf(value.uses) === -1 || !value.uses)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's uses ${value.uses} outside initial values defined by Program ${program.fixedInitialUses}.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's uses ${value.uses} outside initial values defined by Program ${program.fixedInitialUses}.`);
     }
 
     if (program.currency !== value.currency) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's currency ${value.currency} cannot differ from currency of Program ${program.currency}.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's currency ${value.currency} cannot differ from currency of Program ${program.currency}.`);
     }
 }
 

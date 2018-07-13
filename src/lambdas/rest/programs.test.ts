@@ -101,4 +101,27 @@ describe("/v2/programs", () => {
         const getResp = await testUtils.testAuthedRequest(router, `/v2/programs/${programRequest.id}`, "GET");
         chai.assert.equal(getResp.statusCode, 404);
     });
+
+    it("creating a program with an unknown currency 409s", async () => {
+        let request: Partial<Program> = {
+            id: generateId(),
+            name: generateId(),
+            currency: generateId().replace(/-/g, "").substring(0, 15)
+        };
+        const res = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", request);
+        chai.assert.equal(res.statusCode, 409);
+    });
+
+    it("creating a program with a duplicate id results in a 409", async () => {
+        let request: Partial<Program> = {
+            id: generateId(),
+            name: generateId(),
+            currency: "USD"
+        };
+        let res = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", request);
+        chai.assert.equal(res.statusCode, 201);
+
+        res = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", request);
+        chai.assert.equal(res.statusCode, 409);
+    });
 });

@@ -5,9 +5,10 @@ import {Pagination, PaginationParams} from "../../model/Pagination";
 import {DbProgram, Program} from "../../model/Program";
 import {csvSerializer} from "../../serializers";
 import {pick, pickOrDefault} from "../../utils/pick";
-import {dateInDbPrecision, nowInDbPrecision} from "../../utils/dbUtils";
+import {dateInDbPrecision, getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {paginateQuery} from "../../utils/dbUtils/paginateQuery";
+import * as log from "loglevel";
 
 export function installValueTemplatesRest(router: cassava.Router): void {
     router.route("/v2/programs")
@@ -139,8 +140,13 @@ async function createProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pro
             .insert(Program.toDbProgram(auth, program));
         return program;
     } catch (err) {
-        if (err.code === "ER_DUP_ENTRY") {
-            throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `ValueTemplate with valueTemplateId '${program.id}' already exists.`);
+        log.debug(err);
+        const constraint = getSqlErrorConstraintName(err);
+        if (constraint === "PRIMARY") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Program with id '${program.id}' already exists.`, "ValueIdExists");
+        }
+        if (constraint === "fk_Programs_Currencies") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${program.currency}' does not exist. See the documentation on creating currencies.`, "CurrencyNotFound");
         }
         throw err;
     }

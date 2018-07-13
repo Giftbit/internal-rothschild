@@ -69,7 +69,7 @@ describe("/v2/values create from program", () => {
                 ...value,
                 currency: "CAD"
             });
-            chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
+            chai.assert.equal(valueResp.statusCode, 409, JSON.stringify(valueResp.body));
         });
 
         it("create Value", async () => {
@@ -103,13 +103,13 @@ describe("/v2/values create from program", () => {
 
         it("create Value with no balance fails", async () => {
             const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
-            chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
+            chai.assert.equal(valueResp.statusCode, 409, JSON.stringify(valueResp.body));
         });
 
         it("create Value with balance outside of fixedIntialBalances fails", async () => {
             value.balance = 1;
             const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
-            chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
+            chai.assert.equal(valueResp.statusCode, 409, JSON.stringify(valueResp.body));
         });
 
         it("create Value with balance in fixedIntialBalances succeeds", async () => {
@@ -144,13 +144,13 @@ describe("/v2/values create from program", () => {
 
         it("create Value with no uses fails", async () => {
             const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
-            chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
+            chai.assert.equal(valueResp.statusCode, 409, JSON.stringify(valueResp.body));
         });
 
         it("create Value with uses outside of fixedIntialBalances fails", async () => {
             value.uses = 1;
             const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
-            chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
+            chai.assert.equal(valueResp.statusCode, 409, JSON.stringify(valueResp.body));
         });
 
         it("create Value with uses in fixedIntialBalances succeeds", async () => {
@@ -186,13 +186,13 @@ describe("/v2/values create from program", () => {
 
         it("create Value with no balance fails", async () => {
             const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
-            chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
+            chai.assert.equal(valueResp.statusCode, 409, JSON.stringify(valueResp.body));
         });
 
         it("create Value with balance outside of range fails", async () => {
             value.balance = 1;
             const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
-            chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
+            chai.assert.equal(valueResp.statusCode, 409, JSON.stringify(valueResp.body));
         });
 
         it("create Value with balance in range succeeds", async () => {
