@@ -304,13 +304,17 @@ describe("/v2/values/", () => {
     let value3: Partial<Value> = {
         id: "v3",
         currency: "USD",
-        balance: 5000
+        balance: 5000,
+        startDate: new Date("2077-01-01"),
+        endDate: new Date("2077-02-02")
     };
 
-    it("can create a value with an initial balance", async () => {
+    it("can create a value with an initial balance, startDate and endDate", async () => {
         const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value3);
         chai.assert.equal(resp.statusCode, 201, `create body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.balance, value3.balance);
+        chai.assert.equal((resp.body as any).startDate, value3.startDate.toISOString());
+        chai.assert.equal((resp.body as any).endDate, value3.endDate.toISOString());
         value3 = resp.body;
 
         const resp2 = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${value3.id}`, "GET");
