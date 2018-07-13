@@ -1138,8 +1138,6 @@ describe("/v2/values/", () => {
             chai.assert.lengthOf(listResponse.body, 1);
             chai.assert.equal(listResponse.body[0].id, importedCode.id);
             chai.assert.notInclude(listResponse.headers["Link"], "codeHashed", "Returned headers should not include codeHashed. This is an implementation detail.");
-
-            console.log("HIHIHIH: \n" + JSON.stringify(listResponse, null, 4));
         });
 
         it("secure generated code", async () => {

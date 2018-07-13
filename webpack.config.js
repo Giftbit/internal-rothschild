@@ -46,7 +46,8 @@ module.exports = function (env) {
                                     babelrc: false
                                 }
                             },
-                            'ts-loader'
+                            'ts-loader',
+                            'import-glob-loader'    // enables globs in import statements
                         ]
                     },
                     {

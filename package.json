@@ -54,6 +54,7 @@
     "giftbit-cassava-routes": "git+ssh://git@github.com/Giftbit/giftbit-cassava-routes.git#semver:^7.0.1",
     "giftbit-lambda-metricslib": "git+ssh://git@github.com/Giftbit/giftbit-lambda-metricslib.git#semver:^2.0.1",
     "giftbit-ruleslib": "git+ssh://git@github.com/Giftbit/giftbit-ruleslib.git#semver:^4.0.2",
+    "import-glob-loader": "^1.1.0",
     "json-loader": "^0.5.7",
     "knex": "^0.14.6",
     "loglevel": "^1.6.1",
