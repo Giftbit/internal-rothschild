@@ -203,6 +203,12 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                     type: "string",
                     operators: ["eq", "in"]
                 },
+                code: {
+                    type: "string",
+                    columnName: "codeHashed",
+                    valueMap: value => computeCodeLookupHash(value, auth),
+                    operators: ["eq", "in"]
+                },
                 currency: {
                     type: "string",
                     operators: ["eq", "in"]

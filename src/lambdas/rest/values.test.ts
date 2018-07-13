@@ -1097,4 +1097,83 @@ describe("/v2/values/", () => {
             chai.assert.equal(res.statusCode, 422, `body=${JSON.stringify(res.body)}`);
         });
     });
+
+    describe("searching values by code", () => {
+        it("search by a code that doesn't exit", async () => {
+            const listResponse = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?code=${generateId()}`, "GET");
+            chai.assert.equal(listResponse.statusCode, 200, `body=${JSON.stringify(listResponse.body)}`);
+            chai.assert.isEmpty(listResponse.body);
+        });
+
+        let importedCode = {
+            id: generateId(),
+            currency: "USD",
+            code: "ABCDEFGHIJKLMNO",
+            balance: 0
+        };
+        let generatedCode = {
+            id: generateId(),
+            currency: "USD",
+            generateCode: {},
+            balance: 0
+        };
+        let genericCode = {
+            id: generateId(),
+            currency: "USD",
+            code: "SPRING2018",
+            isGenericCode: true,
+            balance: 0
+        };
+
+        it("secure imported code", async () => {
+            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", importedCode);
+            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+            const listResponse = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?code=${importedCode.code}`, "GET");
+            chai.assert.equal(listResponse.statusCode, 200, `body=${JSON.stringify(listResponse.body)}`);
+            chai.assert.lengthOf(listResponse.body, 1);
+            chai.assert.equal(listResponse.body[0].id, importedCode.id);
+            chai.assert.notInclude(listResponse.headers["Link"], "codeHashed", "Returned headers should not include codeHashed. This is an implementation detail.");
+
+            console.log("HIHIHIH: \n" + JSON.stringify(listResponse, null, 4));
+        });
+
+        it("secure generated code", async () => {
+            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", generatedCode);
+            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+            const showCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${generatedCode.id}?showCode=true`, "GET");
+
+            const listResponse = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?code=${showCode.body.code}`, "GET");
+            chai.assert.equal(listResponse.statusCode, 200, `body=${JSON.stringify(listResponse.body)}`);
+            chai.assert.equal(listResponse.body.length, 1);
+            chai.assert.equal(listResponse.body[0].id, generatedCode.id);
+        });
+
+        it("generic code", async () => {
+            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+            const listResponse = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?code=${genericCode.code}`, "GET");
+            chai.assert.equal(listResponse.statusCode, 200, `body=${JSON.stringify(listResponse.body)}`);
+            chai.assert.equal(listResponse.body.length, 1);
+            chai.assert.equal(listResponse.body[0].id, genericCode.id);
+        });
+
+        it("by code in list", async () => {
+            let listResponse = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?code.in=${genericCode.code}`, "GET");
+            chai.assert.equal(listResponse.statusCode, 200, `body=${JSON.stringify(listResponse.body)}`);
+            chai.assert.equal(listResponse.body.length, 1);
+            chai.assert.equal(listResponse.body[0].id, genericCode.id);
+
+            listResponse = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?code.in=${genericCode.code},${importedCode.code}`, "GET");
+            chai.assert.equal(listResponse.statusCode, 200, `body=${JSON.stringify(listResponse.body)}`);
+            chai.assert.equal(listResponse.body.length, 2);
+            const value0 = listResponse.body[0];
+            const value1 = listResponse.body[1];
+            chai.assert.include([genericCode.id, importedCode.id], value0.id);
+            chai.assert.include([genericCode.id, importedCode.id], value1.id);
+            chai.assert.notEqual(value0.id, value1.id);
+        });
+    });
 });
