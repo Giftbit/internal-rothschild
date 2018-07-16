@@ -10,7 +10,6 @@ import {
 } from "./TransactionPlan";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 
-
 export async function resolveTransferTransactionParties(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: TransferRequest) {
     const sourceParties = await resolveTransactionParties(auth, req.currency, [req.source], req.id);
     if (sourceParties.length !== 1 || (sourceParties[0].rail !== "lightrail" && sourceParties[0].rail !== "stripe")) {

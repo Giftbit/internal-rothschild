@@ -30,3 +30,19 @@ export function unsetStubsForStripeTests() {
     (giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as any).restore();
     (kvsAccess.kvsGet as any).restore();
 }
+
+export function stripeEnvVarsPresent(): boolean {
+    if (
+        !!process.env["STRIPE_PLATFORM_KEY"] &&
+        !!process.env["STRIPE_CONNECTED_ACCOUNT_ID"] &&
+        !!process.env["STRIPE_CUSTOMER_ID"] &&
+        !!process.env["SECURE_CONFIG_BUCKET"] &&
+        !!process.env["SECURE_CONFIG_KEY_STRIPE"] &&
+        !!process.env["SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH"]
+    ) {
+        return true;
+    } else {
+        console.log("Missing environment variables required to run Stripe-related tests: skipping. See readme to set up.");
+        return false;
+    }
+}

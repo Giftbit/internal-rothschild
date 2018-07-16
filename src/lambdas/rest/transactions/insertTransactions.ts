@@ -1,11 +1,7 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {
-    LightrailTransactionPlanStep,
-    StripeTransactionPlanStep,
-    TransactionPlan
-} from "../../lambdas/rest/transactions/TransactionPlan";
-import {TransactionPlanError} from "../../lambdas/rest/transactions/TransactionPlanError";
-import {DbValue} from "../../model/Value";
+import {LightrailTransactionPlanStep, StripeTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
+import {TransactionPlanError} from "./TransactionPlanError";
+import {DbValue} from "../../../model/Value";
 import Knex = require("knex");
 
 export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan) {
@@ -110,8 +106,7 @@ export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtaut
 
 export async function insertStripeTransactionSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan) {
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
-    for (let stepIx in stripeSteps) {
-        let step = stripeSteps[stepIx];
+    for (let step of stripeSteps) {
         await trx.into("StripeTransactionSteps")
             .insert({
                 userId: auth.giftbitUserId,

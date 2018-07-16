@@ -86,10 +86,8 @@ export async function chargeStripeSteps(stripeConfig: LightrailAndMerchantStripe
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
 
     try {
-        for (let stepIx in stripeSteps) {
-            const step = stripeSteps[stepIx];
+        for (let step of stripeSteps) {
             const stepForStripe = stripeTransactionPlanStepToStripeRequest(step, plan);
-            // todo handle edge case: stripeAmount < 50    --> do this in planner
 
             const charge = await createStripeCharge(stepForStripe, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, step.idempotentStepId);
 

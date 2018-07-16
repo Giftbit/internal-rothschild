@@ -10,9 +10,13 @@ import {StripeTransactionStep, Transaction} from "../../../../model/Transaction"
 import {Currency} from "../../../../model/Currency";
 import * as kvsAccess from "../../../../utils/kvsAccess";
 import {TransactionPlanError} from "../TransactionPlanError";
-import * as insertTransaction from "../../../../utils/dbUtils/insertTransactions";
+import * as insertTransaction from "../insertTransactions";
 import * as testUtils from "../../../../utils/testUtils";
-import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../utils/testUtils/stripeStubs";
+import {
+    setStubsForStripeTests,
+    stripeEnvVarsPresent,
+    unsetStubsForStripeTests
+} from "../../../../utils/testUtils/stripeTestUtils";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -51,7 +55,7 @@ describe("split tender checkout with Stripe", () => {
     };
 
     before(async function () {
-        if (!process.env["STRIPE_PLATFORM_KEY"] || !process.env["STRIPE_CONNECTED_ACCOUNT_ID"] || !process.env["STRIPE_CUSTOMER_ID"]) {
+        if (!stripeEnvVarsPresent()) {
             this.skip();
             return;
         }
@@ -515,7 +519,7 @@ describe("split tender checkout with Stripe", () => {
 
     describe("rollback", () => {
         before(async function () {
-            if (!process.env["STRIPE_PLATFORM_KEY"] || !process.env["STRIPE_CONNECTED_ACCOUNT_ID"] || !process.env["STRIPE_CUSTOMER_ID"]) {
+            if (!stripeEnvVarsPresent()) {
                 this.skip();
                 return;
             }
@@ -690,7 +694,7 @@ describe("split tender checkout with Stripe", () => {
 
     describe("respects Stripe minimum charge of $0.50", () => {
         before(async function () {
-            if (!process.env["STRIPE_PLATFORM_KEY"] || !process.env["STRIPE_CONNECTED_ACCOUNT_ID"] || !process.env["STRIPE_CUSTOMER_ID"]) {
+            if (!stripeEnvVarsPresent()) {
                 this.skip();
                 return;
             }

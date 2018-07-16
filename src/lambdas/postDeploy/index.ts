@@ -12,7 +12,6 @@ import "./schema/*.sql";
 
 log.setLevel(log.levels.DEBUG);
 
-
 // Flyway version to download and use.  Flyway does the migration.
 const flywayVersion = "5.0.7";
 

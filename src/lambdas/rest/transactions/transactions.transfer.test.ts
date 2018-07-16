@@ -8,7 +8,11 @@ import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../.
 import {Currency} from "../../../model/Currency";
 import {installRestRoutes} from "../installRestRoutes";
 import {afterEach, before, beforeEach, describe, it} from "mocha";
-import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeStubs";
+import {
+    setStubsForStripeTests,
+    stripeEnvVarsPresent,
+    unsetStubsForStripeTests
+} from "../../../utils/testUtils/stripeTestUtils";
 import {createCurrency} from "../currencies";
 import chaiExclude = require("chai-exclude");
 
@@ -421,7 +425,7 @@ describe("/v2/transactions/transfer", () => {
 
     describe("stripe transfers", () => {
         before(async function () {
-            if (!process.env["STRIPE_PLATFORM_KEY"] || !process.env["STRIPE_CONNECTED_ACCOUNT_ID"] || !process.env["STRIPE_CUSTOMER_ID"]) {
+            if (!stripeEnvVarsPresent()) {
                 this.skip();
                 return;
             }
@@ -638,7 +642,7 @@ describe("/v2/transactions/transfer", () => {
 
         describe("respects Stripe minimum of $0.50", () => {
             before(async function () {
-                if (!process.env["STRIPE_PLATFORM_KEY"] || !process.env["STRIPE_CONNECTED_ACCOUNT_ID"] || !process.env["STRIPE_CUSTOMER_ID"]) {
+                if (!stripeEnvVarsPresent()) {
                     this.skip();
                     return;
                 }
