@@ -13,6 +13,10 @@ import * as kvsAccess from "../../../../utils/kvsAccess";
 import {TransactionPlanError} from "../TransactionPlanError";
 import * as insertTransaction from "../../../../utils/dbUtils/insertTransactions";
 import * as testUtils from "../../../../utils/testUtils";
+import {after} from "mocha";
+import chaiExclude = require("chai-exclude");
+
+chai.use(chaiExclude);
 
 require("dotenv").config();
 
@@ -72,6 +76,10 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
 
         setStubsForStripeTests();
+    });
+
+    after(async function () {
+        unsetStubsForStripeTests();
     });
 
     it("processes basic checkout with Stripe only", async () => {

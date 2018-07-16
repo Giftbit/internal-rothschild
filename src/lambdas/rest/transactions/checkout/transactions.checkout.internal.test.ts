@@ -7,6 +7,9 @@ import * as testUtils from "../../../../utils/testUtils";
 import {generateId} from "../../../../utils/testUtils";
 import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
+import chaiExclude = require("chai-exclude");
+
+chai.use(chaiExclude);
 
 describe("/v2/transactions/checkout - internal sources", () => {
 
@@ -273,7 +276,8 @@ describe("/v2/transactions/checkout - internal sources", () => {
             "createdDate": null
         }, ["createdDate"]);
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
-        chai.assert.deepEqual(getCheckoutResp.body, postCheckoutResp.body);
+        chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["steps"]);
+        chai.assert.includeDeepMembers(getCheckoutResp.body.steps, postCheckoutResp.body.steps);
     });
 
     it("checkout with pretax and postTax internal source", async () => {
@@ -380,6 +384,7 @@ describe("/v2/transactions/checkout - internal sources", () => {
             "createdDate": null
         }, ["createdDate"]);
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
-        chai.assert.deepEqual(getCheckoutResp.body, postCheckoutResp.body);
+        chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["steps"]);
+        chai.assert.includeDeepMembers(getCheckoutResp.body.steps, postCheckoutResp.body.steps);
     });
 });
