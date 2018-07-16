@@ -466,7 +466,7 @@ describe("/v2/transactions/transfer", () => {
             const sourceStep = postTransferResp.body.steps.find((s: StripeTransactionStep) => s.rail === "stripe") as StripeTransactionStep;
             chai.assert.deepEqualExcluding(sourceStep, {
                 rail: "stripe",
-                amount: 1000
+                amount: -1000
             }, ["chargeId", "charge"]);
             chai.assert.isNotNull(sourceStep.chargeId);
             chai.assert.isNotNull(sourceStep.charge);
@@ -559,7 +559,7 @@ describe("/v2/transactions/transfer", () => {
             const sourceStep = postTransferResp.body.steps.find((s: StripeTransactionStep) => s.rail === "stripe") as StripeTransactionStep;
             chai.assert.deepEqualExcluding(sourceStep, {
                 rail: "stripe",
-                amount: 900
+                amount: -900
             }, ["chargeId", "charge"]);
             chai.assert.isNotNull(sourceStep.chargeId);
             chai.assert.isNotNull(sourceStep.charge);

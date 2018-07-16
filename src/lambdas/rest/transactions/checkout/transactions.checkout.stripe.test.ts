@@ -131,7 +131,7 @@ describe("split tender checkout with Stripe", () => {
             {
                 rail: "stripe",
                 chargeId: "",
-                amount: 123,
+                amount: -123,
                 charge: null
             }
         ], ["chargeId", "charge"], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
@@ -196,7 +196,7 @@ describe("split tender checkout with Stripe", () => {
             {
                 rail: "stripe",
                 chargeId: "",
-                amount: 123,
+                amount: -123,
                 charge: null
             }
         ], ["chargeId", "charge"], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
@@ -251,7 +251,7 @@ describe("split tender checkout with Stripe", () => {
             {
                 rail: "stripe",
                 chargeId: "",
-                amount: 400,
+                amount: -400,
                 charge: null
             }
         ], ["chargeId", "charge"], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
@@ -469,7 +469,7 @@ describe("split tender checkout with Stripe", () => {
             {
                 rail: "stripe",
                 chargeId: null,
-                amount: 400,
+                amount: -400,
                 charge: null
             }
         ], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
@@ -646,13 +646,13 @@ describe("split tender checkout with Stripe", () => {
             {
                 rail: "stripe",
                 chargeId: "",
-                amount: 100,
+                amount: -100,
                 charge: null
             },
             {
                 rail: "stripe",
                 chargeId: "",
-                amount: 300,
+                amount: -300,
                 charge: null
             }
         ], ["chargeId", "charge"], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);

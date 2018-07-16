@@ -118,7 +118,7 @@ export async function insertStripeTransactionSteps(auth: giftbitRoutes.jwtauth.A
                 id: step.idempotentStepId,
                 transactionId: plan.id,
                 chargeId: step.chargeResult.id,
-                amount: step.chargeResult.amount,
+                amount: -step.chargeResult.amount,
                 charge: JSON.stringify(step.chargeResult)
             });
     }
