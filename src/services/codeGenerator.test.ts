@@ -79,8 +79,31 @@ describe("code generator tests", () => {
         }
     });
 
-    // // todo
-    // it("minimum charset size is 5", async () => {
-    //     const res = generateCode({length: length, charset: "ABCDE"});
-    // });
+    it("contains duplciates", async () => {
+        const charset = "AABCDE";
+        chai.assert.throws(() => {
+            generateCode({charset: charset});
+        }, `Requested charset ${charset} contains duplicates.`);
+    });
+
+    it("minimum charset size is 5", async () => {
+        const charset = "ABCD";
+        chai.assert.throws(() => {
+            generateCode({charset: charset});
+        }, `Requested charset ${charset} doesn't meet minimum charset size requirement of 5.`);
+    });
+
+    it("cannot contain a space", async () => {
+        const charset = "A BCDE";
+        chai.assert.throws(() => {
+            generateCode({charset: charset});
+        }, `Requested charset ${charset} cannot contain a space.`);
+    });
+
+    it("minimum length is 6", async () => {
+        const length = 5;
+        chai.assert.throws(() => {
+            generateCode({length: length});
+        }, `Requested code length ${length} doesn't meet minimum requirement of 6.`);
+    });
 });

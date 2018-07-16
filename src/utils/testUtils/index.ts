@@ -90,8 +90,7 @@ export async function resetDb(): Promise<void> {
         await connection.query("CREATE DATABASE rothschild");
 
         const sqlDir = path.join(__dirname, "..", "..", "lambdas", "postDeploy", "schema");
-        for (const sqlFile of fs.readdirSync(sqlDir).sort()) {
-            const sql = fs.readFileSync(path.join(sqlDir, sqlFile)).toString("utf8");
+        for (const sql of await getSqlMigrationFiles()) {
             await connection.query(sql);
         }
     } catch (err) {
@@ -112,6 +111,27 @@ export async function resetDb(): Promise<void> {
     }
 
     await connection.end();
+}
+
+/**
+ * Cached contents of SQL migration files.
+ */
+const sqlMigrationFileContents: string[] = [];
+
+async function getSqlMigrationFiles(): Promise<string[]> {
+    if (sqlMigrationFileContents.length > 0) {
+        return sqlMigrationFileContents;
+    }
+
+    const sqlDir = path.join(__dirname, "..", "..", "lambdas", "postDeploy", "schema");
+    for (const sqlFile of fs.readdirSync(sqlDir).sort()) {
+        if (!/V\d+__.*\.sql/.test(sqlFile)) {
+            throw new Error(`SQL migration file name ${sqlFile} does not match expected format V#__*.sql`);
+        }
+        sqlMigrationFileContents.push(fs.readFileSync(path.join(sqlDir, sqlFile)).toString("utf8"));
+    }
+
+    return sqlMigrationFileContents;
 }
 
 export interface ParsedProxyResponse<T> {

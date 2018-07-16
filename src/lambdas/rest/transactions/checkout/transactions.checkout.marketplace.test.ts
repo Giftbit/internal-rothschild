@@ -1,4 +1,3 @@
-import {describe, it, before} from "mocha";
 import * as currencies from "../../currencies";
 import * as testUtils from "../../../../utils/testUtils";
 import * as cassava from "cassava";
@@ -189,7 +188,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
 
     it("removes discountSellerLiability=0.5 from the seller net", async () => {
         const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
-            id: "marketplace-seller-half-discount",
+            id: "mp-seller-half-discount",
             currency: "CAD",
             discount: true,
             discountSellerLiability: 0.5,

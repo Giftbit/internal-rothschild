@@ -1,4 +1,5 @@
 import * as cassava from "cassava";
+import {RouterEvent} from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import * as log from "loglevel";
@@ -44,6 +45,7 @@ export function installValuesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
             evt.validateBody(valueSchema);
+            checkCodeParameters(evt);
             let program: Program = null;
             if (evt.body.programId) {
                 try {
@@ -136,6 +138,13 @@ export function installValuesRest(router: cassava.Router): void {
                 ...pick<Value>(evt.body, "contactId", "pretax", "active", "canceled", "frozen", "pretax", "discount", "discountSellerLiability", "redemptionRule", "valueRule", "startDate", "endDate", "metadata"),
                 updatedDate: now
             };
+            if (value.startDate) {
+                value.startDate = dateInDbPrecision(new Date(value.startDate));
+            }
+            if (value.endDate) {
+                value.endDate = dateInDbPrecision(new Date(value.endDate));
+            }
+
             return {
                 body: await updateValue(auth, evt.pathParameters.id, value)
             };
@@ -157,6 +166,7 @@ export function installValuesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
             evt.validateBody(valueChangeCodeSchema);
+            checkCodeParameters(evt);
 
             const now = nowInDbPrecision();
             let code = evt.body.code;
@@ -198,6 +208,12 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                 },
                 programId: {
                     type: "string",
+                    operators: ["eq", "in"]
+                },
+                code: {
+                    type: "string",
+                    columnName: "codeHashed",
+                    valueMap: value => computeCodeLookupHash(value, auth),
                     operators: ["eq", "in"]
                 },
                 currency: {
@@ -314,7 +330,7 @@ async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with the given code already exists.`, "ValueCodeExists");
         }
         if (constraint === "fk_Values_Currencies") {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${value.currency}' does not exist.  See the documentation on creating currencies.`, "CurrencyNotFound");
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${value.currency}' does not exist. See the documentation on creating currencies.`, "CurrencyNotFound");
         }
         if (constraint === "fk_Values_Contacts") {
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Contact '${value.contactId}' does not exist.`, "ContactNotFound");
@@ -367,13 +383,14 @@ export async function getValueByCode(auth: giftbitRoutes.jwtauth.AuthorizationBa
 async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, value: Partial<Value>): Promise<Value> {
     auth.requireIds("giftbitUserId");
 
+    const dbValue = Value.toDbValueUpdate(auth, value);
     const knex = await getKnexWrite();
     const res: number = await knex("Values")
         .where({
             userId: auth.giftbitUserId,
             id: id
         })
-        .update(Value.toDbValueUpdate(auth, value));
+        .update(dbValue);
     if (res === 0) {
         throw new cassava.RestError(404);
     }
@@ -396,10 +413,10 @@ async function updateDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
             id: id
         })
         .update(value);
-    if (res[0] === 0) {
+    if (res === 0) {
         throw new cassava.RestError(404);
     }
-    if (res[0] > 1) {
+    if (res > 1) {
         throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
     }
     return {
@@ -435,62 +452,33 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
 
 function checkProgramConstraints(value: Value, program: Program): void {
     if (program.fixedInitialBalances && (program.fixedInitialBalances.indexOf(value.balance) === -1 || !value.balance)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's balance ${value.balance} outside initial values defined by Program ${program.fixedInitialBalances}.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} outside initial values defined by Program ${program.fixedInitialBalances}.`);
     }
     if (program.minInitialBalance && (value.balance < program.minInitialBalance || !value.balance)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's balance ${value.balance} is less than minInitialBalance ${program.minInitialBalance}.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} is less than minInitialBalance ${program.minInitialBalance}.`);
     }
     if (program.maxInitialBalance && (value.balance > program.maxInitialBalance || !value.balance)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's balance ${value.balance} is less than minInitialBalance ${program.minInitialBalance}.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} is less than minInitialBalance ${program.minInitialBalance}.`);
     }
 
     if (program.fixedInitialUses && (program.fixedInitialUses.indexOf(value.uses) === -1 || !value.uses)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's uses ${value.uses} outside initial values defined by Program ${program.fixedInitialUses}.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's uses ${value.uses} outside initial values defined by Program ${program.fixedInitialUses}.`);
     }
 
     if (program.currency !== value.currency) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value's currency ${value.currency} cannot differ from currency of Program ${program.currency}.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's currency ${value.currency} cannot differ from currency of Program ${program.currency}.`);
+    }
+}
+
+function checkCodeParameters(evt: RouterEvent): void {
+    if (evt.body.generateCode && (evt.body.code || evt.body.isGenericCode)) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Parameter generateCode is not allowed with parameters code or isGenericCode:true.`);
     }
 }
 
 const valueSchema: jsonschema.Schema = {
     type: "object",
     additionalProperties: false,
-    oneOf: [
-        {
-            required: ["code"],
-            title: "code"
-        },
-        {
-            required: ["code, isGenericCode"],
-            title: "generic code"
-        },
-        {
-            required: ["generateCode"],
-            title: "generateCode",
-            not: {
-                anyOf: [
-                    {required: ["isGenericCode", "code"]}
-                ]
-            }
-        },
-        {
-            not: {
-                anyOf: [
-                    {
-                        required: ["isGenericCode"]
-                    },
-                    {
-                        required: ["code"]
-                    },
-                    {
-                        required: ["generateCode"]
-                    }
-                ],
-            },
-            title: "no code provided or generated"
-        }
-    ],
     properties: {
         id: {
             type: "string",
@@ -640,53 +628,8 @@ const valueUpdateSchema: jsonschema.Schema = {
 const valueChangeCodeSchema: jsonschema.Schema = {
     type: "object",
     additionalProperties: false,
-    oneOf: [
-        {
-            required: ["code"],
-            title: "code"
-        },
-        {
-            required: ["code, isGenericCode"],
-            title: "generic code"
-        },
-        {
-            required: ["generateCode"],
-            title: "generateCode",
-            not: {
-                anyOf: [
-                    {required: ["isGenericCode", "code"]}
-                ]
-            }
-        }
-    ],
     properties: {
-        code: {
-            type: ["string", "null"],
-            minLength: 1,
-            maxLength: 255
-        },
-        isGenericCode: {
-            type: ["boolean", "null"],
-        },
-        generateCode: {
-            title: "Code Generation Params",
-            type: ["object", "null"],
-            additionalProperties: false,
-            properties: {
-                length: {
-                    type: "number"
-                },
-                charset: {
-                    type: "string"
-                },
-                prefix: {
-                    type: "string"
-                },
-                suffix: {
-                    type: "string"
-                }
-            }
-        }
+        ...pick(valueSchema.properties, "code", "isGenericCode", "generateCode"),
     },
     required: []
 };
