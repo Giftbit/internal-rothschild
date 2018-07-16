@@ -1,6 +1,5 @@
 import * as chai from "chai";
 import {getKnexRead} from "./connection";
-import {before, describe, it} from "mocha";
 import {resetDb} from "../testUtils";
 
 describe("connection", () => {
