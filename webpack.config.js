@@ -82,7 +82,16 @@ module.exports = function (env) {
                     path: path.join(__dirname, 'dist', fxn),
                     pathPrefix: '',
                     filename: `${fxn}.zip`
-                })
+                }),
+
+                // Knex drivers we won't use.
+                new webpack.IgnorePlugin(/mssql/, /\/knex\//),
+                new webpack.IgnorePlugin(/mysql/, /\/knex\//),
+                new webpack.IgnorePlugin(/oracle/, /\/knex\//),
+                new webpack.IgnorePlugin(/oracledb/, /\/knex\//),
+                new webpack.IgnorePlugin(/postgres/, /\/knex\//),
+                new webpack.IgnorePlugin(/redshift/, /\/knex\//),
+                new webpack.IgnorePlugin(/sqlite3/, /\/knex\//),
             ],
             target: 'node',
             externals: {
@@ -90,18 +99,7 @@ module.exports = function (env) {
                 'aws-sdk': 'aws-sdk',
                 'awslambda': 'awslambda',
                 'dynamodb-doc': 'dynamodb-doc',
-                'imagemagick': 'imagemagick',
-
-                // Knex drivers we won't use.
-                'sqlite3': 'sqlite3',
-                'mariasql': 'mariasql',
-                'mssql': 'mssql',
-                'mysql': 'mysql',
-                'oracle': 'oracle',
-                'strong-oracle': 'strong-oracle',
-                'oracledb': 'oracledb',
-                'pg': 'pg',
-                'pg-query-stream': 'pg-query-stream'
+                'imagemagick': 'imagemagick'
             },
             node: {
                 // Allow these globals.
