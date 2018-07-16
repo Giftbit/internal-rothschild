@@ -112,6 +112,7 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             ],
             currency: "CAD"
         };
+
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(postCheckoutResp.body, {

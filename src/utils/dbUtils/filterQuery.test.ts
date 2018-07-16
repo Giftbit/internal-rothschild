@@ -548,7 +548,7 @@ describe("filterQuery()", () => {
             chai.assert.deepEqual(actual, expected);
         });
     });
-    // "lt", "lte", "ne"
+    //"lt", "lte", "ne"
 
     it("querying by hashed value with 'in' operator and multiple values", async () => {
         const knex = await getKnexRead();

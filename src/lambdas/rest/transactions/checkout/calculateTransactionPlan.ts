@@ -1,6 +1,7 @@
 import {
     InternalTransactionPlanStep,
     LightrailTransactionPlanStep,
+    StripeTransactionPlanStep,
     TransactionPlan,
     TransactionPlanStep
 } from "../TransactionPlan";
@@ -92,7 +93,7 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
     }
 }
 
-function calculateAmountForStripeTransactionStep(step, transactionPlan): void {
+function calculateAmountForStripeTransactionStep(step: StripeTransactionPlanStep, transactionPlan: TransactionPlan): void {
     let amount: number = 0;
 
     for (const item of transactionPlan.lineItems) {
@@ -115,13 +116,12 @@ function calculateAmountForStripeTransactionStep(step, transactionPlan): void {
     step.amount += amount;
 }
 
-function calculateAmountForInternalTransactionStep(step: InternalTransactionPlanStep, transactionPlan): void {
+function calculateAmountForInternalTransactionStep(step: InternalTransactionPlanStep, transactionPlan: TransactionPlan): void {
     for (const item of transactionPlan.lineItems) {
         const amount = Math.min(item.lineTotal.remainder, step.balance);
         step.balance -= amount;
         step.amount -= amount;
         item.lineTotal.remainder -= amount;
-        // todo - Q: can internal steps be considered as discounts?
     }
 }
 
