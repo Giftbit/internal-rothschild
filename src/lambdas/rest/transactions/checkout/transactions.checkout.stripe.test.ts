@@ -13,6 +13,9 @@ import {TransactionPlanError} from "../TransactionPlanError";
 import * as insertTransaction from "../../../../utils/dbUtils/insertTransactions";
 import * as testUtils from "../../../../utils/testUtils";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../utils/testUtils/stripeStubs";
+import chaiExclude = require("chai-exclude");
+
+chai.use(chaiExclude);
 
 require("dotenv").config();
 

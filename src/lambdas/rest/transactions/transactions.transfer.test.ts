@@ -10,7 +10,9 @@ import {installRestRoutes} from "../installRestRoutes";
 import {afterEach, before, beforeEach, describe, it} from "mocha";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeStubs";
 import {createCurrency} from "../currencies";
+import chaiExclude = require("chai-exclude");
 
+chai.use(chaiExclude);
 
 describe("/v2/transactions/transfer", () => {
 
