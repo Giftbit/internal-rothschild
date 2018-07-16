@@ -34,15 +34,15 @@ export function transactionPlanToTransaction(plan: TransactionPlan, simulated?: 
 function transactionPlanStepToTransactionStep(step: TransactionPlanStep, plan: TransactionPlan): TransactionStep {
     switch (step.rail) {
         case "lightrail":
-            return lightrailTransactionPlanStepToTransactionStep(step, plan);
+            return lightrailTransactionPlanStepToTransactionStep(step);
         case "stripe":
-            return stripeTransactionPlanStepToTransactionStep(step, plan);
+            return stripeTransactionPlanStepToTransactionStep(step);
         case "internal":
-            return internalTransactionPlanStepToTransactionStep(step, plan);
+            return internalTransactionPlanStepToTransactionStep(step);
     }
 }
 
-function lightrailTransactionPlanStepToTransactionStep(step: LightrailTransactionPlanStep, plan: TransactionPlan): LightrailTransactionStep {
+function lightrailTransactionPlanStepToTransactionStep(step: LightrailTransactionPlanStep): LightrailTransactionStep {
     return {
         rail: "lightrail",
         valueId: step.value.id,
@@ -54,7 +54,7 @@ function lightrailTransactionPlanStepToTransactionStep(step: LightrailTransactio
     };
 }
 
-function stripeTransactionPlanStepToTransactionStep(step: StripeTransactionPlanStep, plan: TransactionPlan): StripeTransactionStep {
+function stripeTransactionPlanStepToTransactionStep(step: StripeTransactionPlanStep): StripeTransactionStep {
     const res: StripeTransactionStep = {
         rail: "stripe",
         amount: step.amount,
@@ -69,12 +69,6 @@ function stripeTransactionPlanStepToTransactionStep(step: StripeTransactionPlanS
     return res;
 }
 
-function internalTransactionPlanStepToTransactionStep(step: InternalTransactionPlanStep, plan: TransactionPlan): InternalTransactionStep {
-    return {
-        rail: "internal",
-        id: step.internalId,
-        balanceBefore: step.balance,
-        balanceAfter: step.balance + step.amount,
-        balanceChange: step.amount
-    };
+function internalTransactionPlanStepToTransactionStep(step: InternalTransactionPlanStep): InternalTransactionStep {
+    return TransactionPlanStep.toInternalTransactionStep(step);
 }

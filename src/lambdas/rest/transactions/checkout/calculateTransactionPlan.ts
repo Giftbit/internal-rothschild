@@ -1,4 +1,9 @@
-import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "../TransactionPlan";
+import {
+    InternalTransactionPlanStep,
+    LightrailTransactionPlanStep,
+    TransactionPlan,
+    TransactionPlanStep
+} from "../TransactionPlan";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import {Value} from "../../../../model/Value";
 import {RuleContext} from "../RuleContext";
@@ -44,7 +49,8 @@ function calculateAmountsForTransactionSteps(steps: TransactionPlanStep[], trans
                 calculateAmountForStripeTransactionStep(step, transactionPlan);
                 break;
             case "internal":
-                throw new Error("not yet implemented");
+                calculateAmountForInternalTransactionStep(step, transactionPlan);
+                break;
         }
     }
 }
@@ -107,6 +113,16 @@ function calculateAmountForStripeTransactionStep(step, transactionPlan): void {
     }
 
     step.amount += amount;
+}
+
+function calculateAmountForInternalTransactionStep(step: InternalTransactionPlanStep, transactionPlan): void {
+    for (const item of transactionPlan.lineItems) {
+        const amount = Math.min(item.lineTotal.remainder, step.balance);
+        step.balance -= amount;
+        step.amount -= amount;
+        item.lineTotal.remainder -= amount;
+        // todo - Q: can internal steps be considered as discounts?
+    }
 }
 
 function getAvailableBalance(value: Value, step: LightrailTransactionPlanStep): number {

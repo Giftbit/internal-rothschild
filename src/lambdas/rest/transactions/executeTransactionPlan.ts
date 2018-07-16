@@ -9,6 +9,7 @@ import * as log from "loglevel";
 import {chargeStripeSteps, rollbackStripeSteps} from "../../../utils/stripeUtils/stripeTransactions";
 import {setupLightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/stripeAccess";
 import {
+    insertInternalTransactionSteps,
     insertLightrailTransactionSteps,
     insertStripeTransactionSteps,
     insertTransaction
@@ -47,10 +48,6 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
 }
 
 export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<Transaction> {
-    if (plan.steps.find(step => step.rail === "internal")) {
-        throw new Error("Not implemented");
-    }
-
     let chargeStripe = false;
     let stripeConfig: LightrailAndMerchantStripeConfig;
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
@@ -87,6 +84,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
                 await insertStripeTransactionSteps(auth, trx, plan);
             }
             await insertLightrailTransactionSteps(auth, trx, plan);
+            await insertInternalTransactionSteps(auth, trx, plan);
         } catch (err) {
             if (chargeStripe) {
                 await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side: ${err}`);

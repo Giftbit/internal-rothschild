@@ -393,10 +393,10 @@ const internalPartySchema: jsonschema.Schema = {
             type: "string",
             enum: ["internal"]
         },
-        id: {
+        internalId: {
             type: "string"
         },
-        value: {
+        balance: {
             type: "integer",
             minimum: 0
         },
@@ -404,7 +404,7 @@ const internalPartySchema: jsonschema.Schema = {
             type: "boolean"
         }
     },
-    required: ["rail", "id", "value"]
+    required: ["rail", "internalId", "balance"]
 };
 
 const creditSchema: jsonschema.Schema = {

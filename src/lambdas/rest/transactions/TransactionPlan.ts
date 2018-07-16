@@ -1,5 +1,5 @@
 import * as stripe from "stripe";
-import {TransactionPlanTotals, TransactionType} from "../../../model/Transaction";
+import {InternalTransactionStep, TransactionPlanTotals, TransactionType} from "../../../model/Transaction";
 import {Value} from "../../../model/Value";
 import {LineItemResponse} from "../../../model/LineItem";
 import {TransactionParty} from "../../../model/TransactionRequest";
@@ -48,4 +48,16 @@ export interface InternalTransactionPlanStep {
     pretax: boolean;
     beforeLightrail: boolean;
     amount: number;
+}
+
+export namespace TransactionPlanStep {
+    export function toInternalTransactionStep(step: InternalTransactionPlanStep): InternalTransactionStep {
+        return {
+            rail: "internal",
+            internalId: step.internalId,
+            balanceBefore: step.balance - step.amount /* amount is negative */,
+            balanceAfter: step.balance,
+            balanceChange: step.amount
+        }
+    }
 }

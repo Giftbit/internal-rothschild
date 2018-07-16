@@ -1,11 +1,15 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {
+    InternalTransactionPlanStep,
     LightrailTransactionPlanStep,
     StripeTransactionPlanStep,
-    TransactionPlan
+    TransactionPlan,
+    TransactionPlanStep
 } from "../../lambdas/rest/transactions/TransactionPlan";
 import {TransactionPlanError} from "../../lambdas/rest/transactions/TransactionPlanError";
 import {DbValue} from "../../model/Value";
+import {InternalDbTransactionStep} from "../../model/Transaction";
+import * as crypto from "crypto";
 import Knex = require("knex");
 
 export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan) {
@@ -122,5 +126,21 @@ export async function insertStripeTransactionSteps(auth: giftbitRoutes.jwtauth.A
                 amount: step.chargeResult.amount,
                 charge: JSON.stringify(step.chargeResult)
             });
+    }
+}
+
+export async function insertInternalTransactionSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan) {
+    const internalSteps = plan.steps.filter(step => step.rail === "internal") as InternalTransactionPlanStep[];
+    for (let step of internalSteps) {
+        let internalTransactionStep = TransactionPlanStep.toInternalTransactionStep(step);
+        delete internalTransactionStep.rail;
+        const internalDbTransactionStep = {
+            ...internalTransactionStep,
+            userId: auth.giftbitUserId,
+            id: crypto.createHash("sha1").update(plan.id + "/" + step.internalId).digest("base64"),
+            transactionId: plan.id
+        } as InternalDbTransactionStep;
+        await trx.into("InternalTransactionSteps")
+            .insert(internalDbTransactionStep);
     }
 }

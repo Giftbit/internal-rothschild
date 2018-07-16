@@ -73,8 +73,7 @@ export function getStepPermutations(steps: TransactionPlanStep[]): TransactionPl
     let filteredSteps = filterSteps(steps);
     let lightrailPerms: TransactionPlanStep[][] = listPermutations(filteredSteps.lighrailSteps);
 
-    const result = lightrailPerms.map(perm => [...filteredSteps.stepsBeforeLightrail, ...perm, ...filteredSteps.stepsAfterLightrail]);
-    return result;
+    return lightrailPerms.map(perm => [...filteredSteps.stepsBeforeLightrail, ...perm, ...filteredSteps.stepsAfterLightrail]);
 }
 
 export function filterSteps(steps: TransactionPlanStep[]): FilteredSteps {
