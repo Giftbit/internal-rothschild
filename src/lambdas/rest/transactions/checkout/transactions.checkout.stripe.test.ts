@@ -546,7 +546,7 @@ describe("split tender checkout with Stripe", () => {
 
             const request = {
                 ...basicRequest,
-                id: `rollback-test-${Math.random()}`  // needs to be generated for every test so the Stripe refund succeeds (charges use idempotency keys, refunds can't)
+                id: `rollback-${Math.random()}`  // needs to be generated for every test so the Stripe refund succeeds (charges use idempotency keys, refunds can't)
             };
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
             chai.assert.equal(postCheckoutResp.statusCode, 500, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
