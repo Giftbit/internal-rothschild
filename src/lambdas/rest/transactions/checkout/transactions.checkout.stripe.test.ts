@@ -684,7 +684,7 @@ describe("split tender checkout with Stripe", () => {
 
 });
 
-function setStubsForStripeTests() {
+export function setStubsForStripeTests() {
     const testAssumeToken: giftbitRoutes.secureConfig.AssumeScopeToken = {
         assumeToken: "this-is-an-assume-token"
     };
@@ -712,7 +712,7 @@ function setStubsForStripeTests() {
     });
 }
 
-function unsetStubsForStripeTests() {
+export function unsetStubsForStripeTests() {
     (giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as any).restore();
     (kvsAccess.kvsGet as any).restore();
 }

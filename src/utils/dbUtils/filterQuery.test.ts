@@ -39,7 +39,7 @@ describe("filterQuery()", () => {
             c: v.c,
             d: v.d,
             codeHashed: hashCode(v.code)
-        }
+        };
     }
 
     const filterTestFilterOptions: FilterQueryOptions = {
@@ -393,7 +393,7 @@ describe("filterQuery()", () => {
                 .where("indexPlus25", 75)
                 .orderBy("id");
             chai.assert.lengthOf(expected, 1);
-            chai.assert.equal(expected[0].id, "id-50",);
+            chai.assert.equal(expected[0].id, "id-50");
 
             const actual: FilterTestDb[] = await filterQuery(
                 knex("FilterTest")
@@ -548,7 +548,7 @@ describe("filterQuery()", () => {
             chai.assert.deepEqual(actual, expected);
         });
     });
-    //"lt", "lte", "ne"
+    // "lt", "lte", "ne"
 
     it("querying by hashed value with 'in' operator and multiple values", async () => {
         const knex = await getKnexRead();

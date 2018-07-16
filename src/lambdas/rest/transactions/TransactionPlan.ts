@@ -58,6 +58,6 @@ export namespace TransactionPlanStep {
             balanceBefore: step.balance - step.amount /* amount is negative */,
             balanceAfter: step.balance,
             balanceChange: step.amount
-        }
+        };
     }
 }

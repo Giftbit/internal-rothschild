@@ -98,7 +98,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
     calculateTaxAndSetOnLineItems(): void {
         for (let item of this.lineItems) {
             let tax = 0;
-            item.lineTotal.taxable = item.lineTotal.subtotal - item.lineTotal.discount;
+            item.lineTotal.taxable = item.lineTotal.remainder;
             if (item.taxRate >= 0) {
                 tax = bankersRounding(item.taxRate * item.lineTotal.taxable, 0);
             }

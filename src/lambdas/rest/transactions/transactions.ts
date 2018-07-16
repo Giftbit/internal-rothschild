@@ -402,6 +402,9 @@ const internalPartySchema: jsonschema.Schema = {
         },
         beforeLightrail: {
             type: "boolean"
+        },
+        pretax: {
+            type: "boolean"
         }
     },
     required: ["rail", "internalId", "balance"]
