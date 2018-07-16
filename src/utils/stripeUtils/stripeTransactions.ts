@@ -14,7 +14,7 @@ import ICharge = Stripe.charges.ICharge;
 export async function createStripeCharge(params: any, lightrailStripeSecretKey: string, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<ICharge> {
     const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
     // params.description = "Lightrail Checkout transaction.";  // todo what is this
-    log.info(`Creating transaction ${JSON.stringify(params)}.`);
+    log.info(`Creating Stripe charge ${JSON.stringify(params)}.`);
 
     let charge: ICharge;
     try {
@@ -36,20 +36,20 @@ export async function createStripeCharge(params: any, lightrailStripeSecretKey: 
                 throw new Error(`An unexpected error occurred while attempting to charge card. error ${err}`);
         }
     }
-    log.info(`Created charge ${JSON.stringify(charge)}`); // todo is this safe to log?
+    log.info(`Created Stripe charge ${JSON.stringify(charge)}`); // todo is this safe to log?
     return charge;
 }
 
 export async function rollbackStripeSteps(lightrailStripeSecretKey: string, merchantStripeAccountId: string, steps: StripeTransactionPlanStep[], reason: string): Promise<void> {
     for (const step of steps) {
         const refund = await createRefund(step, lightrailStripeSecretKey, merchantStripeAccountId, reason);
-        log.info(`Refunded charge ${step.chargeResult.id}. Refund: ${JSON.stringify(refund)}.`);
+        log.info(`Refunded Stripe charge ${step.chargeResult.id}. Refund: ${JSON.stringify(refund)}.`);
     }
 }
 
 export async function createRefund(step: StripeTransactionPlanStep, lightrailStripeSecretKey: string, merchantStripeAccountId: string, reason?: string): Promise<IRefund> {
     const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
-    log.info(`Creating refund for charge ${step.chargeResult.id}.`);
+    log.info(`Creating refund for Stripe charge ${step.chargeResult.id}.`);
     const refund = await lightrailStripe.refunds.create({
         charge: step.chargeResult.id,
         metadata: {reason: reason || "not specified"} /* Doesn't show up in charge in stripe. Need to update charge so that it's obvious as to why it was refunded. */
@@ -59,13 +59,13 @@ export async function createRefund(step: StripeTransactionPlanStep, lightrailStr
     await updateCharge(step.chargeResult.id, {
         description: reason
     }, lightrailStripeSecretKey, merchantStripeAccountId);
-    log.info(JSON.stringify(refund));
+    log.info(`Created Stripe refund for charge ${step.chargeResult.id}: ${refund}`);
     return refund;
 }
 
 export async function updateCharge(chargeId: string, params: StripeUpdateChargeParams, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<any> {
     const merchantStripe = require("stripe")(lightrailStripeSecretKey);
-    log.info(`Updating charge ${JSON.stringify(params)}.`);
+    log.info(`Updating Stripe charge ${JSON.stringify(params)}.`);
     const chargeUpdate = await merchantStripe.charges.update(
         chargeId,
         params, {
@@ -73,7 +73,7 @@ export async function updateCharge(chargeId: string, params: StripeUpdateChargeP
         }
     );
     // todo make this a DTO.
-    log.info(`Updated charge ${JSON.stringify(chargeUpdate)}.`);
+    log.info(`Updated Stripe charge ${JSON.stringify(chargeUpdate)}.`);
     return chargeUpdate;
 }
 
