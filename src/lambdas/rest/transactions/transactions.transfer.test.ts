@@ -634,6 +634,33 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.equal(postTransferResp.statusCode, 422, `body=${JSON.stringify(postTransferResp.body)}`);
         });
 
-        it("respects Stripe minimum of $0.50");  // todo write test(s) when we decide how to handle this
+        describe("respects Stripe minimum of $0.50", () => {
+            before(async function () {
+                if (!process.env["STRIPE_PLATFORM_KEY"] || !process.env["STRIPE_CONNECTED_ACCOUNT_ID"] || !process.env["STRIPE_CUSTOMER_ID"]) {
+                    this.skip();
+                    return;
+                }
+            });
+
+            it("fails the transfer by default", async () => {
+                const request = {
+                    id: "insufficient-stripe-amount",
+                    currency: "CAD",
+                    amount: 25,
+                    source: {
+                        rail: "stripe",
+                        source: "tok_visa",
+                    },
+                    destination: {
+                        rail: "lightrail",
+                        valueId: valueCadForStripeTests.id
+                    }
+                };
+                const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
+                chai.assert.equal(postTransferResp.statusCode, 409, `body=${JSON.stringify(postTransferResp.body)}`);
+                chai.assert.isNotNull((postTransferResp.body as any).messageCode, `body=${JSON.stringify(postTransferResp.body)}`);
+                chai.assert.equal((postTransferResp.body as any).messageCode, "StripeAmountTooSmall", `body=${JSON.stringify(postTransferResp.body)}`);
+            });
+        });
     });
 });
