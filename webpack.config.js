@@ -84,9 +84,9 @@ module.exports = function (env) {
                     filename: `${fxn}.zip`
                 }),
 
-                // Knex drivers we won't use.
+                // Knex dialects we won't use.
                 new webpack.IgnorePlugin(/mssql/, /\/knex\//),
-                new webpack.IgnorePlugin(/mysql/, /\/knex\//),
+                // new webpack.IgnorePlugin(/mysql/, /\/knex\//), // Referenced by mysql2, which we use.
                 new webpack.IgnorePlugin(/oracle/, /\/knex\//),
                 new webpack.IgnorePlugin(/oracledb/, /\/knex\//),
                 new webpack.IgnorePlugin(/postgres/, /\/knex\//),
@@ -99,7 +99,14 @@ module.exports = function (env) {
                 'aws-sdk': 'aws-sdk',
                 'awslambda': 'awslambda',
                 'dynamodb-doc': 'dynamodb-doc',
-                'imagemagick': 'imagemagick'
+                'imagemagick': 'imagemagick',
+
+                // Knex drivers we won't use.
+                'mssql': 'mssql',
+                'mysql': 'mysql',
+                'oracle': 'oracle',
+                'pg': 'pg',
+                'sqlite3': 'sqlite3'
             },
             node: {
                 // Allow these globals.
