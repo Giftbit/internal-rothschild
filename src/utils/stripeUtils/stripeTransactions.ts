@@ -6,6 +6,7 @@ import {LightrailAndMerchantStripeConfig} from "./StripeConfig";
 import {StripeTransactionParty} from "../../model/TransactionRequest";
 import {TransactionPlanError} from "../../lambdas/rest/transactions/TransactionPlanError";
 import {StripeCreateChargeParams} from "./StripeCreateChargeParams";
+import * as giftbitRoutes from "giftbit-cassava-routes";
 import log = require("loglevel");
 import Stripe = require("stripe");
 import IRefund = Stripe.refunds.IRefund;
@@ -41,9 +42,14 @@ export async function createStripeCharge(params: any, lightrailStripeSecretKey: 
 }
 
 export async function rollbackStripeSteps(lightrailStripeSecretKey: string, merchantStripeAccountId: string, steps: StripeTransactionPlanStep[], reason: string): Promise<void> {
-    for (const step of steps) {
-        const refund = await createRefund(step, lightrailStripeSecretKey, merchantStripeAccountId, reason);
-        log.info(`Refunded charge ${step.chargeResult.id}. Refund: ${JSON.stringify(refund)}.`);
+    try {
+        for (const step of steps) {
+            const refund = await createRefund(step, lightrailStripeSecretKey, merchantStripeAccountId, reason);
+            log.info(`Refunded charge ${step.chargeResult.id}. Refund: ${JSON.stringify(refund)}.`);
+        }
+    } catch (err) {
+        giftbitRoutes.sentry.sendErrorNotification(err);
+        throw err;
     }
 }
 
@@ -56,9 +62,14 @@ export async function createRefund(step: StripeTransactionPlanStep, lightrailStr
     }, {
         stripe_account: merchantStripeAccountId
     });
-    await updateCharge(step.chargeResult.id, {
-        description: reason
-    }, lightrailStripeSecretKey, merchantStripeAccountId);
+    try {
+        await updateCharge(step.chargeResult.id, {
+            description: reason
+        }, lightrailStripeSecretKey, merchantStripeAccountId);
+    } catch (err) {
+        giftbitRoutes.sentry.sendErrorNotification(err);
+        throw err;
+    }
     log.info(JSON.stringify(refund));
     return refund;
 }
@@ -66,13 +77,18 @@ export async function createRefund(step: StripeTransactionPlanStep, lightrailStr
 export async function updateCharge(chargeId: string, params: StripeUpdateChargeParams, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<any> {
     const merchantStripe = require("stripe")(lightrailStripeSecretKey);
     log.info(`Updating charge ${JSON.stringify(params)}.`);
-    const chargeUpdate = await merchantStripe.charges.update(
-        chargeId,
-        params, {
-            stripe_account: merchantStripeAccountId,
-        }
-    );
-    // todo make this a DTO.
+    let chargeUpdate;
+    try {
+        chargeUpdate = await merchantStripe.charges.update(
+            chargeId,
+            params, {
+                stripe_account: merchantStripeAccountId,
+            }
+        );  // todo make this a DTO.
+    } catch (err) {
+        giftbitRoutes.sentry.sendErrorNotification(err);
+        throw err;
+    }
     log.info(`Updated charge ${JSON.stringify(chargeUpdate)}.`);
     return chargeUpdate;
 }
