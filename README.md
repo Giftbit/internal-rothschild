@@ -14,4 +14,4 @@ If you don't have a second account connected to your main Stripe account (in tes
 - Log out and log into your FIRST Stripe account (this will be the "platform" account) and go here: https://dashboard.stripe.com/account/applications/settings (make sure "Viewing test data" is toggled to "on")
 - Click the "Test OAuth" button in the "Client IDs" section
 - Copy & paste the URL into a private browser window
-- Go through the OAuth flow with your second account
+- Go through the OAuth flow with your second account. The last step is to make a `curl` call from the command line to confirm connecting the accounts. You will need the `stripe_user_id` from the response: this is the `STRIPE_CONNECTED_ACCOUNT_ID` in the .env file. 

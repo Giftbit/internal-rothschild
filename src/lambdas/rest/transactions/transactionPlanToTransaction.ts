@@ -57,7 +57,7 @@ function lightrailTransactionPlanStepToTransactionStep(step: LightrailTransactio
 function stripeTransactionPlanStepToTransactionStep(step: StripeTransactionPlanStep, plan: TransactionPlan): StripeTransactionStep {
     const res: StripeTransactionStep = {
         rail: "stripe",
-        amount: step.amount,
+        amount: -step.amount,
     };
     if (step.chargeResult) {
         res.chargeId = step.chargeResult.id;

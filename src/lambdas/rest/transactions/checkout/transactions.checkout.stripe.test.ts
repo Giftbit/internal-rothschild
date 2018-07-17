@@ -5,14 +5,21 @@ import * as valueStores from "../../values";
 import * as currencies from "../../currencies";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as sinon from "sinon";
-import {fetchFromS3ByEnvVar} from "giftbit-cassava-routes/dist/secureConfig";
 import {Value} from "../../../../model/Value";
 import {StripeTransactionStep, Transaction} from "../../../../model/Transaction";
 import {Currency} from "../../../../model/Currency";
 import * as kvsAccess from "../../../../utils/kvsAccess";
 import {TransactionPlanError} from "../TransactionPlanError";
-import * as insertTransaction from "../../../../utils/dbUtils/insertTransactions";
+import * as insertTransaction from "../insertTransactions";
 import * as testUtils from "../../../../utils/testUtils";
+import {
+    setStubsForStripeTests,
+    stripeEnvVarsPresent,
+    unsetStubsForStripeTests
+} from "../../../../utils/testUtils/stripeTestUtils";
+import chaiExclude = require("chai-exclude");
+
+chai.use(chaiExclude);
 
 require("dotenv").config();
 
@@ -48,7 +55,7 @@ describe("split tender checkout with Stripe", () => {
     };
 
     before(async function () {
-        if (!process.env["STRIPE_PLATFORM_KEY"] || !process.env["STRIPE_CONNECTED_ACCOUNT_ID"] || !process.env["STRIPE_CUSTOMER_ID"]) {
+        if (!stripeEnvVarsPresent()) {
             this.skip();
             return;
         }
@@ -72,6 +79,10 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
 
         setStubsForStripeTests();
+    });
+
+    after(() => {
+        unsetStubsForStripeTests();
     });
 
     it("processes basic checkout with Stripe only", async () => {
@@ -124,7 +135,7 @@ describe("split tender checkout with Stripe", () => {
             {
                 rail: "stripe",
                 chargeId: "",
-                amount: 123,
+                amount: -123,
                 charge: null
             }
         ], ["chargeId", "charge"], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
@@ -189,7 +200,7 @@ describe("split tender checkout with Stripe", () => {
             {
                 rail: "stripe",
                 chargeId: "",
-                amount: 123,
+                amount: -123,
                 charge: null
             }
         ], ["chargeId", "charge"], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
@@ -244,7 +255,7 @@ describe("split tender checkout with Stripe", () => {
             {
                 rail: "stripe",
                 chargeId: "",
-                amount: 400,
+                amount: -400,
                 charge: null
             }
         ], ["chargeId", "charge"], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
@@ -370,7 +381,7 @@ describe("split tender checkout with Stripe", () => {
     it("writes metadata to both LR & Stripe transactions", async () => {
         const request = {
             ...basicRequest,
-            id: "split-tender-w-metadata",
+            id: "stripe-lr-meta",
             metadata: {"meta": "data"}
         };
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
@@ -462,7 +473,7 @@ describe("split tender checkout with Stripe", () => {
             {
                 rail: "stripe",
                 chargeId: null,
-                amount: 400,
+                amount: -400,
                 charge: null
             }
         ], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
@@ -491,11 +502,7 @@ describe("split tender checkout with Stripe", () => {
                 secretKey: process.env["STRIPE_PLATFORM_KEY"],
                 publishableKey: "test-pk",
             },
-            live: {
-                clientId: "test-live-client-id",
-                secretKey: process.env["STRIPE_PLATFORM_KEY"],  // this is a bit problematic: we should be testing with test keys (that's what this is right now)
-                publishableKey: "test-live-pk",
-            },
+            live: {},
         });
         chai.assert.deepEqual(await kvsAccess.kvsGet("this-is-an-assume-token", "stripeAuth", ""), {
             token_type: "bearer",
@@ -508,8 +515,8 @@ describe("split tender checkout with Stripe", () => {
     it.skip("captures Lightrail and Stripe charges together");
 
     describe("rollback", () => {
-        before(async function () {
-            if (!process.env["STRIPE_PLATFORM_KEY"] || !process.env["STRIPE_CONNECTED_ACCOUNT_ID"] || !process.env["STRIPE_CUSTOMER_ID"]) {
+        before(function () {
+            if (!stripeEnvVarsPresent()) {
                 this.skip();
                 return;
             }
@@ -534,7 +541,7 @@ describe("split tender checkout with Stripe", () => {
             };
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
             chai.assert.equal(postCheckoutResp.statusCode, 400, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
-        }).timeout(3000);
+        }).timeout(3500);
 
         it("rolls back the Stripe transaction when the Lightrail transaction fails", async () => {
             let stubProcessLightrailTransactionSteps = sinon.stub(insertTransaction, "insertLightrailTransactionSteps");
@@ -542,14 +549,14 @@ describe("split tender checkout with Stripe", () => {
 
             const request = {
                 ...basicRequest,
-                id: `rollback-test-${Math.random()}`  // needs to be generated for every test so the Stripe refund succeeds (charges use idempotency keys, refunds can't)
+                id: `rollback-${Math.random()}`  // needs to be generated for every test so the Stripe refund succeeds (charges use idempotency keys, refunds can't)
             };
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
             chai.assert.equal(postCheckoutResp.statusCode, 500, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
             // todo check that metadata on Stripe charge gets updated with refund note
 
             (insertTransaction.insertLightrailTransactionSteps as any).restore();
-        }).timeout(3000);
+        }).timeout(3500);
 
         it("throws 409 'transaction already exists' if the Lightrail transaction fails for idempotency reasons", async () => {
             let stubInsertTransaction = sinon.stub(insertTransaction, "insertTransaction");
@@ -579,7 +586,7 @@ describe("split tender checkout with Stripe", () => {
 
         const source2 = "tok_mastercard";
         const request = {
-            id: "checkout-w-stripe-2-sources",
+            id: "checkout-2-stripe-sources",
             sources: [
                 {
                     rail: "lightrail",
@@ -643,13 +650,13 @@ describe("split tender checkout with Stripe", () => {
             {
                 rail: "stripe",
                 chargeId: "",
-                amount: 100,
+                amount: -100,
                 charge: null
             },
             {
                 rail: "stripe",
                 chargeId: "",
-                amount: 300,
+                amount: -300,
                 charge: null
             }
         ], ["chargeId", "charge"], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
@@ -682,37 +689,48 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["statusCode"], `body=${JSON.stringify(getCheckoutResp.body, null, 4)}`);
     }).timeout(3000);
 
+    describe("respects Stripe minimum charge of $0.50", () => {
+        before(function () {
+            if (!stripeEnvVarsPresent()) {
+                this.skip();
+                return;
+            }
+        });
+
+        it("fails the transaction by default", async () => {
+            const value3: Partial<Value> = {
+                id: "value-for-checkout3",
+                currency: "CAD",
+                balance: 100
+            };
+            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value3);
+            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+            const request = {
+                id: "checkout-w-stripe-2-sources",
+                sources: [
+                    {
+                        rail: "lightrail",
+                        valueId: value3.id
+                    },
+                    {
+                        rail: "stripe",
+                        source: source,
+                    },
+                ],
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "xyz-123",
+                        unitPrice: 125
+                    }
+                ],
+                currency: "CAD"
+            };
+            const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+            chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body)}`);
+
+        });
+    });
+
 });
-
-function setStubsForStripeTests() {
-    const testAssumeToken: giftbitRoutes.secureConfig.AssumeScopeToken = {
-        assumeToken: "this-is-an-assume-token"
-    };
-
-    let stubFetchFromS3ByEnvVar = sinon.stub(giftbitRoutes.secureConfig, "fetchFromS3ByEnvVar");
-    stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_CHECKOUT_TOKEN").resolves(testAssumeToken);
-    stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE").resolves({
-        email: "test@test.com",
-        test: {
-            clientId: "test-client-id",
-            secretKey: process.env["STRIPE_PLATFORM_KEY"],
-            publishableKey: "test-pk",
-        },
-        live: {
-            clientId: "test-live-client-id",
-            secretKey: process.env["STRIPE_PLATFORM_KEY"],  // this is a bit problematic: we should be testing with test keys (that's what this is right now)
-            publishableKey: "test-live-pk",
-        },
-    });
-
-    let stubKvsGet = sinon.stub(kvsAccess, "kvsGet");
-    stubKvsGet.withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string).resolves({
-        token_type: "bearer",
-        stripe_user_id: process.env["STRIPE_CONNECTED_ACCOUNT_ID"],
-    });
-}
-
-function unsetStubsForStripeTests() {
-    (giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as any).restore();
-    (kvsAccess.kvsGet as any).restore();
-}

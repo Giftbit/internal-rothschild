@@ -12,6 +12,7 @@ import {paginateQuery} from "../../../utils/dbUtils/paginateQuery";
 import {LightrailTransactionPlanStep} from "./TransactionPlan";
 import {optimizeCheckout} from "./checkout/checkoutTransactionPlanner";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
+import {createTransferTransactionPlan, resolveTransferTransactionParties} from "./transferTransactionPlanner";
 import getPaginationParams = Pagination.getPaginationParams;
 import getTransactionFilterParams = Filters.getTransactionFilterParams;
 
@@ -254,39 +255,8 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
             allowRemainder: req.allowRemainder
         },
         async () => {
-            const sourceParties = await resolveTransactionParties(auth, req.currency, [req.source], req.id);
-            if (sourceParties.length !== 1 || sourceParties[0].rail !== "lightrail") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable Value.", "InvalidParty");
-            }
-
-            const destParties = await resolveTransactionParties(auth, req.currency, [req.destination], req.id);
-            if (destParties.length !== 1 || destParties[0].rail !== "lightrail") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable Value.", "InvalidParty");
-            }
-
-            const amount = Math.min(req.amount, (sourceParties[0] as LightrailTransactionPlanStep).value.balance);
-            return {
-                id: req.id,
-                transactionType: "transfer",
-                currency: req.currency,
-                steps: [
-                    {
-                        rail: "lightrail",
-                        value: (sourceParties[0] as LightrailTransactionPlanStep).value,
-                        amount: -amount
-                    },
-                    {
-                        rail: "lightrail",
-                        value: (destParties[0] as LightrailTransactionPlanStep).value,
-                        amount
-                    }
-                ],
-                createdDate: nowInDbPrecision(),
-                metadata: req.metadata,
-                totals: {remainder: req.amount - amount},
-                lineItems: null,
-                paymentSources: null  // TODO need to make sense of 'source' in req vs 'paymentSources' in db
-            };
+            const parties = await resolveTransferTransactionParties(auth, req);
+            return await createTransferTransactionPlan(req, parties);
         }
     );
 }
@@ -477,7 +447,13 @@ const transferSchema: jsonschema.Schema = {
             type: "string",
             minLength: 1
         },
-        source: lightrailUniquePartySchema,
+        source: {
+            oneOf: [
+                lightrailPartySchema,
+                stripePartySchema
+            ]
+        }
+        ,
         destination: lightrailUniquePartySchema,
         amount: {
             type: "integer",
