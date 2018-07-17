@@ -80,7 +80,7 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
                 amount = Math.min(item.lineTotal.remainder, bankersRounding(valueFromRule, 0) | 0);
                 step.amount -= amount;
             } else {
-                amount = Math.min(item.lineTotal.remainder, getAvailableBalance(value, step));
+                amount = Math.min(item.lineTotal.remainder, getAvailableBalance(value.balance, step.amount));
                 step.amount -= amount;
             }
             item.lineTotal.remainder -= amount;
@@ -118,13 +118,12 @@ function calculateAmountForStripeTransactionStep(step: StripeTransactionPlanStep
 
 function calculateAmountForInternalTransactionStep(step: InternalTransactionPlanStep, transactionPlan: TransactionPlan): void {
     for (const item of transactionPlan.lineItems) {
-        const amount = Math.min(item.lineTotal.remainder, step.balance);
-        step.balance -= amount;
+        const amount = Math.min(item.lineTotal.remainder, getAvailableBalance(step.balance, step.amount));
         step.amount -= amount;
         item.lineTotal.remainder -= amount;
     }
 }
 
-function getAvailableBalance(value: Value, step: LightrailTransactionPlanStep): number {
-    return value.balance + step.amount;
+function getAvailableBalance(balance: number, negativeStepAmount: number): number {
+    return balance + negativeStepAmount;
 }

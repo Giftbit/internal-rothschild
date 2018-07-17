@@ -1,12 +1,11 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import * as transactions from "../transactions";
-import * as valueStores from "../../values";
 import * as testUtils from "../../../../utils/testUtils";
 import {generateId} from "../../../../utils/testUtils";
 import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
+import {installRestRoutes} from "../../installRestRoutes";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -18,8 +17,7 @@ describe("/v2/transactions/checkout - internal sources", () => {
     before(async function () {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
-        transactions.installTransactionsRest(router);
-        valueStores.installValuesRest(router);
+        installRestRoutes(router);
         await createCurrency(testUtils.defaultTestUser.auth, {
             code: "CAD",
             name: "Canadian Tire Money",

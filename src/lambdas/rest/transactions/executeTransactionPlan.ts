@@ -2,7 +2,6 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
 import {StripeTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {Transaction} from "../../../model/Transaction";
-import {transactionPlanToTransaction} from "./transactionPlanToTransaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import * as log from "loglevel";
@@ -33,7 +32,7 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
                 throw new giftbitRoutes.GiftbitRestError(409, "Insufficient balance for the transaction.", "InsufficientBalance");
             }
             if (options.simulate) {
-                return transactionPlanToTransaction(plan);
+                return TransactionPlan.transactionPlanToTransaction(plan);
             }
             return await executeTransactionPlan(auth, plan);
         } catch (err) {
@@ -103,5 +102,5 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         }
     });
 
-    return transactionPlanToTransaction(plan);
+    return TransactionPlan.transactionPlanToTransaction(plan);
 }
