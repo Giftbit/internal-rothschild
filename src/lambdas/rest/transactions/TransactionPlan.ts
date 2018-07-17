@@ -63,18 +63,6 @@ export interface InternalTransactionPlanStep {
     amount: number;
 }
 
-export namespace TransactionPlanStep {
-    export function toInternalTransactionStep(step: InternalTransactionPlanStep): InternalTransactionStep {
-        return {
-            rail: "internal",
-            internalId: step.internalId,
-            balanceBefore: step.balance,
-            balanceAfter: step.balance + step.amount,
-            balanceChange: step.amount
-        };
-    }
-}
-
 export namespace LightrailTransactionPlanStep {
     export function toLightrailDbTransactionStep(step: LightrailTransactionPlanStep, plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge, stepIndex: number): LightrailDbTransactionStep {
         return {
@@ -133,7 +121,7 @@ export namespace StripeTransactionPlanStep {
         if (step.chargeResult) {
             stripeTransactionStep.chargeId = step.chargeResult.id;
             stripeTransactionStep.charge = step.chargeResult;
-            stripeTransactionStep.amount = -step.chargeResult.amount /* chargeResult.amount is positive for debits */;
+            stripeTransactionStep.amount = -step.chargeResult.amount /* chargeResult.amount is positive for debits in Stripe */;
         }
         return stripeTransactionStep
     }
