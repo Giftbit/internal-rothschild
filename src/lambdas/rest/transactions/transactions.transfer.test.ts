@@ -7,7 +7,6 @@ import {Value} from "../../../model/Value";
 import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../model/Transaction";
 import {Currency} from "../../../model/Currency";
 import {installRestRoutes} from "../installRestRoutes";
-import {afterEach, before, beforeEach, describe, it} from "mocha";
 import {
     setStubsForStripeTests,
     stripeEnvVarsPresent,
@@ -424,17 +423,15 @@ describe("/v2/transactions/transfer", () => {
     });
 
     describe("stripe transfers", () => {
-        before(async function () {
+        before(function () {
             if (!stripeEnvVarsPresent()) {
                 this.skip();
                 return;
             }
-        });
-        beforeEach(() => {
             setStubsForStripeTests();
-
         });
-        afterEach(() => {
+
+        after(() => {
             unsetStubsForStripeTests();
         });
 

@@ -77,14 +77,11 @@ describe("split tender checkout with Stripe", () => {
 
         const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
-    });
 
-    beforeEach(() => {
         setStubsForStripeTests();
-
     });
 
-    afterEach(() => {
+    after(() => {
         unsetStubsForStripeTests();
     });
 
@@ -384,7 +381,7 @@ describe("split tender checkout with Stripe", () => {
     it("writes metadata to both LR & Stripe transactions", async () => {
         const request = {
             ...basicRequest,
-            id: "stripe-lr-w-meta",
+            id: "stripe-lr-meta",
             metadata: {"meta": "data"}
         };
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
@@ -518,7 +515,7 @@ describe("split tender checkout with Stripe", () => {
     it.skip("captures Lightrail and Stripe charges together");
 
     describe("rollback", () => {
-        before(async function () {
+        before(function () {
             if (!stripeEnvVarsPresent()) {
                 this.skip();
                 return;
@@ -693,7 +690,7 @@ describe("split tender checkout with Stripe", () => {
     }).timeout(3000);
 
     describe("respects Stripe minimum charge of $0.50", () => {
-        before(async function () {
+        before(function () {
             if (!stripeEnvVarsPresent()) {
                 this.skip();
                 return;
