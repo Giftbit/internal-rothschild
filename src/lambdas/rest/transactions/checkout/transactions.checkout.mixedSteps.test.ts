@@ -259,5 +259,5 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             "rail": "lightrail",
             "valueId": promotion.id
         });
-    });
+    }).timeout(5000);
 });
