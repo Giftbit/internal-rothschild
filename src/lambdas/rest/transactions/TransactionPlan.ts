@@ -1,5 +1,6 @@
 import * as stripe from "stripe";
 import {
+    DbTransaction,
     InternalDbTransactionStep,
     InternalTransactionStep,
     LightrailDbTransactionStep,
@@ -153,17 +154,25 @@ export namespace InternalTransactionPlanStep {
 }
 
 export namespace TransactionPlan {
-    export function transactionPlanToTransaction(plan: TransactionPlan, simulated?: boolean): Transaction {
+    export function toDbTransaction(plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge): DbTransaction {
+        return {
+            userId: auth.giftbitUserId,
+            ...getSharedProperties(plan),
+            totals: JSON.stringify(plan.totals),
+            lineItems: JSON.stringify(plan.lineItems),
+            paymentSources: JSON.stringify(plan.paymentSources),
+            metadata: JSON.stringify(plan.metadata)
+        };
+    }
+
+    export function toTransaction(plan: TransactionPlan, simulated?: boolean): Transaction {
         const transaction: Transaction = {
-            id: plan.id,
-            transactionType: plan.transactionType,
-            currency: plan.currency,
+            ...getSharedProperties(plan),
             totals: plan.totals,
             lineItems: plan.lineItems,
-            steps: plan.steps.map(step => transactionPlanStepToTransactionStep(step, plan)),
+            steps: plan.steps.map(step => transactionPlanStepToTransactionStep(step)),
             paymentSources: plan.paymentSources,
-            metadata: plan.metadata || null,
-            createdDate: plan.createdDate
+            metadata: plan.metadata || null
         };
         if (simulated) {
             transaction.simulated = true;
@@ -171,7 +180,16 @@ export namespace TransactionPlan {
         return transaction;
     }
 
-    function transactionPlanStepToTransactionStep(step: TransactionPlanStep, plan: TransactionPlan): TransactionStep {
+    function getSharedProperties(plan: TransactionPlan) {
+        return {
+            id: plan.id,
+            transactionType: plan.transactionType,
+            currency: plan.currency,
+            createdDate: plan.createdDate
+        }
+    }
+
+    function transactionPlanStepToTransactionStep(step: TransactionPlanStep): TransactionStep {
         switch (step.rail) {
             case "lightrail":
                 return LightrailTransactionPlanStep.toLightrailTransactionStep(step);
