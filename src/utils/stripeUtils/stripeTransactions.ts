@@ -132,6 +132,6 @@ function stripeTransactionPlanStepToStripeRequest(step: StripeTransactionPlanSte
         stepForStripe.customer = step.customer;
     }
 
-    console.log("Created stepForStripe: \n" + JSON.stringify(stepForStripe, null, 4));
+    log.debug("Created stepForStripe: \n" + JSON.stringify(stepForStripe, null, 4));
     return stepForStripe;
 }

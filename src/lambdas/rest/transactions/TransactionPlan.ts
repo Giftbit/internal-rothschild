@@ -70,14 +70,14 @@ export namespace LightrailTransactionPlanStep {
             id: `${plan.id}-${stepIndex}`,
             transactionId: plan.id,
             ...getSharedProperties(step)
-        }
+        };
     }
 
     export function toLightrailTransactionStep(step: LightrailTransactionPlanStep): LightrailTransactionStep {
         return {
             rail: "lightrail",
             ...getSharedProperties(step),
-        }
+        };
     }
 
     function getSharedProperties(step: LightrailTransactionPlanStep) {
@@ -106,7 +106,7 @@ export namespace StripeTransactionPlanStep {
             chargeId: step.chargeResult.id,
             amount: -step.chargeResult.amount /* Note, chargeResult.amount is positive in Stripe but Lightrail treats debits as negative amounts on Steps. */,
             charge: JSON.stringify(step.chargeResult)
-        }
+        };
     }
 
     export function toStripeTransactionStep(step: StripeTransactionPlanStep): StripeTransactionStep {
@@ -121,7 +121,7 @@ export namespace StripeTransactionPlanStep {
             stripeTransactionStep.charge = step.chargeResult;
             stripeTransactionStep.amount = -step.chargeResult.amount /* Note, chargeResult.amount is positive in Stripe but Lightrail treats debits as negative amounts on Steps. */;
         }
-        return stripeTransactionStep
+        return stripeTransactionStep;
     }
 }
 
@@ -132,14 +132,14 @@ export namespace InternalTransactionPlanStep {
             id: crypto.createHash("sha1").update(plan.id + "/" + step.internalId).digest("base64"),
             transactionId: plan.id,
             ...getSharedProperties(step)
-        }
+        };
     }
 
     export function toInternalTransactionStep(step: InternalTransactionPlanStep): InternalTransactionStep {
         return {
             rail: "internal",
             ...getSharedProperties(step)
-        }
+        };
     }
 
     function getSharedProperties(step: InternalTransactionPlanStep) {
@@ -148,7 +148,7 @@ export namespace InternalTransactionPlanStep {
             balanceBefore: step.balance,
             balanceAfter: step.balance + step.amount /* step.amount is negative if debit */,
             balanceChange: step.amount
-        }
+        };
     }
 }
 
