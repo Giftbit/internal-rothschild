@@ -660,7 +660,7 @@ describe("/v2/transactions/transfer", () => {
                     }
                 };
                 const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
-                chai.assert.equal(postTransferResp.statusCode, 409, `body=${JSON.stringify(postTransferResp.body)}`);
+                chai.assert.equal(postTransferResp.statusCode, 400, `body=${JSON.stringify(postTransferResp.body)}`);
                 chai.assert.isNotNull((postTransferResp.body as any).messageCode, `body=${JSON.stringify(postTransferResp.body)}`);
                 chai.assert.equal((postTransferResp.body as any).messageCode, "StripeAmountTooSmall", `body=${JSON.stringify(postTransferResp.body)}`);
             });
