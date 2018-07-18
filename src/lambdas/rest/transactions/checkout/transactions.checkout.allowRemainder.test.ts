@@ -1,5 +1,6 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
+import chaiExclude = require("chai-exclude");
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as transactions from "../transactions";
 import * as valueStores from "../../values";
@@ -7,7 +8,8 @@ import * as testUtils from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
 import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
-import {before} from "mocha";
+
+chai.use(chaiExclude);
 
 describe("/v2/transactions/checkout - allowRemainder tests", () => {
 

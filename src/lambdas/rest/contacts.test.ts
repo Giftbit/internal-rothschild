@@ -1,5 +1,6 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
+import chaiExclude = require("chai-exclude");
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as parseLinkHeader from "parse-link-header";
 import * as testUtils from "../../utils/testUtils";
@@ -10,7 +11,7 @@ import {Value} from "../../model/Value";
 import {Currency} from "../../model/Currency";
 import {installRestRoutes} from "./installRestRoutes";
 
-chai.use(require("chai-exclude"));
+chai.use(chaiExclude);
 
 describe("/v2/contacts", () => {
 

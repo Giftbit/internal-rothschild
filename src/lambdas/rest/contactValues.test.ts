@@ -8,7 +8,6 @@ import {createContact} from "./contacts";
 import {Currency} from "../../model/Currency";
 import {createCurrency} from "./currencies";
 import {Value} from "../../model/Value";
-import {describe, it, before} from "mocha";
 import {initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils";
 
 describe("/v2/contacts/values", () => {

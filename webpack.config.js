@@ -46,7 +46,8 @@ module.exports = function (env) {
                                     babelrc: false
                                 }
                             },
-                            'ts-loader'
+                            'ts-loader',
+                            'import-glob-loader'    // enables globs in import statements
                         ]
                     },
                     {
@@ -81,7 +82,16 @@ module.exports = function (env) {
                     path: path.join(__dirname, 'dist', fxn),
                     pathPrefix: '',
                     filename: `${fxn}.zip`
-                })
+                }),
+
+                // Knex dialects we won't use.
+                new webpack.IgnorePlugin(/mssql/, /\/knex\//),
+                // new webpack.IgnorePlugin(/mysql/, /\/knex\//), // Referenced by mysql2, which we use.
+                new webpack.IgnorePlugin(/oracle/, /\/knex\//),
+                new webpack.IgnorePlugin(/oracledb/, /\/knex\//),
+                new webpack.IgnorePlugin(/postgres/, /\/knex\//),
+                new webpack.IgnorePlugin(/redshift/, /\/knex\//),
+                new webpack.IgnorePlugin(/sqlite3/, /\/knex\//),
             ],
             target: 'node',
             externals: {
@@ -92,15 +102,11 @@ module.exports = function (env) {
                 'imagemagick': 'imagemagick',
 
                 // Knex drivers we won't use.
-                'sqlite3': 'sqlite3',
-                'mariasql': 'mariasql',
                 'mssql': 'mssql',
                 'mysql': 'mysql',
                 'oracle': 'oracle',
-                'strong-oracle': 'strong-oracle',
-                'oracledb': 'oracledb',
                 'pg': 'pg',
-                'pg-query-stream': 'pg-query-stream'
+                'sqlite3': 'sqlite3'
             },
             node: {
                 // Allow these globals.
