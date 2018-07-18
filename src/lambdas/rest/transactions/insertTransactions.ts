@@ -12,17 +12,7 @@ import Knex = require("knex");
 export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan) {
     try {
         await trx.into("Transactions")
-            .insert({
-                userId: auth.giftbitUserId,
-                id: plan.id,
-                transactionType: plan.transactionType,
-                currency: plan.currency,
-                totals: JSON.stringify(plan.totals),
-                lineItems: JSON.stringify(plan.lineItems),
-                paymentSources: JSON.stringify(plan.paymentSources),
-                metadata: JSON.stringify(plan.metadata),
-                createdDate: plan.createdDate
-            });
+            .insert(TransactionPlan.toDbTransaction(plan, auth));
     } catch (err) {
         if (err.code === "ER_DUP_ENTRY") {
             throw new giftbitRoutes.GiftbitRestError(409, `A Lightrail transaction with transactionId '${plan.id}' already exists.`, "TransactionExists");
