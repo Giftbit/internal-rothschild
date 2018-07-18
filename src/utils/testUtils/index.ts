@@ -15,12 +15,12 @@ if (!process.env["TEST_ENV"]) {
 }
 
 export const defaultTestUser = {
-    userId: "default-test-user",
-    jwt: "eyJ2ZXIiOjIsInZhdiI6MSwiYWxnIjoiSFMyNTYiLCJ0eXAiOiJKV1QifQ.eyJnIjp7Imd1aSI6ImRlZmF1bHQtdGVzdC11c2VyIiwiZ21pIjoiZGVmYXVsdC10ZXN0LXVzZXIifSwiaWF0IjoiMjAxNy0wMy0wN1QxODozNDowNi42MDMrMDAwMCIsImp0aSI6ImJhZGdlLWRkOTViOWI1ODJlODQwZWNiYTFjYmY0MTM2NWQ1N2UxIiwic2NvcGVzIjpbXSwicm9sZXMiOlsiYWNjb3VudE1hbmFnZXIiLCJjb250YWN0TWFuYWdlciIsImN1c3RvbWVyU2VydmljZU1hbmFnZXIiLCJjdXN0b21lclNlcnZpY2VSZXByZXNlbnRhdGl2ZSIsInBvaW50T2ZTYWxlIiwicHJvZ3JhbU1hbmFnZXIiLCJwcm9tb3RlciIsInJlcG9ydGVyIiwic2VjdXJpdHlNYW5hZ2VyIiwidGVhbUFkbWluIiwid2ViUG9ydGFsIl19.YCIShbODZgYJ8T25iWaf13OMMfxhZVLPpzTLsC-p6-Y",
+    userId: "default-test-user-TEST",
+    jwt: "eyJ2ZXIiOjIsInZhdiI6MSwiYWxnIjoiSFMyNTYiLCJ0eXAiOiJKV1QifQ.eyJnIjp7Imd1aSI6ImRlZmF1bHQtdGVzdC11c2VyLVRFU1QiLCJnbWkiOiJkZWZhdWx0LXRlc3QtdXNlci1URVNUIn0sImlhdCI6IjIwMTctMDMtMDdUMTg6MzQ6MDYuNjAzKzAwMDAiLCJqdGkiOiJiYWRnZS1kZDk1YjliNTgyZTg0MGVjYmExY2JmNDEzNjVkNTdlMSIsInNjb3BlcyI6W10sInJvbGVzIjpbImFjY291bnRNYW5hZ2VyIiwiY29udGFjdE1hbmFnZXIiLCJjdXN0b21lclNlcnZpY2VNYW5hZ2VyIiwiY3VzdG9tZXJTZXJ2aWNlUmVwcmVzZW50YXRpdmUiLCJwb2ludE9mU2FsZSIsInByb2dyYW1NYW5hZ2VyIiwicHJvbW90ZXIiLCJyZXBvcnRlciIsInNlY3VyaXR5TWFuYWdlciIsInRlYW1BZG1pbiIsIndlYlBvcnRhbCJdfQ.OdSbmAbuFAcrOvRo12VMU_bEPGmyn935P_wxd-g8CNE",
     auth: new AuthorizationBadge({
         "g": {
-            "gui": "default-test-user",
-            "gmi": "default-test-user"
+            "gui": "default-test-user-TEST",
+            "gmi": "default-test-user-TEST"
         },
         "iat": "2017-03-07T18:34:06.603+0000",
         "jti": "badge-dd95b9b582e840ecba1cbf41365d57e1",
@@ -42,12 +42,12 @@ export const defaultTestUser = {
 };
 
 export const alternateTestUser = {
-    userId: "alternate-test-user",
-    jwt: "eyJ2ZXIiOjIsInZhdiI6MSwiYWxnIjoiSFMyNTYiLCJ0eXAiOiJKV1QifQ.eyJnIjp7Imd1aSI6ImFsdGVybmF0ZS10ZXN0LXVzZXIiLCJnbWkiOiJhbHRlcm5hdGUtdGVzdC11c2VyIn0sImlhdCI6IjIwMTgtMDMtMjNUMjE6MjU6MjYuODEyKzAwMDAiLCJqdGkiOiJiYWRnZS0yZjE4ZmQyOTZiY2Q0ODhlYWQ4NTM1OWViNjY4MDQxOSIsInNjb3BlcyI6W10sInJvbGVzIjpbImFjY291bnRNYW5hZ2VyIiwiY29udGFjdE1hbmFnZXIiLCJjdXN0b21lclNlcnZpY2VNYW5hZ2VyIiwiY3VzdG9tZXJTZXJ2aWNlUmVwcmVzZW50YXRpdmUiLCJwb2ludE9mU2FsZSIsInByb2dyYW1NYW5hZ2VyIiwicHJvbW90ZXIiLCJyZXBvcnRlciIsInNlY3VyaXR5TWFuYWdlciIsInRlYW1BZG1pbiIsIndlYlBvcnRhbCJdfQ.6Vt9uBWbocSDKrj-l4tXkPdu1q4NU7wu669nFKGwOtY",
+    userId: "alternate-test-user-TEST",
+    jwt: "eyJ2ZXIiOjIsInZhdiI6MSwiYWxnIjoiSFMyNTYiLCJ0eXAiOiJKV1QifQ.eyJnIjp7Imd1aSI6ImFsdGVybmF0ZS10ZXN0LXVzZXItVEVTVCIsImdtaSI6ImFsdGVybmF0ZS10ZXN0LXVzZXItVEVTVCJ9LCJpYXQiOiIyMDE4LTAzLTIzVDIxOjI1OjI2LjgxMiswMDAwIiwianRpIjoiYmFkZ2UtMmYxOGZkMjk2YmNkNDg4ZWFkODUzNTllYjY2ODA0MTkiLCJzY29wZXMiOltdLCJyb2xlcyI6WyJhY2NvdW50TWFuYWdlciIsImNvbnRhY3RNYW5hZ2VyIiwiY3VzdG9tZXJTZXJ2aWNlTWFuYWdlciIsImN1c3RvbWVyU2VydmljZVJlcHJlc2VudGF0aXZlIiwicG9pbnRPZlNhbGUiLCJwcm9ncmFtTWFuYWdlciIsInByb21vdGVyIiwicmVwb3J0ZXIiLCJzZWN1cml0eU1hbmFnZXIiLCJ0ZWFtQWRtaW4iLCJ3ZWJQb3J0YWwiXX0.IPov8nOCH_BgYALilSCDC1Swv4S8fs0or4oM2EXb_aw",
     auth: new AuthorizationBadge({
         "g": {
-            "gui": "alternate-test-user",
-            "gmi": "alternate-test-user"
+            "gui": "alternate-test-user-TEST",
+            "gmi": "alternate-test-user-TEST"
         },
         "iat": "2018-03-23T21:25:26.812+0000",
         "jti": "badge-2f18fd296bcd488ead85359eb6680419",

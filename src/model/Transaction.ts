@@ -165,7 +165,6 @@ export interface StripeDbTransactionStep {
     userId: string;
     id: string;
     transactionId: string;
-    currency: string;
     chargeId: string;
     amount: number;
     charge: string;

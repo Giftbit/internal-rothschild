@@ -1,13 +1,13 @@
 // First two functions copied from internal-turnkey
 // Minor modification made to facilitate testing: fetchFromS3ByEnvVar is called directly in getStripeConfig rather than in a promise, so that it can be mocked
 
+import * as log from "loglevel";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
 import {LightrailAndMerchantStripeConfig, StripeConfig, StripeModeConfig} from "./StripeConfig";
 import {StripeAuth} from "./StripeAuth";
 import {httpStatusCode, RestError} from "cassava";
 import * as kvsAccess from "../kvsAccess";
-import log = require("loglevel");
 
 /**
  * Get Stripe credentials for test or live mode.  Test mode credentials allow
@@ -36,10 +36,16 @@ export function validateStripeConfig(merchantStripeConfig: StripeAuth, lightrail
 // This is a draft that's waiting for the rest of the system to get put together: might work but likely need to revisit assume token
 export async function setupLightrailAndMerchantStripeConfig(auth: giftbitRoutes.jwtauth.AuthorizationBadge): Promise<LightrailAndMerchantStripeConfig> {
     const authorizeAs = auth.getAuthorizeAsPayload();
-    const assumeCheckoutToken = giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<giftbitRoutes.secureConfig.AssumeScopeToken>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_CHECKOUT_TOKEN");
 
+    log.info("fetching retrieve stripe auth assume token");
+    const assumeCheckoutToken = giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<giftbitRoutes.secureConfig.AssumeScopeToken>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH");
     const assumeToken = (await assumeCheckoutToken).assumeToken;
+    log.info("got retrieve stripe auth assume token");
+
+    log.info("fetching stripe auth");
     const merchantStripeConfig: StripeAuth = await kvsAccess.kvsGet(assumeToken, "stripeAuth", authorizeAs);
+    log.info("got stripe auth");
+
     const lightrailStripeConfig = await getStripeConfig(auth.isTestUser());
     validateStripeConfig(merchantStripeConfig, lightrailStripeConfig);
 

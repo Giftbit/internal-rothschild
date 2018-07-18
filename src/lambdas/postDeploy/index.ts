@@ -5,13 +5,12 @@ import * as mysql from "mysql2/promise";
 import * as path from "path";
 import {sendCloudFormationResponse} from "../../sendCloudFormationResponse";
 import {getDbCredentials} from "../../utils/dbUtils/connection";
-
-log.setLevel(log.levels.DEBUG);
-
 // Expands to an import of all files matching the glob using the import-glob-loader.
 // Copies the .sql files into the schema dir using the file-loader.
 // Flyway will automatically load all .sql files it finds in that dir.
 import "./schema/*.sql";
+
+log.setLevel(log.levels.DEBUG);
 
 // Flyway version to download and use.  Flyway does the migration.
 const flywayVersion = "5.0.7";
@@ -86,7 +85,10 @@ function spawn(cmd: string, args?: string[], options?: childProcess.SpawnOptions
             log.info(cmd, args.join(" "));
             stdout.length && log.info("stdout:", stdout.join(""));
             stderr.length && log.error("stderr:", stderr.join(""));
-            code === 0 ? resolve({stdout, stderr}) : reject(new Error("Flyways database migration failed.  Look at the logs for details."));
+            code === 0 ? resolve({
+                stdout,
+                stderr
+            }) : reject(new Error("Flyways database migration failed.  Look at the logs for details."));
         });
     });
 }
