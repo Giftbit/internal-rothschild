@@ -31,7 +31,7 @@ export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.Auth
         .filter(p => p.rail === "internal")
         .map((p: InternalTransactionParty): InternalTransactionPlanStep => ({
             rail: "internal",
-            internalId: p.id,
+            internalId: p.internalId,
             balance: p.balance,
             pretax: !!p.pretax,
             beforeLightrail: !!p.beforeLightrail,

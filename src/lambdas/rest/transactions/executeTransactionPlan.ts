@@ -2,14 +2,18 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
 import {StripeTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {Transaction} from "../../../model/Transaction";
-import {transactionPlanToTransaction} from "./transactionPlanToTransaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import * as log from "loglevel";
 import {chargeStripeSteps, rollbackStripeSteps} from "../../../utils/stripeUtils/stripeTransactions";
 import {setupLightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/stripeAccess";
-import {insertLightrailTransactionSteps, insertStripeTransactionSteps, insertTransaction} from "./insertTransactions";
 import {LightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/StripeConfig";
+import {
+    insertInternalTransactionSteps,
+    insertLightrailTransactionSteps,
+    insertStripeTransactionSteps,
+    insertTransaction
+} from "./insertTransactions";
 
 export interface ExecuteTransactionPlannerOptions {
     allowRemainder: boolean;
@@ -28,7 +32,7 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
                 throw new giftbitRoutes.GiftbitRestError(409, "Insufficient balance for the transaction.", "InsufficientBalance");
             }
             if (options.simulate) {
-                return transactionPlanToTransaction(plan);
+                return TransactionPlan.transactionPlanToTransaction(plan);
             }
             return await executeTransactionPlan(auth, plan);
         } catch (err) {
@@ -43,10 +47,6 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
 }
 
 export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<Transaction> {
-    if (plan.steps.find(step => step.rail === "internal")) {
-        throw new Error("Not implemented");
-    }
-
     let chargeStripe = false;
     let stripeConfig: LightrailAndMerchantStripeConfig;
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
@@ -84,6 +84,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
                 await insertStripeTransactionSteps(auth, trx, plan);
             }
             await insertLightrailTransactionSteps(auth, trx, plan);
+            await insertInternalTransactionSteps(auth, trx, plan);
         } catch (err) {
             log.warn(`Error inserting transaction step: ${err}`);
             if (chargeStripe) {
@@ -103,5 +104,5 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         }
     });
 
-    return transactionPlanToTransaction(plan);
+    return TransactionPlan.transactionPlanToTransaction(plan);
 }

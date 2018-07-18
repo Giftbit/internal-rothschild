@@ -118,7 +118,7 @@ export async function chargeStripeSteps(stripeConfig: LightrailAndMerchantStripe
 
 function stripeTransactionPlanStepToStripeRequest(step: StripeTransactionPlanStep, plan: TransactionPlan): StripeCreateChargeParams {
     let stepForStripe: StripeCreateChargeParams = {
-        amount: step.amount,
+        amount: -step.amount /* Lightrail treats debits as negative amounts on Steps but Stripe requires a positive amount when charging a credit card. */,
         currency: plan.currency,
         metadata: {
             ...plan.metadata,
@@ -132,5 +132,6 @@ function stripeTransactionPlanStepToStripeRequest(step: StripeTransactionPlanSte
         stepForStripe.customer = step.customer;
     }
 
+    log.debug("Created stepForStripe: \n" + JSON.stringify(stepForStripe, null, 4));
     return stepForStripe;
 }

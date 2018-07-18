@@ -1,5 +1,10 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {LightrailTransactionPlanStep, StripeTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
+import {
+    InternalTransactionPlanStep,
+    LightrailTransactionPlanStep,
+    StripeTransactionPlanStep,
+    TransactionPlan
+} from "./TransactionPlan";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {DbValue} from "../../../model/Value";
 import Knex = require("knex");
@@ -73,34 +78,14 @@ export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtaut
             });
         }
 
-        // Fix the plan to indicate the true value change.
+        /**
+         * IMPORTANT: This is for display purposes only. This sets value.balance to be what it was before the transaction was applied.
+         * This is important for displaying balanceBefore/After so that the code can work the same way for simulated and real transactions.
+         */
         step.value.balance = selectRes[0].balance - step.amount;
 
-        let balanceInfo = {
-            balanceBefore: selectRes[0].balance - step.amount,
-            balanceAfter: selectRes[0].balance,
-            balanceChange: step.amount
-        };
-
-        if (step.value.valueRule !== null) {
-            balanceInfo.balanceBefore = 0;
-            balanceInfo.balanceAfter = 0;
-        } else {
-            // Fix the plan to indicate the true value change.
-            step.value.balance = selectRes[0].balance - step.amount;
-        }
-
-
         await trx.into("LightrailTransactionSteps")
-            .insert({
-                userId: auth.giftbitUserId,
-                id: `${plan.id}-${stepIx}`,
-                transactionId: plan.id,
-                valueId: step.value.id,
-                contactId: step.value.contactId,
-                code: step.value.code,
-                ...balanceInfo
-            });
+            .insert(LightrailTransactionPlanStep.toLightrailDbTransactionStep(step, plan, auth, stepIx));
     }
 }
 
@@ -108,13 +93,14 @@ export async function insertStripeTransactionSteps(auth: giftbitRoutes.jwtauth.A
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
     for (let step of stripeSteps) {
         await trx.into("StripeTransactionSteps")
-            .insert({
-                userId: auth.giftbitUserId,
-                id: step.idempotentStepId,
-                transactionId: plan.id,
-                chargeId: step.chargeResult.id,
-                amount: -step.chargeResult.amount,
-                charge: JSON.stringify(step.chargeResult)
-            });
+            .insert(StripeTransactionPlanStep.toStripeDbTransactionStep(step, plan, auth));
+    }
+}
+
+export async function insertInternalTransactionSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan) {
+    const internalSteps = plan.steps.filter(step => step.rail === "internal") as InternalTransactionPlanStep[];
+    for (let step of internalSteps) {
+        await trx.into("InternalTransactionSteps")
+            .insert(InternalTransactionPlanStep.toInternalDbTransactionStep(step, plan, auth));
     }
 }
