@@ -113,7 +113,7 @@ function calculateAmountForStripeTransactionStep(step: StripeTransactionPlanStep
         }
     }
 
-    step.amount += amount;
+    step.amount -= amount;
 }
 
 function calculateAmountForInternalTransactionStep(step: InternalTransactionPlanStep, transactionPlan: TransactionPlan): void {

@@ -8,8 +8,11 @@ import {generateId} from "../../../../utils/testUtils";
 import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import {Value} from "../../../../model/Value";
-import {setStubsForStripeTests, unsetStubsForStripeTests} from "./transactions.checkout.stripe.test";
 import {after} from "mocha";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../utils/testUtils/stripeTestUtils";
+import chaiExclude = require("chai-exclude");
+
+chai.use(chaiExclude);
 
 require("dotenv").config();
 
@@ -220,7 +223,7 @@ describe("/v2/transactions/checkout - mixed sources", () => {
         });
         chai.assert.deepEqualExcluding(postCheckoutResp.body.steps[5], {
             "rail": "stripe",
-            "amount": 1360,
+            "amount": -1360,
             "chargeId": null,
             "charge": null
         }, ["charge", "chargeId"]);

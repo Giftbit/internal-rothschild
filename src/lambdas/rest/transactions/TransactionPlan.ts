@@ -104,8 +104,7 @@ export namespace StripeTransactionPlanStep {
             id: step.idempotentStepId,
             transactionId: plan.id,
             chargeId: step.chargeResult.id,
-            currency: step.chargeResult.currency,
-            amount: step.chargeResult.amount,
+            amount: -step.chargeResult.amount /* Note, chargeResult.amount is positive in Stripe but Lightrail treats debits as negative amounts on Steps. */,
             charge: JSON.stringify(step.chargeResult)
         }
     }
@@ -116,12 +115,11 @@ export namespace StripeTransactionPlanStep {
             chargeId: null,
             charge: null,
             amount: step.amount
-
         };
         if (step.chargeResult) {
             stripeTransactionStep.chargeId = step.chargeResult.id;
             stripeTransactionStep.charge = step.chargeResult;
-            stripeTransactionStep.amount = -step.chargeResult.amount /* chargeResult.amount is positive for debits in Stripe */;
+            stripeTransactionStep.amount = -step.chargeResult.amount /* Note, chargeResult.amount is positive in Stripe but Lightrail treats debits as negative amounts on Steps. */;
         }
         return stripeTransactionStep
     }
