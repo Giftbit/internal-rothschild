@@ -132,7 +132,7 @@ function stripeTransactionPlanStepToStripeRequest(auth: giftbitRoutes.jwtauth.Au
         metadata: {
             ...plan.metadata,
             lightrailTransactionId: plan.id,
-            lightrailTransactionSources: JSON.stringify(plan.steps.reduce(reducePaymentSourcesForStripeMetadata(step), [])),
+            lightrailTransactionSources: JSON.stringify(plan.steps.filter(src => !isCurrentStripeStep(src, step)).map(src => condensePaymentSourceForStripeMetadata(src))),
             lightrailUserId: auth.giftbitUserId
         }
     };
@@ -147,38 +147,30 @@ function stripeTransactionPlanStepToStripeRequest(auth: giftbitRoutes.jwtauth.Au
     return stepForStripe;
 }
 
-/**
- * Returned function compares a TransactionPlanStep to the current StripeStep being processed:
- * skip if they're the same thing, otherwise add identifying details to the results array
- */
-function reducePaymentSourcesForStripeMetadata(currentStep: StripeTransactionPlanStep) {
-    return (results: Array<any>, step: TransactionPlanStep) => {
-        if (step.rail === "stripe" && step.idempotentStepId === currentStep.idempotentStepId) {
-            return results;
-        }
-        switch (step.rail) {
-            case "lightrail":
-                results.push({
-                    rail: "lightrail",
-                    valueId: step.value.id
-                });
-                return results;
-            case "internal":
-                results.push({
-                    rail: "internal",
-                    internalId: step.internalId
-                });
-                return results;
-            case "stripe":
-                let stripeStep = {rail: "stripe"};
-                if (step.source) {
-                    (stripeStep as any).source = step.source;
-                }
-                if (step.customer) {
-                    (stripeStep as any).customer = step.customer;
-                }
-                results.push(stripeStep);
-                return results;
-        }
-    };
+function condensePaymentSourceForStripeMetadata(step: TransactionPlanStep) {
+    switch (step.rail) {
+        case "lightrail":
+            return {
+                rail: "lightrail",
+                valueId: step.value.id
+            };
+        case "internal":
+            return {
+                rail: "internal",
+                internalId: step.internalId
+            };
+        case "stripe":
+            let stripeStep = {rail: "stripe"};
+            if (step.source) {
+                (stripeStep as any).source = step.source;
+            }
+            if (step.customer) {
+                (stripeStep as any).customer = step.customer;
+            }
+            return stripeStep;
+    }
+}
+
+function isCurrentStripeStep(step: TransactionPlanStep, currentStep: StripeTransactionPlanStep): boolean {
+    return step.rail === "stripe" && step.idempotentStepId === currentStep.idempotentStepId;
 }
