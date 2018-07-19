@@ -35,7 +35,7 @@ describe("split tender checkout with Stripe", () => {
     };
     const source: string = "tok_visa";
     const basicRequest = {
-        id: "checkout-w-stripe",
+        id: "checkout-stripe",
         sources: [
             {
                 rail: "lightrail",
@@ -89,7 +89,7 @@ describe("split tender checkout with Stripe", () => {
 
     it("processes basic checkout with Stripe only", async () => {
         const request = {
-            id: "checkout-w-stripe-rail-only",
+            id: "checkout-stripe-rail-only",
             sources: [
                 {
                     rail: "stripe",
@@ -154,7 +154,7 @@ describe("split tender checkout with Stripe", () => {
 
     it("processes basic checkout with Stripe only - `customer` as payment source", async () => {
         const request = {
-            id: "checkout-w-stripe-cust",
+            id: "checkout-stripe-cust",
             sources: [
                 {
                     rail: "stripe",
@@ -377,13 +377,17 @@ describe("split tender checkout with Stripe", () => {
             stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
         });
 
-        chai.assert.deepEqual(stripeCharge.metadata, {lightrailTransactionId: basicRequest.id});
+        chai.assert.deepEqual(stripeCharge.metadata, {
+            lightrailTransactionId: basicRequest.id,
+            "additionalPaymentSources": "[{\"rail\":\"lightrail\",\"valueId\":\"value-for-checkout-w-stripe\"}]",
+            "giftbitUserId": "default-test-user-TEST"
+        });
     });
 
     it("writes metadata to both LR & Stripe transactions", async () => {
         const request = {
             ...basicRequest,
-            id: "stripe-lr-meta",
+            id: "stripe-lr-w-metadata",
             metadata: {"meta": "data"}
         };
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
@@ -392,7 +396,12 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.deepEqual(postCheckoutResp.body.metadata, request.metadata, `body.metadata=${postCheckoutResp.body.metadata}`);
 
         const stripeStep = postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep;
-        chai.assert.deepEqual(stripeStep.charge.metadata, {...request.metadata, lightrailTransactionId: request.id});
+        chai.assert.deepEqual(stripeStep.charge.metadata, {
+            ...request.metadata,
+            lightrailTransactionId: request.id,
+            "additionalPaymentSources": "[]", // lightrail value is used up by now
+            "giftbitUserId": "default-test-user-TEST"
+        });
 
         const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
         const stripeChargeId = (postCheckoutResp.body.paymentSources.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
@@ -400,7 +409,7 @@ describe("split tender checkout with Stripe", () => {
             stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
         });
 
-        chai.assert.deepEqual(stripeCharge.metadata, {...request.metadata, lightrailTransactionId: request.id});
+        chai.assert.deepEqual(stripeCharge.metadata, stripeStep.charge.metadata);
     });
 
     it.skip("processes split tender checkout with prepaid & discount LR value, plus Stripe");
@@ -588,7 +597,7 @@ describe("split tender checkout with Stripe", () => {
 
         const source2 = "tok_mastercard";
         const request = {
-            id: "checkout-2-stripe-sources",
+            id: "checkout-2-stripe-srcs",
             sources: [
                 {
                     rail: "lightrail",

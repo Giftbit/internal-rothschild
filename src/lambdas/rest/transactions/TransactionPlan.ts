@@ -186,7 +186,7 @@ export namespace TransactionPlan {
             transactionType: plan.transactionType,
             currency: plan.currency,
             createdDate: plan.createdDate
-        }
+        };
     }
 
     function transactionPlanStepToTransactionStep(step: TransactionPlanStep): TransactionStep {

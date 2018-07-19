@@ -1,10 +1,15 @@
-import {StripeTransactionPlanStep, TransactionPlan} from "../../lambdas/rest/transactions/TransactionPlan";
+import {
+    StripeTransactionPlanStep,
+    TransactionPlan,
+    TransactionPlanStep
+} from "../../lambdas/rest/transactions/TransactionPlan";
 import {StripeUpdateChargeParams} from "./StripeUpdateChargeParams";
 import {StripeRestError} from "./StripeRestError";
 import {LightrailAndMerchantStripeConfig} from "./StripeConfig";
 import {StripeTransactionParty} from "../../model/TransactionRequest";
 import {TransactionPlanError} from "../../lambdas/rest/transactions/TransactionPlanError";
 import {StripeCreateChargeParams} from "./StripeCreateChargeParams";
+import * as giftbitRoutes from "giftbit-cassava-routes";
 import log = require("loglevel");
 import Stripe = require("stripe");
 import IRefund = Stripe.refunds.IRefund;
@@ -89,12 +94,12 @@ export async function updateCharge(chargeId: string, params: StripeUpdateChargeP
 }
 
 
-export async function chargeStripeSteps(stripeConfig: LightrailAndMerchantStripeConfig, plan: TransactionPlan) {
+export async function chargeStripeSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, stripeConfig: LightrailAndMerchantStripeConfig, plan: TransactionPlan) {
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
 
     try {
         for (let step of stripeSteps) {
-            const stepForStripe = stripeTransactionPlanStepToStripeRequest(step, plan);
+            const stepForStripe = stripeTransactionPlanStepToStripeRequest(auth, step, plan);
 
             const charge = await createStripeCharge(stepForStripe, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, step.idempotentStepId);
 
@@ -123,13 +128,15 @@ export async function chargeStripeSteps(stripeConfig: LightrailAndMerchantStripe
     }
 }
 
-function stripeTransactionPlanStepToStripeRequest(step: StripeTransactionPlanStep, plan: TransactionPlan): StripeCreateChargeParams {
+function stripeTransactionPlanStepToStripeRequest(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: StripeTransactionPlanStep, plan: TransactionPlan): StripeCreateChargeParams {
     let stepForStripe: StripeCreateChargeParams = {
         amount: -step.amount /* Lightrail treats debits as negative amounts on Steps but Stripe requires a positive amount when charging a credit card. */,
         currency: plan.currency,
         metadata: {
             ...plan.metadata,
-            lightrailTransactionId: plan.id
+            lightrailTransactionId: plan.id,
+            additionalPaymentSources: JSON.stringify(plan.steps.reduce(reducePaymentSourcesForStripeMetadata(step), [])),
+            giftbitUserId: auth.giftbitUserId
         }
     };
     if (step.source) {
@@ -141,4 +148,40 @@ function stripeTransactionPlanStepToStripeRequest(step: StripeTransactionPlanSte
 
     log.debug("Created stepForStripe: \n" + JSON.stringify(stepForStripe, null, 4));
     return stepForStripe;
+}
+
+/**
+ * Returned function compares a TransactionPlanStep to the current StripeStep being processed:
+ * skip if they're the same thing, otherwise add identifying details to the results array
+ */
+function reducePaymentSourcesForStripeMetadata(currentStep: StripeTransactionPlanStep) {
+    return (results: Array<any>, step: TransactionPlanStep) => {
+        if (step.rail === "stripe" && step.idempotentStepId === currentStep.idempotentStepId) {
+            return results;
+        }
+        switch (step.rail) {
+            case "lightrail":
+                results.push({
+                    rail: "lightrail",
+                    valueId: step.value.id
+                });
+                return results;
+            case "internal":
+                results.push({
+                    rail: "internal",
+                    internalId: step.internalId
+                });
+                return results;
+            case "stripe":
+                let stripeStep = {rail: "stripe"};
+                if (step.source) {
+                    (stripeStep as any).source = step.source;
+                }
+                if (step.customer) {
+                    (stripeStep as any).customer = step.customer;
+                }
+                results.push(stripeStep);
+                return results;
+        }
+    };
 }
