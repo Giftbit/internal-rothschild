@@ -543,15 +543,15 @@ describe("split tender checkout with Stripe", () => {
             const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
             await lightrailStripe.charges.create(stripeChargeRequest, {
                 stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"],
-                idempotency_key: "bad-idempotency-key-0"
+                idempotency_key: "bad-idempotent-key-0"
             });
 
             const request = {
                 ...basicRequest,
-                id: "bad-idempotency-key"
+                id: "bad-idempotent-key"
             };
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
-            chai.assert.equal(postCheckoutResp.statusCode, 400, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
+            chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
         }).timeout(3500);
 
         it("rolls back the Stripe transaction when the Lightrail transaction fails", async () => {
@@ -739,7 +739,7 @@ describe("split tender checkout with Stripe", () => {
                 currency: "CAD"
             };
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
-            chai.assert.equal(postCheckoutResp.statusCode, 400, `body=${JSON.stringify(postCheckoutResp.body)}`);
+            chai.assert.equal(postCheckoutResp.statusCode, 422, `body=${JSON.stringify(postCheckoutResp.body)}`);
 
         });
     });

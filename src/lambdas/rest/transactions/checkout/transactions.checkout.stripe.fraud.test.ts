@@ -112,8 +112,8 @@ describe("handling fraudulent charges", () => {
 
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
 
-        chai.assert.equal(postCheckoutResp.statusCode, 402, `resp=${JSON.stringify(postCheckoutResp, null, 4)}`);
-        chai.assert.equal((postCheckoutResp.body as any).messageCode, "StripeCardDeclinedFraudulent", `resp=${JSON.stringify(postCheckoutResp, null, 4)}`);
+        chai.assert.equal(postCheckoutResp.statusCode, 422, `resp=${JSON.stringify(postCheckoutResp, null, 4)}`);
+        chai.assert.equal((postCheckoutResp.body as any).messageCode, "StripeCardDeclined", `resp=${JSON.stringify(postCheckoutResp, null, 4)}`);
     });
 
     it("fails with a clear error if the charge is declined by the card provider (any reason)", async () => {
@@ -131,7 +131,7 @@ describe("handling fraudulent charges", () => {
 
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
 
-        chai.assert.equal(postCheckoutResp.statusCode, 402, `resp=${JSON.stringify(postCheckoutResp, null, 4)}`);
+        chai.assert.equal(postCheckoutResp.statusCode, 422, `resp=${JSON.stringify(postCheckoutResp, null, 4)}`);
         chai.assert.equal((postCheckoutResp.body as any).messageCode, "StripeCardDeclined", `resp=${JSON.stringify(postCheckoutResp, null, 4)}`);
     });
 });
