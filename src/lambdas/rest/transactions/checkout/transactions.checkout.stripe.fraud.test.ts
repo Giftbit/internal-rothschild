@@ -66,7 +66,7 @@ describe("handling fraudulent charges", () => {
 
     it("does nothing if the charge succeeds but is flagged for review in Stripe", async () => {
         const request = {
-            id: "elevated-risk",
+            id: "risk-elevated",
             sources: [
                 {
                     rail: "stripe",
@@ -99,7 +99,7 @@ describe("handling fraudulent charges", () => {
 
     it("fails with a clear error if the charge is blocked by Stripe (fraudulent)", async () => {
         const request = {
-            id: "fraudulent-chg",
+            id: "chg-fraudulent",
             sources: [
                 {
                     rail: "stripe",
@@ -118,7 +118,7 @@ describe("handling fraudulent charges", () => {
 
     it("fails with a clear error if the charge is declined by the card provider (any reason)", async () => {
         const request = {
-            id: "declined-chg",
+            id: "chg-declined",
             sources: [
                 {
                     rail: "stripe",

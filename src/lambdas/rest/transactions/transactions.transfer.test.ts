@@ -436,8 +436,8 @@ describe("/v2/transactions/transfer", () => {
         });
 
         it("can transfer from Stripe to Lightrail", async () => {
-            const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
-                id: "transf-stripe-1",
+            const request = {
+                id: "TR-stripe-1",
                 source: {
                     rail: "stripe",
                     source: "tok_visa"
@@ -448,10 +448,12 @@ describe("/v2/transactions/transfer", () => {
                 },
                 amount: 1000,
                 currency: "CAD"
-            });
+            };
+
+            const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
             chai.assert.equal(postTransferResp.statusCode, 201, `body=${JSON.stringify(postTransferResp.body)}`);
             chai.assert.deepEqualExcluding(postTransferResp.body, {
-                id: "transf-stripe-1",
+                id: request.id,
                 transactionType: "transfer",
                 totals: {
                     remainder: 0
@@ -475,9 +477,9 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.isNotNull(sourceStep.charge);
             chai.assert.equal(sourceStep.charge.amount, 1000);
             chai.assert.deepEqual(sourceStep.charge.metadata, {
-                "lightrailTransactionId": "transf-stripe-1",
-                "additionalPaymentSources": "[{\"rail\":\"lightrail\",\"valueId\":\"v-transfer-stripe\"}]",
-                "giftbitUserId": "default-test-user-TEST"
+                "lightrailTransactionId": request.id,
+                "lightrailTransactionSources": "[{\"rail\":\"lightrail\",\"valueId\":\"v-transfer-stripe\"}]",
+                "lightrailUserId": "default-test-user-TEST"
             }, JSON.stringify(sourceStep.charge.metadata));
 
             const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCadForStripeTests.id) as LightrailTransactionStep;
@@ -495,7 +497,7 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.equal(getValue3Resp.statusCode, 200, `body=${JSON.stringify(getValue3Resp.body)}`);
             chai.assert.equal(getValue3Resp.body.balance, 1000);
 
-            const getTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transf-stripe-1", "GET");
+            const getTransferResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
             chai.assert.equal(getTransferResp.statusCode, 200, `body=${JSON.stringify(getTransferResp.body)}`);
             chai.assert.deepEqualExcluding(getTransferResp.body, postTransferResp.body, ["statusCode", "steps"]);
 
@@ -515,7 +517,7 @@ describe("/v2/transactions/transfer", () => {
 
         it("422s transferring a negative amount from Stripe", async () => {
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
-                id: "transf-stripe-2",
+                id: "TR-stripe-2",
                 source: {
                     rail: "stripe",
                     source: "tok_visa"
@@ -531,8 +533,8 @@ describe("/v2/transactions/transfer", () => {
         });
 
         it("respects maxAmount on Stripe source with allowRemainder", async () => {
-            const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
-                id: "stripe-transf-3",
+            const request = {
+                id: "TR-stripe-3",
                 source: {
                     rail: "stripe",
                     source: "tok_visa",
@@ -545,10 +547,12 @@ describe("/v2/transactions/transfer", () => {
                 amount: 1000,
                 currency: "CAD",
                 allowRemainder: true
-            });
+            };
+
+            const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
             chai.assert.equal(postTransferResp.statusCode, 201, `body=${JSON.stringify(postTransferResp.body)}`);
             chai.assert.deepEqualExcluding(postTransferResp.body, {
-                id: "stripe-transf-3",
+                id: request.id,
                 transactionType: "transfer",
                 totals: {
                     remainder: 100
@@ -572,9 +576,9 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.isNotNull(sourceStep.charge);
             chai.assert.equal(sourceStep.charge.amount, 900);
             chai.assert.deepEqual(sourceStep.charge.metadata, {
-                "lightrailTransactionId": "stripe-transf-3",
-                "additionalPaymentSources": "[{\"rail\":\"lightrail\",\"valueId\":\"v-transfer-stripe\"}]",
-                "giftbitUserId": "default-test-user-TEST"
+                "lightrailTransactionId": request.id,
+                "lightrailTransactionSources": "[{\"rail\":\"lightrail\",\"valueId\":\"v-transfer-stripe\"}]",
+                "lightrailUserId": "default-test-user-TEST"
             });
 
             const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCadForStripeTests.id) as LightrailTransactionStep;
@@ -592,7 +596,7 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.equal(getValue3Resp.statusCode, 200, `body=${JSON.stringify(getValue3Resp.body)}`);
             chai.assert.equal(getValue3Resp.body.balance, 1900);
 
-            const getTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/stripe-transf-3", "GET");
+            const getTransferResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
             chai.assert.equal(getTransferResp.statusCode, 200, `body=${JSON.stringify(getTransferResp.body)}`);
             chai.assert.deepEqualExcluding(getTransferResp.body, postTransferResp.body, ["statusCode", "steps"]);
 
@@ -612,7 +616,7 @@ describe("/v2/transactions/transfer", () => {
 
         it("409s transferring from Stripe with insufficient maxAmount and allowRemainder=false", async () => {
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
-                id: "stripe-transf-4",
+                id: "TR-stripe-4",
                 source: {
                     rail: "stripe",
                     source: "tok_visa",
@@ -630,7 +634,7 @@ describe("/v2/transactions/transfer", () => {
 
         it("422s transferring to Stripe from Lightrail", async () => {
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
-                id: "stripe-transf-5",
+                id: "TR-stripe-5",
                 source: {
                     rail: "lightrail",
                     valueId: valueCadForStripeTests.id
@@ -655,7 +659,7 @@ describe("/v2/transactions/transfer", () => {
 
             it("fails the transfer by default", async () => {
                 const request = {
-                    id: "insuff-stripe-amount",
+                    id: "TR-insuff-stripe-amount",
                     currency: "CAD",
                     amount: 25,
                     source: {

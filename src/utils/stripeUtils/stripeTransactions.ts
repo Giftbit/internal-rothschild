@@ -135,8 +135,8 @@ function stripeTransactionPlanStepToStripeRequest(auth: giftbitRoutes.jwtauth.Au
         metadata: {
             ...plan.metadata,
             lightrailTransactionId: plan.id,
-            additionalPaymentSources: JSON.stringify(plan.steps.reduce(reducePaymentSourcesForStripeMetadata(step), [])),
-            giftbitUserId: auth.giftbitUserId
+            lightrailTransactionSources: JSON.stringify(plan.steps.reduce(reducePaymentSourcesForStripeMetadata(step), [])),
+            lightrailUserId: auth.giftbitUserId
         }
     };
     if (step.source) {
