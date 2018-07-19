@@ -14,6 +14,7 @@ import log = require("loglevel");
 import Stripe = require("stripe");
 import IRefund = Stripe.refunds.IRefund;
 import ICharge = Stripe.charges.ICharge;
+import {PaymentSourceForStripeMetadata, StripeSourceForStripeMetadata} from "./PaymentSourceForStripeMetadata";
 
 export async function createStripeCharge(params: StripeCreateChargeParams, lightrailStripeSecretKey: string, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<ICharge> {
     const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
@@ -132,7 +133,9 @@ function stripeTransactionPlanStepToStripeRequest(auth: giftbitRoutes.jwtauth.Au
         metadata: {
             ...plan.metadata,
             lightrailTransactionId: plan.id,
-            lightrailTransactionSources: JSON.stringify(plan.steps.filter(src => !isCurrentStripeStep(src, step)).map(src => condensePaymentSourceForStripeMetadata(src))),
+            lightrailTransactionSources: JSON.stringify(plan.steps
+                .filter(src => !isCurrentStripeStep(src, step))
+                .map(src => condensePaymentSourceForStripeMetadata(src))),
             lightrailUserId: auth.giftbitUserId
         }
     };
@@ -147,7 +150,8 @@ function stripeTransactionPlanStepToStripeRequest(auth: giftbitRoutes.jwtauth.Au
     return stepForStripe;
 }
 
-function condensePaymentSourceForStripeMetadata(step: TransactionPlanStep) {
+
+function condensePaymentSourceForStripeMetadata(step: TransactionPlanStep): PaymentSourceForStripeMetadata {
     switch (step.rail) {
         case "lightrail":
             return {
@@ -167,7 +171,7 @@ function condensePaymentSourceForStripeMetadata(step: TransactionPlanStep) {
             if (step.customer) {
                 (stripeStep as any).customer = step.customer;
             }
-            return stripeStep;
+            return stripeStep as StripeSourceForStripeMetadata;
     }
 }
 
