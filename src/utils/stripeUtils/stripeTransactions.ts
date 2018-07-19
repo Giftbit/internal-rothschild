@@ -55,9 +55,14 @@ export async function createStripeCharge(params: StripeCreateChargeParams, light
 }
 
 export async function rollbackStripeSteps(lightrailStripeSecretKey: string, merchantStripeAccountId: string, steps: StripeTransactionPlanStep[], reason: string): Promise<void> {
-    for (const step of steps) {
-        const refund = await createRefund(step, lightrailStripeSecretKey, merchantStripeAccountId, reason);
-        log.info(`Refunded Stripe charge ${step.chargeResult.id}. Refund: ${JSON.stringify(refund)}.`);
+    try {
+        for (const step of steps) {
+            const refund = await createRefund(step, lightrailStripeSecretKey, merchantStripeAccountId, reason);
+            log.info(`Refunded Stripe charge ${step.chargeResult.id}. Refund: ${JSON.stringify(refund)}.`);
+        }
+    } catch (err) {
+        giftbitRoutes.sentry.sendErrorNotification(err);
+        throw err;
     }
 }
 
@@ -70,9 +75,14 @@ export async function createRefund(step: StripeTransactionPlanStep, lightrailStr
     }, {
         stripe_account: merchantStripeAccountId
     });
-    await updateCharge(step.chargeResult.id, {
-        description: reason
-    }, lightrailStripeSecretKey, merchantStripeAccountId);
+    try {
+        await updateCharge(step.chargeResult.id, {
+            description: reason
+        }, lightrailStripeSecretKey, merchantStripeAccountId);
+    } catch (err) {
+        giftbitRoutes.sentry.sendErrorNotification(err);
+        throw err;
+    }
     log.info(`Created Stripe refund for charge ${step.chargeResult.id}: ${refund}`);
     return refund;
 }
@@ -80,13 +90,18 @@ export async function createRefund(step: StripeTransactionPlanStep, lightrailStr
 export async function updateCharge(chargeId: string, params: StripeUpdateChargeParams, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<any> {
     const merchantStripe = require("stripe")(lightrailStripeSecretKey);
     log.info(`Updating Stripe charge ${JSON.stringify(params)}.`);
-    const chargeUpdate = await merchantStripe.charges.update(
-        chargeId,
-        params, {
-            stripe_account: merchantStripeAccountId,
-        }
-    );
-    // todo make this a DTO.
+    let chargeUpdate;
+    try {
+        chargeUpdate = await merchantStripe.charges.update(
+            chargeId,
+            params, {
+                stripe_account: merchantStripeAccountId,
+            }
+        );  // todo make this a DTO.
+    } catch (err) {
+        giftbitRoutes.sentry.sendErrorNotification(err);
+        throw err;
+    }
     log.info(`Updated Stripe charge ${JSON.stringify(chargeUpdate)}.`);
     return chargeUpdate;
 }

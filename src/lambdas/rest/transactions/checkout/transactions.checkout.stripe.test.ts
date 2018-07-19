@@ -552,7 +552,7 @@ describe("split tender checkout with Stripe", () => {
             };
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
             chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
-        }).timeout(3500);
+        }).timeout(4000);
 
         it("rolls back the Stripe transaction when the Lightrail transaction fails", async () => {
             let stubProcessLightrailTransactionSteps = sinon.stub(insertTransaction, "insertLightrailTransactionSteps");
@@ -583,6 +583,52 @@ describe("split tender checkout with Stripe", () => {
 
             (insertTransaction.insertTransaction as any).restore();
         }).timeout(3000);
+
+        it("handles idempotency errors: fails the repeated transaction but doesn't roll back the original Stripe charge", async () => {
+            const request = {
+                id: "idempotency-check-7",
+                sources: [
+                    {
+                        rail: "stripe",
+                        source: source
+                    }
+                ],
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "xyz-123",
+                        unitPrice: 123
+                    }
+                ],
+                currency: "CAD"
+            };
+            const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+            chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
+
+            // post the same charge a second time to trigger LR idempotency failure
+            const postCheckoutResp2 = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+            chai.assert.equal(postCheckoutResp2.statusCode, 409, `body=${JSON.stringify(postCheckoutResp2.body)}`);
+
+            // get the stripe charge and make sure that it hasn't been refunded
+            const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
+            const stripeChargeId = (postCheckoutResp.body.paymentSources.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
+            const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
+                stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
+            });
+            chai.assert.equal(stripeCharge.refunded, false, `stripeCharge first GET: check 'refunded': ${JSON.stringify(stripeCharge)}`);
+            chai.assert.equal(stripeCharge.amount_refunded, 0, `stripeCharge first GET: check 'amount_refunded': ${JSON.stringify(stripeCharge)}`);
+
+            // post the same charge a third time - if the stripe charge got refunded, this will crash and burn
+            const postCheckoutResp3 = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+            chai.assert.equal(postCheckoutResp3.statusCode, 409, `body=${JSON.stringify(postCheckoutResp3.body)}`);
+
+            // make sure the original stripe charge still hasn't been affected
+            const stripeCharge2 = await lightrailStripe.charges.retrieve(stripeChargeId, {
+                stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
+            });
+            chai.assert.equal(stripeCharge2.refunded, 0, `stripeCharge second GET: check 'refunded': ${JSON.stringify(stripeCharge)}`);
+            chai.assert.equal(stripeCharge2.amount_refunded, false, `stripeCharge second GET: check 'amount_refunded': ${JSON.stringify(stripeCharge)}`);
+        }).timeout(4000);
     });
 
     it("processes split tender checkout with two Stripe sources", async () => {
@@ -743,5 +789,4 @@ describe("split tender checkout with Stripe", () => {
 
         });
     });
-
 });
