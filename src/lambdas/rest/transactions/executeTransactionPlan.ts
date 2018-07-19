@@ -53,7 +53,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
     if (stripeSteps.length > 0) {
         chargeStripe = true;
         stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
-        await chargeStripeSteps(stripeConfig, plan);
+        await chargeStripeSteps(auth, stripeConfig, plan);
     }
 
     const knex = await getKnexWrite();
