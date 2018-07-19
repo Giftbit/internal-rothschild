@@ -74,14 +74,14 @@ export async function createTransferTransactionPlan(req: TransferRequest, partie
                     rail: parties.sourceParties[0].rail,
                     source: party.source || null,
                     customer: party.customer || null,
-                    amount,
+                    amount: -amount,
                     idempotentStepId: `${req.id}-src`,
                     maxAmount: maxAmount ? maxAmount : null
                 },
                 {
                     rail: "lightrail",
                     value: (parties.destParties[0] as LightrailTransactionPlanStep).value,
-                    amount
+                    amount: amount
                 }
             ],
             totals: {

@@ -8,6 +8,9 @@ import {generateId} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
 import {getRuleFromCache} from "../getRuleFromCache";
 import {createCurrency} from "../../currencies";
+import chaiExclude = require("chai-exclude");
+
+chai.use(chaiExclude);
 
 describe("/v2/transactions/checkout - valueRule and redemption rule tests", () => {
 
@@ -139,7 +142,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "contactId": null,
                     "code": null,
                     "balanceBefore": 0,
-                    "balanceAfter": -500,
+                    "balanceAfter": 0,
                     "balanceChange": -500
                 }
             ],
@@ -251,7 +254,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "contactId": null,
                     "code": null,
                     "balanceBefore": 0,
-                    "balanceAfter": -125,
+                    "balanceAfter": 0,
                     "balanceChange": -125
                 }
             ],
@@ -385,7 +388,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "contactId": null,
                     "code": null,
                     "balanceBefore": 0,
-                    "balanceAfter": -100,
+                    "balanceAfter": 0,
                     "balanceChange": -100
                 },
                 {
@@ -394,7 +397,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "contactId": null,
                     "code": null,
                     "balanceBefore": 0,
-                    "balanceAfter": -25,
+                    "balanceAfter": 0,
                     "balanceChange": -25
                 }
             ],
@@ -562,7 +565,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "contactId": null,
                     "code": null,
                     "balanceBefore": 0,
-                    "balanceAfter": -40,
+                    "balanceAfter": 0,
                     "balanceChange": -40
                 },
                 {
@@ -571,7 +574,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "contactId": null,
                     "code": null,
                     "balanceBefore": 0,
-                    "balanceAfter": -65,
+                    "balanceAfter": 0,
                     "balanceChange": -65
                 },
                 {
@@ -700,7 +703,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "contactId": null,
                     "code": null,
                     "balanceBefore": 0,
-                    "balanceAfter": -768,
+                    "balanceAfter": 0,
                     "balanceChange": -768
                 }
             ],
@@ -868,7 +871,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "contactId": null,
                     "code": null,
                     "balanceBefore": 0,
-                    "balanceAfter": -480,
+                    "balanceAfter": 0,
                     "balanceChange": -480
                 },
                 {
@@ -877,7 +880,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "contactId": null,
                     "code": null,
                     "balanceBefore": 0,
-                    "balanceAfter": -240,
+                    "balanceAfter": 0,
                     "balanceChange": -240
                 }
             ],

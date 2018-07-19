@@ -396,6 +396,11 @@ Resources:
           Properties:
             Path: /{proxy+}
             Method: ANY
+        KeepWarmSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: rate(4 minutes)
+            Input: !Sub "{\"resource\":\"/{proxy+}\",\"path\":\"/v2/healthCheck\",\"httpMethod\":\"GET\",\"headers\":null,\"queryStringParameters\":null,\"pathParameters\":null,\"stageVariables\":null,\"context\":{\"accountId\":\"${AWS::AccountId}\",\"resourceId\":\null,\"stage\":\"Prod\",\"requestId\":null,\"identity\"null,\"body\":null,\"isBase64Encoded\":false}"
 
   PostDeployFunction:
     Type: AWS::Serverless::Function

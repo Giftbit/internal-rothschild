@@ -12,6 +12,8 @@ import * as kvsAccess from "../../../../utils/kvsAccess";
 import {TransactionPlanError} from "../TransactionPlanError";
 import * as insertTransaction from "../insertTransactions";
 import * as testUtils from "../../../../utils/testUtils";
+import {after} from "mocha";
+
 import {
     setStubsForStripeTests,
     stripeEnvVarsPresent,
@@ -33,7 +35,7 @@ describe("split tender checkout with Stripe", () => {
     };
     const source: string = "tok_visa";
     const basicRequest = {
-        id: "checkout-w-stripe",
+        id: "CO-stripe",
         sources: [
             {
                 rail: "lightrail",
@@ -87,7 +89,7 @@ describe("split tender checkout with Stripe", () => {
 
     it("processes basic checkout with Stripe only", async () => {
         const request = {
-            id: "checkout-w-stripe-rail-only",
+            id: "CO-stripe-only",
             sources: [
                 {
                     rail: "stripe",
@@ -152,7 +154,7 @@ describe("split tender checkout with Stripe", () => {
 
     it("processes basic checkout with Stripe only - `customer` as payment source", async () => {
         const request = {
-            id: "checkout-w-stripe-cust",
+            id: "CO-stripe-cust",
             sources: [
                 {
                     rail: "stripe",
@@ -280,7 +282,7 @@ describe("split tender checkout with Stripe", () => {
 
     it("does not charge Stripe when Lightrail value is sufficient", async () => {
         const sufficientValue: Partial<Value> = {
-            id: "sufficient-value-for-checkout",
+            id: "CO-sufficient-value",
             currency: "CAD",
             balance: 1000
         };
@@ -375,13 +377,17 @@ describe("split tender checkout with Stripe", () => {
             stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
         });
 
-        chai.assert.deepEqual(stripeCharge.metadata, {lightrailTransactionId: basicRequest.id});
+        chai.assert.deepEqual(stripeCharge.metadata, {
+            lightrailTransactionId: basicRequest.id,
+            "lightrailTransactionSources": "[{\"rail\":\"lightrail\",\"valueId\":\"value-for-checkout-w-stripe\"}]",
+            "lightrailUserId": "default-test-user-TEST"
+        });
     });
 
     it("writes metadata to both LR & Stripe transactions", async () => {
         const request = {
             ...basicRequest,
-            id: "stripe-lr-meta",
+            id: "CO-split-w-metadata",
             metadata: {"meta": "data"}
         };
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
@@ -390,7 +396,12 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.deepEqual(postCheckoutResp.body.metadata, request.metadata, `body.metadata=${postCheckoutResp.body.metadata}`);
 
         const stripeStep = postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep;
-        chai.assert.deepEqual(stripeStep.charge.metadata, {...request.metadata, lightrailTransactionId: request.id});
+        chai.assert.deepEqual(stripeStep.charge.metadata, {
+            ...request.metadata,
+            lightrailTransactionId: request.id,
+            "lightrailTransactionSources": "[]", // lightrail value is used up by now
+            "lightrailUserId": "default-test-user-TEST"
+        });
 
         const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
         const stripeChargeId = (postCheckoutResp.body.paymentSources.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
@@ -398,7 +409,7 @@ describe("split tender checkout with Stripe", () => {
             stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
         });
 
-        chai.assert.deepEqual(stripeCharge.metadata, {...request.metadata, lightrailTransactionId: request.id});
+        chai.assert.deepEqual(stripeCharge.metadata, stripeStep.charge.metadata);
     });
 
     it.skip("processes split tender checkout with prepaid & discount LR value, plus Stripe");
@@ -426,7 +437,7 @@ describe("split tender checkout with Stripe", () => {
 
         let request = {
             ...basicRequest,
-            id: "checkout-simulation-w-stripe",
+            id: "CO-simulation-w-stripe",
             simulate: true
         };
         request.sources[0] = {
@@ -532,15 +543,15 @@ describe("split tender checkout with Stripe", () => {
             const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
             await lightrailStripe.charges.create(stripeChargeRequest, {
                 stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"],
-                idempotency_key: "bad-idempotency-id-0"
+                idempotency_key: "bad-idempotent-key-0"
             });
 
             const request = {
                 ...basicRequest,
-                id: "bad-idempotency-id"
+                id: "bad-idempotent-key"
             };
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
-            chai.assert.equal(postCheckoutResp.statusCode, 400, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
+            chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
         }).timeout(4000);
 
         it("rolls back the Stripe transaction when the Lightrail transaction fails", async () => {
@@ -575,7 +586,7 @@ describe("split tender checkout with Stripe", () => {
 
         it("handles idempotency errors: fails the repeated transaction but doesn't roll back the original Stripe charge", async () => {
             const request = {
-                id: "idempotency-check-6",
+                id: "idempotency-check-7",
                 sources: [
                     {
                         rail: "stripe",
@@ -632,7 +643,7 @@ describe("split tender checkout with Stripe", () => {
 
         const source2 = "tok_mastercard";
         const request = {
-            id: "checkout-2-stripe-sources",
+            id: "CO-2-stripe-srcs",
             sources: [
                 {
                     rail: "lightrail",
@@ -774,7 +785,7 @@ describe("split tender checkout with Stripe", () => {
                 currency: "CAD"
             };
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
-            chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body)}`);
+            chai.assert.equal(postCheckoutResp.statusCode, 422, `body=${JSON.stringify(postCheckoutResp.body)}`);
 
         });
     });

@@ -350,16 +350,16 @@ Resources:
               - apigateway:*
             Resource: !Sub "arn:aws:apigateway:${AWS::Region}::/*"
           # CloudWatch event triggers
-#          - Effect: Allow
-#            Action:
-#              - events:DeleteRule
-#              - events:DescribeRule
-#              - events:DisableRule
-#              - events:EnableRule
-#              - events:PutRule
-#              - events:PutTargets
-#              - events:RemoveTargets
-#            Resource: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${ProjectName}-*"
+          - Effect: Allow
+            Action:
+              - events:DeleteRule
+              - events:DescribeRule
+              - events:DisableRule
+              - events:EnableRule
+              - events:PutRule
+              - events:PutTargets
+              - events:RemoveTargets
+            Resource: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${ProjectName}-*"
           # Kinesis stream event mapping
 #          - Effect: Allow
 #            Action:
