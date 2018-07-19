@@ -1,16 +1,17 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
+import chaiExclude = require("chai-exclude");
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as parseLinkHeader from "parse-link-header";
 import * as testUtils from "../../utils/testUtils";
+import {defaultTestUser, generateId} from "../../utils/testUtils";
 import {Contact, DbContact} from "../../model/Contact";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
-import {defaultTestUser} from "../../utils/testUtils";
 import {Value} from "../../model/Value";
 import {Currency} from "../../model/Currency";
 import {installRestRoutes} from "./installRestRoutes";
 
-chai.use(require("chai-exclude"));
+chai.use(chaiExclude);
 
 describe("/v2/contacts", () => {
 
@@ -132,7 +133,7 @@ describe("/v2/contacts", () => {
         contact2 = resp.body;
     });
 
-    let contact3: Partial<Contact> & {userId: string} = {
+    let contact3: Partial<Contact> & { userId: string } = {
         id: "c3",
         userId: "malicious"
     };
@@ -156,8 +157,18 @@ describe("/v2/contacts", () => {
         chai.assert.deepEqual(resp.body, contact1);
     });
 
+    it("can't update contact id", async () => {
+        const resp = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/${contact1.id}`, "PATCH", {
+            id: generateId()
+        });
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
     it("409s on creating a duplicate contact", async () => {
-        const resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contact1.id, firstName: "Duplicate"});
+        const resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {
+            id: contact1.id,
+            firstName: "Duplicate"
+        });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
     });
 

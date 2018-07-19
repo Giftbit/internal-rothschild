@@ -303,7 +303,7 @@ Resources:
       Description: !Sub "${AWS::StackName} instance parameter group"
       Family: aurora5.6
       Parameters:
-        sql_mode: STRICT_TRANS_TABLES
+        sql_mode: IGNORE_SPACE,STRICT_TRANS_TABLES
       Tags:
         - Key: Service
           Value: Rothschild
@@ -334,11 +334,14 @@ Resources:
           DB_PORT: !GetAtt DbCluster.Endpoint.Port
           DB_USERNAME: "master"
           DB_PASSWORD_PARAMETER: !GetAtt DbCredentials.PasswordParameter
+          LIGHTRAIL_DOMAIN: !Ref LightrailDomain
           SECURE_CONFIG_BUCKET: !Ref SecureConfigBucket
+          SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH: assumeRetrieveStripeAuth.json
           SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY: code_cryptography_secrets.json
           SECURE_CONFIG_KEY_JWT: authentication_badge_key.json
           SECURE_CONFIG_KEY_ROLE_DEFINITIONS: RoleDefinitions.json
           SECURE_CONFIG_KEY_SENTRY: sentry_lambda_services.json
+          SECURE_CONFIG_KEY_STRIPE: stripe_connect.json
       VpcConfig:
         SecurityGroupIds:
           - !GetAtt LambdaSecurityGroup.GroupId
@@ -370,6 +373,8 @@ Resources:
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/RoleDefinitions.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/code_cryptography_secrets.json"
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/stripe_connect.json"
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeRetrieveStripeAuth.json"
             - Effect: Allow
               Action:
                 - kms:Decrypt
@@ -391,6 +396,11 @@ Resources:
           Properties:
             Path: /{proxy+}
             Method: ANY
+        KeepWarmSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: rate(4 minutes)
+            Input: !Sub "{\"resource\":\"/{proxy+}\",\"path\":\"/v2/healthCheck\",\"httpMethod\":\"GET\",\"headers\":null,\"queryStringParameters\":null,\"pathParameters\":null,\"stageVariables\":null,\"context\":{\"accountId\":\"12345678912\",\"resourceId\":null,\"stage\":\"Prod\",\"requestId\":null,\"identity\":null,\"resourcePath\":\"/{proxy+}\",\"httpMethod\":\"GET\",\"apiId\":null},\"body\":null,\"isBase64Encoded\":false}"
 
   PostDeployFunction:
     Type: AWS::Serverless::Function

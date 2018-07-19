@@ -126,7 +126,7 @@ export interface StripeTransactionStep {
 
 export interface InternalTransactionStep {
     rail: "internal";
-    id: string;
+    internalId: string;
     balanceBefore: number;
     balanceAfter: number;
     balanceChange: number;
@@ -165,7 +165,6 @@ export interface StripeDbTransactionStep {
     userId: string;
     id: string;
     transactionId: string;
-    currency: string;
     chargeId: string;
     amount: number;
     charge: string;
@@ -230,7 +229,7 @@ export namespace DbTransactionStep {
     export function toInternalTransactionStep(step: InternalDbTransactionStep): InternalTransactionStep {
         return {
             rail: "internal",
-            id: step.id,
+            internalId: step.internalId,
             balanceBefore: step.balanceBefore,
             balanceAfter: step.balanceAfter,
             balanceChange: step.balanceChange,

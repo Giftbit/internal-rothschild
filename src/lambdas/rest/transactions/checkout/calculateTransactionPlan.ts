@@ -1,4 +1,10 @@
-import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "../TransactionPlan";
+import {
+    InternalTransactionPlanStep,
+    LightrailTransactionPlanStep,
+    StripeTransactionPlanStep,
+    TransactionPlan,
+    TransactionPlanStep
+} from "../TransactionPlan";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import {Value} from "../../../../model/Value";
 import {RuleContext} from "../RuleContext";
@@ -44,7 +50,8 @@ function calculateAmountsForTransactionSteps(steps: TransactionPlanStep[], trans
                 calculateAmountForStripeTransactionStep(step, transactionPlan);
                 break;
             case "internal":
-                throw new Error("not yet implemented");
+                calculateAmountForInternalTransactionStep(step, transactionPlan);
+                break;
         }
     }
 }
@@ -73,7 +80,7 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
                 amount = Math.min(item.lineTotal.remainder, bankersRounding(valueFromRule, 0) | 0);
                 step.amount -= amount;
             } else {
-                amount = Math.min(item.lineTotal.remainder, getAvailableBalance(value, step));
+                amount = Math.min(item.lineTotal.remainder, getAvailableBalance(value.balance, step.amount));
                 step.amount -= amount;
             }
             item.lineTotal.remainder -= amount;
@@ -86,7 +93,7 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
     }
 }
 
-function calculateAmountForStripeTransactionStep(step, transactionPlan): void {
+function calculateAmountForStripeTransactionStep(step: StripeTransactionPlanStep, transactionPlan: TransactionPlan): void {
     let amount: number = 0;
 
     for (const item of transactionPlan.lineItems) {
@@ -106,9 +113,17 @@ function calculateAmountForStripeTransactionStep(step, transactionPlan): void {
         }
     }
 
-    step.amount += amount;
+    step.amount -= amount;
 }
 
-function getAvailableBalance(value: Value, step: LightrailTransactionPlanStep): number {
-    return value.balance + step.amount;
+function calculateAmountForInternalTransactionStep(step: InternalTransactionPlanStep, transactionPlan: TransactionPlan): void {
+    for (const item of transactionPlan.lineItems) {
+        const amount = Math.min(item.lineTotal.remainder, getAvailableBalance(step.balance, step.amount));
+        step.amount -= amount;
+        item.lineTotal.remainder -= amount;
+    }
+}
+
+function getAvailableBalance(balance: number, negativeStepAmount: number): number {
+    return balance + negativeStepAmount;
 }
