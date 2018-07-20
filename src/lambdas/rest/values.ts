@@ -235,26 +235,11 @@ export async function createValue(trx: Knex.Transaction, auth: giftbitRoutes.jwt
     let value: Value = initializeValue(partialValue, program, generateCodeParameters);
 
     if (issuance) {
-        value = getDefaultsFromIssuance(value, issuance);
+        // this needs to happen after defaults from program have been set. this allows some issuance properties to overwrite the programs defaults
+        setPropertiesFromIssuance(value, issuance);
     }
 
-    if (program) {
-        checkProgramConstraints(value, program);
-    }
-    if (issuance) {
-        // checkIssuanceConstraints(value, program, issuance);
-    }
-
-    // boil this down to some value checks
-    if (value.balance && value.valueRule) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a balance and valueRule.`);
-    }
-    if (value.discountSellerLiability !== null && !value.discount) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have discountSellerLiability if it is not a discount.`);
-    }
-    if (value.contactId && value.isGenericCode) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "A Value with isGenericCode=true cannot have contactId set.");
-    }
+    validateValue(value, program, issuance);
 
     value.startDate = value.startDate ? dateInDbPrecision(new Date(value.startDate)) : null;
     value.endDate = value.endDate ? dateInDbPrecision(new Date(value.endDate)) : null;
@@ -314,6 +299,26 @@ export async function createValue(trx: Knex.Transaction, auth: giftbitRoutes.jwt
     }
 }
 
+function validateValue(value: Value, program: Program = null, issuance: Issuance = null): void {
+    if (program) {
+        checkProgramConstraints(value, program);
+    }
+    if (issuance) {
+        // checkIssuanceConstraints(value, program, issuance);
+    }
+
+    // boil this down to some value checks
+    if (value.balance && value.valueRule) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a balance and valueRule.`);
+    }
+    if (value.discountSellerLiability !== null && !value.discount) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have discountSellerLiability if it is not a discount.`);
+    }
+    if (value.contactId && value.isGenericCode) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "A Value with isGenericCode=true cannot have contactId set.");
+    }
+}
+
 function initializeValue(partialValue: Partial<Value>, program: Program = null, generateCodeParameters: GenerateCodeParameters = null): Value {
     const now = nowInDbPrecision();
     let value: Value = {
@@ -350,15 +355,24 @@ function initializeValue(partialValue: Partial<Value>, program: Program = null, 
     return value;
 }
 
-function getDefaultsFromIssuance(value: Value, issuance: Issuance): Value {
-    return {
-        balance: issuance.balance,
-        redemptionRule: issuance.redemptionRule,
-        valueRule: issuance.valueRule,
-        uses: issuance.uses,
-        startDate: issuance.startDate,
-        endDate: issuance.endDate,
-        ...value
+function setPropertiesFromIssuance(value: Value, issuance: Issuance): void {
+    if (issuance.balance) {
+        value.balance = issuance.balance;
+    }
+    if (issuance.redemptionRule) {
+        value.redemptionRule = issuance.redemptionRule
+    }
+    if (issuance.valueRule) {
+        value.valueRule = issuance.valueRule
+    }
+    if (issuance.uses) {
+        value.uses = issuance.uses
+    }
+    if (issuance.startDate) {
+        value.startDate = issuance.startDate
+    }
+    if (issuance.endDate) {
+        value.endDate = issuance.endDate
     }
 }
 

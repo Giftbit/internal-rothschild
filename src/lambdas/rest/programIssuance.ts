@@ -13,6 +13,7 @@ import {Issuance} from "../../model/Issuance";
 import {getProgram} from "./programs";
 import {Value} from "../../model/Value";
 import {CodeParameters} from "../../model/CodeParameters";
+import {createValue} from "./values";
 
 export function installIssuancesRest(router: cassava.Router): void {
     router.route("/v2/programs/{id}/issuances")
@@ -58,14 +59,6 @@ export function installIssuancesRest(router: cassava.Router): void {
                 createdDate: now,
                 updatedDate: now
             };
-
-            // todo - I'm not sure this is something we want?
-            // if (evt.body.generateCode) {
-            //     issuance.metadata = {
-            //         ...issuance.metadata,
-            //         codeProperties: evt.body.generateCode
-            //     }
-            // }
 
             issuance.startDate = issuance.startDate ? dateInDbPrecision(new Date(issuance.startDate)) : null;
             issuance.endDate = issuance.endDate ? dateInDbPrecision(new Date(issuance.endDate)) : null;
@@ -113,16 +106,7 @@ async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagi
 
 async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, issuance: Issuance, codeProperties: CodeParameters): Promise<Issuance> {
     auth.requireIds("giftbitUserId");
-    let program: Program = null;
-    try {
-        program = await getProgram(auth, issuance.programId);
-    } catch (err) {
-        if (err instanceof cassava.RestError && err.statusCode === 404) {
-            throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `No Program found for id ${issuance.programId}.`);
-        } else {
-            throw err;
-        }
-    }
+    let program: Program = await getProgram(auth, issuance.programId);
 
     // todo - check if issuance properties are allowed given program
     // todo - create a value from Program // extra the part of values.ts that does this.
@@ -137,31 +121,12 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
             // error handling...
             try {
                 for (let i = 0; i < issuance.count; i++) {
-                    const value: Value = {
-                        id: issuance.id + "-" + i.toString(), // todo - there is a length issue here.
-                        currency: program ? program.currency : "",
-                        balance: 0,
-                        uses: null,
-                        programId: program ? program.id : null,
-                        code: null,//generateCode({}),
-                        isGenericCode: null,
-                        // code: evt.body.generateCode ? generateCode(evt.body.generateCode) : null,
-                        // isGenericCode: evt.body.generateCode ? false : null,
-                        contactId: null,
-                        pretax: program ? program.pretax : false,
-                        active: program ? program.active : true,
-                        frozen: false,
-                        redemptionRule: program ? program.redemptionRule : null,
-                        valueRule: program ? program.valueRule : null,
-                        discount: program ? program.discount : false,
-                        discountSellerLiability: program ? program.discountSellerLiability : null,
-                        startDate: program ? program.startDate : null,
-                        endDate: program ? program.endDate : null,
-                        metadata: null,
-                        canceled: false,
-                        createdDate: now,
-                        updatedDate: now
+                    const partialValue: Partial<Value> = {
+                        id: issuance.id + "-" + i.toString(),
+                        code: codeProperties.code,
+                        isGenericCode: codeProperties.isGenericCode
                     };
+                    await createValue(trx, auth, partialValue, codeProperties.generateCode, program, issuance);
                     // await insertValue(auth, value, trx);
                 }
             } catch (err) {

@@ -6,11 +6,10 @@ import * as chai from "chai";
 import {installRestRoutes} from "./installRestRoutes";
 import {createCurrency} from "./currencies";
 import {Program} from "../../model/Program";
-import {Issuance} from "../../model/Issuance";
 import {Value} from "../../model/Value";
 import {initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils";
 
-describe("/v2/issuances", () => {
+describe.only("/v2/issuances", () => {
 
     const router = new cassava.Router();
 
@@ -45,9 +44,10 @@ describe("/v2/issuances", () => {
             chai.assert.equal(createProgram.body[prop], program[prop]);
         }
 
-        let issuance: Partial<Issuance> = {
+        let issuance = {
             id: generateId(),
-            count: 1000
+            count: 1000,
+            generateCode: {}
         };
 
         const before = new Date();
@@ -55,11 +55,16 @@ describe("/v2/issuances", () => {
         chai.assert.equal(createIssuance.statusCode, 201, JSON.stringify(createIssuance.body));
         const after = new Date();
 
-        const listResponse = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values`, "GET");
+        const listResponse = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?limit=1000`, "GET");
         chai.assert.equal(listResponse.statusCode, 200, `body=${JSON.stringify(listResponse.body)}`);
         console.log(JSON.stringify(listResponse, null, 4));
         console.log("Timing: " + (after.getTime() - before.getTime()) + "ms");
+        chai.assert.equal(listResponse.body.length, issuance.count);
     }).timeout(10000);
+
+    // todo - test with generating codes
+    // todo - test with generic code
+    // todo - test with generic code and count > 1
 
 
 });
