@@ -18,6 +18,7 @@ export function installContactsRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:contacts:list");
             const res = await getContacts(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
@@ -30,6 +31,7 @@ export function installContactsRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:contacts:create");
             evt.validateBody(contactSchema);
 
             const now = nowInDbPrecision();
@@ -55,6 +57,7 @@ export function installContactsRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:contacts:read");
             return {
                 body: await getContact(auth, evt.pathParameters.id)
             };
@@ -65,6 +68,7 @@ export function installContactsRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:contacts:update");
             evt.validateBody(contactUpdateSchema);
 
             if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
@@ -86,12 +90,11 @@ export function installContactsRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:contacts:delete");
             return {
                 body: await deleteContact(auth, evt.pathParameters.id)
             };
         });
-
-
 }
 
 export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: {[key: string]: string}, pagination: PaginationParams): Promise<{ contacts: Contact[], pagination: Pagination }> {

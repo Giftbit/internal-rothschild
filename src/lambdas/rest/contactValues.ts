@@ -20,6 +20,7 @@ export function installContactValuesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:contacts:read", "lightrailV2:values:list");
             const showCode: boolean = (evt.queryStringParameters.showCode === "true");
             const res = await getValues(auth, {...evt.queryStringParameters, contactId: evt.pathParameters.id}, Pagination.getPaginationParams(evt), showCode);
             return {
@@ -33,6 +34,7 @@ export function installContactValuesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:contacts:read", "lightrailV2:values:update");
 
             evt.validateBody({
                 type: "object",

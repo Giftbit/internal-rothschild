@@ -31,6 +31,7 @@ export function installValuesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:values:list");
             const showCode: boolean = (evt.queryStringParameters.showCode === "true");
             const res = await getValues(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt), showCode);
             return {
@@ -44,6 +45,7 @@ export function installValuesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:values:create");
             evt.validateBody(valueSchema);
             checkCodeParameters(evt);
             let program: Program = null;
@@ -107,6 +109,9 @@ export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
         .method("PATCH")
         .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:values:list", "lightrailV2:values:update");
             throw new giftbitRoutes.GiftbitRestError(500, "Not implemented");   // TODO
         });
 
@@ -115,6 +120,7 @@ export function installValuesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:values:read");
 
             const showCode: boolean = (evt.queryStringParameters.showCode === "true");
             return {
@@ -127,6 +133,7 @@ export function installValuesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:values:update");
             evt.validateBody(valueUpdateSchema);
 
             if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
@@ -155,6 +162,7 @@ export function installValuesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:values:delete");
             return {
                 body: await deleteValue(auth, evt.pathParameters.id)
             };
@@ -165,6 +173,7 @@ export function installValuesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:values:update");
             evt.validateBody(valueChangeCodeSchema);
             checkCodeParameters(evt);
 

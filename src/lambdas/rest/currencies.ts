@@ -16,6 +16,7 @@ export function installCurrenciesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:currencies:list");
             return {
                 body: await getCurrencies(auth)
             };
@@ -26,6 +27,7 @@ export function installCurrenciesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:currencies:create");
             evt.validateBody(currencySchema);
 
             const currency = pick(evt.body, "code", "name", "symbol", "decimalPlaces") as Currency;
@@ -40,6 +42,7 @@ export function installCurrenciesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:currencies:read");
             return {
                 body: await getCurrency(auth, evt.pathParameters.code)
             };
@@ -50,6 +53,7 @@ export function installCurrenciesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:currencies:update");
             evt.validateBody(currencyUpdateSchema);
 
             if (evt.body.code !== undefined && evt.body.code !== evt.pathParameters.code) {
@@ -67,6 +71,7 @@ export function installCurrenciesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:currencies:delete");
             return {
                 body: await deleteCurrency(auth, evt.pathParameters.code)
             };

@@ -10,7 +10,7 @@ import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {paginateQuery} from "../../utils/dbUtils/paginateQuery";
 import * as log from "loglevel";
 
-export function installValueTemplatesRest(router: cassava.Router): void {
+export function installProgramsRest(router: cassava.Router): void {
     router.route("/v2/programs")
         .method("GET")
         .serializers({
@@ -20,6 +20,7 @@ export function installValueTemplatesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:programs:list");
             const res = await getPrograms(auth, Pagination.getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
@@ -32,6 +33,7 @@ export function installValueTemplatesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:programs:create");
             evt.validateBody(programSchema);
 
             const now = nowInDbPrecision();
@@ -74,6 +76,7 @@ export function installValueTemplatesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:programs:read");
             return {
                 body: await getProgram(auth, evt.pathParameters.id)
             };
@@ -84,6 +87,7 @@ export function installValueTemplatesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:programs:update");
             evt.validateBody(updateProgramSchema);
 
             if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
@@ -106,6 +110,7 @@ export function installValueTemplatesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:programs:delete");
             return {
                 body: await deleteProgram(auth, evt.pathParameters.id)
             };

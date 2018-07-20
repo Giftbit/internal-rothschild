@@ -22,6 +22,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:transactions:list");
             const res = await getTransactions(auth, getPaginationParams(evt), getTransactionFilterParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
@@ -34,6 +35,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:transactions:read");
             return {
                 body: await getTransaction(auth, evt.pathParameters.id)
             };
@@ -60,6 +62,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:transactions:credit");
             evt.validateBody(creditSchema);
             return {
                 statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
@@ -72,6 +75,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:transactions:debit");
             evt.validateBody(debitSchema);
             return {
                 statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
@@ -84,6 +88,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:transactions:checkout");
             evt.validateBody(checkoutSchema);
             return {
                 statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
@@ -96,6 +101,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("giftbitUserId");
+            auth.requireScopes("lightrailV2:transactions:transfer");
             evt.validateBody(transferSchema);
             return {
                 statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
