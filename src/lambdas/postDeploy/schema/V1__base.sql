@@ -158,3 +158,22 @@ CREATE TABLE rothschild.InternalTransactionSteps (
   INDEX is_InternalTransactionSteps_transactionId (userId, transactionId),
   CONSTRAINT fk_InternalTransactionSteps_Transactions FOREIGN KEY (userId, transactionId) REFERENCES rothschild.Transactions (userId, id)
 );
+
+CREATE TABLE rothschild.Issuances (
+  userId         VARCHAR(64) NOT NULL,
+  id             VARCHAR(32) NOT NULL,
+  programId      VARCHAR(32) NOT NULL,
+  count          INT         NOT NULL,
+  balance        INT,
+  valueRule      TEXT, # todo - Q: do we want this?
+  redemptionRule TEXT, # todo - Q: do we want this?
+  uses           INT,
+  startDate      DATETIME,
+  endDate        DATETIME,
+  metadata       TEXT,
+  createdDate    DATETIME    NOT NULL,
+  updatedDate    DATETIME    NOT NULL,
+  #   codeGeneration TEXT, # todo - Q: do we want this? Maybe we stuff the code in here if requested with one. maybe isGeneric gets thrown in here?
+  PRIMARY KEY pk_Issuances (userId, id),
+  CONSTRAINT fk_Issuances_Programs FOREIGN KEY (userId, programId) REFERENCES rothschild.Programs (userId, id)
+);

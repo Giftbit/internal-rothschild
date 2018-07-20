@@ -204,9 +204,10 @@ describe("/v2/contacts/values", () => {
             }
         });
         chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
+        chai.assert.equal(resp1.body.id, "add-generated-by-code");
         value6 = resp1.body;
 
-        const resp2 =  await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value6.id}?showCode=true`, "GET");
+        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value6.id}?showCode=true`, "GET");
         chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
         value6Code = resp2.body.code;
 
@@ -221,6 +222,8 @@ describe("/v2/contacts/values", () => {
     it("can list values added to a contact", async () => {
         const resp1 = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${contact.id}/values`, "GET");
         chai.assert.equal(resp1.statusCode, 200, `body=${JSON.stringify(resp1.body)}`);
+        console.log(JSON.stringify(resp1.body, null, 4) + "\n\n\n\n\n");
+        console.log(JSON.stringify([value1, value2, value3, value4, value5, value6], null, 4));
         chai.assert.sameDeepMembers(resp1.body, [value1, value2, value3, value4, value5, value6]);
     });
 
