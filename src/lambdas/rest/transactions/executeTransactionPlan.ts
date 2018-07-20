@@ -50,11 +50,6 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
     let chargeStripe = false;
     let stripeConfig: LightrailAndMerchantStripeConfig;
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
-    if (stripeSteps.length > 0) {
-        chargeStripe = true;
-        stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
-        await chargeStripeSteps(auth, stripeConfig, plan);
-    }
 
     const knex = await getKnexWrite();
 
@@ -72,6 +67,23 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
                     log.warn(`An error occurred while processing transaction '${plan.id}'. The Stripe charge(s) '${stripeSteps.map(step => step.chargeResult.id)}' have been refunded.`);
                 }
                 throw err;
+            }
+        }
+
+        if (stripeSteps.length > 0) {
+            chargeStripe = true;
+            stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
+            await chargeStripeSteps(auth, stripeConfig, plan);
+
+            try {
+                // update inserted Transaction: stripe paymentSource should include chargeId
+                await trx("Transactions")
+                    .where("id", plan.id)
+                    .update({
+                        paymentSources: JSON.stringify(plan.paymentSources)
+                    });
+            } catch (err) {
+                log.error(`Error updating transaction after posting Stripe charges: Stripe payment sources could not be updated with chargeId from Stripe. Carrying on with transaction. ERR=${err}`);
             }
         }
 
