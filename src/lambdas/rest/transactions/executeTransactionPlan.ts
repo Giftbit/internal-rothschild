@@ -53,7 +53,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
     if (stripeSteps.length > 0) {
         chargeStripe = true;
         stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
-        await chargeStripeSteps(stripeConfig, plan);
+        await chargeStripeSteps(auth, stripeConfig, plan);
     }
 
     const knex = await getKnexWrite();
@@ -64,15 +64,11 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         } catch (err) {
             log.warn(`Error inserting transaction: ${err}`);
             if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "TransactionExists") {
-                if (chargeStripe) {
-                    await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded because transaction already exists on Lightrail side: ${err}`);
-                    err.message = `${err.message} The associated Stripe charge(s) '${stripeSteps.map(step => step.chargeResult.id)}' have been refunded.`;
-                    log.warn(`An error occurred while processing transaction '${plan.id}'. The Stripe charge(s) '${stripeSteps.map(step => step.chargeResult.id)}' have been refunded.`);
-                }
                 throw err;
             } else {
+                giftbitRoutes.sentry.sendErrorNotification(err);
                 if (chargeStripe) {
-                    await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side: ${err}`);
+                    await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side`);
                     log.warn(`An error occurred while processing transaction '${plan.id}'. The Stripe charge(s) '${stripeSteps.map(step => step.chargeResult.id)}' have been refunded.`);
                 }
                 throw err;
@@ -88,7 +84,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         } catch (err) {
             log.warn(`Error inserting transaction step: ${err}`);
             if (chargeStripe) {
-                await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side: ${err}`);
+                await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side`);
                 log.warn(`An error occurred while processing transaction '${plan.id}'. The Stripe charge(s) '${stripeSteps.map(step => step.chargeResult.id)}' have been refunded.`);
             }
 
@@ -96,10 +92,12 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
                 throw err;
             } else if (err.code === "ER_DUP_ENTRY") {
                 log.debug(err);
+                giftbitRoutes.sentry.sendErrorNotification(err);
                 throw new giftbitRoutes.GiftbitRestError(409, `A transaction step in transaction '${plan.id}' already exists. This should not be possible.`, "TransactionStepExists");
             } else {
                 log.warn(err);
-                throw new giftbitRoutes.GiftbitRestError(500, `An error occurred while processing transaction '${plan.id}': ${err}.`);
+                giftbitRoutes.sentry.sendErrorNotification(err);
+                throw new giftbitRoutes.GiftbitRestError(500, `An error occurred while processing transaction '${plan.id}'.`);
             }
         }
     });
