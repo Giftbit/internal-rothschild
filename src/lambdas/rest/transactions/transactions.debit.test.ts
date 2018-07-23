@@ -14,7 +14,7 @@ describe("/v2/transactions/debit", () => {
 
     before(async function () {
         await testUtils.resetDb();
-        router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
+        router.route(testUtils.authRoute);
         installRestRoutes(router);
 
         await initializeCodeCryptographySecrets(Promise.resolve({

@@ -1,12 +1,14 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as fs from "fs";
+import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as log from "loglevel";
 import * as mysql from "mysql2/promise";
 import * as path from "path";
 import {getDbCredentials} from "../dbUtils/connection";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
 import papaparse = require("papaparse");
+import rolesConfig = require("./rolesConfig.json");
 import uuid = require("uuid");
 
 if (!process.env["TEST_ENV"]) {
@@ -67,6 +69,11 @@ export const alternateTestUser = {
         ]
     })
 };
+
+/**
+ * A Cassava Route that enables authorization with the above JWTs.
+ */
+export const authRoute: cassava.routes.Route = new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"}), Promise.resolve(rolesConfig));
 
 export async function resetDb(): Promise<void> {
     const credentials = await getDbCredentials();

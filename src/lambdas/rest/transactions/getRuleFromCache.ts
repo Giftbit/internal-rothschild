@@ -1,4 +1,4 @@
-import * as LRU from "lru-cache";
+import LRU = require("lru-cache");
 import {Rule} from "giftbit-ruleslib/distjs/Rule";
 
 let cache: LRU.Cache<string, Rule> = null;
