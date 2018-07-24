@@ -9,7 +9,11 @@ import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import {Value} from "../../../../model/Value";
 import {after} from "mocha";
-import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../utils/testUtils/stripeTestUtils";
+import {
+    setStubsForStripeTests,
+    stripeEnvVarsPresent,
+    unsetStubsForStripeTests
+} from "../../../../utils/testUtils/stripeTestUtils";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -25,6 +29,10 @@ describe("/v2/transactions/checkout - mixed sources", () => {
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
         transactions.installTransactionsRest(router);
         valueStores.installValuesRest(router);
+        if (!stripeEnvVarsPresent()) {
+            this.skip();
+            return;
+        }
         setStubsForStripeTests();
         await createCurrency(testUtils.defaultTestUser.auth, {
             code: "CAD",
