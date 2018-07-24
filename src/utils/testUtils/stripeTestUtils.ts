@@ -27,12 +27,12 @@ export function setStubsForStripeTests() {
 }
 
 export function unsetStubsForStripeTests() {
-    if ((giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as any).displayName === "fetchFromS3ByEnvVar") {
-        (giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as any).restore();
+    if ((giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as sinon).displayName === "fetchFromS3ByEnvVar") {
+        (giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as sinon).restore();
     }
 
-    if ((kvsAccess.kvsGet as any).displanyName === "kvsGet") {
-        (kvsAccess.kvsGet as any).restore();
+    if ((kvsAccess.kvsGet as sinon).displayName === "kvsGet") {
+        (kvsAccess.kvsGet as sinon).restore();
     }
 }
 
