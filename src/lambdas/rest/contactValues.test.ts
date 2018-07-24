@@ -222,8 +222,6 @@ describe("/v2/contacts/values", () => {
     it("can list values added to a contact", async () => {
         const resp1 = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${contact.id}/values`, "GET");
         chai.assert.equal(resp1.statusCode, 200, `body=${JSON.stringify(resp1.body)}`);
-        console.log(JSON.stringify(resp1.body, null, 4) + "\n\n\n\n\n");
-        console.log(JSON.stringify([value1, value2, value3, value4, value5, value6], null, 4));
         chai.assert.sameDeepMembers(resp1.body, [value1, value2, value3, value4, value5, value6]);
     });
 

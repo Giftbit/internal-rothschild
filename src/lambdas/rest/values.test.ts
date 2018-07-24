@@ -83,6 +83,7 @@ describe("/v2/values/", () => {
             ...value1,
             uses: null,
             programId: null,
+            issuanceId: null,
             contactId: null,
             code: null,
             isGenericCode: null,
@@ -120,6 +121,7 @@ describe("/v2/values/", () => {
             ...createValueRequest,
             uses: null,
             programId: null,
+            issuanceId: null,
             contactId: null,
             code: null,
             isGenericCode: null,
@@ -153,6 +155,7 @@ describe("/v2/values/", () => {
             currency: createValueRequest.currency,
             uses: null,
             programId: null,
+            issuanceId: null,
             contactId: null,
             code: null,
             isGenericCode: null,
@@ -344,6 +347,20 @@ describe("/v2/values/", () => {
         };
         const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
+    });
+
+    it("startDate > endDate 409s", async () => {
+        let value: Partial<Value> = {
+            id: generateId(),
+            balance: 50,
+            currency: "USD",
+            startDate: new Date("2077-01-02"),
+            endDate: new Date("2077-01-01"),
+
+        };
+        const valueResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", value);
+        chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
+        chai.assert.equal(valueResp.body.message, "Property startDate cannot exceed endDate.");
     });
 
     it("can't create Value with discount = false and discountSellerLiability", async () => {
@@ -754,10 +771,12 @@ describe("/v2/values/", () => {
         const respPost = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", secureCode);
         chai.assert.equal(respPost.statusCode, 201, `body=${JSON.stringify(respPost.body)}`);
         chai.assert.equal(respPost.body.code, "…CURE");
+        chai.assert.isFalse(respPost.body.isGenericCode);
 
         const respGet = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${secureCode.id}`, "GET");
         chai.assert.equal(respGet.statusCode, 200, `body=${JSON.stringify(respGet.body)}`);
         chai.assert.equal(respGet.body.code, "…CURE");
+        chai.assert.isFalse(respGet.body.isGenericCode);
 
         const showCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${secureCode.id}?showCode=true`, "GET");
         chai.assert.equal(showCode.statusCode, 200, `body=${JSON.stringify(showCode.body)}`);

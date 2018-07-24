@@ -9,6 +9,7 @@ export interface Value {
     balance: number | null;
     uses: number | null;
     programId: string | null;
+    issuanceId: string | null;
     code: string | null;
     isGenericCode: boolean | null;
     contactId: string | null;
@@ -45,6 +46,7 @@ export namespace Value {
             balance: v.balance,
             uses: v.uses,
             programId: v.programId,
+            issuanceId: v.issuanceId,
             code: dbCode ? dbCode.lastFour : null,
             isGenericCode: v.isGenericCode,
             codeEncrypted: dbCode ? dbCode.codeEncrypted : null,
@@ -96,6 +98,7 @@ export interface DbValue {
     balance: number | null;
     uses: number | null;
     programId: string | null;
+    issuanceId: string | null;
     code: string | null;
     isGenericCode: boolean | null;
     codeHashed: string | null;
@@ -124,6 +127,7 @@ export namespace DbValue {
             balance: v.balance,
             uses: v.uses,
             programId: v.programId,
+            issuanceId: v.issuanceId,
             contactId: v.contactId,
             code: v.code && (v.isGenericCode || showCode) ? decryptCode(v.codeEncrypted) : v.code,
             isGenericCode: v.isGenericCode,

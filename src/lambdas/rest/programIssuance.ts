@@ -2,14 +2,14 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
-import {DbProgram, Program} from "../../model/Program";
+import {Program} from "../../model/Program";
 import {csvSerializer} from "../../serializers";
 import {pickOrDefault} from "../../utils/pick";
-import {dateInDbPrecision, getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
+import {dateInDbPrecision, nowInDbPrecision} from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {paginateQuery} from "../../utils/dbUtils/paginateQuery";
 import * as log from "loglevel";
-import {Issuance} from "../../model/Issuance";
+import {DbIssuance, Issuance} from "../../model/Issuance";
 import {getProgram} from "./programs";
 import {Value} from "../../model/Value";
 import {CodeParameters} from "../../model/CodeParameters";
@@ -86,12 +86,12 @@ export function installIssuancesRest(router: cassava.Router): void {
 
 }
 
-async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ programs: Program[], pagination: Pagination }> {
+async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ programs: Issuance[], pagination: Pagination }> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
-    const res = await paginateQuery<DbProgram>(
-        knex("Programs")
+    const res = await paginateQuery<DbIssuance>(
+        knex("Issuances")
             .where({
                 userId: auth.giftbitUserId
             }),
@@ -99,75 +99,61 @@ async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagi
     );
 
     return {
-        programs: res.body.map(DbProgram.toProgram),
+        programs: res.body.map(DbIssuance.toIssuance),
         pagination: res.pagination
     };
 }
 
-async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, issuance: Issuance, codeProperties: CodeParameters): Promise<Issuance> {
+async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, issuance: Issuance, codeParameters: CodeParameters): Promise<Issuance> {
     auth.requireIds("giftbitUserId");
     let program: Program = await getProgram(auth, issuance.programId);
+    log.info(`Creating issuance for userId: ${auth.giftbitUserId}. Issuance: ${JSON.stringify(issuance)}`);
 
-    // todo - check if issuance properties are allowed given program
-    // todo - create a value from Program // extra the part of values.ts that does this.
-    // todo - modify value from issuance
+    checkIssuanceConstraints(issuance, program, codeParameters);
 
     try {
         const knex = await getKnexWrite();
-        const now = nowInDbPrecision();
         await knex.transaction(async trx => {
             await trx.into("Issuances")
                 .insert(Issuance.toDbIssuance(auth, issuance));
-            // error handling...
-            try {
-                for (let i = 0; i < issuance.count; i++) {
-                    const partialValue: Partial<Value> = {
-                        id: issuance.id + "-" + i.toString(),
-                        code: codeProperties.code,
-                        isGenericCode: codeProperties.isGenericCode
-                    };
-                    await createValue(trx, auth, partialValue, codeProperties.generateCode, program, issuance);
-                    // await insertValue(auth, value, trx);
-                }
-            } catch (err) {
-                console.log(JSON.stringify(err));
+            for (let i = 0; i < issuance.count; i++) {
+                const partialValue: Partial<Value> = {
+                    id: issuance.id + "-" + i.toString(),
+                    code: codeParameters.code,
+                    isGenericCode: codeParameters.isGenericCode
+                };
+                await createValue(trx, auth, partialValue, codeParameters.generateCode, program, issuance);
             }
         });
-
         return issuance;
     } catch (err) {
         log.debug(err);
-        const constraint = getSqlErrorConstraintName(err);
-        if (constraint === "PRIMARY") {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Program with id '${issuance.id}' already exists.`, "ProgramIdExists");
+        if (err.code === "ER_DUP_ENTRY") {
+            throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Issuance with id '${issuance.id}' already exists.`);
         }
         throw err;
     }
 }
 
-function checkIssuanceConstraints(issuance: Issuance, program: Program, codeParameters: CodeParameters) {
-    // check program vs. issuance
-    if (issuance.valueRule && !program.valueRule) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Issuance cannot use a valueRule if Program has no valueRule.`);
-    }
-    if (issuance.balance && program.valueRule) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Issuance cannot use balance if Program has no valueRule.`);
-    }
-
-    // check for logical issues
+function checkIssuanceConstraints(issuance: Issuance, program: Program, codeParameters: CodeParameters): void {
+    log.debug(`Checking for logical issues on issuance ${issuance.id}`);
     if (issuance.count > 1 && codeParameters.code) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Issuance count must be 1 if code is set.`);
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Issuance count must be 1 if code is set.`);
     }
-    // if (issuance.startDate < issuance.startDate)
-    //
-    //     }
+    if (codeParameters.isGenericCode && issuance.count > 1) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Issuance count must be 1 if isGenericCode:true.`);
+    }
+    if (codeParameters.code && issuance.count > 1) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Issuance count must be 1 if providing a code.`);
+    }
 }
 
-export async function getIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Program> {
+export async function getIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Issuance> {
     auth.requireIds("giftbitUserId");
+    log.info(`Getting issuance by id ${id}`);
 
     const knex = await getKnexRead();
-    const res: DbProgram[] = await knex("Programs")
+    const res: DbIssuance[] = await knex("Issuances")
         .select()
         .where({
             userId: auth.giftbitUserId,
@@ -179,7 +165,7 @@ export async function getIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
-    return DbProgram.toProgram(res[0]);
+    return DbIssuance.toIssuance(res[0]);
 }
 
 const issuanceSchema: jsonschema.Schema = {

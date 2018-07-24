@@ -56,7 +56,7 @@ export function installValuesRest(router: cassava.Router): void {
 
             const knex = await getKnexWrite();
             await knex.transaction(async trx => {
-                value = await createValue(trx, auth, value, evt.body.generateCode, program, null)
+                value = await createValue(trx, auth, value, evt.body.generateCode, program, null);
             });
 
             return {
@@ -171,6 +171,10 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                     type: "string",
                     operators: ["eq", "in"]
                 },
+                issuanceId: {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
                 code: {
                     type: "string",
                     columnName: "codeHashed",
@@ -233,19 +237,21 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 export async function createValue(trx: Knex.Transaction, auth: giftbitRoutes.jwtauth.AuthorizationBadge, partialValue: Partial<Value>, generateCodeParameters: GenerateCodeParameters = null, program: Program = null, issuance: Issuance = null): Promise<Value> {
     auth.requireIds("giftbitUserId");
     let value: Value = initializeValue(partialValue, program, generateCodeParameters);
+    log.info(`Create Value requests for user: ${auth.giftbitUserId}. Value ${JSON.stringify(value)}.`);
 
     if (issuance) {
         // this needs to happen after defaults from program have been set. this allows some issuance properties to overwrite the programs defaults
         setPropertiesFromIssuance(value, issuance);
     }
 
-    validateValue(value, program, issuance);
+    log.info(`Checking properties for ${value.id}.`);
+    checkValueProperties(value, program);
 
     value.startDate = value.startDate ? dateInDbPrecision(new Date(value.startDate)) : null;
     value.endDate = value.endDate ? dateInDbPrecision(new Date(value.endDate)) : null;
 
     const dbValue = Value.toDbValue(auth, value);
-    log.debug("createValue id=", dbValue.id);
+    log.info(`Creating Value ${value.id}.`);
 
     try {
         await trx.into("Values")
@@ -296,83 +302,6 @@ export async function createValue(trx: Knex.Transaction, auth: giftbitRoutes.jwt
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Contact '${value.contactId}' does not exist.`, "ContactNotFound");
         }
         throw err;
-    }
-}
-
-function validateValue(value: Value, program: Program = null, issuance: Issuance = null): void {
-    if (program) {
-        checkProgramConstraints(value, program);
-    }
-    if (issuance) {
-        // checkIssuanceConstraints(value, program, issuance);
-    }
-
-    // boil this down to some value checks
-    if (value.balance && value.valueRule) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a balance and valueRule.`);
-    }
-    if (value.discountSellerLiability !== null && !value.discount) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have discountSellerLiability if it is not a discount.`);
-    }
-    if (value.contactId && value.isGenericCode) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "A Value with isGenericCode=true cannot have contactId set.");
-    }
-}
-
-function initializeValue(partialValue: Partial<Value>, program: Program = null, generateCodeParameters: GenerateCodeParameters = null): Value {
-    const now = nowInDbPrecision();
-    let value: Value = {
-        id: null,
-        balance: partialValue.valueRule && !partialValue.balance ? null : 0,
-        uses: null,
-        code: null,
-        isGenericCode: null,
-        contactId: null,
-        canceled: false,
-        frozen: false,
-        metadata: null,
-        createdDate: now,
-        updatedDate: now,
-        ...partialValue,
-        ...pickOrDefault(partialValue, {
-            currency: program ? program.currency : null,
-            programId: program ? program.id : null,
-            pretax: program ? program.pretax : false,
-            active: program ? program.active : true,
-            redemptionRule: program ? program.redemptionRule : null,
-            valueRule: program ? program.valueRule : null,
-            discount: program ? program.discount : false,
-            discountSellerLiability: program ? program.discountSellerLiability : null,
-            startDate: program ? program.startDate : null,
-            endDate: program ? program.endDate : null,
-        })
-    };
-    if (generateCodeParameters) {
-        checkCodeParameters(generateCodeParameters, value.code, value.isGenericCode);
-        value.code = generateCodeParameters ? generateCode(generateCodeParameters) : value.code;
-    }
-
-    return value;
-}
-
-function setPropertiesFromIssuance(value: Value, issuance: Issuance): void {
-    if (issuance.balance) {
-        value.balance = issuance.balance;
-    }
-    if (issuance.redemptionRule) {
-        value.redemptionRule = issuance.redemptionRule
-    }
-    if (issuance.valueRule) {
-        value.valueRule = issuance.valueRule
-    }
-    if (issuance.uses) {
-        value.uses = issuance.uses
-    }
-    if (issuance.startDate) {
-        value.startDate = issuance.startDate
-    }
-    if (issuance.endDate) {
-        value.endDate = issuance.endDate
     }
 }
 
@@ -487,6 +416,88 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
     }
 }
 
+function initializeValue(partialValue: Partial<Value>, program: Program = null, generateCodeParameters: GenerateCodeParameters = null): Value {
+    const now = nowInDbPrecision();
+    let value: Value = {
+        id: null,
+        balance: partialValue.valueRule && !partialValue.balance ? null : 0,
+        uses: null,
+        code: null,
+        issuanceId: null,
+        isGenericCode: null,
+        contactId: null,
+        canceled: false,
+        frozen: false,
+        metadata: null,
+        createdDate: now,
+        updatedDate: now,
+        ...partialValue,
+        ...pickOrDefault(partialValue, {
+            currency: program ? program.currency : null,
+            programId: program ? program.id : null,
+            pretax: program ? program.pretax : false,
+            active: program ? program.active : true,
+            redemptionRule: program ? program.redemptionRule : null,
+            valueRule: program ? program.valueRule : null,
+            discount: program ? program.discount : false,
+            discountSellerLiability: program ? program.discountSellerLiability : null,
+            startDate: program ? program.startDate : null,
+            endDate: program ? program.endDate : null,
+        })
+    };
+
+    if (generateCodeParameters) {
+        checkCodeParameters(generateCodeParameters, value.code, value.isGenericCode);
+        value.code = generateCodeParameters ? generateCode(generateCodeParameters) : value.code;
+    }
+    if (value.code && value.isGenericCode == null) {
+        value.isGenericCode = false;
+    }
+    return value;
+}
+
+function setPropertiesFromIssuance(value: Value, issuance: Issuance): void {
+    value.issuanceId = issuance.id;
+    if (issuance.balance) {
+        value.balance = issuance.balance;
+    }
+    if (issuance.redemptionRule) {
+        value.redemptionRule = issuance.redemptionRule;
+    }
+    if (issuance.valueRule) {
+        value.valueRule = issuance.valueRule;
+    }
+    if (issuance.uses) {
+        value.uses = issuance.uses;
+    }
+    if (issuance.startDate) {
+        value.startDate = issuance.startDate;
+    }
+    if (issuance.endDate) {
+        value.endDate = issuance.endDate;
+    }
+}
+
+function checkValueProperties(value: Value, program: Program = null): void {
+    if (program) {
+        checkProgramConstraints(value, program);
+    }
+
+    if (value.balance && value.valueRule) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a balance and valueRule.`);
+    }
+    if (value.discountSellerLiability !== null && !value.discount) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have discountSellerLiability if it is not a discount.`);
+    }
+    if (value.contactId && value.isGenericCode) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "A Value with isGenericCode=true cannot have contactId set.");
+    }
+    if (value.startDate > value.endDate) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Property startDate cannot exceed endDate.");
+    }
+}
+
+
 function checkProgramConstraints(value: Value, program: Program): void {
     if (program.fixedInitialBalances && (program.fixedInitialBalances.indexOf(value.balance) === -1 || !value.balance)) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} outside initial values defined by Program ${program.fixedInitialBalances}.`);
@@ -507,7 +518,14 @@ function checkProgramConstraints(value: Value, program: Program): void {
     }
 }
 
-function checkCodeParameters(generateCode: GenerateCodeParameters, code: string, isGenericCode: boolean): void {
+// todo - I don't think this is necessary.
+function checkIssuanceConstraints(value: Value, program: Program, issuance: Issuance): void {
+    if (value.isGenericCode && issuance.count > 1) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Issuance count must be 1 if isGenericCode:true.`);
+    }
+}
+
+export function checkCodeParameters(generateCode: GenerateCodeParameters, code: string, isGenericCode: boolean): void {
     if (generateCode && (code || isGenericCode)) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Parameter generateCode is not allowed with parameters code or isGenericCode:true.`);
     }
