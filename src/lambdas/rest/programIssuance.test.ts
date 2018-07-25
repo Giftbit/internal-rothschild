@@ -101,7 +101,7 @@ describe("/v2/issuances", () => {
         chai.assert.sameDeepMembers(listIssuances.body, issuances);
     }).timeout(5000);
 
-    it.only(`issuing from program that has a value rule`, async () => {
+    it(`issuing from program that has a value rule`, async () => {
         let issuance: Partial<Issuance> = {
             id: generateId(),
             count: 1
@@ -123,7 +123,7 @@ describe("/v2/issuances", () => {
         chai.assert.equal(listResponse.body[0].endDate.toString(), programWithRulesAndDates.endDate.toISOString(), "endDate from program is copied over to the Value");
     });
 
-    it.only(`can overwrite valueRule, redemptionRule, startDate and endDate`, async () => {
+    it(`can overwrite valueRule, redemptionRule, startDate and endDate`, async () => {
         let issuance: Partial<Issuance> = {
             id: generateId(),
             count: 1,
