@@ -4,7 +4,7 @@ import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {Program} from "../../model/Program";
 import {csvSerializer} from "../../serializers";
-import {pickOrDefault} from "../../utils/pick";
+import {pick, pickNotNull, pickOrDefault} from "../../utils/pick";
 import {dateInDbPrecision, nowInDbPrecision} from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {paginateQuery} from "../../utils/dbUtils/paginateQuery";
@@ -109,13 +109,22 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
     let program: Program = await getProgram(auth, issuance.programId);
     log.info(`Creating issuance for userId: ${auth.giftbitUserId}. Issuance: ${JSON.stringify(issuance)}`);
 
+    // copy over properties from program that may be null.
+    // this is important for issuance display and history since these properties can be updated on the program.
+    issuance = {
+        ...issuance,
+        ...pick<Partial<Issuance>>(program, "startDate", "endDate", "valueRule", "redemptionRule"),
+        ...pickNotNull(issuance)
+    };
+
     checkIssuanceConstraints(issuance, program, codeParameters);
 
     try {
+        const dbIssuance: DbIssuance = Issuance.toDbIssuance(auth, issuance);
         const knex = await getKnexWrite();
         await knex.transaction(async trx => {
             await trx.into("Issuances")
-                .insert(Issuance.toDbIssuance(auth, issuance));
+                .insert(dbIssuance);
             for (let i = 0; i < issuance.count; i++) {
                 const partialValue: Partial<Value> = {
                     id: issuance.id + "-" + i.toString(),
@@ -125,7 +134,7 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
                 await createValue(trx, auth, partialValue, codeParameters.generateCode, program, issuance);
             }
         });
-        return issuance;
+        return DbIssuance.toIssuance(dbIssuance);
     } catch (err) {
         log.debug(err);
         if (err.code === "ER_DUP_ENTRY") {

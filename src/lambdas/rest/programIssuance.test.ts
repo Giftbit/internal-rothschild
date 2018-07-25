@@ -19,8 +19,24 @@ describe("/v2/issuances", () => {
 
     const program: Partial<Program> = {
         id: generateId(),
-        name: "program with no balance constraints or valueRule",
+        name: "program-name",
         currency: "USD"
+    };
+
+    const programWithRulesAndDates: Partial<Program> = {
+        id: generateId(),
+        name: "program name",
+        currency: "USD",
+        valueRule: {
+            rule: "500",
+            explanation: "$5 the hard way"
+        },
+        redemptionRule: {
+            rule: "1 == 1",
+            explanation: "always true"
+        },
+        startDate: new Date("2077-01-01"),
+        endDate: new Date("2078-01-01")
     };
 
     before(async () => {
@@ -40,6 +56,9 @@ describe("/v2/issuances", () => {
 
         const createProgram = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
         chai.assert.equal(createProgram.statusCode, 201, JSON.stringify(createProgram.body));
+
+        const createProgramWithRulesAndDates = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", programWithRulesAndDates);
+        chai.assert.equal(createProgramWithRulesAndDates.statusCode, 201, JSON.stringify(createProgramWithRulesAndDates.body));
     });
 
     it(`basic issuances with varying counts. POST, GET and LIST`, async () => {
@@ -81,6 +100,64 @@ describe("/v2/issuances", () => {
         chai.assert.equal(listIssuances.body.length, valuesToIssues.length);
         chai.assert.sameDeepMembers(listIssuances.body, issuances);
     }).timeout(5000);
+
+    it.only(`issuing from program that has a value rule`, async () => {
+        let issuance: Partial<Issuance> = {
+            id: generateId(),
+            count: 1
+        };
+
+        const createIssuance = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${programWithRulesAndDates.id}/issuances`, "POST", issuance);
+        chai.assert.equal(createIssuance.statusCode, 201, JSON.stringify(createIssuance.body));
+        chai.assert.deepEqual(createIssuance.body.valueRule, programWithRulesAndDates.valueRule, "valueRule from program is copied over to the issuance");
+        chai.assert.deepEqual(createIssuance.body.redemptionRule, programWithRulesAndDates.redemptionRule, "redemptionRule from program is copied over to the issuance");
+        chai.assert.equal(createIssuance.body.startDate.toString(), programWithRulesAndDates.startDate.toISOString(), "startDate from program is copied over to the issuance");
+        chai.assert.equal(createIssuance.body.endDate.toString(), programWithRulesAndDates.endDate.toISOString(), "endDate from program is copied over to the issuance");
+
+        const listResponse = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?limit=1000&issuanceId=${issuance.id}`, "GET");
+        chai.assert.equal(listResponse.statusCode, 200, `body=${JSON.stringify(listResponse.body)}`);
+        chai.assert.equal(listResponse.body.length, issuance.count);
+        chai.assert.deepEqual(listResponse.body[0].valueRule, programWithRulesAndDates.valueRule, "valueRule from program is copied over to the Value");
+        chai.assert.deepEqual(listResponse.body[0].redemptionRule, programWithRulesAndDates.redemptionRule, "redemptionRule from program is copied over to the Value");
+        chai.assert.equal(listResponse.body[0].startDate.toString(), programWithRulesAndDates.startDate.toISOString(), "startDate from program is copied over to the Value");
+        chai.assert.equal(listResponse.body[0].endDate.toString(), programWithRulesAndDates.endDate.toISOString(), "endDate from program is copied over to the Value");
+    });
+
+    it.only(`can overwrite valueRule, redemptionRule, startDate and endDate`, async () => {
+        let issuance: Partial<Issuance> = {
+            id: generateId(),
+            count: 1,
+            valueRule: {
+                rule: "700",
+                explanation: "$7 the hard way"
+            },
+            redemptionRule: {
+                rule: "2 == 1",
+                explanation: "never true"
+            },
+            startDate: new Date("2177-01-01"),
+            endDate: new Date("2178-01-01")
+        };
+        chai.assert.notDeepEqual(issuance.valueRule, programWithRulesAndDates.valueRule);
+        chai.assert.notDeepEqual(issuance.redemptionRule, programWithRulesAndDates.redemptionRule);
+        chai.assert.notEqual(programWithRulesAndDates.startDate, issuance.startDate);
+        chai.assert.notEqual(programWithRulesAndDates.endDate, issuance.endDate);
+
+        const createIssuance = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${programWithRulesAndDates.id}/issuances`, "POST", issuance);
+        chai.assert.equal(createIssuance.statusCode, 201, JSON.stringify(createIssuance.body));
+        chai.assert.deepEqual(createIssuance.body.valueRule, issuance.valueRule);
+        chai.assert.deepEqual(createIssuance.body.redemptionRule, issuance.redemptionRule);
+        chai.assert.equal(createIssuance.body.startDate.toString(), issuance.startDate.toISOString());
+        chai.assert.equal(createIssuance.body.endDate.toString(), issuance.endDate.toISOString());
+
+        const listResponse = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?limit=1000&issuanceId=${issuance.id}`, "GET");
+        chai.assert.equal(listResponse.statusCode, 200, `body=${JSON.stringify(listResponse.body)}`);
+        chai.assert.equal(listResponse.body.length, issuance.count);
+        chai.assert.deepEqual(listResponse.body[0].valueRule, issuance.valueRule);
+        chai.assert.deepEqual(listResponse.body[0].redemptionRule, issuance.redemptionRule);
+        chai.assert.equal(listResponse.body[0].startDate.toString(), issuance.startDate.toISOString());
+        chai.assert.equal(listResponse.body[0].endDate.toString(), issuance.endDate.toISOString());
+    });
 
     it(`issuance with generic code`, async () => {
         let issuance = {
@@ -157,7 +234,7 @@ describe("/v2/issuances", () => {
     it(`422 if program has valueRule and try to issue with balance`, async () => {
         const program: Partial<Program> = {
             id: generateId(),
-            name: "program with no balance constraints or valueRule",
+            name: "program-name",
             currency: "USD",
             valueRule: {
                 rule: "500",
