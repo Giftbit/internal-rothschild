@@ -34,7 +34,7 @@ export namespace Transaction {
     export function toDbTransaction
     (auth: giftbitRoutes.jwtauth.AuthorizationBadge, t: Transaction): DbTransaction {
         return {
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id: t.id,
             transactionType: t.transactionType,
             currency: t.currency,

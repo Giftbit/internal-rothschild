@@ -21,7 +21,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("GET")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
             auth.requireScopes("lightrailV2:transactions:list");
             const res = await getTransactions(auth, getPaginationParams(evt), getTransactionFilterParams(evt));
             return {
@@ -34,7 +34,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("GET")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
             auth.requireScopes("lightrailV2:transactions:read");
             return {
                 body: await getTransaction(auth, evt.pathParameters.id)
@@ -45,7 +45,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("PATCH")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.FORBIDDEN, "Cannot modify transactions.", "CannotModifyTransaction");
         });
 
@@ -53,7 +53,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("DELETE")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.FORBIDDEN, "Cannot delete transactions.", "CannotDeleteTransaction");
         });
 
@@ -61,7 +61,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
             auth.requireScopes("lightrailV2:transactions:credit");
             evt.validateBody(creditSchema);
             return {
@@ -74,7 +74,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
             auth.requireScopes("lightrailV2:transactions:debit");
             evt.validateBody(debitSchema);
             return {
@@ -87,7 +87,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
             auth.requireScopes("lightrailV2:transactions:checkout");
             evt.validateBody(checkoutSchema);
             return {
@@ -100,7 +100,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
             auth.requireScopes("lightrailV2:transactions:transfer");
             evt.validateBody(transferSchema);
             return {
@@ -111,13 +111,13 @@ export function installTransactionsRest(router: cassava.Router): void {
 }
 
 async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams, filter: TransactionFilterParams): Promise<{ transactions: Transaction[], pagination: Pagination }> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
     const knex = await getKnexRead();
 
     let query = knex("Transactions")
         .select()
         .where({
-            userId: auth.giftbitUserId
+            userId: auth.userId
         });
 
     if (filter.transactionType) {
@@ -142,7 +142,7 @@ async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, p
         pagination
     );
 
-    const transacs: Transaction[] = await Promise.all(await DbTransaction.toTransactions(paginatedRes.body, auth.giftbitUserId));
+    const transacs: Transaction[] = await Promise.all(await DbTransaction.toTransactions(paginatedRes.body, auth.userId));
 
     return {
         transactions: transacs,
@@ -151,13 +151,13 @@ async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, p
 }
 
 export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Transaction> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     const knex = await getKnexRead();
     const res: DbTransaction[] = await knex("Transactions")
         .select()
         .where({
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id
         });
     if (res.length === 0) {
@@ -166,7 +166,7 @@ export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBa
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
-    const transacs: Transaction[] = await Promise.all(await DbTransaction.toTransactions(res, auth.giftbitUserId));
+    const transacs: Transaction[] = await Promise.all(await DbTransaction.toTransactions(res, auth.userId));
     return transacs[0];   // at this point there will only ever be one
 }
 

@@ -17,8 +17,9 @@ export function installContactsRest(router: cassava.Router): void {
         })
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
             auth.requireScopes("lightrailV2:contacts:list");
+
             const res = await getContacts(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
@@ -30,8 +31,12 @@ export function installContactsRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
-            auth.requireScopes("lightrailV2:contacts:create");
+            auth.requireIds("userId");
+            if (auth.hasScope("lightrailV2:contacts:create:self") && auth.contactId === evt.pathParameters.id) {
+                // Badge is signed specifically to create this Contact.
+            } else {
+                auth.requireScopes("lightrailV2:contacts:create");
+            }
             evt.validateBody(contactSchema);
 
             const now = nowInDbPrecision();
@@ -56,8 +61,13 @@ export function installContactsRest(router: cassava.Router): void {
         .method("GET")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
-            auth.requireScopes("lightrailV2:contacts:read");
+            auth.requireIds("userId");
+            if (auth.hasScope("lightrailV2:contacts:read:self") && auth.contactId === evt.pathParameters.id) {
+                // Badge is signed specifically to read this Contact.
+            } else {
+                auth.requireScopes("lightrailV2:contacts:read");
+            }
+
             return {
                 body: await getContact(auth, evt.pathParameters.id)
             };
@@ -67,10 +77,14 @@ export function installContactsRest(router: cassava.Router): void {
         .method("PATCH")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
-            auth.requireScopes("lightrailV2:contacts:update");
-            evt.validateBody(contactUpdateSchema);
+            auth.requireIds("userId");
+            if (auth.hasScope("lightrailV2:contacts:update:self") && auth.contactId === evt.pathParameters.id) {
+                // Badge is signed specifically to update this Contact.
+            } else {
+                auth.requireScopes("lightrailV2:contacts:update");
+            }
 
+            evt.validateBody(contactUpdateSchema);
             if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
                 throw new giftbitRoutes.GiftbitRestError(422, `The body id '${evt.body.id}' does not match the path id '${evt.pathParameters.id}'.  The id cannot be updated.`);
             }
@@ -89,8 +103,13 @@ export function installContactsRest(router: cassava.Router): void {
         .method("DELETE")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
-            auth.requireScopes("lightrailV2:contacts:delete");
+            auth.requireIds("userId");
+            if (auth.hasScope("lightrailV2:contacts:delete:self") && auth.contactId === evt.pathParameters.id) {
+                // Badge is signed specifically to delete this Contact.
+            } else {
+                auth.requireScopes("lightrailV2:contacts:delete");
+            }
+
             return {
                 body: await deleteContact(auth, evt.pathParameters.id)
             };
@@ -98,13 +117,13 @@ export function installContactsRest(router: cassava.Router): void {
 }
 
 export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: {[key: string]: string}, pagination: PaginationParams): Promise<{ contacts: Contact[], pagination: Pagination }> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     const knex = await getKnexRead();
     const res = await filterAndPaginateQuery<DbContact>(
         knex("Contacts")
             .where({
-                userId: auth.giftbitUserId
+                userId: auth.userId
             }),
         filterParams,
         {
@@ -133,7 +152,7 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 }
 
 export async function createContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contact: Contact): Promise<Contact> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     try {
         const knex = await getKnexWrite();
@@ -149,13 +168,13 @@ export async function createContact(auth: giftbitRoutes.jwtauth.AuthorizationBad
 }
 
 export async function getContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Contact> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     const knex = await getKnexRead();
     const res: DbContact[] = await knex("Contacts")
         .select()
         .where({
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id: id
         });
     if (res.length === 0) {
@@ -168,12 +187,12 @@ export async function getContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
 }
 
 export async function updateContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, contact: Partial<Contact>): Promise<Contact> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     const knex = await getKnexWrite();
     const res: number = await knex("Contacts")
         .where({
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id: id
         })
         .update(Contact.toDbContactUpdate(contact));
@@ -190,13 +209,13 @@ export async function updateContact(auth: giftbitRoutes.jwtauth.AuthorizationBad
 }
 
 export async function deleteContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<{ success: true }> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     try {
         const knex = await getKnexWrite();
         const res: number = await knex("Contacts")
             .where({
-                userId: auth.giftbitUserId,
+                userId: auth.userId,
                 id: id
             })
             .delete();

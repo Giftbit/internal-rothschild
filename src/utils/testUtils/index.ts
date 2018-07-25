@@ -8,8 +8,9 @@ import * as path from "path";
 import {getDbCredentials} from "../dbUtils/connection";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
 import papaparse = require("papaparse");
-import rolesConfig = require("./rolesConfig.json");
 import uuid = require("uuid");
+
+const rolesConfig = require("./rolesConfig.json");
 
 if (!process.env["TEST_ENV"]) {
     log.error("Env var TEST_ENV is undefined.  This is not a test environment!");

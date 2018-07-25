@@ -19,8 +19,13 @@ export function installContactValuesRest(router: cassava.Router): void {
         })
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
-            auth.requireScopes("lightrailV2:contacts:read", "lightrailV2:values:list");
+            auth.requireIds("userId");
+            if (auth.hasScope("lightrailV2:values:list:self") && auth.contactId === evt.pathParameters.id) {
+                // Badge is signed specifically to list values for this contact.
+            } else {
+                auth.requireScopes("lightrailV2:values:list");
+            }
+
             const showCode: boolean = (evt.queryStringParameters.showCode === "true");
             const res = await getValues(auth, {...evt.queryStringParameters, contactId: evt.pathParameters.id}, Pagination.getPaginationParams(evt), showCode);
             return {
@@ -33,8 +38,14 @@ export function installContactValuesRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
-            auth.requireScopes("lightrailV2:contacts:read", "lightrailV2:values:update");
+            let allowOverwrite = true;
+            auth.requireIds("userId");
+            if (auth.hasScope("lightrailV2:values:attach:self") && auth.contactId === evt.pathParameters.id && evt.body.code && !evt.body.valueId) {
+                // Badge is signed specifically to attach a value by code for this contact.
+                allowOverwrite = false;
+            } else {
+                auth.requireScopes("lightrailV2:values:attach");
+            }
 
             evt.validateBody({
                 type: "object",
@@ -59,20 +70,19 @@ export function installContactValuesRest(router: cassava.Router): void {
             });
 
             return {
-                body: await attachValue(auth, evt.pathParameters.id, evt.body)
+                body: await attachValue(auth, evt.pathParameters.id, evt.body, allowOverwrite)
             };
         });
 }
 
-export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, valueIdentifier: {valueId?: string, code?: string}): Promise<Value> {
-    // This will throw a 404 if either aren't found.  Is that a good idea?
+export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, valueIdentifier: {valueId?: string, code?: string}, allowOverwrite: boolean): Promise<Value> {
     const contact = await getContact(auth, contactId);
     const value = await getValueByIdentifier(auth, valueIdentifier);
 
     if (value.isGenericCode) {
         return attachGenericValue(auth, contact.id, value);
     } else {
-        return attachUniqueValue(auth, contact.id, value);
+        return attachUniqueValue(auth, contact.id, value, allowOverwrite);
     }
 }
 
@@ -95,7 +105,7 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         if (originalValue.uses != null) {
             const usesDecrementRes: number = await trx("Values")
                 .where({
-                    userId: auth.giftbitUserId,
+                    userId: auth.userId,
                     id: originalValue.id
                 })
                 .where("uses", ">", 0)
@@ -127,19 +137,25 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     return claimedValue;
 }
 
-async function attachUniqueValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, value: Value): Promise<Value> {
+async function attachUniqueValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, value: Value, allowOverwrite: boolean): Promise<Value> {
     try {
         const knex = await getKnexWrite();
         const res: number = await knex("Values")
             .where({
-                userId: auth.giftbitUserId,
+                userId: auth.userId,
                 id: value.id
+            })
+            .andWhere(query => {
+                if (!allowOverwrite) {
+                    return query.whereNull("contactId");
+                }
+                return query;
             })
             .update({
                 contactId: contactId
             });
         if (res === 0) {
-            throw new cassava.RestError(404);
+            throw new giftbitRoutes.GiftbitRestError(409, `Value not found.`, "ValueNotFound");
         }
         if (res > 1) {
             throw new Error(`Illegal UPDATE query.  Updated ${res} values.`);

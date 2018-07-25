@@ -15,7 +15,7 @@ export function installCurrenciesRest(router: cassava.Router): void {
         })
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
             auth.requireScopes("lightrailV2:currencies:list");
             return {
                 body: await getCurrencies(auth)
@@ -26,7 +26,7 @@ export function installCurrenciesRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
             auth.requireScopes("lightrailV2:currencies:create");
             evt.validateBody(currencySchema);
 
@@ -41,7 +41,7 @@ export function installCurrenciesRest(router: cassava.Router): void {
         .method("GET")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
             auth.requireScopes("lightrailV2:currencies:read");
             return {
                 body: await getCurrency(auth, evt.pathParameters.code)
@@ -52,7 +52,7 @@ export function installCurrenciesRest(router: cassava.Router): void {
         .method("PATCH")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
             auth.requireScopes("lightrailV2:currencies:update");
             evt.validateBody(currencyUpdateSchema);
 
@@ -70,7 +70,7 @@ export function installCurrenciesRest(router: cassava.Router): void {
         .method("DELETE")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
             auth.requireScopes("lightrailV2:currencies:delete");
             return {
                 body: await deleteCurrency(auth, evt.pathParameters.code)
@@ -79,20 +79,20 @@ export function installCurrenciesRest(router: cassava.Router): void {
 }
 
 export async function getCurrencies(auth: giftbitRoutes.jwtauth.AuthorizationBadge): Promise<Currency[]> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     const knex = await getKnexRead();
     const res: DbCurrency[] = await knex("Currencies")
         .select()
         .where({
-            userId: auth.giftbitUserId
+            userId: auth.userId
         })
         .orderBy("code");
     return res.map(DbCurrency.toCurrency);
 }
 
 export async function createCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: Currency): Promise<Currency> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     try {
         const knex = await getKnexWrite();
@@ -108,13 +108,13 @@ export async function createCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBa
 }
 
 export async function getCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string): Promise<Currency> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     const knex = await getKnexRead();
     const res: DbCurrency[] = await knex("Currencies")
         .select()
         .where({
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             code: code
         });
     if (res.length === 0) {
@@ -127,12 +127,12 @@ export async function getCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 }
 
 export async function updateCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string, currency: Partial<Currency>): Promise<Currency> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     const knex = await getKnexWrite();
     const res: number = await knex("Currencies")
         .where({
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             code: code
         })
         .update(Currency.toDbCurrencyUpdate(currency));
@@ -149,13 +149,13 @@ export async function updateCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBa
 }
 
 export async function deleteCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string): Promise<{success: true}> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     try {
         const knex = await getKnexWrite();
         const res: number = await knex("Currencies")
             .where({
-                userId: auth.giftbitUserId,
+                userId: auth.userId,
                 code: code
             })
             .delete();
