@@ -204,7 +204,6 @@ describe("/v2/contacts/values", () => {
             }
         });
         chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
-        chai.assert.equal(resp1.body.id, "add-generated-by-code");
         value6 = resp1.body;
 
         const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value6.id}?showCode=true`, "GET");

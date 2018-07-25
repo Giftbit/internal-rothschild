@@ -123,7 +123,7 @@ async function getPrograms(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagin
                 userId: auth.giftbitUserId
             }),
         pagination
-    ); // todo - add querying capabilities.
+    );
 
     return {
         programs: res.body.map(DbProgram.toProgram),

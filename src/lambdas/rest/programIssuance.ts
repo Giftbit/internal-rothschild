@@ -28,7 +28,7 @@ export function installIssuancesRest(router: cassava.Router): void {
             const res = await getIssuances(auth, Pagination.getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
-                body: res.programs
+                body: res.issuances
             };
         });
 
@@ -82,11 +82,9 @@ export function installIssuancesRest(router: cassava.Router): void {
                 body: await getIssuance(auth, evt.pathParameters.id)
             };
         });
-
-
 }
 
-async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ programs: Issuance[], pagination: Pagination }> {
+async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ issuances: Issuance[], pagination: Pagination }> {
     auth.requireIds("giftbitUserId");
 
     const knex = await getKnexRead();
@@ -99,7 +97,7 @@ async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagi
     );
 
     return {
-        programs: res.body.map(DbIssuance.toIssuance),
+        issuances: res.body.map(DbIssuance.toIssuance),
         pagination: res.pagination
     };
 }
@@ -183,7 +181,7 @@ const issuanceSchema: jsonschema.Schema = {
     properties: {
         id: {
             type: "string",
-            maxLength: 26, /* values created are based off of this id */
+            maxLength: 26, /* Values created are based off this id. Leaves room for suffixing the Values index. ie `${id}-${index}` */
             minLength: 1
         },
         programId: {

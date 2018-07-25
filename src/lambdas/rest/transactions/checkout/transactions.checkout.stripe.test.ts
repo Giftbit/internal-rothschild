@@ -567,7 +567,7 @@ describe("split tender checkout with Stripe", () => {
             // todo check that metadata on Stripe charge gets updated with refund note
 
             (insertTransaction.insertLightrailTransactionSteps as any).restore();
-        }).timeout(5000);
+        }).timeout(4000);
 
         it("throws 409 'transaction already exists' if the Lightrail transaction fails for idempotency reasons", async () => {
             let stubInsertTransaction = sinon.stub(insertTransaction, "insertTransaction");

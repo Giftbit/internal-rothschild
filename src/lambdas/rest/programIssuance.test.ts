@@ -206,7 +206,7 @@ describe("/v2/issuances", () => {
         chai.assert.include(createIssuance.body.message, "Issuance count must be 1 if isGenericCode:true.");
     });
 
-    it(`422 if isGenericCode: true and count > 1`, async () => {
+    it(`422 if provided code and count > 1`, async () => {
         let issuance = {
             id: generateId(),
             count: 2,

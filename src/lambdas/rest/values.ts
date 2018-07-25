@@ -497,7 +497,6 @@ function checkValueProperties(value: Value, program: Program = null): void {
     }
 }
 
-
 function checkProgramConstraints(value: Value, program: Program): void {
     if (program.fixedInitialBalances && (program.fixedInitialBalances.indexOf(value.balance) === -1 || !value.balance)) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} outside initial values defined by Program ${program.fixedInitialBalances}.`);
@@ -515,13 +514,6 @@ function checkProgramConstraints(value: Value, program: Program): void {
 
     if (program.currency !== value.currency) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's currency ${value.currency} cannot differ from currency of Program ${program.currency}.`);
-    }
-}
-
-// todo - I don't think this is necessary.
-function checkIssuanceConstraints(value: Value, program: Program, issuance: Issuance): void {
-    if (value.isGenericCode && issuance.count > 1) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Issuance count must be 1 if isGenericCode:true.`);
     }
 }
 
