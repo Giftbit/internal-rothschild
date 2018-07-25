@@ -5,7 +5,7 @@ import * as transactions from "../transactions";
 import * as valueStores from "../../values";
 import * as testUtils from "../../../../utils/testUtils";
 import {generateId} from "../../../../utils/testUtils";
-import {Transaction} from "../../../../model/Transaction";
+import {LightrailTransactionStep, Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import {Value} from "../../../../model/Value";
 import {after} from "mocha";
@@ -339,28 +339,7 @@ describe("/v2/transactions/checkout - mixed sources", () => {
                     }
                 }
             ],
-            "steps": [
-                {
-                    rail: "lightrail",
-                    valueId: valueSecretCode.id,
-                    contactId: null,
-                    code: "…CRET",
-                    balanceBefore: 100,
-                    balanceAfter: 0,
-                    balanceChange: -100
-
-                },
-                {
-                    rail: "lightrail",
-                    valueId: valueGenericCode.id,
-                    contactId: null,
-                    code: "…ERIC",
-                    balanceBefore: 2000,
-                    balanceAfter: 0,
-                    balanceChange: -2000
-
-                }
-            ],
+            "steps": null,
             "paymentSources": [
                 {
                     rail: "lightrail",
@@ -374,6 +353,29 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             "metadata": null,
             "createdDate": null
         }, ["createdDate", "steps"]);
+
+        const step1 = postCheckoutResp.body.steps.find(step => (step as LightrailTransactionStep).valueId === valueSecretCode.id);
+        chai.assert.deepEqual(step1, {
+            rail: "lightrail",
+            valueId: valueSecretCode.id,
+            contactId: null,
+            code: "…CRET",
+            balanceBefore: 100,
+            balanceAfter: 0,
+            balanceChange: -100
+
+        });
+        const step2 = postCheckoutResp.body.steps.find(step => (step as LightrailTransactionStep).valueId === valueGenericCode.id);
+        chai.assert.deepEqual(step2, {
+                rail: "lightrail",
+                valueId: valueGenericCode.id,
+                contactId: null,
+                code: valueGenericCode.code,
+                balanceBefore: 2000,
+                balanceAfter: 0,
+                balanceChange: -2000
+            }
+        );
 
     });
 });
