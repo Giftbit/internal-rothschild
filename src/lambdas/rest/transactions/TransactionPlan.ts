@@ -17,6 +17,7 @@ import {LineItemResponse} from "../../../model/LineItem";
 import {TransactionParty} from "../../../model/TransactionRequest";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import {codeLastFour} from "../../../model/DbCode";
 
 export interface TransactionPlan {
     id: string;
@@ -171,7 +172,7 @@ export namespace TransactionPlan {
             totals: plan.totals,
             lineItems: plan.lineItems,
             steps: plan.steps.map(step => transactionPlanStepToTransactionStep(step)),
-            paymentSources: plan.paymentSources,
+            paymentSources: plan.paymentSources ? plan.paymentSources.map(source => obscureCodes(source, plan.steps)) : null,
             metadata: plan.metadata || null
         };
         if (simulated) {
@@ -197,6 +198,24 @@ export namespace TransactionPlan {
                 return StripeTransactionPlanStep.toStripeTransactionStep(step);
             case "internal":
                 return InternalTransactionPlanStep.toInternalTransactionStep(step);
+        }
+    }
+
+    function obscureCodes(source: TransactionParty, steps: TransactionPlanStep[]): TransactionParty {
+        if (source.rail === "lightrail" && source.code) {
+            // checking whether the code is generic without pulling the Value from the db again:
+            // secret codes come back as lastFour, so if a step has a Value whose code matches the (full) code in the payment source, it means it's a generic code
+            const genericCodeStep: LightrailTransactionPlanStep = (steps.find(step => step.rail === "lightrail" && step.value.code === source.code) as LightrailTransactionPlanStep);
+            if (genericCodeStep) {
+                return source;
+            } else {
+                return {
+                    rail: source.rail,
+                    code: codeLastFour(source.code)
+                };
+            }
+        } else {
+            return source;
         }
     }
 }

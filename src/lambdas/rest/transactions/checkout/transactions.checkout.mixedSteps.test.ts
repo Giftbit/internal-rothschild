@@ -10,6 +10,7 @@ import {createCurrency} from "../../currencies";
 import {Value} from "../../../../model/Value";
 import {after} from "mocha";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../utils/testUtils/stripeTestUtils";
+import {initializeCodeCryptographySecrets} from "../../../../utils/codeCryptoUtils";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -32,6 +33,10 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             symbol: "$",
             decimalPlaces: 2
         });
+        await initializeCodeCryptographySecrets(Promise.resolve({
+            encryptionSecret: "ca7589aef4ffed15783341414fe2f4a5edf9ddad75cf2e96ed2a16aee88673ea",
+            lookupHashSecret: "ae8645165cc7533dbcc84aeb21c7d6553a38271b7e3402f99d16b8a8717847e1"
+        }));
     });
 
     after(async function () {
@@ -260,4 +265,115 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             "valueId": promotion.id
         });
     }).timeout(5000);
+
+    it("charges both generic and secret codes", async () => {
+        const valueSecretCode = {
+            id: generateId(),
+            code: `${generateId()}-SECRET`,
+            currency: "CAD",
+            balance: 100
+        };
+        const valueGenericCode = {
+            id: generateId(),
+            code: `${generateId()}-GENERIC`,
+            isGenericCode: true,
+            currency: "CAD",
+            balance: 2000
+        };
+
+        const postValueResp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueSecretCode);
+        chai.assert.equal(postValueResp1.statusCode, 201, `body=${JSON.stringify(postValueResp1.body)}`);
+        const postValueResp2 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueGenericCode);
+        chai.assert.equal(postValueResp2.statusCode, 201, `body=${JSON.stringify(postValueResp2.body)}`);
+
+        const request = {
+            id: generateId(),
+            currency: "CAD",
+            sources: [
+                {
+                    rail: "lightrail",
+                    code: valueSecretCode.code
+                },
+                {
+                    rail: "lightrail",
+                    code: valueGenericCode.code
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "chips-and-dips-deluxe",
+                    unitPrice: 2000,
+                    taxRate: 0.05
+                }
+            ]
+        };
+
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+        chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
+        chai.assert.deepEqualExcluding(postCheckoutResp.body, {
+            "id": request.id,
+            "transactionType": "checkout",
+            "currency": "CAD",
+            "totals": {
+                "subtotal": 2000,
+                "tax": 100,
+                "discount": 0,
+                "payable": 2100,
+                "remainder": 0
+            },
+            "lineItems": [
+                {
+                    "type": "product",
+                    "productId": "chips-and-dips-deluxe",
+                    "quantity": 1,
+                    "unitPrice": 2000,
+                    "taxRate": 0.05,
+                    "lineTotal": {
+                        "subtotal": 2000,
+                        "taxable": 2000,
+                        "tax": 100,
+                        "discount": 0,
+                        "remainder": 0,
+                        "payable": 2100
+                    }
+                }
+            ],
+            "steps": [
+                {
+                    rail: "lightrail",
+                    valueId: valueSecretCode.id,
+                    contactId: null,
+                    code: "…CRET",
+                    balanceBefore: 100,
+                    balanceAfter: 0,
+                    balanceChange: -100
+
+                },
+                {
+                    rail: "lightrail",
+                    valueId: valueGenericCode.id,
+                    contactId: null,
+                    code: "…ERIC",
+                    balanceBefore: 2000,
+                    balanceAfter: 0,
+                    balanceChange: -2000
+
+                }
+            ],
+            "paymentSources": [
+                {
+                    rail: "lightrail",
+                    code: "…CRET"
+                },
+                {
+                    rail: "lightrail",
+                    code: valueGenericCode.code
+                }
+            ],
+            "metadata": null,
+            "createdDate": null
+        }, ["createdDate", "steps"]);
+
+    });
 });
