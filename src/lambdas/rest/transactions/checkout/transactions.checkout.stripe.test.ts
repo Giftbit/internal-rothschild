@@ -412,8 +412,6 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.deepEqual(stripeCharge.metadata, stripeStep.charge.metadata);
     });
 
-    it.skip("processes split tender checkout with prepaid & discount LR value, plus Stripe");
-
     describe.skip("respects 'maxAmount' limit on Stripe source", async () => {
         // Should handle multiple cases:
         // - if LR value is sufficient, Stripe shouldn't even be assessed for its maxAmount
