@@ -5,7 +5,6 @@ import {Transaction} from "../../../model/Transaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import * as log from "loglevel";
-import {chargeStripeSteps, rollbackStripeSteps} from "../../../utils/stripeUtils/stripeTransactions";
 import {setupLightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/stripeAccess";
 import {LightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/StripeConfig";
 import {
@@ -14,6 +13,7 @@ import {
     insertStripeTransactionSteps,
     insertTransaction
 } from "./insertTransactions";
+import {chargeStripeSteps, rollbackStripeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
 
 export interface ExecuteTransactionPlannerOptions {
     allowRemainder: boolean;
