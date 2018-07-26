@@ -13,13 +13,15 @@ import {TransactionPlanError} from "../TransactionPlanError";
 import * as insertTransaction from "../insertTransactions";
 import * as testUtils from "../../../../utils/testUtils";
 import {after} from "mocha";
-
+import * as stripeTransactions from "../../../../utils/stripeUtils/stripeTransactions";
 import {
     setStubsForStripeTests,
     stripeEnvVarsPresent,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
 import chaiExclude = require("chai-exclude");
+import Stripe = require("stripe");
+import ICharge = Stripe.charges.ICharge;
 
 chai.use(chaiExclude);
 
@@ -88,6 +90,88 @@ describe("split tender checkout with Stripe", () => {
     });
 
     it("processes basic checkout with Stripe only", async () => {
+        const exampleStripeResponse: ICharge = {
+            "id": "ch_1CruzHG3cz9DRdBtUyQrTT7L",
+            "object": "charge",
+            "amount": 123,
+            "amount_refunded": 0,
+            "application": "ca_D5LfFkNWh8XbFWxIcEx6N9FXaNmfJ9Fr",
+            "application_fee": null,
+            "balance_transaction": "txn_1CruzHG3cz9DRdBtQFbULLwg",
+            "captured": true,
+            "created": 1532555859,
+            "currency": "cad",
+            "customer": null,
+            "description": null,
+            "destination": null,
+            "dispute": null,
+            "failure_code": null,
+            "failure_message": null,
+            "fraud_details": {},
+            "invoice": null,
+            "livemode": false,
+            "metadata": {
+                "lightrailTransactionId": "CO-stripe-only",
+                "lightrailTransactionSources": "[]",
+                "lightrailUserId": "default-test-user-TEST"
+            },
+            "on_behalf_of": null,
+            "order": null,
+            "outcome": {
+                "network_status": "approved_by_network",
+                "reason": null,
+                "risk_level": "normal",
+                "seller_message": "Payment complete.",
+                "type": "authorized"
+            },
+            "paid": true,
+            "receipt_email": null,
+            "receipt_number": null,
+            "refunded": false,
+            "refunds": {
+                "object": "list",
+                "data": [],
+                "has_more": false,
+                "total_count": 0,
+                "url": "/v1/charges/ch_1CruzHG3cz9DRdBtUyQrTT7L/refunds"
+            },
+            "review": null,
+            "shipping": null,
+            "source": {
+                "id": "card_1CruzHG3cz9DRdBtBFFtS5hy",
+                "object": "card",
+                "address_city": null,
+                "address_country": null,
+                "address_line1": null,
+                "address_line1_check": null,
+                "address_line2": null,
+                "address_state": null,
+                "address_zip": null,
+                "address_zip_check": null,
+                "brand": "Visa",
+                "country": "US",
+                "customer": null,
+                "cvc_check": null,
+                "dynamic_last4": null,
+                "exp_month": 7,
+                "exp_year": 2019,
+                "fingerprint": "LMHNXKv7kEbxUNL9",
+                "funding": "credit",
+                "last4": "4242",
+                "metadata": {},
+                "name": null,
+                "tokenization_method": null
+            },
+            "source_transfer": null,
+            "statement_descriptor": null,
+            "status": "succeeded",
+            "transfer_group": null
+        };
+        if (!testStripeLive) {
+            const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
+            stripeStub.withArgs(sinon.match.object, sinon.match.string, sinon.match.string, sinon.match.string).resolves(exampleStripeResponse);
+        }
+
         const request = {
             id: "CO-stripe-only",
             sources: [
@@ -133,23 +217,25 @@ describe("split tender checkout with Stripe", () => {
                 }
             }
         ], `body.lineItems=${JSON.stringify(postCheckoutResp.body.lineItems)}`);
-        chai.assert.deepEqualExcluding(postCheckoutResp.body.steps, [
+        chai.assert.deepEqual(postCheckoutResp.body.steps, [
             {
                 rail: "stripe",
-                chargeId: "",
+                chargeId: exampleStripeResponse.id,
                 amount: -123,
-                charge: null
+                charge: exampleStripeResponse
             }
-        ], ["chargeId", "charge"], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
-        chai.assert.deepEqualExcluding(postCheckoutResp.body.paymentSources[0], {
+        ], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
+        chai.assert.deepEqual(postCheckoutResp.body.paymentSources[0], {
             rail: "stripe",
             source: "tok_visa",
-            chargeId: "",
-        }, "chargeId", `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
+            chargeId: exampleStripeResponse.id,
+        }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["statusCode"], `body=${JSON.stringify(getCheckoutResp.body, null, 4)}`);
+
+        (stripeTransactions.createStripeCharge as sinon).restore();
     });
 
     it("processes basic checkout with Stripe only - `customer` as payment source", async () => {
