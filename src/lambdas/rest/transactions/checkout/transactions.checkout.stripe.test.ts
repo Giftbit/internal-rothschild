@@ -58,8 +58,10 @@ describe("split tender checkout with Stripe", () => {
         currency: "CAD"
     };
 
+    const testStripeLive: boolean = !!process.env["TEST_STRIPE_LIVE"];
+
     before(async function () {
-        if (!stripeEnvVarsPresent()) {
+        if (!stripeEnvVarsPresent() && testStripeLive) {
             this.skip();
             return;
         }
@@ -217,25 +219,33 @@ describe("split tender checkout with Stripe", () => {
                 }
             }
         ], `body.lineItems=${JSON.stringify(postCheckoutResp.body.lineItems)}`);
-        chai.assert.deepEqual(postCheckoutResp.body.steps, [
+        chai.assert.deepEqualExcluding(postCheckoutResp.body.steps, [
             {
                 rail: "stripe",
-                chargeId: exampleStripeResponse.id,
+                chargeId: "exampleStripeResponse.id",
                 amount: -123,
-                charge: exampleStripeResponse
+                charge: null
             }
-        ], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
-        chai.assert.deepEqual(postCheckoutResp.body.paymentSources[0], {
+        ], ["chargeId", "charge"], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
+
+        chai.assert.deepEqualExcluding(postCheckoutResp.body.paymentSources[0], {
             rail: "stripe",
             source: "tok_visa",
-            chargeId: exampleStripeResponse.id,
-        }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
+            chargeId: "",
+        }, "chargeId", `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
+
+        if (!testStripeLive) {
+            chai.assert.equal((postCheckoutResp.body.steps[0] as StripeTransactionStep).chargeId, exampleStripeResponse.id);
+            chai.assert.deepEqual((postCheckoutResp.body.steps[0] as StripeTransactionStep).charge, exampleStripeResponse, `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
+        }
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["statusCode"], `body=${JSON.stringify(getCheckoutResp.body, null, 4)}`);
 
-        (stripeTransactions.createStripeCharge as sinon).restore();
+        if (!testStripeLive) {
+            (stripeTransactions.createStripeCharge as sinon).restore();
+        }
     });
 
     it("processes basic checkout with Stripe only - `customer` as payment source", async () => {
