@@ -18,6 +18,7 @@ import {PaymentSourceForStripeMetadata, StripeSourceForStripeMetadata} from "./P
 
 export async function createStripeCharge(params: StripeCreateChargeParams, lightrailStripeSecretKey: string, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<ICharge> {
     const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
+    lightrailStripe.setApiVersion(process.env["STRIPE_API_VERSION"]);
     // params.description = "Lightrail Checkout transaction.";  // todo what is this
     log.info(`Creating Stripe charge ${JSON.stringify(params)}.`);
 
@@ -68,6 +69,7 @@ export async function rollbackStripeSteps(lightrailStripeSecretKey: string, merc
 
 export async function createRefund(step: StripeTransactionPlanStep, lightrailStripeSecretKey: string, merchantStripeAccountId: string, reason?: string): Promise<IRefund> {
     const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
+    lightrailStripe.setApiVersion(process.env["STRIPE_API_VERSION"]);
     log.info(`Creating refund for Stripe charge ${step.chargeResult.id}.`);
     const refund = await lightrailStripe.refunds.create({
         charge: step.chargeResult.id,
@@ -88,11 +90,12 @@ export async function createRefund(step: StripeTransactionPlanStep, lightrailStr
 }
 
 export async function updateCharge(chargeId: string, params: StripeUpdateChargeParams, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<any> {
-    const merchantStripe = require("stripe")(lightrailStripeSecretKey);
+    const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
+    lightrailStripe.setApiVersion(process.env["STRIPE_API_VERSION"]);
     log.info(`Updating Stripe charge ${JSON.stringify(params)}.`);
     let chargeUpdate;
     try {
-        chargeUpdate = await merchantStripe.charges.update(
+        chargeUpdate = await lightrailStripe.charges.update(
             chargeId,
             params, {
                 stripe_account: merchantStripeAccountId,
