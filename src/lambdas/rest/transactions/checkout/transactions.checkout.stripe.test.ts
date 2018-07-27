@@ -648,9 +648,10 @@ describe("split tender checkout with Stripe", () => {
 
     });
 
-    it("posts the LR transaction identifier as metadata on the Stripe charge", async () => {
+    it("posts the LR transaction identifier as metadata on the Stripe charge", async function () {
         if (!testStripeLive) {
             console.log("Skipping test that currently requires live call to Stripe");
+            this.skip();
             return;
         }
 
@@ -669,9 +670,10 @@ describe("split tender checkout with Stripe", () => {
         });
     });
 
-    it("writes metadata to both LR & Stripe transactions", async () => {
+    it("writes metadata to both LR & Stripe transactions", async function () {
         if (!testStripeLive) {
             console.log("Skipping test that currently requires live call to Stripe");
+            this.skip();
             return;
         }
 
@@ -898,7 +900,13 @@ describe("split tender checkout with Stripe", () => {
             chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
         }).timeout(4000);
 
-        it("rolls back the Stripe transaction when the Lightrail transaction fails", async () => {
+        it("rolls back the Stripe transaction when the Lightrail transaction fails", async function () {
+            if (!testStripeLive) {
+                console.log("Skipping test that requires live call to Stripe with current logic: logic changes in PR #49 and the test should be updated after it's merged");
+                this.skip();
+                return;
+            }
+
             let stubProcessLightrailTransactionSteps = sinon.stub(insertTransaction, "insertLightrailTransactionSteps");
             stubProcessLightrailTransactionSteps.throws(new TransactionPlanError("error for tests", {isReplanable: false}));
 
@@ -913,7 +921,13 @@ describe("split tender checkout with Stripe", () => {
             (insertTransaction.insertLightrailTransactionSteps as any).restore();
         }).timeout(3500);
 
-        it("throws 409 'transaction already exists' if the Lightrail transaction fails for idempotency reasons", async () => {
+        it("throws 409 'transaction already exists' if the Lightrail transaction fails for idempotency reasons", async function () {
+            if (!testStripeLive) {
+                console.log("Skipping test that requires live call to Stripe with current logic: logic changes in PR #49 and the test should be updated after it's merged");
+                this.skip();
+                return;
+            }
+
             let stubInsertTransaction = sinon.stub(insertTransaction, "insertTransaction");
             stubInsertTransaction.withArgs(sinon.match.any, sinon.match.any, sinon.match.any).throws(new giftbitRoutes.GiftbitRestError(409, `A transaction with transactionId 'TEST-ID-IRRELEVANT' already exists.`, "TransactionExists"));
             const request = {
@@ -928,9 +942,10 @@ describe("split tender checkout with Stripe", () => {
             (insertTransaction.insertTransaction as any).restore();
         }).timeout(3000);
 
-        it("handles idempotency errors: fails the repeated transaction but doesn't roll back the original Stripe charge", async () => {
+        it("handles idempotency errors: fails the repeated transaction but doesn't roll back the original Stripe charge", async function () {
             if (!testStripeLive) {
                 console.log("Skipping test that currently requires live call to Stripe");
+                this.skip();
                 return;
             }
 
