@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as testUtils from "../../../utils/testUtils";
-import {defaultTestUser, generateId} from "../../../utils/testUtils";
+import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../utils/testUtils";
 import {Value} from "../../../model/Value";
 import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../model/Transaction";
 import {Currency} from "../../../model/Currency";
@@ -13,7 +13,6 @@ import {
     unsetStubsForStripeTests
 } from "../../../utils/testUtils/stripeTestUtils";
 import {createCurrency} from "../currencies";
-import {initializeCodeCryptographySecrets} from "../../../utils/codeCryptoUtils";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -27,10 +26,7 @@ describe("/v2/transactions/transfer", () => {
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
         installRestRoutes(router);
 
-        await initializeCodeCryptographySecrets(Promise.resolve({
-            encryptionSecret: "ca7589aef4ffed15783341414fe2f4a5edf9ddad75cf2e96ed2a16aee88673ea",
-            lookupHashSecret: "ae8645165cc7533dbcc84aeb21c7d6553a38271b7e3402f99d16b8a8717847e1"
-        }));
+        await setCodeCryptographySecrets();
 
         const postCurrencyResp = await createCurrency(defaultTestUser.auth, currency);
         chai.assert.equal(postCurrencyResp.code, "CAD", `currencyResp=${JSON.stringify(postCurrencyResp)}`);

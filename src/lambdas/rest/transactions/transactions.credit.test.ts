@@ -2,12 +2,11 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as testUtils from "../../../utils/testUtils";
-import {defaultTestUser, generateId} from "../../../utils/testUtils";
+import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../utils/testUtils";
 import {Value} from "../../../model/Value";
 import {Transaction} from "../../../model/Transaction";
 import * as currencies from "../currencies";
 import {installRestRoutes} from "../installRestRoutes";
-import {initializeCodeCryptographySecrets} from "../../../utils/codeCryptoUtils";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -21,10 +20,7 @@ describe("/v2/transactions/credit", () => {
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
         installRestRoutes(router);
 
-        await initializeCodeCryptographySecrets(Promise.resolve({
-            encryptionSecret: "ca7589aef4ffed15783341414fe2f4a5edf9ddad75cf2e96ed2a16aee88673ea",
-            lookupHashSecret: "ae8645165cc7533dbcc84aeb21c7d6553a38271b7e3402f99d16b8a8717847e1"
-        }));
+        await setCodeCryptographySecrets();
 
         await currencies.createCurrency(defaultTestUser.auth, {
             code: "CAD",
