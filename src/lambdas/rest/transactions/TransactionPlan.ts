@@ -172,7 +172,7 @@ export namespace TransactionPlan {
             totals: plan.totals,
             lineItems: plan.lineItems,
             steps: plan.steps.map(step => transactionPlanStepToTransactionStep(step)),
-            paymentSources: plan.paymentSources ? plan.paymentSources.map(source => obscureCodes(source, plan.steps)) : null,
+            paymentSources: plan.paymentSources && plan.paymentSources.map(source => obscureCodes(source, plan.steps)),
             metadata: plan.metadata || null
         };
         if (simulated) {
