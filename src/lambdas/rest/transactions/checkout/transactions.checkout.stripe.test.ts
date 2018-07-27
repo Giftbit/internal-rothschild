@@ -141,11 +141,10 @@ describe("split tender checkout with Stripe", () => {
                 charge: null
             }
         ], ["chargeId", "charge"], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
-        chai.assert.deepEqualExcluding(postCheckoutResp.body.paymentSources[0], {
+        chai.assert.deepEqual(postCheckoutResp.body.paymentSources[0], {
             rail: "stripe",
             source: "tok_visa",
-            chargeId: "",
-        }, "chargeId", `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
+        }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
@@ -206,11 +205,10 @@ describe("split tender checkout with Stripe", () => {
                 charge: null
             }
         ], ["chargeId", "charge"], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
-        chai.assert.deepEqualExcluding(postCheckoutResp.body.paymentSources[0], {
+        chai.assert.deepEqual(postCheckoutResp.body.paymentSources[0], {
             rail: "stripe",
             customer: process.env["STRIPE_CUSTOMER_ID"],
-            chargeId: "",
-        }, "chargeId", `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
+        }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
@@ -265,11 +263,10 @@ describe("split tender checkout with Stripe", () => {
             rail: "lightrail",
             valueId: value.id
         }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
-        chai.assert.deepEqualExcluding(postCheckoutResp.body.paymentSources[1], {
+        chai.assert.deepEqual(postCheckoutResp.body.paymentSources[1], {
             rail: "stripe",
             source: "tok_visa",
-            chargeId: "",
-        }, "chargeId", `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
+        }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
@@ -372,7 +369,7 @@ describe("split tender checkout with Stripe", () => {
         const lrCheckoutTransaction = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${basicRequest.id}`, "GET");  // created in first split tender test
 
         const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
-        const stripeChargeId = (lrCheckoutTransaction.body.paymentSources.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
+        const stripeChargeId = (lrCheckoutTransaction.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).charge.id;
         const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
             stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
         });
@@ -404,7 +401,7 @@ describe("split tender checkout with Stripe", () => {
         });
 
         const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
-        const stripeChargeId = (postCheckoutResp.body.paymentSources.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
+        const stripeChargeId = (postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).charge.id;
         const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
             stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
         });
@@ -611,7 +608,7 @@ describe("split tender checkout with Stripe", () => {
 
             // get the stripe charge and make sure that it hasn't been refunded
             const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
-            const stripeChargeId = (postCheckoutResp.body.paymentSources.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
+            const stripeChargeId = (postCheckoutResp.body.steps.find(steps => steps.rail === "stripe") as StripeTransactionStep).charge.id;
             const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
                 stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
             });
@@ -725,17 +722,15 @@ describe("split tender checkout with Stripe", () => {
             rail: "lightrail",
             valueId: value2.id
         }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
-        chai.assert.deepEqualExcluding(postCheckoutResp.body.paymentSources[1], {
+        chai.assert.deepEqual(postCheckoutResp.body.paymentSources[1], {
             rail: "stripe",
             source: "tok_visa",
             maxAmount: 100,
-            chargeId: "",
-        }, "chargeId", `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
-        chai.assert.deepEqualExcluding(postCheckoutResp.body.paymentSources[2], {
+        }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
+        chai.assert.deepEqual(postCheckoutResp.body.paymentSources[2], {
             rail: "stripe",
             source: "tok_mastercard",
-            chargeId: "",
-        }, "chargeId", `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
+        }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value2.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body, null, 4)}`);
