@@ -1,77 +1,84 @@
 import * as knex from "knex";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {Pagination, PaginationParams} from "../../model/Pagination";
+import {QueryOptions} from "./QueryOptions";
 
 /**
  * Apply cursor-based pagination to the given query.  All filtering is supported but sorting (ORDER BY)
  * must be done through PaginationParams.
  */
-export async function paginateQuery<T extends {id: string}>(query: knex.QueryBuilder, paginationParams: PaginationParams): Promise<{body: T[], pagination: Pagination}> {
+export async function paginateQuery<T extends { id: string }>(query: knex.QueryBuilder, paginationParams: PaginationParams, options: QueryOptions = null): Promise<{ body: T[], pagination: Pagination }> {
     let reverse = false;
     let atFirst = false;
     let atLast = false;
+
+    let columnPrefix = ""; // If a tableName is provided will prefix column with "tableName."
+    if (options && options.tableName) {
+        columnPrefix = options.tableName + ".";
+    }
 
     if (paginationParams.after) {
         const after = PaginationCursor.decode(paginationParams.after);
         if (after.sort != null && paginationParams.sort) {
             query = query
                 .where(query => query
-                    .where(paginationParams.sort.field, paginationParams.sort.asc ? ">" : "<", after.sort)
+                    .where(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? ">" : "<", after.sort)
                     .orWhere(query =>
                         query
-                            .where(paginationParams.sort.field, "=", after.sort)
-                            .where("id", paginationParams.sort.asc ? ">" : "<", after.id)
+                            .where(columnPrefix + paginationParams.sort.field, "=", after.sort)
+                            .where(columnPrefix + "id", paginationParams.sort.asc ? ">" : "<", after.id)
                     )
                 )
-                .orderBy(paginationParams.sort.field, paginationParams.sort.asc ? "ASC" : "DESC")
-                .orderBy("id", paginationParams.sort.asc ? "ASC" : "DESC");
+                .orderBy(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? "ASC" : "DESC")
+                .orderBy(columnPrefix + "id", paginationParams.sort.asc ? "ASC" : "DESC");
         } else {
             query = query
-                .where("id", ">", after.id)
-                .orderBy("id", "ASC");
+                .where(columnPrefix + "id", ">", after.id)
+                .orderBy(columnPrefix + "id", "ASC");
         }
     } else if (paginationParams.before) {
         const before = PaginationCursor.decode(paginationParams.before);
         if (before.sort != null && paginationParams.sort) {
             query = query
                 .where(query => query
-                    .where(paginationParams.sort.field, paginationParams.sort.asc ? "<" : ">", before.sort)
+                    .where(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? "<" : ">", before.sort)
                     .orWhere(query =>
                         query
-                            .where(paginationParams.sort.field, "=", before.sort)
-                            .where("id", paginationParams.sort.asc ? "<" : ">", before.id)
+                            .where(columnPrefix + paginationParams.sort.field, "=", before.sort)
+                            .where(columnPrefix + "id", paginationParams.sort.asc ? "<" : ">", before.id)
                     )
                 )
-                .orderBy(paginationParams.sort.field, paginationParams.sort.asc ? "DESC" : "ASC")
-                .orderBy("id", paginationParams.sort.asc ? "DESC" : "ASC");
+                .orderBy(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? "DESC" : "ASC")
+                .orderBy(columnPrefix + "id", paginationParams.sort.asc ? "DESC" : "ASC");
         } else {
             query = query
-                .where("id", "<", before.id)
-                .orderBy("id", "DESC");
+                .where(columnPrefix + "id", "<", before.id)
+                .orderBy(columnPrefix + "id", "DESC");
         }
         reverse = true;
     } else if (paginationParams.last) {
         if (paginationParams.sort) {
             query = query
-                .orderBy(paginationParams.sort.field, paginationParams.sort.asc ? "DESC" : "ASC")
-                .orderBy("id", paginationParams.sort.asc ? "DESC" : "ASC");
+                .orderBy(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? "DESC" : "ASC")
+                .orderBy(columnPrefix + "id", paginationParams.sort.asc ? "DESC" : "ASC");
         } else {
             query = query
-                .orderBy("id", "DESC");
+                .orderBy(columnPrefix + "id", "DESC");
         }
         reverse = true;
         atLast = true;
     } else {
         if (paginationParams.sort) {
             query = query
-                .orderBy(paginationParams.sort.field, paginationParams.sort.asc ? "ASC" : "DESC")
-                .orderBy("id", paginationParams.sort.asc ? "ASC" : "DESC");
+                .orderBy(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? "ASC" : "DESC")
+                .orderBy(columnPrefix + "id", paginationParams.sort.asc ? "ASC" : "DESC");
         } else {
             query = query
-                .orderBy("id", "ASC");
+                .orderBy(columnPrefix + "id", "ASC");
         }
         atFirst = true;
     }
+    console.log(query.toSQL().sql + "\narguments: " + JSON.stringify(query.toSQL().options));
 
     query = query.limit(paginationParams.limit);
 
