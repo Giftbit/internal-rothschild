@@ -205,7 +205,7 @@ export namespace TransactionPlan {
         if (source.rail === "lightrail" && source.code) {
             // checking whether the code is generic without pulling the Value from the db again:
             // secret codes come back as lastFour, so if a step has a Value whose code matches the (full) code in the payment source, it means it's a generic code
-            const genericCodeStep: LightrailTransactionPlanStep = (steps.find(step => step.rail === "lightrail" && step.value.code === source.code) as LightrailTransactionPlanStep);
+            const genericCodeStep: LightrailTransactionPlanStep = (steps.find(step => step.rail === "lightrail" && step.value.code === source.code && step.value.isGenericCode) as LightrailTransactionPlanStep);
             if (genericCodeStep) {
                 return source;
             } else {
