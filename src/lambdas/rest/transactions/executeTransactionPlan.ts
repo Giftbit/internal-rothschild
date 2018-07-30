@@ -74,17 +74,6 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
             chargeStripe = true;
             stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
             await chargeStripeSteps(auth, stripeConfig, plan);
-
-            try {
-                // update inserted Transaction: stripe paymentSource should include chargeId
-                await trx("Transactions")
-                    .where("id", plan.id)
-                    .update({
-                        paymentSources: JSON.stringify(plan.paymentSources)
-                    });
-            } catch (err) {
-                log.error(`Error updating transaction after posting Stripe charges: Stripe payment sources could not be updated with chargeId from Stripe. Carrying on with transaction. ERR=${err}`);
-            }
         }
 
         try {

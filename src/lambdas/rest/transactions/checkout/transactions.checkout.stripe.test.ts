@@ -12,6 +12,7 @@ import * as kvsAccess from "../../../../utils/kvsAccess";
 import {TransactionPlanError} from "../TransactionPlanError";
 import * as insertTransaction from "../insertTransactions";
 import * as testUtils from "../../../../utils/testUtils";
+import {generateId} from "../../../../utils/testUtils";
 import {after} from "mocha";
 
 import {
@@ -384,7 +385,7 @@ describe("split tender checkout with Stripe", () => {
     it("writes metadata to both LR & Stripe transactions", async () => {
         const request = {
             ...basicRequest,
-            id: "CO-split-w-metadata",
+            id: generateId(),
             metadata: {"meta": "data"}
         };
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
