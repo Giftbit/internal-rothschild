@@ -981,6 +981,19 @@ describe("/v2/values/", () => {
             chai.assert.equal(create.statusCode, 422, `body=${JSON.stringify(create.body)}`);
             chai.assert.include(create.body.message, "cannot contain a space", `body=${JSON.stringify(create.body)}`);
         });
+
+        it("can generate a code and get it in the response with showCode=true", async () => {
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values?showCode=true", "POST", {
+                id: "generateCodeTest-2",
+                currency: "USD",
+                generateCode: {
+                    length: 20
+                },
+                balance: 0
+            });
+            chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+            chai.assert.lengthOf(create.body.code, 20);
+        });
     });
 
     describe("can't create a Value with bad code properties", () => {
