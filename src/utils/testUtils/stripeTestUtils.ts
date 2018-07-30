@@ -27,8 +27,13 @@ export function setStubsForStripeTests() {
 }
 
 export function unsetStubsForStripeTests() {
-    (giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as any).restore();
-    (kvsAccess.kvsGet as any).restore();
+    if ((giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as sinon).displayName === "fetchFromS3ByEnvVar") {
+        (giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as sinon).restore();
+    }
+
+    if ((kvsAccess.kvsGet as sinon).displayName === "kvsGet") {
+        (kvsAccess.kvsGet as sinon).restore();
+    }
 }
 
 export function stripeEnvVarsPresent(): boolean {
