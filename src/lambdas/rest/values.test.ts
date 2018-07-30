@@ -3,7 +3,7 @@ import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as parseLinkHeader from "parse-link-header";
 import * as testUtils from "../../utils/testUtils";
-import {defaultTestUser, generateId} from "../../utils/testUtils";
+import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../utils/testUtils";
 import {DbValue, Value} from "../../model/Value";
 import {Currency} from "../../model/Currency";
 import {Contact} from "../../model/Contact";
@@ -12,7 +12,7 @@ import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {LightrailTransactionStep, Transaction} from "../../model/Transaction";
 import {installRestRoutes} from "./installRestRoutes";
 import {createCurrency} from "./currencies";
-import {computeCodeLookupHash, decryptCode, initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils";
+import {computeCodeLookupHash, decryptCode} from "../../utils/codeCryptoUtils";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -25,10 +25,7 @@ describe("/v2/values/", () => {
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
         installRestRoutes(router);
-        await initializeCodeCryptographySecrets(Promise.resolve({
-            encryptionSecret: "ca7589aef4ffed15783341414fe2f4a5edf9ddad75cf2e96ed2a16aee88673ea",
-            lookupHashSecret: "ae8645165cc7533dbcc84aeb21c7d6553a38271b7e3402f99d16b8a8717847e1"
-        }));
+        await setCodeCryptographySecrets();
         await createCurrency(testUtils.defaultTestUser.auth, {
             code: "USD",
             name: "The Big Bucks",
