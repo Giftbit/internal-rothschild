@@ -818,7 +818,7 @@ describe("split tender checkout with Stripe", () => {
 
     describe("rollback", () => {
         before(function () {
-            if (!stripeEnvVarsPresent()) {
+            if (!stripeEnvVarsPresent() && testStripeLive) {
                 this.skip();
                 return;
             }
