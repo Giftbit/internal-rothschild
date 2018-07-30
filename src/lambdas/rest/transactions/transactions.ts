@@ -107,9 +107,13 @@ async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, f
     const knex = await getKnexRead();
     const valueId = filterParams["valueId"];
     let query = knex("Transactions")
+        .select("Transactions.*")
         .where("Transactions.userId", "=", auth.giftbitUserId);
     if (valueId) {
-        query.join("LightrailTransactionSteps", {"Transactions.id": "LightrailTransactionSteps.transactionId"});
+        query.join("LightrailTransactionSteps", {
+            "Transactions.id": "LightrailTransactionSteps.transactionId",
+            "Transactions.userId": "LightrailTransactionSteps.userId"
+        });
         query.where("LightrailTransactionSteps.valueId", "=", valueId);
     }
 
@@ -123,14 +127,16 @@ async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, f
                     operators: ["eq", "in"]
                 },
                 "transactionType": {
-                    type: "string"
+                    type: "string",
+                    operators: ["eq", "in"]
                 },
                 "createdDate": {
                     type: "Date",
                     operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 },
                 "currency": {
-                    type: "string"
+                    type: "string",
+                    operators: ["eq", "in"]
                 }
             },
             tableName: "Transactions"

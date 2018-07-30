@@ -78,7 +78,6 @@ export async function paginateQuery<T extends { id: string }>(query: knex.QueryB
         }
         atFirst = true;
     }
-    console.log(query.toSQL().sql + "\narguments: " + JSON.stringify(query.toSQL().options));
 
     query = query.limit(paginationParams.limit);
 
