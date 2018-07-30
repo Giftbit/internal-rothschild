@@ -229,11 +229,10 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             "charge": null
         }, ["charge", "chargeId"]);
 
-        chai.assert.deepEqualExcluding(postCheckoutResp.body.paymentSources[0], {
+        chai.assert.deepEqual(postCheckoutResp.body.paymentSources[0], {
             "rail": "stripe",
             "source": "tok_visa",
-            "chargeId": null
-        }, ["chargeId"]);
+        });
         chai.assert.deepEqual(postCheckoutResp.body.paymentSources[1], {
             "rail": "internal",
             "balance": 200,
