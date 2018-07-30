@@ -19,7 +19,7 @@ log.setLevel(log.levels.INFO);
 const router = new cassava.Router();
 
 router.route(new cassava.routes.LoggingRoute({
-    logFunction: log.info
+    logFunction: console.log.bind(console)
 }));
 
 router.route(new giftbitRoutes.HealthCheckRoute("/v2/healthCheck"));

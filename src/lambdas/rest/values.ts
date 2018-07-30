@@ -100,9 +100,11 @@ export function installValuesRest(router: cassava.Router): void {
             value.startDate = value.startDate ? dateInDbPrecision(new Date(value.startDate)) : null;
             value.endDate = value.endDate ? dateInDbPrecision(new Date(value.endDate)) : null;
 
+            const showCode: boolean = (evt.queryStringParameters.showCode === "true");
+
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
-                body: await createValue(auth, value)
+                body: await createValue(auth, value, showCode)
             };
         });
 
@@ -278,7 +280,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     };
 }
 
-async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value: Value): Promise<Value> {
+async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value: Value, showCode: boolean): Promise<Value> {
     auth.requireIds("userId");
 
     if (value.contactId && value.isGenericCode) {
@@ -324,7 +326,7 @@ async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value
                 await trx.into("LightrailTransactionSteps").insert(initialBalanceTransactionStep);
             }
         });
-        if (value.code && !value.isGenericCode) {
+        if (!showCode && value.code && !value.isGenericCode) {
             log.debug("obfuscating secure code from response");
             value.code = codeLastFour(value.code);
         }
