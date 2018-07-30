@@ -4,11 +4,11 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {Contact} from "../../model/Contact";
 import {installRestRoutes} from "./installRestRoutes";
 import * as testUtils from "../../utils/testUtils";
+import {setCodeCryptographySecrets} from "../../utils/testUtils";
 import {createContact} from "./contacts";
 import {Currency} from "../../model/Currency";
 import {createCurrency} from "./currencies";
 import {Value} from "../../model/Value";
-import {initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils";
 
 describe("/v2/contacts/values", () => {
 
@@ -18,10 +18,7 @@ describe("/v2/contacts/values", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-        await initializeCodeCryptographySecrets(Promise.resolve({
-            encryptionSecret: "ca7589aef4ffed15783341414fe2f4a5edf9ddad75cf2e96ed2a16aee88673ea",
-            lookupHashSecret: "ae8645165cc7533dbcc84aeb21c7d6553a38271b7e3402f99d16b8a8717847e1"
-        }));
+        await setCodeCryptographySecrets();
     });
 
     const currency: Currency = {
@@ -206,7 +203,7 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
         value6 = resp1.body;
 
-        const resp2 =  await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value6.id}?showCode=true`, "GET");
+        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value6.id}?showCode=true`, "GET");
         chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
         value6Code = resp2.body.code;
 
