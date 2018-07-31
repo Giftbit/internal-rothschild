@@ -833,13 +833,13 @@ describe("split tender checkout with Stripe", () => {
 
         if (testStripeLive) {
             const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
-            const stripeChargeId = (postCheckoutResp.body.paymentSources.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
+            const stripeChargeId = (postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId;
             const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
                 stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
             });
             chai.assert.deepEqual(stripeCharge.metadata, stripeStep.charge.metadata);
         }
-    });
+    }).timeout(3000);
 
     it("does not charge Stripe when 'simulate: true'", async () => {
         if (testStripeLive) {

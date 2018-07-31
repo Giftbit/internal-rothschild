@@ -6,7 +6,6 @@ import {
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {createRefund, createStripeCharge} from "./stripeTransactions";
 import {LightrailAndMerchantStripeConfig} from "./StripeConfig";
-import {StripeTransactionParty} from "../../model/TransactionRequest";
 import {StripeRestError} from "./StripeRestError";
 import {TransactionPlanError} from "../../lambdas/rest/transactions/TransactionPlanError";
 import {StripeCreateChargeParams} from "./StripeCreateChargeParams";
