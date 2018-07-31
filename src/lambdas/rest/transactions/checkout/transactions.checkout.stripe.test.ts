@@ -1056,9 +1056,32 @@ describe("split tender checkout with Stripe", () => {
         }).timeout(3500);
 
         it("rolls back the Stripe transaction when the Lightrail transaction steps fail", async () => {
+            const value4: Partial<Value> = {
+                id: generateId(),
+                currency: "CAD",
+                balance: 100
+            };
+
             const request = {
-                ...basicRequest,
-                id: `rollback-${Math.random()}`  // needs to be generated for every test so the Stripe refund succeeds (charges use idempotency keys, refunds can't)
+                id: generateId(),
+                sources: [
+                    {
+                        rail: "lightrail",
+                        valueId: value4.id
+                    },
+                    {
+                        rail: "stripe",
+                        source: source
+                    }
+                ],
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "xyz-123",
+                        unitPrice: 500
+                    }
+                ],
+                currency: "CAD"
             };
 
             const exampleStripeCharge: ICharge = {
@@ -1082,8 +1105,8 @@ describe("split tender checkout with Stripe", () => {
                 "invoice": null,
                 "livemode": false,
                 "metadata": {
-                    "lightrailTransactionId": "rollback-0.3448923421035033",
-                    "lightrailTransactionSources": "[{\"rail\":\"lightrail\",\"valueId\":\"value-for-checkout-w-stripe\"}]",
+                    "lightrailTransactionId": request.id,
+                    "lightrailTransactionSources": `[{\"rail\":\"lightrail\",\"valueId\":\"${value4.id}\"}]`,
                     "lightrailUserId": "default-test-user-TEST"
                 },
                 "on_behalf_of": null,
@@ -1162,7 +1185,7 @@ describe("split tender checkout with Stripe", () => {
                     "currency": request.currency,
                     "metadata": {
                         "lightrailTransactionId": request.id,
-                        "lightrailTransactionSources": "[{\"rail\":\"lightrail\",\"valueId\":\"value-for-checkout-w-stripe\"}]",
+                        "lightrailTransactionSources": `[{\"rail\":\"lightrail\",\"valueId\":\"${value4.id}\"}]`,
                         "lightrailUserId": "default-test-user-TEST"
                     },
                     "source": "tok_visa"
@@ -1180,7 +1203,10 @@ describe("split tender checkout with Stripe", () => {
             }
 
             let stubProcessLightrailTransactionSteps = sinon.stub(insertTransaction, "insertLightrailTransactionSteps");
-            stubProcessLightrailTransactionSteps.throws(new TransactionPlanError("error for tests", {isReplanable: false}));
+            stubProcessLightrailTransactionSteps.throws(new TransactionPlanError("Error for tests: transaction step insertion error", {isReplanable: false}));
+
+            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value4);
+            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
 
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
             chai.assert.equal(postCheckoutResp.statusCode, 500, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
@@ -1191,7 +1217,7 @@ describe("split tender checkout with Stripe", () => {
                     "currency": request.currency,
                     "metadata": {
                         "lightrailTransactionId": request.id,
-                        "lightrailTransactionSources": "[{\"rail\":\"lightrail\",\"valueId\":\"value-for-checkout-w-stripe\"}]",
+                        "lightrailTransactionSources": `[{\"rail\":\"lightrail\",\"valueId\":\"${request.sources[0].valueId}\"}]`,
                         "lightrailUserId": "default-test-user-TEST"
                     },
                     "source": "tok_visa"
