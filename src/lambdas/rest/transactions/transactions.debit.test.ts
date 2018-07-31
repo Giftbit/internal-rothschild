@@ -2,11 +2,14 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as testUtils from "../../../utils/testUtils";
+import {generateId, setCodeCryptographySecrets} from "../../../utils/testUtils";
 import {Value} from "../../../model/Value";
 import {Transaction} from "../../../model/Transaction";
 import * as currencies from "../currencies";
 import {installRestRoutes} from "../installRestRoutes";
-import {initializeCodeCryptographySecrets} from "../../../utils/codeCryptoUtils";
+import chaiExclude = require("chai-exclude");
+
+chai.use(chaiExclude);
 
 describe("/v2/transactions/debit", () => {
 
@@ -14,13 +17,10 @@ describe("/v2/transactions/debit", () => {
 
     before(async function () {
         await testUtils.resetDb();
-        router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
+        router.route(testUtils.authRoute);
         installRestRoutes(router);
 
-        await initializeCodeCryptographySecrets(Promise.resolve({
-            encryptionSecret: "ca7589aef4ffed15783341414fe2f4a5edf9ddad75cf2e96ed2a16aee88673ea",
-            lookupHashSecret: "ae8645165cc7533dbcc84aeb21c7d6553a38271b7e3402f99d16b8a8717847e1"
-        }));
+        await setCodeCryptographySecrets();
 
         await currencies.createCurrency(testUtils.defaultTestUser.auth, {
             code: "CAD",
@@ -81,6 +81,114 @@ describe("/v2/transactions/debit", () => {
         chai.assert.equal(getValueResp.body.balance, 401);
 
         const getDebitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit-1", "GET");
+        chai.assert.equal(getDebitResp.statusCode, 200, `body=${JSON.stringify(getDebitResp.body)}`);
+        chai.assert.deepEqualExcluding(getDebitResp.body, postDebitResp.body, "statusCode");
+    });
+
+    it("can debit by secret code", async () => {
+        const valueWithCode = {
+            ...value1,
+            id: generateId(),
+            code: "CODE-TO-CHARGE"
+        };
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueWithCode);
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
+
+        const postDebitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
+            id: "debit-code-1",
+            source: {
+                rail: "lightrail",
+                code: valueWithCode.code
+            },
+            amount: 1,
+            currency: "CAD"
+        });
+
+        chai.assert.equal(postDebitResp.statusCode, 201, `body=${JSON.stringify(postDebitResp.body)}`);
+        chai.assert.deepEqualExcluding(postDebitResp.body, {
+            id: "debit-code-1",
+            transactionType: "debit",
+            currency: "CAD",
+            totals: {
+                remainder: 0
+            },
+            steps: [
+                {
+                    rail: "lightrail",
+                    valueId: valueWithCode.id,
+                    code: "…ARGE",
+                    contactId: null,
+                    balanceBefore: 1000,
+                    balanceAfter: 999,
+                    balanceChange: -1
+                }
+            ],
+            lineItems: null,
+            paymentSources: null,
+            metadata: null,
+            createdDate: null
+        }, ["createdDate"]);
+
+        const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueWithCode.id}`, "GET");
+        chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
+        chai.assert.equal(getValueResp.body.balance, 999);
+
+        const getDebitResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${postDebitResp.body.id}`, "GET");
+        chai.assert.equal(getDebitResp.statusCode, 200, `body=${JSON.stringify(getDebitResp.body)}`);
+        chai.assert.deepEqualExcluding(getDebitResp.body, postDebitResp.body, "statusCode");
+    });
+
+    it("can debit by generic code", async () => {
+        const valueWithGenericCode = {
+            ...value1,
+            id: generateId(),
+            code: "CODE-IS-GENERIC",
+            isGenericCode: true
+        };
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueWithGenericCode);
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
+
+        const request = {
+            id: "debit-code-2",
+            source: {
+                rail: "lightrail",
+                code: valueWithGenericCode.code
+            },
+            amount: 1,
+            currency: "CAD"
+        };
+        const postDebitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", request);
+
+        chai.assert.equal(postDebitResp.statusCode, 201, `body=${JSON.stringify(postDebitResp.body)}`);
+        chai.assert.deepEqualExcluding(postDebitResp.body, {
+            id: request.id,
+            transactionType: "debit",
+            currency: "CAD",
+            totals: {
+                remainder: 0
+            },
+            steps: [
+                {
+                    rail: "lightrail",
+                    valueId: valueWithGenericCode.id,
+                    code: valueWithGenericCode.code,
+                    contactId: null,
+                    balanceBefore: 1000,
+                    balanceAfter: 999,
+                    balanceChange: -1
+                }
+            ],
+            lineItems: null,
+            paymentSources: null,
+            metadata: null,
+            createdDate: null
+        }, ["createdDate"]);
+
+        const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueWithGenericCode.id}`, "GET");
+        chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
+        chai.assert.equal(getValueResp.body.balance, 999);
+
+        const getDebitResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${postDebitResp.body.id}`, "GET");
         chai.assert.equal(getDebitResp.statusCode, 200, `body=${JSON.stringify(getDebitResp.body)}`);
         chai.assert.deepEqualExcluding(getDebitResp.body, postDebitResp.body, "statusCode");
     });

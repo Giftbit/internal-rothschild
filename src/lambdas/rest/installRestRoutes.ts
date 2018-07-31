@@ -3,8 +3,8 @@ import {installContactsRest} from "./contacts";
 import {installValuesRest} from "./values";
 import {installCurrenciesRest} from "./currencies";
 import {installTransactionsRest} from "./transactions/transactions";
-import {installValueTemplatesRest} from "./programs";
 import {installContactValuesRest} from "./contactValues";
+import {installProgramsRest} from "./programs";
 import {installIssuancesRest} from "./programIssuance";
 
 /**
@@ -16,6 +16,6 @@ export function installRestRoutes(router: cassava.Router): void {
     installContactValuesRest(router);
     installValuesRest(router);
     installTransactionsRest(router);
-    installValueTemplatesRest(router);
+    installProgramsRest(router);
     installIssuancesRest(router);
 }

@@ -1,6 +1,5 @@
 import * as testUtils from "../../utils/testUtils";
 import {generateId} from "../../utils/testUtils";
-import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import * as chai from "chai";
 import {Program} from "../../model/Program";
@@ -13,7 +12,7 @@ describe("/v2/programs", () => {
 
     before(async () => {
         await testUtils.resetDb();
-        router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
+        router.route(testUtils.authRoute);
         installRestRoutes(router);
         await createCurrency(testUtils.defaultTestUser.auth, {
             code: "USD",

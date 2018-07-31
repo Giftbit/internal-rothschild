@@ -13,6 +13,7 @@ import {
 } from "./TransactionPlan";
 import {DbValue, Value} from "../../../model/Value";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
+import {computeCodeLookupHash} from "../../../utils/codeCryptoUtils";
 
 export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: string, parties: TransactionParty[], transactionId: string): Promise<TransactionPlanStep[]> {
     const lightrailValueIds = parties.filter(p => p.rail === "lightrail" && p.valueId).map(p => (p as LightrailTransactionParty).valueId);
@@ -57,10 +58,12 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         return [];
     }
 
+    const hashedCodes: string[] = codes.map(code => computeCodeLookupHash(code, auth));
+
     const knex = await getKnexRead();
     const values: DbValue[] = await knex("Values")
         .where({
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             currency,
             frozen: false,
             active: true,
@@ -72,7 +75,7 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 q = q.whereIn("id", valueIds);
             }
             if (codes.length) {
-                q = q.orWhereIn("code", codes);
+                q = q.orWhereIn("codeHashed", hashedCodes);
             }
             if (contactIds.length) {
                 q = q.orWhereIn("contactId", contactIds);

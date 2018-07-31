@@ -94,7 +94,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
 
         const transactionsRes: any[] = await knex("Transactions")
             .where({
-                userId: auth.giftbitUserId,
+                userId: auth.userId,
                 id: plan.id
             });
         chai.assert.lengthOf(transactionsRes, 0);
@@ -163,7 +163,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
 
         const transactionsRes: any[] = await knex("Transactions")
             .where({
-                userId: auth.giftbitUserId,
+                userId: auth.userId,
                 id: plan.id
             });
         chai.assert.lengthOf(transactionsRes, 0);

@@ -11,7 +11,7 @@ export interface Currency {
 export namespace Currency {
     export function toDbCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge, c: Currency): DbCurrency {
         return {
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             code: c.code,
             name: c.name,
             symbol: c.symbol,

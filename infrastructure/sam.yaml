@@ -337,6 +337,7 @@ Resources:
           LIGHTRAIL_DOMAIN: !Ref LightrailDomain
           SECURE_CONFIG_BUCKET: !Ref SecureConfigBucket
           SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH: assumeRetrieveStripeAuth.json
+          SECURE_CONFIG_KEY_ASSUME_STORAGE_SCOPE_TOKEN: assumeStorageScopeToken.json
           SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY: code_cryptography_secrets.json
           SECURE_CONFIG_KEY_JWT: authentication_badge_key.json
           SECURE_CONFIG_KEY_ROLE_DEFINITIONS: RoleDefinitions.json
@@ -375,6 +376,7 @@ Resources:
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/code_cryptography_secrets.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/stripe_connect.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeRetrieveStripeAuth.json"
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeStorageScopeToken.json"
             - Effect: Allow
               Action:
                 - kms:Decrypt

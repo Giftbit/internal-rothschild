@@ -1,6 +1,5 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import * as giftbitRoutes from "giftbit-cassava-routes";
 import {Value} from "../../../../model/Value";
 import {StripeTransactionStep, Transaction} from "../../../../model/Transaction";
 import {Currency} from "../../../../model/Currency";
@@ -42,7 +41,7 @@ describe("handling fraudulent charges", () => {
         }
 
         await testUtils.resetDb();
-        router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
+        router.route(testUtils.authRoute);
         installRestRoutes(router);
 
         const currency: Currency = {
@@ -89,11 +88,10 @@ describe("handling fraudulent charges", () => {
                 charge: null
             }
         ], ["chargeId", "charge"], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
-        chai.assert.deepEqualExcluding(postCheckoutResp.body.paymentSources[0], {
+        chai.assert.deepEqual(postCheckoutResp.body.paymentSources[0], {
             rail: "stripe",
             source: "tok_riskLevelElevated",
-            chargeId: "",
-        }, "chargeId", `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
+        }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
         chai.assert.equal((postCheckoutResp.body.steps[0] as StripeTransactionStep).charge.outcome.risk_level, "elevated", `outcome=${JSON.stringify((postCheckoutResp.body.steps[0] as StripeTransactionStep).charge.outcome, null, 4)}`);
     });
 

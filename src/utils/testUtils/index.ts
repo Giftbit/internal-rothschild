@@ -1,13 +1,17 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as fs from "fs";
+import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as log from "loglevel";
 import * as mysql from "mysql2/promise";
 import * as path from "path";
 import {getDbCredentials} from "../dbUtils/connection";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
+import {initializeCodeCryptographySecrets} from "../codeCryptoUtils";
 import papaparse = require("papaparse");
 import uuid = require("uuid");
+
+const rolesConfig = require("./rolesConfig.json");
 
 if (!process.env["TEST_ENV"]) {
     log.error("Env var TEST_ENV is undefined.  This is not a test environment!");
@@ -67,6 +71,11 @@ export const alternateTestUser = {
         ]
     })
 };
+
+/**
+ * A Cassava Route that enables authorization with the above JWTs.
+ */
+export const authRoute: cassava.routes.Route = new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"}), Promise.resolve(rolesConfig));
 
 export async function resetDb(): Promise<void> {
     const credentials = await getDbCredentials();
@@ -199,4 +208,11 @@ export async function testAuthedCsvRequest<T>(router: cassava.Router, url: strin
 
 export function generateId(): string {
     return uuid.v4().substring(0, 20);
+}
+
+export async function setCodeCryptographySecrets() {
+    return await initializeCodeCryptographySecrets(Promise.resolve({
+        encryptionSecret: "ca7589aef4ffed15783341414fe2f4a5edf9ddad75cf2e96ed2a16aee88673ea",
+        lookupHashSecret: "ae8645165cc7533dbcc84aeb21c7d6553a38271b7e3402f99d16b8a8717847e1"
+    }));
 }

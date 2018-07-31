@@ -10,7 +10,7 @@ import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {paginateQuery} from "../../utils/dbUtils/paginateQuery";
 import * as log from "loglevel";
 
-export function installValueTemplatesRest(router: cassava.Router): void {
+export function installProgramsRest(router: cassava.Router): void {
     router.route("/v2/programs")
         .method("GET")
         .serializers({
@@ -19,7 +19,8 @@ export function installValueTemplatesRest(router: cassava.Router): void {
         })
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:programs:list");
             const res = await getPrograms(auth, Pagination.getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
@@ -31,7 +32,8 @@ export function installValueTemplatesRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:programs:create");
             evt.validateBody(programSchema);
 
             const now = nowInDbPrecision();
@@ -73,7 +75,8 @@ export function installValueTemplatesRest(router: cassava.Router): void {
         .method("GET")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:programs:read");
             return {
                 body: await getProgram(auth, evt.pathParameters.id)
             };
@@ -83,7 +86,8 @@ export function installValueTemplatesRest(router: cassava.Router): void {
         .method("PATCH")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:programs:update");
             evt.validateBody(updateProgramSchema);
 
             if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
@@ -105,7 +109,8 @@ export function installValueTemplatesRest(router: cassava.Router): void {
         .method("DELETE")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:programs:delete");
             return {
                 body: await deleteProgram(auth, evt.pathParameters.id)
             };
@@ -114,13 +119,13 @@ export function installValueTemplatesRest(router: cassava.Router): void {
 }
 
 async function getPrograms(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ programs: Program[], pagination: Pagination }> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     const knex = await getKnexRead();
     const res = await paginateQuery<DbProgram>(
         knex("Programs")
             .where({
-                userId: auth.giftbitUserId
+                userId: auth.userId
             }),
         pagination
     );
@@ -132,7 +137,7 @@ async function getPrograms(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagin
 }
 
 async function createProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, program: Program): Promise<Program> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     try {
         const knex = await getKnexWrite();
@@ -153,13 +158,13 @@ async function createProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pro
 }
 
 export async function getProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Program> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     const knex = await getKnexRead();
     const res: DbProgram[] = await knex("Programs")
         .select()
         .where({
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id: id
         });
     if (res.length === 0) {
@@ -172,12 +177,12 @@ export async function getProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
 }
 
 async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, program: Partial<Program>): Promise<Program> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     const knex = await getKnexWrite();
     const res = await knex("Programs")
         .where({
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id: id
         })
         .update(Program.toDbProgramUpdate(auth, program));
@@ -195,12 +200,12 @@ async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
 
 
 async function deleteProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<{ success: true }> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     const knex = await getKnexWrite();
     const res = await knex("Programs")
         .where({
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id: id
         })
         .delete();
