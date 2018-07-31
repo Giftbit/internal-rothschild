@@ -37,7 +37,7 @@ export async function chargeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizatio
         // await doFraudCheck(lightrailStripeConfig, merchantStripeConfig, params, charge, evt, auth);
     } catch (err) {
         // todo: differentiate between stripe errors / db step errors, and fraud check errors once we do fraud checking: rollback if appropriate & make sure message is clear
-        if ((err as StripeRestError).additionalParams.stripeError) {
+        if ((err as StripeRestError).additionalParams && (err as StripeRestError).additionalParams.stripeError) {
             throw err;
         } else {
             throw new TransactionPlanError(`Transaction execution canceled because there was a problem charging Stripe: ${err}`, {
