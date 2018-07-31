@@ -98,6 +98,9 @@ describe("split tender checkout with Stripe", () => {
             if ((stripeTransactions.createStripeCharge as sinon).restore) {
                 (stripeTransactions.createStripeCharge as sinon).restore();
             }
+            if ((stripeTransactions.createRefund as sinon).restore) {
+                (stripeTransactions.createRefund as sinon).restore();
+            }
         }
     });
 
@@ -1033,32 +1036,184 @@ describe("split tender checkout with Stripe", () => {
             chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
         }).timeout(4000);
 
-        it("rolls back the Stripe transaction when the Lightrail transaction fails", async function () {
+        it("does not charge Stripe when the Lightrail parent transaction fails", async () => {
             if (!testStripeLive) {
-                console.log("Skipping test that requires live call to Stripe with current logic: logic changes in PR #49 and the test should be updated after it's merged");
-                this.skip();
-                return;
+                const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
+                stripeStub.rejects(new Error("The Stripe stub should never be called in this test"));
+            }
+
+            let stubInsertParentTransaction = sinon.stub(insertTransaction, "insertTransaction");
+            stubInsertParentTransaction.rejects(new TransactionPlanError("Error for tests: inserting checkout parent transaction", {isReplanable: false}));
+
+            const request = {
+                ...basicRequest,
+                id: generateId()
+            };
+            const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+            chai.assert.equal(postCheckoutResp.statusCode, 500, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
+
+            (insertTransaction.insertTransaction as any).restore();
+        }).timeout(3500);
+
+        it("rolls back the Stripe transaction when the Lightrail transaction steps fail", async () => {
+            const request = {
+                ...basicRequest,
+                id: `rollback-${Math.random()}`  // needs to be generated for every test so the Stripe refund succeeds (charges use idempotency keys, refunds can't)
+            };
+
+            const exampleStripeCharge: ICharge = {
+                "id": "ch_1Cu3thG3cz9DRdBtTTszs7eG",
+                "object": "charge",
+                "amount": 400,
+                "amount_refunded": 0,
+                "application": "ca_D5LfFkNWh8XbFWxIcEx6N9FXaNmfJ9Fr",
+                "application_fee": null,
+                "balance_transaction": "txn_1Cu3thG3cz9DRdBtkUPC2vEv",
+                "captured": true,
+                "created": 1533066765,
+                "currency": "cad",
+                "customer": null,
+                "description": null,
+                "destination": null,
+                "dispute": null,
+                "failure_code": null,
+                "failure_message": null,
+                "fraud_details": {},
+                "invoice": null,
+                "livemode": false,
+                "metadata": {
+                    "lightrailTransactionId": "rollback-0.3448923421035033",
+                    "lightrailTransactionSources": "[{\"rail\":\"lightrail\",\"valueId\":\"value-for-checkout-w-stripe\"}]",
+                    "lightrailUserId": "default-test-user-TEST"
+                },
+                "on_behalf_of": null,
+                "order": null,
+                "outcome": {
+                    "network_status": "approved_by_network",
+                    "reason": null,
+                    "risk_level": "normal",
+                    "seller_message": "Payment complete.",
+                    "type": "authorized"
+                },
+                "paid": true,
+                "receipt_email": null,
+                "receipt_number": null,
+                "refunded": false,
+                "refunds": {
+                    "object": "list",
+                    "data": [],
+                    "has_more": false,
+                    "total_count": 0,
+                    "url": "/v1/charges/ch_1Cu3thG3cz9DRdBtTTszs7eG/refunds"
+                },
+                "review": null,
+                "shipping": null,
+                "source": {
+                    "id": "card_1Cu3thG3cz9DRdBtLwawHy0U",
+                    "object": "card",
+                    "address_city": null,
+                    "address_country": null,
+                    "address_line1": null,
+                    "address_line1_check": null,
+                    "address_line2": null,
+                    "address_state": null,
+                    "address_zip": null,
+                    "address_zip_check": null,
+                    "brand": "Visa",
+                    "country": "US",
+                    "customer": null,
+                    "cvc_check": null,
+                    "dynamic_last4": null,
+                    "exp_month": 7,
+                    "exp_year": 2019,
+                    "fingerprint": "LMHNXKv7kEbxUNL9",
+                    "funding": "credit",
+                    "last4": "4242",
+                    "metadata": {},
+                    "name": null,
+                    "tokenization_method": null
+                },
+                "source_transfer": null,
+                "statement_descriptor": null,
+                "status": "succeeded",
+                "transfer_group": null
+            };
+            const exampleStripeRefund = {
+                "id": "re_1Cu3tiG3cz9DRdBtbnj0ul51",
+                "object": "refund",
+                "amount": 400,
+                "balance_transaction": "txn_1Cu3tiG3cz9DRdBtJ3vJhf0U",
+                "charge": "ch_1Cu3thG3cz9DRdBtTTszs7eG",
+                "created": 1533066766,
+                "currency": "cad",
+                "metadata": {
+                    "reason": "Refunded due to error on the Lightrail side"
+                },
+                "reason": null,
+                "receipt_number": null,
+                "status": "succeeded"
+            };
+            let stripeChargeStub: sinon;
+            let stripeRefundStub: sinon;
+            if (!testStripeLive) {
+                stripeChargeStub = sinon.stub(stripeTransactions, "createStripeCharge");
+                stripeChargeStub.withArgs(sinon.match({
+                    "amount": 400,
+                    "currency": request.currency,
+                    "metadata": {
+                        "lightrailTransactionId": request.id,
+                        "lightrailTransactionSources": "[{\"rail\":\"lightrail\",\"valueId\":\"value-for-checkout-w-stripe\"}]",
+                        "lightrailUserId": "default-test-user-TEST"
+                    },
+                    "source": "tok_visa"
+                }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`)).resolves(exampleStripeCharge);
+                stripeRefundStub = sinon.stub(stripeTransactions, "createRefund");
+                stripeRefundStub.withArgs(sinon.match({
+                    "rail": "stripe",
+                    "idempotentStepId": `${request.id}-0`,
+                    "source": "tok_visa",
+                    "customer": null,
+                    "maxAmount": null,
+                    "amount": -400,
+                    "chargeResult": exampleStripeCharge
+                }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`)).resolves(exampleStripeRefund);
             }
 
             let stubProcessLightrailTransactionSteps = sinon.stub(insertTransaction, "insertLightrailTransactionSteps");
             stubProcessLightrailTransactionSteps.throws(new TransactionPlanError("error for tests", {isReplanable: false}));
 
-            const request = {
-                ...basicRequest,
-                id: `rollback-${Math.random()}`  // needs to be generated for every test so the Stripe refund succeeds (charges use idempotency keys, refunds can't)
-            };
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
             chai.assert.equal(postCheckoutResp.statusCode, 500, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
-            // todo check that metadata on Stripe charge gets updated with refund note
+
+            if (!testStripeLive) {
+                chai.assert.deepEqual(stripeChargeStub.getCall(0).args[0], {
+                    "amount": 400,
+                    "currency": request.currency,
+                    "metadata": {
+                        "lightrailTransactionId": request.id,
+                        "lightrailTransactionSources": "[{\"rail\":\"lightrail\",\"valueId\":\"value-for-checkout-w-stripe\"}]",
+                        "lightrailUserId": "default-test-user-TEST"
+                    },
+                    "source": "tok_visa"
+                });
+                chai.assert.deepEqual(stripeRefundStub.getCall(0).args[0], {
+                    "rail": "stripe",
+                    "idempotentStepId": `${request.id}-0`,
+                    "source": "tok_visa",
+                    "customer": null,
+                    "maxAmount": null,
+                    "amount": -400,
+                    "chargeResult": exampleStripeCharge
+                });
+            }
 
             (insertTransaction.insertLightrailTransactionSteps as any).restore();
         }).timeout(3500);
 
-        it("throws 409 'transaction already exists' if the Lightrail transaction fails for idempotency reasons", async function () {
+        it("throws 409 'transaction already exists' if the Lightrail transaction fails for idempotency reasons", async () => {
             if (!testStripeLive) {
-                console.log("Skipping test that requires live call to Stripe with current logic: logic changes in PR #49 and the test should be updated after it's merged");
-                this.skip();
-                return;
+                const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
+                stripeStub.rejects(new Error("The Stripe stub should never be called in this test"));
             }
 
             let stubInsertTransaction = sinon.stub(insertTransaction, "insertTransaction");
