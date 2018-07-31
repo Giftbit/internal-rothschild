@@ -116,7 +116,7 @@ export function installContactsRest(router: cassava.Router): void {
         });
 }
 
-export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: {[key: string]: string}, pagination: PaginationParams): Promise<{ contacts: Contact[], pagination: Pagination }> {
+export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ contacts: Contact[], pagination: Pagination }> {
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
