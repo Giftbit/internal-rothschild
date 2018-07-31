@@ -11,7 +11,7 @@ import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe.only("/v2/transactions", () => {
+describe("/v2/transactions", () => {
     const router = new cassava.Router();
 
     before(async function () {
@@ -37,11 +37,6 @@ describe.only("/v2/transactions", () => {
     });
 
     it("test filter by valueId", async () => {
-        const valueA = {
-            id: generateId(),
-            currency: "USD",
-            balance: 10
-        };
         let createdValues: Value[] = [];
         for (let i = 0; i < 3; i++) {
             const newValue = {
@@ -56,6 +51,7 @@ describe.only("/v2/transactions", () => {
 
         const resp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${createdValues[0].id}`, "GET");
         chai.assert.equal(resp.body.length, 1);
+        chai.assert.equal(resp.body[0].id, createdValues[0].id);
     });
 
     it("test user isolation filtering by valueId", async () => {
@@ -158,46 +154,46 @@ describe.only("/v2/transactions", () => {
             transactionsCAD.push(getTransaction.body[0])
         }
 
-        // list all transactions
+        // list transactions
         const listTransactions = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions`, "GET");
         chai.assert.equal(listTransactions.body.length, 6);
 
-        // list all USD transactions
+        // list USD transactions
         const listTransactionsUSD = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?currency=USD`, "GET");
         chai.assert.equal(listTransactionsUSD.body.length, 4);
         chai.assert.sameDeepMembers(listTransactionsUSD.body, transactionsUSD);
 
-        // list all credits: 2 USD, 2 CAD
+        // list credits: 2 USD, 2 CAD
         const listTransactionsCredits = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?transactionType=credit`, "GET");
         chai.assert.equal(listTransactionsCredits.body.length, 4);
         const credits = [...transactionsCAD, ...transactionsUSD.filter(it => it.transactionType == "credit")];
         chai.assert.sameDeepMembers(credits, listTransactionsCredits.body);
 
-        // list all USD credits: 2 USD
+        // list USD credits: 2 USD
         const listTransactionsUSDCredits = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?transactionType=credit&currency=USD`, "GET");
         chai.assert.equal(listTransactionsUSDCredits.body.length, 2);
         chai.assert.sameDeepMembers(transactionsUSD.filter(it => it.transactionType == "credit"), listTransactionsUSDCredits.body);
 
-        // list all USD credits: 4 USD - 0 EUR
+        // list USD and EUR transactions: 4 USD - 0 EUR
         const listTransactionsUSD_EUR = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?currency.in=USD,EUR`, "GET");
         chai.assert.equal(listTransactionsUSD_EUR.body.length, 4);
         chai.assert.sameDeepMembers(transactionsUSD, listTransactionsUSD_EUR.body);
 
-        // list all USD credits: 4 USD - 0 EUR
+        // list USD and CAD transactions: 4 USD - 2 CAD
         const listTransactionsUSD_CAD = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?currency.in=USD,CAD`, "GET");
         chai.assert.equal(listTransactionsUSD_CAD.body.length, 6);
         chai.assert.sameDeepMembers([...transactionsUSD, ...transactionsCAD], listTransactionsUSD_CAD.body);
 
-        // list all transactions dateCreated < 2088-01-01
+        // list transactions dateCreated < 2088-01-01
         const listTransactionsCreatedDate_lt2088 = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?createdDate.lt=2088-01-01`, "GET");
         chai.assert.equal(listTransactionsCreatedDate_lt2088.body.length, 6);
         chai.assert.sameDeepMembers([...transactionsUSD, ...transactionsCAD], listTransactionsCreatedDate_lt2088.body);
 
-        // list all USD credits: 4 USD - 0 EUR
+        // list transactions dateCreated > 2088-01-01
         const listTransactionsCreatedDate_gt2088 = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?createdDate.gt=2088-01-01`, "GET");
         chai.assert.equal(listTransactionsCreatedDate_gt2088.body.length, 0);
 
-        // list all USD credits: 4 USD - 0 EUR
+        // list transactions by type and valueId
         const listTransactionsByValueIdAndTransactionType = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?transactionType=${transactionsUSD[0].transactionType}&valueId=${transactionsUSD[0].id}`, "GET");
         chai.assert.equal(listTransactionsByValueIdAndTransactionType.body.length, 1);
         chai.assert.deepEqual(listTransactionsByValueIdAndTransactionType.body[0], transactionsUSD[0]);
