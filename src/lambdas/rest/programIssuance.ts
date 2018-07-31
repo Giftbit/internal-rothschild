@@ -25,6 +25,7 @@ export function installIssuancesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:issuances:list");
             const res = await getIssuances(auth, Pagination.getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
@@ -37,6 +38,7 @@ export function installIssuancesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:issuances:create");
             evt.body.programId = evt.pathParameters.id;
             evt.validateBody(issuanceSchema);
 
@@ -78,6 +80,7 @@ export function installIssuancesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:issuances:read");
             return {
                 body: await getIssuance(auth, evt.pathParameters.id)
             };
