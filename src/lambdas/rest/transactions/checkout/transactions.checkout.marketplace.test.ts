@@ -1,7 +1,6 @@
 import * as currencies from "../../currencies";
 import * as testUtils from "../../../../utils/testUtils";
 import * as cassava from "cassava";
-import * as giftbitRoutes from "giftbit-cassava-routes";
 import {installRestRoutes} from "../../installRestRoutes";
 import {defaultTestUser} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
@@ -14,7 +13,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
 
     before(async function () {
         await testUtils.resetDb();
-        router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
+        router.route(testUtils.authRoute);
         installRestRoutes(router);
 
         await currencies.createCurrency(defaultTestUser.auth, {

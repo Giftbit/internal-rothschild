@@ -39,7 +39,7 @@ export namespace Value {
             dbCode = new DbCode(v.code, v.isGenericCode, auth);
         }
         return {
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id: v.id,
             currency: v.currency,
             balance: v.balance,

@@ -26,7 +26,7 @@ export interface Program {
 export namespace Program {
     export function toDbProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Program): DbProgram {
         return {
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id: v.id,
             name: v.name,
             currency: v.currency,

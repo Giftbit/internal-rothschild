@@ -1,6 +1,6 @@
 import * as aws from "aws-sdk";
-import * as knex from "knex";
 import * as log from "loglevel";
+import knex = require("knex");
 
 let dbCredentials: { username: string, password: string } = null;
 const isTestEnv = !!process.env["TEST_ENV"];

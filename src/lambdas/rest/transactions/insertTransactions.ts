@@ -33,7 +33,7 @@ export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtaut
 
         let query = trx.into("Values")
             .where({
-                userId: auth.giftbitUserId,
+                userId: auth.userId,
                 id: step.value.id
             });
         if (step.amount !== 0 && step.amount !== null) {
@@ -50,20 +50,20 @@ export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtaut
 
         const updateRes = await query;
         if (updateRes !== 1) {
-            throw new TransactionPlanError(`Transaction execution canceled because Value updated ${updateRes} rows.  userId=${auth.giftbitUserId} valueId=${step.value.id} value=${step.value.balance} uses=${step.value.uses} step.amount=${step.amount}`, {
+            throw new TransactionPlanError(`Transaction execution canceled because Value updated ${updateRes} rows.  userId=${auth.userId} valueId=${step.value.id} value=${step.value.balance} uses=${step.value.uses} step.amount=${step.amount}`, {
                 isReplanable: updateRes === 0
             });
         }
 
         const selectRes: DbValue[] = await trx.from("Values")
             .where({
-                userId: auth.giftbitUserId,
+                userId: auth.userId,
                 id: step.value.id
             })
             .select();
 
         if (selectRes.length !== 1) {
-            throw new TransactionPlanError(`Transaction execution canceled because the Value that was updated could not be refetched.  This should never happen.  userId=${auth.giftbitUserId} valueId=${step.value.id}`, {
+            throw new TransactionPlanError(`Transaction execution canceled because the Value that was updated could not be refetched.  This should never happen.  userId=${auth.userId} valueId=${step.value.id}`, {
                 isReplanable: false
             });
         }

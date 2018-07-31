@@ -1,8 +1,7 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import chaiExclude = require("chai-exclude");
-import * as giftbitRoutes from "giftbit-cassava-routes";
-import * as parseLinkHeader from "parse-link-header";
+import parseLinkHeader = require("parse-link-header");
 import * as testUtils from "../../utils/testUtils";
 import {defaultTestUser, generateId} from "../../utils/testUtils";
 import {Contact, DbContact} from "../../model/Contact";
@@ -19,7 +18,7 @@ describe("/v2/contacts", () => {
 
     before(async function () {
         await testUtils.resetDb();
-        router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
+        router.route(testUtils.authRoute);
         installRestRoutes(router);
     });
 

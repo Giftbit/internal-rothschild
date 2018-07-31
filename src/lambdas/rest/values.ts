@@ -30,7 +30,8 @@ export function installValuesRest(router: cassava.Router): void {
         })
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:values:list");
             const showCode: boolean = (evt.queryStringParameters.showCode === "true");
             const res = await getValues(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt), showCode);
             return {
@@ -43,7 +44,8 @@ export function installValuesRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:values:create");
             evt.validateBody(valueSchema);
             checkCodeParameters(evt);
             let program: Program = null;
@@ -98,15 +100,20 @@ export function installValuesRest(router: cassava.Router): void {
             value.startDate = value.startDate ? dateInDbPrecision(new Date(value.startDate)) : null;
             value.endDate = value.endDate ? dateInDbPrecision(new Date(value.endDate)) : null;
 
+            const showCode: boolean = (evt.queryStringParameters.showCode === "true");
+
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
-                body: await createValue(auth, value)
+                body: await createValue(auth, value, showCode)
             };
         });
 
     router.route("/v2/values")
         .method("PATCH")
         .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:values:list", "lightrailV2:values:update");
             throw new giftbitRoutes.GiftbitRestError(500, "Not implemented");   // TODO
         });
 
@@ -114,7 +121,8 @@ export function installValuesRest(router: cassava.Router): void {
         .method("GET")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:values:read");
 
             const showCode: boolean = (evt.queryStringParameters.showCode === "true");
             return {
@@ -126,7 +134,8 @@ export function installValuesRest(router: cassava.Router): void {
         .method("PATCH")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:values:update");
             evt.validateBody(valueUpdateSchema);
 
             if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
@@ -154,7 +163,8 @@ export function installValuesRest(router: cassava.Router): void {
         .method("DELETE")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:values:delete");
             return {
                 body: await deleteValue(auth, evt.pathParameters.id)
             };
@@ -164,7 +174,8 @@ export function installValuesRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:values:update");
             evt.validateBody(valueChangeCodeSchema);
             checkCodeParameters(evt);
 
@@ -191,13 +202,13 @@ export function installValuesRest(router: cassava.Router): void {
 }
 
 export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams, showCode: boolean = false): Promise<{ values: Value[], pagination: Pagination }> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     const knex = await getKnexRead();
     const paginatedRes = await filterAndPaginateQuery<DbValue>(
         knex("Values")
             .where({
-                userId: auth.giftbitUserId
+                userId: auth.userId
             }),
         filterParams,
         {
@@ -269,8 +280,8 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     };
 }
 
-async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value: Value): Promise<Value> {
-    auth.requireIds("giftbitUserId");
+async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value: Value, showCode: boolean): Promise<Value> {
+    auth.requireIds("userId");
 
     if (value.contactId && value.isGenericCode) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "A Value with isGenericCode=true cannot have contactId set.");
@@ -292,7 +303,7 @@ async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value
 
                 const transactionId = value.id;
                 const initialBalanceTransaction: DbTransaction = {
-                    userId: auth.giftbitUserId,
+                    userId: auth.userId,
                     id: transactionId,
                     transactionType: "credit",
                     currency: value.currency,
@@ -303,7 +314,7 @@ async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value
                     createdDate: value.createdDate
                 };
                 const initialBalanceTransactionStep: LightrailDbTransactionStep = {
-                    userId: auth.giftbitUserId,
+                    userId: auth.userId,
                     id: `${value.id}-0`,
                     transactionId: transactionId,
                     valueId: value.id,
@@ -315,7 +326,7 @@ async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value
                 await trx.into("LightrailTransactionSteps").insert(initialBalanceTransactionStep);
             }
         });
-        if (value.code && !value.isGenericCode) {
+        if (!showCode && value.code && !value.isGenericCode) {
             log.debug("obfuscating secure code from response");
             value.code = codeLastFour(value.code);
         }
@@ -340,13 +351,13 @@ async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value
 }
 
 export async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, showCode: boolean = false): Promise<Value> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     const knex = await getKnexRead();
     const res: DbValue[] = await knex("Values")
         .select()
         .where({
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id: id
         });
     if (res.length === 0) {
@@ -359,7 +370,7 @@ export async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, i
 }
 
 export async function getValueByCode(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string, showCode: boolean = false): Promise<Value> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     const codeHashed = computeCodeLookupHash(code, auth);
     log.debug("getValueByCode codeHashed=", codeHashed);
@@ -368,7 +379,7 @@ export async function getValueByCode(auth: giftbitRoutes.jwtauth.AuthorizationBa
     const res: DbValue[] = await knex("Values")
         .select()
         .where({
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             codeHashed
         });
     if (res.length === 0) {
@@ -381,13 +392,13 @@ export async function getValueByCode(auth: giftbitRoutes.jwtauth.AuthorizationBa
 }
 
 async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, value: Partial<Value>): Promise<Value> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     const dbValue = Value.toDbValueUpdate(auth, value);
     const knex = await getKnexWrite();
     const res: number = await knex("Values")
         .where({
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id: id
         })
         .update(dbValue);
@@ -404,12 +415,12 @@ async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
 }
 
 async function updateDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, value: Partial<DbValue>): Promise<Value> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     const knex = await getKnexWrite();
     const res = await knex("Values")
         .where({
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id: id
         })
         .update(value);
@@ -425,13 +436,13 @@ async function updateDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
 }
 
 async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<{ success: true }> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     try {
         const knex = await getKnexWrite();
         const res: number = await knex("Values")
             .where({
-                userId: auth.giftbitUserId,
+                userId: auth.userId,
                 id
             })
             .delete();
