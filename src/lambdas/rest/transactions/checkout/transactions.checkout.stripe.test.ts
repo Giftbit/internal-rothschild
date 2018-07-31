@@ -64,7 +64,7 @@ describe("split tender checkout with Stripe", () => {
         }
 
         await testUtils.resetDb();
-        router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
+        router.route(testUtils.authRoute);
         transactions.installTransactionsRest(router);
         valueStores.installValuesRest(router);
         currencies.installCurrenciesRest(router);

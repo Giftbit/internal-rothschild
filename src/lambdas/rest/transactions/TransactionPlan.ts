@@ -68,7 +68,7 @@ export interface InternalTransactionPlanStep {
 export namespace LightrailTransactionPlanStep {
     export function toLightrailDbTransactionStep(step: LightrailTransactionPlanStep, plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge, stepIndex: number): LightrailDbTransactionStep {
         return {
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id: `${plan.id}-${stepIndex}`,
             transactionId: plan.id,
             ...getSharedProperties(step)
@@ -102,7 +102,7 @@ export namespace LightrailTransactionPlanStep {
 export namespace StripeTransactionPlanStep {
     export function toStripeDbTransactionStep(step: StripeTransactionPlanStep, plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge): StripeDbTransactionStep {
         return {
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id: step.idempotentStepId,
             transactionId: plan.id,
             chargeId: step.chargeResult.id,
@@ -130,7 +130,7 @@ export namespace StripeTransactionPlanStep {
 export namespace InternalTransactionPlanStep {
     export function toInternalDbTransactionStep(step: InternalTransactionPlanStep, plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge): InternalDbTransactionStep {
         return {
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id: crypto.createHash("sha1").update(plan.id + "/" + step.internalId).digest("base64"),
             transactionId: plan.id,
             ...getSharedProperties(step)
@@ -157,7 +157,7 @@ export namespace InternalTransactionPlanStep {
 export namespace TransactionPlan {
     export function toDbTransaction(plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge): DbTransaction {
         return {
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             ...getSharedProperties(plan),
             totals: JSON.stringify(plan.totals),
             lineItems: JSON.stringify(plan.lineItems),
