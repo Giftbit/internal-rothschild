@@ -62,10 +62,6 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
                 throw err;
             } else {
                 giftbitRoutes.sentry.sendErrorNotification(err);
-                if (chargeStripe) {
-                    await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side`);
-                    log.warn(`An error occurred while processing transaction '${plan.id}'. The Stripe charge(s) '${stripeSteps.map(step => step.chargeResult.id)}' have been refunded.`);
-                }
                 throw err;
             }
         }
