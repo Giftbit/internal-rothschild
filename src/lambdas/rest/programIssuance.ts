@@ -24,7 +24,7 @@ export function installIssuancesRest(router: cassava.Router): void {
         })
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
             const res = await getIssuances(auth, Pagination.getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
@@ -36,7 +36,7 @@ export function installIssuancesRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
             evt.body.programId = evt.pathParameters.id;
             evt.validateBody(issuanceSchema);
 
@@ -77,7 +77,7 @@ export function installIssuancesRest(router: cassava.Router): void {
         .method("GET")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
             return {
                 body: await getIssuance(auth, evt.pathParameters.id)
             };
@@ -85,13 +85,13 @@ export function installIssuancesRest(router: cassava.Router): void {
 }
 
 async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ issuances: Issuance[], pagination: Pagination }> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     const knex = await getKnexRead();
     const res = await paginateQuery<DbIssuance>(
         knex("Issuances")
             .where({
-                userId: auth.giftbitUserId
+                userId: auth.userId
             }),
         pagination
     );
@@ -103,9 +103,9 @@ async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagi
 }
 
 async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, issuance: Issuance, codeParameters: CodeParameters): Promise<Issuance> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
     let program: Program = await getProgram(auth, issuance.programId);
-    log.info(`Creating issuance for userId: ${auth.giftbitUserId}. Issuance: ${JSON.stringify(issuance)}`);
+    log.info(`Creating issuance for userId: ${auth.userId}. Issuance: ${JSON.stringify(issuance)}`);
 
     // copy over properties from program that may be null.
     // this is important for issuance display and history since these properties can be updated on the program.
@@ -156,14 +156,14 @@ function checkIssuanceConstraints(issuance: Issuance, program: Program, codePara
 }
 
 export async function getIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Issuance> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
     log.info(`Getting issuance by id ${id}`);
 
     const knex = await getKnexRead();
     const res: DbIssuance[] = await knex("Issuances")
         .select()
         .where({
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id: id
         });
     if (res.length === 0) {

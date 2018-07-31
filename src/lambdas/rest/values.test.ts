@@ -1,6 +1,5 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import parseLinkHeader = require("parse-link-header");
 import * as testUtils from "../../utils/testUtils";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../utils/testUtils";
 import {DbValue, Value} from "../../model/Value";
@@ -12,6 +11,7 @@ import {LightrailTransactionStep, Transaction} from "../../model/Transaction";
 import {installRestRoutes} from "./installRestRoutes";
 import {createCurrency} from "./currencies";
 import {computeCodeLookupHash, decryptCode} from "../../utils/codeCryptoUtils";
+import parseLinkHeader = require("parse-link-header");
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);

@@ -19,7 +19,7 @@ export interface Issuance {
 export namespace Issuance {
     export function toDbIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Issuance): DbIssuance {
         return {
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id: v.id,
             programId: v.programId,
             count: v.count,

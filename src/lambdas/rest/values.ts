@@ -58,10 +58,8 @@ export function installValuesRest(router: cassava.Router): void {
 
             const knex = await getKnexWrite();
             await knex.transaction(async trx => {
-                value = await createValue(trx, auth, value, evt.body.generateCode, program, null);
+                value = await createValue(trx, auth, value, evt.body.generateCode, program, null, (evt.queryStringParameters.showCode === "true"));
             });
-
-            const showCode: boolean = (evt.queryStringParameters.showCode === "true");
 
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
@@ -245,7 +243,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     };
 }
 
-export async function createValue(trx: Knex.Transaction, auth: giftbitRoutes.jwtauth.AuthorizationBadge, partialValue: Partial<Value>, generateCodeParameters: GenerateCodeParameters = null, program: Program = null, issuance: Issuance = null): Promise<Value> {
+export async function createValue(trx: Knex.Transaction, auth: giftbitRoutes.jwtauth.AuthorizationBadge, partialValue: Partial<Value>, generateCodeParameters: GenerateCodeParameters = null, program: Program = null, issuance: Issuance = null, showCode: boolean = false): Promise<Value> {
     auth.requireIds("userId");
     let value: Value = initializeValue(partialValue, program, generateCodeParameters);
     log.info(`Create Value requests for user: ${auth.userId}. Value ${JSON.stringify(value)}.`);
@@ -296,7 +294,7 @@ export async function createValue(trx: Knex.Transaction, auth: giftbitRoutes.jwt
             await trx.into("Transactions").insert(initialBalanceTransaction);
             await trx.into("LightrailTransactionSteps").insert(initialBalanceTransactionStep);
         }
-        return DbValue.toValue(dbValue);
+        return DbValue.toValue(dbValue, showCode);
     } catch (err) {
         log.debug(err);
         const constraint = getSqlErrorConstraintName(err);

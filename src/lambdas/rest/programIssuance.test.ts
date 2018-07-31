@@ -1,6 +1,5 @@
 import * as testUtils from "../../utils/testUtils";
 import {generateId} from "../../utils/testUtils";
-import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import * as chai from "chai";
 import {installRestRoutes} from "./installRestRoutes";
@@ -41,7 +40,7 @@ describe("/v2/issuances", () => {
 
     before(async () => {
         await testUtils.resetDb();
-        router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
+        router.route(testUtils.authRoute);
         installRestRoutes(router);
         await initializeCodeCryptographySecrets(Promise.resolve({
             encryptionSecret: "ca7589aef4ffed15783341414fe2f4a5edf9ddad75cf2e96ed2a16aee88673ea",
@@ -99,7 +98,7 @@ describe("/v2/issuances", () => {
         chai.assert.equal(listIssuances.statusCode, 200, `body=${JSON.stringify(listIssuances.body)}`);
         chai.assert.equal(listIssuances.body.length, valuesToIssues.length);
         chai.assert.sameDeepMembers(listIssuances.body, issuances);
-    }).timeout(5000);
+    }).timeout(10000);
 
     it(`issuing from program that has a value rule`, async () => {
         let issuance: Partial<Issuance> = {
