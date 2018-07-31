@@ -196,11 +196,10 @@ describe("handling fraudulent charges", () => {
                 charge: null
             }
         ], ["chargeId", "charge"], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
-        chai.assert.deepEqualExcluding(postCheckoutResp.body.paymentSources[0], {
+        chai.assert.deepEqual(postCheckoutResp.body.paymentSources[0], {
             rail: "stripe",
             source: "tok_riskLevelElevated",
-            chargeId: "",
-        }, "chargeId", `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
+        }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
         chai.assert.equal((postCheckoutResp.body.steps[0] as StripeTransactionStep).charge.outcome.risk_level, "elevated", `outcome=${JSON.stringify((postCheckoutResp.body.steps[0] as StripeTransactionStep).charge.outcome, null, 4)}`);
     });
 

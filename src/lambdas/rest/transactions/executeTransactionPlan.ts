@@ -50,11 +50,6 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
     let chargeStripe = false;
     let stripeConfig: LightrailAndMerchantStripeConfig;
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
-    if (stripeSteps.length > 0) {
-        chargeStripe = true;
-        stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
-        await chargeStripeSteps(auth, stripeConfig, plan);
-    }
 
     const knex = await getKnexWrite();
 
@@ -73,6 +68,12 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
                 }
                 throw err;
             }
+        }
+
+        if (stripeSteps.length > 0) {
+            chargeStripe = true;
+            stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
+            await chargeStripeSteps(auth, stripeConfig, plan);
         }
 
         try {

@@ -45,7 +45,6 @@ export interface StripeTransactionParty {
     source?: string;
     customer?: string;
     maxAmount?: number;
-    chargeId?: string;
     priority?: number;
 }
 

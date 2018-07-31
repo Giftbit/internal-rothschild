@@ -24,15 +24,6 @@ export async function chargeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizatio
 
             // Update transaction plan with charge details
             step.chargeResult = charge;
-            // trace back to the requested payment source that lists the right 'source' and/or 'customer' param
-            if (plan.paymentSources) {
-                let stepSource = plan.paymentSources.find(
-                    source => source.rail === "stripe" &&
-                        (step.source ? source.source === step.source : true) &&
-                        (step.customer ? source.customer === step.customer : true)
-                ) as StripeTransactionParty;
-                stepSource.chargeId = charge.id;
-            }
         }
         // await doFraudCheck(lightrailStripeConfig, merchantStripeConfig, params, charge, evt, auth);
     } catch (err) {
