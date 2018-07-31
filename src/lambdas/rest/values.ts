@@ -58,7 +58,14 @@ export function installValuesRest(router: cassava.Router): void {
 
             const knex = await getKnexWrite();
             await knex.transaction(async trx => {
-                value = await createValue(trx, auth, value, evt.body.generateCode, program, null, (evt.queryStringParameters.showCode === "true"));
+                value = await createValue({
+                        partialValue: value,
+                        generateCodeParameters: evt.body.generateCode,
+                        program: program,
+                        issuance: null,
+                        returnFullCode: (evt.queryStringParameters.showCode === "true")
+                    },
+                    trx, auth);
             });
 
             return {
@@ -243,18 +250,18 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     };
 }
 
-export async function createValue(trx: Knex.Transaction, auth: giftbitRoutes.jwtauth.AuthorizationBadge, partialValue: Partial<Value>, generateCodeParameters: GenerateCodeParameters = null, program: Program = null, issuance: Issuance = null, showCode: boolean = false): Promise<Value> {
+export async function createValue(params: CreateValueParameters, trx: Knex.Transaction, auth: giftbitRoutes.jwtauth.AuthorizationBadge): Promise<Value> {
     auth.requireIds("userId");
-    let value: Value = initializeValue(partialValue, program, generateCodeParameters);
+    let value: Value = initializeValue(params.partialValue, params.program, params.generateCodeParameters);
     log.info(`Create Value requests for user: ${auth.userId}. Value ${JSON.stringify(value)}.`);
 
-    if (issuance) {
+    if (params.issuance) {
         // this needs to happen after defaults from program have been set. this allows some issuance properties to overwrite the programs defaults
-        setPropertiesFromIssuance(value, issuance);
+        setPropertiesFromIssuance(value, params.issuance);
     }
 
     log.info(`Checking properties for ${value.id}.`);
-    checkValueProperties(value, program);
+    checkValueProperties(value, params.program);
 
     value.startDate = value.startDate ? dateInDbPrecision(new Date(value.startDate)) : null;
     value.endDate = value.endDate ? dateInDbPrecision(new Date(value.endDate)) : null;
@@ -294,7 +301,7 @@ export async function createValue(trx: Knex.Transaction, auth: giftbitRoutes.jwt
             await trx.into("Transactions").insert(initialBalanceTransaction);
             await trx.into("LightrailTransactionSteps").insert(initialBalanceTransactionStep);
         }
-        return DbValue.toValue(dbValue, showCode);
+        return DbValue.toValue(dbValue, params.returnFullCode);
     } catch (err) {
         log.debug(err);
         const constraint = getSqlErrorConstraintName(err);
@@ -689,3 +696,11 @@ const valueChangeCodeSchema: jsonschema.Schema = {
     },
     required: []
 };
+
+export interface CreateValueParameters {
+    partialValue: Partial<Value>;
+    generateCodeParameters: GenerateCodeParameters | null;
+    program: Program | null;
+    issuance: Issuance | null;
+    returnFullCode: boolean;
+}

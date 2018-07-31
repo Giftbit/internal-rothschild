@@ -129,7 +129,13 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
                     code: codeParameters.code,
                     isGenericCode: codeParameters.isGenericCode
                 };
-                await createValue(trx, auth, partialValue, codeParameters.generateCode, program, issuance);
+                await createValue({
+                    partialValue: partialValue,
+                    generateCodeParameters: codeParameters.generateCode,
+                    program: program,
+                    issuance: issuance,
+                    returnFullCode: false
+                }, trx, auth);
             }
         });
         return DbIssuance.toIssuance(dbIssuance);
