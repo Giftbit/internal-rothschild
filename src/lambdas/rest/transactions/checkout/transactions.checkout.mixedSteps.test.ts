@@ -4,13 +4,21 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as transactions from "../transactions";
 import * as valueStores from "../../values";
 import * as testUtils from "../../../../utils/testUtils";
-import {generateId} from "../../../../utils/testUtils";
+import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import {Value} from "../../../../model/Value";
 import {after} from "mocha";
-import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../utils/testUtils/stripeTestUtils";
+import {
+    setStubsForStripeTests,
+    stripeEnvVarsPresent,
+    unsetStubsForStripeTests
+} from "../../../../utils/testUtils/stripeTestUtils";
+import * as stripeTransactions from "../../../../utils/stripeUtils/stripeTransactions";
+import * as sinon from "sinon";
 import chaiExclude = require("chai-exclude");
+import Stripe = require("stripe");
+import ICharge = Stripe.charges.ICharge;
 
 chai.use(chaiExclude);
 
@@ -19,8 +27,14 @@ require("dotenv").config();
 describe("/v2/transactions/checkout - mixed sources", () => {
 
     const router = new cassava.Router();
+    const testStripeLive: boolean = !!process.env["TEST_STRIPE_LIVE"];
 
     before(async function () {
+        if (!stripeEnvVarsPresent() && testStripeLive) {
+            this.skip();
+            return;
+        }
+
         await testUtils.resetDb();
         router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
         transactions.installTransactionsRest(router);
@@ -38,6 +52,14 @@ describe("/v2/transactions/checkout - mixed sources", () => {
         unsetStubsForStripeTests();
     });
 
+    afterEach(() => {
+        if (!testStripeLive) {
+            if ((stripeTransactions.createStripeCharge as sinon).restore) {
+                (stripeTransactions.createStripeCharge as sinon).restore();
+            }
+        }
+    });
+
     it("checkout with mixed sources", async () => {
         const giftCard: Partial<Value> = {
             id: generateId(),
@@ -50,6 +72,83 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             balance: 10,
             discount: true,
             pretax: true
+        };
+        const exampleStripeResponse: ICharge = {
+            "id": "ch_1CtmHMG3cz9DRdBtxz0Kq1Ha",
+            "object": "charge",
+            "amount": 1360,
+            "amount_refunded": 0,
+            "application": "ca_D5LfFkNWh8XbFWxIcEx6N9FXaNmfJ9Fr",
+            "application_fee": null,
+            "balance_transaction": "txn_1CtmHNG3cz9DRdBtMqj8DCmW",
+            "captured": true,
+            "created": 1532999040,
+            "currency": "cad",
+            "customer": null,
+            "description": null,
+            "destination": null,
+            "dispute": null,
+            "failure_code": null,
+            "failure_message": null,
+            "fraud_details": {},
+            "invoice": null,
+            "livemode": false,
+            "metadata": {
+                "lightrailTransactionId": "eb4e9aee-45e9-46fc-b",
+                "lightrailTransactionSources": "[{\"rail\":\"internal\",\"internalId\":\"4c85b107-f7d9-4906-8\"},{\"rail\":\"lightrail\",\"valueId\":\"67de17b8-1e6b-43ee-b\"},{\"rail\":\"internal\",\"internalId\":\"f91e093f-35ce-4e77-b\"},{\"rail\":\"lightrail\",\"valueId\":\"2c07edb4-4958-47c0-b\"},{\"rail\":\"internal\",\"internalId\":\"16b4023b-283a-401c-b\"}]",
+                "lightrailUserId": "default-test-user-TEST"
+            },
+            "on_behalf_of": null,
+            "order": null,
+            "outcome": {
+                "network_status": "approved_by_network",
+                "reason": null,
+                "risk_level": "normal",
+                "seller_message": "Payment complete.",
+                "type": "authorized"
+            },
+            "paid": true,
+            "receipt_email": null,
+            "receipt_number": null,
+            "refunded": false,
+            "refunds": {
+                "object": "list",
+                "data": [],
+                "has_more": false,
+                "total_count": 0,
+                "url": "/v1/charges/ch_1CtmHMG3cz9DRdBtxz0Kq1Ha/refunds"
+            },
+            "review": null,
+            "shipping": null,
+            "source": {
+                "id": "card_1CtmHMG3cz9DRdBtmhOqLZGF",
+                "object": "card",
+                "address_city": null,
+                "address_country": null,
+                "address_line1": null,
+                "address_line1_check": null,
+                "address_line2": null,
+                "address_state": null,
+                "address_zip": null,
+                "address_zip_check": null,
+                "brand": "Visa",
+                "country": "US",
+                "customer": null,
+                "cvc_check": null,
+                "dynamic_last4": null,
+                "exp_month": 7,
+                "exp_year": 2019,
+                "fingerprint": "LMHNXKv7kEbxUNL9",
+                "funding": "credit",
+                "last4": "4242",
+                "metadata": {},
+                "name": null,
+                "tokenization_method": null
+            },
+            "source_transfer": null,
+            "statement_descriptor": null,
+            "status": "succeeded",
+            "transfer_group": null
         };
 
         const createGiftCardResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", giftCard);
@@ -115,6 +214,26 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             ],
             currency: "CAD"
         };
+
+        if (!testStripeLive) {
+            const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
+            stripeStub.withArgs(sinon.match({
+                "amount": 1360,
+                "currency": request.currency,
+                "metadata": {
+                    "lightrailTransactionId": request.id,
+                    "lightrailTransactionSources": sinon.match("{\"rail\":\"internal\"")
+                        .and(sinon.match("\"rail\":\"lightrail\""))
+                        .and(sinon.match(`\"internalId\":\"${request.sources[1].internalId}\"`))
+                        .and(sinon.match(`\"internalId\":\"${request.sources[2].internalId}\"`))
+                        .and(sinon.match(`\"valueId\":\"${request.sources[3].valueId}\"`))
+                        .and(sinon.match(`\"internalId\":\"${request.sources[4].internalId}\"`))
+                        .and(sinon.match(`\"valueId\":\"${request.sources[5].valueId}\"`)),
+                    "lightrailUserId": defaultTestUser.userId
+                },
+                "source": "tok_visa"
+            }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`)).resolves(exampleStripeResponse);
+        }
 
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
