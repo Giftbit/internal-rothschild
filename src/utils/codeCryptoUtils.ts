@@ -33,7 +33,7 @@ export function computeCodeLookupHash(code: string, badge: AuthorizationBadge): 
     if (!codeCryptographySecrets) {
         throw "Code cryptography secrets have not been initialized.";
     }
-    return cryptojs.SHA512(code + badge.giftbitUserId + codeCryptographySecrets.lookupHashSecret).toString();
+    return cryptojs.SHA512(code + badge.userId + codeCryptographySecrets.lookupHashSecret).toString();
 }
 
 /**

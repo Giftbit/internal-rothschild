@@ -14,9 +14,10 @@ import {
 } from "../../../model/Transaction";
 import {Value} from "../../../model/Value";
 import {LineItemResponse} from "../../../model/LineItem";
-import {TransactionParty} from "../../../model/TransactionRequest";
+import {LightrailTransactionParty, TransactionParty} from "../../../model/TransactionRequest";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import {codeLastFour} from "../../../model/DbCode";
 
 export interface TransactionPlan {
     id: string;
@@ -67,7 +68,7 @@ export interface InternalTransactionPlanStep {
 export namespace LightrailTransactionPlanStep {
     export function toLightrailDbTransactionStep(step: LightrailTransactionPlanStep, plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge, stepIndex: number): LightrailDbTransactionStep {
         return {
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id: `${plan.id}-${stepIndex}`,
             transactionId: plan.id,
             ...getSharedProperties(step)
@@ -101,7 +102,7 @@ export namespace LightrailTransactionPlanStep {
 export namespace StripeTransactionPlanStep {
     export function toStripeDbTransactionStep(step: StripeTransactionPlanStep, plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge): StripeDbTransactionStep {
         return {
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id: step.idempotentStepId,
             transactionId: plan.id,
             chargeId: step.chargeResult.id,
@@ -129,7 +130,7 @@ export namespace StripeTransactionPlanStep {
 export namespace InternalTransactionPlanStep {
     export function toInternalDbTransactionStep(step: InternalTransactionPlanStep, plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge): InternalDbTransactionStep {
         return {
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id: crypto.createHash("sha1").update(plan.id + "/" + step.internalId).digest("base64"),
             transactionId: plan.id,
             ...getSharedProperties(step)
@@ -156,7 +157,7 @@ export namespace InternalTransactionPlanStep {
 export namespace TransactionPlan {
     export function toDbTransaction(plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge): DbTransaction {
         return {
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             ...getSharedProperties(plan),
             totals: JSON.stringify(plan.totals),
             lineItems: JSON.stringify(plan.lineItems),
@@ -171,13 +172,35 @@ export namespace TransactionPlan {
             totals: plan.totals,
             lineItems: plan.lineItems,
             steps: plan.steps.map(step => transactionPlanStepToTransactionStep(step)),
-            paymentSources: plan.paymentSources,
+            paymentSources: plan.paymentSources && getSanitizedPaymentSources(plan),
             metadata: plan.metadata || null
         };
         if (simulated) {
             transaction.simulated = true;
         }
         return transaction;
+    }
+
+    export function getSanitizedPaymentSources(plan: TransactionPlan): TransactionParty[] {
+        let cleanSources: TransactionParty[] = [];
+        for (let source of plan.paymentSources) {
+            if (source.rail === "lightrail" && source.code) {
+                // checking whether the code is generic without pulling the Value from the db again:
+                // secret codes come back as lastFour, so if a step has a Value whose code matches the (full) code in the payment source, it means it's a generic code
+                const genericCodeStep: LightrailTransactionPlanStep = (plan.steps.find(step => step.rail === "lightrail" && step.value.code === (source as LightrailTransactionParty).code && step.value.isGenericCode) as LightrailTransactionPlanStep);
+                if (genericCodeStep) {
+                    cleanSources.push(source);
+                } else {
+                    cleanSources.push({
+                        rail: source.rail,
+                        code: codeLastFour(source.code)
+                    });
+                }
+            } else {
+                cleanSources.push(source);
+            }
+        }
+        return cleanSources;
     }
 
     function getSharedProperties(plan: TransactionPlan) {

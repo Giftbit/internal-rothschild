@@ -14,7 +14,7 @@ export interface Contact {
 export namespace Contact {
     export function toDbContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, c: Contact): DbContact {
         return {
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id: c.id,
             firstName: c.firstName,
             lastName: c.lastName,

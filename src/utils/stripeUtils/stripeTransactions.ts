@@ -6,15 +6,14 @@ import {
 import {StripeUpdateChargeParams} from "./StripeUpdateChargeParams";
 import {StripeRestError} from "./StripeRestError";
 import {LightrailAndMerchantStripeConfig} from "./StripeConfig";
-import {StripeTransactionParty} from "../../model/TransactionRequest";
 import {TransactionPlanError} from "../../lambdas/rest/transactions/TransactionPlanError";
 import {StripeCreateChargeParams} from "./StripeCreateChargeParams";
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import {PaymentSourceForStripeMetadata, StripeSourceForStripeMetadata} from "./PaymentSourceForStripeMetadata";
 import log = require("loglevel");
 import Stripe = require("stripe");
 import IRefund = Stripe.refunds.IRefund;
 import ICharge = Stripe.charges.ICharge;
-import {PaymentSourceForStripeMetadata, StripeSourceForStripeMetadata} from "./PaymentSourceForStripeMetadata";
 
 export async function createStripeCharge(params: StripeCreateChargeParams, lightrailStripeSecretKey: string, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<ICharge> {
     const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
@@ -118,15 +117,6 @@ export async function chargeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizatio
 
             // Update transaction plan with charge details
             step.chargeResult = charge;
-            // trace back to the requested payment source that lists the right 'source' and/or 'customer' param
-            if (plan.paymentSources) {
-                let stepSource = plan.paymentSources.find(
-                    source => source.rail === "stripe" &&
-                        (step.source ? source.source === step.source : true) &&
-                        (step.customer ? source.customer === step.customer : true)
-                ) as StripeTransactionParty;
-                stepSource.chargeId = charge.id;
-            }
         }
         // await doFraudCheck(lightrailStripeConfig, merchantStripeConfig, params, charge, evt, auth);
     } catch (err) {
@@ -151,7 +141,7 @@ function stripeTransactionPlanStepToStripeRequest(auth: giftbitRoutes.jwtauth.Au
             lightrailTransactionSources: JSON.stringify(plan.steps
                 .filter(src => !isCurrentStripeStep(src, step))
                 .map(src => condensePaymentSourceForStripeMetadata(src))),
-            lightrailUserId: auth.giftbitUserId
+            lightrailUserId: auth.userId
         }
     };
     if (step.source) {
