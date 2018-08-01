@@ -150,7 +150,7 @@ describe("/v2/transactions", () => {
             const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", cadValue);
             chai.assert.equal(createValue.statusCode, 201);
             const getTransaction = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${cadValue.id}`, "GET", cadValue);
-            transactionsCAD.push(getTransaction.body[0])
+            transactionsCAD.push(getTransaction.body[0]);
         }
 
         // list transactions
@@ -165,13 +165,13 @@ describe("/v2/transactions", () => {
         // list credits: 2 USD, 2 CAD
         const listTransactionsCredits = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?transactionType=credit`, "GET");
         chai.assert.equal(listTransactionsCredits.body.length, 4);
-        const credits = [...transactionsCAD, ...transactionsUSD.filter(it => it.transactionType == "credit")];
+        const credits = [...transactionsCAD, ...transactionsUSD.filter(it => it.transactionType === "credit")];
         chai.assert.sameDeepMembers(credits, listTransactionsCredits.body);
 
         // list USD credits: 2 USD
         const listTransactionsUSDCredits = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?transactionType=credit&currency=USD`, "GET");
         chai.assert.equal(listTransactionsUSDCredits.body.length, 2);
-        chai.assert.sameDeepMembers(transactionsUSD.filter(it => it.transactionType == "credit"), listTransactionsUSDCredits.body);
+        chai.assert.sameDeepMembers(transactionsUSD.filter(it => it.transactionType === "credit"), listTransactionsUSDCredits.body);
 
         // list USD and EUR transactions: 4 USD - 0 EUR
         const listTransactionsUSD_EUR = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?currency.in=USD,EUR`, "GET");

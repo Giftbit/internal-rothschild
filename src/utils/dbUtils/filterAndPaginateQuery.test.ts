@@ -82,10 +82,10 @@ describe("filterAndPaginateQuery", () => {
         }
     ];
 
-    const alberta: Province = provinces.find(p => p.id == "Alberta");
-    const britishColumbia: Province = provinces.find(p => p.id == "British Columbia");
-    const ontario: Province = provinces.find(p => p.id == "Ontario");
-    const quebec: Province = provinces.find(p => p.id == "Quebec");
+    const alberta: Province = provinces.find(p => p.id === "Alberta");
+    const britishColumbia: Province = provinces.find(p => p.id === "British Columbia");
+    const ontario: Province = provinces.find(p => p.id === "Ontario");
+    const quebec: Province = provinces.find(p => p.id === "Quebec");
 
     const cities: City[] = [
         {
@@ -190,7 +190,7 @@ describe("filterAndPaginateQuery", () => {
             .where("City.id", "=", "Calgary");
         const results: Province[] = await query;
         chai.assert.equal(results.length, 1);
-        chai.assert.deepEqual(results[0], alberta)
+        chai.assert.deepEqual(results[0], alberta);
     });
 
     it("filterAndPaginateQuery: find provinces that have cities with population over 1 million", async () => {
