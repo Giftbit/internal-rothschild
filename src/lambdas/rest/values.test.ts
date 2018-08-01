@@ -1,7 +1,6 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import * as giftbitRoutes from "giftbit-cassava-routes";
-import * as parseLinkHeader from "parse-link-header";
+import parseLinkHeader = require("parse-link-header");
 import * as testUtils from "../../utils/testUtils";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../utils/testUtils";
 import {DbValue, Value} from "../../model/Value";
@@ -23,7 +22,7 @@ describe("/v2/values/", () => {
 
     before(async function () {
         await testUtils.resetDb();
-        router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
+        router.route(testUtils.authRoute);
         installRestRoutes(router);
         await setCodeCryptographySecrets();
         await createCurrency(testUtils.defaultTestUser.auth, {
@@ -981,6 +980,19 @@ describe("/v2/values/", () => {
             const create = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
             chai.assert.equal(create.statusCode, 422, `body=${JSON.stringify(create.body)}`);
             chai.assert.include(create.body.message, "cannot contain a space", `body=${JSON.stringify(create.body)}`);
+        });
+
+        it("can generate a code and get it in the response with showCode=true", async () => {
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values?showCode=true", "POST", {
+                id: "generateCodeTest-2",
+                currency: "USD",
+                generateCode: {
+                    length: 20
+                },
+                balance: 0
+            });
+            chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+            chai.assert.lengthOf(create.body.code, 20);
         });
     });
 

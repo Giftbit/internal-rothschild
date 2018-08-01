@@ -63,7 +63,7 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     const knex = await getKnexRead();
     const values: DbValue[] = await knex("Values")
         .where({
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             currency,
             frozen: false,
             active: true,

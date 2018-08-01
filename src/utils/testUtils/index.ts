@@ -1,6 +1,7 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as fs from "fs";
+import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as log from "loglevel";
 import * as mysql from "mysql2/promise";
 import * as path from "path";
@@ -9,6 +10,8 @@ import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
 import {initializeCodeCryptographySecrets} from "../codeCryptoUtils";
 import papaparse = require("papaparse");
 import uuid = require("uuid");
+
+const rolesConfig = require("./rolesConfig.json");
 
 if (!process.env["TEST_ENV"]) {
     log.error("Env var TEST_ENV is undefined.  This is not a test environment!");
@@ -68,6 +71,11 @@ export const alternateTestUser = {
         ]
     })
 };
+
+/**
+ * A Cassava Route that enables authorization with the above JWTs.
+ */
+export const authRoute: cassava.routes.Route = new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"}), Promise.resolve(rolesConfig));
 
 export async function resetDb(): Promise<void> {
     const credentials = await getDbCredentials();

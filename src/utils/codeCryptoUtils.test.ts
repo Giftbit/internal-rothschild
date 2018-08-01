@@ -29,7 +29,7 @@ describe("test codeCryptographicUtils", () => {
     it("test hash", async () => {
         for (let code of codes) {
             const badge: AuthorizationBadge = new AuthorizationBadge();
-            badge.giftbitUserId = "user-123";
+            badge.userId = "user-123";
             const hash1 = codeCryptoUtils.computeCodeLookupHash(code, badge);
             const hash2 = codeCryptoUtils.computeCodeLookupHash(code, badge);
             chai.assert.equal(hash1, hash2, `expected hash1 ${hash1} to equal ${hash2}`);

@@ -46,7 +46,7 @@ function stripeTransactionPlanStepToStripeRequest(auth: giftbitRoutes.jwtauth.Au
             lightrailTransactionSources: JSON.stringify(plan.steps
                 .filter(src => !isCurrentStripeStep(src, step))
                 .map(src => condensePaymentSourceForStripeMetadata(src))),
-            lightrailUserId: auth.giftbitUserId
+            lightrailUserId: auth.userId
         }
     };
     if (step.source) {
