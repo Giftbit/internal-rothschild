@@ -1,5 +1,5 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {DbCode} from "./DbCode";
+import {codeLastFour, DbCode} from "./DbCode";
 import {pickDefined} from "../utils/pick";
 import {decryptCode} from "../utils/codeCryptoUtils";
 
@@ -88,6 +88,13 @@ export namespace Value {
             metadata: JSON.stringify(v.metadata),
             updatedDate: v.updatedDate
         });
+    }
+
+    export function toStringSanitized(v: Value): string {
+        return JSON.stringify({
+            ...v,
+            code: v.code && !v.isGenericCode ? codeLastFour(v.code) : v.code
+        })
     }
 }
 

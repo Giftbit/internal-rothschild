@@ -39,8 +39,8 @@ export function installIssuancesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:issuances:create");
-            evt.body.programId = evt.pathParameters.id;
             evt.validateBody(issuanceSchema);
+            evt.body.programId = evt.pathParameters.id;
 
             const now = nowInDbPrecision();
             const issuance: Issuance = {
@@ -62,8 +62,8 @@ export function installIssuancesRest(router: cassava.Router): void {
                 updatedDate: now
             };
 
-            issuance.startDate = issuance.startDate ? dateInDbPrecision(new Date(issuance.startDate)) : null;
-            issuance.endDate = issuance.endDate ? dateInDbPrecision(new Date(issuance.endDate)) : null;
+            issuance.startDate = issuance.startDate && dateInDbPrecision(new Date(issuance.startDate));
+            issuance.endDate = issuance.endDate && dateInDbPrecision(new Date(issuance.endDate));
 
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
@@ -130,15 +130,21 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
                 const partialValue: Partial<Value> = {
                     id: issuance.id + "-" + i.toString(),
                     code: codeParameters.code,
-                    isGenericCode: codeParameters.isGenericCode
+                    isGenericCode: codeParameters.isGenericCode,
+                    issuanceId: issuance.id,
+                    balance: issuance.balance ? issuance.balance : null,
+                    redemptionRule: issuance.redemptionRule ? issuance.redemptionRule : null,
+                    valueRule: issuance.valueRule ? issuance.valueRule : null,
+                    uses: issuance.uses ? issuance.uses : null,
+                    startDate: issuance.startDate ? issuance.startDate : null,
+                    endDate: issuance.endDate ? issuance.endDate : null,
                 };
-                await createValue({
+                await createValue(auth, {
                     partialValue: partialValue,
                     generateCodeParameters: codeParameters.generateCode,
                     program: program,
-                    issuance: issuance,
-                    returnFullCode: false
-                }, trx, auth);
+                    showCode: false
+                }, trx);
             }
         });
         return DbIssuance.toIssuance(dbIssuance);
@@ -193,14 +199,9 @@ const issuanceSchema: jsonschema.Schema = {
             maxLength: 26, /* Values created are based off this id. Leaves room for suffixing the Values index. ie `${id}-${index}` */
             minLength: 1
         },
-        programId: {
-            type: "string",
-            maxLength: 32,
-            minLength: 1
-        },
         count: {
-            type: ["integer"],
-            minimum: 0,
+            type: "integer",
+            minimum: 1,
             maximum: 1000
         },
         balance: {
@@ -208,7 +209,8 @@ const issuanceSchema: jsonschema.Schema = {
             minimum: 0
         },
         uses: {
-            type: ["integer", "null"]
+            type: ["integer", "null"],
+            minimum: 0
         },
         code: {
             type: ["string", "null"],
@@ -287,5 +289,5 @@ const issuanceSchema: jsonschema.Schema = {
             type: ["object", "null"]
         }
     },
-    required: ["id", "programId", "count"],
+    required: ["id", "count"],
 };
