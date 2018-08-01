@@ -94,7 +94,7 @@ export namespace Value {
         return JSON.stringify({
             ...v,
             code: v.code && !v.isGenericCode ? codeLastFour(v.code) : v.code
-        })
+        });
     }
 }
 

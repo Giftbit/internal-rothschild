@@ -19,7 +19,6 @@ import {generateCode} from "../../services/codeGenerator";
 import {computeCodeLookupHash} from "../../utils/codeCryptoUtils";
 import {getProgram} from "./programs";
 import {Program} from "../../model/Program";
-import {Issuance} from "../../model/Issuance";
 import * as Knex from "knex";
 import {GenerateCodeParameters} from "../../model/GenerateCodeParameters";
 
