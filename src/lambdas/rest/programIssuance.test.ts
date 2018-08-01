@@ -61,7 +61,7 @@ describe("/v2/issuances", () => {
     });
 
     it(`basic issuances with varying counts. POST, GET and LIST`, async () => {
-        const valuesToIssues = [1, 2, 10, 100, 1000];
+        const valuesToIssues = [1, 2, 10, 100, 500];
         let issuances: Issuance[] = [];
         for (let num of valuesToIssues) {
             let issuance = {

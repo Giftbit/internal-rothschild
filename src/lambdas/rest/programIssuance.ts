@@ -202,7 +202,7 @@ const issuanceSchema: jsonschema.Schema = {
         count: {
             type: "integer",
             minimum: 1,
-            maximum: 1000
+            maximum: 500 // todo - when changing back to 1000, be sure to modify test.
         },
         balance: {
             type: ["integer", "null"],
