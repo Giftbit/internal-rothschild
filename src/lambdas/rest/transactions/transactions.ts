@@ -7,14 +7,11 @@ import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {executeTransactionPlanner} from "./executeTransactionPlan";
 import {Pagination, PaginationParams} from "../../../model/Pagination";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
-import {Filters, TransactionFilterParams} from "../../../model/Filter";
-import {paginateQuery} from "../../../utils/dbUtils/paginateQuery";
 import {LightrailTransactionPlanStep} from "./TransactionPlan";
 import {optimizeCheckout} from "./checkout/checkoutTransactionPlanner";
-import {nowInDbPrecision} from "../../../utils/dbUtils";
+import {filterAndPaginateQuery, nowInDbPrecision} from "../../../utils/dbUtils";
 import {createTransferTransactionPlan, resolveTransferTransactionParties} from "./transferTransactionPlanner";
 import getPaginationParams = Pagination.getPaginationParams;
-import getTransactionFilterParams = Filters.getTransactionFilterParams;
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions")
@@ -23,7 +20,7 @@ export function installTransactionsRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:transactions:list");
-            const res = await getTransactions(auth, getPaginationParams(evt), getTransactionFilterParams(evt));
+            const res = await getTransactions(auth, evt.queryStringParameters, getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.transactions
@@ -110,43 +107,51 @@ export function installTransactionsRest(router: cassava.Router): void {
         });
 }
 
-async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams, filter: TransactionFilterParams): Promise<{ transactions: Transaction[], pagination: Pagination }> {
+async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ transactions: Transaction[], pagination: Pagination }> {
     auth.requireIds("userId");
+
     const knex = await getKnexRead();
-
+    const valueId = filterParams["valueId"];
     let query = knex("Transactions")
-        .select()
-        .where({
-            userId: auth.userId
+        .select("Transactions.*")
+        .where("Transactions.userId", "=", auth.userId);
+    if (valueId) {
+        query.join("LightrailTransactionSteps", {
+            "Transactions.id": "LightrailTransactionSteps.transactionId",
+            "Transactions.userId": "LightrailTransactionSteps.userId"
         });
-
-    if (filter.transactionType) {
-        query.where("transactionType", filter.transactionType);
-    }
-    if (filter.minCreatedDate) {
-        query.where("createdDate", ">", filter.minCreatedDate);
-    }
-    if (filter.maxCreatedDate) {
-        query.where("createdDate", "<", filter.maxCreatedDate);
+        query.where("LightrailTransactionSteps.valueId", "=", valueId);
     }
 
-    if (!pagination.sort) {     // TODO should we be more prescriptive about this?
-        pagination.sort = {
-            field: "createdDate",
-            asc: true
-        };
-    }
-
-    const paginatedRes = await paginateQuery<DbTransaction>(
+    const res = await filterAndPaginateQuery<DbTransaction>(
         query,
+        filterParams,
+        {
+            properties: {
+                "id": {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
+                "transactionType": {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
+                "createdDate": {
+                    type: "Date",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
+                },
+                "currency": {
+                    type: "string",
+                    operators: ["eq", "in"]
+                }
+            },
+            tableName: "Transactions"
+        },
         pagination
     );
-
-    const transacs: Transaction[] = await Promise.all(await DbTransaction.toTransactions(paginatedRes.body, auth.userId));
-
     return {
-        transactions: transacs,
-        pagination: paginatedRes.pagination
+        transactions: await DbTransaction.toTransactions(res.body, auth.userId),
+        pagination: res.pagination
     };
 }
 
@@ -166,7 +171,7 @@ export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBa
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
-    const transacs: Transaction[] = await Promise.all(await DbTransaction.toTransactions(res, auth.userId));
+    const transacs: Transaction[] = await DbTransaction.toTransactions(res, auth.userId);
     return transacs[0];   // at this point there will only ever be one
 }
 

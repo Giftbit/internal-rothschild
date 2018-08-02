@@ -7,8 +7,10 @@ import * as currencies from "../currencies";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
 import {Value} from "../../../model/Value";
-import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import {installRestRoutes} from "../installRestRoutes";
+import chaiExclude = require("chai-exclude");
+
+chai.use(chaiExclude);
 
 describe("/v2/transactions", () => {
     const router = new cassava.Router();
@@ -161,41 +163,6 @@ describe("/v2/transactions", () => {
         const resp = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${debit2.id}`, "GET");
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.equal(JSON.stringify(resp.body.metadata), JSON.stringify(debit2.metadata), `body=${JSON.stringify(resp.body)}`);
-    });
-
-    describe.skip("filter transactions by query params", () => {
-        it("can filter by type", async () => {
-            const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions?transactionType=transfer", "GET");
-            chai.assert.equal(resp.statusCode, 200);
-            chai.assert.equal(resp.body.length, 1);
-            chai.assert.equal(resp.body[0].id, transfer1.id);
-        });
-
-        it("can filter by minCreatedDate", async () => {
-            const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions?minCreatedDate=2018-01-01", "GET");
-            chai.assert.equal(resp.statusCode, 200);
-            chai.assert.equal(resp.body.length, 3);
-            chai.assert.equal(resp.body[0].id, transfer1.id);
-            chai.assert.equal(resp.body[1].id, debit1.id);
-        });
-
-        it("can filter by maxCreatedDate", async () => {
-            const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions?maxCreatedDate=2018-01-01", "GET");
-            chai.assert.equal(resp.statusCode, 200);
-            chai.assert.equal(resp.body.length, 0);
-        });
-
-        it("can filter by three params", async () => {
-            const knex = await getKnexWrite();
-            await knex("Transactions").insert(transfer2);
-            await knex("Transactions").insert(transfer3);
-
-            const resp = await testUtils.testAuthedRequest<any>(router, `/v2/transactions?transactionType=transfer&minCreatedDate=${new Date("01 January 2002").toISOString()}&maxCreatedDate=${new Date("01 January 2006").toISOString()}`, "GET");
-
-            chai.assert.equal(resp.statusCode, 200);
-            chai.assert.equal(resp.body.length, 1);
-            chai.assert.include(resp.body[0].id, transfer3.id);
-        });
     });
 
     it("orders transactions by date created", async () => {
