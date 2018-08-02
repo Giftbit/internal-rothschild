@@ -51,6 +51,22 @@ describe("/v2/programs", () => {
         chai.assert.deepEqual(resp.body, programResponse);
     });
 
+    it("can list programs", async () => {
+        const newProgram = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
+            ...programRequest,
+            id: generateId(),
+            name: "new program!"
+        });
+        chai.assert.equal(newProgram.statusCode, 201);
+
+        const resp = await testUtils.testAuthedRequest<Program[]>(router, `/v2/programs`, "GET");
+        chai.assert.equal(resp.statusCode, 200);
+        chai.assert.equal(resp.body.length, 2);
+        let indexOfNewProgram = resp.body[0].id === newProgram.body.id ? 0 : 1;
+        chai.assert.deepEqual(resp.body[indexOfNewProgram], newProgram.body);
+        chai.assert.deepEqual(resp.body[(indexOfNewProgram + 1) % 2], programResponse);
+    });
+
     it("can update a program", async () => {
         const request1: Partial<Program> = {
             name: "The revised program."
