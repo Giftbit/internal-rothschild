@@ -19,6 +19,8 @@ describe.only("/v2/transactions", () => {
         installRestRoutes(router);
     });
 
+    /** This method is called at the start of each test. Since there is a filtering test that
+     * runs a lot of queries on the same dataset this method is used, rather than a beforeEach. */
     async function resetDbAndAddCurrencies(): Promise<void> {
         await testUtils.resetDb();
         await currencies.createCurrency(defaultTestUser.auth, {
