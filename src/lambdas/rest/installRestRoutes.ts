@@ -3,8 +3,9 @@ import {installContactsRest} from "./contacts";
 import {installValuesRest} from "./values";
 import {installCurrenciesRest} from "./currencies";
 import {installTransactionsRest} from "./transactions/transactions";
-import {installProgramsRest} from "./programs";
 import {installContactValuesRest} from "./contactValues";
+import {installProgramsRest} from "./programs";
+import {installIssuancesRest} from "./programIssuance";
 
 /**
  * Install all the rest api routes.
@@ -16,4 +17,5 @@ export function installRestRoutes(router: cassava.Router): void {
     installValuesRest(router);
     installTransactionsRest(router);
     installProgramsRest(router);
+    installIssuancesRest(router);
 }

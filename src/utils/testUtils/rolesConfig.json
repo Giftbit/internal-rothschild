@@ -1,5 +1,5 @@
 {
-  "roles" : [
+  "roles": [
     {
       "name": "webPortal",
       "description": "Basic access to the web portal.",
@@ -53,7 +53,8 @@
         "lightrailV1:programKey",
         "lightrailV1:reactions",
         "lightrailV2:currencies",
-        "lightrailV2:programs"
+        "lightrailV2:programs",
+        "lightrailV2:issuances"
       ]
     },
     {
@@ -74,7 +75,8 @@
         "lightrailV2:programs:read",
         "lightrailV2:programs:list",
         "lightrailV2:transactions",
-        "lightrailV2:values"
+        "lightrailV2:values",
+        "lightrailV2:issuances"
       ]
     },
     {
@@ -109,7 +111,11 @@
         "lightrailV2:transactions:read",
         "lightrailV2:transactions:list",
         "lightrailV2:values:read",
-        "lightrailV2:values:list"
+        "lightrailV2:values:list",
+        "lightrailV2:programs:read",
+        "lightrailV2:programs:list",
+        "lightrailV2:issuances:read",
+        "lightrailV2:issuances:list"
       ]
     },
     {
@@ -156,7 +162,15 @@
         "lightrailV1:program:show",
         "lightrailV1:purchaseGiftcard",
         "lightrailV1:stripe:customer:show",
-        "lightrailV1:transaction:create:dryRun"
+        "lightrailV1:transaction:create:dryRun",
+        "lightrailV2:contacts:create:self",
+        "lightrailV2:contacts:read:self",
+        "lightrailV2:programs:read",
+        "lightrailV2:turnkey:deliver",
+        "lightrailV2:turnkey:purchase",
+        "lightrailV2:values:attach:self",
+        "lightrailV2:values:list:byCode",
+        "lightrailV2:values:list:self"
       ]
     }
   ]

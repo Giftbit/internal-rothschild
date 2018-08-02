@@ -212,6 +212,7 @@ describe("optimizeCheckout", () => {
             balance: null,
             uses: 5,
             programId: null,
+            issuanceId: null,
             code: null,
             isGenericCode: null,
             contactId: null,
