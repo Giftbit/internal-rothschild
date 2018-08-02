@@ -202,7 +202,7 @@ const issuanceSchema: jsonschema.Schema = {
         count: {
             type: "integer",
             minimum: 1,
-            maximum: 500 // todo - when changing back to 1000, be sure to modify test.
+            maximum: 500 // todo - this was set at 500 from 1000 due to the API gateway 30 second timeout. Be sure to update tests when changing back to 1000.
         },
         balance: {
             type: ["integer", "null"],
