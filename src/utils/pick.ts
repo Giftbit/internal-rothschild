@@ -53,3 +53,22 @@ export function pickDefined<T>(obj: Partial<T>): Partial<T> {
     }
     return res;
 }
+
+/**
+ * Returns a filtered copy of `obj` with only not null values present.
+ */
+export function pickNotNull<T>(obj: Partial<T>): Partial<T> {
+    const res: Partial<T> = {};
+    const keys = Object.keys(obj);
+
+    const len = keys.length;
+    let idx = -1;
+
+    while (++idx < len) {
+        const key = keys[idx];
+        if (obj[key] !== null) {
+            res[key] = obj[key];
+        }
+    }
+    return res;
+}
