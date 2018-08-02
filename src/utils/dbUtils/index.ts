@@ -63,6 +63,7 @@ export async function filterAndPaginateQuery<T extends { id: string }>(query: kn
                                                                        paginationParams: PaginationParams): Promise<{ body: T[], pagination: Pagination }> {
     return paginateQuery<T>(
         filterQuery(query, filterParams, filterOptions),
-        paginationParams
+        paginationParams,
+        filterOptions
     );
 }
