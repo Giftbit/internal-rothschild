@@ -20,11 +20,12 @@ if (!process.env["TEST_ENV"]) {
 
 export const defaultTestUser = {
     userId: "default-test-user-TEST",
-    jwt: "eyJ2ZXIiOjIsInZhdiI6MSwiYWxnIjoiSFMyNTYiLCJ0eXAiOiJKV1QifQ.eyJnIjp7Imd1aSI6ImRlZmF1bHQtdGVzdC11c2VyLVRFU1QiLCJnbWkiOiJkZWZhdWx0LXRlc3QtdXNlci1URVNUIn0sImlhdCI6IjIwMTctMDMtMDdUMTg6MzQ6MDYuNjAzKzAwMDAiLCJqdGkiOiJiYWRnZS1kZDk1YjliNTgyZTg0MGVjYmExY2JmNDEzNjVkNTdlMSIsInNjb3BlcyI6W10sInJvbGVzIjpbImFjY291bnRNYW5hZ2VyIiwiY29udGFjdE1hbmFnZXIiLCJjdXN0b21lclNlcnZpY2VNYW5hZ2VyIiwiY3VzdG9tZXJTZXJ2aWNlUmVwcmVzZW50YXRpdmUiLCJwb2ludE9mU2FsZSIsInByb2dyYW1NYW5hZ2VyIiwicHJvbW90ZXIiLCJyZXBvcnRlciIsInNlY3VyaXR5TWFuYWdlciIsInRlYW1BZG1pbiIsIndlYlBvcnRhbCJdfQ.OdSbmAbuFAcrOvRo12VMU_bEPGmyn935P_wxd-g8CNE",
+    jwt: "eyJ2ZXIiOjIsInZhdiI6MSwiYWxnIjoiSFMyNTYiLCJ0eXAiOiJKV1QifQ.eyJnIjp7Imd1aSI6ImRlZmF1bHQtdGVzdC11c2VyLVRFU1QiLCJnbWkiOiJkZWZhdWx0LXRlc3QtdXNlci1URVNUIiwidG1pIjoiZGVmYXVsdC10ZXN0LXVzZXItVEVTVCJ9LCJpYXQiOiIyMDE3LTAzLTA3VDE4OjM0OjA2LjYwMyswMDAwIiwianRpIjoiYmFkZ2UtZGQ5NWI5YjU4MmU4NDBlY2JhMWNiZjQxMzY1ZDU3ZTEiLCJzY29wZXMiOltdLCJyb2xlcyI6WyJhY2NvdW50TWFuYWdlciIsImNvbnRhY3RNYW5hZ2VyIiwiY3VzdG9tZXJTZXJ2aWNlTWFuYWdlciIsImN1c3RvbWVyU2VydmljZVJlcHJlc2VudGF0aXZlIiwicG9pbnRPZlNhbGUiLCJwcm9ncmFtTWFuYWdlciIsInByb21vdGVyIiwicmVwb3J0ZXIiLCJzZWN1cml0eU1hbmFnZXIiLCJ0ZWFtQWRtaW4iLCJ3ZWJQb3J0YWwiXX0.Pz9XaaNX3HenvSUb6MENm_KEBheztiscGr2h2TJfhIc",
     auth: new AuthorizationBadge({
         "g": {
             "gui": "default-test-user-TEST",
-            "gmi": "default-test-user-TEST"
+            "gmi": "default-test-user-TEST",
+            "tmi": "default-test-user-TEST",
         },
         "iat": "2017-03-07T18:34:06.603+0000",
         "jti": "badge-dd95b9b582e840ecba1cbf41365d57e1",
