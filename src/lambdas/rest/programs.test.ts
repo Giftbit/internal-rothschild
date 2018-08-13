@@ -96,6 +96,41 @@ describe("/v2/programs", () => {
         chai.assert.equal(filterResp2.body.length, 1, `filterResp.body=${JSON.stringify(filterResp2.body, null, 4)}`);
     });
 
+    it("can filter programs by currency", async () => {
+        await createCurrency(testUtils.defaultTestUser.auth, {
+            code: "CAD",
+            name: "CAD",
+            symbol: "$",
+            decimalPlaces: 2
+        });
+        const newProgram = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
+            id: "one-cad",
+            name: `new program ${generateId()}`,
+            currency: "CAD"
+        });
+        chai.assert.equal(newProgram.statusCode, 201);
+
+        const filterResp1 = await testUtils.testAuthedRequest<Program[]>(router, `/v2/programs?currency.eq=CAD`, "GET");
+        chai.assert.equal(filterResp1.statusCode, 200);
+        chai.assert.equal(filterResp1.body.length, 1);
+
+        const respAll = await testUtils.testAuthedRequest<Program[]>(router, `/v2/programs`, "GET");
+        const filterResp2 = await testUtils.testAuthedRequest<Program[]>(router, `/v2/programs?currency.eq=USD`, "GET");
+        chai.assert.equal(filterResp2.statusCode, 200);
+        chai.assert.equal(filterResp2.body.length, respAll.body.length - 1);
+    });
+
+    it("can filter programs by createdDate", async () => {
+        const respAll = await testUtils.testAuthedRequest<Program[]>(router, `/v2/programs`, "GET");
+        const filterResp1 = await testUtils.testAuthedRequest<Program[]>(router, `/v2/programs?createdDate.gte=2000-01-01T00:00:50.000Z`, "GET");
+        chai.assert.equal(filterResp1.statusCode, 200);
+        chai.assert.equal(filterResp1.body.length, respAll.body.length);
+
+        const filterResp2 = await testUtils.testAuthedRequest<Program[]>(router, `/v2/programs?createdDate.gte=2121-01-01T00:00:50.000Z`, "GET");
+        chai.assert.equal(filterResp2.statusCode, 200);
+        chai.assert.equal(filterResp2.body.length, 0);
+    });
+
     it("can update a program", async () => {
         const request1: Partial<Program> = {
             name: "The revised program."
