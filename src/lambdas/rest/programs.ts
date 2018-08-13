@@ -126,6 +126,12 @@ async function getPrograms(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filte
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
+    if (!pagination.sort) {
+        pagination.sort = {
+            field: "updatedDate",
+            asc: false
+        }
+    }
     const res = await filterAndPaginateQuery<DbProgram>(
         knex("Programs")
             .where({

@@ -91,6 +91,14 @@ async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagi
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
+
+    if (!pagination.sort) {
+        pagination.sort = {
+            field: "createdDate",
+            asc: false
+        }
+    }
+
     const res = await paginateQuery<DbIssuance>(
         knex("Issuances")
             .where({

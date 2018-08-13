@@ -120,6 +120,14 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
+
+    if (!pagination.sort) {
+        pagination.sort = {
+            field: "updatedDate",
+            asc: false
+        }
+    }
+
     const res = await filterAndPaginateQuery<DbContact>(
         knex("Contacts")
             .where({

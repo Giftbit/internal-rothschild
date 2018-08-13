@@ -169,6 +169,14 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
+
+    if (!pagination.sort) {
+        pagination.sort = {
+            field: "updatedDate",
+            asc: false
+        }
+    }
+
     const paginatedRes = await filterAndPaginateQuery<DbValue>(
         knex("Values")
             .where({
