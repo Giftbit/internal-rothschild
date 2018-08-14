@@ -277,7 +277,7 @@ describe("/v2/issuances", () => {
         chai.assert.equal(createIssuance.statusCode, 404, JSON.stringify(createIssuance.body));
     });
 
-    describe.only("ensure programId is considered", () => {
+    describe("ensure programId is considered", () => {
         const programA: Partial<Program> = {
             id: generateId(),
             currency: "USD",
