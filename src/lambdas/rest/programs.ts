@@ -128,7 +128,7 @@ async function getPrograms(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filte
     const knex = await getKnexRead();
     if (!pagination.sort) {
         pagination.sort = {
-            field: "updatedDate",
+            field: "createdDate",
             asc: false
         }
     }

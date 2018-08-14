@@ -123,7 +123,7 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 
     if (!pagination.sort) {
         pagination.sort = {
-            field: "updatedDate",
+            field: "createdDate",
             asc: false
         }
     }

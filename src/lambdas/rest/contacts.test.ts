@@ -1,7 +1,5 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import chaiExclude = require("chai-exclude");
-import parseLinkHeader = require("parse-link-header");
 import * as testUtils from "../../utils/testUtils";
 import {defaultTestUser, generateId} from "../../utils/testUtils";
 import {Contact, DbContact} from "../../model/Contact";
@@ -9,6 +7,8 @@ import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {Value} from "../../model/Value";
 import {Currency} from "../../model/Currency";
 import {installRestRoutes} from "./installRestRoutes";
+import chaiExclude = require("chai-exclude");
+import parseLinkHeader = require("parse-link-header");
 
 chai.use(chaiExclude);
 
@@ -656,7 +656,8 @@ describe("/v2/contacts", () => {
                     userId: defaultTestUser.userId
                 })
                 .where("firstName", "LIKE", "J%")
-                .orderBy("id");
+                .orderBy("createdDate", "desc")
+                .orderBy("id", "desc");
             chai.assert.isAtLeast(expected.length, 2, "expect results");
 
             const page1Size = Math.ceil(expected.length / 2);
@@ -690,7 +691,8 @@ describe("/v2/contacts", () => {
                     userId: defaultTestUser.userId
                 })
                 .whereIn("id", ids)
-                .orderBy("id");
+                .orderBy("createdDate", "desc")
+                .orderBy("id", "desc");
 
             const page1 = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?id.in=${ids.join(",")}`, "GET");
             chai.assert.equal(page1.statusCode, 200, `body=${JSON.stringify(page1.body)}`);

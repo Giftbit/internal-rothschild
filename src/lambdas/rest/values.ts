@@ -172,7 +172,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 
     if (!pagination.sort) {
         pagination.sort = {
-            field: "updatedDate",
+            field: "createdDate",
             asc: false
         }
     }

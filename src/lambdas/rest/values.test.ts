@@ -478,7 +478,8 @@ describe("/v2/values/", () => {
                     canceled: false
                 })
                 .where("balance", ">", 200)
-                .orderBy("id");
+                .orderBy("createdDate", "desc")
+                .orderBy("id", "desc");
             chai.assert.isAtLeast(expected.length, 2, "expect results");
 
             const page1Size = Math.ceil(expected.length / 2);
@@ -512,7 +513,8 @@ describe("/v2/values/", () => {
                     userId: defaultTestUser.userId
                 })
                 .whereIn("id", ids)
-                .orderBy("id");
+                .orderBy("createdDate", "desc")
+                .orderBy("id", "desc");
 
             const page1 = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/values?id.in=${ids.join(",")}`, "GET");
             chai.assert.equal(page1.statusCode, 200, `body=${JSON.stringify(page1.body)}`);
