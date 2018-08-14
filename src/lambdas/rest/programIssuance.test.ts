@@ -276,4 +276,49 @@ describe("/v2/issuances", () => {
         const createIssuance = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${generateId()}/issuances`, "POST", issuance);
         chai.assert.equal(createIssuance.statusCode, 404, JSON.stringify(createIssuance.body));
     });
+
+    describe.only("ensure programId is considered", () => {
+        const programA: Partial<Program> = {
+            id: generateId(),
+            currency: "USD",
+            name: "A"
+        };
+        const programB: Partial<Program> = {
+            id: generateId(),
+            currency: "USD",
+            name: "B"
+        };
+        let issuanceProgramA, issuanceProgramB;
+
+        before(async function () {
+            // setup data. 2 programs and an issuance from each.
+            const createProgramA = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", programA);
+            chai.assert.equal(createProgramA.statusCode, 201);
+            const createProgramB = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", programB);
+            chai.assert.equal(createProgramB.statusCode, 201);
+
+            issuanceProgramA = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${programA.id}/issuances`, "POST", {
+                id: generateId(),
+                count: 1
+            });
+            chai.assert.equal(issuanceProgramA.statusCode, 201);
+            issuanceProgramB = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${programB.id}/issuances`, "POST", {
+                id: generateId(),
+                count: 1
+            });
+            chai.assert.equal(issuanceProgramB.statusCode, 201);
+        });
+
+        it(`GET using wrong programId 404s`, async () => {
+            const get = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${programA.id}/issuances/${issuanceProgramB.body.id}`, "GET");
+            chai.assert.equal(get.statusCode, 404);
+        });
+
+        it(`LIST only returns issuances from provided programId`, async () => {
+            const list = await testUtils.testAuthedRequest<Issuance[]>(router, `/v2/programs/${programA.id}/issuances`, "GET");
+            chai.assert.equal(list.statusCode, 200);
+            chai.assert.equal(list.body.length, 1);
+            chai.assert.deepEqual(list.body[0], issuanceProgramA.body, `expected: ${JSON.stringify(list.body[0])} to equal ${JSON.stringify(issuanceProgramA.body)}.`);
+        });
+    });
 });

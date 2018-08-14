@@ -16,7 +16,7 @@ import {CodeParameters} from "../../model/CodeParameters";
 import {createValue} from "./values";
 
 export function installIssuancesRest(router: cassava.Router): void {
-    router.route("/v2/programs/{id}/issuances")
+    router.route("/v2/programs/{programId}/issuances")
         .method("GET")
         .serializers({
             "application/json": cassava.serializers.jsonSerializer,
@@ -26,21 +26,22 @@ export function installIssuancesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:issuances:list");
-            const res = await getIssuances(auth, Pagination.getPaginationParams(evt));
+            console.log(`LIST: programId: ${evt.pathParameters.programId}`);
+            const res = await getIssuances(auth, evt.pathParameters.programId, Pagination.getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.issuances
             };
         });
 
-    router.route("/v2/programs/{id}/issuances")
+    router.route("/v2/programs/{programId}/issuances")
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:issuances:create");
             evt.validateBody(issuanceSchema);
-            evt.body.programId = evt.pathParameters.id;
+            evt.body.programId = evt.pathParameters.programId;
 
             const now = nowInDbPrecision();
             const issuance: Issuance = {
@@ -75,26 +76,28 @@ export function installIssuancesRest(router: cassava.Router): void {
             };
         });
 
-    router.route("/v2/programs/{id}/issuances/{id}")
+    router.route("/v2/programs/{programId}/issuances/{id}")
         .method("GET")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:issuances:read");
+            console.log(`GET: programId: ${evt.pathParameters.programId}, id: ${evt.pathParameters.id}`);
             return {
-                body: await getIssuance(auth, evt.pathParameters.id)
+                body: await getIssuance(auth, evt.pathParameters.programId, evt.pathParameters.id)
             };
         });
 }
 
-async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ issuances: Issuance[], pagination: Pagination }> {
+async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, programId: string, pagination: PaginationParams): Promise<{ issuances: Issuance[], pagination: Pagination }> {
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
     const res = await paginateQuery<DbIssuance>(
         knex("Issuances")
             .where({
-                userId: auth.userId
+                userId: auth.userId,
+                programId: programId
             }),
         pagination
     );
@@ -170,7 +173,7 @@ function checkIssuanceConstraints(issuance: Issuance, program: Program, codePara
     }
 }
 
-export async function getIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Issuance> {
+export async function getIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, programId: string, id: string): Promise<Issuance> {
     auth.requireIds("userId");
     log.info(`Getting issuance by id ${id}`);
 
@@ -179,6 +182,7 @@ export async function getIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         .select()
         .where({
             userId: auth.userId,
+            programId: programId,
             id: id
         });
     if (res.length === 0) {
