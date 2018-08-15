@@ -11,4 +11,4 @@ ALTER TABLE rothschild.Programs
   ADD INDEX ix_Programs_createdDate (createdDate);
 
 ALTER TABLE rothschild.Issuances
-  ADD INDEX ix_Programs_createdDate (createdDate);
+  ADD INDEX ix_Issuances_createdDate (createdDate);
