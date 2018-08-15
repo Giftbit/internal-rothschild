@@ -148,7 +148,11 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 },
                 "email": {
                     type: "string"
-                }
+                },
+                "createdDate": {
+                    type: "Date",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
+                },
             }
         },
         pagination

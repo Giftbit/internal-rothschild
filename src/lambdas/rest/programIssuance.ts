@@ -5,9 +5,8 @@ import {Pagination, PaginationParams} from "../../model/Pagination";
 import {Program} from "../../model/Program";
 import {csvSerializer} from "../../serializers";
 import {pick, pickNotNull, pickOrDefault} from "../../utils/pick";
-import {dateInDbPrecision, nowInDbPrecision} from "../../utils/dbUtils";
+import {dateInDbPrecision, filterAndPaginateQuery, nowInDbPrecision} from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
-import {paginateQuery} from "../../utils/dbUtils/paginateQuery";
 import * as log from "loglevel";
 import {DbIssuance, Issuance} from "../../model/Issuance";
 import {getProgram} from "./programs";
@@ -26,7 +25,7 @@ export function installIssuancesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:issuances:list");
-            const res = await getIssuances(auth, Pagination.getPaginationParams(evt));
+            const res = await getIssuances(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.issuances
@@ -87,7 +86,7 @@ export function installIssuancesRest(router: cassava.Router): void {
         });
 }
 
-async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ issuances: Issuance[], pagination: Pagination }> {
+async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ issuances: Issuance[], pagination: Pagination }> {
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
@@ -99,11 +98,40 @@ async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagi
         }
     }
 
-    const res = await paginateQuery<DbIssuance>(
+    const res = await filterAndPaginateQuery<DbIssuance>(
         knex("Issuances")
             .where({
                 userId: auth.userId
             }),
+        filterParams,
+        {
+            properties: {
+                "id": {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
+                "count": {
+                    type: "number",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
+                },
+                "uses": {
+                    type: "number",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
+                },
+                "startDate": {
+                    type: "Date",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
+                },
+                "endDate": {
+                    type: "Date",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
+                },
+                "createdDate": {
+                    type: "Date",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
+                }
+            }
+        },
         pagination
     );
 

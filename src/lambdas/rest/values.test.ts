@@ -1208,4 +1208,39 @@ describe("/v2/values/", () => {
             chai.assert.notEqual(value0.id, value1.id);
         });
     });
+
+    it(`default sorting createdDate`, async () => {
+        const idAndDates = [
+            {id: generateId(), createdDate: new Date("3030-02-01")},
+            {id: generateId(), createdDate: new Date("3030-02-02")},
+            {id: generateId(), createdDate: new Date("3030-02-03")},
+            {id: generateId(), createdDate: new Date("3030-02-04")}
+        ];
+        for (let idAndDate of idAndDates) {
+            const response = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                id: idAndDate.id,
+                currency: "USD",
+                balance: 1
+            });
+            chai.assert.equal(response.statusCode, 201);
+            const knex = await getKnexWrite();
+            const res: number = await knex("Values")
+                .where({
+                    userId: testUtils.defaultTestUser.userId,
+                    id: idAndDate.id,
+                })
+                .update(Value.toDbValue(testUtils.defaultTestUser.auth, {
+                    ...response.body,
+                    createdDate: idAndDate.createdDate,
+                    updatedDate: idAndDate.createdDate
+                }));
+            if (res === 0) {
+                chai.assert.fail(`no row updated. test is broken`)
+            }
+        }
+        const resp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/values?createdDate.gt=3030-01-01", "GET");
+        chai.assert.equal(resp.statusCode, 200);
+        chai.assert.equal(resp.body.length, 4);
+        chai.assert.sameOrderedMembers(resp.body.map(tx => tx.id), idAndDates.reverse().map(tx => tx.id) /* reversed since createdDate desc */);
+    });
 });
