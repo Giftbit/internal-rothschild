@@ -1,8 +1,7 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as testUtils from "../../../utils/testUtils";
-import {generateId, setCodeCryptographySecrets} from "../../../utils/testUtils";
+import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../utils/testUtils";
 import {Value} from "../../../model/Value";
 import {Transaction} from "../../../model/Transaction";
 import * as currencies from "../currencies";
@@ -73,7 +72,8 @@ describe("/v2/transactions/debit", () => {
             lineItems: null,
             paymentSources: null,
             metadata: null,
-            createdDate: null
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "GET");
@@ -126,7 +126,8 @@ describe("/v2/transactions/debit", () => {
             lineItems: null,
             paymentSources: null,
             metadata: null,
-            createdDate: null
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueWithCode.id}`, "GET");
@@ -181,7 +182,8 @@ describe("/v2/transactions/debit", () => {
             lineItems: null,
             paymentSources: null,
             metadata: null,
-            createdDate: null
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueWithGenericCode.id}`, "GET");
@@ -240,7 +242,8 @@ describe("/v2/transactions/debit", () => {
             lineItems: null,
             paymentSources: null,
             metadata: null,
-            createdDate: null
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "GET");
@@ -281,7 +284,8 @@ describe("/v2/transactions/debit", () => {
             lineItems: null,
             paymentSources: null,
             metadata: null,
-            createdDate: null
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "GET");

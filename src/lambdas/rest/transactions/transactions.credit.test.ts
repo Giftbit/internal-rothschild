@@ -1,6 +1,5 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as testUtils from "../../../utils/testUtils";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../utils/testUtils";
 import {Value} from "../../../model/Value";
@@ -71,7 +70,8 @@ describe("/v2/transactions/credit", () => {
             lineItems: null,
             paymentSources: null,
             metadata: null,
-            createdDate: null
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
@@ -125,7 +125,8 @@ describe("/v2/transactions/credit", () => {
             lineItems: null,
             paymentSources: null,
             metadata: null,
-            createdDate: null
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueSecretCode.id}`, "GET");
@@ -180,7 +181,8 @@ describe("/v2/transactions/credit", () => {
             lineItems: null,
             paymentSources: null,
             metadata: null,
-            createdDate: null
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueGenericCode.id}`, "GET");
@@ -240,6 +242,7 @@ describe("/v2/transactions/credit", () => {
             paymentSources: null,
             metadata: null,
             createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");

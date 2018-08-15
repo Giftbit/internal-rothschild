@@ -15,6 +15,7 @@ export interface Transaction {
     paymentSources: TransactionParty[] | null;
     simulated?: true;
     createdDate: Date;
+    createdBy: string;
     metadata: object | null;
 }
 
@@ -27,6 +28,7 @@ export interface DbTransaction {
     lineItems: string | null;
     paymentSources: string | null;
     createdDate: Date;
+    createdBy: string;
     metadata: string | null;
 }
 
@@ -42,7 +44,8 @@ export namespace Transaction {
             lineItems: JSON.stringify(t.lineItems),
             paymentSources: JSON.stringify(t.paymentSources),
             metadata: JSON.stringify(t.metadata),
-            createdDate: t.createdDate
+            createdDate: t.createdDate,
+            createdBy: t.createdBy,
         };
     }
 }
@@ -71,7 +74,8 @@ export namespace DbTransaction {
                 paymentSources: JSON.parse(t.paymentSources),
                 steps: dbSteps.filter(s => s.transactionId === t.id).map(DbTransactionStep.toTransactionStep),
                 metadata: JSON.parse(t.metadata),
-                createdDate: t.createdDate
+                createdDate: t.createdDate,
+                createdBy: t.createdBy
             };
         });
     }

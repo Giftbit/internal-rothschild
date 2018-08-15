@@ -162,18 +162,20 @@ export namespace TransactionPlan {
             totals: JSON.stringify(plan.totals),
             lineItems: JSON.stringify(plan.lineItems),
             paymentSources: JSON.stringify(plan.paymentSources),
-            metadata: JSON.stringify(plan.metadata)
+            metadata: JSON.stringify(plan.metadata),
+            createdBy: auth.teamMemberId
         };
     }
 
-    export function toTransaction(plan: TransactionPlan, simulated?: boolean): Transaction {
+    export function toTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan, simulated?: boolean): Transaction {
         const transaction: Transaction = {
             ...getSharedProperties(plan),
             totals: plan.totals,
             lineItems: plan.lineItems,
             steps: plan.steps.map(step => transactionPlanStepToTransactionStep(step)),
             paymentSources: plan.paymentSources && getSanitizedPaymentSources(plan),
-            metadata: plan.metadata || null
+            metadata: plan.metadata || null,
+            createdBy: auth.teamMemberId,
         };
         if (simulated) {
             transaction.simulated = true;

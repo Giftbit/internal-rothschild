@@ -3,7 +3,7 @@ import * as chai from "chai";
 import * as transactions from "../transactions";
 import * as valueStores from "../../values";
 import * as testUtils from "../../../../utils/testUtils";
-import {generateId, setCodeCryptographySecrets} from "../../../../utils/testUtils";
+import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../../utils/testUtils";
 import {LightrailTransactionStep, Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import {Value} from "../../../../model/Value";
@@ -187,7 +187,8 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             "steps": null,
             "paymentSources": null,
             "metadata": null,
-            "createdDate": null
+            "createdDate": null,
+            "createdBy": defaultTestUser.auth.teamMemberId
         }, ["createdDate", "steps", "paymentSources"]);
 
         chai.assert.deepEqual(postCheckoutResp.body.steps[0], {
@@ -353,7 +354,8 @@ describe("/v2/transactions/checkout - mixed sources", () => {
                 }
             ],
             "metadata": null,
-            "createdDate": null
+            "createdDate": null,
+            "createdBy": defaultTestUser.auth.teamMemberId
         }, ["createdDate", "steps"]);
 
         const step1 = postCheckoutResp.body.steps.find(step => (step as LightrailTransactionStep).valueId === valueSecretCode.id);
