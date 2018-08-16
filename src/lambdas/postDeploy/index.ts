@@ -1,6 +1,5 @@
 import * as awslambda from "aws-lambda";
 import * as childProcess from "child_process";
-import * as log from "loglevel";
 import * as mysql from "mysql2/promise";
 import * as path from "path";
 import {sendCloudFormationResponse} from "../../sendCloudFormationResponse";
@@ -9,6 +8,7 @@ import {getDbCredentials} from "../../utils/dbUtils/connection";
 // Copies the .sql files into the schema dir using the file-loader.
 // Flyway will automatically load all .sql files it finds in that dir.
 import "./schema/*.sql";
+import log = require("loglevel");
 
 log.setLevel(log.levels.DEBUG);
 

@@ -66,6 +66,7 @@ describe("/v2/issuances", () => {
         for (let num of valuesToIssues) {
             let issuance = {
                 id: generateId(),
+                name: "name",
                 count: num,
                 generateCode: {}
             };
@@ -74,6 +75,7 @@ describe("/v2/issuances", () => {
             chai.assert.equal(createIssuance.statusCode, 201, JSON.stringify(createIssuance.body));
             chai.assert.deepEqualExcluding(createIssuance.body, {
                 id: issuance.id,
+                name: issuance.name,
                 programId: program.id,
                 count: num,
                 balance: null,
@@ -103,6 +105,7 @@ describe("/v2/issuances", () => {
     it(`issuing from program that has a value rule`, async () => {
         let issuance: Partial<Issuance> = {
             id: generateId(),
+            name: "name",
             count: 1
         };
 
@@ -126,6 +129,7 @@ describe("/v2/issuances", () => {
         let issuance: Partial<Issuance> = {
             id: generateId(),
             count: 1,
+            name: "name",
             valueRule: {
                 rule: "700",
                 explanation: "$7 the hard way"
@@ -161,6 +165,7 @@ describe("/v2/issuances", () => {
     it(`issuance with generic code`, async () => {
         let issuance = {
             id: generateId(),
+            name: "name",
             count: 1,
             isGenericCode: true,
             code: "PRETTY-GENERIC"
@@ -179,6 +184,7 @@ describe("/v2/issuances", () => {
     it(`issuance with code`, async () => {
         let issuance = {
             id: generateId(),
+            name: "name",
             count: 1,
             code: "IEDKQODLAOWKRJ"
         };
@@ -193,9 +199,22 @@ describe("/v2/issuances", () => {
         chai.assert.isFalse(listResponse.body[0].isGenericCode);
     });
 
+    it(`422 if no name`, async () => {
+        let issuance = {
+            id: generateId(),
+            count: 2,
+            isGenericCode: true
+        };
+
+        const createIssuance = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${program.id}/issuances`, "POST", issuance);
+        chai.assert.equal(createIssuance.statusCode, 422, JSON.stringify(createIssuance.body));
+        chai.assert.include(createIssuance.body.message, "requestBody requires property \"name\"");
+    });
+
     it(`422 if isGenericCode: true and count > 1`, async () => {
         let issuance = {
             id: generateId(),
+            name: "name",
             count: 2,
             isGenericCode: true
         };
@@ -208,6 +227,7 @@ describe("/v2/issuances", () => {
     it(`422 if provided code and count > 1`, async () => {
         let issuance = {
             id: generateId(),
+            name: "name",
             count: 2,
             code: "ABCDEFGHI"
         };
@@ -220,6 +240,7 @@ describe("/v2/issuances", () => {
     it(`422 if generateCode and code parameters are provided`, async () => {
         let issuance = {
             id: generateId(),
+            name: "name",
             count: 1,
             code: "ABCDEFGHI",
             generateCode: {}
@@ -245,6 +266,7 @@ describe("/v2/issuances", () => {
 
         let issuance: Partial<Issuance> = {
             id: generateId(),
+            name: "name",
             count: 1,
             balance: 1
         };
@@ -257,6 +279,7 @@ describe("/v2/issuances", () => {
     it(`422 on issuance with id over 26 characters`, async () => {
         let issuance: Partial<Issuance> = {
             id: "123456789012345678901234567",
+            name: "name",
             count: 1,
             balance: 1
         };
@@ -269,6 +292,7 @@ describe("/v2/issuances", () => {
     it(`404 on invalid programId`, async () => {
         let issuance: Partial<Issuance> = {
             id: generateId(),
+            name: "name",
             count: 1,
             balance: 1
         };
@@ -299,11 +323,13 @@ describe("/v2/issuances", () => {
 
             issuanceProgramA = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${programA.id}/issuances`, "POST", {
                 id: generateId(),
+                name: "name",
                 count: 1
             });
             chai.assert.equal(issuanceProgramA.statusCode, 201);
             issuanceProgramB = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${programB.id}/issuances`, "POST", {
                 id: generateId(),
+                name: "name",
                 count: 1
             });
             chai.assert.equal(issuanceProgramB.statusCode, 201);
