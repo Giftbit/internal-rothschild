@@ -3,6 +3,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 
 export interface Issuance {
     id: string;
+    name: string;
     programId: string;
     count: number;
     balance: number | null;
@@ -30,6 +31,7 @@ export namespace Issuance {
             startDate: v.startDate,
             endDate: v.endDate,
             metadata: JSON.stringify(v.metadata),
+            name: v.name,
             createdDate: v.createdDate,
             updatedDate: v.updatedDate,
         };
@@ -39,6 +41,7 @@ export namespace Issuance {
 export interface DbIssuance {
     userId: string;
     id: string;
+    name: string;
     programId: string;
     count: number;
     balance: number | null;
@@ -56,6 +59,7 @@ export namespace DbIssuance {
     export function toIssuance(v: DbIssuance): Issuance {
         return {
             id: v.id,
+            name: v.name,
             programId: v.programId,
             count: v.count,
             balance: v.balance,
