@@ -1,6 +1,6 @@
 import * as awslambda from "aws-lambda";
 import * as childProcess from "child_process";
-import * as log from "loglevel";
+import log = require("loglevel");
 import * as mysql from "mysql2/promise";
 import * as path from "path";
 import {sendCloudFormationResponse} from "../../sendCloudFormationResponse";
