@@ -46,6 +46,7 @@ export function installIssuancesRest(router: cassava.Router): void {
                 ...pickOrDefault(evt.body,
                     {
                         id: null,
+                        name: null,
                         programId: null,
                         count: null,
                         balance: null,
@@ -237,6 +238,11 @@ const issuanceSchema: jsonschema.Schema = {
             maxLength: 26, /* Values created are based off this id. Leaves room for suffixing the Values index. ie `${id}-${index}` */
             minLength: 1
         },
+        name: {
+            type: "string",
+            maxLength: 65535,
+            minLength: 1
+        },
         count: {
             type: "integer",
             minimum: 1,
@@ -327,5 +333,5 @@ const issuanceSchema: jsonschema.Schema = {
             type: ["object", "null"]
         }
     },
-    required: ["id", "count"],
+    required: ["id", "name", "count"],
 };
