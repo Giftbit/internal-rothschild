@@ -1,4 +1,5 @@
 import {LineItemRequest} from "./LineItem";
+import {TaxProperties} from "./TaxProperties";
 
 export interface CheckoutRequest {
     id: string;
@@ -7,6 +8,7 @@ export interface CheckoutRequest {
     sources: TransactionParty[];
     simulate?: boolean;
     allowRemainder?: boolean;
+    tax?: TaxProperties;
     metadata?: object;
 }
 

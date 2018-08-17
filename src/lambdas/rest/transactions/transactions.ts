@@ -202,6 +202,7 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
                 createdDate: nowInDbPrecision(),
                 metadata: req.metadata,
                 totals: {remainder: 0},
+                tax: null,
                 lineItems: null,
                 paymentSources: null
             };
@@ -237,6 +238,7 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
                 createdDate: nowInDbPrecision(),
                 metadata: req.metadata,
                 totals: {remainder: req.amount - amount},
+                tax: null,
                 lineItems: null,
                 paymentSources: null  // TODO need to make sense of 'source' in req vs 'paymentSources' in db
             };
@@ -557,6 +559,17 @@ const checkoutSchema: jsonschema.Schema = {
         },
         metadata: {
             type: ["object", "null"]
+        },
+        tax: {
+            title: "Tax Properties",
+            type: ["object", "null"],
+            additionalProperties: false,
+            properties: {
+                roundingMode: {
+                    type: "string",
+                    enum: ["HALF_EVEN", "HALF_UP"]
+                }
+            }
         }
     },
     required: ["id", "lineItems", "currency", "sources"]

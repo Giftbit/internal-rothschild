@@ -1,6 +1,5 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as testUtils from "../../../utils/testUtils";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../utils/testUtils";
 import {Value} from "../../../model/Value";
@@ -97,6 +96,7 @@ describe("/v2/transactions/transfer", () => {
             steps: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null
         }, ["steps", "createdDate"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
@@ -181,6 +181,7 @@ describe("/v2/transactions/transfer", () => {
             steps: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null
         }, ["steps", "createdDate"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
@@ -265,6 +266,7 @@ describe("/v2/transactions/transfer", () => {
             steps: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null
         }, ["steps", "createdDate"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
@@ -350,6 +352,7 @@ describe("/v2/transactions/transfer", () => {
             steps: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null
         }, ["steps", "createdDate"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
@@ -435,6 +438,7 @@ describe("/v2/transactions/transfer", () => {
             steps: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null
         }, ["steps", "createdDate"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
@@ -518,6 +522,7 @@ describe("/v2/transactions/transfer", () => {
             steps: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null
         };
         chai.assert.equal(postTransferResp.statusCode, 200, `body=${JSON.stringify(postTransferResp.body)}`);
@@ -582,6 +587,7 @@ describe("/v2/transactions/transfer", () => {
             steps: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null
         }, ["steps", "createdDate"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
@@ -803,6 +809,7 @@ describe("/v2/transactions/transfer", () => {
                 steps: null,
                 paymentSources: null,
                 metadata: null,
+                tax: null,
                 createdDate: null
             }, ["steps", "createdDate"]);
             chai.assert.lengthOf(postTransferResp.body.steps, 2);
@@ -902,6 +909,7 @@ describe("/v2/transactions/transfer", () => {
                 steps: null,
                 paymentSources: null,
                 metadata: null,
+                tax: null,
                 createdDate: null
             }, ["steps", "createdDate"]);
             chai.assert.lengthOf(postTransferResp.body.steps, 2);

@@ -293,6 +293,9 @@ describe("/v2/transactions", () => {
                     }
                 ],
                 metadata: null,
+                tax: {
+                    "roundingMode": "HALF_EVEN"
+                },
                 createdDate: null
             }, "createdDate");
         });
@@ -336,7 +339,7 @@ describe("/v2/transactions", () => {
                     createdDate: idAndDate.createdDate
                 }));
             if (res === 0) {
-                chai.assert.fail(`No row updated. Test data failed during setup..`)
+                chai.assert.fail(`No row updated. Test data failed during setup..`);
             }
         }
         const resp = await testUtils.testAuthedRequest<Transaction[]>(router, "/v2/transactions?transactionType=debit&createdDate.gt=3030-01-01", "GET");

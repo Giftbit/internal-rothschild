@@ -2,8 +2,9 @@ import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from
 import {CheckoutRequest, TransactionParty} from "../../../../model/TransactionRequest";
 import {LineItemResponse} from "../../../../model/LineItem";
 import {TransactionPlanTotals, TransactionType} from "../../../../model/Transaction";
-import {bankersRounding} from "../../../../utils/moneyUtils";
+import {bankersRounding, roundTax} from "../../../../utils/moneyUtils";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
+import {TaxProperties} from "../../../../model/TaxProperties";
 
 export class CheckoutTransactionPlan implements TransactionPlan {
     id: string;
@@ -15,6 +16,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
     steps: TransactionPlanStep[];
     createdDate: Date;
     metadata: object | null;
+    tax: TaxProperties;
 
     constructor(checkout: CheckoutRequest, steps: TransactionPlanStep[]) {
         let lineItemResponses: LineItemResponse[] = [];
@@ -42,6 +44,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
         this.metadata = checkout.metadata;
         this.paymentSources = checkout.sources; // TODO if secure code, only return last four
         this.createdDate = nowInDbPrecision();
+        this.tax = checkout.tax;
         this.calculateTotalsFromLineItems();
     }
 
@@ -96,11 +99,14 @@ export class CheckoutTransactionPlan implements TransactionPlan {
     }
 
     calculateTaxAndSetOnLineItems(): void {
+        if (!this.tax) {
+            this.tax = {roundingMode: "HALF_EVEN"};
+        }
         for (let item of this.lineItems) {
             let tax = 0;
             item.lineTotal.taxable = item.lineTotal.remainder;
             if (item.taxRate >= 0) {
-                tax = bankersRounding(item.taxRate * item.lineTotal.taxable, 0);
+                tax = roundTax(item.taxRate * item.lineTotal.taxable, this.tax.roundingMode);
             }
             item.lineTotal.tax = tax;
             item.lineTotal.remainder += tax;
