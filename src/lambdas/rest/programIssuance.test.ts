@@ -8,6 +8,8 @@ import {Program} from "../../model/Program";
 import {Value} from "../../model/Value";
 import {initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils";
 import {Issuance} from "../../model/Issuance";
+import {getKnexWrite} from "../../utils/dbUtils/connection";
+import {Transaction} from "../../model/Transaction";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -346,5 +348,50 @@ describe("/v2/issuances", () => {
             chai.assert.equal(list.body.length, 1);
             chai.assert.deepEqual(list.body[0], issuanceProgramA.body, `expected: ${JSON.stringify(list.body[0])} to equal ${JSON.stringify(issuanceProgramA.body)}.`);
         });
+    });
+
+    it(`default sorting createdDate`, async () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            currency: "USD",
+            name: "test program"
+        };
+
+        const createValueResponse = await testUtils.testAuthedRequest<Value>(router, "/v2/programs", "POST", program);
+        chai.assert.equal(createValueResponse.statusCode, 201);
+
+        const idAndDates = [
+            {id: generateId(), createdDate: new Date("3030-02-01")},
+            {id: generateId(), createdDate: new Date("3030-02-02")},
+            {id: generateId(), createdDate: new Date("3030-02-03")},
+            {id: generateId(), createdDate: new Date("3030-02-04")}
+        ];
+        for (let idAndDate of idAndDates) {
+            const response = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", {
+                id: idAndDate.id,
+                name: idAndDate.id + "-name",
+                count: 1,
+                balance: 1
+            });
+            chai.assert.equal(response.statusCode, 201, `body=${JSON.stringify(response.body)}`);
+            const knex = await getKnexWrite();
+            const res: number = await knex("Issuances")
+                .where({
+                    userId: testUtils.defaultTestUser.userId,
+                    id: idAndDate.id,
+                })
+                .update(Issuance.toDbIssuance(testUtils.defaultTestUser.auth, {
+                    ...response.body,
+                    createdDate: idAndDate.createdDate,
+                    updatedDate: idAndDate.createdDate
+                }));
+            if (res === 0) {
+                chai.assert.fail(`No row updated. Test data failed during setup..`)
+            }
+        }
+        const resp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/programs/${program.id}/issuances?createdDate.gt=3030-01-01`, "GET");
+        chai.assert.equal(resp.statusCode, 200);
+        chai.assert.equal(resp.body.length, 4);
+        chai.assert.sameOrderedMembers(resp.body.map(tx => tx.id), idAndDates.reverse().map(tx => tx.id) /* reversed since createdDate desc*/);
     });
 });

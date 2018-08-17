@@ -5,6 +5,7 @@ import * as chai from "chai";
 import {Program} from "../../model/Program";
 import {installRestRoutes} from "./installRestRoutes";
 import {createCurrency} from "./currencies";
+import {getKnexWrite} from "../../utils/dbUtils/connection";
 
 describe("/v2/programs", () => {
 
@@ -202,5 +203,40 @@ describe("/v2/programs", () => {
 
         res = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", request);
         chai.assert.equal(res.statusCode, 409);
+    });
+
+    it(`default sorting createdDate`, async () => {
+        const idAndDates = [
+            {id: generateId(), createdDate: new Date("3030-02-01")},
+            {id: generateId(), createdDate: new Date("3030-02-02")},
+            {id: generateId(), createdDate: new Date("3030-02-03")},
+            {id: generateId(), createdDate: new Date("3030-02-04")}
+        ];
+        for (let idAndDate of idAndDates) {
+            const response = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
+                id: idAndDate.id,
+                currency: "USD",
+                name: "test program"
+            });
+            chai.assert.equal(response.statusCode, 201);
+            const knex = await getKnexWrite();
+            const res: number = await knex("Programs")
+                .where({
+                    userId: testUtils.defaultTestUser.userId,
+                    id: idAndDate.id,
+                })
+                .update(Program.toDbProgram(testUtils.defaultTestUser.auth, {
+                    ...response.body,
+                    createdDate: idAndDate.createdDate,
+                    updatedDate: idAndDate.createdDate
+                }));
+            if (res === 0) {
+                chai.assert.fail(`no row updated. test is broken`)
+            }
+        }
+        const resp = await testUtils.testAuthedRequest<Program[]>(router, "/v2/programs?createdDate.gt=3030-01-01", "GET");
+        chai.assert.equal(resp.statusCode, 200);
+        chai.assert.equal(resp.body.length, 4);
+        chai.assert.sameOrderedMembers(resp.body.map(tx => tx.id), idAndDates.reverse().map(tx => tx.id) /* reversed since createdDate desc */);
     });
 });

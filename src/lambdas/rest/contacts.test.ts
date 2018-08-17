@@ -1,7 +1,5 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import chaiExclude = require("chai-exclude");
-import parseLinkHeader = require("parse-link-header");
 import * as testUtils from "../../utils/testUtils";
 import {defaultTestUser, generateId} from "../../utils/testUtils";
 import {Contact, DbContact} from "../../model/Contact";
@@ -9,6 +7,8 @@ import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {Value} from "../../model/Value";
 import {Currency} from "../../model/Currency";
 import {installRestRoutes} from "./installRestRoutes";
+import chaiExclude = require("chai-exclude");
+import parseLinkHeader = require("parse-link-header");
 
 chai.use(chaiExclude);
 
@@ -190,8 +190,8 @@ describe("/v2/contacts", () => {
         const resp = await testUtils.testAuthedRequest<Contact[]>(router, "/v2/contacts", "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
         chai.assert.deepEqual(resp.body, [
-            contact1,
-            contact2
+            contact2,
+            contact1
         ]);
         chai.assert.equal(resp.headers["Limit"], "100");
         chai.assert.equal(resp.headers["Max-Limit"], "1000");
@@ -201,8 +201,8 @@ describe("/v2/contacts", () => {
         const resp = await testUtils.testAuthedCsvRequest<Contact>(router, "/v2/contacts", "GET");
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.deepEqualExcludingEvery(resp.body, [
-            contact1,
-            contact2
+            contact2,
+            contact1
         ], ["createdDate", "updatedDate"]); // TODO don't ignore dates if my issue gets resolved https://github.com/mholt/PapaParse/issues/502
         chai.assert.equal(resp.headers["Limit"], "100");
         chai.assert.equal(resp.headers["Max-Limit"], "1000");
@@ -656,7 +656,8 @@ describe("/v2/contacts", () => {
                     userId: defaultTestUser.userId
                 })
                 .where("firstName", "LIKE", "J%")
-                .orderBy("id");
+                .orderBy("createdDate", "desc")
+                .orderBy("id", "desc");
             chai.assert.isAtLeast(expected.length, 2, "expect results");
 
             const page1Size = Math.ceil(expected.length / 2);
@@ -690,7 +691,8 @@ describe("/v2/contacts", () => {
                     userId: defaultTestUser.userId
                 })
                 .whereIn("id", ids)
-                .orderBy("id");
+                .orderBy("createdDate", "desc")
+                .orderBy("id", "desc");
 
             const page1 = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?id.in=${ids.join(",")}`, "GET");
             chai.assert.equal(page1.statusCode, 200, `body=${JSON.stringify(page1.body)}`);
@@ -730,5 +732,39 @@ describe("/v2/contacts", () => {
             }));
             chai.assert.equal(resp.statusCode, 404, `body=${JSON.stringify(resp.body)}`);
         });
+    });
+
+    it(`default sorting createdDate`, async () => {
+        const idAndDates = [
+            {id: generateId(), createdDate: new Date("3030-02-01")},
+            {id: generateId(), createdDate: new Date("3030-02-02")},
+            {id: generateId(), createdDate: new Date("3030-02-03")},
+            {id: generateId(), createdDate: new Date("3030-02-04")}
+        ];
+        for (let idAndDate of idAndDates) {
+            const response = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {
+                id: idAndDate.id,
+                email: "user@example.com"
+            });
+            chai.assert.equal(response.statusCode, 201);
+            const knex = await getKnexWrite();
+            const res: number = await knex("Contacts")
+                .where({
+                    userId: testUtils.defaultTestUser.userId,
+                    id: idAndDate.id,
+                })
+                .update(Contact.toDbContact(testUtils.defaultTestUser.auth, {
+                    ...response.body,
+                    createdDate: idAndDate.createdDate,
+                    updatedDate: idAndDate.createdDate
+                }));
+            if (res === 0) {
+                chai.assert.fail(`no row updated. test is broken`)
+            }
+        }
+        const resp = await testUtils.testAuthedRequest<Contact[]>(router, "/v2/contacts?createdDate.gt=3030-01-01", "GET");
+        chai.assert.equal(resp.statusCode, 200);
+        chai.assert.equal(resp.body.length, 4);
+        chai.assert.sameOrderedMembers(resp.body.map(tx => tx.id), idAndDates.reverse().map(tx => tx.id) /* reversed since createdDate desc */);
     });
 });
