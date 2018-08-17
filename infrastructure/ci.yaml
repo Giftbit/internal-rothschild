@@ -313,6 +313,7 @@ Resources:
           - Effect: Allow
             Action:
               - ec2:AllocateAddress
+              - ec2:AssociateAddress
               - ec2:AssociateRouteTable
               - ec2:AttachInternetGateway
               - ec2:AuthorizeSecurityGroupIngress
@@ -353,6 +354,13 @@ Resources:
               - iam:DeleteInstanceProfile
               - iam:RemoveRoleFromInstanceProfile
             Resource: !Sub "arn:aws:iam::${AWS::AccountId}:instance-profile/${ProjectName}-*"
+          - Effect: Allow
+            Action:
+              - ec2:StopInstances
+              - ec2:StartInstances
+              - ec2:RebootInstances
+              - ec2:TerminateInstances
+            Resource: !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/${ProjectName}-*"
           # API Gateway (REST events)
           - Effect: Allow
             Action:
