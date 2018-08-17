@@ -281,7 +281,8 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 lineItems: null,
                 paymentSources: null,
                 metadata: null,
-                createdDate: value.createdDate
+                createdDate: value.createdDate,
+                createdBy: auth.teamMemberId
             };
             const initialBalanceTransactionStep: LightrailDbTransactionStep = {
                 userId: auth.userId,
