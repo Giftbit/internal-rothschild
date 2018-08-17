@@ -336,9 +336,9 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       ImageId: !FindInMap [RegionBastionHostImageMap, !Ref "AWS::Region", 64]
-      AvailabilityZone: !GetAtt SubnetPublicA.AvailabilityZone
+      AvailabilityZone: !GetAtt NatExitSubnet.AvailabilityZone
       InstanceType: t2.nano
-      SubnetId: !Ref SubnetPublicA
+      SubnetId: !Ref NatExitSubnet
       SecurityGroupIds:
         - !Ref BastionHostSecurityGroup
       IamInstanceProfile: !Ref BastionHostInstanceProfile
@@ -407,7 +407,7 @@ Resources:
   BastionHostSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: !Sub "Lightrail-${EnvironmentName}-Bastion-Host"
+      GroupName: !Sub "Lightrail-${AWS::StackName}-Bastion-Host"
       GroupDescription: !Sub "${AWS::StackName} Bastion Host for VPC ${VPC}"
       VpcId: !Ref VPC
       SecurityGroupIngress:
