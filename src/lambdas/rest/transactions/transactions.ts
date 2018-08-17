@@ -58,7 +58,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("userId");
+            auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:transactions:credit");
             evt.validateBody(creditSchema);
             return {
@@ -71,7 +71,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("userId");
+            auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:transactions:debit");
             evt.validateBody(debitSchema);
             return {
@@ -84,7 +84,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("userId");
+            auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:transactions:checkout");
             evt.validateBody(checkoutSchema);
             return {
@@ -97,7 +97,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("userId");
+            auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:transactions:transfer");
             evt.validateBody(transferSchema);
             return {
@@ -238,7 +238,7 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
                 metadata: req.metadata,
                 totals: {remainder: req.amount - amount},
                 lineItems: null,
-                paymentSources: null  // TODO need to make sense of 'source' in req vs 'paymentSources' in db
+                paymentSources: null
             };
         }
     );
