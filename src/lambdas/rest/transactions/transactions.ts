@@ -123,13 +123,6 @@ async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, f
         query.where("LightrailTransactionSteps.valueId", "=", valueId);
     }
 
-    if (!pagination.sort) {
-        pagination.sort = {
-            field: "createdDate",
-            asc: false
-        }
-    }
-
     const res = await filterAndPaginateQuery<DbTransaction>(
         query,
         filterParams,

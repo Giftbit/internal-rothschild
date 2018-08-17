@@ -170,13 +170,6 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 
     const knex = await getKnexRead();
 
-    if (!pagination.sort) {
-        pagination.sort = {
-            field: "createdDate",
-            asc: false
-        }
-    }
-
     const paginatedRes = await filterAndPaginateQuery<DbValue>(
         knex("Values")
             .where({

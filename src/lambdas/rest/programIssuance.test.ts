@@ -369,6 +369,7 @@ describe("/v2/issuances", () => {
         for (let idAndDate of idAndDates) {
             const response = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", {
                 id: idAndDate.id,
+                name: idAndDate.id + "-name",
                 count: 1,
                 balance: 1
             });

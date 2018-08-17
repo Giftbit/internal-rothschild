@@ -91,13 +91,13 @@ async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, prog
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
-
-    if (!pagination.sort) {
-        pagination.sort = {
-            field: "createdDate",
-            asc: false
-        }
-    }
+    //
+    // if (!pagination.sort) {
+    //     pagination.sort = {
+    //         field: "createdDate",
+    //         asc: false
+    //     }
+    // }
 
     const res = await filterAndPaginateQuery<DbIssuance>(
         knex("Issuances")

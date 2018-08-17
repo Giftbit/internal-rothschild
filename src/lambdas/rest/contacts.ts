@@ -121,13 +121,6 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 
     const knex = await getKnexRead();
 
-    if (!pagination.sort) {
-        pagination.sort = {
-            field: "createdDate",
-            asc: false
-        }
-    }
-
     const res = await filterAndPaginateQuery<DbContact>(
         knex("Contacts")
             .where({
