@@ -347,8 +347,10 @@ Resources:
           # EC2 bastion host
           - Effect: Allow
             Action:
-            - iam:CreateInstanceProfile
-            - iam:DeleteInstanceProfile
+              - iam:AddRoleToInstanceProfile
+              - iam:CreateInstanceProfile
+              - iam:DeleteInstanceProfile
+              - iam:RemoveRoleFromInstanceProfile
             Resource: !Sub "arn:aws:iam::${AWS::AccountId}:instance-profile/${ProjectName}-*"
           # API Gateway (REST events)
           - Effect: Allow
