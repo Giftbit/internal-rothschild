@@ -343,6 +343,7 @@ Resources:
               - ec2:ReleaseAddress
               - ec2:RevokeSecurityGroupEgress
               - ec2:RevokeSecurityGroupIngress
+              - ec2:RunInstances
             Resource: "*"
           # EC2 bastion host
           - Effect: Allow
