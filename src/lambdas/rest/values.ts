@@ -169,6 +169,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
+
     const paginatedRes = await filterAndPaginateQuery<DbValue>(
         knex("Values")
             .where({

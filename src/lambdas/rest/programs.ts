@@ -126,6 +126,7 @@ async function getPrograms(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filte
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
+
     const res = await filterAndPaginateQuery<DbProgram>(
         knex("Programs")
             .where({

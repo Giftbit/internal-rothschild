@@ -120,6 +120,7 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
+
     const res = await filterAndPaginateQuery<DbContact>(
         knex("Contacts")
             .where({
@@ -140,7 +141,11 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 },
                 "email": {
                     type: "string"
-                }
+                },
+                "createdDate": {
+                    type: "Date",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
+                },
             }
         },
         pagination
