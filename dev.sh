@@ -12,6 +12,7 @@ BUILD_ARTIFACT_BUCKET="dev-lightrailrothschild-deploymentartifactbucket-16sqvi4m
 
 # Parameter values for the sam template.  see: `aws cloudformation deploy help`
 PARAMETER_OVERRIDES="--parameter-overrides"
+PARAMETER_OVERRIDES+=" BastionHostAuthorizedUsersGroup=dev-Groups-10RXT1J8USNKW-BastionHostAccessGroup-3EJUXH6RLHV6"
 PARAMETER_OVERRIDES+=" BuildDate=`date +%s`"
 PARAMETER_OVERRIDES+=" Capacity=low"
 PARAMETER_OVERRIDES+=" DbEncryptionKeyId=9d52dd73-865a-4471-9ef3-bf2b762c0320"
@@ -20,7 +21,6 @@ PARAMETER_OVERRIDES+=" SecureConfigBucket=dev-lightrailsecureconfig-1q7bltwyiihp
 PARAMETER_OVERRIDES+=" SecureConfigKmsArn=arn:aws:kms:us-west-2:757264843183:key/5240d853-a89f-4510-82ba-386bf2b977dc"
 PARAMETER_OVERRIDES+=" VpcUniqueNumber=2"
 USAGE="usage: $0 <command name>\nvalid command names: build delete deploy invoke upload"
-
 
 set -eu
 
