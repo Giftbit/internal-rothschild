@@ -68,11 +68,16 @@ Resources:
       GroupDescription: Database ingress
       VpcId: !Ref VPC
       SecurityGroupIngress:
-        # Only listen to lambdas on the default port
-        - IpProtocol: tcp
+        - # Listen to lambdas on the default port
+          IpProtocol: tcp
           FromPort: 3306
           ToPort: 3306
           SourceSecurityGroupId: !GetAtt LambdaSecurityGroup.GroupId
+        - # Listen to bastion host on the default port
+          IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !GetAtt BastionHostSecurityGroup.GroupId
       SecurityGroupEgress:
         # No outgoing traffic except localhost
         - CidrIp: 127.0.0.1/32
@@ -362,10 +367,10 @@ Resources:
         fi
       Tags:
       - Key: Name
-        Value: !Sub "${AWS::StackName} bastion host"
+        Value: !Sub "${AWS::StackName} Bastion Host"
       - Key: Service
         Value: Rothschild
-      - Key: AuthorizedUsersGroup # SSH IAM Login scripts will use this to grant or deny access (TODO I think?)
+      - Key: AuthorizedUsersGroup # SSH IAM Login scripts will use this to grant or deny access
         Value: !Ref BastionHostAuthorizedUsersGroup
   BastionHostRole:
     Type: AWS::IAM::Role
@@ -411,20 +416,20 @@ Resources:
       GroupDescription: !Sub "${AWS::StackName} Bastion Host for VPC ${VPC}"
       VpcId: !Ref VPC
       SecurityGroupIngress:
-      - # Access from the Giftbit office
-        FromPort: 22
-        ToPort: 22
-        IpProtocol: tcp
-        CidrIp: 184.69.186.114/32
+        - # Access from the Giftbit office
+          FromPort: 22
+          ToPort: 22
+          IpProtocol: tcp
+          CidrIp: 184.69.186.114/32
       SecurityGroupEgress:
-      - # Outgoing TCP internet access
-        FromPort: 0
-        ToPort: 65535
-        IpProtocol: tcp
-        CidrIp: 0.0.0.0/0
+        - # Outgoing TCP internet access
+          FromPort: 0
+          ToPort: 65535
+          IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
       Tags:
-      - Key: Name
-        Value: !Sub "${AWS::StackName} bastion host security group"
+        - Key: Name
+          Value: !Sub "${AWS::StackName} bastion host security group"
 
   RestFunction:
     Type: AWS::Serverless::Function
