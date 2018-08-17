@@ -36,7 +36,7 @@ export function installProgramsRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("userId");
+            auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:programs:create");
             evt.validateBody(programSchema);
 
@@ -63,7 +63,8 @@ export function installProgramsRest(router: cassava.Router): void {
                     }
                 ),
                 createdDate: now,
-                updatedDate: now
+                updatedDate: now,
+                createdBy: auth.teamMemberId
             };
 
             program.startDate = program.startDate ? dateInDbPrecision(new Date(program.startDate)) : null;
