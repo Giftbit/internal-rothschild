@@ -5,6 +5,9 @@ Transform: AWS::Serverless-2016-10-31
 Description: Rothschild
 
 Parameters:
+  BastionHostAuthorizedUsersGroup:
+    Type: String
+    Description: The IAM group authorized to access the bastion host for the VPC
   BuildDate:
     Type: String
     Description: Input to the PostDeployInvocation function to force it to run on every deployment.
@@ -37,6 +40,15 @@ Parameters:
 Conditions:
   HighCapacity: !Equals [!Ref Capacity, "high"]
 
+Mappings:
+  RegionBastionHostImageMap:
+    # Values are derived from the following command:
+    # aws --region [region-name] ec2 describe-images --owners amazon --filters "Name=root-device-type,Values=ebs" \
+    #   "Name=name,Values=amzn-ami-hvm-*" "Name=architecture,Values=x86_64" --query "Images[].[CreationDate,ImageId,Name]" \
+    #  --output text | sort
+    us-west-2:
+      "64": ami-09c6e771
+
 Resources:
   # Start with a VPC and who can talk to what
   VPC:
@@ -56,11 +68,16 @@ Resources:
       GroupDescription: Database ingress
       VpcId: !Ref VPC
       SecurityGroupIngress:
-        # Only listen to lambdas on the default port
-        - IpProtocol: tcp
+        - # Listen to lambdas on the default port
+          IpProtocol: tcp
           FromPort: 3306
           ToPort: 3306
           SourceSecurityGroupId: !GetAtt LambdaSecurityGroup.GroupId
+        - # Listen to bastion host on the default port
+          IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !GetAtt BastionHostSecurityGroup.GroupId
       SecurityGroupEgress:
         # No outgoing traffic except localhost
         - CidrIp: 127.0.0.1/32
@@ -318,6 +335,101 @@ Resources:
       Tags:
         - Key: Service
           Value: Rothschild
+
+  # Bastion host access to RDS
+  BastionHostInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !FindInMap [RegionBastionHostImageMap, !Ref "AWS::Region", 64]
+      AvailabilityZone: !GetAtt NatExitSubnet.AvailabilityZone
+      InstanceType: t2.nano
+      SubnetId: !Ref NatExitSubnet
+      SecurityGroupIds:
+        - !Ref BastionHostSecurityGroup
+      IamInstanceProfile: !Ref BastionHostInstanceProfile
+      UserData: !Base64 |
+        #!/bin/bash
+        yum update -y
+
+        # Install the Amazon EC2 Systems Manager
+        #!/bin/bash
+        cd /tmp
+        sudo yum install -y \
+          https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+
+        SHASUM="d4fb1c6da99c0b42d3b41329ebc630e19dc75ffbb223b6d7afd1e45a1ec01c28"
+        # Install the SSH IAM Login scripts
+        curl https://raw.githubusercontent.com/Giftbit/iam-ssh/3d665e59fc90ccd5a4e5eba46748ad2a85a135af/install.sh \
+          -o install.sh
+        if echo "$SHASUM *install.sh" | shasum -a 256 -c -; then
+          chmod 755 install.sh
+          ./install.sh
+        fi
+      Tags:
+      - Key: Name
+        Value: !Sub "${AWS::StackName} Bastion Host"
+      - Key: Service
+        Value: Rothschild
+      - Key: AuthorizedUsersGroup # SSH IAM Login scripts will use this to grant or deny access
+        Value: !Ref BastionHostAuthorizedUsersGroup
+  BastionHostRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+      Policies:
+        - PolicyName: ReadGroupsAndSSHPublicKeys
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iam:GetGroup
+                  - iam:ListSSHPublicKeys
+                  - iam:GetSSHPublicKey
+                  - ec2:DescribeTags
+                Resource: "*"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM
+  BastionHostInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref BastionHostRole
+  BastionHostElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref BastionHostInstance
+  BastionHostSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "Lightrail-${AWS::StackName}-Bastion-Host"
+      GroupDescription: !Sub "${AWS::StackName} Bastion Host for VPC ${VPC}"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - # Access from the Giftbit office
+          FromPort: 22
+          ToPort: 22
+          IpProtocol: tcp
+          CidrIp: 184.69.186.114/32
+      SecurityGroupEgress:
+        - # Outgoing TCP internet access
+          FromPort: 0
+          ToPort: 65535
+          IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName} bastion host security group"
 
   RestFunction:
     Type: AWS::Serverless::Function
