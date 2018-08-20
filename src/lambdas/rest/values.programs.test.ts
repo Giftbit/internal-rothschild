@@ -183,7 +183,7 @@ describe("/v2/values create from program", () => {
             programId: program.id
         };
 
-        it("create Value with no balance (outside of range) 409s", async () => {
+        it("create Value with null balance (outside of range) 409s", async () => {
             const valueResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", value);
             chai.assert.equal(valueResp.statusCode, 409, JSON.stringify(valueResp.body));
             chai.assert.equal(valueResp.body.message, "Value's balance 0 is less than minInitialBalance 100.");
@@ -262,6 +262,16 @@ describe("/v2/values create from program", () => {
             const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
             chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
             chai.assert.equal(valueResp.body.balance, value.balance);
+        });
+
+        it("create Value with null balance 409s", async () => {
+            const valuePost_BalanceNull = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", {
+                id: generateId(),
+                balance: null,
+                programId: program.id
+            } as Partial<Value>);
+            chai.assert.equal(valuePost_BalanceNull.statusCode, 409);
+            chai.assert.equal(valuePost_BalanceNull.body.message, "Value's balance null is less than minInitialBalance 0.");
         });
     });
 
