@@ -667,6 +667,7 @@ describe("/v2/contacts", () => {
                 contact.userId = defaultTestUser.userId;
                 contact.createdDate = new Date();
                 contact.updatedDate = new Date();
+                contact.createdBy = defaultTestUser.auth.teamMemberId;
             }
             const knex = await getKnexWrite();
             await knex("Contacts").insert(contacts);

@@ -465,7 +465,8 @@ describe("/v2/values/", () => {
                     startDate: date,
                     endDate: date,
                     createdDate: date,
-                    updatedDate: date
+                    updatedDate: date,
+                    createdBy: defaultTestUser.auth.teamMemberId
                 });
             }
 
