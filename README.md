@@ -1,6 +1,16 @@
 # internal-rothschild
 POC banking implementation
 
+## Connecting to the database
+
+The database is in a VPC and not directly accessible through the internet.  There is a bastion host (aka jump box) that can only be reached from the office IP that can establish an SSH tunnel to the database.
+
+1. Check for the existence of `/Volumes/credentials/ssh/AWSKey.pem`.  If it does not exist follow these commands:
+  a. `ssh-keygen -t rsa -b 4096 -C "AWSKey" -f /Volumes/credentials/ssh/AWSKey.pem`
+  b. `aws iam upload-ssh-public-key --user-name <your aws user name> --ssh-public-key-body file:///Volumes/credentials/ssh/AWSKey.pem.pub`
+2. `ssh-add /Volumes/credentials/ssh/AWSKey.pem`
+3. `./dev.sh rdstunnel`
+
 ## Testing
 
 ### Stripe tests
