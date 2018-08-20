@@ -107,6 +107,13 @@ elif [ "$COMMAND" = "invoke" ]; then
 elif [ "$COMMAND" = "rdstunnel" ]; then
     # Establish a tunnel to the RDS instance through the bastion host
 
+    if [ ! -f /Volumes/credentials/ssh/AWSKey.pem ]; then
+        echo "/Volumes/credentials/ssh/AWSKey.pem not found.  See README.md on generating this file."
+        exit 1
+    fi
+
+    ssh-add /Volumes/credentials/ssh/AWSKey.pem
+
     DATABASE_ID="$(aws cloudformation describe-stack-resources --stack-name $STACK_NAME --query "StackResources[?LogicalResourceId==\`DbPrimaryInstance\`].PhysicalResourceId" --output text)"
     DATABASE_ADDRESS="$(aws rds describe-db-instances --db-instance-identifier $DATABASE_ID --query "DBInstances[].Endpoint.Address" --output text)"
     echo "got database address $DATABASE_ADDRESS"
