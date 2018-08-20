@@ -6,3 +6,6 @@ ALTER TABLE rothschild.Programs
 
 ALTER TABLE rothschild.Values
   ADD COLUMN createdBy VARCHAR(64);
+
+ALTER TABLE rothschild.Contacts
+  ADD COLUMN createdBy VARCHAR(64);

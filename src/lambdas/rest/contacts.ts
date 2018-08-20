@@ -49,7 +49,8 @@ export function installContactsRest(router: cassava.Router): void {
                     metadata: null
                 }),
                 createdDate: now,
-                updatedDate: now
+                updatedDate: now,
+                createdBy: auth.teamMemberId
             };
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
@@ -157,7 +158,7 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 }
 
 export async function createContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contact: Contact): Promise<Contact> {
-    auth.requireIds("userId");
+    auth.requireIds("userId", "teamMemberId");
 
     try {
         const knex = await getKnexWrite();
