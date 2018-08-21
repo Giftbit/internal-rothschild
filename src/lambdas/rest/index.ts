@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import * as log from "loglevel";
 import * as logPrefix from "loglevel-plugin-prefix";
+import log = require("loglevel");
 import {installRestRoutes} from "./installRestRoutes";
 import {CodeCryptographySecrets, initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils";
 

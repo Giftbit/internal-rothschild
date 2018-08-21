@@ -1,5 +1,5 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {DbCode} from "./DbCode";
+import {codeLastFour, DbCode} from "./DbCode";
 import {pickDefined} from "../utils/pick";
 import {decryptCode} from "../utils/codeCryptoUtils";
 
@@ -9,6 +9,7 @@ export interface Value {
     balance: number | null;
     uses: number | null;
     programId: string | null;
+    issuanceId: string | null;
     code: string | null;
     isGenericCode: boolean | null;
     contactId: string | null;
@@ -45,6 +46,7 @@ export namespace Value {
             balance: v.balance,
             uses: v.uses,
             programId: v.programId,
+            issuanceId: v.issuanceId,
             code: dbCode ? dbCode.lastFour : null,
             isGenericCode: v.isGenericCode,
             codeEncrypted: dbCode ? dbCode.codeEncrypted : null,
@@ -87,6 +89,13 @@ export namespace Value {
             updatedDate: v.updatedDate
         });
     }
+
+    export function toStringSanitized(v: Value): string {
+        return JSON.stringify({
+            ...v,
+            code: v.code && !v.isGenericCode ? codeLastFour(v.code) : v.code
+        });
+    }
 }
 
 export interface DbValue {
@@ -96,6 +105,7 @@ export interface DbValue {
     balance: number | null;
     uses: number | null;
     programId: string | null;
+    issuanceId: string | null;
     code: string | null;
     isGenericCode: boolean | null;
     codeHashed: string | null;
@@ -124,6 +134,7 @@ export namespace DbValue {
             balance: v.balance,
             uses: v.uses,
             programId: v.programId,
+            issuanceId: v.issuanceId,
             contactId: v.contactId,
             code: v.code && (v.isGenericCode || showCode) ? decryptCode(v.codeEncrypted) : v.code,
             isGenericCode: v.isGenericCode,

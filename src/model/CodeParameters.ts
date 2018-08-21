@@ -1,6 +1,7 @@
 import {GenerateCodeParameters} from "./GenerateCodeParameters";
 
 export interface CodeParameters {
-    isGeneric: boolean;
-    generateCodeParameters?: GenerateCodeParameters;
+    isGenericCode: boolean;
+    generateCode: GenerateCodeParameters;
+    code: string;
 }

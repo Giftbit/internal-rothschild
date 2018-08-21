@@ -1,6 +1,5 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import parseLinkHeader = require("parse-link-header");
 import * as testUtils from "../../utils/testUtils";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../utils/testUtils";
 import {DbValue, Value} from "../../model/Value";
@@ -12,6 +11,7 @@ import {LightrailTransactionStep, Transaction} from "../../model/Transaction";
 import {installRestRoutes} from "./installRestRoutes";
 import {createCurrency} from "./currencies";
 import {computeCodeLookupHash, decryptCode} from "../../utils/codeCryptoUtils";
+import parseLinkHeader = require("parse-link-header");
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -79,6 +79,7 @@ describe("/v2/values/", () => {
             ...value1,
             uses: null,
             programId: null,
+            issuanceId: null,
             contactId: null,
             code: null,
             isGenericCode: null,
@@ -116,10 +117,11 @@ describe("/v2/values/", () => {
             ...createValueRequest,
             uses: null,
             programId: null,
+            issuanceId: null,
             contactId: null,
             code: null,
             isGenericCode: null,
-            balance: 0,
+            balance: null,
             active: true,
             canceled: false,
             frozen: false,
@@ -149,10 +151,11 @@ describe("/v2/values/", () => {
             currency: createValueRequest.currency,
             uses: null,
             programId: null,
+            issuanceId: null,
             contactId: null,
             code: null,
             isGenericCode: null,
-            balance: 0,
+            balance: null,
             active: true,
             canceled: false,
             frozen: false,
@@ -342,6 +345,20 @@ describe("/v2/values/", () => {
         chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
     });
 
+    it("startDate > endDate 409s", async () => {
+        let value: Partial<Value> = {
+            id: generateId(),
+            balance: 50,
+            currency: "USD",
+            startDate: new Date("2077-01-02"),
+            endDate: new Date("2077-01-01"),
+
+        };
+        const valueResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", value);
+        chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
+        chai.assert.equal(valueResp.body.message, "Property startDate cannot exceed endDate.");
+    });
+
     it("can't create Value with discount = false and discountSellerLiability", async () => {
         let value: Partial<Value> = {
             id: generateId(),
@@ -461,7 +478,8 @@ describe("/v2/values/", () => {
                     canceled: false
                 })
                 .where("balance", ">", 200)
-                .orderBy("id");
+                .orderBy("createdDate", "desc")
+                .orderBy("id", "desc");
             chai.assert.isAtLeast(expected.length, 2, "expect results");
 
             const page1Size = Math.ceil(expected.length / 2);
@@ -495,7 +513,8 @@ describe("/v2/values/", () => {
                     userId: defaultTestUser.userId
                 })
                 .whereIn("id", ids)
-                .orderBy("id");
+                .orderBy("createdDate", "desc")
+                .orderBy("id", "desc");
 
             const page1 = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/values?id.in=${ids.join(",")}`, "GET");
             chai.assert.equal(page1.statusCode, 200, `body=${JSON.stringify(page1.body)}`);
@@ -750,10 +769,12 @@ describe("/v2/values/", () => {
         const respPost = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", secureCode);
         chai.assert.equal(respPost.statusCode, 201, `body=${JSON.stringify(respPost.body)}`);
         chai.assert.equal(respPost.body.code, "…CURE");
+        chai.assert.isFalse(respPost.body.isGenericCode);
 
         const respGet = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${secureCode.id}`, "GET");
         chai.assert.equal(respGet.statusCode, 200, `body=${JSON.stringify(respGet.body)}`);
         chai.assert.equal(respGet.body.code, "…CURE");
+        chai.assert.isFalse(respGet.body.isGenericCode);
 
         const showCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${secureCode.id}?showCode=true`, "GET");
         chai.assert.equal(showCode.statusCode, 200, `body=${JSON.stringify(showCode.body)}`);
@@ -1186,5 +1207,40 @@ describe("/v2/values/", () => {
             chai.assert.include([genericCode.id, importedCode.id], value1.id);
             chai.assert.notEqual(value0.id, value1.id);
         });
+    });
+
+    it(`default sorting createdDate`, async () => {
+        const idAndDates = [
+            {id: generateId(), createdDate: new Date("3030-02-01")},
+            {id: generateId(), createdDate: new Date("3030-02-02")},
+            {id: generateId(), createdDate: new Date("3030-02-03")},
+            {id: generateId(), createdDate: new Date("3030-02-04")}
+        ];
+        for (let idAndDate of idAndDates) {
+            const response = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                id: idAndDate.id,
+                currency: "USD",
+                balance: 1
+            });
+            chai.assert.equal(response.statusCode, 201);
+            const knex = await getKnexWrite();
+            const res: number = await knex("Values")
+                .where({
+                    userId: testUtils.defaultTestUser.userId,
+                    id: idAndDate.id,
+                })
+                .update(Value.toDbValue(testUtils.defaultTestUser.auth, {
+                    ...response.body,
+                    createdDate: idAndDate.createdDate,
+                    updatedDate: idAndDate.createdDate
+                }));
+            if (res === 0) {
+                chai.assert.fail(`no row updated. test is broken`)
+            }
+        }
+        const resp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/values?createdDate.gt=3030-01-01", "GET");
+        chai.assert.equal(resp.statusCode, 200);
+        chai.assert.equal(resp.body.length, 4);
+        chai.assert.sameOrderedMembers(resp.body.map(tx => tx.id), idAndDates.reverse().map(tx => tx.id) /* reversed since createdDate desc */);
     });
 });

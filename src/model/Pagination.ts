@@ -56,11 +56,16 @@ export namespace Pagination {
         };
     }
 
-    function toLink(path: string, queryString: {[key: string]: string}, rel: string): string {
+    function toLink(path: string, queryString: { [key: string]: string }, rel: string): string {
         return `<${path}?${querystring.stringify(queryString)}>; rel="${encodeURIComponent(rel)}"`;
     }
 
-    export function getPaginationParams(evt: RouterEvent, options: PaginationParamOptions = {}): PaginationParams {
+    export function getPaginationParams(evt: RouterEvent, options: PaginationParamOptions = {
+        sort: {
+            field: "createdDate",
+            asc: false
+        }
+    }): PaginationParams {
         const defaultLimit = options.defaultLimit || 100;
         const maxLimit = options.maxLimit || 1000;
 

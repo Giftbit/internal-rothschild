@@ -5,9 +5,13 @@ import {Pagination, PaginationParams} from "../../model/Pagination";
 import {DbProgram, Program} from "../../model/Program";
 import {csvSerializer} from "../../serializers";
 import {pick, pickOrDefault} from "../../utils/pick";
-import {dateInDbPrecision, getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
+import {
+    dateInDbPrecision,
+    filterAndPaginateQuery,
+    getSqlErrorConstraintName,
+    nowInDbPrecision
+} from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
-import {paginateQuery} from "../../utils/dbUtils/paginateQuery";
 import * as log from "loglevel";
 
 export function installProgramsRest(router: cassava.Router): void {
@@ -21,7 +25,7 @@ export function installProgramsRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:programs:list");
-            const res = await getPrograms(auth, Pagination.getPaginationParams(evt));
+            const res = await getPrograms(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.programs
@@ -118,15 +122,45 @@ export function installProgramsRest(router: cassava.Router): void {
 
 }
 
-async function getPrograms(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ programs: Program[], pagination: Pagination }> {
+async function getPrograms(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ programs: Program[], pagination: Pagination }> {
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
-    const res = await paginateQuery<DbProgram>(
+
+    const res = await filterAndPaginateQuery<DbProgram>(
         knex("Programs")
             .where({
                 userId: auth.userId
             }),
+        filterParams,
+        {
+            properties: {
+                "id": {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
+                "currency": {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
+                "startDate": {
+                    type: "Date",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
+                },
+                "endDate": {
+                    type: "Date",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
+                },
+                "createdDate": {
+                    type: "Date",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
+                },
+                "updatedDate": {
+                    type: "Date",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
+                }
+            }
+        },
         pagination
     );
 

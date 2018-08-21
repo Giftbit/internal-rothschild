@@ -1,5 +1,4 @@
 import * as cassava from "cassava";
-import {RouterEvent} from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import * as log from "loglevel";
@@ -20,6 +19,8 @@ import {generateCode} from "../../services/codeGenerator";
 import {computeCodeLookupHash} from "../../utils/codeCryptoUtils";
 import {getProgram} from "./programs";
 import {Program} from "../../model/Program";
+import * as Knex from "knex";
+import {GenerateCodeParameters} from "../../model/GenerateCodeParameters";
 
 export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
@@ -47,64 +48,27 @@ export function installValuesRest(router: cassava.Router): void {
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:values:create");
             evt.validateBody(valueSchema);
-            checkCodeParameters(evt);
             let program: Program = null;
             if (evt.body.programId) {
-                try {
-                    program = await getProgram(auth, evt.body.programId);
-                } catch (err) {
-                    if (err instanceof cassava.RestError && err.statusCode === 404) {
-                        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `No Program found for id ${evt.body.programId}.`);
-                    } else {
-                        throw err;
-                    }
-                }
+                program = await getProgram(auth, evt.body.programId);
             }
 
-            const now = nowInDbPrecision();
-            const value: Value = {
-                ...pickOrDefault(evt.body, {
-                    id: "",
-                    currency: program ? program.currency : "",
-                    balance: 0,
-                    uses: null,
-                    programId: program ? program.id : null,
-                    code: evt.body.generateCode ? generateCode(evt.body.generateCode) : null,
-                    isGenericCode: evt.body.generateCode ? false : null,
-                    contactId: null,
-                    pretax: program ? program.pretax : false,
-                    active: program ? program.active : true,
-                    frozen: false,
-                    redemptionRule: program ? program.redemptionRule : null,
-                    valueRule: program ? program.valueRule : null,
-                    discount: program ? program.discount : false,
-                    discountSellerLiability: program ? program.discountSellerLiability : null,
-                    startDate: program ? program.startDate : null,
-                    endDate: program ? program.endDate : null,
-                    metadata: null
-                }),
-                canceled: false,
-                createdDate: now,
-                updatedDate: now
-            };
+            let value: Partial<Value> = evt.body;
 
-            if (value.balance && value.valueRule) {
-                throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a balance and valueRule.`);
-            }
-            if (value.discountSellerLiability !== null && !value.discount) {
-                throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have discountSellerLiability if it is not a discount.`);
-            }
-            if (program) {
-                checkProgramConstraints(value, program);
-            }
-            value.startDate = value.startDate ? dateInDbPrecision(new Date(value.startDate)) : null;
-            value.endDate = value.endDate ? dateInDbPrecision(new Date(value.endDate)) : null;
-
-            const showCode: boolean = (evt.queryStringParameters.showCode === "true");
+            const knex = await getKnexWrite();
+            await knex.transaction(async trx => {
+                value = await createValue(auth, {
+                        partialValue: value,
+                        generateCodeParameters: evt.body.generateCode,
+                        program: program,
+                        showCode: (evt.queryStringParameters.showCode === "true")
+                    },
+                    trx);
+            });
 
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
-                body: await createValue(auth, value, showCode)
+                body: value
             };
         });
 
@@ -177,7 +141,7 @@ export function installValuesRest(router: cassava.Router): void {
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:values:update");
             evt.validateBody(valueChangeCodeSchema);
-            checkCodeParameters(evt);
+            checkCodeParameters(evt.body.generateCode, evt.body.code, evt.body.isGenericCode);
 
             const now = nowInDbPrecision();
             let code = evt.body.code;
@@ -205,6 +169,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
+
     const paginatedRes = await filterAndPaginateQuery<DbValue>(
         knex("Values")
             .where({
@@ -218,6 +183,10 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                     operators: ["eq", "in"]
                 },
                 programId: {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
+                issuanceId: {
                     type: "string",
                     operators: ["eq", "in"]
                 },
@@ -280,57 +249,53 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     };
 }
 
-async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, value: Value, showCode: boolean): Promise<Value> {
+export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: CreateValueParameters, trx: Knex.Transaction): Promise<Value> {
     auth.requireIds("userId");
+    let value: Value = initializeValue(params.partialValue, params.program, params.generateCodeParameters);
+    log.info(`Create Value requested for user: ${auth.userId}. Value ${Value.toStringSanitized(value)}.`);
 
-    if (value.contactId && value.isGenericCode) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "A Value with isGenericCode=true cannot have contactId set.");
-    }
+    log.info(`Checking properties for ${value.id}.`);
+    checkValueProperties(value, params.program);
+
+    value.startDate = value.startDate ? dateInDbPrecision(new Date(value.startDate)) : null;
+    value.endDate = value.endDate ? dateInDbPrecision(new Date(value.endDate)) : null;
+
+    const dbValue = Value.toDbValue(auth, value);
+    log.info(`Creating Value ${Value.toStringSanitized(value)}.`);
 
     try {
-        const knex = await getKnexWrite();
-
-        await knex.transaction(async trx => {
-            const dbValue = Value.toDbValue(auth, value);
-            log.debug("createValue id=", dbValue.id);
-
-            await trx.into("Values")
-                .insert(dbValue);
-            if (value.balance) {
-                if (value.balance < 0) {
-                    throw new Error("balance cannot be negative");
-                }
-
-                const transactionId = value.id;
-                const initialBalanceTransaction: DbTransaction = {
-                    userId: auth.userId,
-                    id: transactionId,
-                    transactionType: "credit",
-                    currency: value.currency,
-                    totals: null,
-                    lineItems: null,
-                    paymentSources: null,
-                    metadata: null,
-                    createdDate: value.createdDate
-                };
-                const initialBalanceTransactionStep: LightrailDbTransactionStep = {
-                    userId: auth.userId,
-                    id: `${value.id}-0`,
-                    transactionId: transactionId,
-                    valueId: value.id,
-                    balanceBefore: 0,
-                    balanceAfter: value.balance,
-                    balanceChange: value.balance
-                };
-                await trx.into("Transactions").insert(initialBalanceTransaction);
-                await trx.into("LightrailTransactionSteps").insert(initialBalanceTransactionStep);
+        await trx.into("Values")
+            .insert(dbValue);
+        if (value.balance) {
+            if (value.balance < 0) {
+                throw new Error("balance cannot be negative");
             }
-        });
-        if (!showCode && value.code && !value.isGenericCode) {
-            log.debug("obfuscating secure code from response");
-            value.code = codeLastFour(value.code);
+
+            const transactionId = value.id;
+            const initialBalanceTransaction: DbTransaction = {
+                userId: auth.userId,
+                id: transactionId,
+                transactionType: "credit",
+                currency: value.currency,
+                totals: null,
+                lineItems: null,
+                paymentSources: null,
+                metadata: null,
+                createdDate: value.createdDate
+            };
+            const initialBalanceTransactionStep: LightrailDbTransactionStep = {
+                userId: auth.userId,
+                id: `${value.id}-0`,
+                transactionId: transactionId,
+                valueId: value.id,
+                balanceBefore: 0,
+                balanceAfter: value.balance,
+                balanceChange: value.balance
+            };
+            await trx.into("Transactions").insert(initialBalanceTransaction);
+            await trx.into("LightrailTransactionSteps").insert(initialBalanceTransactionStep);
         }
-        return value;
+        return DbValue.toValue(dbValue, params.showCode);
     } catch (err) {
         log.debug(err);
         const constraint = getSqlErrorConstraintName(err);
@@ -461,6 +426,65 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
     }
 }
 
+function initializeValue(partialValue: Partial<Value>, program: Program = null, generateCodeParameters: GenerateCodeParameters = null): Value {
+    const now = nowInDbPrecision();
+    let value: Value = {
+        id: null,
+        balance: partialValue.valueRule && !partialValue.balance ? null : 0,
+        uses: null,
+        code: null,
+        issuanceId: null,
+        isGenericCode: null,
+        contactId: null,
+        canceled: false,
+        frozen: false,
+        metadata: null,
+        createdDate: now,
+        updatedDate: now,
+        ...partialValue,
+        ...pickOrDefault(partialValue, {
+            currency: program ? program.currency : null,
+            programId: program ? program.id : null,
+            pretax: program ? program.pretax : false,
+            active: program ? program.active : true,
+            redemptionRule: program ? program.redemptionRule : null,
+            valueRule: program ? program.valueRule : null,
+            discount: program ? program.discount : false,
+            discountSellerLiability: program ? program.discountSellerLiability : null,
+            startDate: program ? program.startDate : null,
+            endDate: program ? program.endDate : null,
+        })
+    };
+
+    if (generateCodeParameters) {
+        checkCodeParameters(generateCodeParameters, value.code, value.isGenericCode);
+        value.code = generateCodeParameters ? generateCode(generateCodeParameters) : value.code;
+    }
+    if (value.code && value.isGenericCode == null) {
+        value.isGenericCode = false;
+    }
+    return value;
+}
+
+function checkValueProperties(value: Value, program: Program = null): void {
+    if (program) {
+        checkProgramConstraints(value, program);
+    }
+
+    if (value.balance && value.valueRule) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a balance and valueRule.`);
+    }
+    if (value.discountSellerLiability !== null && !value.discount) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have discountSellerLiability if it is not a discount.`);
+    }
+    if (value.contactId && value.isGenericCode) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "A Value with isGenericCode=true cannot have contactId set.");
+    }
+    if (value.startDate > value.endDate) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Property startDate cannot exceed endDate.");
+    }
+}
+
 function checkProgramConstraints(value: Value, program: Program): void {
     if (program.fixedInitialBalances && (program.fixedInitialBalances.indexOf(value.balance) === -1 || !value.balance)) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} outside initial values defined by Program ${program.fixedInitialBalances}.`);
@@ -481,8 +505,8 @@ function checkProgramConstraints(value: Value, program: Program): void {
     }
 }
 
-function checkCodeParameters(evt: RouterEvent): void {
-    if (evt.body.generateCode && (evt.body.code || evt.body.isGenericCode)) {
+export function checkCodeParameters(generateCode: GenerateCodeParameters, code: string, isGenericCode: boolean): void {
+    if (generateCode && (code || isGenericCode)) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Parameter generateCode is not allowed with parameters code or isGenericCode:true.`);
     }
 }
@@ -644,3 +668,10 @@ const valueChangeCodeSchema: jsonschema.Schema = {
     },
     required: []
 };
+
+export interface CreateValueParameters {
+    partialValue: Partial<Value>;
+    generateCodeParameters: GenerateCodeParameters | null;
+    program: Program | null;
+    showCode: boolean;
+}

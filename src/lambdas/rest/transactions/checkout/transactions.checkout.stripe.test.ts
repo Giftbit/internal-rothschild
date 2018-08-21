@@ -1233,7 +1233,7 @@ describe("split tender checkout with Stripe", () => {
             }
 
             (insertTransaction.insertLightrailTransactionSteps as any).restore();
-        }).timeout(3500);
+        }).timeout(4000);
 
         it("throws 409 'transaction already exists' if the Lightrail transaction fails for idempotency reasons", async () => {
             if (!testStripeLive()) {
