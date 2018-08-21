@@ -3,6 +3,7 @@ import {StripeUpdateChargeParams} from "./StripeUpdateChargeParams";
 import {StripeRestError} from "./StripeRestError";
 import {StripeCreateChargeParams} from "./StripeCreateChargeParams";
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import {stripeApiVersion} from "./StripeConfig";
 import log = require("loglevel");
 import Stripe = require("stripe");
 import IRefund = Stripe.refunds.IRefund;
@@ -10,7 +11,7 @@ import ICharge = Stripe.charges.ICharge;
 
 export async function createStripeCharge(params: StripeCreateChargeParams, lightrailStripeSecretKey: string, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<ICharge> {
     const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
-    lightrailStripe.setApiVersion(process.env["STRIPE_API_VERSION"]);
+    lightrailStripe.setApiVersion(stripeApiVersion);
     // params.description = "Lightrail Checkout transaction.";  // todo what is this
     log.info(`Creating Stripe charge ${JSON.stringify(params)}.`);
 
@@ -49,7 +50,7 @@ export async function createStripeCharge(params: StripeCreateChargeParams, light
 
 export async function createRefund(step: StripeTransactionPlanStep, lightrailStripeSecretKey: string, merchantStripeAccountId: string, reason?: string): Promise<IRefund> {
     const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
-    lightrailStripe.setApiVersion(process.env["STRIPE_API_VERSION"]);
+    lightrailStripe.setApiVersion(stripeApiVersion);
     log.info(`Creating refund for Stripe charge ${step.chargeResult.id}.`);
     const refund = await lightrailStripe.refunds.create({
         charge: step.chargeResult.id,
@@ -71,7 +72,7 @@ export async function createRefund(step: StripeTransactionPlanStep, lightrailStr
 
 export async function updateCharge(chargeId: string, params: StripeUpdateChargeParams, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<any> {
     const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
-    lightrailStripe.setApiVersion(process.env["STRIPE_API_VERSION"]);
+    lightrailStripe.setApiVersion(stripeApiVersion);
     log.info(`Updating Stripe charge ${JSON.stringify(params)}.`);
     let chargeUpdate;
     try {
