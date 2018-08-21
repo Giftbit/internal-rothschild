@@ -275,7 +275,7 @@ describe("/v2/values create from program", () => {
         });
     });
 
-    it("min/max initial balance null", async () => {
+    describe("creating Values from Program with minInitialBalance = null and maxInitialBalance = null", () => {
         const program: Partial<Program> = {
             id: generateId(),
             currency: "USD",
@@ -283,55 +283,71 @@ describe("/v2/values create from program", () => {
             minInitialBalance: null,
             maxInitialBalance: null
         };
-        const programPost = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
-        chai.assert.equal(programPost.statusCode, 201);
 
-        const valuePost_Balance0 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
-            id: generateId(),
-            balance: 0,
-            programId: program.id
-        } as Partial<Value>);
-        chai.assert.equal(valuePost_Balance0.statusCode, 201);
+        it("create program", async () => {
+            const programPost = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
+            chai.assert.equal(programPost.statusCode, 201);
+        });
 
-        const valuePost_Balance10 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
-            id: generateId(),
-            balance: 10,
-            programId: program.id
-        } as Partial<Value>);
-        chai.assert.equal(valuePost_Balance10.statusCode, 201);
+        describe("balance of 0 succeeds", async () => {
+            const valuePost_Balance0 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                id: generateId(),
+                balance: 0,
+                programId: program.id
+            } as Partial<Value>);
+            chai.assert.equal(valuePost_Balance0.statusCode, 201);
+        });
 
-        const valuePost_BalanceNull = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
-            id: generateId(),
-            balance: null,
-            programId: program.id
-        } as Partial<Value>);
-        chai.assert.equal(valuePost_BalanceNull.statusCode, 201);
+        describe("balance of 10 succeeds", async () => {
+            const valuePost_Balance10 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                id: generateId(),
+                balance: 10,
+                programId: program.id
+            } as Partial<Value>);
+            chai.assert.equal(valuePost_Balance10.statusCode, 201);
+        });
+
+        describe("balance of null succeeds", async () => {
+            const valuePost_BalanceNull = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                id: generateId(),
+                balance: null,
+                programId: program.id
+            } as Partial<Value>);
+            chai.assert.equal(valuePost_BalanceNull.statusCode, 201);
+        });
     });
 
-    it("fixedInitialBalances checks", async () => {
+    describe("creating Values from Program with fixedInitialBalances = [0]", () => {
         const program: Partial<Program> = {
             id: generateId(),
             currency: "USD",
             name: "name",
             fixedInitialBalances: [0]
         };
-        const programPost = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
-        chai.assert.equal(programPost.statusCode, 201);
 
-        const valuePost_Balance0 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
-            id: generateId(),
-            balance: 0,
-            programId: program.id
-        } as Partial<Value>);
-        chai.assert.equal(valuePost_Balance0.statusCode, 201);
+        it("create program", async () => {
+            const programPost = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
+            chai.assert.equal(programPost.statusCode, 201);
+        });
 
-        const valuePost_BalanceNull = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", {
-            id: generateId(),
-            balance: null,
-            programId: program.id
-        } as Partial<Value>);
-        chai.assert.equal(valuePost_BalanceNull.statusCode, 409);
-        chai.assert.equal(valuePost_BalanceNull.body.message, "Value's balance null is outside fixedInitialBalances defined by Program 0.");
+        it("balance = 0 succeeds", async () => {
+            const valuePost_Balance0 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                id: generateId(),
+                balance: 0,
+                programId: program.id
+            } as Partial<Value>);
+            chai.assert.equal(valuePost_Balance0.statusCode, 201);
+        });
+
+        it("balance = null 409s", async () => {
+            const valuePost_BalanceNull = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", {
+                id: generateId(),
+                balance: null,
+                programId: program.id
+            } as Partial<Value>);
+            chai.assert.equal(valuePost_BalanceNull.statusCode, 409);
+            chai.assert.equal(valuePost_BalanceNull.body.message, "Value's balance null is outside fixedInitialBalances defined by Program 0.");
+        });
     });
 
     it("test can't create a program with minInitialBalance > maxInitialBalance", async () => {
