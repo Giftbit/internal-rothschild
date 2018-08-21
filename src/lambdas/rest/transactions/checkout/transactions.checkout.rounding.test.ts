@@ -6,11 +6,12 @@ import * as testUtils from "../../../../utils/testUtils";
 import {generateId} from "../../../../utils/testUtils";
 import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
+import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe("/v2/transactions/checkout - allowRemainder tests", () => {
+describe("/v2/transactions/checkout - rounding scenarios", () => {
 
     const router = new cassava.Router();
 
@@ -27,8 +28,8 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
         });
     });
 
-    it("rounding HALF_UP", async () => {
-        let request: any = {
+    it("HALF_UP breaks ties by rounding up", async () => {
+        let request: Partial<CheckoutRequest> = {
             id: generateId(),
             allowRemainder: true,
             sources: [],
@@ -108,8 +109,8 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
         chai.assert.deepEqualExcluding(getCheckoutResp.body, checkoutResponse.body, "statusCode");
     });
 
-    it("rounding HALF_EVEN", async () => {
-        let request: any = {
+    it("HALF_EVEN breaks ties by rounding to the nearest even number", async () => {
+        let request: Partial<CheckoutRequest> = {
             id: generateId(),
             allowRemainder: true,
             sources: [],
@@ -189,14 +190,89 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
         chai.assert.deepEqualExcluding(getCheckoutResp.body, checkoutResponse.body, "statusCode");
     });
 
-    it("invalid rounding mode", async () => {
-        let request: any = {
+    it("rounding defaults to HALF_EVEN and breaks ties by rounding to the nearest even number", async () => {
+        let request: Partial<CheckoutRequest> = {
             id: generateId(),
             allowRemainder: true,
             sources: [],
-            tax: {
-                roundingMode: "INVALID"
+            lineItems: [
+                {
+                    type: "product",
+                    unitPrice: 1,
+                    quantity: 1,
+                    taxRate: 0.50
+                },
+                {
+                    type: "product",
+                    unitPrice: 3,
+                    quantity: 1,
+                    taxRate: 0.50
+                }
+            ],
+            currency: "CAD"
+        };
+        const checkoutResponse = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+        chai.assert.equal(checkoutResponse.statusCode, 201, `body=${JSON.stringify(checkoutResponse.body)}`);
+        chai.assert.deepEqualExcluding(checkoutResponse.body, {
+            id: request.id,
+            transactionType: "checkout",
+            currency: "CAD",
+            totals: {
+                discount: 0,
+                payable: 6,
+                remainder: 6,
+                subtotal: 4,
+                tax: 2
             },
+            lineItems: [
+                {
+                    "type": "product",
+                    "unitPrice": 3,
+                    "quantity": 1,
+                    "taxRate": 0.5,
+                    "lineTotal": {
+                        "subtotal": 3,
+                        "taxable": 3,
+                        "tax": 2, // 1.5 rounds up using HALF_EVEN
+                        "discount": 0,
+                        "remainder": 5,
+                        "payable": 5
+                    }
+                },
+                {
+                    "type": "product",
+                    "unitPrice": 1,
+                    "quantity": 1,
+                    "taxRate": 0.5,
+                    "lineTotal": {
+                        "subtotal": 1,
+                        "taxable": 1,
+                        "tax": 0, // 0.5 rounds down using HALF_EVEN
+                        "discount": 0,
+                        "remainder": 1,
+                        "payable": 1
+                    }
+                }
+            ],
+            steps: [],
+            paymentSources: [],
+            metadata: null,
+            tax: {
+                roundingMode: "HALF_EVEN"
+            },
+            createdDate: null
+        }, ["createdDate"]);
+
+        const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
+        chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
+        chai.assert.deepEqualExcluding(getCheckoutResp.body, checkoutResponse.body, "statusCode");
+    });
+
+    it("unrecognized rounding mode returns 422", async () => {
+        let request: Partial<CheckoutRequest> = {
+            id: generateId(),
+            allowRemainder: true,
+            sources: [],
             lineItems: [
                 {
                     type: "product",
@@ -207,7 +283,13 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
             ],
             currency: "CAD"
         };
-        const checkoutResponse = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/checkout", "POST", request);
+        const checkoutResponse = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/checkout", "POST", {
+            ...request,
+            tax: {
+                roundingMode: "INVALID" // added in call so that request can be Partial<CheckoutRequest>
+            },
+
+        });
         chai.assert.equal(checkoutResponse.statusCode, 422, `body=${JSON.stringify(checkoutResponse.body)}`);
         chai.assert.include(checkoutResponse.body.message, "not one of enum values: HALF_EVEN,HALF_UP");
     });

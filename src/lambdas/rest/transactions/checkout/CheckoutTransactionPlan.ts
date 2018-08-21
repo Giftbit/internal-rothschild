@@ -4,7 +4,7 @@ import {LineItemResponse} from "../../../../model/LineItem";
 import {TransactionPlanTotals, TransactionType} from "../../../../model/Transaction";
 import {bankersRounding, roundTax} from "../../../../utils/moneyUtils";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
-import {TaxProperties} from "../../../../model/TaxProperties";
+import {TaxRequestProperties} from "../../../../model/TaxProperties";
 
 export class CheckoutTransactionPlan implements TransactionPlan {
     id: string;
@@ -16,7 +16,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
     steps: TransactionPlanStep[];
     createdDate: Date;
     metadata: object | null;
-    tax: TaxProperties;
+    tax: TaxRequestProperties;
 
     constructor(checkout: CheckoutRequest, steps: TransactionPlanStep[]) {
         let lineItemResponses: LineItemResponse[] = [];

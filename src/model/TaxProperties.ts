@@ -1,4 +1,4 @@
-export interface TaxProperties {
+export interface TaxRequestProperties {
     roundingMode: TaxRoundingMode;
 }
 

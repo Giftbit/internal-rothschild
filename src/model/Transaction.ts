@@ -4,7 +4,7 @@ import {getKnexRead} from "../utils/dbUtils/connection";
 import {LineItem} from "./LineItem";
 import {TransactionParty} from "./TransactionRequest";
 import {LightrailDbTransactionStep} from "./Transaction";
-import {TaxProperties} from "./TaxProperties";
+import {TaxRequestProperties} from "./TaxProperties";
 
 export interface Transaction {
     id: string;
@@ -17,7 +17,7 @@ export interface Transaction {
     simulated?: true;
     createdDate: Date;
     metadata: object | null;
-    tax: TaxProperties | null;
+    tax: TaxRequestProperties | null;
 }
 
 export interface DbTransaction {
