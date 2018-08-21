@@ -1,6 +1,5 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as testUtils from "../../../utils/testUtils";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../utils/testUtils";
 import {Value} from "../../../model/Value";
@@ -10,6 +9,7 @@ import {installRestRoutes} from "../installRestRoutes";
 import {
     setStubsForStripeTests,
     stripeEnvVarsPresent,
+    testStripeLive,
     unsetStubsForStripeTests
 } from "../../../utils/testUtils/stripeTestUtils";
 import {createCurrency} from "../currencies";
@@ -776,10 +776,8 @@ describe("/v2/transactions/transfer", () => {
     });
 
     describe("stripe transfers", () => {
-        const testStripeLive: boolean = !!process.env["TEST_STRIPE_LIVE"];
-
         before(function () {
-            if (!stripeEnvVarsPresent() && testStripeLive) {
+            if (!stripeEnvVarsPresent() && testStripeLive()) {
                 this.skip();
                 return;
             }
@@ -791,7 +789,7 @@ describe("/v2/transactions/transfer", () => {
         });
 
         afterEach(() => {
-            if (!testStripeLive) {
+            if (!testStripeLive()) {
                 if ((stripeTransactions.createStripeCharge as sinon).restore) {
                     (stripeTransactions.createStripeCharge as sinon).restore();
                 }
@@ -889,7 +887,7 @@ describe("/v2/transactions/transfer", () => {
                 "status": "succeeded",
                 "transfer_group": null
             };
-            if (!testStripeLive) {
+            if (!testStripeLive()) {
                 const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
                 stripeStub.withArgs(sinon.match({
                     "amount": request.amount,
@@ -960,7 +958,7 @@ describe("/v2/transactions/transfer", () => {
             const destStepFromGet = getTransferResp.body.steps.find((s: LightrailTransactionStep) => s.rail === "lightrail");
             chai.assert.deepEqual(destStepFromGet, destStep);
 
-            if (testStripeLive) {
+            if (testStripeLive()) {
                 const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
                 const stripeChargeId = (postTransferResp.body.steps.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
                 const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
@@ -971,7 +969,7 @@ describe("/v2/transactions/transfer", () => {
         }).timeout(3000);
 
         it("422s transferring a negative amount from Stripe", async () => {
-            if (!testStripeLive) {
+            if (!testStripeLive()) {
                 const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
                 stripeStub.rejects(new Error("The Stripe stub should never be called in this test"));
             }
@@ -1088,7 +1086,7 @@ describe("/v2/transactions/transfer", () => {
                 "transfer_group": null
             };
 
-            if (!testStripeLive) {
+            if (!testStripeLive()) {
                 const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
                 stripeStub.withArgs(sinon.match({
                     "amount": request.source.maxAmount,
@@ -1159,7 +1157,7 @@ describe("/v2/transactions/transfer", () => {
             const destStepFromGet = getTransferResp.body.steps.find((s: LightrailTransactionStep) => s.rail === "lightrail");
             chai.assert.deepEqual(destStepFromGet, destStep);
 
-            if (testStripeLive) {
+            if (testStripeLive()) {
                 const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
                 const stripeChargeId = (postTransferResp.body.steps.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
                 const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
@@ -1170,7 +1168,7 @@ describe("/v2/transactions/transfer", () => {
         }).timeout(3000);
 
         it("409s transferring from Stripe with insufficient maxAmount and allowRemainder=false", async () => {
-            if (!testStripeLive) {
+            if (!testStripeLive()) {
                 const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
                 stripeStub.rejects(new Error("The Stripe stub should never be called in this test"));
             }
@@ -1193,7 +1191,7 @@ describe("/v2/transactions/transfer", () => {
         });
 
         it("422s transferring to Stripe from Lightrail", async () => {
-            if (!testStripeLive) {
+            if (!testStripeLive()) {
                 const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
                 stripeStub.rejects(new Error("The Stripe stub should never be called in this test"));
             }
@@ -1295,7 +1293,7 @@ describe("/v2/transactions/transfer", () => {
                 };
                 const exampleErrorResponse = new StripeRestError(422, "Error for tests: Stripe minimum not met", "StripeAmountTooSmall", exampleStripeError);
 
-                if (!testStripeLive) {
+                if (!testStripeLive()) {
                     const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
                     stripeStub.withArgs(sinon.match({
                         "amount": request.amount,

@@ -8,6 +8,7 @@ import {defaultTestUser} from "../../../../utils/testUtils";
 import {
     setStubsForStripeTests,
     stripeEnvVarsPresent,
+    testStripeLive,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
 import {installRestRoutes} from "../../installRestRoutes";
@@ -40,10 +41,8 @@ describe("handling fraudulent charges", () => {
         }
     ];
 
-    const testStripeLive: boolean = !!process.env["TEST_STRIPE_LIVE"];
-
     before(async function () {
-        if (!stripeEnvVarsPresent() && testStripeLive) {
+        if (!stripeEnvVarsPresent() && testStripeLive()) {
             this.skip();
             return;
         }
@@ -72,7 +71,7 @@ describe("handling fraudulent charges", () => {
     });
 
     afterEach(() => {
-        if (!testStripeLive) {
+        if (!testStripeLive()) {
             if ((stripeTransactions.createStripeCharge as sinon).restore) {
                 (stripeTransactions.createStripeCharge as sinon).restore();
             }
@@ -169,7 +168,7 @@ describe("handling fraudulent charges", () => {
             "transfer_group": null
         };
 
-        if (!testStripeLive) {
+        if (!testStripeLive()) {
             const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
             stripeStub.withArgs(sinon.match({
                 "amount": 500,
@@ -273,7 +272,7 @@ describe("handling fraudulent charges", () => {
         };
         const exampleErrorResponse = new StripeRestError(422, "Error for tests: card blocked by Stripe for fraud", "StripeCardDeclined", exampleStripeError);
 
-        if (!testStripeLive) {
+        if (!testStripeLive()) {
             const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
             stripeStub.withArgs(sinon.match({
                 "amount": 500,
@@ -364,7 +363,7 @@ describe("handling fraudulent charges", () => {
         };
         const exampleErrorResponse = new StripeRestError(422, "Error for tests: card declined by provider", "StripeCardDeclined", exampleStripeError);
 
-        if (!testStripeLive) {
+        if (!testStripeLive()) {
             const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
             stripeStub.withArgs(sinon.match({
                 "amount": 500,

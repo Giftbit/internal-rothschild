@@ -8,13 +8,14 @@ import {LightrailTransactionStep, Transaction} from "../../../../model/Transacti
 import {createCurrency} from "../../currencies";
 import {Value} from "../../../../model/Value";
 import {after} from "mocha";
+import * as stripeTransactions from "../../../../utils/stripeUtils/stripeTransactions";
+import * as sinon from "sinon";
 import {
     setStubsForStripeTests,
     stripeEnvVarsPresent,
+    testStripeLive,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
-import * as stripeTransactions from "../../../../utils/stripeUtils/stripeTransactions";
-import * as sinon from "sinon";
 import chaiExclude = require("chai-exclude");
 import Stripe = require("stripe");
 import ICharge = Stripe.charges.ICharge;
@@ -26,10 +27,9 @@ require("dotenv").config();
 describe("/v2/transactions/checkout - mixed sources", () => {
 
     const router = new cassava.Router();
-    const testStripeLive: boolean = !!process.env["TEST_STRIPE_LIVE"];
 
     before(async function () {
-        if (!stripeEnvVarsPresent() && testStripeLive) {
+        if (!stripeEnvVarsPresent() && testStripeLive()) {
             this.skip();
             return;
         }
@@ -57,7 +57,7 @@ describe("/v2/transactions/checkout - mixed sources", () => {
     });
 
     afterEach(() => {
-        if (!testStripeLive) {
+        if (!testStripeLive()) {
             if ((stripeTransactions.createStripeCharge as sinon).restore) {
                 (stripeTransactions.createStripeCharge as sinon).restore();
             }
@@ -219,7 +219,7 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             currency: "CAD"
         };
 
-        if (!testStripeLive) {
+        if (!testStripeLive()) {
             const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
             stripeStub.withArgs(sinon.match({
                 "amount": 1360,

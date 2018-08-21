@@ -2,8 +2,6 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as kvsAccess from "../kvsAccess";
 import * as sinon from "sinon";
 
-const testStripeLive: boolean = !!process.env["TEST_STRIPE_LIVE"];
-
 export function setStubsForStripeTests() {
     const testAssumeToken: giftbitRoutes.secureConfig.AssumeScopeToken = {
         assumeToken: "this-is-an-assume-token"
@@ -15,7 +13,7 @@ export function setStubsForStripeTests() {
         email: "test@test.com",
         test: {
             clientId: "test-client-id",
-            secretKey: testStripeLive ? process.env["STRIPE_PLATFORM_KEY"] : "test",
+            secretKey: testStripeLive() ? process.env["STRIPE_PLATFORM_KEY"] : "test",
             publishableKey: "test-pk",
         },
         live: {}
@@ -24,7 +22,7 @@ export function setStubsForStripeTests() {
     let stubKvsGet = sinon.stub(kvsAccess, "kvsGet");
     stubKvsGet.withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string).resolves({
         token_type: "bearer",
-        stripe_user_id: testStripeLive ? process.env["STRIPE_CONNECTED_ACCOUNT_ID"] : "test",
+        stripe_user_id: testStripeLive() ? process.env["STRIPE_CONNECTED_ACCOUNT_ID"] : "test",
     });
 }
 
@@ -52,4 +50,8 @@ export function stripeEnvVarsPresent(): boolean {
         console.log("Missing environment variables required to run Stripe-related tests: skipping. See readme to set up.");
         return false;
     }
+}
+
+export function testStripeLive(): boolean {
+    return !!process.env["TEST_STRIPE_LIVE"];
 }
