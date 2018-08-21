@@ -24,7 +24,6 @@ export async function chargeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizatio
             // Update transaction plan with charge details
             step.chargeResult = charge;
         }
-        // await doFraudCheck(lightrailStripeConfig, merchantStripeConfig, params, charge, evt, auth);
     } catch (err) {
         if ((err as StripeRestError).additionalParams && (err as StripeRestError).additionalParams.stripeError) {
             throw err;
