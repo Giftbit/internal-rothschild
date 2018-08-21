@@ -11,7 +11,7 @@ import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe("/v2/transactions/checkout - rounding scenarios", () => {
+describe("/v2/transactions/checkout - tax roundingMode", () => {
 
     const router = new cassava.Router();
 
@@ -28,7 +28,7 @@ describe("/v2/transactions/checkout - rounding scenarios", () => {
         });
     });
 
-    it("HALF_UP breaks ties by rounding up", async () => {
+    it("roundingMode HALF_UP breaks ties by rounding up", async () => {
         let request: Partial<CheckoutRequest> = {
             id: generateId(),
             allowRemainder: true,
@@ -109,7 +109,7 @@ describe("/v2/transactions/checkout - rounding scenarios", () => {
         chai.assert.deepEqualExcluding(getCheckoutResp.body, checkoutResponse.body, "statusCode");
     });
 
-    it("HALF_EVEN breaks ties by rounding to the nearest even number", async () => {
+    it("roundingMode HALF_EVEN breaks ties by rounding to the nearest even number", async () => {
         let request: Partial<CheckoutRequest> = {
             id: generateId(),
             allowRemainder: true,
@@ -190,7 +190,7 @@ describe("/v2/transactions/checkout - rounding scenarios", () => {
         chai.assert.deepEqualExcluding(getCheckoutResp.body, checkoutResponse.body, "statusCode");
     });
 
-    it("rounding defaults to HALF_EVEN and breaks ties by rounding to the nearest even number", async () => {
+    it("default rounding mode is HALF_EVEN and breaks ties by rounding to the nearest even number", async () => {
         let request: Partial<CheckoutRequest> = {
             id: generateId(),
             allowRemainder: true,
@@ -286,7 +286,7 @@ describe("/v2/transactions/checkout - rounding scenarios", () => {
         const checkoutResponse = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/checkout", "POST", {
             ...request,
             tax: {
-                roundingMode: "INVALID" // added in call so that request can be Partial<CheckoutRequest>
+                roundingMode: "INVALID" // added in call so that request can be of type Partial<CheckoutRequest>
             },
 
         });
