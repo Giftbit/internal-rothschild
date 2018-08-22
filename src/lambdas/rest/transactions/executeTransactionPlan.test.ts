@@ -78,7 +78,8 @@ describe("rest/transactions/executeTransactionPlan", () => {
             lineItems: null,
             paymentSources: null,
             createdDate: nowInDbPrecision(),
-            metadata: null
+            metadata: null,
+            tax: null
         };
 
         let err: TransactionPlanError;
@@ -147,7 +148,8 @@ describe("rest/transactions/executeTransactionPlan", () => {
             lineItems: null,
             paymentSources: null,
             createdDate: nowInDbPrecision(),
-            metadata: null
+            metadata: null,
+            tax: null,
         };
 
         let err: TransactionPlanError;
