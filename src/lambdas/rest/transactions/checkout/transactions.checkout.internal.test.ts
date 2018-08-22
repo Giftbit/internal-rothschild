@@ -135,6 +135,9 @@ describe("/v2/transactions/checkout - internal sources", () => {
                 }
             ],
             "metadata": null,
+            tax: {
+                "roundingMode": "HALF_EVEN"
+            },
             "createdDate": null
         }, ["createdDate"]);
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
@@ -270,6 +273,9 @@ describe("/v2/transactions/checkout - internal sources", () => {
                 }
             ],
             "metadata": null,
+            tax: {
+                "roundingMode": "HALF_EVEN"
+            },
             "createdDate": null
         }, ["createdDate"]);
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
@@ -378,6 +384,9 @@ describe("/v2/transactions/checkout - internal sources", () => {
                 }
             ],
             "metadata": null,
+            tax: {
+                "roundingMode": "HALF_EVEN"
+            },
             "createdDate": null
         }, ["createdDate"]);
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");

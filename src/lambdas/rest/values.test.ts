@@ -1244,7 +1244,7 @@ describe("/v2/values/", () => {
                     updatedDate: idAndDate.createdDate
                 }));
             if (res === 0) {
-                chai.assert.fail(`no row updated. test is broken`)
+                chai.assert.fail(`no row updated. test is broken`);
             }
         }
         const resp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/values?createdDate.gt=3030-01-01", "GET");

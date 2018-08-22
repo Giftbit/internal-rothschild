@@ -302,6 +302,9 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             "steps": null,
             "paymentSources": null,
             "metadata": null,
+            tax: {
+                "roundingMode": "HALF_EVEN"
+            },
             "createdDate": null
         }, ["createdDate", "steps", "paymentSources"]);
 
@@ -468,6 +471,9 @@ describe("/v2/transactions/checkout - mixed sources", () => {
                 }
             ],
             "metadata": null,
+            tax: {
+                "roundingMode": "HALF_EVEN"
+            },
             "createdDate": null
         }, ["createdDate", "steps"]);
 
