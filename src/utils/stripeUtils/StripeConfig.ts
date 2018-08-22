@@ -24,3 +24,5 @@ export interface LightrailAndMerchantStripeConfig {
     lightrailStripeConfig: StripeModeConfig;
     merchantStripeConfig: StripeAuth;
 }
+
+export const stripeApiVersion: string = "2018-05-21";

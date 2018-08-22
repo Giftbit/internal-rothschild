@@ -1,15 +1,9 @@
-import {
-    StripeTransactionPlanStep,
-    TransactionPlan,
-    TransactionPlanStep
-} from "../../lambdas/rest/transactions/TransactionPlan";
+import {StripeTransactionPlanStep} from "../../lambdas/rest/transactions/TransactionPlan";
 import {StripeUpdateChargeParams} from "./StripeUpdateChargeParams";
 import {StripeRestError} from "./StripeRestError";
-import {LightrailAndMerchantStripeConfig} from "./StripeConfig";
-import {TransactionPlanError} from "../../lambdas/rest/transactions/TransactionPlanError";
 import {StripeCreateChargeParams} from "./StripeCreateChargeParams";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {PaymentSourceForStripeMetadata, StripeSourceForStripeMetadata} from "./PaymentSourceForStripeMetadata";
+import {stripeApiVersion} from "./StripeConfig";
 import log = require("loglevel");
 import Stripe = require("stripe");
 import IRefund = Stripe.refunds.IRefund;
@@ -17,6 +11,7 @@ import ICharge = Stripe.charges.ICharge;
 
 export async function createStripeCharge(params: StripeCreateChargeParams, lightrailStripeSecretKey: string, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<ICharge> {
     const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
+    lightrailStripe.setApiVersion(stripeApiVersion);
     // params.description = "Lightrail Checkout transaction.";  // todo what is this
     log.info(`Creating Stripe charge ${JSON.stringify(params)}.`);
 
@@ -53,20 +48,9 @@ export async function createStripeCharge(params: StripeCreateChargeParams, light
     return charge;
 }
 
-export async function rollbackStripeSteps(lightrailStripeSecretKey: string, merchantStripeAccountId: string, steps: StripeTransactionPlanStep[], reason: string): Promise<void> {
-    try {
-        for (const step of steps) {
-            const refund = await createRefund(step, lightrailStripeSecretKey, merchantStripeAccountId, reason);
-            log.info(`Refunded Stripe charge ${step.chargeResult.id}. Refund: ${JSON.stringify(refund)}.`);
-        }
-    } catch (err) {
-        giftbitRoutes.sentry.sendErrorNotification(err);
-        throw err;
-    }
-}
-
 export async function createRefund(step: StripeTransactionPlanStep, lightrailStripeSecretKey: string, merchantStripeAccountId: string, reason?: string): Promise<IRefund> {
     const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
+    lightrailStripe.setApiVersion(stripeApiVersion);
     log.info(`Creating refund for Stripe charge ${step.chargeResult.id}.`);
     const refund = await lightrailStripe.refunds.create({
         charge: step.chargeResult.id,
@@ -87,11 +71,12 @@ export async function createRefund(step: StripeTransactionPlanStep, lightrailStr
 }
 
 export async function updateCharge(chargeId: string, params: StripeUpdateChargeParams, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<any> {
-    const merchantStripe = require("stripe")(lightrailStripeSecretKey);
+    const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
+    lightrailStripe.setApiVersion(stripeApiVersion);
     log.info(`Updating Stripe charge ${JSON.stringify(params)}.`);
     let chargeUpdate;
     try {
-        chargeUpdate = await merchantStripe.charges.update(
+        chargeUpdate = await lightrailStripe.charges.update(
             chargeId,
             params, {
                 stripe_account: merchantStripeAccountId,
@@ -103,83 +88,4 @@ export async function updateCharge(chargeId: string, params: StripeUpdateChargeP
     }
     log.info(`Updated Stripe charge ${JSON.stringify(chargeUpdate)}.`);
     return chargeUpdate;
-}
-
-
-export async function chargeStripeSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, stripeConfig: LightrailAndMerchantStripeConfig, plan: TransactionPlan) {
-    const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
-
-    try {
-        for (let step of stripeSteps) {
-            const stepForStripe = stripeTransactionPlanStepToStripeRequest(auth, step, plan);
-
-            const charge = await createStripeCharge(stepForStripe, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, step.idempotentStepId);
-
-            // Update transaction plan with charge details
-            step.chargeResult = charge;
-        }
-        // await doFraudCheck(lightrailStripeConfig, merchantStripeConfig, params, charge, evt, auth);
-    } catch (err) {
-        // todo: differentiate between stripe errors / db step errors, and fraud check errors once we do fraud checking: rollback if appropriate & make sure message is clear
-        if ((err as StripeRestError).additionalParams.stripeError) {
-            throw err;
-        } else {
-            throw new TransactionPlanError(`Transaction execution canceled because there was a problem charging Stripe: ${err}`, {
-                isReplanable: false
-            });
-        }
-    }
-}
-
-function stripeTransactionPlanStepToStripeRequest(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: StripeTransactionPlanStep, plan: TransactionPlan): StripeCreateChargeParams {
-    let stepForStripe: StripeCreateChargeParams = {
-        amount: -step.amount /* Lightrail treats debits as negative amounts on Steps but Stripe requires a positive amount when charging a credit card. */,
-        currency: plan.currency,
-        metadata: {
-            ...plan.metadata,
-            lightrailTransactionId: plan.id,
-            lightrailTransactionSources: JSON.stringify(plan.steps
-                .filter(src => !isCurrentStripeStep(src, step))
-                .map(src => condensePaymentSourceForStripeMetadata(src))),
-            lightrailUserId: auth.userId
-        }
-    };
-    if (step.source) {
-        stepForStripe.source = step.source;
-    }
-    if (step.customer) {
-        stepForStripe.customer = step.customer;
-    }
-
-    log.debug("Created stepForStripe: \n" + JSON.stringify(stepForStripe, null, 4));
-    return stepForStripe;
-}
-
-
-function condensePaymentSourceForStripeMetadata(step: TransactionPlanStep): PaymentSourceForStripeMetadata {
-    switch (step.rail) {
-        case "lightrail":
-            return {
-                rail: "lightrail",
-                valueId: step.value.id
-            };
-        case "internal":
-            return {
-                rail: "internal",
-                internalId: step.internalId
-            };
-        case "stripe":
-            let stripeStep = {rail: "stripe"};
-            if (step.source) {
-                (stripeStep as any).source = step.source;
-            }
-            if (step.customer) {
-                (stripeStep as any).customer = step.customer;
-            }
-            return stripeStep as StripeSourceForStripeMetadata;
-    }
-}
-
-function isCurrentStripeStep(step: TransactionPlanStep, currentStep: StripeTransactionPlanStep): boolean {
-    return step.rail === "stripe" && step.idempotentStepId === currentStep.idempotentStepId;
 }

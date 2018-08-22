@@ -13,7 +13,7 @@ export function setStubsForStripeTests() {
         email: "test@test.com",
         test: {
             clientId: "test-client-id",
-            secretKey: process.env["STRIPE_PLATFORM_KEY"],
+            secretKey: testStripeLive() ? process.env["STRIPE_PLATFORM_KEY"] : "test",
             publishableKey: "test-pk",
         },
         live: {}
@@ -22,7 +22,7 @@ export function setStubsForStripeTests() {
     let stubKvsGet = sinon.stub(kvsAccess, "kvsGet");
     stubKvsGet.withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string).resolves({
         token_type: "bearer",
-        stripe_user_id: process.env["STRIPE_CONNECTED_ACCOUNT_ID"],
+        stripe_user_id: testStripeLive() ? process.env["STRIPE_CONNECTED_ACCOUNT_ID"] : "test",
     });
 }
 
@@ -50,4 +50,8 @@ export function stripeEnvVarsPresent(): boolean {
         console.log("Missing environment variables required to run Stripe-related tests: skipping. See readme to set up.");
         return false;
     }
+}
+
+export function testStripeLive(): boolean {
+    return !!process.env["TEST_STRIPE_LIVE"];
 }
