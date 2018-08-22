@@ -489,14 +489,14 @@ function checkValueProperties(value: Value, program: Program = null): void {
 }
 
 function checkProgramConstraints(value: Value, program: Program): void {
-    if (program.fixedInitialBalances && (program.fixedInitialBalances.indexOf(value.balance) === -1 || !value.balance)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} outside initial values defined by Program ${program.fixedInitialBalances}.`);
+    if (program.fixedInitialBalances && (program.fixedInitialBalances.indexOf(value.balance) === -1 || value.balance === null)) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} is outside fixedInitialBalances defined by Program ${program.fixedInitialBalances}.`);
     }
-    if (program.minInitialBalance && (value.balance < program.minInitialBalance || !value.balance)) {
+    if (program.minInitialBalance !== null && (value.balance < program.minInitialBalance || value.balance === null)) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} is less than minInitialBalance ${program.minInitialBalance}.`);
     }
-    if (program.maxInitialBalance && (value.balance > program.maxInitialBalance || !value.balance)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} is less than minInitialBalance ${program.minInitialBalance}.`);
+    if (program.maxInitialBalance !== null && (value.balance > program.maxInitialBalance || value.balance === null)) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} is greater than maxInitialBalance ${program.maxInitialBalance}.`);
     }
 
     if (program.fixedInitialUses && (program.fixedInitialUses.indexOf(value.uses) === -1 || !value.uses)) {
