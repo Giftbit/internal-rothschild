@@ -483,6 +483,10 @@ function checkValueProperties(value: Value, program: Program = null): void {
     if (value.startDate > value.endDate) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Property startDate cannot exceed endDate.");
     }
+
+    if (!value.currency) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Property currency cannot be null. Please provide a currency or a programId.");
+    }
 }
 
 function checkProgramConstraints(value: Value, program: Program): void {
