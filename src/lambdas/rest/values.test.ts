@@ -359,7 +359,7 @@ describe("/v2/values/", () => {
         chai.assert.equal(valueResp.body.message, "Property startDate cannot exceed endDate.");
     });
 
-    it("if no currency or programId is provided 422s", async () => {
+    it("if no currency or programId is provided during value creation returns a 422", async () => {
         let value: Partial<Value> = {
             id: generateId()
         };
