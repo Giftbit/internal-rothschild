@@ -9,6 +9,7 @@ import {Value} from "../../../model/Value";
 import {installRestRoutes} from "../installRestRoutes";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import chaiExclude = require("chai-exclude");
+import {getCreatedBy} from "../../../utils/createdBy";
 
 chai.use(chaiExclude);
 
@@ -294,7 +295,7 @@ describe("/v2/transactions", () => {
                 ],
                 metadata: null,
                 createdDate: null,
-                createdBy: "default-test-user-TEST",
+                createdBy: getCreatedBy(defaultTestUser.auth),
             }, "createdDate");
         });
     });

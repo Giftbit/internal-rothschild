@@ -12,7 +12,7 @@ import * as kvsAccess from "../../../../utils/kvsAccess";
 import {TransactionPlanError} from "../TransactionPlanError";
 import * as insertTransaction from "../insertTransactions";
 import * as testUtils from "../../../../utils/testUtils";
-import {generateId} from "../../../../utils/testUtils";
+import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {after} from "mocha";
 
 import {
@@ -378,7 +378,7 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.deepEqual(stripeCharge.metadata, {
             lightrailTransactionId: basicRequest.id,
             "lightrailTransactionSources": "[{\"rail\":\"lightrail\",\"valueId\":\"value-for-checkout-w-stripe\"}]",
-            "lightrailUserId": "default-test-user-TEST"
+            "lightrailUserId": defaultTestUser.auth.userId
         });
     });
 
@@ -398,7 +398,7 @@ describe("split tender checkout with Stripe", () => {
             ...request.metadata,
             lightrailTransactionId: request.id,
             "lightrailTransactionSources": "[]", // lightrail value is used up by now
-            "lightrailUserId": "default-test-user-TEST"
+            "lightrailUserId": defaultTestUser.auth.userId
         });
 
         const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);

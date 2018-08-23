@@ -827,7 +827,7 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.deepEqual(sourceStep.charge.metadata, {
                 "lightrailTransactionId": request.id,
                 "lightrailTransactionSources": "[{\"rail\":\"lightrail\",\"valueId\":\"v-transfer-stripe\"}]",
-                "lightrailUserId": "default-test-user-TEST"
+                "lightrailUserId": defaultTestUser.auth.userId
             }, JSON.stringify(sourceStep.charge.metadata));
 
             const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCadForStripeTests.id) as LightrailTransactionStep;
@@ -927,7 +927,7 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.deepEqual(sourceStep.charge.metadata, {
                 "lightrailTransactionId": request.id,
                 "lightrailTransactionSources": "[{\"rail\":\"lightrail\",\"valueId\":\"v-transfer-stripe\"}]",
-                "lightrailUserId": "default-test-user-TEST"
+                "lightrailUserId": defaultTestUser.auth.userId
             });
 
             const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCadForStripeTests.id) as LightrailTransactionStep;
