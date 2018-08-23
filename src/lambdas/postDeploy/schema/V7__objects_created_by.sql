@@ -10,19 +10,19 @@ ALTER TABLE rothschild.`Contacts`
   ADD COLUMN createdBy VARCHAR(64);
 
 
-UPDATE rothschild . `Transactions`
+UPDATE rothschild.`Transactions`
 SET createdBy = userId
 WHERE CREATEDBY IS NULL;
 
-UPDATE rothschild . `Programs`
+UPDATE rothschild.`Programs`
 SET createdBy = userId
 WHERE CREATEDBY IS NULL;
 
-UPDATE rothschild . `Values`
+UPDATE rothschild.`Values`
 SET createdBy = userId
 WHERE CREATEDBY IS NULL;
 
-UPDATE rothschild . `Contacts`
+UPDATE rothschild.`Contacts`
 SET createdBy = userId
 WHERE CREATEDBY IS NULL;
 

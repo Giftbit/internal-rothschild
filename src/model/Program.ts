@@ -47,7 +47,6 @@ export namespace Program {
             createdDate: v.createdDate,
             updatedDate: v.updatedDate,
             createdBy: v.createdBy,
-
         };
     }
 
