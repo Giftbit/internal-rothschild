@@ -7,6 +7,7 @@ import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
 import {getRuleFromCache} from "../getRuleFromCache";
 import {createCurrency} from "../../currencies";
+import {getCreatedBy} from "../../../../utils/createdBy";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -152,7 +153,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 }
             ],
             "metadata": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": getCreatedBy(defaultTestUser.auth)
         }, ["createdDate"]);
     });
 
@@ -265,7 +266,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 }
             ],
             "metadata": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": getCreatedBy(defaultTestUser.auth)
         }, ["createdDate"]);
     });
 
@@ -413,7 +414,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 }
             ],
             "metadata": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": getCreatedBy(defaultTestUser.auth)
         }, ["createdDate"]);
     });
 
@@ -604,7 +605,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 }
             ],
             "metadata": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": getCreatedBy(defaultTestUser.auth)
         }, ["createdDate"]);
     });
 
@@ -717,7 +718,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 }
             ],
             "metadata": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": getCreatedBy(defaultTestUser.auth)
         }, ["createdDate"]);
 
         const lookupAfterCheckout = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${promotion.id}`, "GET", promotion);
@@ -781,7 +782,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 }
             ],
             "metadata": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": getCreatedBy(defaultTestUser.auth)
         }, ["createdDate"]);
     });
 
@@ -900,7 +901,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 }
             ],
             "metadata": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": getCreatedBy(defaultTestUser.auth)
         }, ["createdDate"]);
     });
 });

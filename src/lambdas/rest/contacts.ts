@@ -7,6 +7,7 @@ import {pick, pickOrDefault} from "../../utils/pick";
 import {csvSerializer} from "../../serializers";
 import {filterAndPaginateQuery, nowInDbPrecision} from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
+import {getCreatedBy} from "../../utils/createdBy";
 
 export function installContactsRest(router: cassava.Router): void {
     router.route("/v2/contacts")
@@ -50,7 +51,7 @@ export function installContactsRest(router: cassava.Router): void {
                 }),
                 createdDate: now,
                 updatedDate: now,
-                createdBy: auth.teamMemberId
+                createdBy: getCreatedBy(auth)
             };
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,

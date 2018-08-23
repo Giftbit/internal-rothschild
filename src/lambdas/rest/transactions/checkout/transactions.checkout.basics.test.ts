@@ -7,6 +7,7 @@ import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
 import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
+import {getCreatedBy} from "../../../../utils/createdBy";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -103,7 +104,7 @@ describe("/v2/transactions/checkout - basics", () => {
             ],
             metadata: null,
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: getCreatedBy(defaultTestUser.auth)
         }, ["createdDate"]);
 
         const getValueStoreResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
@@ -216,7 +217,7 @@ describe("/v2/transactions/checkout - basics", () => {
             ],
             metadata: null,
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: getCreatedBy(defaultTestUser.auth)
         }, ["createdDate"]);
 
         const getPromotionVS = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${promotion.id}`, "GET");
@@ -384,7 +385,7 @@ describe("/v2/transactions/checkout - basics", () => {
             ],
             "metadata": null,
             "createdDate": null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: getCreatedBy(defaultTestUser.auth)
         }, ["createdDate"]);
 
         const getPreTaxPromo = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${preTaxPromotion.id}`, "GET");
@@ -487,7 +488,7 @@ describe("/v2/transactions/checkout - basics", () => {
             ],
             metadata: null,
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: getCreatedBy(defaultTestUser.auth)
         }, ["createdDate"]);
 
         const getValueStoreResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");

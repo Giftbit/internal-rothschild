@@ -6,6 +6,7 @@ import {Program} from "../../model/Program";
 import {installRestRoutes} from "./installRestRoutes";
 import {createCurrency} from "./currencies";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
+import {getCreatedBy} from "../../utils/createdBy";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -63,7 +64,7 @@ describe("/v2/programs", () => {
             metadata: null,
             createdDate: null,
             updatedDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: getCreatedBy(defaultTestUser.auth)
         }, ["createdDate", "updatedDate"]);
         chai.assert.isNotNull(resp.body.createdDate);
         chai.assert.isNotNull(resp.body.updatedDate);

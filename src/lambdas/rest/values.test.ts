@@ -11,6 +11,7 @@ import {LightrailTransactionStep, Transaction} from "../../model/Transaction";
 import {installRestRoutes} from "./installRestRoutes";
 import {createCurrency} from "./currencies";
 import {computeCodeLookupHash, decryptCode} from "../../utils/codeCryptoUtils";
+import {getCreatedBy} from "../../utils/createdBy";
 import parseLinkHeader = require("parse-link-header");
 import chaiExclude = require("chai-exclude");
 
@@ -94,7 +95,7 @@ describe("/v2/values/", () => {
             discount: false,
             discountSellerLiability: null,
             metadata: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: getCreatedBy(defaultTestUser.auth)
         }, ["createdDate", "updatedDate"]);
         value1 = resp2.body;
     });
@@ -132,7 +133,7 @@ describe("/v2/values/", () => {
             discount: false,
             discountSellerLiability: null,
             metadata: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: getCreatedBy(defaultTestUser.auth)
         }, ["createdDate", "updatedDate"]);
 
         const updateValueRequest: Partial<Value> = {
@@ -167,7 +168,7 @@ describe("/v2/values/", () => {
             discount: false,
             discountSellerLiability: null,
             metadata: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: getCreatedBy(defaultTestUser.auth)
         }, ["createdDate", "updatedDate"]);
     });
 
@@ -466,7 +467,7 @@ describe("/v2/values/", () => {
                     endDate: date,
                     createdDate: date,
                     updatedDate: date,
-                    createdBy: defaultTestUser.auth.teamMemberId
+                    createdBy: getCreatedBy(defaultTestUser.auth)
                 });
             }
 
@@ -1239,7 +1240,7 @@ describe("/v2/values/", () => {
                     updatedDate: idAndDate.createdDate
                 }));
             if (res === 0) {
-                chai.assert.fail(`no row updated. test is broken`)
+                chai.assert.fail(`no row updated. test is broken`);
             }
         }
         const resp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/values?createdDate.gt=3030-01-01", "GET");

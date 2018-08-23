@@ -5,6 +5,7 @@ import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import {installRestRoutes} from "../../installRestRoutes";
+import {getCreatedBy} from "../../../../utils/createdBy";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -136,7 +137,7 @@ describe("/v2/transactions/checkout - internal sources", () => {
             ],
             "metadata": null,
             "createdDate": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": getCreatedBy(defaultTestUser.auth)
         }, ["createdDate"]);
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.deepEqual(getCheckoutResp.body, postCheckoutResp.body);
@@ -272,7 +273,7 @@ describe("/v2/transactions/checkout - internal sources", () => {
             ],
             "metadata": null,
             "createdDate": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": getCreatedBy(defaultTestUser.auth)
         }, ["createdDate"]);
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["steps"]);
@@ -381,7 +382,7 @@ describe("/v2/transactions/checkout - internal sources", () => {
             ],
             "metadata": null,
             "createdDate": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": getCreatedBy(defaultTestUser.auth)
         }, ["createdDate"]);
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["steps"]);

@@ -2,6 +2,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {codeLastFour, DbCode} from "./DbCode";
 import {pickDefined} from "../utils/pick";
 import {decryptCode} from "../utils/codeCryptoUtils";
+import {getCreatedBy} from "../utils/createdBy";
 
 export interface Value {
     id: string;
@@ -66,7 +67,7 @@ export namespace Value {
             metadata: JSON.stringify(v.metadata),
             createdDate: v.createdDate,
             updatedDate: v.updatedDate,
-            createdBy: auth.teamMemberId
+            createdBy: getCreatedBy(auth)
         };
     }
 
