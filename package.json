@@ -6,7 +6,7 @@
     "build": "webpack",
     "clean": "rimraf ./dist",
     "lint": "tslint --project tsconfig.json",
-    "schema": "npm run test:startdb; TEST_ENV=true DB_USERNAME=root DB_PASSWORD=testpass DB_PORT=3306 DB_ENDPOINT=localhost DB_READ_ENDPOINT=localhost ts-node -e 'import {getDbSchema} from \"./src/utils/dbUtils/getDbSchema\"; getDbSchema().then(s => console.log(s) || process.exit(0));'; npm run test:stopdb",
+    "schema": "npm run test:startdb; TEST_ENV=true DB_USERNAME=root DB_PASSWORD=testpass DB_PORT=3306 DB_ENDPOINT=localhost DB_READ_ENDPOINT=localhost ts-node -e 'import {getDbSchema} from \"./src/utils/dbUtils/getDbSchema\"; import {resetDb} from \"./src/utils/testUtils\"; resetDb().then(() => getDbSchema()).then(s => console.log(s) || process.exit(0));'; npm run test:stopdb",
     "test": "npm run test:startdb; TEST_ENV=true DB_USERNAME=root DB_PASSWORD=testpass DB_PORT=3306 DB_ENDPOINT=localhost DB_READ_ENDPOINT=localhost mocha --recursive --require ts-node/register --require ./src/utils/testUtils/setLogLevelSilent.ts --exit \"src/**/*.test.ts\"; npm run test:stopdb",
     "test:debug": "npm run test:startdb; TEST_ENV=true DB_USERNAME=root DB_PASSWORD=testpass DB_PORT=3306 DB_ENDPOINT=localhost DB_READ_ENDPOINT=localhost mocha --recursive --require ts-node/register --require ./src/utils/testUtils/setLogLevelDebug.ts --exit \"src/**/*.test.ts\"; npm run test:stopdb",
     "test:stripeLive": "npm run test:startdb; TEST_ENV=true DB_USERNAME=root DB_PASSWORD=testpass DB_PORT=3306 DB_ENDPOINT=localhost DB_READ_ENDPOINT=localhost TEST_STRIPE_LIVE=true mocha --recursive --require ts-node/register --require ./src/utils/testUtils/setLogLevelSilent.ts --exit \"src/**/*.test.ts\"; npm run test:stopdb",
