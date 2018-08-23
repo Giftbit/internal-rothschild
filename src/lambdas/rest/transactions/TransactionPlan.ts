@@ -18,6 +18,7 @@ import {LightrailTransactionParty, TransactionParty} from "../../../model/Transa
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {codeLastFour} from "../../../model/DbCode";
+import {TaxRequestProperties} from "../../../model/TaxProperties";
 
 export interface TransactionPlan {
     id: string;
@@ -29,6 +30,7 @@ export interface TransactionPlan {
     steps: TransactionPlanStep[];
     createdDate: Date;
     metadata: object | null;
+    tax: TaxRequestProperties;
 }
 
 export type TransactionPlanStep =
@@ -162,7 +164,8 @@ export namespace TransactionPlan {
             totals: JSON.stringify(plan.totals),
             lineItems: JSON.stringify(plan.lineItems),
             paymentSources: JSON.stringify(plan.paymentSources),
-            metadata: JSON.stringify(plan.metadata)
+            metadata: JSON.stringify(plan.metadata),
+            tax: JSON.stringify(plan.tax)
         };
     }
 
@@ -208,7 +211,8 @@ export namespace TransactionPlan {
             id: plan.id,
             transactionType: plan.transactionType,
             currency: plan.currency,
-            createdDate: plan.createdDate
+            createdDate: plan.createdDate,
+            tax: plan.tax
         };
     }
 

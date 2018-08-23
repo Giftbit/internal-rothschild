@@ -9,6 +9,7 @@ import {
     TransactionPlanStep
 } from "./TransactionPlan";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
+import {TransactionType} from "../../../model/Transaction";
 
 export async function resolveTransferTransactionParties(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: TransferRequest) {
     const sourceParties = await resolveTransactionParties(auth, req.currency, [req.source], req.id);
@@ -27,15 +28,16 @@ export async function resolveTransferTransactionParties(auth: giftbitRoutes.jwta
     return {sourceParties, destParties};
 }
 
-export async function createTransferTransactionPlan(req: TransferRequest, parties: { sourceParties: TransactionPlanStep[], destParties: TransactionPlanStep[] }) {
-    let plan = {
+export function createTransferTransactionPlan(req: TransferRequest, parties: { sourceParties: TransactionPlanStep[], destParties: TransactionPlanStep[] }): TransactionPlan {
+    let plan: TransactionPlan = {
         id: req.id,
-        transactionType: "transfer",
+        transactionType: "transfer" as TransactionType,
         currency: req.currency,
         steps: null,
         totals: null,
         createdDate: nowInDbPrecision(),
         metadata: req.metadata,
+        tax: null,
         lineItems: null,
         paymentSources: null
     };
@@ -60,7 +62,7 @@ export async function createTransferTransactionPlan(req: TransferRequest, partie
             totals: {
                 remainder: req.amount - amount
             }
-        } as TransactionPlan);  // casting: otherwise throws "Type 'string' is not assignable to type 'TransactionType'."
+        });
 
     } else if (parties.sourceParties[0].rail === "stripe") {
         const party = parties.sourceParties[0] as StripeTransactionParty;
@@ -77,7 +79,7 @@ export async function createTransferTransactionPlan(req: TransferRequest, partie
                     amount: -amount,
                     idempotentStepId: `${req.id}-src`,
                     maxAmount: maxAmount ? maxAmount : null
-                },
+                } as StripeTransactionPlanStep,
                 {
                     rail: "lightrail",
                     value: (parties.destParties[0] as LightrailTransactionPlanStep).value,
@@ -87,6 +89,6 @@ export async function createTransferTransactionPlan(req: TransferRequest, partie
             totals: {
                 remainder: party.maxAmount ? Math.max(req.amount - party.maxAmount, 0) : 0
             }
-        } as TransactionPlan);  // casting: otherwise throws "Type 'string' is not assignable to type 'TransactionType'."
+        });
     }
 }

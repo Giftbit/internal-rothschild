@@ -1,13 +1,12 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import chaiExclude = require("chai-exclude");
-import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as transactions from "../transactions";
 import * as valueStores from "../../values";
 import * as testUtils from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
 import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
+import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
@@ -82,7 +81,7 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
         chai.assert.equal(postCheckoutRespInsufficientBalance.body.messageCode, "InsufficientBalance", `body=${JSON.stringify(postCheckoutRespInsufficientBalance.body)}`);
 
         request.allowRemainder = true;
-        const postCheckoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", request);
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(postCheckoutResp.body, {
             "id": "checkout-4",
@@ -157,7 +156,11 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
                     "valueId": "vs-checkout4-promotion1"
                 }
             ],
-            "metadata": null
+            "metadata": null,
+            tax: {
+                "roundingMode": "HALF_EVEN"
+            },
+            "createdDate": null
         }, ["createdDate"]);
 
         const getPreTaxPromo = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${preTaxPromotion.id}`, "GET");

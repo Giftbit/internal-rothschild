@@ -18,7 +18,12 @@ If `/Volumes/credentials/ssh/AWSKey.pem` does not exist:
 
 ### Stripe tests
 
-Running the tests for using Stripe in checkout makes live requests to Stripe's servers right now. This means that you need to set a couple of environment variables to make them work: fill in `.env-example` and save the file as `.env`.
+Stripe-related tests have been updated to use stubs by default. Any tests that logically require a live call to Stripe have been skipped (ie, ensuring that metadata is appropriately saved on Stripe charges). 
+
+*To run the tests live*
+
+Several environment variables will be needed: fill in `.env-example` and save the file as `.env`. You will need a Stripe account, and a second Stripe account that is connected to the first: see below to set up. 
+Then run `npm run test:stripeLive`. 
 
 #### Setting up a connected account
 

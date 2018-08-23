@@ -1,6 +1,5 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as testUtils from "../../../utils/testUtils";
 import {generateId, setCodeCryptographySecrets} from "../../../utils/testUtils";
 import {Value} from "../../../model/Value";
@@ -73,6 +72,7 @@ describe("/v2/transactions/debit", () => {
             lineItems: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null
         }, ["createdDate"]);
 
@@ -126,6 +126,7 @@ describe("/v2/transactions/debit", () => {
             lineItems: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null
         }, ["createdDate"]);
 
@@ -181,6 +182,7 @@ describe("/v2/transactions/debit", () => {
             lineItems: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null
         }, ["createdDate"]);
 
@@ -240,6 +242,7 @@ describe("/v2/transactions/debit", () => {
             lineItems: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null
         }, ["createdDate"]);
 
@@ -281,6 +284,7 @@ describe("/v2/transactions/debit", () => {
             lineItems: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null
         }, ["createdDate"]);
 
