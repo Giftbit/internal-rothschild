@@ -440,7 +440,7 @@ Resources:
       Runtime: nodejs8.10
       MemorySize: 128
       Timeout: 180 # seconds, 300 max
-      ReservedConcurrentExecutions: 100,
+      ReservedConcurrentExecutions: 100
       Environment:
         Variables:
           DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address

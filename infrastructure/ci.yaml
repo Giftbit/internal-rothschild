@@ -245,9 +245,11 @@ Resources:
               - lambda:AddPermission
               - lambda:CreateFunction
               - lambda:DeleteFunction
+              - lambda:DeleteFunctionConcurrency
               - lambda:GetFunction
               - lambda:GetFunctionConfiguration
               - lambda:InvokeFunction
+              - lambda:PutFunctionConcurrency
               - lambda:RemovePermission
               - lambda:TagResource
               - lambda:UntagResource
