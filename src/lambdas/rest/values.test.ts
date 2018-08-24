@@ -93,7 +93,7 @@ describe("/v2/values/", () => {
             valueRule: null,
             discount: false,
             discountSellerLiability: null,
-            metadata: null
+            metadata: {}
         }, ["createdDate", "updatedDate"]);
         value1 = resp2.body;
     });
@@ -130,7 +130,7 @@ describe("/v2/values/", () => {
             endDate: null,
             discount: false,
             discountSellerLiability: null,
-            metadata: null
+            metadata: {}
         }, ["createdDate", "updatedDate"]);
 
         const updateValueRequest: Partial<Value> = {
@@ -164,7 +164,7 @@ describe("/v2/values/", () => {
             endDate: null,
             discount: false,
             discountSellerLiability: null,
-            metadata: null
+            metadata: {}
         }, ["createdDate", "updatedDate"]);
     });
 
