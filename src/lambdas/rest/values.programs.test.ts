@@ -564,5 +564,50 @@ describe("/v2/values create from program", () => {
         });
     });
 
+    describe(`creating Values from Program with metadata`, () => {
+        let program: Partial<Program> = {
+            id: generateId(),
+            name: "program with valueRule",
+            currency: "USD",
+            metadata: {
+                meta: "data"
+            }
+        };
+
+        let programProperties = Object.keys(program);
+        it("can create Program", async () => {
+            const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
+            chai.assert.equal(programResp.statusCode, 201, JSON.stringify(programResp.body));
+            for (let prop of programProperties) {
+                chai.assert.equal(JSON.stringify(programResp.body[prop]), JSON.stringify(program[prop]));
+            }
+        });
+
+        it("can create Value and metadata from Program is copied over", async () => {
+            let value: Partial<Value> = {
+                id: generateId(),
+                programId: program.id
+            };
+            const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
+            chai.assert.deepEqual(valueResp.body.metadata, program.metadata);
+        });
+
+        it("can create Value with metadata and override Program's metadata", async () => {
+            let value: Partial<Value> = {
+                id: generateId(),
+                programId: program.id,
+                metadata: {
+                    new: "metadata"
+                }
+            };
+
+            const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
+            chai.assert.deepEqual(valueResp.body.metadata, value.metadata);
+            chai.assert.notDeepEqual(valueResp.body.metadata, program.metadata);
+        });
+    });
+
 
 });

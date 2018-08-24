@@ -454,6 +454,7 @@ function initializeValue(partialValue: Partial<Value>, program: Program = null, 
             discountSellerLiability: program ? program.discountSellerLiability : null,
             startDate: program ? program.startDate : null,
             endDate: program ? program.endDate : null,
+            metadata: program ? program.metadata : null
         })
     };
 
