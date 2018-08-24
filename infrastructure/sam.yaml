@@ -320,6 +320,7 @@ Resources:
       Description: !Sub "${AWS::StackName} instance parameter group"
       Family: aurora5.6
       Parameters:
+        max_connections: 150  # allowed 1 - 16000
         sql_mode: IGNORE_SPACE,STRICT_TRANS_TABLES
       Tags:
         - Key: Service
@@ -439,6 +440,7 @@ Resources:
       Runtime: nodejs8.10
       MemorySize: 128
       Timeout: 180 # seconds, 300 max
+      ReservedConcurrentExecutions: 100
       Environment:
         Variables:
           DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
