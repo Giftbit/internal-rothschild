@@ -295,6 +295,7 @@ Resources:
               - rds:RebootDBInstance
               - rds:RemoveTagsFromResource
               - rds:ResetDBClusterParameterGroup
+              - rds:ResetDBParameterGroup
               - rds:StartDBInstance
               - rds:StopDBInstance
             Resource:
