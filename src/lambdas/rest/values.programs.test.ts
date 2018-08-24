@@ -594,7 +594,7 @@ describe("/v2/values create from program", () => {
             chai.assert.deepEqual(valueResp.body.metadata, program.metadata);
         });
 
-        it("can create Value with metadata and override Program's metadata", async () => {
+        it("can create Value with metadata and override parts of Program's metadata", async () => {
             let value: Partial<Value> = {
                 id: generateId(),
                 programId: program.id,
@@ -607,9 +607,8 @@ describe("/v2/values create from program", () => {
             const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
             chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
             chai.assert.deepEqual(valueResp.body.metadata, {
-                a: "A",
-                b: "override program",
-                c: "new"
+                ...program.metadata,
+                ...value.metadata
             });
             chai.assert.notDeepEqual(valueResp.body.metadata, program.metadata);
         });
