@@ -570,7 +570,8 @@ describe("/v2/values create from program", () => {
             name: "program with valueRule",
             currency: "USD",
             metadata: {
-                meta: "data"
+                a: "A",
+                b: "B"
             }
         };
 
@@ -598,13 +599,18 @@ describe("/v2/values create from program", () => {
                 id: generateId(),
                 programId: program.id,
                 metadata: {
-                    new: "metadata"
+                    b: "override program",
+                    c: "new"
                 }
             };
 
             const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
             chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
-            chai.assert.deepEqual(valueResp.body.metadata, value.metadata);
+            chai.assert.deepEqual(valueResp.body.metadata, {
+                a: "A",
+                b: "override program",
+                c: "new"
+            });
             chai.assert.notDeepEqual(valueResp.body.metadata, program.metadata);
         });
     });
