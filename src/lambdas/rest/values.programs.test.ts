@@ -608,6 +608,4 @@ describe("/v2/values create from program", () => {
             chai.assert.notDeepEqual(valueResp.body.metadata, program.metadata);
         });
     });
-
-
 });
