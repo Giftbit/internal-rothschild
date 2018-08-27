@@ -245,9 +245,11 @@ Resources:
               - lambda:AddPermission
               - lambda:CreateFunction
               - lambda:DeleteFunction
+              - lambda:DeleteFunctionConcurrency
               - lambda:GetFunction
               - lambda:GetFunctionConfiguration
               - lambda:InvokeFunction
+              - lambda:PutFunctionConcurrency
               - lambda:RemovePermission
               - lambda:TagResource
               - lambda:UntagResource
@@ -295,6 +297,7 @@ Resources:
               - rds:RebootDBInstance
               - rds:RemoveTagsFromResource
               - rds:ResetDBClusterParameterGroup
+              - rds:ResetDBParameterGroup
               - rds:StartDBInstance
               - rds:StopDBInstance
             Resource:

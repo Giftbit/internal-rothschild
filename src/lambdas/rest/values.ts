@@ -439,7 +439,7 @@ function initializeValue(partialValue: Partial<Value>, program: Program = null, 
         contactId: null,
         canceled: false,
         frozen: false,
-        metadata: null,
+        metadata: {},
         createdDate: now,
         updatedDate: now,
         ...partialValue,
@@ -453,9 +453,10 @@ function initializeValue(partialValue: Partial<Value>, program: Program = null, 
             discount: program ? program.discount : false,
             discountSellerLiability: program ? program.discountSellerLiability : null,
             startDate: program ? program.startDate : null,
-            endDate: program ? program.endDate : null,
+            endDate: program ? program.endDate : null
         })
     };
+    value.metadata = {...(program && program.metadata ? program.metadata : {}), ...value.metadata};
 
     if (generateCodeParameters) {
         checkCodeParameters(generateCodeParameters, value.code, value.isGenericCode);
