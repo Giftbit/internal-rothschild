@@ -32,7 +32,7 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
                 throw new giftbitRoutes.GiftbitRestError(409, "Insufficient balance for the transaction.", "InsufficientBalance");
             }
             if (options.simulate) {
-                return TransactionPlan.toTransaction(plan);
+                return TransactionPlan.toTransaction(auth, plan);
             }
             return await executeTransactionPlan(auth, plan);
         } catch (err) {
@@ -99,5 +99,5 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         }
     });
 
-    return TransactionPlan.toTransaction(plan);
+    return TransactionPlan.toTransaction(auth, plan);
 }

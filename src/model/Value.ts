@@ -26,6 +26,7 @@ export interface Value {
     metadata: object | null;
     createdDate: Date;
     updatedDate: Date;
+    createdBy: string;
 }
 
 export interface Rule {
@@ -64,7 +65,8 @@ export namespace Value {
             endDate: v.endDate,
             metadata: JSON.stringify(v.metadata),
             createdDate: v.createdDate,
-            updatedDate: v.updatedDate
+            updatedDate: v.updatedDate,
+            createdBy: auth.teamMemberId
         };
     }
 
@@ -124,6 +126,7 @@ export interface DbValue {
     metadata: string;
     createdDate: Date;
     updatedDate: Date;
+    createdBy: string;
 }
 
 export namespace DbValue {
@@ -150,7 +153,8 @@ export namespace DbValue {
             endDate: v.endDate,
             metadata: JSON.parse(v.metadata),
             createdDate: v.createdDate,
-            updatedDate: v.updatedDate
+            updatedDate: v.updatedDate,
+            createdBy: v.createdBy
         };
     }
 }

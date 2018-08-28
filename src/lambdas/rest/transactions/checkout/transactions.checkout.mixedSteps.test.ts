@@ -305,7 +305,8 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             tax: {
                 "roundingMode": "HALF_EVEN"
             },
-            "createdDate": null
+            "createdDate": null,
+            "createdBy": defaultTestUser.auth.teamMemberId
         }, ["createdDate", "steps", "paymentSources"]);
 
         chai.assert.deepEqual(postCheckoutResp.body.steps[0], {
@@ -474,7 +475,8 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             tax: {
                 "roundingMode": "HALF_EVEN"
             },
-            "createdDate": null
+            "createdDate": null,
+            "createdBy": defaultTestUser.auth.teamMemberId
         }, ["createdDate", "steps"]);
 
         const step1 = postCheckoutResp.body.steps.find(step => (step as LightrailTransactionStep).valueId === valueSecretCode.id);

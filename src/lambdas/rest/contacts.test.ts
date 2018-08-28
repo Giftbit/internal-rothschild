@@ -48,7 +48,10 @@ describe("/v2/contacts", () => {
     it("can create a contact", async () => {
         const resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact1);
         chai.assert.equal(resp.statusCode, 201);
-        chai.assert.deepEqualExcluding(resp.body, contact1, ["createdDate", "updatedDate", "metadata"]);
+        chai.assert.deepEqualExcluding(resp.body, {
+            ...contact1,
+            createdBy: defaultTestUser.auth.teamMemberId
+        }, ["createdDate", "updatedDate", "metadata"]);
         contact1 = resp.body;
     });
 
@@ -126,7 +129,8 @@ describe("/v2/contacts", () => {
             ...contact2,
             firstName: null,
             lastName: null,
-            email: null
+            email: null,
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate", "updatedDate", "metadata"]);
         chai.assert.equal(resp.statusCode, 201);
         contact2 = resp.body;
@@ -190,8 +194,14 @@ describe("/v2/contacts", () => {
         const resp = await testUtils.testAuthedRequest<Contact[]>(router, "/v2/contacts", "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
         chai.assert.deepEqual(resp.body, [
-            contact2,
-            contact1
+            {
+                ...contact2,
+                createdBy: defaultTestUser.auth.teamMemberId
+            },
+            {
+                ...contact1,
+                createdBy: defaultTestUser.auth.teamMemberId
+            }
         ]);
         chai.assert.equal(resp.headers["Limit"], "100");
         chai.assert.equal(resp.headers["Max-Limit"], "1000");
@@ -201,8 +211,14 @@ describe("/v2/contacts", () => {
         const resp = await testUtils.testAuthedCsvRequest<Contact>(router, "/v2/contacts", "GET");
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.deepEqualExcludingEvery(resp.body, [
-            contact2,
-            contact1
+            {
+                ...contact2,
+                createdBy: defaultTestUser.auth.teamMemberId
+            },
+            {
+                ...contact1,
+                createdBy: defaultTestUser.auth.teamMemberId
+            }
         ], ["createdDate", "updatedDate"]); // TODO don't ignore dates if my issue gets resolved https://github.com/mholt/PapaParse/issues/502
         chai.assert.equal(resp.headers["Limit"], "100");
         chai.assert.equal(resp.headers["Max-Limit"], "1000");
@@ -228,7 +244,8 @@ describe("/v2/contacts", () => {
         chai.assert.deepEqualExcluding(resp.body, {
             ...contact4,
             lastName: null,
-            email: null
+            email: null,
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate", "updatedDate"]);
         contact4 = resp.body;
     });
@@ -236,7 +253,7 @@ describe("/v2/contacts", () => {
     it("can get the contact with metadata", async () => {
         const resp = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/${contact4.id}`, "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.deepEqual(resp.body, contact4);
+        chai.assert.deepEqual(resp.body, {...contact4, createdBy: defaultTestUser.auth.teamMemberId});
     });
 
     it("can delete a Contact that is not in use", async () => {
@@ -298,11 +315,17 @@ describe("/v2/contacts", () => {
 
         const resp1 = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact);
         chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
-        chai.assert.deepEqualExcluding(resp1.body, contact, ["createdDate", "updatedDate"]);
+        chai.assert.deepEqualExcluding(resp1.body, {
+            ...contact,
+            createdBy: defaultTestUser.auth.teamMemberId
+        }, ["createdDate", "updatedDate"]);
 
         const resp2 = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/${contact.id}`, "GET", contact);
         chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
-        chai.assert.deepEqualExcluding(resp2.body, contact, ["createdDate", "updatedDate"]);
+        chai.assert.deepEqualExcluding(resp2.body, {
+            ...contact,
+            createdBy: defaultTestUser.auth.teamMemberId
+        }, ["createdDate", "updatedDate"]);
     });
 
     describe("filters and pagination", () => {
@@ -644,6 +667,7 @@ describe("/v2/contacts", () => {
                 contact.userId = defaultTestUser.userId;
                 contact.createdDate = new Date();
                 contact.updatedDate = new Date();
+                contact.createdBy = defaultTestUser.auth.teamMemberId;
             }
             const knex = await getKnexWrite();
             await knex("Contacts").insert(contacts);

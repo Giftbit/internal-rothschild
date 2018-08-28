@@ -228,7 +228,8 @@ describe("optimizeCheckout", () => {
             endDate: null,
             metadata: null,
             createdDate: null,
-            updatedDate: null
+            updatedDate: null,
+            createdBy: null
         };
     }
 });

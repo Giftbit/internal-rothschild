@@ -71,7 +71,8 @@ describe("/v2/transactions/credit", () => {
             paymentSources: null,
             metadata: null,
             tax: null,
-            createdDate: null
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
@@ -126,7 +127,8 @@ describe("/v2/transactions/credit", () => {
             paymentSources: null,
             metadata: null,
             tax: null,
-            createdDate: null
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueSecretCode.id}`, "GET");
@@ -182,7 +184,8 @@ describe("/v2/transactions/credit", () => {
             paymentSources: null,
             metadata: null,
             tax: null,
-            createdDate: null
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueGenericCode.id}`, "GET");
@@ -243,6 +246,7 @@ describe("/v2/transactions/credit", () => {
             metadata: null,
             tax: null,
             createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");

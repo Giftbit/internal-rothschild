@@ -9,6 +9,7 @@ export interface Contact {
     metadata: object | null;
     createdDate: Date;
     updatedDate: Date;
+    createdBy: string;
 }
 
 export namespace Contact {
@@ -21,7 +22,8 @@ export namespace Contact {
             email: c.email,
             metadata: JSON.stringify(c.metadata),
             createdDate: c.createdDate,
-            updatedDate: c.updatedDate
+            updatedDate: c.updatedDate,
+            createdBy: c.createdBy
         };
     }
 
@@ -45,6 +47,7 @@ export interface DbContact {
     metadata: string;
     createdDate: Date;
     updatedDate: Date;
+    createdBy: string;
 }
 
 export namespace DbContact {
@@ -56,7 +59,8 @@ export namespace DbContact {
             email: c.email,
             metadata: JSON.parse(c.metadata),
             createdDate: c.createdDate,
-            updatedDate: c.updatedDate
+            updatedDate: c.updatedDate,
+            createdBy: c.createdBy
         };
     }
 }

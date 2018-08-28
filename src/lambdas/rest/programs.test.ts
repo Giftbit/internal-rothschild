@@ -1,11 +1,14 @@
 import * as testUtils from "../../utils/testUtils";
-import {generateId} from "../../utils/testUtils";
+import {defaultTestUser, generateId} from "../../utils/testUtils";
 import * as cassava from "cassava";
 import * as chai from "chai";
 import {Program} from "../../model/Program";
 import {installRestRoutes} from "./installRestRoutes";
 import {createCurrency} from "./currencies";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
+import chaiExclude = require("chai-exclude");
+
+chai.use(chaiExclude);
 
 describe("/v2/programs", () => {
 
@@ -41,6 +44,27 @@ describe("/v2/programs", () => {
         chai.assert.equal(resp.statusCode, 201);
         chai.assert.equal(resp.body.id, programRequest.id);
         chai.assert.equal(resp.body.currency, programRequest.currency);
+        chai.assert.deepEqualExcluding(resp.body, {
+            id: programRequest.id,
+            name: programRequest.name,
+            currency: programRequest.currency,
+            discount: true,
+            discountSellerLiability: null,
+            pretax: true,
+            active: true,
+            redemptionRule: null,
+            valueRule: null,
+            minInitialBalance: null,
+            maxInitialBalance: null,
+            fixedInitialBalances: null,
+            fixedInitialUses: null,
+            startDate: null,
+            endDate: null,
+            metadata: null,
+            createdDate: null,
+            updatedDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
+        }, ["createdDate", "updatedDate"]);
         chai.assert.isNotNull(resp.body.createdDate);
         chai.assert.isNotNull(resp.body.updatedDate);
         programResponse = resp.body;
