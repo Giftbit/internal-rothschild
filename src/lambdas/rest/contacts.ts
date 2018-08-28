@@ -50,7 +50,7 @@ export function installContactsRest(router: cassava.Router): void {
                 }),
                 createdDate: now,
                 updatedDate: now,
-                createdBy: auth.teamMemberId
+                createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
             };
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
@@ -158,7 +158,8 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 }
 
 export async function createContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contact: Contact): Promise<Contact> {
-    auth.requireIds("userId", "teamMemberId");
+    auth.requireIds("userId"); // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
+    // auth.requireIds("userId", "teamMemberId");
 
     try {
         const knex = await getKnexWrite();

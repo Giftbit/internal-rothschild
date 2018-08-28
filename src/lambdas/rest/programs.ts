@@ -36,7 +36,8 @@ export function installProgramsRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("userId", "teamMemberId");
+            auth.requireIds("userId"); // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
+            // auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:programs:create");
             evt.validateBody(programSchema);
 
@@ -64,7 +65,7 @@ export function installProgramsRest(router: cassava.Router): void {
                 ),
                 createdDate: now,
                 updatedDate: now,
-                createdBy: auth.teamMemberId
+                createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
             };
 
             program.startDate = program.startDate ? dateInDbPrecision(new Date(program.startDate)) : null;
@@ -194,7 +195,7 @@ async function createProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pro
 
 function checkProgramProperties(program: Program): void {
     if (program.minInitialBalance && program.maxInitialBalance && program.minInitialBalance > program.maxInitialBalance) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Program's minInitialBalance cannot exceed maxInitialBalance.")
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Program's minInitialBalance cannot exceed maxInitialBalance.");
     }
 }
 

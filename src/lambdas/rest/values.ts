@@ -45,7 +45,8 @@ export function installValuesRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("userId", "teamMemberId");
+            auth.requireIds("userId"); // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
+            // auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:values:create");
             evt.validateBody(valueSchema);
             let program: Program = null;
@@ -250,7 +251,8 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 }
 
 export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: CreateValueParameters, trx: Knex.Transaction): Promise<Value> {
-    auth.requireIds("userId", "teamMemberId");
+    auth.requireIds("userId"); // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
+    // auth.requireIds("userId", "teamMemberId");
     let value: Value = initializeValue(auth, params.partialValue, params.program, params.generateCodeParameters);
     log.info(`Create Value requested for user: ${auth.userId}. Value ${Value.toStringSanitized(value)}.`);
 
@@ -283,7 +285,7 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 metadata: null,
                 createdDate: value.createdDate,
                 tax: null,
-                createdBy: auth.teamMemberId
+                createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
             };
             const initialBalanceTransactionStep: LightrailDbTransactionStep = {
                 userId: auth.userId,
@@ -443,7 +445,7 @@ function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partial
         metadata: {},
         createdDate: now,
         updatedDate: now,
-        createdBy: auth.teamMemberId,
+        createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
         ...partialValue,
         ...pickOrDefault(partialValue, {
             currency: program ? program.currency : null,

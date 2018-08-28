@@ -66,7 +66,7 @@ export namespace Value {
             metadata: JSON.stringify(v.metadata),
             createdDate: v.createdDate,
             updatedDate: v.updatedDate,
-            createdBy: auth.teamMemberId
+            createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
         };
     }
 
