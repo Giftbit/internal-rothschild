@@ -25,7 +25,7 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
         });
     });
 
-    it("test simulation with gift card and preTax promotion", async () => {
+    it("test simulation with gift card and pretax promotion", async () => {
         const giftCard: Partial<Value> = {
             id: generateId(),
             currency: "CAD",

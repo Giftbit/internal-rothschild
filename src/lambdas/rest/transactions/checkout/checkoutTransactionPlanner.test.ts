@@ -205,7 +205,7 @@ describe("optimizeCheckout", () => {
             }]);
     });
 
-    function getValue(preTax: boolean): Value {
+    function getValue(pretax: boolean): Value {
         return {
             id: null,
             currency: null,
@@ -216,7 +216,7 @@ describe("optimizeCheckout", () => {
             code: null,
             isGenericCode: null,
             contactId: null,
-            pretax: preTax,
+            pretax: pretax,
             active: null,
             canceled: null,
             frozen: null,
