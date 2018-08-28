@@ -739,7 +739,7 @@ describe("split tender checkout with Stripe", () => {
             "livemode": false,
             "metadata": {
                 "meta": "data",
-                "lightrailTransactionId": "5da970ea-80db-4c91-9",
+                "lightrailTransactionId": request.id,
                 "lightrailTransactionSources": "[]",
                 "lightrailUserId": "default-test-user-TEST"
             },
@@ -817,6 +817,12 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.deepEqual(postCheckoutResp.body.metadata, request.metadata, `body.metadata=${postCheckoutResp.body.metadata}`);
 
         const stripeStep = postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep;
+        chai.assert.deepEqual(stripeStep.charge.metadata, {
+            ...request.metadata,
+            lightrailTransactionId: request.id,
+            "lightrailTransactionSources": "[]", // lightrail value is used up by now
+            "lightrailUserId": defaultTestUser.auth.userId
+        });
 
         if (testStripeLive()) {
             chai.assert.deepEqual(stripeStep.charge.metadata, {

@@ -1,6 +1,7 @@
 import * as chai from "chai";
 import {TransactionPlanError} from "./TransactionPlanError";
 import * as testUtils from "../../../utils/testUtils";
+import {defaultTestUser} from "../../../utils/testUtils";
 import {DbValue} from "../../../model/Value";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {TransactionPlan} from "./TransactionPlan";
@@ -18,7 +19,8 @@ describe("rest/transactions/executeTransactionPlan", () => {
     const auth = new giftbitRoutes.jwtauth.AuthorizationBadge({
         g: {
             gui: "user",
-            gmi: "user"
+            gmi: "user",
+            tmi: "user"
         }
     });
 
@@ -56,7 +58,8 @@ describe("rest/transactions/executeTransactionPlan", () => {
             endDate: null,
             metadata: "null",
             createdDate: new Date(),
-            updatedDate: new Date()
+            updatedDate: new Date(),
+            createdBy: defaultTestUser.auth.teamMemberId
         };
 
         const knex = await getKnexWrite();
@@ -127,7 +130,8 @@ describe("rest/transactions/executeTransactionPlan", () => {
             endDate: null,
             metadata: "null",
             createdDate: new Date(),
-            updatedDate: new Date()
+            updatedDate: new Date(),
+            createdBy: defaultTestUser.auth.teamMemberId
         };
 
         const knex = await getKnexWrite();

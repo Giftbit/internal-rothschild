@@ -3,12 +3,15 @@ import * as chai from "chai";
 import * as transactions from "../transactions";
 import * as valueStores from "../../values";
 import * as testUtils from "../../../../utils/testUtils";
-import {generateId} from "../../../../utils/testUtils";
+import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
 import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
+import chaiExclude = require("chai-exclude");
 
-describe("/v2/transactions/checkout - allowRemainder tests", () => {
+chai.use(chaiExclude);
+
+describe("/v2/transactions/checkout - simulation tests", () => {
 
     const router = new cassava.Router();
 
@@ -25,7 +28,7 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
         });
     });
 
-    it("test simulation with gift card and preTax promotion", async () => {
+    it("test simulation with gift card and pretax promotion", async () => {
         const giftCard: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
@@ -156,7 +159,8 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
             tax: {
                 "roundingMode": "HALF_EVEN"
             },
-            "createdDate": null
+            "createdDate": null,
+            "createdBy": defaultTestUser.auth.teamMemberId,
         }, ["createdDate"]);
 
         const giftCardBalance = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");

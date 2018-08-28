@@ -21,6 +21,7 @@ export interface Program {
     metadata: object | null;
     createdDate: Date | null;
     updatedDate: Date | null;
+    createdBy: string;
 }
 
 export namespace Program {
@@ -44,7 +45,8 @@ export namespace Program {
             endDate: v.endDate,
             metadata: JSON.stringify(v.metadata),
             createdDate: v.createdDate,
-            updatedDate: v.updatedDate
+            updatedDate: v.updatedDate,
+            createdBy: v.createdBy,
         };
     }
 
@@ -90,6 +92,7 @@ export interface DbProgram {
     metadata: string;
     createdDate: Date | null;
     updatedDate: Date | null;
+    createdBy: string;
 }
 
 export namespace DbProgram {
@@ -112,7 +115,8 @@ export namespace DbProgram {
             endDate: v.endDate,
             metadata: JSON.parse(v.metadata),
             createdDate: v.createdDate,
-            updatedDate: v.updatedDate
+            updatedDate: v.updatedDate,
+            createdBy: v.createdBy
         };
     }
 }

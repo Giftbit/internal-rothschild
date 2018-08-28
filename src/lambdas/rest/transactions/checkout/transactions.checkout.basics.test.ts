@@ -3,10 +3,13 @@ import * as chai from "chai";
 import * as transactions from "../transactions";
 import * as valueStores from "../../values";
 import * as testUtils from "../../../../utils/testUtils";
-import {generateId} from "../../../../utils/testUtils";
+import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
 import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
+import chaiExclude = require("chai-exclude");
+
+chai.use(chaiExclude);
 
 describe("/v2/transactions/checkout - basics", () => {
 
@@ -102,7 +105,8 @@ describe("/v2/transactions/checkout - basics", () => {
             tax: {
                 "roundingMode": "HALF_EVEN"
             },
-            createdDate: null
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getValueStoreResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
@@ -217,7 +221,8 @@ describe("/v2/transactions/checkout - basics", () => {
             tax: {
                 "roundingMode": "HALF_EVEN"
             },
-            createdDate: null
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getPromotionVS = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${promotion.id}`, "GET");
@@ -387,7 +392,8 @@ describe("/v2/transactions/checkout - basics", () => {
             tax: {
                 "roundingMode": "HALF_EVEN"
             },
-            "createdDate": null
+            "createdDate": null,
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getPreTaxPromo = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${preTaxPromotion.id}`, "GET");
@@ -492,7 +498,8 @@ describe("/v2/transactions/checkout - basics", () => {
             tax: {
                 "roundingMode": "HALF_EVEN"
             },
-            createdDate: null
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getValueStoreResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");

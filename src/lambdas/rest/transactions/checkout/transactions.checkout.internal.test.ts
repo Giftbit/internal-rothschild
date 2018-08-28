@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as testUtils from "../../../../utils/testUtils";
-import {generateId} from "../../../../utils/testUtils";
+import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import {installRestRoutes} from "../../installRestRoutes";
@@ -138,7 +138,8 @@ describe("/v2/transactions/checkout - internal sources", () => {
             tax: {
                 "roundingMode": "HALF_EVEN"
             },
-            "createdDate": null
+            "createdDate": null,
+            "createdBy": defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.deepEqual(getCheckoutResp.body, postCheckoutResp.body);
@@ -276,7 +277,8 @@ describe("/v2/transactions/checkout - internal sources", () => {
             tax: {
                 "roundingMode": "HALF_EVEN"
             },
-            "createdDate": null
+            "createdDate": null,
+            "createdBy": defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["steps"]);
@@ -387,7 +389,8 @@ describe("/v2/transactions/checkout - internal sources", () => {
             tax: {
                 "roundingMode": "HALF_EVEN"
             },
-            "createdDate": null
+            "createdDate": null,
+            "createdBy": defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["steps"]);

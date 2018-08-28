@@ -4,7 +4,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {Contact} from "../../model/Contact";
 import {installRestRoutes} from "./installRestRoutes";
 import * as testUtils from "../../utils/testUtils";
-import {setCodeCryptographySecrets} from "../../utils/testUtils";
+import {defaultTestUser, setCodeCryptographySecrets} from "../../utils/testUtils";
 import {createContact} from "./contacts";
 import {Currency} from "../../model/Currency";
 import {createCurrency} from "./currencies";
@@ -35,7 +35,8 @@ describe("/v2/contacts/values", () => {
         email: null,
         metadata: null,
         createdDate: new Date(),
-        updatedDate: new Date()
+        updatedDate: new Date(),
+        createdBy: defaultTestUser.auth.teamMemberId
     };
 
     let value1: Value;
@@ -222,7 +223,8 @@ describe("/v2/contacts/values", () => {
         email: null,
         metadata: null,
         createdDate: new Date(),
-        updatedDate: new Date()
+        updatedDate: new Date(),
+        createdBy: defaultTestUser.auth.teamMemberId
     };
 
     it("can list values attached to a contact", async () => {

@@ -45,7 +45,7 @@ export function installValuesRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("userId");
+            auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:values:create");
             evt.validateBody(valueSchema);
             let program: Program = null;
@@ -222,7 +222,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                 canceled: {
                     type: "boolean"
                 },
-                preTax: {
+                pretax: {
                     type: "boolean"
                 },
                 startDate: {
@@ -250,8 +250,8 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 }
 
 export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: CreateValueParameters, trx: Knex.Transaction): Promise<Value> {
-    auth.requireIds("userId");
-    let value: Value = initializeValue(params.partialValue, params.program, params.generateCodeParameters);
+    auth.requireIds("userId", "teamMemberId");
+    let value: Value = initializeValue(auth, params.partialValue, params.program, params.generateCodeParameters);
     log.info(`Create Value requested for user: ${auth.userId}. Value ${Value.toStringSanitized(value)}.`);
 
     log.info(`Checking properties for ${value.id}.`);
@@ -281,8 +281,9 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 lineItems: null,
                 paymentSources: null,
                 metadata: null,
+                createdDate: value.createdDate,
                 tax: null,
-                createdDate: value.createdDate
+                createdBy: auth.teamMemberId
             };
             const initialBalanceTransactionStep: LightrailDbTransactionStep = {
                 userId: auth.userId,
@@ -427,7 +428,7 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
     }
 }
 
-function initializeValue(partialValue: Partial<Value>, program: Program = null, generateCodeParameters: GenerateCodeParameters = null): Value {
+function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partialValue: Partial<Value>, program: Program = null, generateCodeParameters: GenerateCodeParameters = null): Value {
     const now = nowInDbPrecision();
     let value: Value = {
         id: null,
@@ -442,6 +443,7 @@ function initializeValue(partialValue: Partial<Value>, program: Program = null, 
         metadata: {},
         createdDate: now,
         updatedDate: now,
+        createdBy: auth.teamMemberId,
         ...partialValue,
         ...pickOrDefault(partialValue, {
             currency: program ? program.currency : null,
