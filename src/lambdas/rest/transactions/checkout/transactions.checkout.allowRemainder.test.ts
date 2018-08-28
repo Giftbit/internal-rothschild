@@ -158,6 +158,9 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
                 }
             ],
             "metadata": null,
+            tax: {
+                "roundingMode": "HALF_EVEN"
+            },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);

@@ -386,7 +386,7 @@ describe("/v2/issuances", () => {
                     updatedDate: idAndDate.createdDate
                 }));
             if (res === 0) {
-                chai.assert.fail(`No row updated. Test data failed during setup..`)
+                chai.assert.fail(`No row updated. Test data failed during setup..`);
             }
         }
         const resp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/programs/${program.id}/issuances?createdDate.gt=3030-01-01`, "GET");

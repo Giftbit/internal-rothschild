@@ -9,10 +9,16 @@ import {installRestRoutes} from "../installRestRoutes";
 import {
     setStubsForStripeTests,
     stripeEnvVarsPresent,
+    testStripeLive,
     unsetStubsForStripeTests
 } from "../../../utils/testUtils/stripeTestUtils";
 import {createCurrency} from "../currencies";
+import * as stripeTransactions from "../../../utils/stripeUtils/stripeTransactions";
+import * as sinon from "sinon";
+import {StripeRestError} from "../../../utils/stripeUtils/StripeRestError";
 import chaiExclude = require("chai-exclude");
+import Stripe = require("stripe");
+import ICharge = Stripe.charges.ICharge;
 
 chai.use(chaiExclude);
 
@@ -38,6 +44,9 @@ describe("/v2/transactions/transfer", () => {
 
         const postValue3Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueCadForStripeTests);
         chai.assert.equal(postValue3Resp.statusCode, 201, `body=${JSON.stringify(postValue3Resp.body)}`);
+
+        const postValue4Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueCad2ForStripeTests);
+        chai.assert.equal(postValue4Resp.statusCode, 201, `body=${JSON.stringify(postValue4Resp.body)}`);
     });
 
     const currency: Currency = {
@@ -70,6 +79,11 @@ describe("/v2/transactions/transfer", () => {
         currency: "CAD",
     };
 
+    const valueCad2ForStripeTests: Partial<Value> = {
+        id: "v-transfer-stripe-2",
+        currency: "CAD",
+    };
+
     it("can transfer between valueIds", async () => {
         const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
             id: "transfer-1",
@@ -96,6 +110,7 @@ describe("/v2/transactions/transfer", () => {
             steps: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["steps", "createdDate"]);
@@ -181,6 +196,7 @@ describe("/v2/transactions/transfer", () => {
             steps: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["steps", "createdDate"]);
@@ -266,6 +282,7 @@ describe("/v2/transactions/transfer", () => {
             steps: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["steps", "createdDate"]);
@@ -352,6 +369,7 @@ describe("/v2/transactions/transfer", () => {
             steps: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["steps", "createdDate"]);
@@ -438,6 +456,7 @@ describe("/v2/transactions/transfer", () => {
             steps: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["steps", "createdDate"]);
@@ -522,6 +541,7 @@ describe("/v2/transactions/transfer", () => {
             steps: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
         };
@@ -587,6 +607,7 @@ describe("/v2/transactions/transfer", () => {
             steps: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["steps", "createdDate"]);
@@ -770,7 +791,7 @@ describe("/v2/transactions/transfer", () => {
 
     describe("stripe transfers", () => {
         before(function () {
-            if (!stripeEnvVarsPresent()) {
+            if (!stripeEnvVarsPresent() && testStripeLive()) {
                 this.skip();
                 return;
             }
@@ -781,9 +802,17 @@ describe("/v2/transactions/transfer", () => {
             unsetStubsForStripeTests();
         });
 
+        afterEach(() => {
+            if (!testStripeLive()) {
+                if ((stripeTransactions.createStripeCharge as sinon).restore) {
+                    (stripeTransactions.createStripeCharge as sinon).restore();
+                }
+            }
+        });
+
         it("can transfer from Stripe to Lightrail", async () => {
             const request = {
-                id: "TR-stripe-1",
+                id: generateId(),
                 source: {
                     rail: "stripe",
                     source: "tok_visa"
@@ -795,6 +824,96 @@ describe("/v2/transactions/transfer", () => {
                 amount: 1000,
                 currency: "CAD"
             };
+            const exampleStripeResponse: ICharge = {
+                "id": "ch_1CtgTrG3cz9DRdBteNgDpnpl",
+                "object": "charge",
+                "amount": 1000,
+                "amount_refunded": 0,
+                "application": "ca_D5LfFkNWh8XbFWxIcEx6N9FXaNmfJ9Fr",
+                "application_fee": null,
+                "balance_transaction": "txn_1CtgTsG3cz9DRdBt90tvfD4t",
+                "captured": true,
+                "created": 1532976751,
+                "currency": "cad",
+                "customer": null,
+                "description": null,
+                "destination": null,
+                "dispute": null,
+                "failure_code": null,
+                "failure_message": null,
+                "fraud_details": {},
+                "invoice": null,
+                "livemode": false,
+                "metadata": {
+                    "lightrailTransactionId": request.id,
+                    "lightrailTransactionSources": `[{\"rail\":\"lightrail\",\"valueId\":\"${valueCadForStripeTests.id}\"}]`,
+                    "lightrailUserId": defaultTestUser.userId
+                },
+                "on_behalf_of": null,
+                "order": null,
+                "outcome": {
+                    "network_status": "approved_by_network",
+                    "reason": null,
+                    "risk_level": "normal",
+                    "seller_message": "Payment complete.",
+                    "type": "authorized"
+                },
+                "paid": true,
+                "receipt_email": null,
+                "receipt_number": null,
+                "refunded": false,
+                "refunds": {
+                    "object": "list",
+                    "data": [],
+                    "has_more": false,
+                    "total_count": 0,
+                    "url": "/v1/charges/ch_1CtgTrG3cz9DRdBteNgDpnpl/refunds"
+                },
+                "review": null,
+                "shipping": null,
+                "source": {
+                    "id": "card_1CtgTrG3cz9DRdBtZoaVvcCA",
+                    "object": "card",
+                    "address_city": null,
+                    "address_country": null,
+                    "address_line1": null,
+                    "address_line1_check": null,
+                    "address_line2": null,
+                    "address_state": null,
+                    "address_zip": null,
+                    "address_zip_check": null,
+                    "brand": "Visa",
+                    "country": "US",
+                    "customer": null,
+                    "cvc_check": null,
+                    "dynamic_last4": null,
+                    "exp_month": 7,
+                    "exp_year": 2019,
+                    "fingerprint": "LMHNXKv7kEbxUNL9",
+                    "funding": "credit",
+                    "last4": "4242",
+                    "metadata": {},
+                    "name": null,
+                    "tokenization_method": null
+                },
+                "source_transfer": null,
+                "statement_descriptor": null,
+                "status": "succeeded",
+                "transfer_group": null
+            };
+            if (!testStripeLive()) {
+                const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
+                stripeStub.withArgs(sinon.match({
+                    "amount": request.amount,
+                    "currency": request.currency,
+                    "metadata": {
+                        "lightrailTransactionId": request.id,
+                        "lightrailTransactionSources": `[{\"rail\":\"lightrail\",\"valueId\":\"${valueCadForStripeTests.id}\"}]`,
+                        "lightrailUserId": defaultTestUser.userId
+                    },
+                    "source": "tok_visa"
+                }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-src`)).resolves(exampleStripeResponse);
+            }
 
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
             chai.assert.equal(postTransferResp.statusCode, 201, `body=${JSON.stringify(postTransferResp.body)}`);
@@ -809,6 +928,7 @@ describe("/v2/transactions/transfer", () => {
                 steps: null,
                 paymentSources: null,
                 metadata: null,
+                tax: null,
                 createdDate: null,
                 createdBy: defaultTestUser.auth.teamMemberId
             }, ["steps", "createdDate"]);
@@ -825,8 +945,8 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.equal(sourceStep.charge.amount, 1000);
             chai.assert.deepEqual(sourceStep.charge.metadata, {
                 "lightrailTransactionId": request.id,
-                "lightrailTransactionSources": "[{\"rail\":\"lightrail\",\"valueId\":\"v-transfer-stripe\"}]",
-                "lightrailUserId": defaultTestUser.auth.userId
+                "lightrailTransactionSources": `[{\"rail\":\"lightrail\",\"valueId\":\"${valueCadForStripeTests.id}\"}]`,
+                "lightrailUserId": defaultTestUser.userId
             }, JSON.stringify(sourceStep.charge.metadata));
 
             const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCadForStripeTests.id) as LightrailTransactionStep;
@@ -854,17 +974,24 @@ describe("/v2/transactions/transfer", () => {
             const destStepFromGet = getTransferResp.body.steps.find((s: LightrailTransactionStep) => s.rail === "lightrail");
             chai.assert.deepEqual(destStepFromGet, destStep);
 
-            const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
-            const stripeChargeId = (postTransferResp.body.steps.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
-            const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
-            });
-            chai.assert.deepEqual(stripeCharge, sourceStep.charge);
-        });
+            if (testStripeLive()) {
+                const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
+                const stripeChargeId = (postTransferResp.body.steps.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
+                const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
+                    stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
+                });
+                chai.assert.deepEqual(stripeCharge, sourceStep.charge);
+            }
+        }).timeout(3000);
 
         it("422s transferring a negative amount from Stripe", async () => {
-            const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
-                id: "TR-stripe-2",
+            if (!testStripeLive()) {
+                const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
+                stripeStub.rejects(new Error("The Stripe stub should never be called in this test"));
+            }
+
+            const request = {
+                id: generateId(),
                 source: {
                     rail: "stripe",
                     source: "tok_visa"
@@ -875,13 +1002,15 @@ describe("/v2/transactions/transfer", () => {
                 },
                 amount: -1000,
                 currency: "CAD"
-            });
+            };
+
+            const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
             chai.assert.equal(postTransferResp.statusCode, 422, `body=${JSON.stringify(postTransferResp.body)}`);
         });
 
         it("respects maxAmount on Stripe source with allowRemainder", async () => {
             const request = {
-                id: "TR-stripe-3",
+                id: generateId(),
                 source: {
                     rail: "stripe",
                     source: "tok_visa",
@@ -889,12 +1018,103 @@ describe("/v2/transactions/transfer", () => {
                 },
                 destination: {
                     rail: "lightrail",
-                    valueId: valueCadForStripeTests.id
+                    valueId: valueCad2ForStripeTests.id
                 },
                 amount: 1000,
                 currency: "CAD",
                 allowRemainder: true
             };
+            const exampleStripeResponse: ICharge = {
+                "id": "ch_1CtgTtG3cz9DRdBtE4l1p4Ub",
+                "object": "charge",
+                "amount": 900,
+                "amount_refunded": 0,
+                "application": "ca_D5LfFkNWh8XbFWxIcEx6N9FXaNmfJ9Fr",
+                "application_fee": null,
+                "balance_transaction": "txn_1CtgTtG3cz9DRdBt6hn5bxxC",
+                "captured": true,
+                "created": 1532976753,
+                "currency": "cad",
+                "customer": null,
+                "description": null,
+                "destination": null,
+                "dispute": null,
+                "failure_code": null,
+                "failure_message": null,
+                "fraud_details": {},
+                "invoice": null,
+                "livemode": false,
+                "metadata": {
+                    "lightrailTransactionId": request.id,
+                    "lightrailTransactionSources": "[{\"rail\":\"lightrail\",\"valueId\":\"v-transfer-stripe-2\"}]",
+                    "lightrailUserId": "default-test-user-TEST"
+                },
+                "on_behalf_of": null,
+                "order": null,
+                "outcome": {
+                    "network_status": "approved_by_network",
+                    "reason": null,
+                    "risk_level": "normal",
+                    "seller_message": "Payment complete.",
+                    "type": "authorized"
+                },
+                "paid": true,
+                "receipt_email": null,
+                "receipt_number": null,
+                "refunded": false,
+                "refunds": {
+                    "object": "list",
+                    "data": [],
+                    "has_more": false,
+                    "total_count": 0,
+                    "url": "/v1/charges/ch_1CtgTtG3cz9DRdBtE4l1p4Ub/refunds"
+                },
+                "review": null,
+                "shipping": null,
+                "source": {
+                    "id": "card_1CtgTtG3cz9DRdBtIsCwoH7R",
+                    "object": "card",
+                    "address_city": null,
+                    "address_country": null,
+                    "address_line1": null,
+                    "address_line1_check": null,
+                    "address_line2": null,
+                    "address_state": null,
+                    "address_zip": null,
+                    "address_zip_check": null,
+                    "brand": "Visa",
+                    "country": "US",
+                    "customer": null,
+                    "cvc_check": null,
+                    "dynamic_last4": null,
+                    "exp_month": 7,
+                    "exp_year": 2019,
+                    "fingerprint": "LMHNXKv7kEbxUNL9",
+                    "funding": "credit",
+                    "last4": "4242",
+                    "metadata": {},
+                    "name": null,
+                    "tokenization_method": null
+                },
+                "source_transfer": null,
+                "statement_descriptor": null,
+                "status": "succeeded",
+                "transfer_group": null
+            };
+
+            if (!testStripeLive()) {
+                const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
+                stripeStub.withArgs(sinon.match({
+                    "amount": request.source.maxAmount,
+                    "currency": request.currency,
+                    "metadata": {
+                        "lightrailTransactionId": request.id,
+                        "lightrailTransactionSources": `[{\"rail\":\"lightrail\",\"valueId\":\"${valueCad2ForStripeTests.id}\"}]`,
+                        "lightrailUserId": defaultTestUser.userId
+                    },
+                    "source": "tok_visa"
+                }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-src`)).resolves(exampleStripeResponse);
+            }
 
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
             chai.assert.equal(postTransferResp.statusCode, 201, `body=${JSON.stringify(postTransferResp.body)}`);
@@ -909,6 +1129,7 @@ describe("/v2/transactions/transfer", () => {
                 steps: null,
                 paymentSources: null,
                 metadata: null,
+                tax: null,
                 createdDate: null,
                 createdBy: defaultTestUser.auth.teamMemberId
             }, ["steps", "createdDate"]);
@@ -925,24 +1146,24 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.equal(sourceStep.charge.amount, 900);
             chai.assert.deepEqual(sourceStep.charge.metadata, {
                 "lightrailTransactionId": request.id,
-                "lightrailTransactionSources": "[{\"rail\":\"lightrail\",\"valueId\":\"v-transfer-stripe\"}]",
-                "lightrailUserId": defaultTestUser.auth.userId
+                "lightrailTransactionSources": `[{\"rail\":\"lightrail\",\"valueId\":\"${valueCad2ForStripeTests.id}\"}]`,
+                "lightrailUserId": defaultTestUser.userId
             });
 
-            const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCadForStripeTests.id) as LightrailTransactionStep;
+            const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad2ForStripeTests.id) as LightrailTransactionStep;
             chai.assert.deepEqual(destStep, {
                 rail: "lightrail",
-                valueId: valueCadForStripeTests.id,
+                valueId: valueCad2ForStripeTests.id,
                 code: null,
                 contactId: null,
-                balanceBefore: 1000,
-                balanceAfter: 1900,
+                balanceBefore: 0,
+                balanceAfter: 900,
                 balanceChange: 900
             });
 
-            const getValue3Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCadForStripeTests.id}`, "GET");
-            chai.assert.equal(getValue3Resp.statusCode, 200, `body=${JSON.stringify(getValue3Resp.body)}`);
-            chai.assert.equal(getValue3Resp.body.balance, 1900);
+            const getValue4Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCad2ForStripeTests.id}`, "GET");
+            chai.assert.equal(getValue4Resp.statusCode, 200, `body=${JSON.stringify(getValue4Resp.body)}`);
+            chai.assert.equal(getValue4Resp.body.balance, 900);
 
             const getTransferResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
             chai.assert.equal(getTransferResp.statusCode, 200, `body=${JSON.stringify(getTransferResp.body)}`);
@@ -954,15 +1175,22 @@ describe("/v2/transactions/transfer", () => {
             const destStepFromGet = getTransferResp.body.steps.find((s: LightrailTransactionStep) => s.rail === "lightrail");
             chai.assert.deepEqual(destStepFromGet, destStep);
 
-            const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
-            const stripeChargeId = (postTransferResp.body.steps.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
-            const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
-            });
-            chai.assert.deepEqual(stripeCharge, sourceStep.charge);
-        });
+            if (testStripeLive()) {
+                const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
+                const stripeChargeId = (postTransferResp.body.steps.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
+                const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
+                    stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
+                });
+                chai.assert.deepEqual(stripeCharge, sourceStep.charge);
+            }
+        }).timeout(3000);
 
         it("409s transferring from Stripe with insufficient maxAmount and allowRemainder=false", async () => {
+            if (!testStripeLive()) {
+                const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
+                stripeStub.rejects(new Error("The Stripe stub should never be called in this test"));
+            }
+
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
                 id: "TR-stripe-4",
                 source: {
@@ -981,6 +1209,11 @@ describe("/v2/transactions/transfer", () => {
         });
 
         it("422s transferring to Stripe from Lightrail", async () => {
+            if (!testStripeLive()) {
+                const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
+                stripeStub.rejects(new Error("The Stripe stub should never be called in this test"));
+            }
+
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
                 id: "TR-stripe-5",
                 source: {
@@ -1019,6 +1252,79 @@ describe("/v2/transactions/transfer", () => {
                         valueId: valueCadForStripeTests.id
                     }
                 };
+                const exampleStripeError = {
+                    "type": "StripeInvalidRequestError",
+                    "stack": "Error: Amount must be at least 50 cents\n    at Constructor._Error (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/Error.js:12:17)\n    at Constructor (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/utils.js:124:13)\n    at Constructor (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/utils.js:124:13)\n    at Function.StripeError.generate (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/Error.js:57:12)\n    at IncomingMessage.<anonymous> (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/StripeResource.js:170:39)\n    at emitNone (events.js:110:20)\n    at IncomingMessage.emit (events.js:207:7)\n    at endReadableNT (_stream_readable.js:1059:12)\n    at _combinedTickCallback (internal/process/next_tick.js:138:11)\n    at process._tickDomainCallback (internal/process/next_tick.js:218:9)",
+                    "rawType": "invalid_request_error",
+                    "code": "amount_too_small",
+                    "param": "amount",
+                    "message": "Amount must be at least 50 cents",
+                    "raw": {
+                        "code": "amount_too_small",
+                        "doc_url": "https://stripe.com/docs/error-codes/amount-too-small",
+                        "message": "Amount must be at least 50 cents",
+                        "param": "amount",
+                        "type": "invalid_request_error",
+                        "headers": {
+                            "server": "nginx",
+                            "date": "Tue, 31 Jul 2018 18:20:40 GMT",
+                            "content-type": "application/json",
+                            "content-length": "234",
+                            "connection": "close",
+                            "access-control-allow-credentials": "true",
+                            "access-control-allow-methods": "GET, POST, HEAD, OPTIONS, DELETE",
+                            "access-control-allow-origin": "*",
+                            "access-control-expose-headers": "Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required",
+                            "access-control-max-age": "300",
+                            "cache-control": "no-cache, no-store",
+                            "idempotency-key": "TR-insuff-stripe-amount-src",
+                            "original-request": "req_EOTu9MIhTiAogt",
+                            "request-id": "req_8nO7UdD8hP3DAv",
+                            "stripe-account": "acct_1CfBBRG3cz9DRdBt",
+                            "stripe-version": "2018-05-21",
+                            "strict-transport-security": "max-age=31556926; includeSubDomains; preload"
+                        },
+                        "statusCode": 400,
+                        "requestId": "req_8nO7UdD8hP3DAv"
+                    },
+                    "headers": {
+                        "server": "nginx",
+                        "date": "Tue, 31 Jul 2018 18:20:40 GMT",
+                        "content-type": "application/json",
+                        "content-length": "234",
+                        "connection": "close",
+                        "access-control-allow-credentials": "true",
+                        "access-control-allow-methods": "GET, POST, HEAD, OPTIONS, DELETE",
+                        "access-control-allow-origin": "*",
+                        "access-control-expose-headers": "Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required",
+                        "access-control-max-age": "300",
+                        "cache-control": "no-cache, no-store",
+                        "idempotency-key": "TR-insuff-stripe-amount-src",
+                        "original-request": "req_EOTu9MIhTiAogt",
+                        "request-id": "req_8nO7UdD8hP3DAv",
+                        "stripe-account": "acct_1CfBBRG3cz9DRdBt",
+                        "stripe-version": "2018-05-21",
+                        "strict-transport-security": "max-age=31556926; includeSubDomains; preload"
+                    },
+                    "requestId": "req_8nO7UdD8hP3DAv",
+                    "statusCode": 400
+                };
+                const exampleErrorResponse = new StripeRestError(422, "Error for tests: Stripe minimum not met", "StripeAmountTooSmall", exampleStripeError);
+
+                if (!testStripeLive()) {
+                    const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
+                    stripeStub.withArgs(sinon.match({
+                        "amount": request.amount,
+                        "currency": request.currency,
+                        "metadata": {
+                            "lightrailTransactionId": request.id,
+                            "lightrailTransactionSources": `[{\"rail\":\"lightrail\",\"valueId\":\"${valueCadForStripeTests.id}\"}]`,
+                            "lightrailUserId": defaultTestUser.userId
+                        },
+                        "source": "tok_visa"
+                    }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-src`)).rejects(exampleErrorResponse);
+                }
+
                 const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
                 chai.assert.equal(postTransferResp.statusCode, 422, `body=${JSON.stringify(postTransferResp.body)}`);
                 chai.assert.isNotNull((postTransferResp.body as any).messageCode, `body=${JSON.stringify(postTransferResp.body)}`);

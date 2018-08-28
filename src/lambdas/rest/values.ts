@@ -282,6 +282,7 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 paymentSources: null,
                 metadata: null,
                 createdDate: value.createdDate,
+                tax: null,
                 createdBy: auth.teamMemberId
             };
             const initialBalanceTransactionStep: LightrailDbTransactionStep = {
@@ -439,7 +440,7 @@ function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partial
         contactId: null,
         canceled: false,
         frozen: false,
-        metadata: null,
+        metadata: {},
         createdDate: now,
         updatedDate: now,
         createdBy: auth.teamMemberId,
@@ -454,9 +455,10 @@ function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partial
             discount: program ? program.discount : false,
             discountSellerLiability: program ? program.discountSellerLiability : null,
             startDate: program ? program.startDate : null,
-            endDate: program ? program.endDate : null,
+            endDate: program ? program.endDate : null
         })
     };
+    value.metadata = {...(program && program.metadata ? program.metadata : {}), ...value.metadata};
 
     if (generateCodeParameters) {
         checkCodeParameters(generateCodeParameters, value.code, value.isGenericCode);
@@ -485,17 +487,20 @@ function checkValueProperties(value: Value, program: Program = null): void {
     if (value.startDate > value.endDate) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Property startDate cannot exceed endDate.");
     }
+    if (!value.currency) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Property currency cannot be null. Please provide a currency or a programId.");
+    }
 }
 
 function checkProgramConstraints(value: Value, program: Program): void {
-    if (program.fixedInitialBalances && (program.fixedInitialBalances.indexOf(value.balance) === -1 || !value.balance)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} outside initial values defined by Program ${program.fixedInitialBalances}.`);
+    if (program.fixedInitialBalances && (program.fixedInitialBalances.indexOf(value.balance) === -1 || value.balance === null)) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} is outside fixedInitialBalances defined by Program ${program.fixedInitialBalances}.`);
     }
-    if (program.minInitialBalance && (value.balance < program.minInitialBalance || !value.balance)) {
+    if (program.minInitialBalance !== null && (value.balance < program.minInitialBalance || value.balance === null)) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} is less than minInitialBalance ${program.minInitialBalance}.`);
     }
-    if (program.maxInitialBalance && (value.balance > program.maxInitialBalance || !value.balance)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} is less than minInitialBalance ${program.minInitialBalance}.`);
+    if (program.maxInitialBalance !== null && (value.balance > program.maxInitialBalance || value.balance === null)) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} is greater than maxInitialBalance ${program.maxInitialBalance}.`);
     }
 
     if (program.fixedInitialUses && (program.fixedInitialUses.indexOf(value.uses) === -1 || !value.uses)) {

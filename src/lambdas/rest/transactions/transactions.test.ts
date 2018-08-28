@@ -293,6 +293,9 @@ describe("/v2/transactions", () => {
                     }
                 ],
                 metadata: null,
+                tax: {
+                    "roundingMode": "HALF_EVEN"
+                },
                 createdDate: null,
                 createdBy: defaultTestUser.auth.teamMemberId,
             }, "createdDate");

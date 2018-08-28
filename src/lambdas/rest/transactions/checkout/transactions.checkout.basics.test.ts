@@ -102,6 +102,9 @@ describe("/v2/transactions/checkout - basics", () => {
                 }
             ],
             metadata: null,
+            tax: {
+                "roundingMode": "HALF_EVEN"
+            },
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
@@ -215,6 +218,9 @@ describe("/v2/transactions/checkout - basics", () => {
                 }
             ],
             metadata: null,
+            tax: {
+                "roundingMode": "HALF_EVEN"
+            },
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
@@ -383,6 +389,9 @@ describe("/v2/transactions/checkout - basics", () => {
                 }
             ],
             "metadata": null,
+            tax: {
+                "roundingMode": "HALF_EVEN"
+            },
             "createdDate": null,
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
@@ -486,6 +495,9 @@ describe("/v2/transactions/checkout - basics", () => {
                 }
             ],
             metadata: null,
+            tax: {
+                "roundingMode": "HALF_EVEN"
+            },
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);

@@ -93,7 +93,7 @@ describe("/v2/values/", () => {
             valueRule: null,
             discount: false,
             discountSellerLiability: null,
-            metadata: null,
+            metadata: {},
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate", "updatedDate"]);
         value1 = resp2.body;
@@ -131,7 +131,7 @@ describe("/v2/values/", () => {
             endDate: null,
             discount: false,
             discountSellerLiability: null,
-            metadata: null,
+            metadata: {},
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate", "updatedDate"]);
 
@@ -166,7 +166,7 @@ describe("/v2/values/", () => {
             endDate: null,
             discount: false,
             discountSellerLiability: null,
-            metadata: null,
+            metadata: {},
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate", "updatedDate"]);
     });
@@ -360,6 +360,15 @@ describe("/v2/values/", () => {
         const valueResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", value);
         chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
         chai.assert.equal(valueResp.body.message, "Property startDate cannot exceed endDate.");
+    });
+
+    it("if no currency or programId is provided during value creation returns a 422", async () => {
+        let value: Partial<Value> = {
+            id: generateId()
+        };
+        const valueResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", value);
+        chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
+        chai.assert.equal(valueResp.body.message, "Property currency cannot be null. Please provide a currency or a programId.");
     });
 
     it("can't create Value with discount = false and discountSellerLiability", async () => {
@@ -1239,7 +1248,7 @@ describe("/v2/values/", () => {
                     updatedDate: idAndDate.createdDate
                 }));
             if (res === 0) {
-                chai.assert.fail(`no row updated. test is broken`)
+                chai.assert.fail(`no row updated. test is broken`);
             }
         }
         const resp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/values?createdDate.gt=3030-01-01", "GET");

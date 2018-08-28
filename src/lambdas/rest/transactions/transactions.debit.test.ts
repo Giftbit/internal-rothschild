@@ -72,6 +72,7 @@ describe("/v2/transactions/debit", () => {
             lineItems: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
@@ -126,6 +127,7 @@ describe("/v2/transactions/debit", () => {
             lineItems: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
@@ -182,6 +184,7 @@ describe("/v2/transactions/debit", () => {
             lineItems: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
@@ -242,6 +245,7 @@ describe("/v2/transactions/debit", () => {
             lineItems: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
@@ -284,6 +288,7 @@ describe("/v2/transactions/debit", () => {
             lineItems: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);

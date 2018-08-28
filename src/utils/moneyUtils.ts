@@ -1,5 +1,7 @@
 "use strict";
 
+import {TaxRoundingMode} from "../model/TaxProperties";
+
 /**
  * Bankers rounding is to help make results that end in .5 from always rounding up.
  * The problem with always rounding up on .5's in respect to money is that it is favoured.
@@ -22,4 +24,15 @@ export function bankersRounding(num, decimalPlaces) {
         Math.round(n);
 
     return d ? r / m : r;
+}
+
+export function roundTax(tax: number, mode: TaxRoundingMode) {
+    switch (mode) {
+        case "HALF_EVEN":
+            return bankersRounding(tax, 0);
+        case "HALF_UP":
+            return Math.round(tax);
+        default:
+            throw new Error(`Unexpected mode: ${mode}.`);
+    }
 }

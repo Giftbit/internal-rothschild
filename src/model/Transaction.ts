@@ -4,6 +4,7 @@ import {getKnexRead} from "../utils/dbUtils/connection";
 import {LineItem} from "./LineItem";
 import {TransactionParty} from "./TransactionRequest";
 import {LightrailDbTransactionStep} from "./Transaction";
+import {TaxRequestProperties} from "./TaxProperties";
 
 export interface Transaction {
     id: string;
@@ -17,6 +18,7 @@ export interface Transaction {
     createdDate: Date;
     createdBy: string;
     metadata: object | null;
+    tax: TaxRequestProperties | null;
 }
 
 export interface DbTransaction {
@@ -30,6 +32,7 @@ export interface DbTransaction {
     createdDate: Date;
     createdBy: string;
     metadata: string | null;
+    tax: string | null;
 }
 
 export namespace Transaction {
@@ -44,6 +47,7 @@ export namespace Transaction {
             lineItems: JSON.stringify(t.lineItems),
             paymentSources: JSON.stringify(t.paymentSources),
             metadata: JSON.stringify(t.metadata),
+            tax: JSON.stringify(t.tax),
             createdDate: t.createdDate,
             createdBy: t.createdBy,
         };
@@ -74,6 +78,7 @@ export namespace DbTransaction {
                 paymentSources: JSON.parse(t.paymentSources),
                 steps: dbSteps.filter(s => s.transactionId === t.id).map(DbTransactionStep.toTransactionStep),
                 metadata: JSON.parse(t.metadata),
+                tax: JSON.parse(t.tax),
                 createdDate: t.createdDate,
                 createdBy: t.createdBy
             };

@@ -70,6 +70,7 @@ describe("/v2/transactions/credit", () => {
             lineItems: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
@@ -125,6 +126,7 @@ describe("/v2/transactions/credit", () => {
             lineItems: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
@@ -181,6 +183,7 @@ describe("/v2/transactions/credit", () => {
             lineItems: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
@@ -241,6 +244,7 @@ describe("/v2/transactions/credit", () => {
             lineItems: null,
             paymentSources: null,
             metadata: null,
+            tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);

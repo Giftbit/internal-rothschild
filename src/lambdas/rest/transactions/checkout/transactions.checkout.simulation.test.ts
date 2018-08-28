@@ -80,7 +80,7 @@ describe("/v2/transactions/checkout - simulation tests", () => {
             ],
             currency: "CAD"
         };
-        const checkoutResponse = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", request);
+        const checkoutResponse = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
         chai.assert.equal(checkoutResponse.statusCode, 200, `body=${JSON.stringify(checkoutResponse.body)}`);
         chai.assert.deepEqualExcluding(checkoutResponse.body, {
             "id": request.id,
@@ -156,7 +156,11 @@ describe("/v2/transactions/checkout - simulation tests", () => {
                 }
             ],
             "metadata": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            tax: {
+                "roundingMode": "HALF_EVEN"
+            },
+            "createdDate": null,
+            "createdBy": defaultTestUser.auth.teamMemberId,
         }, ["createdDate"]);
 
         const giftCardBalance = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");

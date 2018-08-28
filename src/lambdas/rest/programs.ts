@@ -173,7 +173,7 @@ async function getPrograms(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filte
 
 async function createProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, program: Program): Promise<Program> {
     auth.requireIds("userId");
-
+    checkProgramProperties(program);
     try {
         const knex = await getKnexWrite();
         await knex("Programs")
@@ -189,6 +189,12 @@ async function createProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pro
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${program.currency}' does not exist. See the documentation on creating currencies.`, "CurrencyNotFound");
         }
         throw err;
+    }
+}
+
+function checkProgramProperties(program: Program): void {
+    if (program.minInitialBalance && program.maxInitialBalance && program.minInitialBalance > program.maxInitialBalance) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Program's minInitialBalance cannot exceed maxInitialBalance.")
     }
 }
 

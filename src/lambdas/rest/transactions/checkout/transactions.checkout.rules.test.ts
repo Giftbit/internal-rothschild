@@ -7,6 +7,7 @@ import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
 import {getRuleFromCache} from "../getRuleFromCache";
 import {createCurrency} from "../../currencies";
+import {Transaction} from "../../../../model/Transaction";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -89,7 +90,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             currency: "CAD"
         };
 
-        const postCheckoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(postCheckoutResp.body, {
             "id": checkoutRequest.id,
@@ -152,6 +153,10 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 }
             ],
             "metadata": null,
+            tax: {
+                "roundingMode": "HALF_EVEN"
+            },
+            "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
     });
@@ -202,7 +207,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             currency: "CAD"
         };
 
-        const postCheckoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(postCheckoutResp.body, {
             "id": checkoutRequest.id,
@@ -265,6 +270,10 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 }
             ],
             "metadata": null,
+            tax: {
+                "roundingMode": "HALF_EVEN"
+            },
+            "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
     });
@@ -337,7 +346,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             currency: "CAD"
         };
 
-        const postOrderResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        const postOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
         chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
         chai.assert.deepEqualExcluding(postOrderResp.body, {
             "id": checkoutRequest.id,
@@ -413,6 +422,10 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 }
             ],
             "metadata": null,
+            tax: {
+                "roundingMode": "HALF_EVEN"
+            },
+            "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
     });
@@ -501,7 +514,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             currency: "CAD"
         };
 
-        const postOrderResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        const postOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
         chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
         chai.assert.deepEqualExcluding(postOrderResp.body, {
             "id": checkoutRequest.id,
@@ -604,6 +617,10 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 }
             ],
             "metadata": null,
+            tax: {
+                "roundingMode": "HALF_EVEN"
+            },
+            "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
     });
@@ -654,7 +671,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             currency: "CAD"
         };
 
-        const postCheckoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(postCheckoutResp.body, {
             "id": checkoutRequest.id,
@@ -717,6 +734,10 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 }
             ],
             "metadata": null,
+            tax: {
+                "roundingMode": "HALF_EVEN"
+            },
+            "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
@@ -729,7 +750,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             id: generateId()
         };
 
-        const checkoutResponseTwo = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkoutRequestTwo);
+        const checkoutResponseTwo = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequestTwo);
         chai.assert.deepEqualExcluding(checkoutResponseTwo.body, {
             "id": checkoutRequestTwo.id,
             "transactionType": "checkout",
@@ -781,6 +802,10 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 }
             ],
             "metadata": null,
+            tax: {
+                "roundingMode": "HALF_EVEN"
+            },
+            "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
     });
@@ -840,7 +865,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             currency: "CAD"
         };
 
-        const postCheckoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(postCheckoutResp.body, {
             "id": checkoutRequest.id,
@@ -900,6 +925,10 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 }
             ],
             "metadata": null,
+            tax: {
+                "roundingMode": "HALF_EVEN"
+            },
+            "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
     });
