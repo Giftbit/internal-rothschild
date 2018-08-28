@@ -3,7 +3,7 @@ import * as chai from "chai";
 import * as transactions from "../transactions";
 import * as valueStores from "../../values";
 import * as testUtils from "../../../../utils/testUtils";
-import {generateId} from "../../../../utils/testUtils";
+import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
@@ -101,7 +101,8 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
             tax: {
                 roundingMode: "HALF_UP"
             },
-            createdDate: null
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
@@ -182,7 +183,8 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
             tax: {
                 roundingMode: "HALF_EVEN"
             },
-            createdDate: null
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
@@ -260,7 +262,8 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
             tax: {
                 roundingMode: "HALF_EVEN"
             },
-            createdDate: null
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");

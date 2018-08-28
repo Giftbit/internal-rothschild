@@ -739,7 +739,7 @@ describe("split tender checkout with Stripe", () => {
             "livemode": false,
             "metadata": {
                 "meta": "data",
-                "lightrailTransactionId": "5da970ea-80db-4c91-9",
+                "lightrailTransactionId": request.id,
                 "lightrailTransactionSources": "[]",
                 "lightrailUserId": "default-test-user-TEST"
             },
