@@ -6,7 +6,6 @@ import {Value} from "../../../model/Value";
 import {Transaction} from "../../../model/Transaction";
 import * as currencies from "../currencies";
 import {installRestRoutes} from "../installRestRoutes";
-import {getCreatedBy} from "../../../utils/createdBy";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -72,7 +71,7 @@ describe("/v2/transactions/credit", () => {
             paymentSources: null,
             metadata: null,
             createdDate: null,
-            createdBy: getCreatedBy(defaultTestUser.auth)
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
@@ -127,7 +126,7 @@ describe("/v2/transactions/credit", () => {
             paymentSources: null,
             metadata: null,
             createdDate: null,
-            createdBy: getCreatedBy(defaultTestUser.auth)
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueSecretCode.id}`, "GET");
@@ -183,7 +182,7 @@ describe("/v2/transactions/credit", () => {
             paymentSources: null,
             metadata: null,
             createdDate: null,
-            createdBy: getCreatedBy(defaultTestUser.auth)
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueGenericCode.id}`, "GET");
@@ -243,7 +242,7 @@ describe("/v2/transactions/credit", () => {
             paymentSources: null,
             metadata: null,
             createdDate: null,
-            createdBy: getCreatedBy(defaultTestUser.auth)
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");

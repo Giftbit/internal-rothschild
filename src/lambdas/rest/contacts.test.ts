@@ -7,7 +7,6 @@ import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {Value} from "../../model/Value";
 import {Currency} from "../../model/Currency";
 import {installRestRoutes} from "./installRestRoutes";
-import {getCreatedBy} from "../../utils/createdBy";
 import chaiExclude = require("chai-exclude");
 import parseLinkHeader = require("parse-link-header");
 
@@ -51,7 +50,7 @@ describe("/v2/contacts", () => {
         chai.assert.equal(resp.statusCode, 201);
         chai.assert.deepEqualExcluding(resp.body, {
             ...contact1,
-            createdBy: getCreatedBy(defaultTestUser.auth)
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate", "updatedDate", "metadata"]);
         contact1 = resp.body;
     });
@@ -131,7 +130,7 @@ describe("/v2/contacts", () => {
             firstName: null,
             lastName: null,
             email: null,
-            createdBy: getCreatedBy(defaultTestUser.auth)
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate", "updatedDate", "metadata"]);
         chai.assert.equal(resp.statusCode, 201);
         contact2 = resp.body;
@@ -197,11 +196,11 @@ describe("/v2/contacts", () => {
         chai.assert.deepEqual(resp.body, [
             {
                 ...contact2,
-                createdBy: getCreatedBy(defaultTestUser.auth)
+                createdBy: defaultTestUser.auth.teamMemberId
             },
             {
                 ...contact1,
-                createdBy: getCreatedBy(defaultTestUser.auth)
+                createdBy: defaultTestUser.auth.teamMemberId
             }
         ]);
         chai.assert.equal(resp.headers["Limit"], "100");
@@ -214,11 +213,11 @@ describe("/v2/contacts", () => {
         chai.assert.deepEqualExcludingEvery(resp.body, [
             {
                 ...contact2,
-                createdBy: getCreatedBy(defaultTestUser.auth)
+                createdBy: defaultTestUser.auth.teamMemberId
             },
             {
                 ...contact1,
-                createdBy: getCreatedBy(defaultTestUser.auth)
+                createdBy: defaultTestUser.auth.teamMemberId
             }
         ], ["createdDate", "updatedDate"]); // TODO don't ignore dates if my issue gets resolved https://github.com/mholt/PapaParse/issues/502
         chai.assert.equal(resp.headers["Limit"], "100");
@@ -246,7 +245,7 @@ describe("/v2/contacts", () => {
             ...contact4,
             lastName: null,
             email: null,
-            createdBy: getCreatedBy(defaultTestUser.auth)
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate", "updatedDate"]);
         contact4 = resp.body;
     });
@@ -254,7 +253,7 @@ describe("/v2/contacts", () => {
     it("can get the contact with metadata", async () => {
         const resp = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/${contact4.id}`, "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.deepEqual(resp.body, {...contact4, createdBy: getCreatedBy(defaultTestUser.auth)});
+        chai.assert.deepEqual(resp.body, {...contact4, createdBy: defaultTestUser.auth.teamMemberId});
     });
 
     it("can delete a Contact that is not in use", async () => {
@@ -318,14 +317,14 @@ describe("/v2/contacts", () => {
         chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
         chai.assert.deepEqualExcluding(resp1.body, {
             ...contact,
-            createdBy: getCreatedBy(defaultTestUser.auth)
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate", "updatedDate"]);
 
         const resp2 = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/${contact.id}`, "GET", contact);
         chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
         chai.assert.deepEqualExcluding(resp2.body, {
             ...contact,
-            createdBy: getCreatedBy(defaultTestUser.auth)
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate", "updatedDate"]);
     });
 
@@ -668,7 +667,7 @@ describe("/v2/contacts", () => {
                 contact.userId = defaultTestUser.userId;
                 contact.createdDate = new Date();
                 contact.updatedDate = new Date();
-                contact.createdBy = getCreatedBy(defaultTestUser.auth);
+                contact.createdBy = defaultTestUser.auth.teamMemberId;
             }
             const knex = await getKnexWrite();
             await knex("Contacts").insert(contacts);

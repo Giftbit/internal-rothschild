@@ -21,7 +21,6 @@ import {getProgram} from "./programs";
 import {Program} from "../../model/Program";
 import * as Knex from "knex";
 import {GenerateCodeParameters} from "../../model/GenerateCodeParameters";
-import {getCreatedBy} from "../../utils/createdBy";
 
 export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
@@ -283,7 +282,7 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 paymentSources: null,
                 metadata: null,
                 createdDate: value.createdDate,
-                createdBy: getCreatedBy(auth)
+                createdBy: auth.teamMemberId
             };
             const initialBalanceTransactionStep: LightrailDbTransactionStep = {
                 userId: auth.userId,
@@ -443,7 +442,7 @@ function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partial
         metadata: null,
         createdDate: now,
         updatedDate: now,
-        createdBy: getCreatedBy(auth),
+        createdBy: auth.teamMemberId,
         ...partialValue,
         ...pickOrDefault(partialValue, {
             currency: program ? program.currency : null,

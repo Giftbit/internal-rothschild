@@ -9,7 +9,6 @@ import {executeTransactionPlan} from "./executeTransactionPlan";
 import {DbCurrency} from "../../../model/Currency";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
-import {getCreatedBy} from "../../../utils/createdBy";
 
 describe("rest/transactions/executeTransactionPlan", () => {
 
@@ -60,7 +59,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             metadata: "null",
             createdDate: new Date(),
             updatedDate: new Date(),
-            createdBy: getCreatedBy(defaultTestUser.auth)
+            createdBy: defaultTestUser.auth.teamMemberId
         };
 
         const knex = await getKnexWrite();
@@ -131,7 +130,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             metadata: "null",
             createdDate: new Date(),
             updatedDate: new Date(),
-            createdBy: getCreatedBy(defaultTestUser.auth)
+            createdBy: defaultTestUser.auth.teamMemberId
         };
 
         const knex = await getKnexWrite();

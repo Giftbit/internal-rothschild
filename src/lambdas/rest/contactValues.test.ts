@@ -9,7 +9,6 @@ import {createContact} from "./contacts";
 import {Currency} from "../../model/Currency";
 import {createCurrency} from "./currencies";
 import {Value} from "../../model/Value";
-import {getCreatedBy} from "../../utils/createdBy";
 
 describe("/v2/contacts/values", () => {
 
@@ -37,7 +36,7 @@ describe("/v2/contacts/values", () => {
         metadata: null,
         createdDate: new Date(),
         updatedDate: new Date(),
-        createdBy: getCreatedBy(defaultTestUser.auth)
+        createdBy: defaultTestUser.auth.teamMemberId
     };
 
     let value1: Value;
@@ -225,7 +224,7 @@ describe("/v2/contacts/values", () => {
         metadata: null,
         createdDate: new Date(),
         updatedDate: new Date(),
-        createdBy: getCreatedBy(defaultTestUser.auth)
+        createdBy: defaultTestUser.auth.teamMemberId
     };
 
     it("can list values attached to a contact", async () => {

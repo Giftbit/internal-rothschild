@@ -13,7 +13,6 @@ import {
     stripeEnvVarsPresent,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
-import {getCreatedBy} from "../../../../utils/createdBy";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -189,7 +188,7 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             "paymentSources": null,
             "metadata": null,
             "createdDate": null,
-            "createdBy": getCreatedBy(defaultTestUser.auth)
+            "createdBy": defaultTestUser.auth.teamMemberId
         }, ["createdDate", "steps", "paymentSources"]);
 
         chai.assert.deepEqual(postCheckoutResp.body.steps[0], {
@@ -356,7 +355,7 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             ],
             "metadata": null,
             "createdDate": null,
-            "createdBy": getCreatedBy(defaultTestUser.auth)
+            "createdBy": defaultTestUser.auth.teamMemberId
         }, ["createdDate", "steps"]);
 
         const step1 = postCheckoutResp.body.steps.find(step => (step as LightrailTransactionStep).valueId === valueSecretCode.id);

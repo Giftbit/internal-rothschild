@@ -7,7 +7,6 @@ import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
 import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
-import {getCreatedBy} from "../../../../utils/createdBy";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -157,7 +156,7 @@ describe("/v2/transactions/checkout - simulation tests", () => {
                 }
             ],
             "metadata": null,
-            "createdBy": getCreatedBy(defaultTestUser.auth)
+            "createdBy": defaultTestUser.auth.teamMemberId
         }, ["createdDate"]);
 
         const giftCardBalance = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");

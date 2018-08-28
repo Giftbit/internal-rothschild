@@ -18,7 +18,6 @@ import {LightrailTransactionParty, TransactionParty} from "../../../model/Transa
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {codeLastFour} from "../../../model/DbCode";
-import {getCreatedBy} from "../../../utils/createdBy";
 
 export interface TransactionPlan {
     id: string;
@@ -164,7 +163,7 @@ export namespace TransactionPlan {
             lineItems: JSON.stringify(plan.lineItems),
             paymentSources: JSON.stringify(plan.paymentSources),
             metadata: JSON.stringify(plan.metadata),
-            createdBy: getCreatedBy(auth)
+            createdBy: auth.teamMemberId
         };
     }
 
@@ -176,7 +175,7 @@ export namespace TransactionPlan {
             steps: plan.steps.map(step => transactionPlanStepToTransactionStep(step)),
             paymentSources: plan.paymentSources && getSanitizedPaymentSources(plan),
             metadata: plan.metadata || null,
-            createdBy: getCreatedBy(auth),
+            createdBy: auth.teamMemberId,
         };
         if (simulated) {
             transaction.simulated = true;

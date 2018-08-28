@@ -12,7 +12,6 @@ import {
     unsetStubsForStripeTests
 } from "../../../utils/testUtils/stripeTestUtils";
 import {createCurrency} from "../currencies";
-import {getCreatedBy} from "../../../utils/createdBy";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -98,7 +97,7 @@ describe("/v2/transactions/transfer", () => {
             paymentSources: null,
             metadata: null,
             createdDate: null,
-            createdBy: getCreatedBy(defaultTestUser.auth)
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["steps", "createdDate"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
@@ -183,7 +182,7 @@ describe("/v2/transactions/transfer", () => {
             paymentSources: null,
             metadata: null,
             createdDate: null,
-            createdBy: getCreatedBy(defaultTestUser.auth)
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["steps", "createdDate"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
@@ -268,7 +267,7 @@ describe("/v2/transactions/transfer", () => {
             paymentSources: null,
             metadata: null,
             createdDate: null,
-            createdBy: getCreatedBy(defaultTestUser.auth)
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["steps", "createdDate"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
@@ -354,7 +353,7 @@ describe("/v2/transactions/transfer", () => {
             paymentSources: null,
             metadata: null,
             createdDate: null,
-            createdBy: getCreatedBy(defaultTestUser.auth)
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["steps", "createdDate"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
@@ -440,7 +439,7 @@ describe("/v2/transactions/transfer", () => {
             paymentSources: null,
             metadata: null,
             createdDate: null,
-            createdBy: getCreatedBy(defaultTestUser.auth)
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["steps", "createdDate"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
@@ -524,7 +523,7 @@ describe("/v2/transactions/transfer", () => {
             paymentSources: null,
             metadata: null,
             createdDate: null,
-            createdBy: getCreatedBy(defaultTestUser.auth)
+            createdBy: defaultTestUser.auth.teamMemberId
         };
         chai.assert.equal(postTransferResp.statusCode, 200, `body=${JSON.stringify(postTransferResp.body)}`);
         chai.assert.deepEqualExcluding(postTransferResp.body, validObject, ["steps", "createdDate"]);
@@ -589,7 +588,7 @@ describe("/v2/transactions/transfer", () => {
             paymentSources: null,
             metadata: null,
             createdDate: null,
-            createdBy: getCreatedBy(defaultTestUser.auth)
+            createdBy: defaultTestUser.auth.teamMemberId
         }, ["steps", "createdDate"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
@@ -811,7 +810,7 @@ describe("/v2/transactions/transfer", () => {
                 paymentSources: null,
                 metadata: null,
                 createdDate: null,
-                createdBy: getCreatedBy(defaultTestUser.auth)
+                createdBy: defaultTestUser.auth.teamMemberId
             }, ["steps", "createdDate"]);
             chai.assert.lengthOf(postTransferResp.body.steps, 2);
             chai.assert.equal(postTransferResp.body.steps[0].rail, "stripe");
@@ -911,7 +910,7 @@ describe("/v2/transactions/transfer", () => {
                 paymentSources: null,
                 metadata: null,
                 createdDate: null,
-                createdBy: getCreatedBy(defaultTestUser.auth)
+                createdBy: defaultTestUser.auth.teamMemberId
             }, ["steps", "createdDate"]);
             chai.assert.lengthOf(postTransferResp.body.steps, 2);
             chai.assert.equal(postTransferResp.body.steps[0].rail, "stripe");
