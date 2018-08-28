@@ -222,7 +222,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                 canceled: {
                     type: "boolean"
                 },
-                preTax: {
+                pretax: {
                     type: "boolean"
                 },
                 startDate: {
