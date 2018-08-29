@@ -158,7 +158,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
     });
 
     it("basic 25% off select item", async () => {
@@ -275,7 +275,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
     });
 
     it("basic 10% off everything, and 20% off product promotion. ensure promotions don't stack and 20% is used.", async () => {
@@ -427,7 +427,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
     });
 
     it("basic 10% off everything, 20% off product promotion, and remainder on gift card. ensure promotions don't stack and 20% is used.", async () => {
@@ -622,7 +622,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
     });
 
     it("basic 32% off select item, single use. test it can't be transacted against again.", async () => {
@@ -739,7 +739,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
 
         const lookupAfterCheckout = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${promotion.id}`, "GET", promotion);
         chai.assert.equal(lookupAfterCheckout.statusCode, 200, `body=${JSON.stringify(lookupAfterCheckout.body)}`);
@@ -807,7 +807,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
     });
 
     it("stacking promotions: basic 10% off subtotal, 20% off remainder. ensure promotion that operates on remainder is used first", async () => {
@@ -930,6 +930,6 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
     });
 });

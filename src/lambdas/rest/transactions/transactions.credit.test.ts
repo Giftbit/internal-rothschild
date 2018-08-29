@@ -73,7 +73,7 @@ describe("/v2/transactions/credit", () => {
             tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(postValueResp.body)}`);
@@ -129,7 +129,7 @@ describe("/v2/transactions/credit", () => {
             tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueSecretCode.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(postValueResp.body)}`);
@@ -186,7 +186,7 @@ describe("/v2/transactions/credit", () => {
             tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueGenericCode.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(postValueResp.body)}`);
@@ -247,7 +247,7 @@ describe("/v2/transactions/credit", () => {
             tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);

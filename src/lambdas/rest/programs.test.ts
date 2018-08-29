@@ -64,7 +64,7 @@ describe("/v2/programs", () => {
             createdDate: null,
             updatedDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "updatedDate"]);
+        }, ["createdDate", "updatedDate", "createdBy"]);
         chai.assert.isNotNull(resp.body.createdDate);
         chai.assert.isNotNull(resp.body.updatedDate);
         programResponse = resp.body;

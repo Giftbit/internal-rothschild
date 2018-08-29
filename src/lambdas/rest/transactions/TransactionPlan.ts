@@ -166,7 +166,7 @@ export namespace TransactionPlan {
             paymentSources: JSON.stringify(plan.paymentSources),
             metadata: JSON.stringify(plan.metadata),
             tax: JSON.stringify(plan.tax),
-            createdBy: auth.teamMemberId
+            createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
         };
     }
 
@@ -178,7 +178,7 @@ export namespace TransactionPlan {
             steps: plan.steps.map(step => transactionPlanStepToTransactionStep(step)),
             paymentSources: plan.paymentSources && getSanitizedPaymentSources(plan),
             metadata: plan.metadata || null,
-            createdBy: auth.teamMemberId,
+            createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
         };
         if (simulated) {
             transaction.simulated = true;

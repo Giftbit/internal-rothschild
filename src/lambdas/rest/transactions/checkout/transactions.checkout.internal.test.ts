@@ -140,7 +140,7 @@ describe("/v2/transactions/checkout - internal sources", () => {
             },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.deepEqual(getCheckoutResp.body, postCheckoutResp.body);
     });
@@ -279,7 +279,7 @@ describe("/v2/transactions/checkout - internal sources", () => {
             },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["steps"]);
         chai.assert.includeDeepMembers(getCheckoutResp.body.steps, postCheckoutResp.body.steps);
@@ -391,7 +391,7 @@ describe("/v2/transactions/checkout - internal sources", () => {
             },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["steps"]);
         chai.assert.includeDeepMembers(getCheckoutResp.body.steps, postCheckoutResp.body.steps);

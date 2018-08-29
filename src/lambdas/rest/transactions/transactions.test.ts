@@ -298,7 +298,7 @@ describe("/v2/transactions", () => {
                 },
                 createdDate: null,
                 createdBy: defaultTestUser.auth.teamMemberId,
-            }, "createdDate");
+            }, ["createdDate", "createdBy"]);
         });
     });
 
