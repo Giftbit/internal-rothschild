@@ -36,7 +36,8 @@ describe("/v2/contacts/values", () => {
         metadata: null,
         createdDate: new Date(),
         updatedDate: new Date(),
-        createdBy: defaultTestUser.auth.teamMemberId
+        createdBy: defaultTestUser.auth.userId
+        // createdBy: defaultTestUser.auth.teamMemberId  // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
     };
 
     let value1: Value;
@@ -224,7 +225,8 @@ describe("/v2/contacts/values", () => {
         metadata: null,
         createdDate: new Date(),
         updatedDate: new Date(),
-        createdBy: defaultTestUser.auth.teamMemberId
+        createdBy: defaultTestUser.auth.userId
+        // createdBy: defaultTestUser.auth.teamMemberId  // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
     };
 
     it("can list values attached to a contact", async () => {

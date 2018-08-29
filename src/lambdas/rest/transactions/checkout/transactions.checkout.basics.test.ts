@@ -107,7 +107,7 @@ describe("/v2/transactions/checkout - basics", () => {
             },
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
 
         const getValueStoreResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
         chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(getValueStoreResp.body)}`);
@@ -223,7 +223,7 @@ describe("/v2/transactions/checkout - basics", () => {
             },
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
 
         const getPromotionVS = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${promotion.id}`, "GET");
         chai.assert.equal(getPromotionVS.statusCode, 200, `body=${JSON.stringify(getPromotionVS.body)}`);
@@ -394,7 +394,7 @@ describe("/v2/transactions/checkout - basics", () => {
             },
             "createdDate": null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
 
         const getPreTaxPromo = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${preTaxPromotion.id}`, "GET");
         chai.assert.equal(getPreTaxPromo.statusCode, 200, `body=${JSON.stringify(getPreTaxPromo.body)}`);
@@ -500,7 +500,7 @@ describe("/v2/transactions/checkout - basics", () => {
             },
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
 
         const getValueStoreResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
         chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(getValueStoreResp.body)}`);

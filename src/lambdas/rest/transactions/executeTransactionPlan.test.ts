@@ -59,7 +59,8 @@ describe("rest/transactions/executeTransactionPlan", () => {
             metadata: "null",
             createdDate: new Date(),
             updatedDate: new Date(),
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.userId
+            // createdBy: defaultTestUser.auth.teamMemberId  // todo require tmi again
         };
 
         const knex = await getKnexWrite();
@@ -131,7 +132,8 @@ describe("rest/transactions/executeTransactionPlan", () => {
             metadata: "null",
             createdDate: new Date(),
             updatedDate: new Date(),
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.userId
+            // createdBy: defaultTestUser.auth.teamMemberId  // require tmi again
         };
 
         const knex = await getKnexWrite();

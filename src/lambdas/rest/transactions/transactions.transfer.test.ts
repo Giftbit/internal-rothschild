@@ -113,7 +113,7 @@ describe("/v2/transactions/transfer", () => {
             tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["steps", "createdDate"]);
+        }, ["steps", "createdDate", "createdBy"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
         const sourceStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad1.id) as LightrailTransactionStep;
@@ -199,7 +199,7 @@ describe("/v2/transactions/transfer", () => {
             tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["steps", "createdDate"]);
+        }, ["steps", "createdDate", "createdBy"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
         const sourceStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueSecretCode.id);
@@ -285,7 +285,7 @@ describe("/v2/transactions/transfer", () => {
             tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["steps", "createdDate"]);
+        }, ["steps", "createdDate", "createdBy"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
         const sourceStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === basicValue.id);
@@ -372,7 +372,7 @@ describe("/v2/transactions/transfer", () => {
             tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["steps", "createdDate"]);
+        }, ["steps", "createdDate", "createdBy"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
         const sourceStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueGenericCode.id);
@@ -459,7 +459,7 @@ describe("/v2/transactions/transfer", () => {
             tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["steps", "createdDate"]);
+        }, ["steps", "createdDate", "createdBy"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
         const sourceStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === basicValue.id);
@@ -543,7 +543,8 @@ describe("/v2/transactions/transfer", () => {
             metadata: null,
             tax: null,
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.userId
+            // createdBy: defaultTestUser.auth.teamMemberId  // todo require tmi again
         };
         chai.assert.equal(postTransferResp.statusCode, 200, `body=${JSON.stringify(postTransferResp.body)}`);
         chai.assert.deepEqualExcluding(postTransferResp.body, validObject, ["steps", "createdDate"]);
@@ -610,7 +611,7 @@ describe("/v2/transactions/transfer", () => {
             tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["steps", "createdDate"]);
+        }, ["steps", "createdDate", "createdBy"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
         const sourceStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad1.id) as LightrailTransactionStep;
@@ -931,7 +932,7 @@ describe("/v2/transactions/transfer", () => {
                 tax: null,
                 createdDate: null,
                 createdBy: defaultTestUser.auth.teamMemberId
-            }, ["steps", "createdDate"]);
+            }, ["steps", "createdDate", , "createdBy"]);
             chai.assert.lengthOf(postTransferResp.body.steps, 2);
             chai.assert.equal(postTransferResp.body.steps[0].rail, "stripe");
 
@@ -1132,7 +1133,7 @@ describe("/v2/transactions/transfer", () => {
                 tax: null,
                 createdDate: null,
                 createdBy: defaultTestUser.auth.teamMemberId
-            }, ["steps", "createdDate"]);
+            }, ["steps", "createdDate", "createdBy"]);
             chai.assert.lengthOf(postTransferResp.body.steps, 2);
             chai.assert.equal(postTransferResp.body.steps[0].rail, "stripe");
 

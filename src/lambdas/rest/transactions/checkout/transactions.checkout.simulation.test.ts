@@ -161,7 +161,7 @@ describe("/v2/transactions/checkout - simulation tests", () => {
             },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId,
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
 
         const giftCardBalance = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
         chai.assert.equal(giftCardBalance.statusCode, 200, `body=${JSON.stringify(giftCardBalance.body)}`);
