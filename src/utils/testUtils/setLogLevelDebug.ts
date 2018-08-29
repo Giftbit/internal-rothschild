@@ -3,7 +3,7 @@
  * from the command line by the mocha runner.
  */
 
-import * as log from "loglevel";
+import log = require("loglevel");
 import * as logPrefix from "loglevel-plugin-prefix";
 
 const colors = {

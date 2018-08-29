@@ -12,7 +12,7 @@ import {
     nowInDbPrecision
 } from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
-import * as log from "loglevel";
+import log = require("loglevel");
 
 export function installProgramsRest(router: cassava.Router): void {
     router.route("/v2/programs")

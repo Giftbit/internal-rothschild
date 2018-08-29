@@ -1,6 +1,6 @@
 import * as awslambda from "aws-lambda";
 import * as https from "https";
-import * as log from "loglevel";
+import log = require("loglevel");
 import * as url from "url";
 
 log.setLevel(log.levels.DEBUG);
