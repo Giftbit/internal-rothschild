@@ -1,6 +1,6 @@
 import * as aws from "aws-sdk";
 import * as awslambda from "aws-lambda";
-import * as log from "loglevel";
+import log = require("loglevel");
 import {sendCloudFormationResponse} from "../../sendCloudFormationResponse";
 
 log.setLevel(log.levels.DEBUG);

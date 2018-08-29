@@ -1,5 +1,5 @@
 import * as aws from "aws-sdk";
-import * as log from "loglevel";
+import log = require("loglevel");
 import knex = require("knex");
 
 let dbCredentials: { username: string, password: string } = null;

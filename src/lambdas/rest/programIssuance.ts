@@ -7,7 +7,7 @@ import {csvSerializer} from "../../serializers";
 import {pick, pickNotNull, pickOrDefault} from "../../utils/pick";
 import {dateInDbPrecision, filterAndPaginateQuery, nowInDbPrecision} from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
-import * as log from "loglevel";
+import log = require("loglevel");
 import {DbIssuance, Issuance} from "../../model/Issuance";
 import {getProgram} from "./programs";
 import {Value} from "../../model/Value";
