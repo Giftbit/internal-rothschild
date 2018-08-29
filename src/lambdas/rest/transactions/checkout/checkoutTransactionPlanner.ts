@@ -6,20 +6,23 @@ import log = require("loglevel");
 
 export function optimizeCheckout(checkout: CheckoutRequest, steps: TransactionPlanStep[]): TransactionPlan {
     let bestPlan: TransactionPlan = null;
+
+    log.info(`Getting checkout permutations.`);
     const permutations = getAllPermutations(steps);
-    if (permutations.length > 0) {
-        for (const perm of permutations) {
-            log.info(`Calculating transaction plan for permutation: ${JSON.stringify(perm)}.`);
-            let newPlan = calculateCheckoutTransactionPlan(checkout, perm.preTaxSteps, perm.postTaxSteps);
-            log.info(`Calculated new transaction plan: ${JSON.stringify(newPlan)}.`);
-            if (!bestPlan || (newPlan.totals.payable < bestPlan.totals.payable)) {
-                bestPlan = newPlan;
-                log.info(`Found a better transaction plan: ${JSON.stringify(bestPlan)}`);
-            } else {
-                log.info(`Old bestPlan's payable ${bestPlan.totals.payable} < new plan's payable ${newPlan.totals.payable}.`);
-            }
+
+    for (const perm of permutations) {
+        log.info(`Calculating transaction plan for permutation: ${JSON.stringify(perm)}.`);
+        let newPlan = calculateCheckoutTransactionPlan(checkout, perm.preTaxSteps, perm.postTaxSteps);
+        log.info(`Calculated new transaction plan: ${JSON.stringify(newPlan)}.`);
+        if (!bestPlan || (newPlan.totals.payable < bestPlan.totals.payable)) {
+            bestPlan = newPlan;
+            log.info(`Found a better transaction plan: ${JSON.stringify(bestPlan)}`);
+        } else {
+            log.info(`Old bestPlan's payable ${bestPlan.totals.payable} < new plan's payable ${newPlan.totals.payable}.`);
         }
-    } else {
+    }
+
+    if (!bestPlan) {
         log.info("No steps provided.");
         bestPlan = calculateCheckoutTransactionPlan(checkout, [], []);
     }
@@ -36,37 +39,35 @@ export interface StepPermutation {
 // Todo - Trying all permutations of things that represent discounts + valueRules makes sense but gift cards, accounts etc should maybe be ordered by expiry or order passed in?
 // Todo - ie, a customer at checkout wants to use up a gift card and then charge the rest onto their account.
 // Todo - This can probably wait because it's not very likely to happen immediately.
-export function getAllPermutations(steps: TransactionPlanStep[]): StepPermutation[] {
+export function* getAllPermutations(steps: TransactionPlanStep[]): IterableIterator<StepPermutation> {
     const preTaxSteps: TransactionPlanStep[] = steps.filter(it => (it.rail === "internal" && it.pretax) || (it.rail === "lightrail" && it.value.pretax));
     const postTaxSteps: TransactionPlanStep[] = steps.filter(x => preTaxSteps.indexOf(x) < 0);
-
-    let stepPermutations: StepPermutation[] = [];
 
     if (preTaxSteps.length > 0 && postTaxSteps.length > 0) {
         let preTaxPerms = getStepPermutations(preTaxSteps);
         for (let preTaxPerm of preTaxPerms) {
             let postTaxPerms = getStepPermutations(postTaxSteps);
             for (let postTaxPerm of postTaxPerms) {
-                stepPermutations.push({
+                yield {
                     preTaxSteps: JSON.parse(JSON.stringify(preTaxPerm)) /* this is subtle, need to be clones, otherwise object gets modified */,
                     postTaxSteps: postTaxPerm
-                });
+                };
             }
         }
     } else if (preTaxSteps.length > 0 && postTaxSteps.length === 0) {
         let preTaxPerms = getStepPermutations(preTaxSteps);
         for (let preTaxPerm of preTaxPerms) {
-            stepPermutations.push({preTaxSteps: preTaxPerm, postTaxSteps: []});
+            yield {preTaxSteps: preTaxPerm, postTaxSteps: []};
         }
     } else if (preTaxSteps.length === 0 && postTaxSteps.length > 0) {
         let postTaxPerms = getStepPermutations(postTaxSteps);
         for (let postTaxPerm of postTaxPerms) {
-            stepPermutations.push({preTaxSteps: [], postTaxSteps: postTaxPerm});
+            yield {preTaxSteps: [], postTaxSteps: postTaxPerm};
         }
     } else {
         log.info("No steps were supplied.");
     }
-    return stepPermutations;
+    return;
 }
 
 export function getStepPermutations(steps: TransactionPlanStep[]): TransactionPlanStep[][] {
