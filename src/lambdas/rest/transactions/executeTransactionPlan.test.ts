@@ -59,6 +59,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             metadata: "null",
             createdDate: new Date(),
             updatedDate: new Date(),
+            updatedContactIdDate: null,
             createdBy: defaultTestUser.auth.userId
             // createdBy: defaultTestUser.auth.teamMemberId  // todo require tmi again
         };
@@ -132,6 +133,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             metadata: "null",
             createdDate: new Date(),
             updatedDate: new Date(),
+            updatedContactIdDate: null,
             createdBy: defaultTestUser.auth.userId
             // createdBy: defaultTestUser.auth.teamMemberId  // require tmi again
         };

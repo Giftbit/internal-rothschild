@@ -445,6 +445,7 @@ function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partial
         metadata: {},
         createdDate: now,
         updatedDate: now,
+        updatedContactIdDate: null,
         createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
         ...partialValue,
         ...pickOrDefault(partialValue, {
