@@ -51,7 +51,7 @@ describe("/v2/contacts", () => {
         chai.assert.deepEqualExcluding(resp.body, {
             ...contact1,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "updatedDate", "metadata"]);
+        }, ["createdDate", "updatedDate", "metadata", "createdBy"]);
         contact1 = resp.body;
     });
 
@@ -131,7 +131,7 @@ describe("/v2/contacts", () => {
             lastName: null,
             email: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "updatedDate", "metadata"]);
+        }, ["createdDate", "updatedDate", "metadata", "createdBy"]);
         chai.assert.equal(resp.statusCode, 201);
         contact2 = resp.body;
     });
@@ -193,7 +193,7 @@ describe("/v2/contacts", () => {
     it("can list 2 contacts", async () => {
         const resp = await testUtils.testAuthedRequest<Contact[]>(router, "/v2/contacts", "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.deepEqual(resp.body, [
+        chai.assert.deepEqualExcluding(resp.body, [
             {
                 ...contact2,
                 createdBy: defaultTestUser.auth.teamMemberId
@@ -202,7 +202,7 @@ describe("/v2/contacts", () => {
                 ...contact1,
                 createdBy: defaultTestUser.auth.teamMemberId
             }
-        ]);
+        ], ["createdBy"]);
         chai.assert.equal(resp.headers["Limit"], "100");
         chai.assert.equal(resp.headers["Max-Limit"], "1000");
     });
@@ -219,7 +219,7 @@ describe("/v2/contacts", () => {
                 ...contact1,
                 createdBy: defaultTestUser.auth.teamMemberId
             }
-        ], ["createdDate", "updatedDate"]); // TODO don't ignore dates if my issue gets resolved https://github.com/mholt/PapaParse/issues/502
+        ], ["createdDate", "updatedDate", "createdBy"]); // TODO don't ignore dates if my issue gets resolved https://github.com/mholt/PapaParse/issues/502
         chai.assert.equal(resp.headers["Limit"], "100");
         chai.assert.equal(resp.headers["Max-Limit"], "1000");
     });
@@ -246,14 +246,18 @@ describe("/v2/contacts", () => {
             lastName: null,
             email: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "updatedDate"]);
+        }, ["createdDate", "updatedDate", "createdBy"]);
         contact4 = resp.body;
     });
 
     it("can get the contact with metadata", async () => {
         const resp = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/${contact4.id}`, "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.deepEqual(resp.body, {...contact4, createdBy: defaultTestUser.auth.teamMemberId});
+        chai.assert.deepEqualExcluding(resp.body, {
+            ...contact4,
+            createdBy: defaultTestUser.auth.teamMemberId
+        }, ["createdBy"]);
+        // chai.assert.deepEqual(resp.body, {...contact4, createdBy: defaultTestUser.auth.teamMemberId});  // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
     });
 
     it("can delete a Contact that is not in use", async () => {
@@ -318,14 +322,14 @@ describe("/v2/contacts", () => {
         chai.assert.deepEqualExcluding(resp1.body, {
             ...contact,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "updatedDate"]);
+        }, ["createdDate", "updatedDate", "createdBy"]);
 
         const resp2 = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/${contact.id}`, "GET", contact);
         chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
         chai.assert.deepEqualExcluding(resp2.body, {
             ...contact,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "updatedDate"]);
+        }, ["createdDate", "updatedDate", "createdBy"]);
     });
 
     describe("filters and pagination", () => {
@@ -667,7 +671,8 @@ describe("/v2/contacts", () => {
                 contact.userId = defaultTestUser.userId;
                 contact.createdDate = new Date();
                 contact.updatedDate = new Date();
-                contact.createdBy = defaultTestUser.auth.teamMemberId;
+                contact.createdBy = defaultTestUser.userId;
+                // contact.createdBy = defaultTestUser.auth.teamMemberId;   // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
             }
             const knex = await getKnexWrite();
             await knex("Contacts").insert(contacts);

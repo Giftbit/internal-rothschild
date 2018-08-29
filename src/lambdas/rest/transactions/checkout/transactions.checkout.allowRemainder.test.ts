@@ -163,7 +163,7 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
             },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
 
         const getPreTaxPromo = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${preTaxPromotion.id}`, "GET");
         chai.assert.equal(getPreTaxPromo.statusCode, 200, `body=${JSON.stringify(getPreTaxPromo.body)}`);

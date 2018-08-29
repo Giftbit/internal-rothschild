@@ -75,7 +75,7 @@ describe("/v2/transactions/debit", () => {
             tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
@@ -130,7 +130,7 @@ describe("/v2/transactions/debit", () => {
             tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueWithCode.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
@@ -187,7 +187,7 @@ describe("/v2/transactions/debit", () => {
             tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueWithGenericCode.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
@@ -248,7 +248,7 @@ describe("/v2/transactions/debit", () => {
             tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
@@ -291,7 +291,7 @@ describe("/v2/transactions/debit", () => {
             tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate"]);
+        }, ["createdDate", "createdBy"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);

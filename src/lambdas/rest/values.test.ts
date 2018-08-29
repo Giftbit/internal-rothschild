@@ -95,7 +95,7 @@ describe("/v2/values/", () => {
             discountSellerLiability: null,
             metadata: {},
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "updatedDate"]);
+        }, ["createdDate", "updatedDate", "createdBy"]);
         value1 = resp2.body;
     });
 
@@ -133,7 +133,7 @@ describe("/v2/values/", () => {
             discountSellerLiability: null,
             metadata: {},
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "updatedDate"]);
+        }, ["createdDate", "updatedDate", "createdBy"]);
 
         const updateValueRequest: Partial<Value> = {
             valueRule: {
@@ -168,7 +168,7 @@ describe("/v2/values/", () => {
             discountSellerLiability: null,
             metadata: {},
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "updatedDate"]);
+        }, ["createdDate", "updatedDate", "createdBy"]);
     });
 
     it("can get the value", async () => {
@@ -475,7 +475,8 @@ describe("/v2/values/", () => {
                     endDate: date,
                     createdDate: date,
                     updatedDate: date,
-                    createdBy: defaultTestUser.auth.teamMemberId
+                    createdBy: defaultTestUser.auth.userId
+                    // createdBy: defaultTestUser.auth.teamMemberId  // todo require tmi again
                 });
             }
 
