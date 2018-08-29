@@ -80,7 +80,7 @@ describe("optimizeCheckout", () => {
         idempotentStepId: "456"
     };
 
-    describe("test getStepPermutations", function () {
+    describe("getStepPermutations()", function () {
         it("test 0 steps", async () => {
             const result = getStepPermutations([]);
             chai.assert.deepEqual(result, [[]]);
@@ -184,25 +184,38 @@ describe("optimizeCheckout", () => {
         amount: 2,
     };
 
-    it("test getAllPermutations", async () => {
-        const result = getAllPermutations([lrPostTax1, lrPostTax2, iBeforePostTax1, iBeforePostTax2, iAfterPostTax1, s1, iAfterPostTax2, s2, lrPreTax1, lrPreTax2, iBeforePreTax1, iBeforePreTax2]);
-        chai.assert.deepEqual(result, [
-            {
+    describe("getAllPermutations()", () => {
+        it("returns an iterable", () => {
+            const iterable = getAllPermutations([lrPostTax1, lrPostTax2]);
+            chai.assert.isFunction(iterable.next);
+            chai.assert.hasAllKeys(iterable.next(), ["done", "value"]);
+        });
+
+        it("yields the expected permutations", async () => {
+            const iterable = getAllPermutations([lrPostTax1, lrPostTax2, iBeforePostTax1, iBeforePostTax2, iAfterPostTax1, s1, iAfterPostTax2, s2, lrPreTax1, lrPreTax2, iBeforePreTax1, iBeforePreTax2]);
+
+            chai.assert.deepEqual(iterable.next().value, {
                 preTaxSteps: [iBeforePreTax1, iBeforePreTax2, lrPreTax1, lrPreTax2],
                 postTaxSteps: [iBeforePostTax1, iBeforePostTax2, lrPostTax1, lrPostTax2, iAfterPostTax1, s1, iAfterPostTax2, s2]
-            },
-            {
+            });
+
+            chai.assert.deepEqual(iterable.next().value, {
                 preTaxSteps: [iBeforePreTax1, iBeforePreTax2, lrPreTax1, lrPreTax2],
                 postTaxSteps: [iBeforePostTax1, iBeforePostTax2, lrPostTax2, lrPostTax1, iAfterPostTax1, s1, iAfterPostTax2, s2]
-            },
-            {
+            });
+
+            chai.assert.deepEqual(iterable.next().value, {
                 preTaxSteps: [iBeforePreTax1, iBeforePreTax2, lrPreTax2, lrPreTax1],
                 postTaxSteps: [iBeforePostTax1, iBeforePostTax2, lrPostTax1, lrPostTax2, iAfterPostTax1, s1, iAfterPostTax2, s2]
-            },
-            {
+            });
+
+            chai.assert.deepEqual(iterable.next().value, {
                 preTaxSteps: [iBeforePreTax1, iBeforePreTax2, lrPreTax2, lrPreTax1],
                 postTaxSteps: [iBeforePostTax1, iBeforePostTax2, lrPostTax2, lrPostTax1, iAfterPostTax1, s1, iAfterPostTax2, s2]
-            }]);
+            });
+
+            chai.assert.isTrue(iterable.next().done);
+        });
     });
 
     function getValue(pretax: boolean): Value {
