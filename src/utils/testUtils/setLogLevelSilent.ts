@@ -3,6 +3,6 @@
  * from the command line by the mocha runner.
  */
 
-import * as log from "loglevel";
+import log = require("loglevel");
 
 log.setLevel(log.levels.SILENT);

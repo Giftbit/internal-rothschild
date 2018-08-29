@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import * as log from "loglevel";
+import log = require("loglevel");
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {DbValue, Value} from "../../model/Value";
 import {pick, pickOrDefault} from "../../utils/pick";

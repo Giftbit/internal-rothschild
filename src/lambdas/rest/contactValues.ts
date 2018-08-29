@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import * as log from "loglevel";
+import log = require("loglevel");
 import {getValue, getValueByCode, getValues} from "./values";
 import {csvSerializer} from "../../serializers";
 import {Pagination} from "../../model/Pagination";
