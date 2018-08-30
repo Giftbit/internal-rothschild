@@ -1,9 +1,11 @@
 /**
  * Implementation of Heap's Algorithm (https://en.wikipedia.org/wiki/Heap%27s_algorithm)
+ *
+ * IDEA: turn this into a generator function to save on memory usage
  */
-export function listPermutations(input: Array<any>): Array<Array<any>> {
-    let result: Array<Array<any>> = [];
-    let c: Array<number> = [];
+export function listPermutations<T>(input: T[]): T[][] {
+    let result: T[][] = [];
+    let c: number[] = [];
     const n = input.length;
     for (let i = 0; i < n; i++) {
         c[i] = 0;
@@ -30,12 +32,12 @@ export function listPermutations(input: Array<any>): Array<Array<any>> {
     return result;
 }
 
-function swap(input: Array<any>, indexOne: number, indexTwo: number): void {
+function swap(input: any[], indexOne: number, indexTwo: number): void {
     const temp: any = input[indexOne];
     input[indexOne] = input[indexTwo];
     input[indexTwo] = temp;
 }
 
-function copy(input: any): any {
+function copy<T>(input: T): T {
     return JSON.parse(JSON.stringify(input));
 }

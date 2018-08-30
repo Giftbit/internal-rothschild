@@ -93,17 +93,17 @@ describe("optimizeCheckout", () => {
 
         it("test 2 lightrail steps", async () => {
             const result = getStepPermutations([lrPostTax1, lrPostTax2]);
-            chai.assert.deepEqual(result, [[lrPostTax1, lrPostTax2], [lrPostTax2, lrPostTax1]]);
+            chai.assert.deepEqual(result, [[lrPostTax1, lrPostTax2]]);
         });
 
         it("test 3 lightrail steps", async () => {
             const result = getStepPermutations([lrPostTax1, lrPostTax2, l3]);
-            chai.assert.deepEqual(result, [[lrPostTax1, lrPostTax2, l3], [lrPostTax2, lrPostTax1, l3], [l3, lrPostTax1, lrPostTax2], [lrPostTax1, l3, lrPostTax2], [lrPostTax2, l3, lrPostTax1], [l3, lrPostTax2, lrPostTax1]]);
+            chai.assert.deepEqual(result, [[lrPostTax1, lrPostTax2, l3]]);
         });
 
         it("test 4 lightrail steps", async () => {
             const result = getStepPermutations([lrPostTax1, lrPostTax2, l3, l4]);
-            chai.assert.equal(result.length, 24, `expected 4! = 24 entries.`);
+            chai.assert.deepEqual(result, [[lrPostTax1, lrPostTax2, l3, l4]]);
         });
 
         it("test 1 stripe step", async () => {
@@ -139,18 +139,18 @@ describe("optimizeCheckout", () => {
 
         it("test one internal(before), two lightrail steps, one internal(after), one stripe ", async () => {
             const result = getStepPermutations([iBeforePostTax1, lrPostTax1, lrPostTax2, iAfterPostTax1, s1]);
-            chai.assert.deepEqual(result, [[iBeforePostTax1, lrPostTax1, lrPostTax2, iAfterPostTax1, s1], [iBeforePostTax1, lrPostTax2, lrPostTax1, iAfterPostTax1, s1]]);
+            chai.assert.deepEqual(result, [[iBeforePostTax1, lrPostTax1, lrPostTax2, iAfterPostTax1, s1]]);
 
             const resultFromDifferentOrdering = getStepPermutations([iAfterPostTax1, s1, lrPostTax1, lrPostTax2, iBeforePostTax1]);
-            chai.assert.deepEqual(resultFromDifferentOrdering, [[iBeforePostTax1, lrPostTax1, lrPostTax2, iAfterPostTax1, s1], [iBeforePostTax1, lrPostTax2, lrPostTax1, iAfterPostTax1, s1]]);
+            chai.assert.deepEqual(resultFromDifferentOrdering, [[iBeforePostTax1, lrPostTax1, lrPostTax2, iAfterPostTax1, s1]]);
         });
 
         it("test complex steps: two internal(before), two lightrail steps, two internal(after), two stripe ", async () => {
             const result = getStepPermutations([iBeforePostTax1, iBeforePostTax2, lrPostTax1, lrPostTax2, iAfterPostTax1, iAfterPostTax2, s1, s2]);
-            chai.assert.deepEqual(result, [[iBeforePostTax1, iBeforePostTax2, lrPostTax1, lrPostTax2, iAfterPostTax1, iAfterPostTax2, s1, s2], [iBeforePostTax1, iBeforePostTax2, lrPostTax2, lrPostTax1, iAfterPostTax1, iAfterPostTax2, s1, s2]]);
+            chai.assert.deepEqual(result, [[iBeforePostTax1, iBeforePostTax2, lrPostTax1, lrPostTax2, iAfterPostTax1, iAfterPostTax2, s1, s2]]);
 
             const resultFromDifferentOrdering = getStepPermutations([iAfterPostTax1, s1, iAfterPostTax2, s2, lrPostTax1, lrPostTax2, iBeforePostTax1, iBeforePostTax2]);
-            chai.assert.deepEqual(resultFromDifferentOrdering, [[iBeforePostTax1, iBeforePostTax2, lrPostTax1, lrPostTax2, iAfterPostTax1, s1, iAfterPostTax2, s2], [iBeforePostTax1, iBeforePostTax2, lrPostTax2, lrPostTax1, iAfterPostTax1, s1, iAfterPostTax2, s2]]);
+            chai.assert.deepEqual(resultFromDifferentOrdering, [[iBeforePostTax1, iBeforePostTax2, lrPostTax1, lrPostTax2, iAfterPostTax1, s1, iAfterPostTax2, s2]]);
         });
     });
 
@@ -197,21 +197,6 @@ describe("optimizeCheckout", () => {
             chai.assert.deepEqual(iterable.next().value, {
                 preTaxSteps: [iBeforePreTax1, iBeforePreTax2, lrPreTax1, lrPreTax2],
                 postTaxSteps: [iBeforePostTax1, iBeforePostTax2, lrPostTax1, lrPostTax2, iAfterPostTax1, s1, iAfterPostTax2, s2]
-            });
-
-            chai.assert.deepEqual(iterable.next().value, {
-                preTaxSteps: [iBeforePreTax1, iBeforePreTax2, lrPreTax1, lrPreTax2],
-                postTaxSteps: [iBeforePostTax1, iBeforePostTax2, lrPostTax2, lrPostTax1, iAfterPostTax1, s1, iAfterPostTax2, s2]
-            });
-
-            chai.assert.deepEqual(iterable.next().value, {
-                preTaxSteps: [iBeforePreTax1, iBeforePreTax2, lrPreTax2, lrPreTax1],
-                postTaxSteps: [iBeforePostTax1, iBeforePostTax2, lrPostTax1, lrPostTax2, iAfterPostTax1, s1, iAfterPostTax2, s2]
-            });
-
-            chai.assert.deepEqual(iterable.next().value, {
-                preTaxSteps: [iBeforePreTax1, iBeforePreTax2, lrPreTax2, lrPreTax1],
-                postTaxSteps: [iBeforePostTax1, iBeforePostTax2, lrPostTax2, lrPostTax1, iAfterPostTax1, s1, iAfterPostTax2, s2]
             });
 
             chai.assert.isTrue(iterable.next().done);

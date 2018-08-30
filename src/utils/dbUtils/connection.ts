@@ -113,7 +113,11 @@ function getKnex(username: string, password: string, endpoint: string, port: str
                     }
                 }
                 if (field.type === "DATETIME") {
-                    return new Date(field.string() + "Z");
+                    const value = field.string();
+                    if (!value) {
+                        return null;
+                    }
+                    return new Date(value + "Z");
                 }
                 return next();
             }
