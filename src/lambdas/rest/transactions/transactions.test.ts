@@ -273,13 +273,22 @@ describe("/v2/transactions", () => {
                 ],
                 steps: [
                     {
+                        balanceAfter: 0,
+                        balanceBefore: 1,
+                        balanceChange: -1,
+                        code: null,
+                        contactId: null,
+                        rail: "lightrail",
+                        valueId: "vs-gc-2"
+                    },
+                    {
                         rail: "lightrail",
                         valueId: value1.id,
                         code: null,
                         contactId: null,
                         balanceBefore: 995,
-                        balanceAfter: 945,
-                        balanceChange: -50
+                        balanceAfter: 946,
+                        balanceChange: -49
                     }
                 ],
                 paymentSources: [

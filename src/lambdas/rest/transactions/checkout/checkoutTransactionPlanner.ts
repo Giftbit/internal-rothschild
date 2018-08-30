@@ -1,6 +1,6 @@
 import {calculateCheckoutTransactionPlan} from "./calculateTransactionPlan";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
-import {TransactionPlan, TransactionPlanStep} from "../TransactionPlan";
+import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "../TransactionPlan";
 import {listPermutations} from "../../../../utils/combinatoricUtils";
 import log = require("loglevel");
 
@@ -36,18 +36,14 @@ export interface StepPermutation {
     postTaxSteps: TransactionPlanStep[];
 }
 
-// Todo - Trying all permutations of things that represent discounts + valueRules makes sense but gift cards, accounts etc should maybe be ordered by expiry or order passed in?
-// Todo - ie, a customer at checkout wants to use up a gift card and then charge the rest onto their account.
-// Todo - This can probably wait because it's not very likely to happen immediately.
 export function* getAllPermutations(steps: TransactionPlanStep[]): IterableIterator<StepPermutation> {
-    const preTaxSteps: TransactionPlanStep[] = steps.filter(it => (it.rail === "internal" && it.pretax) || (it.rail === "lightrail" && it.value.pretax));
-    const postTaxSteps: TransactionPlanStep[] = steps.filter(x => preTaxSteps.indexOf(x) < 0);
+    const [preTaxSteps, postTaxSteps] = dualFilter(steps, step => (step.rail === "internal" && step.pretax) || (step.rail === "lightrail" && step.value.pretax));
 
     if (preTaxSteps.length > 0 && postTaxSteps.length > 0) {
-        let preTaxPerms = getStepPermutations(preTaxSteps);
-        for (let preTaxPerm of preTaxPerms) {
-            let postTaxPerms = getStepPermutations(postTaxSteps);
-            for (let postTaxPerm of postTaxPerms) {
+        const preTaxPerms = getStepPermutations(preTaxSteps);
+        for (const preTaxPerm of preTaxPerms) {
+            const postTaxPerms = getStepPermutations(postTaxSteps);
+            for (const postTaxPerm of postTaxPerms) {
                 yield {
                     preTaxSteps: JSON.parse(JSON.stringify(preTaxPerm)) /* this is subtle, need to be clones, otherwise object gets modified */,
                     postTaxSteps: postTaxPerm
@@ -55,13 +51,13 @@ export function* getAllPermutations(steps: TransactionPlanStep[]): IterableItera
             }
         }
     } else if (preTaxSteps.length > 0 && postTaxSteps.length === 0) {
-        let preTaxPerms = getStepPermutations(preTaxSteps);
-        for (let preTaxPerm of preTaxPerms) {
+        const preTaxPerms = getStepPermutations(preTaxSteps);
+        for (const preTaxPerm of preTaxPerms) {
             yield {preTaxSteps: preTaxPerm, postTaxSteps: []};
         }
     } else if (preTaxSteps.length === 0 && postTaxSteps.length > 0) {
-        let postTaxPerms = getStepPermutations(postTaxSteps);
-        for (let postTaxPerm of postTaxPerms) {
+        const postTaxPerms = getStepPermutations(postTaxSteps);
+        for (const postTaxPerm of postTaxPerms) {
             yield {preTaxSteps: [], postTaxSteps: postTaxPerm};
         }
     } else {
@@ -72,7 +68,7 @@ export function* getAllPermutations(steps: TransactionPlanStep[]): IterableItera
 
 export function getStepPermutations(steps: TransactionPlanStep[]): TransactionPlanStep[][] {
     let filteredSteps = filterSteps(steps);
-    let lightrailPerms: TransactionPlanStep[][] = listPermutations(filteredSteps.lighrailSteps);
+    let lightrailPerms: TransactionPlanStep[][] = listPermutations(filteredSteps.lightrailSteps).map(perm => flattenOneLevel(perm));
 
     return lightrailPerms.map(perm => [...filteredSteps.stepsBeforeLightrail, ...perm, ...filteredSteps.stepsAfterLightrail]);
 }
@@ -81,12 +77,58 @@ export function filterSteps(steps: TransactionPlanStep[]): FilteredSteps {
     return {
         stepsBeforeLightrail: steps.filter(step => step.rail === "internal" && step.beforeLightrail),
         stepsAfterLightrail: steps.filter(step => step.rail !== "lightrail" && !step["beforeLightrail"]),
-        lighrailSteps: steps.filter(step => step.rail === "lightrail"),
+        lightrailSteps: batchEquivalentLightrailSteps(steps.filter(step => step.rail === "lightrail") as LightrailTransactionPlanStep[]),
     };
+}
+
+/**
+ * Group Lightrail steps that reordering could not change the payable total for.
+ * When the return value is permutated and then flattened one layer you get all
+ * permutations with the grouped steps still together.
+ */
+function batchEquivalentLightrailSteps(lightrailSteps: LightrailTransactionPlanStep[]): (LightrailTransactionPlanStep | LightrailTransactionPlanStep[])[] {
+    let [lightrailSimpleSteps, lightrailComplexSteps] = dualFilter(lightrailSteps, step => !step.value.valueRule && !step.value.redemptionRule);
+    lightrailSimpleSteps.sort((a, b) => {
+        // Prefer soonest expiration, then any expiration, then discounts then lowest balance
+        if (a.value.endDate && b.value.endDate) {
+            return (b.value.endDate as any) - (a.value.endDate as any); // subtracting Dates really does work
+        } else if (a.value.endDate) {
+            return -1;
+        } else if (b.value.endDate) {
+            return 1;
+        } else if (a.value.discount !== b.value.discount) {
+            return +b.value.discount - +a.value.discount;
+        }
+        return a.value.balance - b.value.balance;
+    });
+    return [lightrailSimpleSteps, ...lightrailComplexSteps];
 }
 
 interface FilteredSteps {
     stepsBeforeLightrail: TransactionPlanStep[];
     stepsAfterLightrail: TransactionPlanStep[];
-    lighrailSteps: TransactionPlanStep[];
+    lightrailSteps: (LightrailTransactionPlanStep | LightrailTransactionPlanStep[])[];
+}
+
+/**
+ * Get an array of elements that pass the filter and another of elements that don't
+ * pass the filter.  All items are in one of the two arrays exactly once.
+ */
+function dualFilter<T>(steps: T[], filter: (step: T) => boolean): [T[], T[]] {
+    return [
+        steps.filter(filter),
+        steps.filter(step => !filter(step))
+    ];
+}
+
+function flattenOneLevel<T>(arr: (T | T[])[]): T[] {
+    const res: T[] = [];
+    for (const element of arr) {
+        if (Array.isArray(element)) {
+            res.push(...element);
+        } else {
+            res.push(element);
+        }
+    }
+    return res;
 }
