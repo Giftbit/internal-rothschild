@@ -1,5 +1,7 @@
 /**
  * Implementation of Heap's Algorithm (https://en.wikipedia.org/wiki/Heap%27s_algorithm)
+ *
+ * IDEA: turn this into a generator function to save on memory usage
  */
 export function listPermutations<T>(input: T[]): T[][] {
     let result: T[][] = [];

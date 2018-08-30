@@ -66,6 +66,10 @@ export function* getAllPermutations(steps: TransactionPlanStep[]): IterableItera
     return;
 }
 
+/**
+ * IDEA: turn this into a generator function to save on memory usage.  That
+ *       only works if listPermutations is also a generator.
+ */
 export function getStepPermutations(steps: TransactionPlanStep[]): TransactionPlanStep[][] {
     let filteredSteps = filterSteps(steps);
     let lightrailPerms: TransactionPlanStep[][] = listPermutations(filteredSteps.lightrailSteps).map(perm => flattenOneLevel(perm));
