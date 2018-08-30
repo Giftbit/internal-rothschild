@@ -7,7 +7,7 @@ import {createCurrency} from "./currencies";
 import {Value} from "../../model/Value";
 import {Transaction} from "../../model/Transaction";
 
-describe.only("/v2/values/ - stats", () => {
+describe("/v2/values/ - stats", () => {
 
     const router = new cassava.Router();
 
