@@ -4,7 +4,7 @@ import {StripeTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {Transaction} from "../../../model/Transaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
-import * as log from "loglevel";
+import log = require("loglevel");
 import {setupLightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/stripeAccess";
 import {LightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/StripeConfig";
 import {

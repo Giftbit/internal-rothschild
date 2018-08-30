@@ -10,7 +10,7 @@ import {Value} from "../../../../model/Value";
 import {RuleContext} from "../RuleContext";
 import {CheckoutTransactionPlan} from "./CheckoutTransactionPlan";
 import {bankersRounding} from "../../../../utils/moneyUtils";
-import * as log from "loglevel";
+import log = require("loglevel");
 
 export function calculateCheckoutTransactionPlan(checkout: CheckoutRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
     let transactionPlan = new CheckoutTransactionPlan(checkout, preTaxSteps.concat(postTaxSteps));

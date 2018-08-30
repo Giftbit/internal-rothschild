@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as fs from "fs";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import * as log from "loglevel";
+import log = require("loglevel");
 import * as mysql from "mysql2/promise";
 import * as path from "path";
 import {getDbCredentials} from "../dbUtils/connection";
