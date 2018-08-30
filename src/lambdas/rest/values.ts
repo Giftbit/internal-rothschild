@@ -33,8 +33,14 @@ export function installValuesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:values:list");
+
             const showCode: boolean = (evt.queryStringParameters.showCode === "true");
             const res = await getValues(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt), showCode);
+
+            if (evt.queryStringParameters.stats === "true") {
+                await injectValueStats(auth, res.values);
+            }
+
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.values
@@ -90,8 +96,14 @@ export function installValuesRest(router: cassava.Router): void {
             auth.requireScopes("lightrailV2:values:read");
 
             const showCode: boolean = (evt.queryStringParameters.showCode === "true");
+            const value = await getValue(auth, evt.pathParameters.id, showCode);
+
+            if (evt.queryStringParameters.stats === "true") {
+                await injectValueStats(auth, [value]);
+            }
+
             return {
-                body: await getValue(auth, evt.pathParameters.id, showCode)
+                body: value
             };
         });
 
@@ -277,7 +289,7 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             const initialBalanceTransaction: DbTransaction = {
                 userId: auth.userId,
                 id: transactionId,
-                transactionType: "credit",
+                transactionType: "initialBalance",
                 currency: value.currency,
                 totals: null,
                 lineItems: null,
@@ -427,6 +439,35 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Value '${id}' is in use.`, "ValueInUse");
         }
         throw err;
+    }
+}
+
+async function injectValueStats(auth: giftbitRoutes.jwtauth.AuthorizationBadge, values: Value[]): Promise<void> {
+    auth.requireIds("userId");
+
+    const knex = await getKnexRead();
+    const res: {valueId: string, balanceChange: number}[] = await knex("LightrailTransactionSteps")
+        .join("Transactions", {
+            "Transactions.userId": "LightrailTransactionSteps.userId",
+            "Transactions.id": "LightrailTransactionSteps.transactionId"
+        })
+        .where({
+            "LightrailTransactionSteps.userId": auth.userId,
+            "Transactions.transactionType": "initialBalance"
+        })
+        .whereIn("LightrailTransactionSteps.valueId", values.map(value => value.id))
+        .select("LightrailTransactionSteps.valueId", "LightrailTransactionSteps.balanceChange");
+
+    for (const value of values) {
+        (value as any).stats = {
+            initialBalance: 0
+        };
+        for (const row of res) {
+            if (value.id === row.valueId) {
+                (value as any).stats.initialBalance = row.balanceChange;
+                break;
+            }
+        }
     }
 }
 
