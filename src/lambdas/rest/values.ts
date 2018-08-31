@@ -123,7 +123,7 @@ export function installValuesRest(router: cassava.Router): void {
 
             const now = nowInDbPrecision();
             const value = {
-                ...pick<Value>(evt.body, "contactId", "pretax", "active", "canceled", "frozen", "pretax", "discount", "discountSellerLiability", "redemptionRule", "valueRule", "startDate", "endDate", "metadata"),
+                ...pick<Value>(evt.body, "pretax", "active", "canceled", "frozen", "pretax", "discount", "discountSellerLiability", "redemptionRule", "valueRule", "startDate", "endDate", "metadata"),
                 updatedDate: now
             };
             if (value.startDate) {
@@ -496,7 +496,7 @@ function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partial
         metadata: {},
         createdDate: now,
         updatedDate: now,
-        updatedContactIdDate: null,
+        updatedContactIdDate: partialValue.contactId ? now : null,
         createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
         ...partialValue,
         ...pickOrDefault(partialValue, {
