@@ -227,6 +227,7 @@ describe("optimizeCheckout", () => {
             metadata: null,
             createdDate: null,
             updatedDate: null,
+            updatedContactIdDate: null,
             createdBy: null
         };
     }

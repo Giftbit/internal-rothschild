@@ -33,8 +33,15 @@ export function installValuesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:values:list");
+
             const showCode: boolean = (evt.queryStringParameters.showCode === "true");
             const res = await getValues(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt), showCode);
+
+            if (evt.queryStringParameters.stats === "true") {
+                // For now this is a secret param only Yervana knows about.
+                await injectValueStats(auth, res.values);
+            }
+
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.values
@@ -90,8 +97,15 @@ export function installValuesRest(router: cassava.Router): void {
             auth.requireScopes("lightrailV2:values:read");
 
             const showCode: boolean = (evt.queryStringParameters.showCode === "true");
+            const value = await getValue(auth, evt.pathParameters.id, showCode);
+
+            if (evt.queryStringParameters.stats === "true") {
+                // For now this is a secret param only Yervana knows about.
+                await injectValueStats(auth, [value]);
+            }
+
             return {
-                body: await getValue(auth, evt.pathParameters.id, showCode)
+                body: value
             };
         });
 
@@ -277,7 +291,7 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             const initialBalanceTransaction: DbTransaction = {
                 userId: auth.userId,
                 id: transactionId,
-                transactionType: "credit",
+                transactionType: "initialBalance",
                 currency: value.currency,
                 totals: null,
                 lineItems: null,
@@ -430,6 +444,43 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
     }
 }
 
+/**
+ * This is currently a secret operation only Yervana knows about.
+ */
+export async function injectValueStats(auth: giftbitRoutes.jwtauth.AuthorizationBadge, values: Value[]): Promise<void> {
+    auth.requireIds("userId");
+
+    const knex = await getKnexRead();
+    const res: {valueId: string, balanceChange: number}[] = await knex("LightrailTransactionSteps")
+        .join("Transactions", {
+            "Transactions.userId": "LightrailTransactionSteps.userId",
+            "Transactions.id": "LightrailTransactionSteps.transactionId"
+        })
+        .where({
+            "LightrailTransactionSteps.userId": auth.userId,
+            "Transactions.transactionType": "initialBalance"
+        })
+        .whereIn("LightrailTransactionSteps.valueId", values.map(value => value.id))
+        .select("LightrailTransactionSteps.valueId", "LightrailTransactionSteps.balanceChange");
+
+    const valueMap: {[id: string]: Value & {stats: {initialBalance: number}}} = {};
+    for (const value of values) {
+        (value as any).stats = {
+            initialBalance: 0
+        };
+        valueMap[value.id] = value as any;
+    }
+
+    for (const row of res) {
+        const value = valueMap[row.valueId];
+        if (!value) {
+            // this shouldn't happen
+            continue;
+        }
+        value.stats.initialBalance = row.balanceChange;
+    }
+}
+
 function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partialValue: Partial<Value>, program: Program = null, generateCodeParameters: GenerateCodeParameters = null): Value {
     const now = nowInDbPrecision();
     let value: Value = {
@@ -445,6 +496,7 @@ function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partial
         metadata: {},
         createdDate: now,
         updatedDate: now,
+        updatedContactIdDate: null,
         createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
         ...partialValue,
         ...pickOrDefault(partialValue, {

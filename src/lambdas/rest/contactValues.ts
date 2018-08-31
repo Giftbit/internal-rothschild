@@ -2,13 +2,13 @@ import * as cassava from "cassava";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import log = require("loglevel");
-import {getValue, getValueByCode, getValues} from "./values";
+import {getValue, getValueByCode, getValues, injectValueStats} from "./values";
 import {csvSerializer} from "../../serializers";
 import {Pagination} from "../../model/Pagination";
 import {Value} from "../../model/Value";
 import {getContact} from "./contacts";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
-import {getSqlErrorConstraintName} from "../../utils/dbUtils";
+import {getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
 
 export function installContactValuesRest(router: cassava.Router): void {
     router.route("/v2/contacts/{id}/values")
@@ -28,6 +28,12 @@ export function installContactValuesRest(router: cassava.Router): void {
 
             const showCode: boolean = (evt.queryStringParameters.showCode === "true");
             const res = await getValues(auth, {...evt.queryStringParameters, contactId: evt.pathParameters.id}, Pagination.getPaginationParams(evt), showCode);
+
+            if (evt.queryStringParameters.stats === "true") {
+                // For now this is a secret param only Yervana knows about.
+                await injectValueStats(auth, res.values);
+            }
+
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.values
@@ -91,13 +97,16 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${originalValue.id}' cannot be attached because it has a generic code and has 0 uses remaining.`, "InsufficientUses");
     }
 
+    const now = nowInDbPrecision();
     const claimedValue: Value = {
         ...originalValue,
         id: crypto.createHash("sha1").update(originalValue.id + "/" + contactId).digest("base64"),
         code: null,
         isGenericCode: null,
         contactId: contactId,
-        uses: 1
+        uses: 1,
+        updatedDate: now,
+        updatedContactIdDate: now
     };
 
     const knex = await getKnexWrite();
@@ -139,6 +148,13 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 
 async function attachUniqueValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, value: Value, allowOverwrite: boolean): Promise<Value> {
     try {
+        const now = nowInDbPrecision();
+        const updateValues = {
+            contactId: contactId,
+            updatedDate: now,
+            updatedContactIdDate: now
+        };
+
         const knex = await getKnexWrite();
         const res: number = await knex("Values")
             .where({
@@ -151,9 +167,7 @@ async function attachUniqueValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
                 }
                 return query;
             })
-            .update({
-                contactId: contactId
-            });
+            .update(updateValues);
         if (res === 0) {
             throw new giftbitRoutes.GiftbitRestError(409, `Value not found.`, "ValueNotFound");
         }
@@ -162,7 +176,7 @@ async function attachUniqueValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
         }
         return {
             ...value,
-            contactId: contactId
+            ...updateValues
         };
     } catch (err) {
         log.debug(err);
