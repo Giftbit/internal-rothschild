@@ -172,25 +172,23 @@ describe("/v2/transactions", () => {
             chai.assert.sameDeepMembers(listTransactionsUSD.body, transactionsUSD);
         });
 
-        it("list credits: 2 USD, 2 CAD", async () => {
-
-            const listTransactionsCredits = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?transactionType=credit`, "GET");
-            chai.assert.equal(listTransactionsCredits.body.length, 4);
-            const credits = [...transactionsCAD, ...transactionsUSD.filter(it => it.transactionType === "credit")];
-            chai.assert.sameDeepMembers(credits, listTransactionsCredits.body);
+        it("list initialBalances: 2 USD, 2 CAD", async () => {
+            const listTransactionsInitialBalance = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?transactionType=initialBalance`, "GET");
+            chai.assert.equal(listTransactionsInitialBalance.body.length, 4);
+            const credits = [...transactionsCAD, ...transactionsUSD.filter(it => it.transactionType === "initialBalance")];
+            chai.assert.sameDeepMembers(credits, listTransactionsInitialBalance.body);
         });
 
-        it("list USD credits: 2 USD", async () => {
-            const listTransactionsUSDCredits = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?transactionType=credit&currency=USD`, "GET");
-            chai.assert.equal(listTransactionsUSDCredits.body.length, 2);
-            chai.assert.sameDeepMembers(transactionsUSD.filter(it => it.transactionType === "credit"), listTransactionsUSDCredits.body);
+        it("list USD initialBalances: 2 USD", async () => {
+            const listTransactionsUSDInitialBalances = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?transactionType=initialBalance&currency=USD`, "GET");
+            chai.assert.equal(listTransactionsUSDInitialBalances.body.length, 2);
+            chai.assert.sameDeepMembers(transactionsUSD.filter(it => it.transactionType === "initialBalance"), listTransactionsUSDInitialBalances.body);
         });
 
         it("list USD and EUR transactions: 4 USD - 0 EUR", async () => {
             const listTransactionsUSD_EUR = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?currency.in=USD,EUR`, "GET");
             chai.assert.equal(listTransactionsUSD_EUR.body.length, 4);
             chai.assert.sameDeepMembers(transactionsUSD, listTransactionsUSD_EUR.body);
-
         });
 
         it("list USD and CAD transactions: 4 USD - 2 CAD", async () => {

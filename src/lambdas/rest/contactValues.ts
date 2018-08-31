@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import log = require("loglevel");
-import {getValue, getValueByCode, getValues} from "./values";
+import {getValue, getValueByCode, getValues, injectValueStats} from "./values";
 import {csvSerializer} from "../../serializers";
 import {Pagination} from "../../model/Pagination";
 import {Value} from "../../model/Value";
@@ -28,6 +28,12 @@ export function installContactValuesRest(router: cassava.Router): void {
 
             const showCode: boolean = (evt.queryStringParameters.showCode === "true");
             const res = await getValues(auth, {...evt.queryStringParameters, contactId: evt.pathParameters.id}, Pagination.getPaginationParams(evt), showCode);
+
+            if (evt.queryStringParameters.stats === "true") {
+                // For now this is a secret param only Yervana knows about.
+                await injectValueStats(auth, res.values);
+            }
+
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.values

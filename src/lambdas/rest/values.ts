@@ -38,6 +38,7 @@ export function installValuesRest(router: cassava.Router): void {
             const res = await getValues(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt), showCode);
 
             if (evt.queryStringParameters.stats === "true") {
+                // For now this is a secret param only Yervana knows about.
                 await injectValueStats(auth, res.values);
             }
 
@@ -99,6 +100,7 @@ export function installValuesRest(router: cassava.Router): void {
             const value = await getValue(auth, evt.pathParameters.id, showCode);
 
             if (evt.queryStringParameters.stats === "true") {
+                // For now this is a secret param only Yervana knows about.
                 await injectValueStats(auth, [value]);
             }
 
@@ -442,7 +444,10 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
     }
 }
 
-async function injectValueStats(auth: giftbitRoutes.jwtauth.AuthorizationBadge, values: Value[]): Promise<void> {
+/**
+ * This is currently a secret operation only Yervana knows about.
+ */
+export async function injectValueStats(auth: giftbitRoutes.jwtauth.AuthorizationBadge, values: Value[]): Promise<void> {
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
@@ -458,16 +463,21 @@ async function injectValueStats(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
         .whereIn("LightrailTransactionSteps.valueId", values.map(value => value.id))
         .select("LightrailTransactionSteps.valueId", "LightrailTransactionSteps.balanceChange");
 
+    const valueMap: {[id: string]: Value & {stats: {initialBalance: number}}} = {};
     for (const value of values) {
         (value as any).stats = {
             initialBalance: 0
         };
-        for (const row of res) {
-            if (value.id === row.valueId) {
-                (value as any).stats.initialBalance = row.balanceChange;
-                break;
-            }
+        valueMap[value.id] = value as any;
+    }
+
+    for (const row of res) {
+        const value = valueMap[row.valueId];
+        if (!value) {
+            // this shouldn't happen
+            continue;
         }
+        value.stats.initialBalance = row.balanceChange;
     }
 }
 

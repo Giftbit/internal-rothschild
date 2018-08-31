@@ -324,7 +324,7 @@ describe("/v2/values/", () => {
 
         const resp2 = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${value3.id}`, "GET");
         chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
-        chai.assert.equal(resp2.body.transactionType, "credit");
+        chai.assert.equal(resp2.body.transactionType, "initialBalance");
         chai.assert.equal(resp2.body.currency, value3.currency);
         chai.assert.equal(resp2.body.metadata, null);
         chai.assert.lengthOf(resp2.body.steps, 1);
