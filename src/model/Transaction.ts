@@ -106,7 +106,8 @@ export interface LightrailValueStorePaymentSource {
 }
 
 export type TransactionType =
-    "credit"
+    "initialBalance"
+    | "credit"
     | "debit"
     | "checkout"
     | "transfer"

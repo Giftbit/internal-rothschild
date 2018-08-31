@@ -22,6 +22,7 @@ import {
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
 import {StripeRestError} from "../../../../utils/stripeUtils/StripeRestError";
+import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import chaiExclude = require("chai-exclude");
 import Stripe = require("stripe");
 import ICharge = Stripe.charges.ICharge;
@@ -421,6 +422,63 @@ describe("split tender checkout with Stripe", () => {
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["statusCode"], `body=${JSON.stringify(getCheckoutResp.body, null, 4)}`);
+    });
+
+    it("checkout with multiple payment sources that result in multiple permutations should not over calculate the stripe charge amount", async () => {
+        const promoA: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            valueRule: {
+                rule: "0",
+                explanation: "zero the hard way"
+            }
+        };
+        const createPromoA = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", promoA);
+        chai.assert.equal(createPromoA.statusCode, 201);
+
+        const promoB: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            valueRule: {
+                rule: "0",
+                explanation: "zero the hard way"
+            }
+        };
+        const createPromoB = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", promoB);
+        chai.assert.equal(createPromoB.statusCode, 201);
+
+        const checkoutRequest: Partial<CheckoutRequest> = {
+            id: generateId(),
+            simulate: true,
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: createPromoA.body.id
+                },
+                {
+                    rail: "lightrail",
+                    valueId: createPromoB.body.id
+                },
+                {
+                    rail: "stripe",
+                    source: "tok_visa"
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "xyz-123",
+                    unitPrice: 500
+                }
+            ],
+            currency: "CAD"
+        };
+
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        console.log(JSON.stringify(postCheckoutResp.body, null, 4));
+        chai.assert.equal(postCheckoutResp.body.totals.payable, 500);
+        chai.assert.equal(postCheckoutResp.body.steps[0].rail, "stripe");
+        chai.assert.equal(postCheckoutResp.body.steps[0]["amount"], -500);
     });
 
     it("process basic split tender checkout", async () => {

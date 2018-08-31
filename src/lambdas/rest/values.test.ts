@@ -93,6 +93,7 @@ describe("/v2/values/", () => {
             valueRule: null,
             discount: false,
             discountSellerLiability: null,
+            updatedContactIdDate: null,
             metadata: {},
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate", "updatedDate", "createdBy"]);
@@ -131,6 +132,7 @@ describe("/v2/values/", () => {
             endDate: null,
             discount: false,
             discountSellerLiability: null,
+            updatedContactIdDate: null,
             metadata: {},
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate", "updatedDate", "createdBy"]);
@@ -166,6 +168,7 @@ describe("/v2/values/", () => {
             endDate: null,
             discount: false,
             discountSellerLiability: null,
+            updatedContactIdDate: null,
             metadata: {},
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate", "updatedDate", "createdBy"]);
@@ -300,6 +303,7 @@ describe("/v2/values/", () => {
         const resp2 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value2);
         chai.assert.equal(resp2.statusCode, 201, `body=${JSON.stringify(resp2.body)}`);
         chai.assert.equal(resp2.body.contactId, value2.contactId);
+        chai.assert.equal(resp2.body.createdDate, resp2.body.updatedContactIdDate);
         value2 = resp2.body;
     });
 
@@ -315,13 +319,14 @@ describe("/v2/values/", () => {
         const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value3);
         chai.assert.equal(resp.statusCode, 201, `create body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.balance, value3.balance);
+        chai.assert.isNull(resp.body.updatedContactIdDate);
         chai.assert.equal((resp.body as any).startDate, value3.startDate.toISOString());
         chai.assert.equal((resp.body as any).endDate, value3.endDate.toISOString());
         value3 = resp.body;
 
         const resp2 = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${value3.id}`, "GET");
         chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
-        chai.assert.equal(resp2.body.transactionType, "credit");
+        chai.assert.equal(resp2.body.transactionType, "initialBalance");
         chai.assert.equal(resp2.body.currency, value3.currency);
         chai.assert.equal(resp2.body.metadata, null);
         chai.assert.lengthOf(resp2.body.steps, 1);
@@ -532,7 +537,7 @@ describe("/v2/values/", () => {
 
             const page1 = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/values?id.in=${ids.join(",")}`, "GET");
             chai.assert.equal(page1.statusCode, 200, `body=${JSON.stringify(page1.body)}`);
-            chai.assert.deepEqualExcludingEvery(page1.body, expected, ["userId", "codeHashed", "codeLastFour", "startDate", "endDate", "createdDate", "updatedDate", "codeEncrypted", "isGenericCode"]);
+            chai.assert.deepEqualExcludingEvery(page1.body, expected, ["userId", "codeHashed", "codeLastFour", "startDate", "endDate", "createdDate", "updatedDate", "updatedContactIdDate", "codeEncrypted", "isGenericCode"]);
             chai.assert.isDefined(page1.headers["Link"]);
         });
     });

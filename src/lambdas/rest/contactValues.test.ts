@@ -57,7 +57,9 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
         chai.assert.equal(resp2.body.id, value1.id);
         chai.assert.equal(resp2.body.contactId, contact.id);
-        value1.contactId = contact.id;
+        chai.assert.isNotNull(resp2.body.updatedContactIdDate);
+        chai.assert.equal(resp2.body.updatedContactIdDate, resp2.body.updatedDate);
+        value1 = resp2.body;
     });
 
     let value2: Value;
@@ -87,6 +89,8 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(resp2.body.code, null);
         chai.assert.equal(resp2.body.isGenericCode, null);
         chai.assert.notEqual(resp2.body.id, resp1.body.id);
+        chai.assert.isNotNull(resp2.body.updatedContactIdDate);
+        chai.assert.equal(resp2.body.updatedContactIdDate, resp2.body.updatedDate);
         value2 = resp2.body;
     });
 
@@ -117,6 +121,8 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(resp2.body.code, null);
         chai.assert.equal(resp2.body.isGenericCode, null);
         chai.assert.notEqual(resp2.body.id, resp1.body.id);
+        chai.assert.isNotNull(resp2.body.updatedContactIdDate);
+        chai.assert.equal(resp2.body.updatedContactIdDate, resp2.body.updatedDate);
         value3 = resp2.body;
 
         // uses should be decremented on original Value.
@@ -168,7 +174,9 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(resp2.body.id, value4.id);
         chai.assert.equal(resp2.body.contactId, contact.id);
         chai.assert.equal(resp2.body.code, `…${value4Code.slice(-4)}`);
-        value4.contactId = contact.id;
+        chai.assert.isNotNull(resp2.body.updatedContactIdDate);
+        chai.assert.equal(resp2.body.updatedContactIdDate, resp2.body.updatedDate);
+        value4 = resp2.body;
     });
 
     const value5Code = "ANDPICKITBACKUP";
@@ -188,7 +196,9 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(resp2.body.id, value5.id);
         chai.assert.equal(resp2.body.contactId, contact.id);
         chai.assert.equal(resp2.body.code, `…${value5Code.slice(-4)}`);
-        value5.contactId = contact.id;
+        chai.assert.isNotNull(resp2.body.updatedContactIdDate);
+        chai.assert.equal(resp2.body.updatedContactIdDate, resp2.body.updatedDate);
+        value5 = resp2.body;
     });
 
     let value6Code: string;
@@ -214,7 +224,9 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(resp3.body.id, value6.id);
         chai.assert.equal(resp3.body.contactId, contact.id);
         chai.assert.equal(resp3.body.code, `…${value6Code.slice(-4)}`);
-        value6.contactId = contact.id;
+        chai.assert.isNotNull(resp3.body.updatedContactIdDate);
+        chai.assert.equal(resp3.body.updatedContactIdDate, resp3.body.updatedDate);
+        value6 = resp3.body;
     });
 
     const contact2: Contact = {
@@ -267,6 +279,8 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(resp.body.id, value6.id);
         chai.assert.equal(resp.body.contactId, contact2.id);
         chai.assert.equal(resp.body.code, `…${value6Code.slice(-4)}`);
+        chai.assert.isNotNull(resp.body.updatedContactIdDate);
+        chai.assert.equal(resp.body.updatedContactIdDate, resp.body.updatedDate);
         value6.contactId = contact2.id;
     });
 });

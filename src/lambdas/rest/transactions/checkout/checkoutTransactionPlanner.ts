@@ -46,19 +46,19 @@ export function* getAllPermutations(steps: TransactionPlanStep[]): IterableItera
             for (const postTaxPerm of postTaxPerms) {
                 yield {
                     preTaxSteps: JSON.parse(JSON.stringify(preTaxPerm)) /* this is subtle, need to be clones, otherwise object gets modified */,
-                    postTaxSteps: postTaxPerm
+                    postTaxSteps: JSON.parse(JSON.stringify(postTaxPerm))
                 };
             }
         }
     } else if (preTaxSteps.length > 0 && postTaxSteps.length === 0) {
         const preTaxPerms = getStepPermutations(preTaxSteps);
         for (const preTaxPerm of preTaxPerms) {
-            yield {preTaxSteps: preTaxPerm, postTaxSteps: []};
+            yield {preTaxSteps: JSON.parse(JSON.stringify(preTaxPerm)), postTaxSteps: []};
         }
     } else if (preTaxSteps.length === 0 && postTaxSteps.length > 0) {
         const postTaxPerms = getStepPermutations(postTaxSteps);
         for (const postTaxPerm of postTaxPerms) {
-            yield {preTaxSteps: [], postTaxSteps: postTaxPerm};
+            yield {preTaxSteps: [], postTaxSteps: JSON.parse(JSON.stringify(postTaxPerm))};
         }
     } else {
         log.info("No steps were supplied.");
