@@ -7,12 +7,12 @@ import {csvSerializer} from "../../serializers";
 import {pick, pickNotNull, pickOrDefault} from "../../utils/pick";
 import {dateInDbPrecision, filterAndPaginateQuery, nowInDbPrecision} from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
-import log = require("loglevel");
 import {DbIssuance, Issuance} from "../../model/Issuance";
 import {getProgram} from "./programs";
 import {Value} from "../../model/Value";
 import {CodeParameters} from "../../model/CodeParameters";
 import {createValue} from "./values";
+import log = require("loglevel");
 
 export function installIssuancesRest(router: cassava.Router): void {
     router.route("/v2/programs/{programId}/issuances")
@@ -157,9 +157,10 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
         await knex.transaction(async trx => {
             await trx.into("Issuances")
                 .insert(dbIssuance);
+            const issuancePaddingWidth = (issuance.count - 1 /* -1 since ids start at 0 */).toString().length;
             for (let i = 0; i < issuance.count; i++) {
                 const partialValue: Partial<Value> = {
-                    id: issuance.id + "-" + i.toString(),
+                    id: issuance.id + "-" + pad(i, issuancePaddingWidth) /* padding is for nice sorting in CSV lists */,
                     code: codeParameters.code,
                     isGenericCode: codeParameters.isGenericCode,
                     issuanceId: issuance.id,
@@ -178,6 +179,7 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
                 }, trx);
             }
         });
+        log.info("Finished creating issuance: " + JSON.stringify(issuance));
         return DbIssuance.toIssuance(dbIssuance);
     } catch (err) {
         log.debug(err);
@@ -186,6 +188,11 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
         }
         throw err;
     }
+}
+
+export function pad(num: number, width: number) {
+    const numLength = num.toString().length;
+    return numLength >= width ? num : new Array(width - numLength + 1).join('0') + num;
 }
 
 function checkIssuanceConstraints(issuance: Issuance, program: Program, codeParameters: CodeParameters): void {
@@ -239,7 +246,7 @@ const issuanceSchema: jsonschema.Schema = {
         count: {
             type: "integer",
             minimum: 1,
-            maximum: 500 // todo - this was set at 500 from 1000 due to the API gateway 30 second timeout. Be sure to update tests when changing back to 1000.
+            maximum: 10000 // todo - this was set at 500 from 1000 due to the API gateway 30 second timeout. Be sure to update tests when changing back to 1000.
         },
         balance: {
             type: ["integer", "null"],

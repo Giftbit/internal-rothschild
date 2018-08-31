@@ -1727,4 +1727,6 @@ describe("split tender checkout with Stripe", () => {
             }
         });
     });
+
+    describe("")
 });

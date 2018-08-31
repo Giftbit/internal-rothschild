@@ -46,7 +46,7 @@ describe("/v2/values/", () => {
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.deepEqual(resp.body, []);
         chai.assert.equal(resp.headers["Limit"], "100");
-        chai.assert.equal(resp.headers["Max-Limit"], "1000");
+        chai.assert.equal(resp.headers["Max-Limit"], "10000");
     });
 
     let value1: Partial<Value> = {
