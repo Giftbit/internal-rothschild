@@ -1,5 +1,5 @@
 export interface LineItemRequest {
-    type: "product" | "shipping" | "fee";
+    type?: "product" | "shipping" | "fee";
     productId?: string;
     shippingId?: string;
     feeId?: string;
