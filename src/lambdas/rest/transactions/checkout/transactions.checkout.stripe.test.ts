@@ -31,7 +31,7 @@ chai.use(chaiExclude);
 
 require("dotenv").config();
 
-describe.only("split tender checkout with Stripe", () => {
+describe("split tender checkout with Stripe", () => {
     const router = new cassava.Router();
 
     const value: Partial<Value> = {
