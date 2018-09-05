@@ -360,13 +360,13 @@ const stripePartySchema: jsonschema.Schema = {
             type: "integer"
         }
     },
-    oneOf: [
+    anyOf: [
         {
             required: ["source"]
         },
         {
             required: ["customer"]
-        }
+        },
     ],
     required: ["rail"]
 };
