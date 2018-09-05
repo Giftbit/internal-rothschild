@@ -160,7 +160,7 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
             const issuancePaddingWidth = (issuance.count - 1 /* -1 since ids start at 0 */).toString().length;
             for (let i = 0; i < issuance.count; i++) {
                 const partialValue: Partial<Value> = {
-                    id: issuance.id + "-" + pad(i, issuancePaddingWidth) /* padding is for nice sorting in CSV lists */,
+                    id: issuance.id + "-" + padValueIdForIssuance(i, issuancePaddingWidth) /* padding is for nice sorting in CSV lists */,
                     code: codeParameters.code,
                     isGenericCode: codeParameters.isGenericCode,
                     issuanceId: issuance.id,
@@ -190,7 +190,7 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
     }
 }
 
-export function pad(num: number, width: number) {
+export function padValueIdForIssuance(num: number, width: number) {
     const numLength = num.toString().length;
     return numLength >= width ? num : new Array(width - numLength + 1).join('0') + num;
 }
