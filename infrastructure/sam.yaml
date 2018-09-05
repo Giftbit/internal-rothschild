@@ -438,7 +438,7 @@ Resources:
       CodeUri: ../dist/rest/rest.zip
       Handler: index.handler
       Runtime: nodejs8.10
-      MemorySize: 128
+      MemorySize: 512
       Timeout: 180 # seconds, 300 max
       ReservedConcurrentExecutions: 100
       Environment:
