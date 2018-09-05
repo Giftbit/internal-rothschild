@@ -1785,44 +1785,66 @@ describe("split tender checkout with Stripe", () => {
         });
     });
 
-    describe("stripe customer + source tests", () => {
-        before(async function () {
-            unsetStubsForStripeTests();
+    it("returns 422 if no customer or source is provided in the rail:stripe source", async () => {
+        const request: CheckoutRequest = {
+            id: generateId(),
+            allowRemainder: true,
+            sources: [
+                {
+                    rail: "stripe"
+                }
+            ],
+            lineItems: [
+                {
+                    productId: "socks",
+                    unitPrice: 500
+                }
+            ],
+            currency: "CAD"
+        };
 
-            const testAssumeToken: giftbitRoutes.secureConfig.AssumeScopeToken = {
-                assumeToken: "this-is-an-assume-token"
-            };
+        const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+        chai.assert.equal(checkout.statusCode, 422);
+    });
 
-            let stubFetchFromS3ByEnvVar = sinon.stub(giftbitRoutes.secureConfig, "fetchFromS3ByEnvVar");
-            stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH").resolves(testAssumeToken);
-            stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE").resolves({
-                email: "test@test.com",
-                test: {
-                    clientId: "test-client-id",
-                    secretKey: "sk_test_Fwb3uGyZsIb9eJ5ZQchNH5Em", // specific stripe api key for integrationtesting+merchant@giftbit.com for customer tests
-                    publishableKey: "test-pk",
-                },
-                live: {}
+    if (testStripeLive()) {
+        describe("stripe customer + source tests", () => {
+            before(async function () {
+                unsetStubsForStripeTests();
+
+                const testAssumeToken: giftbitRoutes.secureConfig.AssumeScopeToken = {
+                    assumeToken: "this-is-an-assume-token"
+                };
+
+                let stubFetchFromS3ByEnvVar = sinon.stub(giftbitRoutes.secureConfig, "fetchFromS3ByEnvVar");
+                stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH").resolves(testAssumeToken);
+                stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE").resolves({
+                    email: "test@test.com",
+                    test: {
+                        clientId: "test-client-id",
+                        secretKey: "sk_test_Fwb3uGyZsIb9eJ5ZQchNH5Em", // specific stripe api key for test. stripe user: integrationtesting+merchant@giftbit.com
+                        publishableKey: "test-pk",
+                    },
+                    live: {}
+                });
+
+                let stubKvsGet = sinon.stub(kvsAccess, "kvsGet");
+                stubKvsGet.withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string).resolves({
+                    token_type: "bearer",
+                    stripe_user_id: "acct_1BOVE6CM9MOvFvZK", // specific stripe account id for test. stripe user: integrationtesting+merchant@giftbit.com
+                });
             });
 
-            let stubKvsGet = sinon.stub(kvsAccess, "kvsGet");
-            stubKvsGet.withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string).resolves({
-                token_type: "bearer",
-                stripe_user_id: "acct_1BOVE6CM9MOvFvZK", // specific stripe account id for integrationtesting+merchant@giftbit.com for customer tests
+            after(async function () {
+                if ((giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as sinon).displayName === "fetchFromS3ByEnvVar") {
+                    (giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as sinon).restore();
+                }
+
+                if ((kvsAccess.kvsGet as sinon).displayName === "kvsGet") {
+                    (kvsAccess.kvsGet as sinon).restore();
+                }
             });
-        });
 
-        after(async function () {
-            if ((giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as sinon).displayName === "fetchFromS3ByEnvVar") {
-                (giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as sinon).restore();
-            }
-
-            if ((kvsAccess.kvsGet as sinon).displayName === "kvsGet") {
-                (kvsAccess.kvsGet as sinon).restore();
-            }
-        });
-
-        if (testStripeLive()) {
             it("can charge a customer's default card", async () => {
                 const request: CheckoutRequest = {
                     id: generateId(),
@@ -1848,9 +1870,7 @@ describe("split tender checkout with Stripe", () => {
                 chai.assert.equal(checkout.body.steps[0]["amount"], -500);
                 chai.assert.equal(checkout.body.steps[0]["charge"]["source"]["id"], "card_1C0GSUCM9MOvFvZK8VB29qaz", "This is the customer's (cus_CP4Zd1Dddy4cOH in integrationtesting+merchant@giftbit.com) default card in. It should have been automatically charged.");
             }).timeout(3000);
-        }
 
-        if (testStripeLive()) {
             it("can charge a customer's non-default card", async () => {
                 const request: CheckoutRequest = {
                     id: generateId(),
@@ -1878,29 +1898,7 @@ describe("split tender checkout with Stripe", () => {
                 chai.assert.equal(checkout.body.steps[0]["amount"], -500);
                 chai.assert.equal(checkout.body.steps[0]["charge"]["source"]["id"], "card_1C0ZH9CM9MOvFvZKyZZc2X4Z");
             }).timeout(3000);
-        }
-
-        it("returns 422 if no customer or source is provided in the rail:stripe source", async () => {
-            const request: CheckoutRequest = {
-                id: generateId(),
-                allowRemainder: true,
-                sources: [
-                    {
-                        rail: "stripe"
-                    }
-                ],
-                lineItems: [
-                    {
-                        productId: "socks",
-                        unitPrice: 500
-                    }
-                ],
-                currency: "CAD"
-            };
-
-            const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
-            chai.assert.equal(checkout.statusCode, 422);
         });
-    });
+    }
 });
 
