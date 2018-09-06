@@ -1,7 +1,6 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import log = require("loglevel");
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {DbValue, Value} from "../../model/Value";
 import {pick, pickOrDefault} from "../../utils/pick";
@@ -21,6 +20,7 @@ import {getProgram} from "./programs";
 import {Program} from "../../model/Program";
 import * as Knex from "knex";
 import {GenerateCodeParameters} from "../../model/GenerateCodeParameters";
+import log = require("loglevel");
 
 export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
@@ -293,7 +293,16 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 id: transactionId,
                 transactionType: "initialBalance",
                 currency: value.currency,
-                totals: null,
+                totals_subtotal: null,
+                totals_tax: null,
+                totals_discountLightrail: null,
+                totals_paidLightrail: null,
+                totals_paidStripe: null,
+                totals_paidInternal: null,
+                totals_remainder: null,
+                totals_marketplace_sellerGross: null,
+                totals_marketplace_sellerDiscount: null,
+                totals_marketplace_sellerNet: null,
                 lineItems: null,
                 paymentSources: null,
                 metadata: null,
@@ -451,7 +460,7 @@ export async function injectValueStats(auth: giftbitRoutes.jwtauth.Authorization
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
-    const res: {valueId: string, balanceChange: number}[] = await knex("LightrailTransactionSteps")
+    const res: { valueId: string, balanceChange: number }[] = await knex("LightrailTransactionSteps")
         .join("Transactions", {
             "Transactions.userId": "LightrailTransactionSteps.userId",
             "Transactions.id": "LightrailTransactionSteps.transactionId"
@@ -463,7 +472,7 @@ export async function injectValueStats(auth: giftbitRoutes.jwtauth.Authorization
         .whereIn("LightrailTransactionSteps.valueId", values.map(value => value.id))
         .select("LightrailTransactionSteps.valueId", "LightrailTransactionSteps.balanceChange");
 
-    const valueMap: {[id: string]: Value & {stats: {initialBalance: number}}} = {};
+    const valueMap: { [id: string]: Value & { stats: { initialBalance: number } } } = {};
     for (const value of values) {
         (value as any).stats = {
             initialBalance: 0

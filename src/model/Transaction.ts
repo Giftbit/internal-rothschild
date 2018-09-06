@@ -3,7 +3,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {getKnexRead} from "../utils/dbUtils/connection";
 import {LineItem} from "./LineItem";
 import {TransactionParty} from "./TransactionRequest";
-import {LightrailDbTransactionStep} from "./Transaction";
+import {LightrailDbTransactionStep, TransactionType} from "./Transaction";
 import {TaxRequestProperties} from "./TaxProperties";
 
 export interface Transaction {
@@ -26,7 +26,16 @@ export interface DbTransaction {
     id: string;
     transactionType: TransactionType;
     currency: string;
-    totals: string | null;
+    totals_subtotal: number | null;
+    totals_tax: number | null;
+    totals_discountLightrail: number | null;
+    totals_paidLightrail: number | null;
+    totals_paidStripe: number | null;
+    totals_paidInternal: number | null;
+    totals_remainder: number | null;
+    totals_marketplace_sellerGross: number | null;
+    totals_marketplace_sellerDiscount: number | null;
+    totals_marketplace_sellerNet: number | null;
     lineItems: string | null;
     paymentSources: string | null;
     createdDate: Date;
@@ -38,12 +47,21 @@ export interface DbTransaction {
 export namespace Transaction {
     export function toDbTransaction
     (auth: giftbitRoutes.jwtauth.AuthorizationBadge, t: Transaction): DbTransaction {
-        return {
+        let dbT: DbTransaction = {
             userId: auth.userId,
             id: t.id,
             transactionType: t.transactionType,
             currency: t.currency,
-            totals: JSON.stringify(t.totals),
+            totals_subtotal: null,
+            totals_tax: null,
+            totals_discountLightrail: null,
+            totals_paidLightrail: null,
+            totals_paidStripe: null,
+            totals_paidInternal: null,
+            totals_remainder: null,
+            totals_marketplace_sellerGross: null,
+            totals_marketplace_sellerDiscount: null,
+            totals_marketplace_sellerNet: null,
             lineItems: JSON.stringify(t.lineItems),
             paymentSources: JSON.stringify(t.paymentSources),
             metadata: JSON.stringify(t.metadata),
@@ -51,6 +69,21 @@ export namespace Transaction {
             createdDate: t.createdDate,
             createdBy: t.createdBy,
         };
+        if (t.totals) {
+            dbT.totals_subtotal = t.totals.subtotal;
+            dbT.totals_tax = t.totals.tax;
+            dbT.totals_discountLightrail = t.totals.discountLightrail;
+            dbT.totals_paidLightrail = t.totals.paidLightrail;
+            dbT.totals_paidStripe = t.totals.paidStripe;
+            dbT.totals_paidInternal = t.totals.paidInternal;
+            dbT.totals_remainder = t.totals.remainder;
+            if (t.totals.marketplace) {
+                dbT.totals_marketplace_sellerGross = t.totals.marketplace.sellerGross;
+                dbT.totals_marketplace_sellerDiscount = t.totals.marketplace.sellerDiscount;
+                dbT.totals_marketplace_sellerNet = t.totals.marketplace.sellerNet;
+            }
+        }
+        return dbT;
     }
 }
 
@@ -68,41 +101,45 @@ export namespace DbTransaction {
             .where("userId", userId)
             .whereIn("transactionId", txIds));
 
-        return txns.map(t => {
-            return {
-                id: t.id,
-                transactionType: t.transactionType,
-                currency: t.currency,
-                totals: JSON.parse(t.totals),
-                lineItems: JSON.parse(t.lineItems),
-                paymentSources: JSON.parse(t.paymentSources),
-                steps: dbSteps.filter(s => s.transactionId === t.id).map(DbTransactionStep.toTransactionStep),
-                metadata: JSON.parse(t.metadata),
-                tax: JSON.parse(t.tax),
-                createdDate: t.createdDate,
-                createdBy: t.createdBy
+        return txns.map(dbT => {
+            let t: Transaction = {
+                id: dbT.id,
+                transactionType: dbT.transactionType,
+                currency: dbT.currency,
+                totals: {},
+                lineItems: JSON.parse(dbT.lineItems),
+                paymentSources: JSON.parse(dbT.paymentSources),
+                steps: dbSteps.filter(s => s.transactionId === dbT.id).map(DbTransactionStep.toTransactionStep),
+                metadata: JSON.parse(dbT.metadata),
+                tax: JSON.parse(dbT.tax),
+                createdDate: dbT.createdDate,
+                createdBy: dbT.createdBy
             };
+            if (dbT.transactionType === "checkout") {
+                t.totals = {
+                    subtotal: dbT.totals_subtotal,
+                    tax: dbT.totals_tax,
+                    discountLightrail: dbT.totals_discountLightrail,
+                    paidLightrail: dbT.totals_paidLightrail,
+                    paidStripe: dbT.totals_paidStripe,
+                    paidInternal: dbT.totals_paidInternal,
+                    remainder: dbT.totals_remainder,
+                    discount: dbT.totals_discountLightrail, // deprecated
+                    payable: dbT.totals_paidLightrail + dbT.totals_paidStripe + dbT.totals_paidInternal, // deprecated
+                    marketplace: undefined
+                };
+
+                if (dbT.totals_marketplace_sellerNet !== null) {
+                    t.totals.marketplace = {
+                        sellerGross: dbT.totals_marketplace_sellerGross,
+                        sellerDiscount: dbT.totals_marketplace_sellerDiscount,
+                        sellerNet: dbT.totals_marketplace_sellerNet,
+                    }
+                }
+            }
+            return t;
         });
     }
-}
-export type PaymentSource =
-    LightrailCustomerPaymentSource
-    | LightrailCodePaymentSource
-    | LightrailValueStorePaymentSource;
-
-export interface LightrailCustomerPaymentSource {
-    rail: "lightrail";
-    customerId: string;
-}
-
-export interface LightrailCodePaymentSource {
-    rail: "lightrail";
-    code: string;
-}
-
-export interface LightrailValueStorePaymentSource {
-    rail: "lightrail";
-    valueId: string;
 }
 
 export type TransactionType =
@@ -145,10 +182,14 @@ export interface InternalTransactionStep {
 export interface TransactionPlanTotals {
     subtotal?: number;
     tax?: number;
-    discount?: number;
-    payable?: number;
+    discountLightrail?: number;
+    paidLightrail?: number;
+    paidStripe?: number;
+    paidInternal?: number;
     remainder?: number;
     marketplace?: MarketplaceTransactionTotals;
+    discount?: number; // deprecated
+    payable?: number; // deprecated
 }
 
 export interface MarketplaceTransactionTotals {
