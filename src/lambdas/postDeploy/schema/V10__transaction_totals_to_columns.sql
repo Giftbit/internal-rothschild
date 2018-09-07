@@ -12,68 +12,92 @@ ALTER TABLE rothschild.Transactions
 
 SET SQL_SAFE_UPDATES = 0;
 
-SET SQL_SAFE_UPDATES = 1;
-
-ALTER TABLE rothschild.Issuances
-  MODIFY COLUMN name TEXT NOT NULL;
-
-UPDATE Transactions T
+UPDATE rothschild.Transactions T
   JOIN (
          SELECT
            T.id,
            T.totals,
-           IFNULL(DiscountLightrail.discountLightrail, 0)                                                    discountLightrail,
-           IFNULL(PaidLightrail.paidLightrail,
-                  0)                                                                                         paidLightrail,
-           IFNULL(PaidStripe.paidStripe, 0)                                                                  paidStripe,
-           IFNULL(PaidInternal.paidInternal,
-                  0)                                                                                         paidInternal,
+           IFNULL(DiscountLightrail.discountLightrail, 0)                                           discountLightrail,
+           IFNULL(PaidLightrail.paidLightrail, 0)                                                   paidLightrail,
+           IFNULL(PaidStripe.paidStripe, 0)                                                         paidStripe,
+           IFNULL(PaidInternal.paidInternal, 0)                                                     paidInternal,
 
            SUBSTR(T.totals,
                   LOCATE('"subtotal":', T.totals) + 11,
                   LOCATE(',',
                          T.totals,
-                         LOCATE('"subtotal":', T.totals)) - (LOCATE('"subtotal":', T.totals) + 11))          subtotal,
+                         LOCATE('"subtotal":', T.totals)) - (LOCATE('"subtotal":', T.totals) + 11)) subtotal,
+
+           SUBSTR(T.totals,
+                  LOCATE('"tax":', T.totals) + 6,
+                  LOCATE(',',
+                         T.totals,
+                         LOCATE('"tax":', T.totals)) - (LOCATE('"tax":', T.totals) + 6))            tax,
 
            SUBSTR(T.totals,
                   LOCATE('"remainder":', T.totals) + 12,
                   LEAST(LOCATE('}',
                                T.totals,
                                LOCATE('"remainder":', T.totals)) - (LOCATE('"remainder":', T.totals) + 12),
-                        LOCATE(',',
-                               T.totals,
-                               LOCATE('"remainder":', T.totals)) - (LOCATE('"remainder":', T.totals) + 12))) remainder,
+                        ABS(
+                            LOCATE(',',
+                                   T.totals,
+                                   LOCATE('"remainder":', T.totals)) -
+                            (LOCATE('"remainder":', T.totals) + 12))))                              remainder,
 
-           SUBSTR(T.totals,
-                  LOCATE('"sellerGross":', T.totals) + 14,
-                  LOCATE(',',
-                         T.totals,
-                         LOCATE('"sellerGross":', T.totals)) - (LOCATE('"sellerGross":', T.totals) +
-                                                                14))                                         sellerGross,
+           IF(
+               SUBSTR(T.totals,
+                      LOCATE('"sellerGross":', T.totals) + 14,
+                      LOCATE(',',
+                             T.totals,
+                             LOCATE('"sellerGross":', T.totals)) - (LOCATE('"sellerGross":', T.totals) + 14)) = "",
+               NULL,
+               SUBSTR(T.totals,
+                      LOCATE('"sellerGross":', T.totals) + 14,
+                      LOCATE(',',
+                             T.totals,
+                             LOCATE('"sellerGross":', T.totals)) - (LOCATE('"sellerGross":', T.totals) + 14))
+           )                                                                                        sellerGross,
 
-           SUBSTR(T.totals,
-                  LOCATE('"sellerDiscount":', T.totals) + 17,
-                  LOCATE(',',
-                         T.totals,
-                         LOCATE('"sellerDiscount":', T.totals)) - (LOCATE('"sellerDiscount":', T.totals) +
-                                                                   17))                                      sellerDiscount,
+           IF(
+               SUBSTR(T.totals,
+                      LOCATE('"sellerDiscount":', T.totals) + 17,
+                      LOCATE(',',
+                             T.totals,
+                             LOCATE('"sellerDiscount":', T.totals)) - (LOCATE('"sellerDiscount":', T.totals) + 17)) =
+               "",
+               NULL,
+               SUBSTR(T.totals,
+                      LOCATE('"sellerDiscount":', T.totals) + 17,
+                      LOCATE(',',
+                             T.totals,
+                             LOCATE('"sellerDiscount":', T.totals)) - (LOCATE('"sellerDiscount":', T.totals) + 17))
+           )                                                                                        sellerDiscount,
 
-           SUBSTR(T.totals,
-                  LOCATE('"sellerNet":', T.totals) + 12,
-                  LOCATE('}',
-                         T.totals,
-                         LOCATE('"sellerNet":', T.totals)) - (LOCATE('"sellerNet":', T.totals) + 12))        sellerNet
+           IF(
+               SUBSTR(T.totals,
+                      LOCATE('"sellerNet":', T.totals) + 12,
+                      LOCATE('}',
+                             T.totals,
+                             LOCATE('"sellerNet":', T.totals)) - (LOCATE('"sellerNet":', T.totals) + 12)) = "",
+               NULL,
+               SUBSTR(T.totals,
+                      LOCATE('"sellerNet":', T.totals) + 12,
+                      LOCATE('}',
+                             T.totals,
+                             LOCATE('"sellerNet":', T.totals)) - (LOCATE('"sellerNet":', T.totals) + 12))
+           )                                                                                        sellerNet
 
-         FROM Transactions T
+         FROM rothschild.Transactions T
 
            LEFT JOIN (
                        SELECT
                          LTS.transactionId,
                          SUM(LTS.balanceChange) * -1 AS 'discountLightrail'
-                       FROM LightrailTransactionSteps LTS
-                         JOIN `Values` V ON LTS.valueId = V.id
+                       FROM rothschild.LightrailTransactionSteps LTS
+                         JOIN rothschild.`Values` V ON LTS.valueId = V.id
                        WHERE transactionId IN (SELECT T.id
-                                               FROM Transactions T
+                                               FROM rothschild.Transactions T
                                                WHERE transactionType = 'checkout')
                              AND discount IS TRUE
                        GROUP BY LTS.transactionId
@@ -83,10 +107,10 @@ UPDATE Transactions T
                        SELECT
                          LTS.transactionId,
                          SUM(LTS.balanceChange) * -1 AS 'paidLightrail'
-                       FROM LightrailTransactionSteps LTS
-                         JOIN `Values` V ON LTS.valueId = V.id
+                       FROM rothschild.LightrailTransactionSteps LTS
+                         JOIN rothschild.`Values` V ON LTS.valueId = V.id
                        WHERE transactionId IN (SELECT T.id
-                                               FROM Transactions T
+                                               FROM rothschild.Transactions T
                                                WHERE transactionType = 'checkout')
                              AND discount IS FALSE
                        GROUP BY LTS.transactionId
@@ -96,9 +120,9 @@ UPDATE Transactions T
                        SELECT
                          STS.transactionId,
                          SUM(amount) * -1 AS 'paidStripe'
-                       FROM StripeTransactionSteps STS
+                       FROM rothschild.StripeTransactionSteps STS
                        WHERE transactionId IN (SELECT T.id
-                                               FROM Transactions T
+                                               FROM rothschild.Transactions T
                                                WHERE transactionType = 'checkout')
                        GROUP BY STS.transactionId
                      ) PaidStripe ON T.id = PaidStripe.transactionId
@@ -107,15 +131,15 @@ UPDATE Transactions T
                        SELECT
                          ITS.transactionId,
                          SUM(balanceChange) * -1 AS 'paidInternal'
-                       FROM InternalTransactionSteps ITS
+                       FROM rothschild.InternalTransactionSteps ITS
                        WHERE transactionId IN (SELECT T.id
-                                               FROM Transactions T
+                                               FROM rothschild.Transactions T
                                                WHERE transactionType = 'checkout')
                        GROUP BY ITS.transactionId
                      ) PaidInternal ON T.id = PaidInternal.transactionId
 
          WHERE T.transactionType = 'checkout'
-       ) TT ON T.id = TT.transactionId
+       ) TT ON T.id = TT.id
 SET
   T.totals_subtotal                   = TT.subtotal,
   T.totals_tax                        = TT.tax,
@@ -127,3 +151,15 @@ SET
   T.totals_marketplace_sellerGross    = TT.sellerGross,
   T.totals_marketplace_sellerDiscount = TT.sellerDiscount,
   T.totals_marketplace_sellerNet      = TT.sellerNet;
+
+UPDATE rothschild.Transactions T
+  JOIN (
+         SELECT
+           T.id,
+           SUBSTR(T.totals, 14, LOCATE("}", T.totals) - 14) remainder
+         FROM Transactions T
+         WHERE T.transactionType IN ('credit', 'debit', 'transfer') AND T.totals IS NOT NULL
+       ) TT ON T.id = TT.id
+SET T.totals_remainder = TT.remainder;
+
+SET SQL_SAFE_UPDATES = 1;
