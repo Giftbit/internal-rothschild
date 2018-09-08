@@ -1,7 +1,7 @@
 import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "../TransactionPlan";
 import {CheckoutRequest, TransactionParty} from "../../../../model/TransactionRequest";
 import {LineItemResponse} from "../../../../model/LineItem";
-import {TransactionPlanTotals, TransactionType} from "../../../../model/Transaction";
+import {TransactionTotals, TransactionType} from "../../../../model/Transaction";
 import {bankersRounding, roundTax} from "../../../../utils/moneyUtils";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
 import {TaxRequestProperties} from "../../../../model/TaxProperties";
@@ -10,7 +10,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
     id: string;
     transactionType: TransactionType;
     currency: string;
-    totals: TransactionPlanTotals;
+    totals: TransactionTotals;
     lineItems: LineItemResponse[] | null;
     paymentSources: TransactionParty[] | null;
     steps: TransactionPlanStep[];
@@ -45,16 +45,20 @@ export class CheckoutTransactionPlan implements TransactionPlan {
         this.paymentSources = checkout.sources; // TODO if secure code, only return last four
         this.createdDate = nowInDbPrecision();
         this.tax = checkout.tax;
-        this.calculateTotalsFromLineItems();
+        this.calculateTotalsFromLineItemsAndSteps();
     }
 
-    calculateTotalsFromLineItems(): void {
+    calculateTotalsFromLineItemsAndSteps(): void {
         this.totals = {
             subtotal: 0,
             tax: 0,
             discount: 0,
             payable: 0,
             remainder: 0,
+            discountLightrail: this.steps.filter(step => step.rail === "lightrail" && step.value.discount === true).reduce((prev, step) => prev + step.amount, 0) * -1,
+            paidLightrail: this.steps.filter(step => step.rail === "lightrail" && step.value.discount === false).reduce((prev, step) => prev + step.amount, 0) * -1,
+            paidStripe: this.steps.filter(step => step.rail === "stripe").reduce((prev, step) => prev + step.amount, 0) * -1,
+            paidInternal: this.steps.filter(step => step.rail === "internal").reduce((prev, step) => prev + step.amount, 0) * -1,
         };
         for (const item of this.lineItems) {
             item.lineTotal.payable = item.lineTotal.subtotal + item.lineTotal.tax - item.lineTotal.discount;

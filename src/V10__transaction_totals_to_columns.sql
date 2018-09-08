@@ -1,3 +1,5 @@
+SET SQL_SAFE_UPDATES = 0;
+
 ALTER TABLE rothschild.Transactions
   ADD COLUMN totals_subtotal INT,
   ADD COLUMN totals_tax INT,
@@ -10,9 +12,7 @@ ALTER TABLE rothschild.Transactions
   ADD COLUMN totals_marketplace_sellerDiscount INT,
   ADD COLUMN totals_marketplace_sellerNet INT;
 
-SET SQL_SAFE_UPDATES = 0;
-
-UPDATE rothschild.Transactions T
+UPDATE rothschild.`Transactions` T
   JOIN (
          SELECT
            T.id,
@@ -88,16 +88,16 @@ UPDATE rothschild.Transactions T
                              LOCATE('"sellerNet":', T.totals)) - (LOCATE('"sellerNet":', T.totals) + 12))
            )                                                                                        sellerNet
 
-         FROM rothschild.Transactions T
+         FROM rothschild.`Transactions` T
 
            LEFT JOIN (
                        SELECT
                          LTS.transactionId,
                          SUM(LTS.balanceChange) * -1 AS 'discountLightrail'
-                       FROM rothschild.LightrailTransactionSteps LTS
+                       FROM rothschild.`LightrailTransactionSteps` LTS
                          JOIN rothschild.`Values` V ON LTS.valueId = V.id
                        WHERE transactionId IN (SELECT T.id
-                                               FROM rothschild.Transactions T
+                                               FROM rothschild.`Transactions` T
                                                WHERE transactionType = 'checkout')
                              AND discount IS TRUE
                        GROUP BY LTS.transactionId
@@ -107,10 +107,10 @@ UPDATE rothschild.Transactions T
                        SELECT
                          LTS.transactionId,
                          SUM(LTS.balanceChange) * -1 AS 'paidLightrail'
-                       FROM rothschild.LightrailTransactionSteps LTS
+                       FROM rothschild.`LightrailTransactionSteps` LTS
                          JOIN rothschild.`Values` V ON LTS.valueId = V.id
                        WHERE transactionId IN (SELECT T.id
-                                               FROM rothschild.Transactions T
+                                               FROM rothschild.`Transactions` T
                                                WHERE transactionType = 'checkout')
                              AND discount IS FALSE
                        GROUP BY LTS.transactionId
@@ -120,9 +120,9 @@ UPDATE rothschild.Transactions T
                        SELECT
                          STS.transactionId,
                          SUM(amount) * -1 AS 'paidStripe'
-                       FROM rothschild.StripeTransactionSteps STS
+                       FROM rothschild.`StripeTransactionSteps` STS
                        WHERE transactionId IN (SELECT T.id
-                                               FROM rothschild.Transactions T
+                                               FROM rothschild.`Transactions` T
                                                WHERE transactionType = 'checkout')
                        GROUP BY STS.transactionId
                      ) PaidStripe ON T.id = PaidStripe.transactionId
@@ -131,9 +131,9 @@ UPDATE rothschild.Transactions T
                        SELECT
                          ITS.transactionId,
                          SUM(balanceChange) * -1 AS 'paidInternal'
-                       FROM rothschild.InternalTransactionSteps ITS
+                       FROM rothschild.`InternalTransactionSteps` ITS
                        WHERE transactionId IN (SELECT T.id
-                                               FROM rothschild.Transactions T
+                                               FROM rothschild.`Transactions` T
                                                WHERE transactionType = 'checkout')
                        GROUP BY ITS.transactionId
                      ) PaidInternal ON T.id = PaidInternal.transactionId
@@ -152,12 +152,12 @@ SET
   T.totals_marketplace_sellerDiscount = TT.sellerDiscount,
   T.totals_marketplace_sellerNet      = TT.sellerNet;
 
-UPDATE rothschild.Transactions T
+UPDATE rothschild.`Transactions` T
   JOIN (
          SELECT
            T.id,
            SUBSTR(T.totals, 14, LOCATE("}", T.totals) - 14) remainder
-         FROM Transactions T
+         FROM rothschild.`Transactions` T
          WHERE T.transactionType IN ('credit', 'debit', 'transfer') AND T.totals IS NOT NULL
        ) TT ON T.id = TT.id
 SET T.totals_remainder = TT.remainder;

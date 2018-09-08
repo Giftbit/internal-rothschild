@@ -11,7 +11,7 @@ export interface Transaction {
     transactionType: TransactionType;
     currency: string;
     steps: TransactionStep[];
-    totals: TransactionPlanTotals;
+    totals: TransactionTotals;
     lineItems: LineItem[] | null;
     paymentSources: TransactionParty[] | null;
     simulated?: true;
@@ -26,6 +26,7 @@ export interface DbTransaction {
     id: string;
     transactionType: TransactionType;
     currency: string;
+    totals: string;
     totals_subtotal: number | null;
     totals_tax: number | null;
     totals_discountLightrail: number | null;
@@ -52,6 +53,7 @@ export namespace Transaction {
             id: t.id,
             transactionType: t.transactionType,
             currency: t.currency,
+            totals: JSON.stringify(t.totals),
             totals_subtotal: null,
             totals_tax: null,
             totals_discountLightrail: null,
@@ -179,7 +181,7 @@ export interface InternalTransactionStep {
     balanceChange: number;
 }
 
-export interface TransactionPlanTotals {
+export interface TransactionTotals {
     subtotal?: number;
     tax?: number;
     discountLightrail?: number;
@@ -188,8 +190,8 @@ export interface TransactionPlanTotals {
     paidInternal?: number;
     remainder?: number;
     marketplace?: MarketplaceTransactionTotals;
-    discount?: number; // deprecated
-    payable?: number; // deprecated
+    discount?: number; // deprecated. todo - eventually remove from api once customers have been notified
+    payable?: number; // deprecated. todo - eventually remove from api once customers have been notified
 }
 
 export interface MarketplaceTransactionTotals {

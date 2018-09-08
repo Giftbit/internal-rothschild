@@ -293,6 +293,7 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 id: transactionId,
                 transactionType: "initialBalance",
                 currency: value.currency,
+                totals: null,
                 totals_subtotal: null,
                 totals_tax: null,
                 totals_discountLightrail: null,

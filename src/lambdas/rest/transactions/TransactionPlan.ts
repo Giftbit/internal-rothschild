@@ -8,8 +8,8 @@ import {
     StripeDbTransactionStep,
     StripeTransactionStep,
     Transaction,
-    TransactionPlanTotals,
     TransactionStep,
+    TransactionTotals,
     TransactionType
 } from "../../../model/Transaction";
 import {Value} from "../../../model/Value";
@@ -24,7 +24,7 @@ export interface TransactionPlan {
     id: string;
     transactionType: TransactionType;
     currency: string;
-    totals: TransactionPlanTotals;
+    totals: TransactionTotals;
     lineItems: LineItemResponse[] | null;
     paymentSources: TransactionParty[] | null;
     steps: TransactionPlanStep[];
@@ -158,10 +158,32 @@ export namespace InternalTransactionPlanStep {
 
 export namespace TransactionPlan {
     export function toDbTransaction(plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge): DbTransaction {
+        let totals: TransactionTotals = {
+            subtotal: plan.totals.subtotal,
+            tax: plan.totals.tax,
+            discountLightrail: plan.steps.filter(step => step.rail === "lightrail" && step.value.discount === true).reduce((prev, step) => prev + step.amount, 0) * -1,
+            paidLightrail: plan.steps.filter(step => step.rail === "lightrail" && step.value.discount === false).reduce((prev, step) => prev + step.amount, 0) * -1,
+            paidStripe: plan.steps.filter(step => step.rail === "stripe").reduce((prev, step) => prev + step.amount, 0) * -1,
+            paidInternal: plan.steps.filter(step => step.rail === "internal").reduce((prev, step) => prev + step.amount, 0) * -1,
+            remainder: plan.totals.remainder,
+            marketplace: plan.totals.marketplace,
+            discount: plan.totals.discount,
+            payable: plan.totals.payable
+        };
         return {
             userId: auth.userId,
             ...getSharedProperties(plan),
-            totals: JSON.stringify(plan.totals),
+            totals: JSON.stringify(totals),
+            totals_subtotal: totals.subtotal,
+            totals_tax: totals.tax,
+            totals_discountLightrail: totals.discountLightrail,
+            totals_paidLightrail: totals.paidLightrail,
+            totals_paidStripe: totals.paidStripe,
+            totals_paidInternal: totals.paidInternal,
+            totals_remainder: totals.remainder,
+            totals_marketplace_sellerGross: totals.marketplace ? totals.marketplace.sellerGross : null,
+            totals_marketplace_sellerDiscount: totals.marketplace ? totals.marketplace.sellerDiscount : null,
+            totals_marketplace_sellerNet: totals.marketplace ? totals.marketplace.sellerNet : null,
             lineItems: JSON.stringify(plan.lineItems),
             paymentSources: JSON.stringify(plan.paymentSources),
             metadata: JSON.stringify(plan.metadata),

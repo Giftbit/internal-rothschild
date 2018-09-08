@@ -18,7 +18,7 @@ export function calculateCheckoutTransactionPlan(checkout: CheckoutRequest, preT
     calculateAmountsForTransactionSteps(preTaxSteps, transactionPlan);
     transactionPlan.calculateTaxAndSetOnLineItems();
     calculateAmountsForTransactionSteps(postTaxSteps, transactionPlan);
-    transactionPlan.calculateTotalsFromLineItems();
+    transactionPlan.calculateTotalsFromLineItemsAndSteps();
 
     transactionPlan.steps = transactionPlan.steps.filter(s => s.amount !== 0);
     return transactionPlan;
