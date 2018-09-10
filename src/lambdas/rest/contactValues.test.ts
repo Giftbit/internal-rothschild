@@ -283,4 +283,44 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(resp.body.updatedContactIdDate, resp.body.updatedDate);
         value6.contactId = contact2.id;
     });
+
+    let value7: Value;
+
+    it("cannot attach a frozen Value", async () => {
+        const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: "gonna-freeze-this",
+            currency: currency.code
+        });
+        chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
+        value7 = resp1.body;
+
+        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value7.id}`, "PATCH", {
+            frozen: true
+        });
+        chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
+
+        const resp3 = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value7.id});
+        chai.assert.equal(resp3.statusCode, 409, `body=${JSON.stringify(resp3.body)}`);
+        chai.assert.equal(resp3.body.messageCode, "ValueFrozen");
+    });
+
+    let value8: Value;
+
+    it("cannot attach a frozen Value", async () => {
+        const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: "gonna-cancel-this",
+            currency: currency.code
+        });
+        chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
+        value8 = resp1.body;
+
+        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value8.id}`, "PATCH", {
+            canceled: true
+        });
+        chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
+
+        const resp3 = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value8.id});
+        chai.assert.equal(resp3.statusCode, 409, `body=${JSON.stringify(resp3.body)}`);
+        chai.assert.equal(resp3.body.messageCode, "ValueCanceled");
+    });
 });
