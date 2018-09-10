@@ -7,12 +7,12 @@ import {csvSerializer} from "../../serializers";
 import {pick, pickNotNull, pickOrDefault} from "../../utils/pick";
 import {dateInDbPrecision, filterAndPaginateQuery, nowInDbPrecision} from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
-import log = require("loglevel");
 import {DbIssuance, Issuance} from "../../model/Issuance";
 import {getProgram} from "./programs";
 import {Value} from "../../model/Value";
 import {CodeParameters} from "../../model/CodeParameters";
 import {createValue} from "./values";
+import log = require("loglevel");
 
 export function installIssuancesRest(router: cassava.Router): void {
     router.route("/v2/programs/{programId}/issuances")
@@ -148,6 +148,7 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
         ...pick<Partial<Issuance>>(program, "startDate", "endDate", "valueRule", "redemptionRule"),
         ...pickNotNull(issuance)
     };
+    issuance.metadata = {...(program && program.metadata ? program.metadata : {}), ...issuance.metadata};
 
     checkIssuanceConstraints(issuance, program, codeParameters);
 
@@ -169,6 +170,7 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
                     uses: issuance.uses ? issuance.uses : null,
                     startDate: issuance.startDate ? issuance.startDate : null,
                     endDate: issuance.endDate ? issuance.endDate : null,
+                    metadata: issuance.metadata
                 };
                 await createValue(auth, {
                     partialValue: partialValue,
