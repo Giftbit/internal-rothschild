@@ -431,7 +431,6 @@ describe("/v2/issuances", () => {
             chai.assert.deepEqual(getValue.body[0].metadata, program.metadata);
         });
 
-
         it("can create Issuance with metadata and Program's metadata is copied to Issuance and Value metadata. Issuance metadata takes precedence.", async () => {
             let issuance: Partial<Issuance> = {
                 id: generateId(),
@@ -454,6 +453,6 @@ describe("/v2/issuances", () => {
             const getValue = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?issuanceId=${issuance.id}`, "GET");
             chai.assert.deepEqual(getValue.body[0].metadata, resultingMetadata);
         });
-    })
+    });
 
 });
