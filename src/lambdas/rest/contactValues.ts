@@ -57,6 +57,7 @@ export function installContactValuesRest(router: cassava.Router): void {
                 type: "object",
                 oneOf: [
                     {
+                        title: "attach by `valueId`",
                         properties: {
                             valueId: {
                                 type: "string"
@@ -65,6 +66,7 @@ export function installContactValuesRest(router: cassava.Router): void {
                         required: ["valueId"]
                     },
                     {
+                        title: "attach by `code`",
                         properties: {
                             code: {
                                 type: "string"
@@ -84,6 +86,13 @@ export function installContactValuesRest(router: cassava.Router): void {
 export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, valueIdentifier: {valueId?: string, code?: string}, allowOverwrite: boolean): Promise<Value> {
     const contact = await getContact(auth, contactId);
     const value = await getValueByIdentifier(auth, valueIdentifier);
+
+    if (value.frozen) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value cannot be attached because it is frozen.`, "ValueFrozen");
+    }
+    if (value.canceled) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value cannot be attached because it is canceled.`, "ValueCanceled");
+    }
 
     if (value.isGenericCode) {
         return attachGenericValue(auth, contact.id, value);
