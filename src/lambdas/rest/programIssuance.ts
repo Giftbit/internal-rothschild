@@ -148,6 +148,7 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
         ...pick<Partial<Issuance>>(program, "startDate", "endDate", "valueRule", "redemptionRule"),
         ...pickNotNull(issuance)
     };
+    issuance.metadata = {...(program && program.metadata ? program.metadata : {}), ...issuance.metadata};
 
     checkIssuanceConstraints(issuance, program, codeParameters);
 
@@ -170,6 +171,7 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
                     uses: issuance.uses ? issuance.uses : null,
                     startDate: issuance.startDate ? issuance.startDate : null,
                     endDate: issuance.endDate ? issuance.endDate : null,
+                    metadata: issuance.metadata
                 };
                 await createValue(auth, {
                     partialValue: partialValue,

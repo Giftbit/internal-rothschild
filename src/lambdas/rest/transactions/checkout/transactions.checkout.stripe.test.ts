@@ -1864,7 +1864,7 @@ describe("split tender checkout with Stripe", () => {
                     currency: "CAD"
                 };
 
-                chai.assert.equal(request.sources[0]["customer"], "cus_CP4Zd1Dddy4cOH", "Specific customer id in integrationtesting+merchant@giftbit.com. If changed test will fail")
+                chai.assert.equal(request.sources[0]["customer"], "cus_CP4Zd1Dddy4cOH", "Specific customer id in integrationtesting+merchant@giftbit.com. If changed test will fail");
                 const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
                 chai.assert.equal(checkout.statusCode, 201);
                 chai.assert.equal(checkout.body.steps[0]["amount"], -500);
@@ -1891,8 +1891,8 @@ describe("split tender checkout with Stripe", () => {
                     currency: "CAD"
                 };
 
-                chai.assert.equal(request.sources[0]["customer"], "cus_CP4Zd1Dddy4cOH", "Specific customer id in integrationtesting+merchant@giftbit.com. If changed test will fail")
-                chai.assert.equal(request.sources[0]["source"], "card_1C0ZH9CM9MOvFvZKyZZc2X4Z", "Specific card id in integrationtesting+merchant@giftbit.com attached to customer. If changed test will fail")
+                chai.assert.equal(request.sources[0]["customer"], "cus_CP4Zd1Dddy4cOH", "Specific customer id in integrationtesting+merchant@giftbit.com. If changed test will fail");
+                chai.assert.equal(request.sources[0]["source"], "card_1C0ZH9CM9MOvFvZKyZZc2X4Z", "Specific card id in integrationtesting+merchant@giftbit.com attached to customer. If changed test will fail");
                 const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
                 chai.assert.equal(checkout.statusCode, 201);
                 chai.assert.equal(checkout.body.steps[0]["amount"], -500);
