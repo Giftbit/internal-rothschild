@@ -306,7 +306,7 @@ describe("/v2/contacts/values", () => {
 
     let value8: Value;
 
-    it("cannot attach a frozen Value", async () => {
+    it("cannot attach a canceled Value", async () => {
         const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
             id: "gonna-cancel-this",
             currency: currency.code
