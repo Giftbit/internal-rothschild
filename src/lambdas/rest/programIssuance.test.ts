@@ -63,13 +63,14 @@ describe("/v2/issuances", () => {
     });
 
     it(`basic issuances with varying counts. POST, GET and LIST`, async () => {
-        const valuesToIssues = [1, 2, 10, 100, 500];
+        const valuesToIssues = [1, 10, 11, 100, 1000];
+
         let issuances: Issuance[] = [];
-        for (let num of valuesToIssues) {
+        for (let count of valuesToIssues) {
             let issuance = {
                 id: generateId(),
                 name: "name",
-                count: num,
+                count: count,
                 generateCode: {}
             };
 
@@ -79,7 +80,7 @@ describe("/v2/issuances", () => {
                 id: issuance.id,
                 name: issuance.name,
                 programId: program.id,
-                count: num,
+                count: count,
                 balance: null,
                 redemptionRule: null,
                 valueRule: null,
@@ -97,6 +98,31 @@ describe("/v2/issuances", () => {
             const listValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?limit=1000&issuanceId=${issuance.id}`, "GET");
             chai.assert.equal(listValues.statusCode, 200, `body=${JSON.stringify(listValues.body)}`);
             chai.assert.equal(listValues.body.length, issuance.count);
+
+            switch (count) {
+                case 1:
+                    chai.assert.deepEqual(listValues.body[0].id, issuance.id + "-0");
+                    break;
+                case 10:
+                    chai.assert.deepEqual(listValues.body[0].id, issuance.id + "-9");
+                    chai.assert.deepEqual(listValues.body[9].id, issuance.id + "-0");
+                    break;
+                case 11:
+                    chai.assert.deepEqual(listValues.body[0].id, issuance.id + "-10");
+                    chai.assert.deepEqual(listValues.body[10].id, issuance.id + "-00");
+                    break;
+                case 100:
+                    chai.assert.deepEqual(listValues.body[0].id, issuance.id + "-99");
+                    chai.assert.deepEqual(listValues.body[99].id, issuance.id + "-00");
+                    break;
+                case 1000:
+                    chai.assert.deepEqual(listValues.body[0].id, issuance.id + "-999");
+                    chai.assert.deepEqual(listValues.body[999].id, issuance.id + "-000");
+                    break;
+                default:
+                    chai.assert.fail(null, null, `unexpected count: ${count}`)
+            }
+
         }
         const listIssuances = await testUtils.testAuthedRequest<Issuance[]>(router, `/v2/programs/${program.id}/issuances`, "GET");
         chai.assert.equal(listIssuances.statusCode, 200, `body=${JSON.stringify(listIssuances.body)}`);
