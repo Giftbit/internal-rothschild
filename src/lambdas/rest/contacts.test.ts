@@ -35,7 +35,7 @@ describe("/v2/contacts", () => {
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.deepEqual(resp.body, []);
         chai.assert.equal(resp.headers["Limit"], "100");
-        chai.assert.equal(resp.headers["Max-Limit"], "1000");
+        chai.assert.equal(resp.headers["Max-Limit"], "10000");
     });
 
     let contact1: Partial<Contact> = {
@@ -76,7 +76,7 @@ describe("/v2/contacts", () => {
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.deepEqualExcludingEvery(resp.body, [contact1], ["createdDate", "updatedDate"]);
         chai.assert.equal(resp.headers["Limit"], "100");
-        chai.assert.equal(resp.headers["Max-Limit"], "1000");
+        chai.assert.equal(resp.headers["Max-Limit"], "10000");
     });
 
     it("requires an id to create a contact", async () => {
@@ -221,7 +221,7 @@ describe("/v2/contacts", () => {
             }
         ], ["createdDate", "updatedDate", "createdBy"]); // TODO don't ignore dates if my issue gets resolved https://github.com/mholt/PapaParse/issues/502
         chai.assert.equal(resp.headers["Limit"], "100");
-        chai.assert.equal(resp.headers["Max-Limit"], "1000");
+        chai.assert.equal(resp.headers["Max-Limit"], "10000");
     });
 
     let contact4: Partial<Contact> = {
