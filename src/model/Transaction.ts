@@ -121,9 +121,9 @@ export namespace DbTransaction {
                 t.totals = {
                     subtotal: dbT.totals_subtotal,
                     tax: dbT.totals_tax,
-                    discount: dbT.totals_discountLightrail, // deprecated
+                    discount: dbT.totals_discountLightrail,
                     discountLightrail: dbT.totals_discountLightrail,
-                    payable: dbT.totals_paidLightrail + dbT.totals_paidStripe + dbT.totals_paidInternal + dbT.totals_remainder, // deprecated
+                    payable: dbT.totals_paidLightrail + dbT.totals_paidStripe + dbT.totals_paidInternal + dbT.totals_remainder,
                     paidLightrail: dbT.totals_paidLightrail,
                     paidStripe: dbT.totals_paidStripe,
                     paidInternal: dbT.totals_paidInternal,
@@ -190,8 +190,8 @@ export interface TransactionTotals {
     paidInternal?: number;
     remainder?: number;
     marketplace?: MarketplaceTransactionTotals;
-    discount?: number; // deprecated. todo - eventually remove from api once customers have been notified
-    payable?: number; // deprecated. todo - eventually remove from api once customers have been notified
+    discount?: number; // deprecated
+    payable?: number; // deprecated
 }
 
 export interface MarketplaceTransactionTotals {
