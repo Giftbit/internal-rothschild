@@ -63,13 +63,14 @@ describe("/v2/issuances", () => {
     });
 
     it(`basic issuances with varying counts. POST, GET and LIST`, async () => {
-        const valuesToIssues = [1, 2, 10, 100, 500];
+        const valuesToIssues = [1, 10, 11, 100, 1000];
+
         let issuances: Issuance[] = [];
-        for (let num of valuesToIssues) {
+        for (let count of valuesToIssues) {
             let issuance = {
                 id: generateId(),
                 name: "name",
-                count: num,
+                count: count,
                 generateCode: {}
             };
 
@@ -79,14 +80,14 @@ describe("/v2/issuances", () => {
                 id: issuance.id,
                 name: issuance.name,
                 programId: program.id,
-                count: num,
+                count: count,
                 balance: null,
                 redemptionRule: null,
                 valueRule: null,
                 uses: null,
                 startDate: null,
                 endDate: null,
-                metadata: null
+                metadata: {}
             }, ["createdDate", "updatedDate"]);
             issuances.push(createIssuance.body);
 
@@ -97,6 +98,31 @@ describe("/v2/issuances", () => {
             const listValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?limit=1000&issuanceId=${issuance.id}`, "GET");
             chai.assert.equal(listValues.statusCode, 200, `body=${JSON.stringify(listValues.body)}`);
             chai.assert.equal(listValues.body.length, issuance.count);
+
+            switch (count) {
+                case 1:
+                    chai.assert.deepEqual(listValues.body[0].id, issuance.id + "-0");
+                    break;
+                case 10:
+                    chai.assert.deepEqual(listValues.body[0].id, issuance.id + "-9");
+                    chai.assert.deepEqual(listValues.body[9].id, issuance.id + "-0");
+                    break;
+                case 11:
+                    chai.assert.deepEqual(listValues.body[0].id, issuance.id + "-10");
+                    chai.assert.deepEqual(listValues.body[10].id, issuance.id + "-00");
+                    break;
+                case 100:
+                    chai.assert.deepEqual(listValues.body[0].id, issuance.id + "-99");
+                    chai.assert.deepEqual(listValues.body[99].id, issuance.id + "-00");
+                    break;
+                case 1000:
+                    chai.assert.deepEqual(listValues.body[0].id, issuance.id + "-999");
+                    chai.assert.deepEqual(listValues.body[999].id, issuance.id + "-000");
+                    break;
+                default:
+                    chai.assert.fail(null, null, `unexpected count: ${count}`)
+            }
+
         }
         const listIssuances = await testUtils.testAuthedRequest<Issuance[]>(router, `/v2/programs/${program.id}/issuances`, "GET");
         chai.assert.equal(listIssuances.statusCode, 200, `body=${JSON.stringify(listIssuances.body)}`);
@@ -394,4 +420,65 @@ describe("/v2/issuances", () => {
         chai.assert.equal(resp.body.length, 4);
         chai.assert.sameOrderedMembers(resp.body.map(tx => tx.id), idAndDates.reverse().map(tx => tx.id) /* reversed since createdDate desc*/);
     });
+
+    describe(`creating Issuance with metadata from Program with metadata`, () => {
+        let program: Partial<Program> = {
+            id: generateId(),
+            name: "program with valueRule",
+            currency: "USD",
+            metadata: {
+                a: "A",
+                b: "B"
+            }
+        };
+
+        let programProperties = Object.keys(program);
+        it("can create Program", async () => {
+            const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
+            chai.assert.equal(programResp.statusCode, 201, JSON.stringify(programResp.body));
+            for (let prop of programProperties) {
+                chai.assert.equal(JSON.stringify(programResp.body[prop]), JSON.stringify(program[prop]));
+            }
+        });
+
+        it("can create Issuance and Program's metadata is copied to Issuance and Values metadata", async () => {
+            let issuance: Partial<Issuance> = {
+                id: generateId(),
+                name: "issuance name",
+                count: 1
+            };
+            const createIssuance = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", issuance);
+            chai.assert.equal(createIssuance.statusCode, 201, JSON.stringify(createIssuance.body));
+            chai.assert.isNotNull(createIssuance.body.metadata);
+            chai.assert.deepEqual(createIssuance.body.metadata, program.metadata);
+
+            const getValue = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?issuanceId=${issuance.id}`, "GET");
+            chai.assert.isNotNull(getValue.body[0].metadata);
+            chai.assert.deepEqual(getValue.body[0].metadata, program.metadata);
+        });
+
+        it("can create Issuance with metadata and Program's metadata is copied to Issuance and Value metadata. Issuance metadata takes precedence.", async () => {
+            let issuance: Partial<Issuance> = {
+                id: generateId(),
+                name: "issuance name",
+                count: 1,
+                metadata: {
+                    b: "override program",
+                    c: "new"
+                }
+            };
+
+            const resultingMetadata = {
+                ...program.metadata,
+                ...issuance.metadata
+            };
+            const createIssuance = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", issuance);
+            chai.assert.equal(createIssuance.statusCode, 201, JSON.stringify(createIssuance.body));
+            chai.assert.deepEqual(createIssuance.body.metadata, resultingMetadata);
+
+            const getValue = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?issuanceId=${issuance.id}`, "GET");
+            chai.assert.deepEqual(getValue.body[0].metadata, resultingMetadata);
+        });
+    });
+
 });
