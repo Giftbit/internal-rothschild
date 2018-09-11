@@ -159,7 +159,6 @@ describe("/v2/transactions/transfer", () => {
                 userId: testUtils.defaultTestUser.userId,
                 id: postTransferResp.body.id
             });
-        console.log(JSON.stringify(res[0], null, 4));
         chai.assert.deepEqualExcluding(
             res[0], {
                 "userId": "default-test-user-TEST",

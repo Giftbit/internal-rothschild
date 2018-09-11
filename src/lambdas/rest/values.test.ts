@@ -349,7 +349,6 @@ describe("/v2/values/", () => {
                 userId: testUtils.defaultTestUser.userId,
                 id: intitialBalanceTx.body.id
             });
-        console.log(JSON.stringify(res[0], null, 4));
         chai.assert.deepEqualExcluding(
             res[0], {
                 "userId": "default-test-user-TEST",

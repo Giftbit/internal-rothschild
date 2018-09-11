@@ -153,7 +153,6 @@ describe("/v2/transactions/checkout - basics", () => {
                 "totals_marketplace_sellerNet": null
             }, ["createdDate", "totals"]
         );
-        console.log(JSON.stringify(res[0], null, 4));
     });
 
     it("process checkout with two ValueStores", async () => {

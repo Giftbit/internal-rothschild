@@ -94,7 +94,6 @@ describe("/v2/transactions/debit", () => {
                 userId: testUtils.defaultTestUser.userId,
                 id: postDebitResp.body.id
             });
-        console.log(JSON.stringify(res[0], null, 4));
         chai.assert.deepEqualExcluding(
             res[0], {
                 "userId": "default-test-user-TEST",
