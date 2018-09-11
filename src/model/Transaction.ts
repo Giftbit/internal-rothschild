@@ -138,7 +138,7 @@ export namespace DbTransaction {
                         sellerGross: dbT.totals_marketplace_sellerGross,
                         sellerDiscount: dbT.totals_marketplace_sellerDiscount,
                         sellerNet: dbT.totals_marketplace_sellerNet,
-                    }
+                    };
                 }
             }
             return t;

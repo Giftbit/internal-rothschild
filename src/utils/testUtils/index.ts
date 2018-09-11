@@ -142,8 +142,7 @@ async function getSqlMigrationFiles(): Promise<string[]> {
         const f2Num: number = +f1.substring(1, f2.indexOf("__"));
         return f1Num - f2Num;
     });
-    for (const sqlFile
-        of sortedMigrationFileNames) {
+    for (const sqlFile of sortedMigrationFileNames) {
         if (!/V\d+__.*\.sql/.test(sqlFile)) {
             throw new Error(`SQL migration file name ${sqlFile} does not match expected format V#__*.sql`);
         }

@@ -120,7 +120,7 @@ describe("/v2/issuances", () => {
                     chai.assert.deepEqual(listValues.body[999].id, issuance.id + "-000");
                     break;
                 default:
-                    chai.assert.fail(null, null, `unexpected count: ${count}`)
+                    chai.assert.fail(null, null, `unexpected count: ${count}`);
             }
 
         }

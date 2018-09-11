@@ -194,7 +194,7 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
 
 export function padValueIdForIssuance(num: number, width: number) {
     const numLength = num.toString().length;
-    return numLength >= width ? num : new Array(width - numLength + 1).join('0') + num;
+    return numLength >= width ? num : new Array(width - numLength + 1).join("0") + num;
 }
 
 function checkIssuanceConstraints(issuance: Issuance, program: Program, codeParameters: CodeParameters): void {
