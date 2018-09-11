@@ -26,7 +26,6 @@ export interface DbTransaction {
     id: string;
     transactionType: TransactionType;
     currency: string;
-    totals: string;
     totals_subtotal: number | null;
     totals_tax: number | null;
     totals_discountLightrail: number | null;
@@ -53,7 +52,6 @@ export namespace Transaction {
             id: t.id,
             transactionType: t.transactionType,
             currency: t.currency,
-            totals: JSON.stringify(t.totals),
             totals_subtotal: null,
             totals_tax: null,
             totals_discountLightrail: null,

@@ -7,6 +7,7 @@ import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
 import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
+import {getKnexRead} from "../../../../utils/dbUtils/connection";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -120,6 +121,39 @@ describe("/v2/transactions/checkout - basics", () => {
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout-1", "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, "statusCode");
+
+        // check DbTransaction created by checkout
+        const knex = await getKnexRead();
+        const res = await knex("Transactions")
+            .select()
+            .where({
+                userId: testUtils.defaultTestUser.userId,
+                id: request.id
+            });
+        chai.assert.deepEqualExcluding(
+            res[0], {
+                "userId": "default-test-user-TEST",
+                "id": "checkout-1",
+                "transactionType": "checkout",
+                "currency": "CAD",
+                "lineItems": "[{\"type\":\"product\",\"productId\":\"xyz-123\",\"unitPrice\":50,\"quantity\":1,\"lineTotal\":{\"subtotal\":50,\"taxable\":50,\"tax\":0,\"discount\":0,\"remainder\":0,\"payable\":50}}]",
+                "paymentSources": "[{\"rail\":\"lightrail\",\"valueId\":\"basic-checkout-vs\"}]",
+                "metadata": "null",
+                "tax": "{\"roundingMode\":\"HALF_EVEN\"}",
+                "createdBy": "default-test-user-TEST",
+                "totals_subtotal": 50,
+                "totals_tax": 0,
+                "totals_discountLightrail": 0,
+                "totals_paidLightrail": 50,
+                "totals_paidStripe": 0,
+                "totals_paidInternal": 0,
+                "totals_remainder": 0,
+                "totals_marketplace_sellerGross": null,
+                "totals_marketplace_sellerDiscount": null,
+                "totals_marketplace_sellerNet": null
+            }, ["createdDate", "totals"]
+        );
+        console.log(JSON.stringify(res[0], null, 4));
     });
 
     it("process checkout with two ValueStores", async () => {

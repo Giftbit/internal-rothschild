@@ -6,6 +6,7 @@ import {Value} from "../../../model/Value";
 import {Transaction} from "../../../model/Transaction";
 import * as currencies from "../currencies";
 import {installRestRoutes} from "../installRestRoutes";
+import {getKnexRead} from "../../../utils/dbUtils/connection";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -82,6 +83,39 @@ describe("/v2/transactions/credit", () => {
         const getCreditResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit-1", "GET");
         chai.assert.equal(getCreditResp.statusCode, 200, `body=${JSON.stringify(getCreditResp.body)}`);
         chai.assert.deepEqualExcluding(getCreditResp.body, postCreditResp.body, "statusCode");
+
+        // check DbTransaction created by credit
+        const knex = await getKnexRead();
+        const res = await knex("Transactions")
+            .select()
+            .where({
+                userId: testUtils.defaultTestUser.userId,
+                id: postCreditResp.body.id
+            });
+        console.log(JSON.stringify(res[0], null, 4));
+        chai.assert.deepEqualExcluding(
+            res[0], {
+                "userId": "default-test-user-TEST",
+                "id": "credit-1",
+                "transactionType": "credit",
+                "currency": "CAD",
+                "lineItems": "null",
+                "paymentSources": "null",
+                "metadata": "null",
+                "tax": "null",
+                "createdBy": "default-test-user-TEST",
+                "totals_subtotal": null,
+                "totals_tax": null,
+                "totals_discountLightrail": null,
+                "totals_paidLightrail": null,
+                "totals_paidStripe": null,
+                "totals_paidInternal": null,
+                "totals_remainder": 0,
+                "totals_marketplace_sellerGross": null,
+                "totals_marketplace_sellerDiscount": null,
+                "totals_marketplace_sellerNet": null
+            }, ["createdDate", "totals"]
+        );
     });
 
     it("can credit by secret code", async () => {

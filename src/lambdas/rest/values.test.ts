@@ -324,14 +324,14 @@ describe("/v2/values/", () => {
         chai.assert.equal((resp.body as any).endDate, value3.endDate.toISOString());
         value3 = resp.body;
 
-        const resp2 = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${value3.id}`, "GET");
-        chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
-        chai.assert.equal(resp2.body.transactionType, "initialBalance");
-        chai.assert.equal(resp2.body.currency, value3.currency);
-        chai.assert.equal(resp2.body.metadata, null);
-        chai.assert.lengthOf(resp2.body.steps, 1);
-        chai.assert.equal(resp2.body.steps[0].rail, "lightrail");
-        chai.assert.deepEqual((resp2.body.steps[0] as LightrailTransactionStep), {
+        const intitialBalanceTx = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${value3.id}`, "GET");
+        chai.assert.equal(intitialBalanceTx.statusCode, 200, `body=${JSON.stringify(intitialBalanceTx.body)}`);
+        chai.assert.equal(intitialBalanceTx.body.transactionType, "initialBalance");
+        chai.assert.equal(intitialBalanceTx.body.currency, value3.currency);
+        chai.assert.equal(intitialBalanceTx.body.metadata, null);
+        chai.assert.lengthOf(intitialBalanceTx.body.steps, 1);
+        chai.assert.equal(intitialBalanceTx.body.steps[0].rail, "lightrail");
+        chai.assert.deepEqual((intitialBalanceTx.body.steps[0] as LightrailTransactionStep), {
             rail: "lightrail",
             valueId: value3.id,
             code: null,
@@ -340,6 +340,39 @@ describe("/v2/values/", () => {
             balanceAfter: value3.balance,
             balanceChange: value3.balance
         });
+
+        // check DbTransaction created by creating Value
+        const knex = await getKnexRead();
+        const res = await knex("Transactions")
+            .select()
+            .where({
+                userId: testUtils.defaultTestUser.userId,
+                id: intitialBalanceTx.body.id
+            });
+        console.log(JSON.stringify(res[0], null, 4));
+        chai.assert.deepEqualExcluding(
+            res[0], {
+                "userId": "default-test-user-TEST",
+                "id": "v3",
+                "transactionType": "initialBalance",
+                "currency": "USD",
+                "lineItems": null,
+                "paymentSources": null,
+                "metadata": null,
+                "tax": null,
+                "createdBy": "default-test-user-TEST",
+                "totals_subtotal": null,
+                "totals_tax": null,
+                "totals_discountLightrail": null,
+                "totals_paidLightrail": null,
+                "totals_paidStripe": null,
+                "totals_paidInternal": null,
+                "totals_remainder": null,
+                "totals_marketplace_sellerGross": null,
+                "totals_marketplace_sellerDiscount": null,
+                "totals_marketplace_sellerNet": null
+            }, ["createdDate", "totals"]
+        );
     });
 
     it("can't create Value with balance and valueRule", async () => {

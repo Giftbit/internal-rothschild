@@ -166,4 +166,7 @@ SET
   T.totals_marketplace_sellerDiscount = TT.sellerDiscount,
   T.totals_marketplace_sellerNet      = TT.sellerNet;
 
+# ALTER TABLE rothschild.`Transactions`
+#   DROP COLUMN totals;
+
 SET SQL_SAFE_UPDATES = 1;
