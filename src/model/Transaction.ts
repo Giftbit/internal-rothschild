@@ -129,6 +129,7 @@ export namespace DbTransaction {
                     paidLightrail: dbT.totals_paidLightrail,
                     paidStripe: dbT.totals_paidStripe,
                     paidInternal: dbT.totals_paidInternal,
+                    remainder: dbT.totals_remainder,
                     marketplace: undefined
                 };
 
