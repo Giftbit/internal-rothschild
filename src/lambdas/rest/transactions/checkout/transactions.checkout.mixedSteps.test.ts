@@ -249,7 +249,11 @@ describe("/v2/transactions/checkout - mixed sources", () => {
                 "subtotal": 2079,
                 "tax": 101,
                 "discount": 10,
+                "discountLightrail": 10,
                 "payable": 2170,
+                "paidInternal": 750,
+                "paidLightrail": 60,
+                "paidStripe": 1360,
                 "remainder": 0
             },
             "lineItems": [
@@ -440,7 +444,11 @@ describe("/v2/transactions/checkout - mixed sources", () => {
                 "subtotal": 2000,
                 "tax": 100,
                 "discount": 0,
+                "discountLightrail": 0,
                 "payable": 2100,
+                "paidInternal": 0,
+                "paidLightrail": 2100,
+                "paidStripe": 0,
                 "remainder": 0
             },
             "lineItems": [

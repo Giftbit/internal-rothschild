@@ -11,7 +11,7 @@ import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe.only("/v2/transactions/checkout - basics", () => {
+describe("/v2/transactions/checkout - basics", () => {
 
     const router = new cassava.Router();
 
@@ -65,7 +65,11 @@ describe.only("/v2/transactions/checkout - basics", () => {
                 subtotal: 50,
                 tax: 0,
                 discount: 0,
+                discountLightrail: 0,
                 payable: 50,
+                paidInternal: 0,
+                paidLightrail: 50,
+                paidStripe: 0,
                 remainder: 0,
             },
             lineItems: [
@@ -168,7 +172,11 @@ describe.only("/v2/transactions/checkout - basics", () => {
                 subtotal: 50,
                 tax: 0,
                 discount: 10,
+                discountLightrail: 10,
                 payable: 40,
+                paidInternal: 0,
+                paidLightrail: 40,
+                paidStripe: 0,
                 remainder: 0
             },
             lineItems: [
@@ -310,7 +318,11 @@ describe.only("/v2/transactions/checkout - basics", () => {
                 "subtotal": 1166,
                 "tax": 62,
                 "discount": 225,
+                discountLightrail: 225,
                 "payable": 1003,
+                paidInternal: 0,
+                paidLightrail: 1003,
+                paidStripe: 0,
                 "remainder": 0
             },
             "lineItems": [
@@ -454,7 +466,11 @@ describe.only("/v2/transactions/checkout - basics", () => {
                 subtotal: 50,
                 tax: 0,
                 discount: 0,
+                discountLightrail: 0,
                 payable: 50,
+                paidInternal: 0,
+                paidLightrail: 50,
+                paidStripe: 0,
                 remainder: 0,
             },
             lineItems: [

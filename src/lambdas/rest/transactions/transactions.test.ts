@@ -252,7 +252,11 @@ describe("/v2/transactions", () => {
                     subtotal: 50,
                     tax: 0,
                     discount: 0,
+                    discountLightrail: 0,
                     payable: 50,
+                    paidInternal: 0,
+                    paidLightrail: 50,
+                    paidStripe: 0,
                     remainder: 0
                 },
                 lineItems: [

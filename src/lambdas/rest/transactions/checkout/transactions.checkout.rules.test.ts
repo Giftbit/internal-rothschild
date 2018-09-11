@@ -100,7 +100,11 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 "subtotal": 1000,
                 "tax": 50,
                 "discount": 500,
+                "discountLightrail": 500,
                 "payable": 550,
+                "paidInternal": 0,
+                "paidLightrail": 0,
+                "paidStripe": 0,
                 "remainder": 550
             },
             "lineItems": [
@@ -217,7 +221,11 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 "subtotal": 1000,
                 "tax": 88,
                 "discount": 125,
+                "discountLightrail": 125,
                 "payable": 963,
+                "paidInternal": 0,
+                "paidLightrail": 0,
+                "paidStripe": 0,
                 "remainder": 963
             },
             "lineItems": [
@@ -356,7 +364,11 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 "subtotal": 750,
                 "tax": 62,
                 "discount": 125,
+                "discountLightrail": 125,
                 "payable": 687,
+                "paidInternal": 0,
+                "paidLightrail": 0,
+                "paidStripe": 0,
                 "remainder": 687
             },
             "lineItems": [
@@ -524,7 +536,11 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 "subtotal": 847,
                 "tax": 27,
                 "discount": 105,
+                "discountLightrail": 105,
                 "payable": 769,
+                "paidInternal": 0,
+                "paidLightrail": 769,
+                "paidStripe": 0,
                 "remainder": 0
             },
             "lineItems": [
@@ -681,7 +697,11 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 "subtotal": 2400,
                 "tax": 164,
                 "discount": 768,
+                "discountLightrail": 768,
                 "payable": 1796,
+                "paidInternal": 0,
+                "paidLightrail": 0,
+                "paidStripe": 0,
                 "remainder": 1796
             },
             "lineItems": [
@@ -759,7 +779,11 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 "subtotal": 2400,
                 "tax": 240,
                 "discount": 0,
+                "discountLightrail": 0,
                 "payable": 2640,
+                "paidInternal": 0,
+                "paidLightrail": 0,
+                "paidStripe": 0,
                 "remainder": 2640
             },
             "lineItems": [
@@ -875,7 +899,11 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 "subtotal": 2399,
                 "tax": 0,
                 "discount": 720,
+                "discountLightrail": 720,
                 "payable": 1679,
+                "paidInternal": 0,
+                "paidLightrail": 0,
+                "paidStripe": 0,
                 "remainder": 1679
             },
             "lineItems": [

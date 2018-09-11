@@ -222,7 +222,11 @@ describe("split tender checkout with Stripe", () => {
             subtotal: 123,
             tax: 0,
             discount: 0,
+            discountLightrail: 0,
             payable: 123,
+            paidInternal: 0,
+            paidLightrail: 0,
+            paidStripe: 123,
             remainder: 0
         }, `body.totals=${JSON.stringify(postCheckoutResp.body.totals)}`);
         chai.assert.deepEqual(postCheckoutResp.body.lineItems, [
@@ -382,7 +386,11 @@ describe("split tender checkout with Stripe", () => {
             subtotal: 123,
             tax: 0,
             discount: 0,
+            discountLightrail: 0,
             payable: 123,
+            paidInternal: 0,
+            paidLightrail: 0,
+            paidStripe: 123,
             remainder: 0
         }, `body.totals=${JSON.stringify(postCheckoutResp.body.totals)}`);
         chai.assert.deepEqual(postCheckoutResp.body.lineItems, [
@@ -579,7 +587,11 @@ describe("split tender checkout with Stripe", () => {
             subtotal: 500,
             tax: 0,
             discount: 0,
+            discountLightrail: 0,
             payable: 500,
+            paidInternal: 0,
+            paidLightrail: 100,
+            paidStripe: 400,
             remainder: 0
         }, `body.totals=${JSON.stringify(postCheckoutResp.body.totals)}`);
         chai.assert.deepEqual(postCheckoutResp.body.lineItems, [
@@ -680,7 +692,11 @@ describe("split tender checkout with Stripe", () => {
             subtotal: 500,
             tax: 0,
             discount: 0,
+            discountLightrail: 0,
             payable: 500,
+            paidInternal: 0,
+            paidLightrail: 500,
+            paidStripe: 0,
             remainder: 0
         }, `body.totals=${JSON.stringify(postCheckoutResp.body.totals)}`);
         chai.assert.deepEqual(postCheckoutResp.body.lineItems, [
@@ -938,7 +954,11 @@ describe("split tender checkout with Stripe", () => {
             subtotal: 500,
             tax: 0,
             discount: 0,
+            discountLightrail: 0,
             payable: 500,
+            paidInternal: 0,
+            paidLightrail: 100,
+            paidStripe: 400,
             remainder: 0
         }, `body.totals=${JSON.stringify(postCheckoutResp.body.totals)}`);
         chai.assert.deepEqual(postCheckoutResp.body.lineItems, [
@@ -1577,7 +1597,11 @@ describe("split tender checkout with Stripe", () => {
             subtotal: 500,
             tax: 0,
             discount: 0,
+            discountLightrail: 0,
             payable: 500,
+            paidInternal: 0,
+            paidLightrail: 100,
+            paidStripe: 400,
             remainder: 0
         }, `body.totals=${JSON.stringify(postCheckoutResp.body.totals)}`);
         chai.assert.deepEqual(postCheckoutResp.body.lineItems, [

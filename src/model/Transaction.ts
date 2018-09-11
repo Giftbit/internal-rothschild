@@ -108,7 +108,9 @@ export namespace DbTransaction {
                 id: dbT.id,
                 transactionType: dbT.transactionType,
                 currency: dbT.currency,
-                totals: {},
+                totals: {
+                    remainder: dbT.totals_remainder
+                },
                 lineItems: JSON.parse(dbT.lineItems),
                 paymentSources: JSON.parse(dbT.paymentSources),
                 steps: dbSteps.filter(s => s.transactionId === dbT.id).map(DbTransactionStep.toTransactionStep),
@@ -121,13 +123,12 @@ export namespace DbTransaction {
                 t.totals = {
                     subtotal: dbT.totals_subtotal,
                     tax: dbT.totals_tax,
+                    discount: dbT.totals_discountLightrail, // deprecated
                     discountLightrail: dbT.totals_discountLightrail,
+                    payable: dbT.totals_paidLightrail + dbT.totals_paidStripe + dbT.totals_paidInternal + dbT.totals_remainder, // deprecated
                     paidLightrail: dbT.totals_paidLightrail,
                     paidStripe: dbT.totals_paidStripe,
                     paidInternal: dbT.totals_paidInternal,
-                    remainder: dbT.totals_remainder,
-                    discount: dbT.totals_discountLightrail, // deprecated
-                    payable: dbT.totals_paidLightrail + dbT.totals_paidStripe + dbT.totals_paidInternal, // deprecated
                     marketplace: undefined
                 };
 

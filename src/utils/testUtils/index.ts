@@ -104,11 +104,9 @@ export async function resetDb(): Promise<void> {
 
         const sqlDir = path.join(__dirname, "..", "..", "lambdas", "postDeploy", "schema");
         for (const sql of await getSqlMigrationFiles()) {
-            console.log(sql);
             await connection.query(sql);
         }
     } catch (err) {
-        JSON.stringify(err, null, 4);
         log.error("Error setting up DB for test.", err.message, "Fetching InnoDB status...");
         try {
             const [statusRes] = await connection.query("SHOW ENGINE INNODB STATUS");
@@ -138,7 +136,14 @@ async function getSqlMigrationFiles(): Promise<string[]> {
     }
 
     const sqlDir = path.join(__dirname, "..", "..", "lambdas", "postDeploy", "schema");
-    for (const sqlFile of fs.readdirSync(sqlDir).sort()) {
+
+    const sortedMigrationFileNames: string[] = fs.readdirSync(sqlDir).sort((f1, f2) => {
+        const f1Num: number = +f1.substring(1, f1.indexOf("__"));
+        const f2Num: number = +f1.substring(1, f2.indexOf("__"));
+        return f1Num - f2Num;
+    });
+    for (const sqlFile
+        of sortedMigrationFileNames) {
         if (!/V\d+__.*\.sql/.test(sqlFile)) {
             throw new Error(`SQL migration file name ${sqlFile} does not match expected format V#__*.sql`);
         }

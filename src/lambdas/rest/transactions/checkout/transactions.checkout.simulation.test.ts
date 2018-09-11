@@ -90,7 +90,11 @@ describe("/v2/transactions/checkout - simulation tests", () => {
                 "subtotal": 38048,
                 "tax": 2852,
                 "discount": 500,
+                "discountLightrail": 500,
                 "payable": 40400,
+                "paidInternal": 0,
+                "paidLightrail": 4000,
+                "paidStripe": 0,
                 "remainder": 36400
             },
             "lineItems": [
