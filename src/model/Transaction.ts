@@ -101,7 +101,7 @@ export namespace DbTransaction {
                 createdDate: dbT.createdDate,
                 createdBy: dbT.createdBy
             };
-            if (checkForNonNullTotals(dbT)) {
+            if (hasNonNullTotals(dbT)) {
                 let payable: number;
                 if (dbT.totals_subtotal !== null && dbT.totals_tax !== null && dbT.totals_discountLightrail !== null) {
                     payable = dbT.totals_subtotal + dbT.totals_tax - dbT.totals_discountLightrail;
@@ -132,7 +132,7 @@ export namespace DbTransaction {
     }
 }
 
-function checkForNonNullTotals(dbT: DbTransaction): boolean {
+function hasNonNullTotals(dbT: DbTransaction): boolean {
     return dbT.totals_subtotal !== null ||
         dbT.totals_tax !== null ||
         dbT.totals_discountLightrail !== null ||
