@@ -92,9 +92,7 @@ export namespace DbTransaction {
                 id: dbT.id,
                 transactionType: dbT.transactionType,
                 currency: dbT.currency,
-                totals: {
-                    remainder: dbT.totals_remainder
-                },
+                totals: null,
                 lineItems: JSON.parse(dbT.lineItems),
                 paymentSources: JSON.parse(dbT.paymentSources),
                 steps: dbSteps.filter(s => s.transactionId === dbT.id).map(DbTransactionStep.toTransactionStep),
@@ -103,17 +101,21 @@ export namespace DbTransaction {
                 createdDate: dbT.createdDate,
                 createdBy: dbT.createdBy
             };
-            if (dbT.transactionType === "checkout") {
+            if (hasNonNullTotals(dbT)) {
+                let payable: number;
+                if (dbT.totals_subtotal !== null && dbT.totals_tax !== null && dbT.totals_discountLightrail !== null) {
+                    payable = dbT.totals_subtotal + dbT.totals_tax - dbT.totals_discountLightrail;
+                }
                 t.totals = {
-                    subtotal: dbT.totals_subtotal,
-                    tax: dbT.totals_tax,
-                    discount: dbT.totals_discountLightrail,
-                    discountLightrail: dbT.totals_discountLightrail,
-                    payable: dbT.totals_paidLightrail + dbT.totals_paidStripe + dbT.totals_paidInternal + dbT.totals_remainder,
-                    paidLightrail: dbT.totals_paidLightrail,
-                    paidStripe: dbT.totals_paidStripe,
-                    paidInternal: dbT.totals_paidInternal,
-                    remainder: dbT.totals_remainder,
+                    subtotal: dbT.totals_subtotal !== null ? dbT.totals_subtotal : undefined,
+                    tax: dbT.totals_tax !== null ? dbT.totals_tax : undefined,
+                    discount: dbT.totals_discountLightrail !== null ? dbT.totals_discountLightrail : undefined,
+                    discountLightrail: dbT.totals_discountLightrail !== null ? dbT.totals_discountLightrail : undefined,
+                    payable: payable !== null ? payable : undefined,
+                    paidLightrail: dbT.totals_paidLightrail !== null ? dbT.totals_paidLightrail : undefined,
+                    paidStripe: dbT.totals_paidStripe !== null ? dbT.totals_paidStripe : undefined,
+                    paidInternal: dbT.totals_paidInternal !== null ? dbT.totals_paidInternal : undefined,
+                    remainder: dbT.totals_remainder !== null ? dbT.totals_remainder : undefined,
                     marketplace: undefined
                 };
 
@@ -128,6 +130,19 @@ export namespace DbTransaction {
             return t;
         });
     }
+}
+
+function hasNonNullTotals(dbT: DbTransaction): boolean {
+    return dbT.totals_subtotal !== null ||
+        dbT.totals_tax !== null ||
+        dbT.totals_discountLightrail !== null ||
+        dbT.totals_paidLightrail !== null ||
+        dbT.totals_paidStripe !== null ||
+        dbT.totals_paidInternal !== null ||
+        dbT.totals_remainder !== null ||
+        dbT.totals_marketplace_sellerGross !== null ||
+        dbT.totals_marketplace_sellerDiscount !== null ||
+        dbT.totals_marketplace_sellerNet !== null;
 }
 
 export type TransactionType =

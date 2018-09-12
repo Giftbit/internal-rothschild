@@ -4,7 +4,6 @@ import {StripeTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {Transaction} from "../../../model/Transaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
-import log = require("loglevel");
 import {setupLightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/stripeAccess";
 import {LightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/StripeConfig";
 import {
@@ -14,6 +13,7 @@ import {
     insertTransaction
 } from "./insertTransactions";
 import {chargeStripeSteps, rollbackStripeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
+import log = require("loglevel");
 
 export interface ExecuteTransactionPlannerOptions {
     allowRemainder: boolean;
@@ -28,7 +28,7 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
     while (true) {
         try {
             const plan = await planner();
-            if (plan.totals.remainder && !options.allowRemainder) {
+            if (plan.totals && plan.totals.remainder && !options.allowRemainder) {
                 throw new giftbitRoutes.GiftbitRestError(409, "Insufficient balance for the transaction.", "InsufficientBalance");
             }
             if (options.simulate) {
