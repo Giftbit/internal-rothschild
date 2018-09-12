@@ -102,12 +102,17 @@ export async function resetDb(): Promise<void> {
 
         await connection.query("CREATE DATABASE rothschild");
 
-        const sqlDir = path.join(__dirname, "..", "..", "lambdas", "postDeploy", "schema");
-        for (const sql of await getSqlMigrationFiles()) {
-            await connection.query(sql);
+        for (const file of await getSqlMigrationFiles()) {
+            try {
+                await connection.query(file.sql);
+            } catch (err) {
+                log.error(`Error processing migration file ${file.filename}:`, err.message);
+                throw err;
+            }
         }
     } catch (err) {
-        log.error("Error setting up DB for test.", err.message, "Fetching InnoDB status...");
+        log.error("Error setting up DB for test:", err.message);
+        log.error("Fetching InnoDB status...");
         try {
             const [statusRes] = await connection.query("SHOW ENGINE INNODB STATUS");
             if (statusRes.length === 1 && statusRes[0].Status) {
@@ -116,7 +121,7 @@ export async function resetDb(): Promise<void> {
                 }
             }
         } catch (err2) {
-            log.error("Error fetching InnoDB status.", err2.message);
+            log.error("Error fetching InnoDB status:", err2.message);
         }
 
         throw err;
@@ -128,28 +133,31 @@ export async function resetDb(): Promise<void> {
 /**
  * Cached contents of SQL migration files.
  */
-const sqlMigrationFileContents: string[] = [];
+const sqlMigrationFiles: {filename: string, sql: string}[] = [];
 
-async function getSqlMigrationFiles(): Promise<string[]> {
-    if (sqlMigrationFileContents.length > 0) {
-        return sqlMigrationFileContents;
+async function getSqlMigrationFiles(): Promise<{filename: string, sql: string}[]> {
+    if (sqlMigrationFiles.length > 0) {
+        return sqlMigrationFiles;
     }
 
     const sqlDir = path.join(__dirname, "..", "..", "lambdas", "postDeploy", "schema");
 
     const sortedMigrationFileNames: string[] = fs.readdirSync(sqlDir).sort((f1, f2) => {
         const f1Num: number = +f1.substring(1, f1.indexOf("__"));
-        const f2Num: number = +f1.substring(1, f2.indexOf("__"));
+        const f2Num: number = +f2.substring(1, f2.indexOf("__"));
         return f1Num - f2Num;
     });
     for (const sqlFile of sortedMigrationFileNames) {
         if (!/V\d+__.*\.sql/.test(sqlFile)) {
             throw new Error(`SQL migration file name ${sqlFile} does not match expected format V#__*.sql`);
         }
-        sqlMigrationFileContents.push(fs.readFileSync(path.join(sqlDir, sqlFile)).toString("utf8"));
+        sqlMigrationFiles.push({
+            filename: sqlFile,
+            sql: fs.readFileSync(path.join(sqlDir, sqlFile)).toString("utf8")
+        });
     }
 
-    return sqlMigrationFileContents;
+    return sqlMigrationFiles;
 }
 
 export interface ParsedProxyResponse<T> {
