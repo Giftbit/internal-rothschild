@@ -1,8 +1,8 @@
 import * as currencies from "../../currencies";
 import * as testUtils from "../../../../utils/testUtils";
+import {defaultTestUser} from "../../../../utils/testUtils";
 import * as cassava from "cassava";
 import {installRestRoutes} from "../../installRestRoutes";
-import {defaultTestUser} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
 import * as chai from "chai";
 import {Transaction} from "../../../../model/Transaction";

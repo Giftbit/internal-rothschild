@@ -59,11 +59,15 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
             transactionType: "checkout",
             currency: "CAD",
             totals: {
-                discount: 0,
-                payable: 7,
-                remainder: 7,
                 subtotal: 4,
-                tax: 3
+                tax: 3,
+                discount: 0,
+                discountLightrail: 0,
+                payable: 7,
+                paidInternal: 0,
+                paidLightrail: 0,
+                paidStripe: 0,
+                remainder: 7,
             },
             lineItems: [
                 {
@@ -141,11 +145,15 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
             transactionType: "checkout",
             currency: "CAD",
             totals: {
-                discount: 0,
-                payable: 6,
-                remainder: 6,
                 subtotal: 4,
-                tax: 2
+                tax: 2,
+                discount: 0,
+                discountLightrail: 0,
+                payable: 6,
+                paidInternal: 0,
+                paidLightrail: 0,
+                paidStripe: 0,
+                remainder: 6,
             },
             lineItems: [
                 {
@@ -220,11 +228,15 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
             transactionType: "checkout",
             currency: "CAD",
             totals: {
-                discount: 0,
-                payable: 6,
-                remainder: 6,
                 subtotal: 4,
-                tax: 2
+                tax: 2,
+                discount: 0,
+                discountLightrail: 0,
+                payable: 6,
+                paidInternal: 0,
+                paidLightrail: 0,
+                paidStripe: 0,
+                remainder: 6,
             },
             lineItems: [
                 {

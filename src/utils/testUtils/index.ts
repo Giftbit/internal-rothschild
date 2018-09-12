@@ -2,12 +2,12 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as fs from "fs";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import log = require("loglevel");
 import * as mysql from "mysql2/promise";
 import * as path from "path";
 import {getDbCredentials} from "../dbUtils/connection";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
 import {initializeCodeCryptographySecrets} from "../codeCryptoUtils";
+import log = require("loglevel");
 import papaparse = require("papaparse");
 import uuid = require("uuid");
 
@@ -108,7 +108,6 @@ export async function resetDb(): Promise<void> {
         }
     } catch (err) {
         log.error("Error setting up DB for test.", err.message, "Fetching InnoDB status...");
-
         try {
             const [statusRes] = await connection.query("SHOW ENGINE INNODB STATUS");
             if (statusRes.length === 1 && statusRes[0].Status) {
@@ -137,7 +136,13 @@ async function getSqlMigrationFiles(): Promise<string[]> {
     }
 
     const sqlDir = path.join(__dirname, "..", "..", "lambdas", "postDeploy", "schema");
-    for (const sqlFile of fs.readdirSync(sqlDir).sort()) {
+
+    const sortedMigrationFileNames: string[] = fs.readdirSync(sqlDir).sort((f1, f2) => {
+        const f1Num: number = +f1.substring(1, f1.indexOf("__"));
+        const f2Num: number = +f1.substring(1, f2.indexOf("__"));
+        return f1Num - f2Num;
+    });
+    for (const sqlFile of sortedMigrationFileNames) {
         if (!/V\d+__.*\.sql/.test(sqlFile)) {
             throw new Error(`SQL migration file name ${sqlFile} does not match expected format V#__*.sql`);
         }

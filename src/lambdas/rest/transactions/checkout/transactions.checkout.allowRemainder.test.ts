@@ -92,7 +92,11 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
                 "subtotal": 1166,
                 "tax": 62,
                 "discount": 200,
+                "discountLightrail": 200,
                 "payable": 1028,
+                "paidInternal": 0,
+                "paidLightrail": 500,
+                "paidStripe": 0,
                 "remainder": 528
             },
             "lineItems": [
