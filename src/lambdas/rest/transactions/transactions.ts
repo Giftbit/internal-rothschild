@@ -111,7 +111,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         });
 }
 
-async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ transactions: Transaction[], pagination: Pagination }> {
+export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ transactions: Transaction[], pagination: Pagination }> {
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
@@ -205,7 +205,7 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
                 ],
                 createdDate: nowInDbPrecision(),
                 metadata: req.metadata,
-                totals: {remainder: 0},
+                totals: null,
                 tax: null,
                 lineItems: null,
                 paymentSources: null

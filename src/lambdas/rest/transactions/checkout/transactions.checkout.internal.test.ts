@@ -68,7 +68,11 @@ describe("/v2/transactions/checkout - internal sources", () => {
                 "subtotal": 2079,
                 "tax": 104,
                 "discount": 0,
+                "discountLightrail": 0,
                 "payable": 2183,
+                "paidInternal": 2183,
+                "paidLightrail": 0,
+                "paidStripe": 0,
                 "remainder": 0
             },
             "lineItems": [
@@ -195,7 +199,11 @@ describe("/v2/transactions/checkout - internal sources", () => {
                 "subtotal": 16025,
                 "tax": 1122,
                 "discount": 0,
+                "discountLightrail": 0,
                 "payable": 17147,
+                "paidInternal": 17147,
+                "paidLightrail": 0,
+                "paidStripe": 0,
                 "remainder": 0
             },
             "lineItems": [
@@ -328,7 +336,11 @@ describe("/v2/transactions/checkout - internal sources", () => {
                 "subtotal": 1573,
                 "tax": 0,
                 "discount": 0,
+                "discountLightrail": 0,
                 "payable": 1573,
+                "paidInternal": 1573,
+                "paidLightrail": 0,
+                "paidStripe": 0,
                 "remainder": 0
             },
             "lineItems": [

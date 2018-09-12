@@ -1,6 +1,5 @@
 import * as stripe from "stripe";
 import {
-    DbTransaction,
     InternalDbTransactionStep,
     InternalTransactionStep,
     LightrailDbTransactionStep,
@@ -8,8 +7,8 @@ import {
     StripeDbTransactionStep,
     StripeTransactionStep,
     Transaction,
-    TransactionPlanTotals,
     TransactionStep,
+    TransactionTotals,
     TransactionType
 } from "../../../model/Transaction";
 import {Value} from "../../../model/Value";
@@ -24,7 +23,7 @@ export interface TransactionPlan {
     id: string;
     transactionType: TransactionType;
     currency: string;
-    totals: TransactionPlanTotals;
+    totals: TransactionTotals;
     lineItems: LineItemResponse[] | null;
     paymentSources: TransactionParty[] | null;
     steps: TransactionPlanStep[];
@@ -157,19 +156,6 @@ export namespace InternalTransactionPlanStep {
 }
 
 export namespace TransactionPlan {
-    export function toDbTransaction(plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge): DbTransaction {
-        return {
-            userId: auth.userId,
-            ...getSharedProperties(plan),
-            totals: JSON.stringify(plan.totals),
-            lineItems: JSON.stringify(plan.lineItems),
-            paymentSources: JSON.stringify(plan.paymentSources),
-            metadata: JSON.stringify(plan.metadata),
-            tax: JSON.stringify(plan.tax),
-            createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
-        };
-    }
-
     export function toTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan, simulated?: boolean): Transaction {
         const transaction: Transaction = {
             ...getSharedProperties(plan),
