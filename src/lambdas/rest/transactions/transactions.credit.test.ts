@@ -54,9 +54,7 @@ describe("/v2/transactions/credit", () => {
             id: "credit-1",
             transactionType: "credit",
             currency: "CAD",
-            totals: {
-                remainder: 0
-            },
+            totals: null,
             steps: [
                 {
                     rail: "lightrail",
@@ -109,7 +107,7 @@ describe("/v2/transactions/credit", () => {
                 "totals_paidLightrail": null,
                 "totals_paidStripe": null,
                 "totals_paidInternal": null,
-                "totals_remainder": 0,
+                "totals_remainder": null,
                 "totals_marketplace_sellerGross": null,
                 "totals_marketplace_sellerDiscount": null,
                 "totals_marketplace_sellerNet": null
@@ -142,9 +140,7 @@ describe("/v2/transactions/credit", () => {
             id: request.id,
             transactionType: "credit",
             currency: "CAD",
-            totals: {
-                remainder: 0
-            },
+            totals: null,
             steps: [
                 {
                     rail: "lightrail",
@@ -199,9 +195,7 @@ describe("/v2/transactions/credit", () => {
             id: request.id,
             transactionType: "credit",
             currency: "CAD",
-            totals: {
-                remainder: 0
-            },
+            totals: null,
             steps: [
                 {
                     rail: "lightrail",
@@ -260,9 +254,7 @@ describe("/v2/transactions/credit", () => {
             id: "credit-2",
             transactionType: "credit",
             currency: "CAD",
-            totals: {
-                remainder: 0
-            },
+            totals: null,
             steps: [
                 {
                     rail: "lightrail",

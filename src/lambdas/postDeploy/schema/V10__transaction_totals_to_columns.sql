@@ -18,7 +18,7 @@ UPDATE rothschild.`Transactions` T
            T.id,
            SUBSTR(T.totals, 14, LOCATE("}", T.totals) - 14) remainder
          FROM rothschild.`Transactions` T
-         WHERE T.transactionType IN ('credit', 'debit', 'transfer') AND T.totals IS NOT NULL
+         WHERE T.transactionType IN ('debit', 'transfer') AND T.totals IS NOT NULL
        ) TT ON T.id = TT.id
 SET T.totals_remainder = TT.remainder;
 

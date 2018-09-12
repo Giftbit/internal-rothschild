@@ -205,7 +205,7 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
                 ],
                 createdDate: nowInDbPrecision(),
                 metadata: req.metadata,
-                totals: {remainder: 0},
+                totals: null,
                 tax: null,
                 lineItems: null,
                 paymentSources: null
