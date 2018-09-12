@@ -37,7 +37,7 @@ describe("/v2/transactions", () => {
         });
     }
 
-    it("test filter by valueId", async () => {
+    it("can filter by valueId", async () => {
         await resetDbAndAddCurrencies();
         let createdValues: Value[] = [];
         for (let i = 0; i < 3; i++) {
@@ -51,12 +51,15 @@ describe("/v2/transactions", () => {
             createdValues.push(createValue.body);
         }
 
-        const resp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${createdValues[0].id}`, "GET");
-        chai.assert.equal(resp.body.length, 1);
-        chai.assert.equal(resp.body[0].id, createdValues[0].id);
+        const resp1 = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${createdValues[0].id}`, "GET");
+        chai.assert.equal(resp1.body.length, 1);
+        chai.assert.equal(resp1.body[0].id, createdValues[0].id);
+
+        const resp2 = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/values/${createdValues[0].id}/transactions`, "GET");
+        chai.assert.deepEqual(resp2.body, resp1.body);
     });
 
-    it("test user isolation filtering by valueId", async () => {
+    it("does not leak other Lightrail user's data when filtering by valueId", async () => {
         await resetDbAndAddCurrencies();
         // user 1
         const value1User1 = {

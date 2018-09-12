@@ -21,6 +21,8 @@ import {Program} from "../../model/Program";
 import * as Knex from "knex";
 import {GenerateCodeParameters} from "../../model/GenerateCodeParameters";
 import log = require("loglevel");
+import {getTransactions} from "./transactions/transactions";
+import getPaginationParams = Pagination.getPaginationParams;
 
 export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
@@ -146,6 +148,19 @@ export function installValuesRest(router: cassava.Router): void {
             auth.requireScopes("lightrailV2:values:delete");
             return {
                 body: await deleteValue(auth, evt.pathParameters.id)
+            };
+        });
+
+    router.route("/v2/values/{id}/transactions")
+        .method("GET")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:transactions:list");
+            const res = await getTransactions(auth, {...evt.queryStringParameters, valueId: evt.pathParameters.id}, getPaginationParams(evt));
+            return {
+                headers: Pagination.toHeaders(evt, res.pagination),
+                body: res.transactions
             };
         });
 
