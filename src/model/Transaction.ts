@@ -52,16 +52,16 @@ export namespace Transaction {
             id: t.id,
             transactionType: t.transactionType,
             currency: t.currency,
-            totals_subtotal: null,
-            totals_tax: null,
-            totals_discountLightrail: null,
-            totals_paidLightrail: null,
-            totals_paidStripe: null,
-            totals_paidInternal: null,
-            totals_remainder: null,
-            totals_marketplace_sellerGross: null,
-            totals_marketplace_sellerDiscount: null,
-            totals_marketplace_sellerNet: null,
+            totals_subtotal: t.totals && t.totals.subtotal,
+            totals_tax: t.totals && t.totals.tax,
+            totals_discountLightrail: t.totals && t.totals.discountLightrail,
+            totals_paidLightrail: t.totals && t.totals.paidLightrail,
+            totals_paidStripe: t.totals && t.totals.paidStripe,
+            totals_paidInternal: t.totals && t.totals.paidInternal,
+            totals_remainder: t.totals && t.totals.remainder,
+            totals_marketplace_sellerGross: t.totals && t.totals.marketplace && t.totals.marketplace.sellerGross,
+            totals_marketplace_sellerDiscount: t.totals && t.totals.marketplace && t.totals.marketplace.sellerDiscount,
+            totals_marketplace_sellerNet: t.totals && t.totals.marketplace && t.totals.marketplace.sellerNet,
             lineItems: JSON.stringify(t.lineItems),
             paymentSources: JSON.stringify(t.paymentSources),
             metadata: JSON.stringify(t.metadata),
@@ -69,20 +69,6 @@ export namespace Transaction {
             createdDate: t.createdDate,
             createdBy: t.createdBy,
         };
-        if (t.totals) {
-            dbT.totals_subtotal = t.totals.subtotal;
-            dbT.totals_tax = t.totals.tax;
-            dbT.totals_discountLightrail = t.totals.discountLightrail;
-            dbT.totals_paidLightrail = t.totals.paidLightrail;
-            dbT.totals_paidStripe = t.totals.paidStripe;
-            dbT.totals_paidInternal = t.totals.paidInternal;
-            dbT.totals_remainder = t.totals.remainder;
-            if (t.totals.marketplace) {
-                dbT.totals_marketplace_sellerGross = t.totals.marketplace.sellerGross;
-                dbT.totals_marketplace_sellerDiscount = t.totals.marketplace.sellerDiscount;
-                dbT.totals_marketplace_sellerNet = t.totals.marketplace.sellerNet;
-            }
-        }
         return dbT;
     }
 }
