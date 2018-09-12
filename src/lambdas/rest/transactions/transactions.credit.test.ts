@@ -125,7 +125,7 @@ describe("/v2/transactions/credit", () => {
         chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
 
         const request = {
-            id: generateId(),
+            id: "01234567890123456789012345678901", // 32 characters
             destination: {
                 rail: "lightrail",
                 code: valueSecretCode.code
