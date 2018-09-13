@@ -58,8 +58,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("userId"); // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
-            // auth.requireIds("userId", "teamMemberId");
+            auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:transactions:credit");
             evt.validateBody(creditSchema);
             return {
@@ -72,8 +71,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("userId"); // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
-            // auth.requireIds("userId", "teamMemberId");
+            auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:transactions:debit");
             evt.validateBody(debitSchema);
             return {
@@ -86,8 +84,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("userId"); // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
-            // auth.requireIds("userId", "teamMemberId");
+            auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:transactions:checkout");
             evt.validateBody(checkoutSchema);
             return {
@@ -100,8 +97,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("userId"); // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
-            // auth.requireIds("userId", "teamMemberId");
+            auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:transactions:transfer");
             evt.validateBody(transferSchema);
             return {

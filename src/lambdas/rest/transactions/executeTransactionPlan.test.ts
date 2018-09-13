@@ -60,8 +60,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             createdDate: new Date(),
             updatedDate: new Date(),
             updatedContactIdDate: null,
-            createdBy: defaultTestUser.auth.userId
-            // createdBy: defaultTestUser.auth.teamMemberId  // todo require tmi again
+            createdBy: defaultTestUser.auth.teamMemberId
         };
 
         const knex = await getKnexWrite();

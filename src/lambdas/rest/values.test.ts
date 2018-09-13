@@ -512,8 +512,7 @@ describe("/v2/values/", () => {
                     endDate: date,
                     createdDate: date,
                     updatedDate: date,
-                    createdBy: defaultTestUser.auth.userId
-                    // createdBy: defaultTestUser.auth.teamMemberId  // todo require tmi again
+                    createdBy: defaultTestUser.auth.teamMemberId
                 });
             }
 

@@ -257,7 +257,7 @@ describe("/v2/contacts", () => {
             ...contact4,
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdBy"]);
-        // chai.assert.deepEqual(resp.body, {...contact4, createdBy: defaultTestUser.auth.teamMemberId});  // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
+        chai.assert.deepEqual(resp.body, {...contact4, createdBy: defaultTestUser.auth.teamMemberId});
     });
 
     it("can delete a Contact that is not in use", async () => {
@@ -671,8 +671,7 @@ describe("/v2/contacts", () => {
                 contact.userId = defaultTestUser.userId;
                 contact.createdDate = new Date();
                 contact.updatedDate = new Date();
-                contact.createdBy = defaultTestUser.userId;
-                // contact.createdBy = defaultTestUser.auth.teamMemberId;   // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
+                contact.createdBy = defaultTestUser.auth.teamMemberId;
             }
             const knex = await getKnexWrite();
             await knex("Contacts").insert(contacts);

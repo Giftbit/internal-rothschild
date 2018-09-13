@@ -20,8 +20,8 @@ import {getProgram} from "./programs";
 import {Program} from "../../model/Program";
 import * as Knex from "knex";
 import {GenerateCodeParameters} from "../../model/GenerateCodeParameters";
-import log = require("loglevel");
 import {getTransactions} from "./transactions/transactions";
+import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
 export function installValuesRest(router: cassava.Router): void {
@@ -54,8 +54,7 @@ export function installValuesRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("userId"); // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
-            // auth.requireIds("userId", "teamMemberId");
+            auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:values:create");
             evt.validateBody(valueSchema);
             let program: Program = null;
@@ -157,7 +156,10 @@ export function installValuesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:transactions:list");
-            const res = await getTransactions(auth, {...evt.queryStringParameters, valueId: evt.pathParameters.id}, getPaginationParams(evt));
+            const res = await getTransactions(auth, {
+                ...evt.queryStringParameters,
+                valueId: evt.pathParameters.id
+            }, getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.transactions
@@ -280,8 +282,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 }
 
 export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: CreateValueParameters, trx: Knex.Transaction): Promise<Value> {
-    auth.requireIds("userId"); // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
-    // auth.requireIds("userId", "teamMemberId");
+    auth.requireIds("userId", "teamMemberId");
     let value: Value = initializeValue(auth, params.partialValue, params.program, params.generateCodeParameters);
     log.info(`Create Value requested for user: ${auth.userId}. Value ${Value.toStringSanitized(value)}.`);
 

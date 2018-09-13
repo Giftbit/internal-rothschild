@@ -576,8 +576,7 @@ describe("/v2/transactions/transfer", () => {
             metadata: null,
             tax: null,
             createdDate: null,
-            createdBy: defaultTestUser.auth.userId
-            // createdBy: defaultTestUser.auth.teamMemberId  // todo require tmi again
+            createdBy: defaultTestUser.auth.teamMemberId
         };
         chai.assert.equal(postTransferResp.statusCode, 200, `body=${JSON.stringify(postTransferResp.body)}`);
         chai.assert.deepEqualExcluding(postTransferResp.body, validObject, ["steps", "createdDate"]);

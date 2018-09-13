@@ -158,8 +158,7 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 }
 
 export async function createContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contact: Contact): Promise<Contact> {
-    auth.requireIds("userId"); // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
-    // auth.requireIds("userId", "teamMemberId");
+    auth.requireIds("userId", "teamMemberId");
 
     try {
         const knex = await getKnexWrite();
