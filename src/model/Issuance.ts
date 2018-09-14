@@ -8,8 +8,10 @@ export interface Issuance {
     count: number;
     balance: number | null;
     redemptionRule: Rule | null;
-    valueRule: Rule | null;
-    uses: number | null;
+    valueRule: Rule | null; // todo - drop
+    balanceRule: Rule | null;
+    uses: number | null; // todo - drop
+    usesRemaining: number | null;
     startDate: Date | null;
     endDate: Date | null;
     metadata: object | null;
@@ -25,9 +27,9 @@ export namespace Issuance {
             programId: v.programId,
             count: v.count,
             balance: v.balance,
-            valueRule: JSON.stringify(v.valueRule),
+            balanceRule: JSON.stringify(v.balanceRule),
             redemptionRule: JSON.stringify(v.redemptionRule),
-            uses: v.uses,
+            usesRemaining: v.usesRemaining,
             startDate: v.startDate,
             endDate: v.endDate,
             metadata: JSON.stringify(v.metadata),
@@ -45,9 +47,9 @@ export interface DbIssuance {
     programId: string;
     count: number;
     balance: number | null;
-    valueRule: string;
+    balanceRule: string;
     redemptionRule: string;
-    uses: number | null;
+    usesRemaining: number | null;
     startDate: Date | null;
     endDate: Date | null;
     metadata: string;
@@ -64,8 +66,10 @@ export namespace DbIssuance {
             count: v.count,
             balance: v.balance,
             redemptionRule: JSON.parse(v.redemptionRule),
-            valueRule: JSON.parse(v.valueRule),
-            uses: v.uses,
+            valueRule: JSON.parse(v.balanceRule),
+            balanceRule: JSON.parse(v.balanceRule),
+            uses: v.usesRemaining, // todo - drop
+            usesRemaining: v.usesRemaining,
             startDate: v.startDate,
             endDate: v.endDate,
             metadata: JSON.parse(v.metadata),

@@ -51,8 +51,10 @@ export function installIssuancesRest(router: cassava.Router): void {
                         count: null,
                         balance: null,
                         redemptionRule: null,
-                        valueRule: null,
-                        uses: null,
+                        valueRule: null, // todo - drop
+                        balanceRule: null,
+                        uses: null, // todo - drop
+                        usesRemaining: null,
                         startDate: null,
                         endDate: null,
                         metadata: null
@@ -109,7 +111,11 @@ async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, prog
                     type: "number",
                     operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 },
-                "uses": {
+                "uses": { // todo - drop
+                    type: "number",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
+                },
+                "usesRemaining": {
                     type: "number",
                     operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 },
@@ -145,7 +151,7 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
     // this is important for issuance display and history since these properties can be updated on the program.
     issuance = {
         ...issuance,
-        ...pick<Partial<Issuance>>(program, "startDate", "endDate", "valueRule", "redemptionRule"),
+        ...pick<Partial<Issuance>>(program, "startDate", "endDate", "valueRule", "balanceRule", "redemptionRule"),
         ...pickNotNull(issuance)
     };
     issuance.metadata = {...(program && program.metadata ? program.metadata : {}), ...issuance.metadata};
@@ -167,8 +173,10 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
                     issuanceId: issuance.id,
                     balance: issuance.balance ? issuance.balance : null,
                     redemptionRule: issuance.redemptionRule ? issuance.redemptionRule : null,
-                    valueRule: issuance.valueRule ? issuance.valueRule : null,
-                    uses: issuance.uses ? issuance.uses : null,
+                    valueRule: issuance.balanceRule ? issuance.balanceRule : null, // todo - drop
+                    balanceRule: issuance.balanceRule ? issuance.balanceRule : null,
+                    uses: issuance.usesRemaining ? issuance.usesRemaining : null, // todo - drop
+                    usesRemaining: issuance.usesRemaining ? issuance.usesRemaining : null,
                     startDate: issuance.startDate ? issuance.startDate : null,
                     endDate: issuance.endDate ? issuance.endDate : null,
                     metadata: issuance.metadata
@@ -254,7 +262,11 @@ const issuanceSchema: jsonschema.Schema = {
             type: ["integer", "null"],
             minimum: 0
         },
-        uses: {
+        uses: { // todo - drop
+            type: ["integer", "null"],
+            minimum: 0
+        },
+        usesRemaining: {
             type: ["integer", "null"],
             minimum: 0
         },
@@ -304,13 +316,32 @@ const issuanceSchema: jsonschema.Schema = {
                 }
             ]
         },
-        valueRule: {
+        valueRule: { // todo - drop
             oneOf: [
                 {
                     type: "null"
                 },
                 {
                     title: "Value rule",
+                    type: "object",
+                    properties: {
+                        rule: {
+                            type: "string"
+                        },
+                        explanation: {
+                            type: "string"
+                        }
+                    }
+                }
+            ]
+        },
+        balanceRule: {
+            oneOf: [
+                {
+                    type: "null"
+                },
+                {
+                    title: "Balance rule",
                     type: "object",
                     properties: {
                         rule: {

@@ -20,8 +20,8 @@ import {getProgram} from "./programs";
 import {Program} from "../../model/Program";
 import * as Knex from "knex";
 import {GenerateCodeParameters} from "../../model/GenerateCodeParameters";
-import log = require("loglevel");
 import {getTransactions} from "./transactions/transactions";
+import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
 export function installValuesRest(router: cassava.Router): void {
@@ -58,6 +58,14 @@ export function installValuesRest(router: cassava.Router): void {
             // auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:values:create");
             evt.validateBody(valueSchema);
+
+            // todo - drop this. From here:
+            evt.body.valueRule = evt.body.balanceRule ? evt.body.balanceRule : evt.body.valueRule;
+            evt.body.balanceRule = evt.body.balanceRule ? evt.body.balanceRule : evt.body.valueRule;
+            evt.body.uses = evt.body.usesRemaining ? evt.body.usesRemaining : evt.body.uses;
+            evt.body.usesRemaining = evt.body.usesRemaining ? evt.body.usesRemaining : evt.body.uses;
+            // todo - to here
+
             let program: Program = null;
             if (evt.body.programId) {
                 program = await getProgram(auth, evt.body.programId);
@@ -118,6 +126,10 @@ export function installValuesRest(router: cassava.Router): void {
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:values:update");
             evt.validateBody(valueUpdateSchema);
+            // todo - drop this. From here:
+            evt.body.valueRule = evt.body.balanceRule ? evt.body.balanceRule : evt.body.valueRule;
+            evt.body.balanceRule = evt.body.balanceRule ? evt.body.balanceRule : evt.body.valueRule;
+            // todo - to here.
 
             if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
                 throw new giftbitRoutes.GiftbitRestError(422, `The body id '${evt.body.id}' does not match the path id '${evt.pathParameters.id}'.  The id cannot be updated.`);
@@ -125,7 +137,7 @@ export function installValuesRest(router: cassava.Router): void {
 
             const now = nowInDbPrecision();
             const value = {
-                ...pick<Value>(evt.body, "pretax", "active", "canceled", "frozen", "pretax", "discount", "discountSellerLiability", "redemptionRule", "valueRule", "startDate", "endDate", "metadata"),
+                ...pick<Value>(evt.body, "pretax", "active", "canceled", "frozen", "pretax", "discount", "discountSellerLiability", "redemptionRule", "valueRule" /* todo - remove valueRule*/, "balanceRule", "startDate", "endDate", "metadata"),
                 updatedDate: now
             };
             if (value.startDate) {
@@ -157,7 +169,10 @@ export function installValuesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:transactions:list");
-            const res = await getTransactions(auth, {...evt.queryStringParameters, valueId: evt.pathParameters.id}, getPaginationParams(evt));
+            const res = await getTransactions(auth, {
+                ...evt.queryStringParameters,
+                valueId: evt.pathParameters.id
+            }, getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.transactions
@@ -237,7 +252,10 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                 balance: {
                     type: "number"
                 },
-                uses: {
+                uses: { // todo - drop
+                    type: "number"
+                },
+                usesRemaining: {
                     type: "number"
                 },
                 discount: {
@@ -510,7 +528,8 @@ function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partial
     let value: Value = {
         id: null,
         balance: partialValue.valueRule && !partialValue.balance ? null : 0,
-        uses: null,
+        uses: null, // todo - drop
+        usesRemaining: null,
         code: null,
         issuanceId: null,
         isGenericCode: null,
@@ -529,7 +548,8 @@ function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partial
             pretax: program ? program.pretax : false,
             active: program ? program.active : true,
             redemptionRule: program ? program.redemptionRule : null,
-            valueRule: program ? program.valueRule : null,
+            valueRule: program ? program.balanceRule : null, // todo - drop
+            balanceRule: program ? program.balanceRule : null,
             discount: program ? program.discount : false,
             discountSellerLiability: program ? program.discountSellerLiability : null,
             startDate: program ? program.startDate : null,
@@ -553,7 +573,7 @@ function checkValueProperties(value: Value, program: Program = null): void {
         checkProgramConstraints(value, program);
     }
 
-    if (value.balance && value.valueRule) {
+    if (value.balance && value.balanceRule) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a balance and valueRule.`);
     }
     if (value.discountSellerLiability !== null && !value.discount) {
@@ -581,8 +601,8 @@ function checkProgramConstraints(value: Value, program: Program): void {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} is greater than maxInitialBalance ${program.maxInitialBalance}.`);
     }
 
-    if (program.fixedInitialUses && (program.fixedInitialUses.indexOf(value.uses) === -1 || !value.uses)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's uses ${value.uses} outside initial values defined by Program ${program.fixedInitialUses}.`);
+    if (program.fixedInitialUsesRemaining && (program.fixedInitialUsesRemaining.indexOf(value.usesRemaining) === -1 || !value.usesRemaining)) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's usesRemaining ${value.usesRemaining} outside fixedInitialUsesRemaining defined by Program ${program.fixedInitialUsesRemaining}.`);
     }
 
     if (program.currency !== value.currency) {
@@ -619,7 +639,10 @@ const valueSchema: jsonschema.Schema = {
             type: ["integer", "null"],
             minimum: 0
         },
-        uses: {
+        uses: { // todo - drop
+            type: ["integer", "null"]
+        },
+        usesRemaining: {
             type: ["integer", "null"]
         },
         code: {
@@ -682,13 +705,32 @@ const valueSchema: jsonschema.Schema = {
                 }
             ]
         },
-        valueRule: {
+        valueRule: { // todo - drop
             oneOf: [
                 {
                     type: "null"
                 },
                 {
                     title: "Value rule",
+                    type: "object",
+                    properties: {
+                        rule: {
+                            type: "string"
+                        },
+                        explanation: {
+                            type: "string"
+                        }
+                    }
+                }
+            ]
+        },
+        balanceRule: {
+            oneOf: [
+                {
+                    type: "null"
+                },
+                {
+                    title: "Balance rule",
                     type: "object",
                     properties: {
                         rule: {

@@ -28,7 +28,7 @@ describe("/v2/issuances", () => {
         id: generateId(),
         name: "program name",
         currency: "USD",
-        valueRule: {
+        balanceRule: {
             rule: "500",
             explanation: "$5 the hard way"
         },
@@ -83,8 +83,8 @@ describe("/v2/issuances", () => {
                 count: count,
                 balance: null,
                 redemptionRule: null,
-                valueRule: null,
-                uses: null,
+                balanceRule: null,
+                usesRemaining: null,
                 startDate: null,
                 endDate: null,
                 metadata: {}
@@ -139,7 +139,7 @@ describe("/v2/issuances", () => {
 
         const createIssuance = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${programWithRulesAndDates.id}/issuances`, "POST", issuance);
         chai.assert.equal(createIssuance.statusCode, 201, JSON.stringify(createIssuance.body));
-        chai.assert.deepEqual(createIssuance.body.valueRule, programWithRulesAndDates.valueRule, "valueRule from program is copied over to the issuance");
+        chai.assert.deepEqual(createIssuance.body.balanceRule, programWithRulesAndDates.balanceRule, "valueRule from program is copied over to the issuance");
         chai.assert.deepEqual(createIssuance.body.redemptionRule, programWithRulesAndDates.redemptionRule, "redemptionRule from program is copied over to the issuance");
         chai.assert.equal(createIssuance.body.startDate.toString(), programWithRulesAndDates.startDate.toISOString(), "startDate from program is copied over to the issuance");
         chai.assert.equal(createIssuance.body.endDate.toString(), programWithRulesAndDates.endDate.toISOString(), "endDate from program is copied over to the issuance");
@@ -147,7 +147,7 @@ describe("/v2/issuances", () => {
         const listResponse = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?limit=1000&issuanceId=${issuance.id}`, "GET");
         chai.assert.equal(listResponse.statusCode, 200, `body=${JSON.stringify(listResponse.body)}`);
         chai.assert.equal(listResponse.body.length, issuance.count);
-        chai.assert.deepEqual(listResponse.body[0].valueRule, programWithRulesAndDates.valueRule, "valueRule from program is copied over to the Value");
+        chai.assert.deepEqual(listResponse.body[0].balanceRule, programWithRulesAndDates.balanceRule, "valueRule from program is copied over to the Value");
         chai.assert.deepEqual(listResponse.body[0].redemptionRule, programWithRulesAndDates.redemptionRule, "redemptionRule from program is copied over to the Value");
         chai.assert.equal(listResponse.body[0].startDate.toString(), programWithRulesAndDates.startDate.toISOString(), "startDate from program is copied over to the Value");
         chai.assert.equal(listResponse.body[0].endDate.toString(), programWithRulesAndDates.endDate.toISOString(), "endDate from program is copied over to the Value");
@@ -158,7 +158,7 @@ describe("/v2/issuances", () => {
             id: generateId(),
             count: 1,
             name: "name",
-            valueRule: {
+            balanceRule: {
                 rule: "700",
                 explanation: "$7 the hard way"
             },
@@ -169,14 +169,14 @@ describe("/v2/issuances", () => {
             startDate: new Date("2177-01-01"),
             endDate: new Date("2178-01-01")
         };
-        chai.assert.notDeepEqual(issuance.valueRule, programWithRulesAndDates.valueRule);
+        chai.assert.notDeepEqual(issuance.balanceRule, programWithRulesAndDates.balanceRule);
         chai.assert.notDeepEqual(issuance.redemptionRule, programWithRulesAndDates.redemptionRule);
         chai.assert.notEqual(programWithRulesAndDates.startDate, issuance.startDate);
         chai.assert.notEqual(programWithRulesAndDates.endDate, issuance.endDate);
 
         const createIssuance = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${programWithRulesAndDates.id}/issuances`, "POST", issuance);
         chai.assert.equal(createIssuance.statusCode, 201, JSON.stringify(createIssuance.body));
-        chai.assert.deepEqual(createIssuance.body.valueRule, issuance.valueRule);
+        chai.assert.deepEqual(createIssuance.body.balanceRule, issuance.balanceRule);
         chai.assert.deepEqual(createIssuance.body.redemptionRule, issuance.redemptionRule);
         chai.assert.equal(createIssuance.body.startDate.toString(), issuance.startDate.toISOString());
         chai.assert.equal(createIssuance.body.endDate.toString(), issuance.endDate.toISOString());
@@ -184,7 +184,7 @@ describe("/v2/issuances", () => {
         const listResponse = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?limit=1000&issuanceId=${issuance.id}`, "GET");
         chai.assert.equal(listResponse.statusCode, 200, `body=${JSON.stringify(listResponse.body)}`);
         chai.assert.equal(listResponse.body.length, issuance.count);
-        chai.assert.deepEqual(listResponse.body[0].valueRule, issuance.valueRule);
+        chai.assert.deepEqual(listResponse.body[0].balanceRule, issuance.balanceRule);
         chai.assert.deepEqual(listResponse.body[0].redemptionRule, issuance.redemptionRule);
         chai.assert.equal(listResponse.body[0].startDate.toString(), issuance.startDate.toISOString());
         chai.assert.equal(listResponse.body[0].endDate.toString(), issuance.endDate.toISOString());
@@ -284,7 +284,7 @@ describe("/v2/issuances", () => {
             id: generateId(),
             name: "program-name",
             currency: "USD",
-            valueRule: {
+            balanceRule: {
                 rule: "500",
                 explanation: "$5 the hard way"
             }

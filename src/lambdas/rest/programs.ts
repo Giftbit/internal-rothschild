@@ -40,6 +40,9 @@ export function installProgramsRest(router: cassava.Router): void {
             // auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:programs:create");
             evt.validateBody(programSchema);
+            // todo - drop this
+            evt.body.valueRule = evt.body.balanceRule ? evt.body.balanceRule : evt.body.valueRule;
+            evt.body.balanceRule = evt.body.balanceRule ? evt.body.balanceRule : evt.body.valueRule;
 
             const now = nowInDbPrecision();
             const program: Program = {
@@ -53,11 +56,13 @@ export function installProgramsRest(router: cassava.Router): void {
                         pretax: true,
                         active: true,
                         redemptionRule: null,
-                        valueRule: null,
+                        valueRule: null, // todo - drop
+                        balanceRule: null,
                         minInitialBalance: null,
                         maxInitialBalance: null,
                         fixedInitialBalances: null,
-                        fixedInitialUses: null,
+                        fixedInitialUses: null, // todo - drop
+                        fixedInitialUsesRemaining: null,
                         startDate: null,
                         endDate: null,
                         metadata: null
@@ -312,13 +317,32 @@ const programSchema: jsonschema.Schema = {
                 }
             ]
         },
-        valueRule: {
+        valueRule: { // todo - drop
             oneOf: [
                 {
                     type: "null"
                 },
                 {
                     title: "Value rule",
+                    type: "object",
+                    properties: {
+                        rule: {
+                            type: "string"
+                        },
+                        explanation: {
+                            type: "string"
+                        }
+                    }
+                }
+            ]
+        },
+        balanceRule: {
+            oneOf: [
+                {
+                    type: "null"
+                },
+                {
+                    title: "Balance rule",
                     type: "object",
                     properties: {
                         rule: {

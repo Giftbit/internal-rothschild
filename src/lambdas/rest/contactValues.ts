@@ -1,7 +1,6 @@
 import * as cassava from "cassava";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import log = require("loglevel");
 import {getValue, getValueByCode, getValues, injectValueStats} from "./values";
 import {csvSerializer} from "../../serializers";
 import {Pagination} from "../../model/Pagination";
@@ -9,6 +8,7 @@ import {Value} from "../../model/Value";
 import {getContact} from "./contacts";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
 import {getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
+import log = require("loglevel");
 
 export function installContactValuesRest(router: cassava.Router): void {
     router.route("/v2/contacts/{id}/values")
@@ -27,7 +27,10 @@ export function installContactValuesRest(router: cassava.Router): void {
             }
 
             const showCode: boolean = (evt.queryStringParameters.showCode === "true");
-            const res = await getValues(auth, {...evt.queryStringParameters, contactId: evt.pathParameters.id}, Pagination.getPaginationParams(evt), showCode);
+            const res = await getValues(auth, {
+                ...evt.queryStringParameters,
+                contactId: evt.pathParameters.id
+            }, Pagination.getPaginationParams(evt), showCode);
 
             if (evt.queryStringParameters.stats === "true") {
                 // For now this is a secret param only Yervana knows about.
@@ -83,7 +86,7 @@ export function installContactValuesRest(router: cassava.Router): void {
         });
 }
 
-export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, valueIdentifier: {valueId?: string, code?: string}, allowOverwrite: boolean): Promise<Value> {
+export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, valueIdentifier: { valueId?: string, code?: string }, allowOverwrite: boolean): Promise<Value> {
     const contact = await getContact(auth, contactId);
     const value = await getValueByIdentifier(auth, valueIdentifier);
 
@@ -102,8 +105,8 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 }
 
 async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, originalValue: Value): Promise<Value> {
-    if (originalValue.uses === 0) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${originalValue.id}' cannot be attached because it has a generic code and has 0 uses remaining.`, "InsufficientUses");
+    if (originalValue.usesRemaining === 0) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${originalValue.id}' cannot be attached because it has a generic code and has 0 usesRemaining.`, "InsufficientUsesRemaining");
     }
 
     const now = nowInDbPrecision();
@@ -113,23 +116,23 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         code: null,
         isGenericCode: null,
         contactId: contactId,
-        uses: 1,
+        usesRemaining: 1,
         updatedDate: now,
         updatedContactIdDate: now
     };
 
     const knex = await getKnexWrite();
     await knex.transaction(async trx => {
-        if (originalValue.uses != null) {
+        if (originalValue.usesRemaining != null) {
             const usesDecrementRes: number = await trx("Values")
                 .where({
                     userId: auth.userId,
                     id: originalValue.id
                 })
-                .where("uses", ">", 0)
-                .increment("uses", -1);
+                .where("usesRemaining", ">", 0)
+                .increment("usesRemaining", -1);
             if (usesDecrementRes === 0) {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${originalValue.id}' cannot be claimed because it has 0 uses remaining.`, "InsufficientUses");
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${originalValue.id}' cannot be claimed because it has 0 usesRemaining.`, "InsufficientUsesRemaining");
             }
             if (usesDecrementRes > 1) {
                 throw new Error(`Illegal UPDATE query.  Updated ${usesDecrementRes} values.`);
@@ -197,7 +200,7 @@ async function attachUniqueValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
     }
 }
 
-function getValueByIdentifier(auth: giftbitRoutes.jwtauth.AuthorizationBadge, identifier: {valueId?: string, code?: string}): Promise<Value> {
+function getValueByIdentifier(auth: giftbitRoutes.jwtauth.AuthorizationBadge, identifier: { valueId?: string, code?: string }): Promise<Value> {
     try {
         if (identifier.valueId) {
             return getValue(auth, identifier.valueId);

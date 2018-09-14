@@ -143,7 +143,7 @@ describe("/v2/values create from program", () => {
             id: generateId(),
             name: "program with fixedInitialUses constraints",
             currency: "USD",
-            fixedInitialUses: [100, 200]
+            fixedInitialUsesRemaining: [100, 200]
         };
 
         let programProperties = Object.keys(program);
@@ -159,7 +159,7 @@ describe("/v2/values create from program", () => {
             programId: program.id
         };
 
-        it("can't create Value with uses = null", async () => {
+        it("can't create Value with usesRemaining = null", async () => {
             const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
                 ...value,
                 id: generateId()
@@ -167,8 +167,8 @@ describe("/v2/values create from program", () => {
             chai.assert.equal(valueResp.statusCode, 409, JSON.stringify(valueResp.body));
         });
 
-        it("can't create Value with uses != fixedInitialUses", async () => {
-            value.uses = 1;
+        it("can't create Value with usesRemaining != fixedInitialUsesRemaining", async () => {
+            value.usesRemaining = 1;
             const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
                 ...value,
                 id: generateId()
@@ -176,24 +176,24 @@ describe("/v2/values create from program", () => {
             chai.assert.equal(valueResp.statusCode, 409, JSON.stringify(valueResp.body));
         });
 
-        it("can create Value with uses = fixedInitialUses[0]", async () => {
-            value.uses = program.fixedInitialUses[0];
+        it("can create Value with usesRemaining = fixedInitialUsesRemaining[0]", async () => {
+            value.usesRemaining = program.fixedInitialUsesRemaining[0];
             const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
                 ...value,
                 id: generateId()
             });
             chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
-            chai.assert.equal(valueResp.body.uses, value.uses);
+            chai.assert.equal(valueResp.body.usesRemaining, value.usesRemaining);
         });
 
-        it("can create Value with uses = fixedInitialUses[1]", async () => {
-            value.uses = program.fixedInitialUses[1];
+        it("can create Value with usesRemaining= fixedInitialUsesRemaining[1]", async () => {
+            value.usesRemaining = program.fixedInitialUsesRemaining[1];
             const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
                 ...value,
                 id: generateId()
             });
             chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
-            chai.assert.equal(valueResp.body.uses, value.uses);
+            chai.assert.equal(valueResp.body.usesRemaining, value.usesRemaining);
         });
     });
 
@@ -425,7 +425,7 @@ describe("/v2/values create from program", () => {
             id: generateId(),
             name: "program with valueRule",
             currency: "USD",
-            valueRule: {rule: "500", explanation: "$5 the hard way"}
+            balanceRule: {rule: "500", explanation: "$5 the hard way"}
         };
 
         let programProperties = Object.keys(program);
@@ -456,18 +456,18 @@ describe("/v2/values create from program", () => {
                 id: generateId()
             });
             chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
-            chai.assert.deepEqual(valueResp.body.valueRule, program.valueRule);
+            chai.assert.deepEqual(valueResp.body.balanceRule, program.balanceRule);
         });
 
         it("can create Value with valueRule != null. this overrides the Program's valueRule", async () => {
-            value.valueRule = {rule: "600", explanation: "$6 the hard way too"};
+            value.balanceRule = {rule: "600", explanation: "$6 the hard way too"};
             const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
                 ...value,
                 id: generateId()
             });
             chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
-            chai.assert.deepEqual(valueResp.body.valueRule, value.valueRule);
-            chai.assert.notDeepEqual(valueResp.body.valueRule, program.valueRule);
+            chai.assert.deepEqual(valueResp.body.balanceRule, value.balanceRule);
+            chai.assert.notDeepEqual(valueResp.body.balanceRule, program.balanceRule);
         });
     });
 
@@ -477,13 +477,13 @@ describe("/v2/values create from program", () => {
             id: generateId(),
             name: "program with fixedInitialBalance constraints",
             currency: "USD",
-            valueRule: {rule: "500", explanation: "$5 the hard way"},
+            balanceRule: {rule: "500", explanation: "$5 the hard way"},
             discount: true,
             discountSellerLiability: 0.2,
             pretax: true,
             active: false,
             redemptionRule: {rule: "true", explanation: "always true"},
-            fixedInitialUses: [1, 2, 3],
+            fixedInitialUsesRemaining: [1, 2, 3],
             startDate: new Date(new Date().setDate(now.getDate() + 10)).toJSON(),
             endDate: new Date(new Date().setDate(now.getDate() + 100)).toJSON(),
             metadata: {notes: "this is a program note"}
@@ -506,14 +506,14 @@ describe("/v2/values create from program", () => {
         let value: Partial<Value> = {
             id: generateId(),
             programId: program.id,
-            uses: 3,
+            usesRemaining: 3,
         };
 
         it("can create Value", async () => {
             const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
             chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
             chai.assert.equal(valueResp.body.currency, program.currency);
-            chai.assert.deepEqual(valueResp.body.valueRule, program.valueRule);
+            chai.assert.deepEqual(valueResp.body.balanceRule, program.balanceRule);
             chai.assert.equal(valueResp.body.discount, program.discount);
             chai.assert.equal(valueResp.body.discountSellerLiability, program.discountSellerLiability);
             chai.assert.equal(valueResp.body.pretax, program.pretax);
@@ -530,10 +530,10 @@ describe("/v2/values create from program", () => {
                 id: generateId(),
                 programId: program.id,
                 currency: "USD",
-                valueRule: {rule: "700", explanation: "$7 the hard way"},
+                balanceRule: {rule: "700", explanation: "$7 the hard way"},
                 pretax: !program.pretax,
                 active: !program.active,
-                uses: program.fixedInitialUses[0],
+                usesRemaining: program.fixedInitialUsesRemaining[0],
                 redemptionRule: {rule: "false", explanation: "always false"},
                 startDate: new Date(new Date().setDate(now.getDate() + 50)).toJSON(),
                 endDate: new Date(new Date().setDate(now.getDate() + 150)).toJSON()
@@ -550,11 +550,11 @@ describe("/v2/values create from program", () => {
             chai.assert.notEqual(valueResp.body.active, program.active);
             chai.assert.notEqual(valueResp.body.startDate.toString(), program.startDate);
             chai.assert.notEqual(valueResp.body.endDate.toString(), program.endDate);
-            chai.assert.notDeepEqual(valueResp.body.valueRule, program.valueRule);
+            chai.assert.notDeepEqual(valueResp.body.balanceRule, program.balanceRule);
             chai.assert.notDeepEqual(valueResp.body.redemptionRule, program.redemptionRule);
 
             chai.assert.equal(valueResp.body.currency, value2.currency);
-            chai.assert.deepEqual(valueResp.body.valueRule, value2.valueRule);
+            chai.assert.deepEqual(valueResp.body.balanceRule, value2.balanceRule);
             chai.assert.equal(valueResp.body.pretax, value2.pretax);
             chai.assert.equal(valueResp.body.active, value2.active);
             chai.assert.deepEqual(valueResp.body.redemptionRule, value2.redemptionRule);

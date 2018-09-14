@@ -53,11 +53,11 @@ describe("/v2/programs", () => {
             pretax: true,
             active: true,
             redemptionRule: null,
-            valueRule: null,
+            balanceRule: null,
             minInitialBalance: null,
             maxInitialBalance: null,
             fixedInitialBalances: null,
-            fixedInitialUses: null,
+            fixedInitialUsesRemaining: null,
             startDate: null,
             endDate: null,
             metadata: null,
@@ -178,7 +178,7 @@ describe("/v2/programs", () => {
         const request3: Partial<Program> = {
             minInitialBalance: null,
             maxInitialBalance: null,
-            valueRule: {
+            balanceRule: {
                 rule: "500",
                 explanation: "$5 the hard way"
             }
@@ -187,7 +187,7 @@ describe("/v2/programs", () => {
         chai.assert.equal(update3.statusCode, 200);
         chai.assert.equal(update3.body.minInitialBalance, request3.minInitialBalance);
         chai.assert.equal(update3.body.maxInitialBalance, request3.maxInitialBalance);
-        chai.assert.deepEqual(update3.body.valueRule, request3.valueRule);
+        chai.assert.deepEqual(update3.body.balanceRule, request3.balanceRule);
     });
 
     it("can't update a program id", async () => {
