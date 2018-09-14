@@ -64,7 +64,7 @@ export function installProgramsRest(router: cassava.Router): void {
                 ),
                 createdDate: now,
                 updatedDate: now,
-                createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
+                createdBy: auth.teamMemberId,
             };
 
             program.startDate = program.startDate ? dateInDbPrecision(new Date(program.startDate)) : null;

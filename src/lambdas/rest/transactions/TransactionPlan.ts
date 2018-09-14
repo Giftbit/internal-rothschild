@@ -164,7 +164,7 @@ export namespace TransactionPlan {
             steps: plan.steps.map(step => transactionPlanStepToTransactionStep(step)),
             paymentSources: plan.paymentSources && getSanitizedPaymentSources(plan),
             metadata: plan.metadata || null,
-            createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
+            createdBy: auth.teamMemberId
         };
         if (simulated) {
             transaction.simulated = true;
