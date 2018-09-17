@@ -3,7 +3,7 @@ ALTER TABLE rothschild.`Values`
   CHANGE valueRule balanceRule TEXT;
 
 ALTER TABLE rothschild.`Programs`
-  CHANGE fixedInitialUses fixedInitialUsesRemaining INT,
+  CHANGE fixedInitialUses fixedInitialUsesRemaining TEXT,
   CHANGE valueRule balanceRule TEXT;
 
 ALTER TABLE rothschild.`Issuances`

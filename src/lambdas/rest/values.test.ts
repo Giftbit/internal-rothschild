@@ -77,6 +77,7 @@ describe("/v2/values/", () => {
         chai.assert.equal(resp2.statusCode, 201, `body=${JSON.stringify(resp2.body)}`);
         chai.assert.deepEqualExcluding(resp2.body, {
             ...value1,
+            uses: null, // todo - remove
             usesRemaining: null,
             programId: null,
             issuanceId: null,
@@ -90,6 +91,7 @@ describe("/v2/values/", () => {
             startDate: null,
             endDate: null,
             redemptionRule: null,
+            valueRule: null, // todo - remove
             balanceRule: null,
             discount: false,
             discountSellerLiability: null,
@@ -117,6 +119,8 @@ describe("/v2/values/", () => {
         chai.assert.equal(createRes.statusCode, 201, `body=${JSON.stringify(createRes.body)}`);
         chai.assert.deepEqualExcluding(createRes.body, {
             ...createValueRequest,
+            valueRule: createValueRequest.balanceRule, // todo - remove
+            uses: null, // todo - remove
             usesRemaining: null,
             programId: null,
             issuanceId: null,
@@ -154,6 +158,8 @@ describe("/v2/values/", () => {
             id: createValueRequest.id,
             currency: createValueRequest.currency,
             usesRemaining: null,
+            valueRule: updateValueRequest.balanceRule, // todo - remove once valueRule is no longer supported
+            uses: null, // todo - remove once uses is no longer supported
             programId: null,
             issuanceId: null,
             contactId: null,
@@ -569,7 +575,7 @@ describe("/v2/values/", () => {
 
             const page1 = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/values?id.in=${ids.join(",")}`, "GET");
             chai.assert.equal(page1.statusCode, 200, `body=${JSON.stringify(page1.body)}`);
-            chai.assert.deepEqualExcludingEvery(page1.body, expected, ["userId", "codeHashed", "codeLastFour", "startDate", "endDate", "createdDate", "updatedDate", "updatedContactIdDate", "codeEncrypted", "isGenericCode"]);
+            chai.assert.deepEqualExcludingEvery(page1.body, expected, ["userId", "codeHashed", "codeLastFour", "startDate", "endDate", "createdDate", "updatedDate", "updatedContactIdDate", "codeEncrypted", "isGenericCode", "uses" /* todo - remove */, "valueRule" /* todo - remove */]);
             chai.assert.isDefined(page1.headers["Link"]);
         });
     });

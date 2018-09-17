@@ -140,7 +140,7 @@ describe("/v2/contacts/values", () => {
     it("cannot attach a generic-code Value with 0 usesRemaining", async () => {
         const code = "PARTYPEOPLE";
         const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
-            id: "generic-value-with-0-usesRemaining",
+            id: "generic-value-with-0-uses",
             currency: currency.code,
             balanceRule: {
                 rule: "500",
@@ -154,7 +154,7 @@ describe("/v2/contacts/values", () => {
 
         const resp2 = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: code});
         chai.assert.equal(resp2.statusCode, 409, `body=${JSON.stringify(resp2.body)}`);
-        chai.assert.equal(resp2.body.messageCode, "InsufficientUses");
+        chai.assert.equal(resp2.body.messageCode, "InsufficientUsesRemaining");
     });
 
     const value4Code = "DROPITLIKEITSHOT";

@@ -25,6 +25,13 @@ export function installIssuancesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:issuances:list");
+
+            // todo - remove this check once uses is no longer supported.
+            if (evt.pathParameters.uses) {
+                evt.pathParameters.usesRemaining = evt.pathParameters.uses;
+                delete evt.pathParameters.uses
+            }
+
             const res = await getIssuances(auth, evt.pathParameters.programId, evt.queryStringParameters, Pagination.getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
@@ -38,6 +45,17 @@ export function installIssuancesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:issuances:create");
+
+            // todo - remove these checks once valueRule and uses are no longer supported.
+            if (evt.body.valueRule && !evt.body.balanceRule) {
+                evt.body.balanceRule = evt.body.valueRule;
+                delete evt.body.valueRule;
+            }
+            if (evt.body.uses != null && evt.body.usesRemaining == null) {
+                evt.body.usesRemaining = evt.body.uses;
+                delete evt.body.uses;
+            }
+
             evt.validateBody(issuanceSchema);
             evt.body.programId = evt.pathParameters.programId;
 
@@ -51,9 +69,9 @@ export function installIssuancesRest(router: cassava.Router): void {
                         count: null,
                         balance: null,
                         redemptionRule: null,
-                        valueRule: null, // todo - drop
+                        valueRule: null, // todo - remove
                         balanceRule: null,
-                        uses: null, // todo - drop
+                        uses: null, // todo - remove
                         usesRemaining: null,
                         startDate: null,
                         endDate: null,
@@ -108,10 +126,6 @@ async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, prog
                     operators: ["eq", "in"]
                 },
                 "count": {
-                    type: "number",
-                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
-                },
-                "uses": { // todo - drop
                     type: "number",
                     operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 },
@@ -173,9 +187,9 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
                     issuanceId: issuance.id,
                     balance: issuance.balance ? issuance.balance : null,
                     redemptionRule: issuance.redemptionRule ? issuance.redemptionRule : null,
-                    valueRule: issuance.balanceRule ? issuance.balanceRule : null, // todo - drop
+                    valueRule: issuance.balanceRule ? issuance.balanceRule : null, // todo - remove
                     balanceRule: issuance.balanceRule ? issuance.balanceRule : null,
-                    uses: issuance.usesRemaining ? issuance.usesRemaining : null, // todo - drop
+                    uses: issuance.usesRemaining ? issuance.usesRemaining : null, // todo - remove
                     usesRemaining: issuance.usesRemaining ? issuance.usesRemaining : null,
                     startDate: issuance.startDate ? issuance.startDate : null,
                     endDate: issuance.endDate ? issuance.endDate : null,
@@ -262,10 +276,6 @@ const issuanceSchema: jsonschema.Schema = {
             type: ["integer", "null"],
             minimum: 0
         },
-        uses: { // todo - drop
-            type: ["integer", "null"],
-            minimum: 0
-        },
         usesRemaining: {
             type: ["integer", "null"],
             minimum: 0
@@ -304,25 +314,6 @@ const issuanceSchema: jsonschema.Schema = {
                 },
                 {
                     title: "Redemption rule",
-                    type: "object",
-                    properties: {
-                        rule: {
-                            type: "string"
-                        },
-                        explanation: {
-                            type: "string"
-                        }
-                    }
-                }
-            ]
-        },
-        valueRule: { // todo - drop
-            oneOf: [
-                {
-                    type: "null"
-                },
-                {
-                    title: "Value rule",
                     type: "object",
                     properties: {
                         rule: {

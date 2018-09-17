@@ -8,9 +8,9 @@ export interface Issuance {
     count: number;
     balance: number | null;
     redemptionRule: Rule | null;
-    valueRule: Rule | null; // todo - drop
+    valueRule: Rule | null; // todo - remove
     balanceRule: Rule | null;
-    uses: number | null; // todo - drop
+    uses: number | null; // todo - remove
     usesRemaining: number | null;
     startDate: Date | null;
     endDate: Date | null;
@@ -68,7 +68,7 @@ export namespace DbIssuance {
             redemptionRule: JSON.parse(v.redemptionRule),
             valueRule: JSON.parse(v.balanceRule),
             balanceRule: JSON.parse(v.balanceRule),
-            uses: v.usesRemaining, // todo - drop
+            uses: v.usesRemaining, // todo - remove
             usesRemaining: v.usesRemaining,
             startDate: v.startDate,
             endDate: v.endDate,

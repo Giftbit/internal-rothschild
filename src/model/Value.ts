@@ -7,7 +7,7 @@ export interface Value {
     id: string;
     currency: string;
     balance: number | null;
-    uses: number | null; // todo - drop
+    uses: number | null; // todo - remove
     usesRemaining: number | null;
     programId: string | null;
     issuanceId: string | null;
@@ -21,7 +21,7 @@ export interface Value {
     discount: boolean;
     discountSellerLiability: number | null;
     redemptionRule: Rule | null;
-    valueRule: Rule | null; // todo - drop
+    valueRule: Rule | null; // todo - remove
     balanceRule: Rule | null;
     startDate: Date | null;
     endDate: Date | null;
@@ -43,6 +43,8 @@ export namespace Value {
         if (v.code) {
             dbCode = new DbCode(v.code, v.isGenericCode, auth);
         }
+        // console.log("toDbValue:" + JSON.stringify(v, null, 4));
+        // console.log("balanceRule:" + v.balanceRule);
         return {
             userId: auth.userId,
             id: v.id,
@@ -88,7 +90,6 @@ export namespace Value {
             discount: v.discount,
             discountSellerLiability: v.discountSellerLiability,
             redemptionRule: JSON.stringify(v.redemptionRule),
-            valueRule: JSON.stringify(v.balanceRule),
             balanceRule: JSON.stringify(v.balanceRule),
             startDate: v.startDate,
             endDate: v.endDate,
@@ -141,7 +142,7 @@ export namespace DbValue {
             id: v.id,
             currency: v.currency,
             balance: v.balance,
-            uses: v.usesRemaining, // todo - drop
+            uses: v.usesRemaining, // todo - remove
             usesRemaining: v.usesRemaining,
             programId: v.programId,
             issuanceId: v.issuanceId,
@@ -155,7 +156,7 @@ export namespace DbValue {
             discount: v.discount,
             discountSellerLiability: v.discountSellerLiability,
             redemptionRule: JSON.parse(v.redemptionRule),
-            valueRule: JSON.parse(v.balanceRule), // todo - drop
+            valueRule: JSON.parse(v.balanceRule), // todo - remove
             balanceRule: JSON.parse(v.balanceRule),
             startDate: v.startDate,
             endDate: v.endDate,

@@ -39,10 +39,17 @@ export function installProgramsRest(router: cassava.Router): void {
             auth.requireIds("userId"); // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
             // auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:programs:create");
+            // todo - remove these checks once valueRule and fixedInitialUses are no longer supported.
+            if (evt.body.valueRule && !evt.body.balanceRule) {
+                evt.body.balanceRule = evt.body.valueRule;
+                delete evt.body.valueRule;
+            }
+            if (evt.body.fixedInitialUses && !evt.body.fixedInitialUsesRemaining) {
+                evt.body.fixedInitialUsesRemaining = evt.body.fixedInitialUses;
+                delete evt.body.fixedInitialUses;
+            }
+
             evt.validateBody(programSchema);
-            // todo - drop this
-            evt.body.valueRule = evt.body.balanceRule ? evt.body.balanceRule : evt.body.valueRule;
-            evt.body.balanceRule = evt.body.balanceRule ? evt.body.balanceRule : evt.body.valueRule;
 
             const now = nowInDbPrecision();
             const program: Program = {
@@ -56,12 +63,12 @@ export function installProgramsRest(router: cassava.Router): void {
                         pretax: true,
                         active: true,
                         redemptionRule: null,
-                        valueRule: null, // todo - drop
+                        valueRule: null, // todo - remove
                         balanceRule: null,
                         minInitialBalance: null,
                         maxInitialBalance: null,
                         fixedInitialBalances: null,
-                        fixedInitialUses: null, // todo - drop
+                        fixedInitialUses: null, // todo - remove
                         fixedInitialUsesRemaining: null,
                         startDate: null,
                         endDate: null,
@@ -99,6 +106,17 @@ export function installProgramsRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:programs:update");
+
+            // todo - remove these checks once valueRule and fixedInitialUses are no longer supported.
+            if (evt.body.valueRule && !evt.body.balanceRule) {
+                evt.body.balanceRule = evt.body.valueRule;
+                delete evt.body.valueRule
+            }
+            if (evt.body.fixedInitialUses && !evt.body.fixedInitialUsesRemaining) {
+                evt.body.fixedInitialUsesRemaining = evt.body.fixedInitialUses;
+                delete evt.body.fixedInitialUses
+            }
+
             evt.validateBody(updateProgramSchema);
 
             if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
@@ -107,7 +125,7 @@ export function installProgramsRest(router: cassava.Router): void {
 
             const now = nowInDbPrecision();
             const program: Partial<Program> = {
-                ...pick(evt.body as Program, "name", "discount", "pretax", "active", "redemptionRule", "valueRule", "minInitialBalance", "maxInitialBalance", "fixedInitialBalances", "fixedInitialUses", "startDate", "endDate", "metadata"),
+                ...pick(evt.body as Program, "name", "discount", "pretax", "active", "redemptionRule", "balanceRule", "minInitialBalance", "maxInitialBalance", "fixedInitialBalances", "fixedInitialUsesRemaining", "startDate", "endDate", "metadata"),
                 updatedDate: now
             };
 
@@ -181,10 +199,11 @@ async function createProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pro
     auth.requireIds("userId");
     checkProgramProperties(program);
     try {
+        let dbProgram = Program.toDbProgram(auth, program);
         const knex = await getKnexWrite();
         await knex("Programs")
-            .insert(Program.toDbProgram(auth, program));
-        return program;
+            .insert(dbProgram);
+        return DbProgram.toProgram(dbProgram);
     } catch (err) {
         log.debug(err);
         const constraint = getSqlErrorConstraintName(err);
@@ -240,8 +259,7 @@ async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
         throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
     }
     return {
-        ...await getProgram(auth, id),
-        ...program
+        ...await getProgram(auth, id)
     };
 }
 
@@ -317,25 +335,6 @@ const programSchema: jsonschema.Schema = {
                 }
             ]
         },
-        valueRule: { // todo - drop
-            oneOf: [
-                {
-                    type: "null"
-                },
-                {
-                    title: "Value rule",
-                    type: "object",
-                    properties: {
-                        rule: {
-                            type: "string"
-                        },
-                        explanation: {
-                            type: "string"
-                        }
-                    }
-                }
-            ]
-        },
         balanceRule: {
             oneOf: [
                 {
@@ -370,7 +369,7 @@ const programSchema: jsonschema.Schema = {
                 minimum: 0
             }
         },
-        fixedInitialUses: {
+        fixedInitialUsesRemaining: {
             type: ["array", "null"],
             items: {
                 type: "number",

@@ -54,10 +54,12 @@ describe("/v2/programs", () => {
             active: true,
             redemptionRule: null,
             balanceRule: null,
+            valueRule: null, // todo - remove
             minInitialBalance: null,
             maxInitialBalance: null,
             fixedInitialBalances: null,
             fixedInitialUsesRemaining: null,
+            fixedInitialUses: null, // todo - remove
             startDate: null,
             endDate: null,
             metadata: null,

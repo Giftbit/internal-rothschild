@@ -83,6 +83,8 @@ describe("/v2/issuances", () => {
                 count: count,
                 balance: null,
                 redemptionRule: null,
+                valueRule: null, // todo - remove
+                uses: null, // todo - remove
                 balanceRule: null,
                 usesRemaining: null,
                 startDate: null,
