@@ -72,7 +72,6 @@ export function installValuesRest(router: cassava.Router): void {
             if (evt.body.uses != null && evt.body.usesRemaining == null) {
                 evt.body.usesRemaining = evt.body.uses;
                 delete evt.body.uses;
-                console.log("evt.body: " + JSON.stringify(evt.body, null, 4));
             }
 
             evt.validateBody(valueSchema);

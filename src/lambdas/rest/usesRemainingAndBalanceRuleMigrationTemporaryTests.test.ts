@@ -14,6 +14,8 @@ chai.use(chaiExclude);
 /**
  * This is a temporary test. It can be deleted once valueRule, uses,
  * and fixedInitialUsesRemaining have been removed from the API.
+ * It only needs to exist in the interim while the API is still accepting
+ * and responding with both the new and deprecated properties.
  */
 describe("/v2/values/", () => {
 
@@ -65,7 +67,6 @@ describe("/v2/values/", () => {
         chai.assert.deepEqual(list.body[0].balanceRule, balanceRule);
     });
 
-    // this should be implicitly tested through other tests but until valueRule and uses are totally gone, this is an assuring test
     it("can create a Value with new properties `usesRemaining` and `balanceRule` and both properties are returned", async () => {
         const balanceRule: Rule = {
             rule: "500",

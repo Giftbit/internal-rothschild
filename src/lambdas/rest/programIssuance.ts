@@ -165,7 +165,7 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
     // this is important for issuance display and history since these properties can be updated on the program.
     issuance = {
         ...issuance,
-        ...pick<Partial<Issuance>>(program, "startDate", "endDate", "valueRule", "balanceRule", "redemptionRule"),
+        ...pick<Partial<Issuance>>(program, "startDate", "endDate", "balanceRule", "redemptionRule"),
         ...pickNotNull(issuance)
     };
     issuance.metadata = {...(program && program.metadata ? program.metadata : {}), ...issuance.metadata};

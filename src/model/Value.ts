@@ -43,8 +43,6 @@ export namespace Value {
         if (v.code) {
             dbCode = new DbCode(v.code, v.isGenericCode, auth);
         }
-        // console.log("toDbValue:" + JSON.stringify(v, null, 4));
-        // console.log("balanceRule:" + v.balanceRule);
         return {
             userId: auth.userId,
             id: v.id,

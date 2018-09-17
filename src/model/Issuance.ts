@@ -66,7 +66,7 @@ export namespace DbIssuance {
             count: v.count,
             balance: v.balance,
             redemptionRule: JSON.parse(v.redemptionRule),
-            valueRule: JSON.parse(v.balanceRule),
+            valueRule: JSON.parse(v.balanceRule), // todo - remove
             balanceRule: JSON.parse(v.balanceRule),
             uses: v.usesRemaining, // todo - remove
             usesRemaining: v.usesRemaining,
