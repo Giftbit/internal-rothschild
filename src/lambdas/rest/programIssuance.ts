@@ -36,7 +36,7 @@ export function installIssuancesRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("userId");
+            auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:issuances:create");
             evt.validateBody(issuanceSchema);
             evt.body.programId = evt.pathParameters.programId;

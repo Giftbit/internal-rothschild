@@ -90,6 +90,7 @@ describe("/v2/contacts/values", () => {
         chai.assert.notEqual(resp2.body.id, resp1.body.id);
         chai.assert.isNotNull(resp2.body.updatedContactIdDate);
         chai.assert.equal(resp2.body.updatedContactIdDate, resp2.body.updatedDate);
+        chai.assert.equal(resp2.body.createdBy, testUtils.defaultTestUser.auth.teamMemberId);
         value2 = resp2.body;
     });
 

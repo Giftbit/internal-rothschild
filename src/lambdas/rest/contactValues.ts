@@ -1,7 +1,6 @@
 import * as cassava from "cassava";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import log = require("loglevel");
 import {getValue, getValueByCode, getValues, injectValueStats} from "./values";
 import {csvSerializer} from "../../serializers";
 import {Pagination} from "../../model/Pagination";
@@ -9,6 +8,7 @@ import {Value} from "../../model/Value";
 import {getContact} from "./contacts";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
 import {getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
+import log = require("loglevel");
 
 export function installContactValuesRest(router: cassava.Router): void {
     router.route("/v2/contacts/{id}/values")
@@ -27,7 +27,10 @@ export function installContactValuesRest(router: cassava.Router): void {
             }
 
             const showCode: boolean = (evt.queryStringParameters.showCode === "true");
-            const res = await getValues(auth, {...evt.queryStringParameters, contactId: evt.pathParameters.id}, Pagination.getPaginationParams(evt), showCode);
+            const res = await getValues(auth, {
+                ...evt.queryStringParameters,
+                contactId: evt.pathParameters.id
+            }, Pagination.getPaginationParams(evt), showCode);
 
             if (evt.queryStringParameters.stats === "true") {
                 // For now this is a secret param only Yervana knows about.
@@ -45,7 +48,7 @@ export function installContactValuesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             let allowOverwrite = true;
-            auth.requireIds("userId");
+            auth.requireIds("userId", "teamMemberId");
             if (auth.hasScope("lightrailV2:values:attach:self") && auth.contactId === evt.pathParameters.id && evt.body.code && !evt.body.valueId) {
                 // Badge is signed specifically to attach a value by code for this contact.
                 allowOverwrite = false;
@@ -83,7 +86,7 @@ export function installContactValuesRest(router: cassava.Router): void {
         });
 }
 
-export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, valueIdentifier: {valueId?: string, code?: string}, allowOverwrite: boolean): Promise<Value> {
+export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, valueIdentifier: { valueId?: string, code?: string }, allowOverwrite: boolean): Promise<Value> {
     const contact = await getContact(auth, contactId);
     const value = await getValueByIdentifier(auth, valueIdentifier);
 
@@ -115,7 +118,8 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         contactId: contactId,
         uses: 1,
         updatedDate: now,
-        updatedContactIdDate: now
+        updatedContactIdDate: now,
+        createdBy: auth.teamMemberId
     };
 
     const knex = await getKnexWrite();
@@ -197,7 +201,7 @@ async function attachUniqueValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
     }
 }
 
-function getValueByIdentifier(auth: giftbitRoutes.jwtauth.AuthorizationBadge, identifier: {valueId?: string, code?: string}): Promise<Value> {
+function getValueByIdentifier(auth: giftbitRoutes.jwtauth.AuthorizationBadge, identifier: { valueId?: string, code?: string }): Promise<Value> {
     try {
         if (identifier.valueId) {
             return getValue(auth, identifier.valueId);
