@@ -208,7 +208,6 @@ describe("optimizeCheckout", () => {
             id: null,
             currency: null,
             balance: null,
-            uses: 5, // todo - remove
             usesRemaining: 5,
             programId: null,
             issuanceId: null,
@@ -222,7 +221,6 @@ describe("optimizeCheckout", () => {
             discount: null,
             discountSellerLiability: null,
             redemptionRule: null,
-            valueRule: null, // todo - remove
             balanceRule: null,
             startDate: null,
             endDate: null,

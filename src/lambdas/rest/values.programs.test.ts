@@ -40,10 +40,10 @@ describe("/v2/values create from program", () => {
         chai.assert.equal(valueResp.statusCode, 404, JSON.stringify(valueResp.body));
     });
 
-    describe(`creating Values from Program with no balance constraints or value valueRule`, () => {
+    describe(`creating Values from Program with no balance constraints or value balanceRule`, () => {
         let program: Partial<Program> = {
             id: generateId(),
-            name: "program with no balance constraints or valueRule",
+            name: "program with no balance constraints or balanceRule",
             currency: "USD"
         };
 
@@ -420,10 +420,10 @@ describe("/v2/values create from program", () => {
         chai.assert.equal(programResp.body.message, "Program's minInitialBalance cannot exceed maxInitialBalance.");
     });
 
-    describe(`creating Values from Program with valueRule set`, () => {
+    describe(`creating Values from Program with balanceRule set`, () => {
         let program: Partial<Program> = {
             id: generateId(),
-            name: "program with valueRule",
+            name: "program with balanceRule",
             currency: "USD",
             balanceRule: {rule: "500", explanation: "$5 the hard way"}
         };
@@ -459,7 +459,7 @@ describe("/v2/values create from program", () => {
             chai.assert.deepEqual(valueResp.body.balanceRule, program.balanceRule);
         });
 
-        it("can create Value with valueRule != null. this overrides the Program's valueRule", async () => {
+        it("can create Value with balanceRule != null. this overrides the Program's balanceRule", async () => {
             value.balanceRule = {rule: "600", explanation: "$6 the hard way too"};
             const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
                 ...value,
@@ -567,7 +567,7 @@ describe("/v2/values create from program", () => {
     describe(`creating Values from Program with metadata`, () => {
         let program: Partial<Program> = {
             id: generateId(),
-            name: "program with valueRule",
+            name: "program with balanceRule",
             currency: "USD",
             metadata: {
                 a: "A",

@@ -83,8 +83,6 @@ describe("/v2/issuances", () => {
                 count: count,
                 balance: null,
                 redemptionRule: null,
-                valueRule: null, // todo - remove
-                uses: null, // todo - remove
                 balanceRule: null,
                 usesRemaining: null,
                 startDate: null,
@@ -141,7 +139,7 @@ describe("/v2/issuances", () => {
 
         const createIssuance = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${programWithRulesAndDates.id}/issuances`, "POST", issuance);
         chai.assert.equal(createIssuance.statusCode, 201, JSON.stringify(createIssuance.body));
-        chai.assert.deepEqual(createIssuance.body.balanceRule, programWithRulesAndDates.balanceRule, "valueRule from program is copied over to the issuance");
+        chai.assert.deepEqual(createIssuance.body.balanceRule, programWithRulesAndDates.balanceRule, "balanceRule from program is copied over to the issuance");
         chai.assert.deepEqual(createIssuance.body.redemptionRule, programWithRulesAndDates.redemptionRule, "redemptionRule from program is copied over to the issuance");
         chai.assert.equal(createIssuance.body.startDate.toString(), programWithRulesAndDates.startDate.toISOString(), "startDate from program is copied over to the issuance");
         chai.assert.equal(createIssuance.body.endDate.toString(), programWithRulesAndDates.endDate.toISOString(), "endDate from program is copied over to the issuance");
@@ -149,13 +147,13 @@ describe("/v2/issuances", () => {
         const listResponse = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?limit=1000&issuanceId=${issuance.id}`, "GET");
         chai.assert.equal(listResponse.statusCode, 200, `body=${JSON.stringify(listResponse.body)}`);
         chai.assert.equal(listResponse.body.length, issuance.count);
-        chai.assert.deepEqual(listResponse.body[0].balanceRule, programWithRulesAndDates.balanceRule, "valueRule from program is copied over to the Value");
+        chai.assert.deepEqual(listResponse.body[0].balanceRule, programWithRulesAndDates.balanceRule, "balanceRule from program is copied over to the Value");
         chai.assert.deepEqual(listResponse.body[0].redemptionRule, programWithRulesAndDates.redemptionRule, "redemptionRule from program is copied over to the Value");
         chai.assert.equal(listResponse.body[0].startDate.toString(), programWithRulesAndDates.startDate.toISOString(), "startDate from program is copied over to the Value");
         chai.assert.equal(listResponse.body[0].endDate.toString(), programWithRulesAndDates.endDate.toISOString(), "endDate from program is copied over to the Value");
     });
 
-    it(`can overwrite valueRule, redemptionRule, startDate and endDate`, async () => {
+    it(`can overwrite balanceRule, redemptionRule, startDate and endDate`, async () => {
         let issuance: Partial<Issuance> = {
             id: generateId(),
             count: 1,
@@ -281,7 +279,7 @@ describe("/v2/issuances", () => {
         chai.assert.include(createIssuance.body.message, "Parameter generateCode is not allowed with parameters code or isGenericCode:true.");
     });
 
-    it(`422 if program has valueRule and try to issue with balance`, async () => {
+    it(`422 if program has balanceRuleand try to issue with balance`, async () => {
         const program: Partial<Program> = {
             id: generateId(),
             name: "program-name",
@@ -303,7 +301,7 @@ describe("/v2/issuances", () => {
 
         const createIssuance = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${program.id}/issuances`, "POST", issuance);
         chai.assert.equal(createIssuance.statusCode, 422, JSON.stringify(createIssuance.body));
-        chai.assert.include(createIssuance.body.message, "Value can't have both a balance and valueRule.");
+        chai.assert.include(createIssuance.body.message, "Value can't have both a balance and balanceRule.");
     });
 
     it(`422 on issuance with id over 26 characters`, async () => {
@@ -426,7 +424,7 @@ describe("/v2/issuances", () => {
     describe(`creating Issuance with metadata from Program with metadata`, () => {
         let program: Partial<Program> = {
             id: generateId(),
-            name: "program with valueRule",
+            name: "program with balanceRule",
             currency: "USD",
             metadata: {
                 a: "A",

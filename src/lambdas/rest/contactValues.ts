@@ -116,7 +116,6 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         code: null,
         isGenericCode: null,
         contactId: contactId,
-        uses: 1, // todo - remove
         usesRemaining: 1,
         updatedDate: now,
         updatedContactIdDate: now

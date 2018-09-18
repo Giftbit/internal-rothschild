@@ -11,12 +11,10 @@ export interface Program {
     pretax: boolean;
     active: boolean;
     redemptionRule: Rule | null;
-    valueRule: Rule | null; // todo - remove
     balanceRule: Rule | null;
     minInitialBalance: number | null;
     maxInitialBalance: number | null;
     fixedInitialBalances: number[];
-    fixedInitialUses: number[]; // todo - remove
     fixedInitialUsesRemaining: number[];
     startDate: Date | null;
     endDate: Date | null;
@@ -110,10 +108,8 @@ export namespace DbProgram {
             minInitialBalance: v.minInitialBalance,
             maxInitialBalance: v.maxInitialBalance,
             fixedInitialBalances: JSON.parse(v.fixedInitialBalances),
-            fixedInitialUses: JSON.parse(v.fixedInitialUsesRemaining), // todo - remove
             fixedInitialUsesRemaining: JSON.parse(v.fixedInitialUsesRemaining),
             redemptionRule: JSON.parse(v.redemptionRule),
-            valueRule: JSON.parse(v.balanceRule), // todo - remove
             balanceRule: JSON.parse(v.balanceRule),
             startDate: v.startDate,
             endDate: v.endDate,
