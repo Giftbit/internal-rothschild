@@ -63,12 +63,12 @@ export function installProgramsRest(router: cassava.Router): void {
                         pretax: true,
                         active: true,
                         redemptionRule: null,
-                        valueRule: null, // todo - remove
+                        valueRule: null, // todo - remove these checks once valueRule and uses are no longer supported.
                         balanceRule: null,
                         minInitialBalance: null,
                         maxInitialBalance: null,
                         fixedInitialBalances: null,
-                        fixedInitialUses: null, // todo - remove
+                        fixedInitialUses: null, // todo - remove these checks once valueRule and uses are no longer supported.
                         fixedInitialUsesRemaining: null,
                         startDate: null,
                         endDate: null,

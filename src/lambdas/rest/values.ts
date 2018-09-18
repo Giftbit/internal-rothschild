@@ -64,7 +64,7 @@ export function installValuesRest(router: cassava.Router): void {
             // auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:values:create");
 
-            // todo - remove these checks
+            // todo - remove these checks once valueRule and uses are no longer supported.
             if (evt.body.valueRule && !evt.body.balanceRule) {
                 evt.body.balanceRule = evt.body.valueRule;
                 delete evt.body.valueRule;
@@ -535,7 +535,7 @@ function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partial
     let value: Value = {
         id: null,
         balance: partialValue.balanceRule && !partialValue.balance ? null : 0,
-        uses: null, // todo - remove
+        uses: null, // todo - remove these checks once valueRule and uses are no longer supported.
         usesRemaining: null,
         code: null,
         issuanceId: null,
@@ -555,7 +555,7 @@ function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partial
             pretax: program ? program.pretax : false,
             active: program ? program.active : true,
             redemptionRule: program ? program.redemptionRule : null,
-            valueRule: program ? program.balanceRule : null, // todo - remove
+            valueRule: program ? program.balanceRule : null, // todo - remove these checks once valueRule and uses are no longer supported.
             balanceRule: program ? program.balanceRule : null,
             discount: program ? program.discount : false,
             discountSellerLiability: program ? program.discountSellerLiability : null,

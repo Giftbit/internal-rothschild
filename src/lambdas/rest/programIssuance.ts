@@ -69,9 +69,9 @@ export function installIssuancesRest(router: cassava.Router): void {
                         count: null,
                         balance: null,
                         redemptionRule: null,
-                        valueRule: null, // todo - remove
+                        valueRule: null, // todo - remove these checks once valueRule and uses are no longer supported.
                         balanceRule: null,
-                        uses: null, // todo - remove
+                        uses: null, // todo - remove these checks once valueRule and uses are no longer supported.
                         usesRemaining: null,
                         startDate: null,
                         endDate: null,
@@ -187,9 +187,9 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
                     issuanceId: issuance.id,
                     balance: issuance.balance ? issuance.balance : null,
                     redemptionRule: issuance.redemptionRule ? issuance.redemptionRule : null,
-                    valueRule: issuance.balanceRule ? issuance.balanceRule : null, // todo - remove
+                    valueRule: issuance.balanceRule ? issuance.balanceRule : null, // todo - remove these checks once valueRule and uses are no longer supported.
                     balanceRule: issuance.balanceRule ? issuance.balanceRule : null,
-                    uses: issuance.usesRemaining ? issuance.usesRemaining : null, // todo - remove
+                    uses: issuance.usesRemaining ? issuance.usesRemaining : null, // todo - remove these checks once valueRule and uses are no longer supported.
                     usesRemaining: issuance.usesRemaining ? issuance.usesRemaining : null,
                     startDate: issuance.startDate ? issuance.startDate : null,
                     endDate: issuance.endDate ? issuance.endDate : null,

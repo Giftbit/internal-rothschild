@@ -208,7 +208,7 @@ describe("optimizeCheckout", () => {
             id: null,
             currency: null,
             balance: null,
-            uses: 5, // todo - remove
+            uses: 5, // todo - remove these checks once valueRule and uses are no longer supported.
             usesRemaining: 5,
             programId: null,
             issuanceId: null,
@@ -222,7 +222,7 @@ describe("optimizeCheckout", () => {
             discount: null,
             discountSellerLiability: null,
             redemptionRule: null,
-            valueRule: null, // todo - remove
+            valueRule: null, // todo - remove these checks once valueRule and uses are no longer supported.
             balanceRule: null,
             startDate: null,
             endDate: null,
