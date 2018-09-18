@@ -27,7 +27,7 @@ export function calculateCheckoutTransactionPlan(checkout: CheckoutRequest, preT
 function isValueRedeemable(value: Value): boolean {
     const now = new Date();
 
-    if (value.frozen || !value.active || value.endDate > now || value.uses === 0) {
+    if (value.frozen || !value.active || value.endDate > now || value.usesRemaining === 0) {
         return false;
     }
     if (value.startDate && value.startDate > now) {
@@ -75,8 +75,8 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
 
             log.info(`ValueStore ${JSON.stringify(value)} CAN be applied to ${JSON.stringify(item)}.`);
             let amount: number;
-            if (value.valueRule) {
-                let valueFromRule = new RuleContext(transactionPlan.totals, transactionPlan.lineItems, item).evaluateValueRule(value.valueRule);
+            if (value.balanceRule) {
+                let valueFromRule = new RuleContext(transactionPlan.totals, transactionPlan.lineItems, item).evaluateBalanceRule(value.balanceRule);
                 amount = Math.min(item.lineTotal.remainder, bankersRounding(valueFromRule, 0) | 0);
                 step.amount -= amount;
             } else {

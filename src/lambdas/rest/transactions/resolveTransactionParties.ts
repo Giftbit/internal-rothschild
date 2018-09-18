@@ -69,7 +69,7 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             active: true,
             canceled: false
         })
-        .where(q => q.whereNull("uses").orWhere("uses", ">", 0))
+        .where(q => q.whereNull("usesRemaining").orWhere("usesRemaining", ">", 0))
         .where(q => {
             if (valueIds.length) {
                 q = q.whereIn("id", valueIds);

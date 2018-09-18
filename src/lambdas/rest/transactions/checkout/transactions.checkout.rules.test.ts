@@ -33,7 +33,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
         const promotion: Partial<Value> = {
             id: "test value rule",
             currency: "CAD",
-            valueRule: {
+            balanceRule: {
                 rule: "total*0.5",
                 explanation: "testing it out!"
             },
@@ -44,7 +44,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
         const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", promotion);
         chai.assert.equal(resp.statusCode, 201, `body=${JSON.stringify(resp.body)}`);
 
-        const result: number = getRuleFromCache(promotion.valueRule.rule).evaluateToNumber({total: 50});
+        const result: number = getRuleFromCache(promotion.balanceRule.rule).evaluateToNumber({total: 50});
         chai.assert.equal(result, 25, `expected result to equal ${25}`);
     });
 
@@ -52,7 +52,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
         const promotion: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
-            valueRule: {
+            balanceRule: {
                 rule: "currentLineItem.lineTotal.subtotal*0.5",
                 explanation: "50% off everything"
             },
@@ -169,7 +169,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
         const promotion: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
-            valueRule: {
+            balanceRule: {
                 rule: "currentLineItem.lineTotal.subtotal * 0.25",
                 explanation: "25% off line item"
             },
@@ -290,7 +290,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
         const cartPromotion: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
-            valueRule: {
+            balanceRule: {
                 rule: "currentLineItem.lineTotal.subtotal * 0.1",
                 explanation: "10% off everything"
             },
@@ -305,7 +305,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
         const productPromotion: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
-            valueRule: {
+            balanceRule: {
                 rule: "currentLineItem.lineTotal.subtotal * 0.2",
                 explanation: "20% off p1"
             },
@@ -446,7 +446,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
         const cartPromotion: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
-            valueRule: {
+            balanceRule: {
                 rule: "currentLineItem.lineTotal.subtotal * 0.1",
                 explanation: "10% off everything"
             },
@@ -461,7 +461,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
         const productPromotion: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
-            valueRule: {
+            balanceRule: {
                 rule: "currentLineItem.lineTotal.subtotal * 0.2",
                 explanation: "20% off p1"
             },
@@ -645,7 +645,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
         const promotion: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
-            valueRule: {
+            balanceRule: {
                 rule: "currentLineItem.lineTotal.subtotal * 0.32",
                 explanation: "32% off line item"
             },
@@ -655,7 +655,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             },
             pretax: true,
             discount: true,
-            uses: 1
+            usesRemaining: 1
         };
 
         const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", promotion);
@@ -763,7 +763,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
 
         const lookupAfterCheckout = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${promotion.id}`, "GET", promotion);
         chai.assert.equal(lookupAfterCheckout.statusCode, 200, `body=${JSON.stringify(lookupAfterCheckout.body)}`);
-        chai.assert.equal(lookupAfterCheckout.body.uses, 0, `body=${JSON.stringify(lookupAfterCheckout.body)}`);
+        chai.assert.equal(lookupAfterCheckout.body.usesRemaining, 0, `body=${JSON.stringify(lookupAfterCheckout.body)}`);
 
         const checkoutRequestTwo = {
             ...checkoutRequest,
@@ -839,25 +839,25 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
         const promotion10PercentOffSubtotal: Partial<Value> = {
             id: generateId() + "_p10",
             currency: "CAD",
-            valueRule: {
+            balanceRule: {
                 rule: "currentLineItem.lineTotal.subtotal*0.1",
                 explanation: "10% off everything"
             },
             pretax: true,
             discount: true,
-            uses: 1
+            usesRemaining: 1
         };
 
         const promotion20PercentOffRemainder: Partial<Value> = {
             id: generateId() + "_p20",
             currency: "CAD",
-            valueRule: {
+            balanceRule: {
                 rule: "currentLineItem.lineTotal.remainder*0.2",
                 explanation: "20% off everything"
             },
             pretax: true,
             discount: true,
-            uses: 1
+            usesRemaining: 1
         };
 
         const createPromo10PercentOffSubtotal = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", promotion10PercentOffSubtotal);
