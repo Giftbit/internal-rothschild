@@ -4,7 +4,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {getValue, getValueByCode, getValues, injectValueStats} from "./values";
 import {csvSerializer} from "../../serializers";
 import {Pagination} from "../../model/Pagination";
-import {Value} from "../../model/Value";
+import {DbValue, Value} from "../../model/Value";
 import {getContact} from "./contacts";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
 import {getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
@@ -120,6 +120,7 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         updatedDate: now,
         updatedContactIdDate: now
     };
+    const dbClaimedValue: DbValue = Value.toDbValue(auth, claimedValue);
 
     const knex = await getKnexWrite();
     await knex.transaction(async trx => {
@@ -141,7 +142,7 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 
         try {
             await trx("Values")
-                .insert(Value.toDbValue(auth, claimedValue));
+                .insert(dbClaimedValue);
         } catch (err) {
             log.debug(err);
             const constraint = getSqlErrorConstraintName(err);
@@ -155,7 +156,7 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         }
     });
 
-    return claimedValue;
+    return DbValue.toValue(dbClaimedValue);
 }
 
 async function attachUniqueValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, value: Value, allowOverwrite: boolean): Promise<Value> {
