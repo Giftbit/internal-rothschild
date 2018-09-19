@@ -436,7 +436,7 @@ describe("split tender checkout with Stripe", () => {
         const promoA: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
-            valueRule: {
+            balanceRule: {
                 rule: "0",
                 explanation: "zero the hard way"
             }
@@ -447,7 +447,7 @@ describe("split tender checkout with Stripe", () => {
         const promoB: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
-            valueRule: {
+            balanceRule: {
                 rule: "0",
                 explanation: "zero the hard way"
             }

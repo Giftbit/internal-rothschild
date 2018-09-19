@@ -77,7 +77,8 @@ describe("/v2/values/", () => {
         chai.assert.equal(resp2.statusCode, 201, `body=${JSON.stringify(resp2.body)}`);
         chai.assert.deepEqualExcluding(resp2.body, {
             ...value1,
-            uses: null,
+            uses: null, // todo - remove these checks once valueRule and uses are no longer supported.
+            usesRemaining: null,
             programId: null,
             issuanceId: null,
             contactId: null,
@@ -90,7 +91,8 @@ describe("/v2/values/", () => {
             startDate: null,
             endDate: null,
             redemptionRule: null,
-            valueRule: null,
+            valueRule: null, // todo - remove these checks once valueRule and uses are no longer supported.
+            balanceRule: null,
             discount: false,
             discountSellerLiability: null,
             updatedContactIdDate: null,
@@ -104,7 +106,7 @@ describe("/v2/values/", () => {
         const createValueRequest: Partial<Value> = {
             id: generateId(),
             currency: "USD",
-            valueRule: {
+            balanceRule: {
                 rule: "500",
                 explanation: "$5 the hard way"
             },
@@ -117,7 +119,9 @@ describe("/v2/values/", () => {
         chai.assert.equal(createRes.statusCode, 201, `body=${JSON.stringify(createRes.body)}`);
         chai.assert.deepEqualExcluding(createRes.body, {
             ...createValueRequest,
-            uses: null,
+            valueRule: createValueRequest.balanceRule, // todo - remove these checks once valueRule and uses are no longer supported.
+            uses: null, // todo - remove these checks once valueRule and uses are no longer supported.
+            usesRemaining: null,
             programId: null,
             issuanceId: null,
             contactId: null,
@@ -138,7 +142,7 @@ describe("/v2/values/", () => {
         }, ["createdDate", "updatedDate", "createdBy"]);
 
         const updateValueRequest: Partial<Value> = {
-            valueRule: {
+            balanceRule: {
                 rule: "600",
                 explanation: "$6 the hard way"
             },
@@ -153,7 +157,9 @@ describe("/v2/values/", () => {
             ...updateValueRequest,
             id: createValueRequest.id,
             currency: createValueRequest.currency,
-            uses: null,
+            usesRemaining: null,
+            valueRule: updateValueRequest.balanceRule, // todo - remove once valueRule is no longer supported
+            uses: null, // todo - remove once uses is no longer supported
             programId: null,
             issuanceId: null,
             contactId: null,
@@ -224,8 +230,8 @@ describe("/v2/values/", () => {
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 
-    it("cannot change a value's uses", async () => {
-        const resp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value1.id}`, "PATCH", {uses: 100});
+    it("cannot change a value's usesRemaining", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value1.id}`, "PATCH", {usesRemaining: 100});
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 
@@ -378,7 +384,7 @@ describe("/v2/values/", () => {
         let value: Partial<Value> = {
             id: generateId(),
             balance: 50,
-            valueRule: {rule: "500", explanation: "$5 the hard way"},
+            balanceRule: {rule: "500", explanation: "$5 the hard way"},
             currency: "USD"
         };
         const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
@@ -568,7 +574,7 @@ describe("/v2/values/", () => {
 
             const page1 = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/values?id.in=${ids.join(",")}`, "GET");
             chai.assert.equal(page1.statusCode, 200, `body=${JSON.stringify(page1.body)}`);
-            chai.assert.deepEqualExcludingEvery(page1.body, expected, ["userId", "codeHashed", "codeLastFour", "startDate", "endDate", "createdDate", "updatedDate", "updatedContactIdDate", "codeEncrypted", "isGenericCode"]);
+            chai.assert.deepEqualExcludingEvery(page1.body, expected, ["userId", "codeHashed", "codeLastFour", "startDate", "endDate", "createdDate", "updatedDate", "updatedContactIdDate", "codeEncrypted", "isGenericCode", "uses" /* todo - remove these checks once valueRule and uses are no longer supported. */, "valueRule" /* todo - remove these checks once valueRule and uses are no longer supported. */]);
             chai.assert.isDefined(page1.headers["Link"]);
         });
     });

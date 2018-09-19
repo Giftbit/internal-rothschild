@@ -37,7 +37,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             userId: "user",
             id: "v-1",
             currency: "CAD",
-            uses: null,
+            usesRemaining: null,
             programId: null,
             issuanceId: null,
             code: null,
@@ -51,7 +51,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             canceled: false,
             frozen: false,
             redemptionRule: "null",
-            valueRule: "null",
+            balanceRule: "null",
             discount: false,
             discountSellerLiability: null,
             startDate: null,
@@ -105,13 +105,13 @@ describe("rest/transactions/executeTransactionPlan", () => {
         chai.assert.lengthOf(transactionsRes, 0);
     });
 
-    it("throws a replannable TransactionPlanError when there are 0 uses", async () => {
+    it("throws a replannable TransactionPlanError when there are 0 usesRemaining", async () => {
         const value: DbValue = {
             userId: "user",
             id: "v-2",
             currency: "CAD",
             balance: 1500,
-            uses: 0,
+            usesRemaining: 0,
             programId: null,
             issuanceId: null,
             code: null,
@@ -124,7 +124,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             canceled: false,
             frozen: false,
             redemptionRule: "null",
-            valueRule: "null",
+            balanceRule: "null",
             discount: false,
             discountSellerLiability: null,
             startDate: null,

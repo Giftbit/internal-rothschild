@@ -14,11 +14,11 @@ export class RuleContext {
         this.lineItems = lineItems;
     }
 
-    evaluateValueRule(valueRule: Rule): number {
-        return getRuleFromCache(valueRule.rule).evaluateToNumber(this);
+    evaluateBalanceRule(rule: Rule): number {
+        return getRuleFromCache(rule.rule).evaluateToNumber(this);
     }
 
-    evaluateRedemptionRule(valueRule: Rule): boolean {
-        return getRuleFromCache(valueRule.rule).evaluateToBoolean(this);
+    evaluateRedemptionRule(rule: Rule): boolean {
+        return getRuleFromCache(rule.rule).evaluateToBoolean(this);
     }
 }

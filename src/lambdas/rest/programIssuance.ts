@@ -25,6 +25,13 @@ export function installIssuancesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:issuances:list");
+
+            // todo - remove this check once uses is no longer supported.
+            if (evt.pathParameters.uses) {
+                evt.pathParameters.usesRemaining = evt.pathParameters.uses;
+                delete evt.pathParameters.uses
+            }
+
             const res = await getIssuances(auth, evt.pathParameters.programId, evt.queryStringParameters, Pagination.getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
@@ -38,6 +45,17 @@ export function installIssuancesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:issuances:create");
+
+            // todo - remove these checks once valueRule and uses are no longer supported.
+            if (evt.body.valueRule && !evt.body.balanceRule) {
+                evt.body.balanceRule = evt.body.valueRule;
+                delete evt.body.valueRule;
+            }
+            if (evt.body.uses != null && evt.body.usesRemaining == null) {
+                evt.body.usesRemaining = evt.body.uses;
+                delete evt.body.uses;
+            }
+
             evt.validateBody(issuanceSchema);
             evt.body.programId = evt.pathParameters.programId;
 
@@ -51,8 +69,10 @@ export function installIssuancesRest(router: cassava.Router): void {
                         count: null,
                         balance: null,
                         redemptionRule: null,
-                        valueRule: null,
-                        uses: null,
+                        valueRule: null, // todo - remove these checks once valueRule and uses are no longer supported.
+                        balanceRule: null,
+                        uses: null, // todo - remove these checks once valueRule and uses are no longer supported.
+                        usesRemaining: null,
                         startDate: null,
                         endDate: null,
                         metadata: null
@@ -110,7 +130,7 @@ async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, prog
                     type: "number",
                     operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 },
-                "uses": {
+                "usesRemaining": {
                     type: "number",
                     operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 },
@@ -146,7 +166,7 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
     // this is important for issuance display and history since these properties can be updated on the program.
     issuance = {
         ...issuance,
-        ...pick<Partial<Issuance>>(program, "startDate", "endDate", "valueRule", "redemptionRule"),
+        ...pick<Partial<Issuance>>(program, "startDate", "endDate", "balanceRule", "redemptionRule"),
         ...pickNotNull(issuance)
     };
     issuance.metadata = {...(program && program.metadata ? program.metadata : {}), ...issuance.metadata};
@@ -168,8 +188,10 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
                     issuanceId: issuance.id,
                     balance: issuance.balance ? issuance.balance : null,
                     redemptionRule: issuance.redemptionRule ? issuance.redemptionRule : null,
-                    valueRule: issuance.valueRule ? issuance.valueRule : null,
-                    uses: issuance.uses ? issuance.uses : null,
+                    valueRule: issuance.balanceRule ? issuance.balanceRule : null, // todo - remove these checks once valueRule and uses are no longer supported.
+                    balanceRule: issuance.balanceRule ? issuance.balanceRule : null,
+                    uses: issuance.usesRemaining ? issuance.usesRemaining : null, // todo - remove these checks once valueRule and uses are no longer supported.
+                    usesRemaining: issuance.usesRemaining ? issuance.usesRemaining : null,
                     startDate: issuance.startDate ? issuance.startDate : null,
                     endDate: issuance.endDate ? issuance.endDate : null,
                     metadata: issuance.metadata
@@ -255,7 +277,7 @@ const issuanceSchema: jsonschema.Schema = {
             type: ["integer", "null"],
             minimum: 0
         },
-        uses: {
+        usesRemaining: {
             type: ["integer", "null"],
             minimum: 0
         },
@@ -305,13 +327,13 @@ const issuanceSchema: jsonschema.Schema = {
                 }
             ]
         },
-        valueRule: {
+        balanceRule: {
             oneOf: [
                 {
                     type: "null"
                 },
                 {
-                    title: "Value rule",
+                    title: "Balance rule",
                     type: "object",
                     properties: {
                         rule: {

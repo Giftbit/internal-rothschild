@@ -92,7 +92,7 @@ export namespace LightrailTransactionPlanStep {
             balanceAfter: step.value.balance + step.amount,
             balanceChange: step.amount
         };
-        if (step.value.valueRule !== null) {
+        if (step.value.balanceRule !== null) {
             sharedProperties.balanceBefore = 0;
             sharedProperties.balanceAfter = 0;
         }

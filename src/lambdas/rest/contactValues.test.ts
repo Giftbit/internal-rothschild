@@ -68,13 +68,13 @@ describe("/v2/contacts/values", () => {
         const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
             id: "add-generic-by-id",
             currency: currency.code,
-            valueRule: {
+            balanceRule: {
                 rule: "500",
                 explanation: "$5 done the hard way"
             },
             code: code,
             isGenericCode: true,
-            uses: null
+            usesRemaining: null
         });
         chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
 
@@ -82,9 +82,9 @@ describe("/v2/contacts/values", () => {
         const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: resp1.body.id});
         chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
         chai.assert.equal(resp2.body.currency, resp1.body.currency);
-        chai.assert.deepEqual(resp2.body.valueRule, resp1.body.valueRule);
+        chai.assert.deepEqual(resp2.body.balanceRule, resp1.body.balanceRule);
         chai.assert.equal(resp2.body.contactId, contact.id);
-        chai.assert.equal(resp2.body.uses, 1);
+        chai.assert.equal(resp2.body.usesRemaining, 1);
         chai.assert.equal(resp2.body.code, null);
         chai.assert.equal(resp2.body.isGenericCode, null);
         chai.assert.notEqual(resp2.body.id, resp1.body.id);
@@ -101,13 +101,13 @@ describe("/v2/contacts/values", () => {
         const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
             id: "add-generic-by-code",
             currency: currency.code,
-            valueRule: {
+            balanceRule: {
                 rule: "500",
                 explanation: "$5 done the hard way"
             },
             code: value3Code,
             isGenericCode: true,
-            uses: 20
+            usesRemaining: 20
         });
         chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
 
@@ -115,9 +115,9 @@ describe("/v2/contacts/values", () => {
         const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: value3Code});
         chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
         chai.assert.equal(resp2.body.currency, resp1.body.currency);
-        chai.assert.deepEqual(resp2.body.valueRule, resp1.body.valueRule);
+        chai.assert.deepEqual(resp2.body.balanceRule, resp1.body.balanceRule);
         chai.assert.equal(resp2.body.contactId, contact.id);
-        chai.assert.equal(resp2.body.uses, 1);
+        chai.assert.equal(resp2.body.usesRemaining, 1);
         chai.assert.equal(resp2.body.code, null);
         chai.assert.equal(resp2.body.isGenericCode, null);
         chai.assert.notEqual(resp2.body.id, resp1.body.id);
@@ -125,10 +125,10 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(resp2.body.updatedContactIdDate, resp2.body.updatedDate);
         value3 = resp2.body;
 
-        // uses should be decremented on original Value.
+        // usesRemaining should be decremented on original Value.
         const resp3 = await await testUtils.testAuthedRequest<Value>(router, `/v2/values/${resp1.body.id}`, "GET");
         chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp3.body)}`);
-        chai.assert.equal(resp3.body.uses, 19);
+        chai.assert.equal(resp3.body.usesRemaining, 19);
     });
 
     it("a Contact cannot claim a generic-code Value twice", async () => {
@@ -137,24 +137,24 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(resp.body.messageCode, "ValueAlreadyClaimed");
     });
 
-    it("cannot attach a generic-code Value with 0 uses remaining", async () => {
+    it("cannot attach a generic-code Value with 0 usesRemaining", async () => {
         const code = "PARTYPEOPLE";
         const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
             id: "generic-value-with-0-uses",
             currency: currency.code,
-            valueRule: {
+            balanceRule: {
                 rule: "500",
                 explanation: "$5 done the hard way"
             },
             code: code,
             isGenericCode: true,
-            uses: 0
+            usesRemaining: 0
         });
         chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
 
         const resp2 = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: code});
         chai.assert.equal(resp2.statusCode, 409, `body=${JSON.stringify(resp2.body)}`);
-        chai.assert.equal(resp2.body.messageCode, "InsufficientUses");
+        chai.assert.equal(resp2.body.messageCode, "InsufficientUsesRemaining");
     });
 
     const value4Code = "DROPITLIKEITSHOT";

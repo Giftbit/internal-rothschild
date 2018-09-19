@@ -7,7 +7,8 @@ export interface Value {
     id: string;
     currency: string;
     balance: number | null;
-    uses: number | null;
+    uses: number | null; // todo - remove these checks once valueRule and uses are no longer supported.
+    usesRemaining: number | null;
     programId: string | null;
     issuanceId: string | null;
     code: string | null;
@@ -20,7 +21,8 @@ export interface Value {
     discount: boolean;
     discountSellerLiability: number | null;
     redemptionRule: Rule | null;
-    valueRule: Rule | null;
+    valueRule: Rule | null; // todo - remove these checks once valueRule and uses are no longer supported.
+    balanceRule: Rule | null;
     startDate: Date | null;
     endDate: Date | null;
     metadata: object | null;
@@ -46,7 +48,7 @@ export namespace Value {
             id: v.id,
             currency: v.currency,
             balance: v.balance,
-            uses: v.uses,
+            usesRemaining: v.usesRemaining,
             programId: v.programId,
             issuanceId: v.issuanceId,
             code: dbCode ? dbCode.lastFour : null,
@@ -61,7 +63,7 @@ export namespace Value {
             discount: v.discount,
             discountSellerLiability: v.discountSellerLiability,
             redemptionRule: JSON.stringify(v.redemptionRule),
-            valueRule: JSON.stringify(v.valueRule),
+            balanceRule: JSON.stringify(v.balanceRule),
             startDate: v.startDate,
             endDate: v.endDate,
             metadata: JSON.stringify(v.metadata),
@@ -86,7 +88,7 @@ export namespace Value {
             discount: v.discount,
             discountSellerLiability: v.discountSellerLiability,
             redemptionRule: JSON.stringify(v.redemptionRule),
-            valueRule: JSON.stringify(v.valueRule),
+            balanceRule: JSON.stringify(v.balanceRule),
             startDate: v.startDate,
             endDate: v.endDate,
             metadata: JSON.stringify(v.metadata),
@@ -107,7 +109,7 @@ export interface DbValue {
     id: string;
     currency: string;
     balance: number | null;
-    uses: number | null;
+    usesRemaining: number | null;
     programId: string | null;
     issuanceId: string | null;
     code: string | null;
@@ -122,7 +124,7 @@ export interface DbValue {
     discount: boolean;
     discountSellerLiability: number | null;
     redemptionRule: string;
-    valueRule: string;
+    balanceRule: string;
     startDate: Date | null;
     endDate: Date | null;
     metadata: string;
@@ -138,7 +140,8 @@ export namespace DbValue {
             id: v.id,
             currency: v.currency,
             balance: v.balance,
-            uses: v.uses,
+            uses: v.usesRemaining, // todo - remove these checks once valueRule and uses are no longer supported.
+            usesRemaining: v.usesRemaining,
             programId: v.programId,
             issuanceId: v.issuanceId,
             contactId: v.contactId,
@@ -151,7 +154,8 @@ export namespace DbValue {
             discount: v.discount,
             discountSellerLiability: v.discountSellerLiability,
             redemptionRule: JSON.parse(v.redemptionRule),
-            valueRule: JSON.parse(v.valueRule),
+            valueRule: JSON.parse(v.balanceRule), // todo - remove these checks once valueRule and uses are no longer supported.
+            balanceRule: JSON.parse(v.balanceRule),
             startDate: v.startDate,
             endDate: v.endDate,
             metadata: JSON.parse(v.metadata),
