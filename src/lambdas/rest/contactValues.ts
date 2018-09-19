@@ -48,7 +48,7 @@ export function installContactValuesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             let allowOverwrite = true;
-            auth.requireIds("userId");
+            auth.requireIds("userId", "teamMemberId");
             if (auth.hasScope("lightrailV2:values:attach:self") && auth.contactId === evt.pathParameters.id && evt.body.code && !evt.body.valueId) {
                 // Badge is signed specifically to attach a value by code for this contact.
                 allowOverwrite = false;
@@ -118,7 +118,8 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         contactId: contactId,
         usesRemaining: 1,
         updatedDate: now,
-        updatedContactIdDate: now
+        updatedContactIdDate: now,
+        createdBy: auth.teamMemberId
     };
     const dbClaimedValue: DbValue = Value.toDbValue(auth, claimedValue);
 

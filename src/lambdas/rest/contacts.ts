@@ -31,7 +31,7 @@ export function installContactsRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("userId");
+            auth.requireIds("userId", "teamMemberId");
             if (auth.hasScope("lightrailV2:contacts:create:self") && auth.contactId === evt.body.id) {
                 // Badge is signed specifically to create this Contact.
             } else {
@@ -158,8 +158,7 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 }
 
 export async function createContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contact: Contact): Promise<Contact> {
-    auth.requireIds("userId"); // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
-    // auth.requireIds("userId", "teamMemberId");
+    auth.requireIds("userId", "teamMemberId");
 
     try {
         const knex = await getKnexWrite();

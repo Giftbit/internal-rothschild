@@ -60,8 +60,7 @@ export function installValuesRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("userId"); // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
-            // auth.requireIds("userId", "teamMemberId");
+            auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:values:create");
 
             // todo - remove these checks once valueRule and uses are no longer supported.
@@ -306,8 +305,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 }
 
 export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: CreateValueParameters, trx: Knex.Transaction): Promise<Value> {
-    auth.requireIds("userId"); // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
-    // auth.requireIds("userId", "teamMemberId");
+    auth.requireIds("userId", "teamMemberId");
     let value: Value = initializeValue(auth, params.partialValue, params.program, params.generateCodeParameters);
     log.info(`Create Value requested for user: ${auth.userId}. Value ${Value.toStringSanitized(value)}.`);
 
@@ -349,7 +347,7 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 metadata: null,
                 createdDate: value.createdDate,
                 tax: null,
-                createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
+                createdBy: auth.teamMemberId,
             };
             const initialBalanceTransactionStep: LightrailDbTransactionStep = {
                 userId: auth.userId,

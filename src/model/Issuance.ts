@@ -17,6 +17,7 @@ export interface Issuance {
     metadata: object | null;
     createdDate: Date;
     updatedDate: Date;
+    createdBy: string;
 }
 
 export namespace Issuance {
@@ -36,6 +37,7 @@ export namespace Issuance {
             name: v.name,
             createdDate: v.createdDate,
             updatedDate: v.updatedDate,
+            createdBy: v.createdBy
         };
     }
 }
@@ -55,6 +57,7 @@ export interface DbIssuance {
     metadata: string;
     createdDate: Date | null;
     updatedDate: Date | null;
+    createdBy: string;
 }
 
 export namespace DbIssuance {
@@ -74,7 +77,8 @@ export namespace DbIssuance {
             endDate: v.endDate,
             metadata: JSON.parse(v.metadata),
             createdDate: v.createdDate,
-            updatedDate: v.updatedDate
+            updatedDate: v.updatedDate,
+            createdBy: v.createdBy
         };
     }
 }
