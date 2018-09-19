@@ -47,6 +47,7 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
 }
 
 export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<Transaction> {
+    auth.requireIds("userId", "teamMemberId");
     let chargeStripe = false;
     let stripeConfig: LightrailAndMerchantStripeConfig;
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];

@@ -36,8 +36,7 @@ export function installProgramsRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("userId"); // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
-            // auth.requireIds("userId", "teamMemberId");
+            auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:programs:create");
             // todo - remove these checks once valueRule and fixedInitialUses are no longer supported.
             if (evt.body.valueRule && !evt.body.balanceRule) {
@@ -77,7 +76,7 @@ export function installProgramsRest(router: cassava.Router): void {
                 ),
                 createdDate: now,
                 updatedDate: now,
-                createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
+                createdBy: auth.teamMemberId,
             };
 
             program.startDate = program.startDate ? dateInDbPrecision(new Date(program.startDate)) : null;
