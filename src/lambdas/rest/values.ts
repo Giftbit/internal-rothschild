@@ -20,8 +20,8 @@ import {getProgram} from "./programs";
 import {Program} from "../../model/Program";
 import * as Knex from "knex";
 import {GenerateCodeParameters} from "../../model/GenerateCodeParameters";
-import log = require("loglevel");
 import {getTransactions} from "./transactions/transactions";
+import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
 export function installValuesRest(router: cassava.Router): void {
@@ -35,6 +35,12 @@ export function installValuesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:values:list");
+
+            // todo - remove this check once uses is no longer supported.
+            if (evt.pathParameters.uses) {
+                evt.pathParameters.usesRemaining = evt.pathParameters.uses;
+                delete evt.pathParameters.uses
+            }
 
             const showCode: boolean = (evt.queryStringParameters.showCode === "true");
             const res = await getValues(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt), showCode);
@@ -57,7 +63,19 @@ export function installValuesRest(router: cassava.Router): void {
             auth.requireIds("userId"); // todo require tmi again when all users have upgraded to new libraries to generate tokens properly
             // auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:values:create");
+
+            // todo - remove these checks once valueRule and uses are no longer supported.
+            if (evt.body.valueRule && !evt.body.balanceRule) {
+                evt.body.balanceRule = evt.body.valueRule;
+                delete evt.body.valueRule;
+            }
+            if (evt.body.uses != null && evt.body.usesRemaining == null) {
+                evt.body.usesRemaining = evt.body.uses;
+                delete evt.body.uses;
+            }
+
             evt.validateBody(valueSchema);
+
             let program: Program = null;
             if (evt.body.programId) {
                 program = await getProgram(auth, evt.body.programId);
@@ -117,6 +135,11 @@ export function installValuesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:values:update");
+            // todo - remove this when valueRule is no longer supported
+            if (evt.body.valueRule && !evt.body.balanceRule) {
+                evt.body.balanceRule = evt.body.valueRule;
+                delete evt.body.valueRule;
+            }
             evt.validateBody(valueUpdateSchema);
 
             if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
@@ -125,7 +148,7 @@ export function installValuesRest(router: cassava.Router): void {
 
             const now = nowInDbPrecision();
             const value = {
-                ...pick<Value>(evt.body, "pretax", "active", "canceled", "frozen", "pretax", "discount", "discountSellerLiability", "redemptionRule", "valueRule", "startDate", "endDate", "metadata"),
+                ...pick<Value>(evt.body, "pretax", "active", "canceled", "frozen", "pretax", "discount", "discountSellerLiability", "redemptionRule", "balanceRule", "startDate", "endDate", "metadata"),
                 updatedDate: now
             };
             if (value.startDate) {
@@ -157,7 +180,10 @@ export function installValuesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:transactions:list");
-            const res = await getTransactions(auth, {...evt.queryStringParameters, valueId: evt.pathParameters.id}, getPaginationParams(evt));
+            const res = await getTransactions(auth, {
+                ...evt.queryStringParameters,
+                valueId: evt.pathParameters.id
+            }, getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.transactions
@@ -237,7 +263,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                 balance: {
                     type: "number"
                 },
-                uses: {
+                usesRemaining: {
                     type: "number"
                 },
                 discount: {
@@ -416,8 +442,7 @@ async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
         throw new Error(`Illegal UPDATE query.  Updated ${res} values.`);
     }
     return {
-        ...await getValue(auth, id),
-        ...value
+        ...await getValue(auth, id)
     };
 }
 
@@ -509,8 +534,9 @@ function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partial
     const now = nowInDbPrecision();
     let value: Value = {
         id: null,
-        balance: partialValue.valueRule && !partialValue.balance ? null : 0,
-        uses: null,
+        balance: partialValue.balanceRule && !partialValue.balance ? null : 0,
+        uses: null, // todo - remove these checks once valueRule and uses are no longer supported.
+        usesRemaining: null,
         code: null,
         issuanceId: null,
         isGenericCode: null,
@@ -529,7 +555,8 @@ function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partial
             pretax: program ? program.pretax : false,
             active: program ? program.active : true,
             redemptionRule: program ? program.redemptionRule : null,
-            valueRule: program ? program.valueRule : null,
+            valueRule: program ? program.balanceRule : null, // todo - remove these checks once valueRule and uses are no longer supported.
+            balanceRule: program ? program.balanceRule : null,
             discount: program ? program.discount : false,
             discountSellerLiability: program ? program.discountSellerLiability : null,
             startDate: program ? program.startDate : null,
@@ -553,7 +580,7 @@ function checkValueProperties(value: Value, program: Program = null): void {
         checkProgramConstraints(value, program);
     }
 
-    if (value.balance && value.valueRule) {
+    if (value.balance && value.balanceRule) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a balance and valueRule.`);
     }
     if (value.discountSellerLiability !== null && !value.discount) {
@@ -581,8 +608,8 @@ function checkProgramConstraints(value: Value, program: Program): void {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} is greater than maxInitialBalance ${program.maxInitialBalance}.`);
     }
 
-    if (program.fixedInitialUses && (program.fixedInitialUses.indexOf(value.uses) === -1 || !value.uses)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's uses ${value.uses} outside initial values defined by Program ${program.fixedInitialUses}.`);
+    if (program.fixedInitialUsesRemaining && (program.fixedInitialUsesRemaining.indexOf(value.usesRemaining) === -1 || !value.usesRemaining)) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's usesRemaining ${value.usesRemaining} outside fixedInitialUsesRemaining defined by Program ${program.fixedInitialUsesRemaining}.`);
     }
 
     if (program.currency !== value.currency) {
@@ -619,7 +646,7 @@ const valueSchema: jsonschema.Schema = {
             type: ["integer", "null"],
             minimum: 0
         },
-        uses: {
+        usesRemaining: {
             type: ["integer", "null"]
         },
         code: {
@@ -682,13 +709,13 @@ const valueSchema: jsonschema.Schema = {
                 }
             ]
         },
-        valueRule: {
+        balanceRule: {
             oneOf: [
                 {
                     type: "null"
                 },
                 {
-                    title: "Value rule",
+                    title: "Balance rule",
                     type: "object",
                     properties: {
                         rule: {
@@ -737,7 +764,7 @@ const valueUpdateSchema: jsonschema.Schema = {
     type: "object",
     additionalProperties: false,
     properties: {
-        ...pick(valueSchema.properties, "id", "active", "frozen", "pretax", "redemptionRule", "valueRule", "discount", "discountSellerLiability", "startDate", "endDate", "metadata"),
+        ...pick(valueSchema.properties, "id", "active", "frozen", "pretax", "redemptionRule", "balanceRule", "discount", "discountSellerLiability", "startDate", "endDate", "metadata"),
         canceled: {
             type: "boolean"
         }

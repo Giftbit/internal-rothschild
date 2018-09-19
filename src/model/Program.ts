@@ -11,11 +11,13 @@ export interface Program {
     pretax: boolean;
     active: boolean;
     redemptionRule: Rule | null;
-    valueRule: Rule | null;
+    valueRule: Rule | null; // todo - remove these checks once valueRule and uses are no longer supported.
+    balanceRule: Rule | null;
     minInitialBalance: number | null;
     maxInitialBalance: number | null;
     fixedInitialBalances: number[];
-    fixedInitialUses: number[];
+    fixedInitialUses: number[]; // todo - remove these checks once valueRule and uses are no longer supported.
+    fixedInitialUsesRemaining: number[];
     startDate: Date | null;
     endDate: Date | null;
     metadata: object | null;
@@ -38,9 +40,9 @@ export namespace Program {
             minInitialBalance: v.minInitialBalance,
             maxInitialBalance: v.maxInitialBalance,
             fixedInitialBalances: JSON.stringify(v.fixedInitialBalances),
-            fixedInitialUses: JSON.stringify(v.fixedInitialUses),
+            fixedInitialUsesRemaining: JSON.stringify(v.fixedInitialUsesRemaining),
             redemptionRule: JSON.stringify(v.redemptionRule),
-            valueRule: JSON.stringify(v.valueRule),
+            balanceRule: JSON.stringify(v.balanceRule),
             startDate: v.startDate,
             endDate: v.endDate,
             metadata: JSON.stringify(v.metadata),
@@ -59,11 +61,11 @@ export namespace Program {
             pretax: v.pretax,
             active: v.active,
             redemptionRule: JSON.stringify(v.redemptionRule),
-            valueRule: JSON.stringify(v.valueRule),
+            balanceRule: JSON.stringify(v.balanceRule),
             minInitialBalance: v.minInitialBalance,
             maxInitialBalance: v.maxInitialBalance,
             fixedInitialBalances: JSON.stringify(v.fixedInitialBalances),
-            fixedInitialUses: JSON.stringify(v.fixedInitialUses),
+            fixedInitialUsesRemaining: JSON.stringify(v.fixedInitialUsesRemaining),
             startDate: v.startDate,
             endDate: v.endDate,
             metadata: JSON.stringify(v.metadata),
@@ -82,11 +84,11 @@ export interface DbProgram {
     pretax: boolean;
     active: boolean;
     redemptionRule: string;
-    valueRule: string;
+    balanceRule: string;
     minInitialBalance: number | null;
     maxInitialBalance: number | null;
     fixedInitialBalances: string;
-    fixedInitialUses: string;
+    fixedInitialUsesRemaining: string;
     startDate: Date | null;
     endDate: Date | null;
     metadata: string;
@@ -108,9 +110,11 @@ export namespace DbProgram {
             minInitialBalance: v.minInitialBalance,
             maxInitialBalance: v.maxInitialBalance,
             fixedInitialBalances: JSON.parse(v.fixedInitialBalances),
-            fixedInitialUses: JSON.parse(v.fixedInitialUses),
+            fixedInitialUses: JSON.parse(v.fixedInitialUsesRemaining), // todo - remove these checks once valueRule and uses are no longer supported.
+            fixedInitialUsesRemaining: JSON.parse(v.fixedInitialUsesRemaining),
             redemptionRule: JSON.parse(v.redemptionRule),
-            valueRule: JSON.parse(v.valueRule),
+            valueRule: JSON.parse(v.balanceRule), // todo - remove these checks once valueRule and uses are no longer supported.
+            balanceRule: JSON.parse(v.balanceRule),
             startDate: v.startDate,
             endDate: v.endDate,
             metadata: JSON.parse(v.metadata),

@@ -40,18 +40,18 @@ export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtaut
         if (step.amount !== 0 && step.amount !== null) {
             updateProperties.balance = trx.raw(`balance + ?`, [step.amount]);
         }
-        if (step.amount < 0 && !step.value.valueRule /* if it has a valueRule then balance is 0 or null */) {
+        if (step.amount < 0 && !step.value.balanceRule /* if it has a valueRule then balance is 0 or null */) {
             query = query.where("balance", ">=", -step.amount);
         }
-        if (step.value.uses !== null) {
-            query = query.where("uses", ">", 0);
-            updateProperties.uses = trx.raw(`uses - 1`);
+        if (step.value.usesRemaining !== null) {
+            query = query.where("usesRemaining", ">", 0);
+            updateProperties.usesRemaining = trx.raw(`usesRemaining - 1`);
         }
         query = query.update(updateProperties);
 
         const updateRes = await query;
         if (updateRes !== 1) {
-            throw new TransactionPlanError(`Transaction execution canceled because Value updated ${updateRes} rows.  userId=${auth.userId} valueId=${step.value.id} value=${step.value.balance} uses=${step.value.uses} step.amount=${step.amount}`, {
+            throw new TransactionPlanError(`Transaction execution canceled because Value updated ${updateRes} rows.  userId=${auth.userId} valueId=${step.value.id} value=${step.value.balance} usesRemaining=${step.value.usesRemaining} step.amount=${step.amount}`, {
                 isReplanable: updateRes === 0
             });
         }

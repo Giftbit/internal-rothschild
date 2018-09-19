@@ -91,7 +91,7 @@ export function filterSteps(steps: TransactionPlanStep[]): FilteredSteps {
  * permutations with the grouped steps still together.
  */
 function batchEquivalentLightrailSteps(lightrailSteps: LightrailTransactionPlanStep[]): (LightrailTransactionPlanStep | LightrailTransactionPlanStep[])[] {
-    let [lightrailSimpleSteps, lightrailComplexSteps] = dualFilter(lightrailSteps, step => !step.value.valueRule && !step.value.redemptionRule);
+    let [lightrailSimpleSteps, lightrailComplexSteps] = dualFilter(lightrailSteps, step => !step.value.balanceRule && !step.value.redemptionRule);
     lightrailSimpleSteps.sort((a, b) => {
         // Prefer soonest expiration, then any expiration, then discounts then lowest balance
         if (a.value.endDate && b.value.endDate) {
