@@ -57,7 +57,7 @@ function calculateAmountsForTransactionSteps(steps: TransactionPlanStep[], trans
 }
 
 function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPlanStep, transactionPlan: TransactionPlan): void {
-    log.info(`Processing ValueStore ${JSON.stringify(step)}.`);
+    log.info(`calculateAmountForLightrailTransactionStep ${JSON.stringify(step)}.`);
 
     let value = step.value;
     if (!isValueRedeemable(value)) {
@@ -68,12 +68,12 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
         if (item.lineTotal.remainder > 0) {
             if (value.redemptionRule) {
                 if (!new RuleContext(transactionPlan.totals, transactionPlan.lineItems, item).evaluateRedemptionRule(value.redemptionRule)) {
-                    log.info(`ValueStore ${JSON.stringify(value)} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
+                    log.info(`Value ${value.id} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
                     continue;
                 }
             }
 
-            log.info(`ValueStore ${JSON.stringify(value)} CAN be applied to ${JSON.stringify(item)}.`);
+            log.info(`Value ${value.id} CAN be applied to ${JSON.stringify(item)}.`);
             let amount: number;
             if (value.balanceRule) {
                 let valueFromRule = new RuleContext(transactionPlan.totals, transactionPlan.lineItems, item).evaluateBalanceRule(value.balanceRule);
