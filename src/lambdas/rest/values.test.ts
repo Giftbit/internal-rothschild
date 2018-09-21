@@ -16,7 +16,7 @@ import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe("/v2/values/", () => {
+describe.only("/v2/values/", () => {
 
     const router = new cassava.Router();
 
@@ -922,7 +922,10 @@ describe("/v2/values/", () => {
             id: "generateCodeTest-1",
             currency: "USD",
             generateCode: {},
-            balance: 0
+            balance: 0,
+            metadata: {
+                allyourbase: "arebelongtous"
+            }
         };
         let firstGeneratedCode: string;
         let secondGeneratedCode: string;
@@ -1003,6 +1006,7 @@ describe("/v2/values/", () => {
             chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
             chai.assert.lengthOf(resp.body, 1);
             chai.assert.equal(resp.body[0].code, secondGeneratedCode);
+            chai.assert.equal(resp.body[0].metadata.toString(), '{"allyourbase":"arebelongtous"}');
         });
 
         it.skip("can generate a code using an emoji charset", async () => {
