@@ -1,4 +1,4 @@
-import {calculateCheckoutTransactionPlan} from "./calculateTransactionPlan";
+import {calculateCheckoutTransactionPlan} from "./calculateCheckoutTransactionPlan";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "../TransactionPlan";
 import {listPermutations} from "../../../../utils/combinatoricUtils";
@@ -77,6 +77,9 @@ export function getStepPermutations(steps: TransactionPlanStep[]): TransactionPl
     return lightrailPerms.map(perm => [...filteredSteps.stepsBeforeLightrail, ...perm, ...filteredSteps.stepsAfterLightrail]);
 }
 
+/**
+ * Filter steps into before Lightrail, Lightrail, and after Lightrail.
+ */
 export function filterSteps(steps: TransactionPlanStep[]): FilteredSteps {
     return {
         stepsBeforeLightrail: steps.filter(step => step.rail === "internal" && step.beforeLightrail),

@@ -1,13 +1,12 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import * as transactions from "../transactions";
-import * as valueStores from "../../values";
 import * as testUtils from "../../../../utils/testUtils";
 import {defaultTestUser} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
 import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import chaiExclude = require("chai-exclude");
+import {installRestRoutes} from "../../installRestRoutes";
 
 chai.use(chaiExclude);
 
@@ -18,8 +17,7 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
     before(async function () {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
-        transactions.installTransactionsRest(router);
-        valueStores.installValuesRest(router);
+        installRestRoutes(router);
         await createCurrency(testUtils.defaultTestUser.auth, {
             code: "CAD",
             name: "Canadian Tire Money",

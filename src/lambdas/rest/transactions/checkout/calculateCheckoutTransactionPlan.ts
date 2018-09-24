@@ -12,6 +12,10 @@ import {CheckoutTransactionPlan} from "./CheckoutTransactionPlan";
 import {bankersRounding} from "../../../../utils/moneyUtils";
 import log = require("loglevel");
 
+/**
+ * This function mutates the preTaxSteps and postTaxSteps to set the correct amounts
+ * used in the checkout Transaction.
+ */
 export function calculateCheckoutTransactionPlan(checkout: CheckoutRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
     let transactionPlan = new CheckoutTransactionPlan(checkout, preTaxSteps.concat(postTaxSteps));
     log.info(`Build checkout transaction plan: ${JSON.stringify(transactionPlan)}`);
