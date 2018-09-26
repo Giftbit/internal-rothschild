@@ -31,7 +31,7 @@ export function calculateCheckoutTransactionPlan(checkout: CheckoutRequest, preT
 function isValueRedeemable(value: Value): boolean {
     const now = new Date();
 
-    if (value.frozen || !value.active || value.endDate > now || value.usesRemaining === 0) {
+    if (value.frozen || !value.active || value.usesRemaining === 0) {
         return false;
     }
     if (value.startDate && value.startDate > now) {
@@ -65,6 +65,7 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
 
     let value = step.value;
     if (!isValueRedeemable(value)) {
+        log.info(`Value ${value.id} CANNOT be redeemed.`);
         return;
     }
     for (const index in transactionPlan.lineItems) {
