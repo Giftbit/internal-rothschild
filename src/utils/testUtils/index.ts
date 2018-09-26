@@ -80,7 +80,9 @@ export const alternateTestUser = {
 export const authRoute: cassava.routes.Route = new giftbitRoutes.jwtauth.JwtAuthorizationRoute({
     authConfigPromise: Promise.resolve({secretkey: "secret"}),
     rolesConfigPromise: Promise.resolve(rolesConfig),
-    infoLogFunction: log.info,
+    infoLogFunction: () => {
+        // too noisy for testing
+    },
     errorLogFunction: log.error
 });
 

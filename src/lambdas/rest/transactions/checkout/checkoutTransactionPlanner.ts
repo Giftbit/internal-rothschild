@@ -9,26 +9,29 @@ export function optimizeCheckout(checkout: CheckoutRequest, steps: TransactionPl
     const unsortedPretaxSteps = steps.filter(step => (step.rail === "internal" && step.pretax) || (step.rail === "lightrail" && step.value.pretax));
     const unsortedPostTaxSteps = steps.filter(step => unsortedPretaxSteps.indexOf(step) === -1);
 
-    const sortedPretaxSteps = optimizePretaxSteps(checkout, unsortedPretaxSteps);
-    const sortedPostTaxSteps = optimizePostTaxSteps(checkout, sortedPretaxSteps, unsortedPostTaxSteps);
+    const sortedPretaxSteps = [];
+    const sortedPostTaxSteps = [];
+
+    optimizeSteps(true, unsortedPretaxSteps, checkout, sortedPretaxSteps, sortedPostTaxSteps);
+    optimizeSteps(false, unsortedPostTaxSteps, checkout, sortedPretaxSteps, sortedPostTaxSteps);
 
     log.info(`optimized checkout transaction\nsortedPretaxSteps: ${JSON.stringify(sortedPretaxSteps)}\nsortedPostTaxSteps: ${JSON.stringify(sortedPostTaxSteps)}`);
 
     return calculateCheckoutTransactionPlan(checkout, sortedPretaxSteps, sortedPostTaxSteps);
 }
 
-function optimizePretaxSteps(checkout: CheckoutRequest, unsortedPretaxSteps: TransactionPlanStep[]): TransactionPlanStep[] {
-    log.info(`optimizing ${unsortedPretaxSteps.length} unsortedPretaxSteps: ${JSON.stringify(unsortedPretaxSteps)}`);
+function optimizeSteps(pretax: boolean, unsortedSteps: TransactionPlanStep[], checkout: CheckoutRequest, sortedPretaxSteps: TransactionPlanStep[], sortedPostTaxSteps: TransactionPlanStep[]): void {
+    log.info(`optimizing ${unsortedSteps.length} ${pretax ? "pretax" : "postTax"} steps`);
 
-    const splitUnsortedSteps = splitNonLightrailSteps(unsortedPretaxSteps);
-    const sortedPretaxSteps = [...splitUnsortedSteps.stepsBeforeLightrail];
+    const splitUnsortedSteps = splitNonLightrailSteps(unsortedSteps);
+    (pretax ? sortedPretaxSteps : sortedPostTaxSteps).push(...splitUnsortedSteps.stepsBeforeLightrail);
 
     for (const lightrailStepBucket of bucketLightrailSteps(splitUnsortedSteps.lightrailSteps)) {
-        log.info(`ordering bucket with ${lightrailStepBucket.length} lightrail steps ${JSON.stringify(lightrailStepBucket.map(b => b.value.id))}`);
+        log.info(`ordering bucket with ${lightrailStepBucket.length} lightrail steps:`, lightrailStepBucket.map(step => step.value.id));
         while (lightrailStepBucket.length) {
             if (lightrailStepBucket.length === 1) {
                 log.info("only 1 step, easy");
-                sortedPretaxSteps.push(lightrailStepBucket[0]);
+                (pretax ? sortedPretaxSteps : sortedPostTaxSteps).push(lightrailStepBucket[0]);
                 break;
             }
 
@@ -36,7 +39,9 @@ function optimizePretaxSteps(checkout: CheckoutRequest, unsortedPretaxSteps: Tra
             let bestStepIx = -1;
             for (let stepIx = 0; stepIx < lightrailStepBucket.length; stepIx++) {
                 const step = lightrailStepBucket[stepIx];
-                const newPlan = calculateCheckoutTransactionPlan(checkout, [...sortedPretaxSteps, step], []);
+                const newPlanPretaxSteps = JSON.parse(JSON.stringify(pretax ? [...sortedPretaxSteps, step] : sortedPretaxSteps));
+                const newPlanPostTaxSteps = JSON.parse(JSON.stringify(pretax ? sortedPostTaxSteps : [...sortedPostTaxSteps, step]));
+                const newPlan = calculateCheckoutTransactionPlan(checkout, newPlanPretaxSteps, newPlanPostTaxSteps);
 
                 log.info(`step ${step.value.id} has payable ${newPlan.totals.payable}`);
                 if (!bestPlan || (newPlan.totals.payable < bestPlan.totals.payable)) {
@@ -46,49 +51,11 @@ function optimizePretaxSteps(checkout: CheckoutRequest, unsortedPretaxSteps: Tra
             }
 
             log.info(`step ${lightrailStepBucket[bestStepIx].value.id} has the lowest payable`);
-            sortedPretaxSteps.push(lightrailStepBucket.splice(bestStepIx, 1)[0]);
+            (pretax ? sortedPretaxSteps : sortedPostTaxSteps).push(lightrailStepBucket.splice(bestStepIx, 1)[0]);
         }
     }
 
-    sortedPretaxSteps.push(...splitUnsortedSteps.stepsAfterLightrail);
-    return sortedPretaxSteps;
-}
-
-function optimizePostTaxSteps(checkout: CheckoutRequest, sortedPreTaxSteps: TransactionPlanStep[], unsortedPostTaxSteps: TransactionPlanStep[]): TransactionPlanStep[] {
-    log.info(`optimizing ${unsortedPostTaxSteps.length} unsortedPostTaxSteps: ${JSON.stringify(unsortedPostTaxSteps)}`);
-
-    const splitUnsortedSteps = splitNonLightrailSteps(unsortedPostTaxSteps);
-    const sortedPostTaxSteps = [...splitUnsortedSteps.stepsBeforeLightrail];
-
-    for (const lightrailStepBucket of bucketLightrailSteps(splitUnsortedSteps.lightrailSteps)) {
-        log.info(`ordering bucket with ${lightrailStepBucket.length} lightrail steps ${JSON.stringify(lightrailStepBucket.map(b => b.value.id))}`);
-        while (lightrailStepBucket.length) {
-            if (lightrailStepBucket.length === 1) {
-                log.info("only 1 step, easy");
-                sortedPostTaxSteps.push(lightrailStepBucket[0]);
-                break;
-            }
-
-            let bestPlan: TransactionPlan = null;
-            let bestStepIx = -1;
-            for (let stepIx = 0; stepIx < lightrailStepBucket.length; stepIx++) {
-                const step = lightrailStepBucket[stepIx];
-                const newPlan = calculateCheckoutTransactionPlan(checkout, sortedPreTaxSteps, [...sortedPostTaxSteps, step]);
-
-                log.info(`step ${step.value.id} has payable ${newPlan.totals.payable}`);
-                if (!bestPlan || (newPlan.totals.payable < bestPlan.totals.payable)) {
-                    bestPlan = newPlan;
-                    bestStepIx = stepIx;
-                }
-            }
-
-            log.info(`step ${lightrailStepBucket[bestStepIx].value.id} has the lowest payable`);
-            sortedPostTaxSteps.push(lightrailStepBucket.splice(bestStepIx, 1)[0]);
-        }
-    }
-
-    sortedPostTaxSteps.push(...splitUnsortedSteps.stepsAfterLightrail);
-    return sortedPostTaxSteps;
+    (pretax ? sortedPretaxSteps : sortedPostTaxSteps).push(...splitUnsortedSteps.stepsAfterLightrail);
 }
 
 function splitNonLightrailSteps(steps: TransactionPlanStep[]) {
@@ -107,9 +74,9 @@ function splitNonLightrailSteps(steps: TransactionPlanStep[]) {
  * come before `c` and `d`, but it's not yet known if `a` or `b` should be first.
  */
 function bucketLightrailSteps(steps: LightrailTransactionPlanStep[]): LightrailTransactionPlanStep[][] {
-    log.info(`bucketing lightrail steps ${JSON.stringify(steps)}`);
+    log.info("bucketing lightrail steps:", steps.map(step => step.value.id));
 
-    return steps
+    const bucketedSteps = steps
         .concat()
         .sort(lightrailTransactionPlanStepComparer)
         .reduce((bucketedArray: LightrailTransactionPlanStep[][], currentStep: LightrailTransactionPlanStep) => {
@@ -133,6 +100,9 @@ function bucketLightrailSteps(steps: LightrailTransactionPlanStep[]): LightrailT
 
             return bucketedArray;
         }, []);
+
+    log.info("bucketed lightrail steps:", bucketedSteps.map(b => b.map(step => step.value.id)));
+    return bucketedSteps;
 }
 
 /**
