@@ -52,7 +52,7 @@ export function installValuesRest(router: cassava.Router): void {
                 await injectValueStats(auth, res.values);
             }
 
-            if (evt.headers["Accept"] === "text/csv") {
+            if (evt.queryStringParameters.formatCurrencyUnits === "true") {
                 values = await formatForCurrencyDisplay(auth, values, "Value");
             }
 
