@@ -145,7 +145,7 @@ describe("/v2/transactions/credit", () => {
                 {
                     rail: "lightrail",
                     valueId: valueSecretCode.id,
-                    code: "…CRET",
+                    code: "...CRET",
                     contactId: null,
                     balanceBefore: 0,
                     balanceAfter: 1000,

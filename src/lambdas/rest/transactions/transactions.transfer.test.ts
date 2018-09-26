@@ -239,7 +239,7 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.deepEqual(sourceStep, {
             rail: "lightrail",
             valueId: valueSecretCode.id,
-            code: "…CRET",
+            code: "...CRET",
             contactId: null,
             balanceBefore: 100,
             balanceAfter: 0,
@@ -336,7 +336,7 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.deepEqual(destStep, {
             rail: "lightrail",
             valueId: valueSecretCode.id,
-            code: "…CRET",
+            code: "...CRET",
             contactId: null,
             balanceBefore: 100,
             balanceAfter: 200,

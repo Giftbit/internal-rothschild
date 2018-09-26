@@ -6,18 +6,17 @@ export class DbCode {
     codeHashed: string;
     lastFour: string;
 
-    constructor(plaintextCode: string, genericCode: boolean, auth: AuthorizationBadge) {
+    constructor(plaintextCode: string, auth: AuthorizationBadge) {
         this.codeEncrypted = encryptCode(plaintextCode);
         this.codeHashed = computeCodeLookupHash(plaintextCode, auth);
-        this.lastFour = codeLastFour(plaintextCode);
+        this.lastFour = getCodeLastFourNoPrefix(plaintextCode);
     }
 }
 
 /**
  * Done this way to support unicode and emoji characters. Length of emoji characters is often 2.
  */
-export function codeLastFour(code: string) {
-    return "…" + code.slice(-4);
+export function getCodeLastFourNoPrefix(code: string) {
     const lengthForLastFour = Math.min(code.length, 4);
-    return "…" + code.substring(code.length - lengthForLastFour);
+    return code.substring(code.length - lengthForLastFour);
 }

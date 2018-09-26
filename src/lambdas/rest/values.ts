@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
-import {DbValue, Value} from "../../model/Value";
+import {DbValue, formatCodeForLastFourDisplay, Value} from "../../model/Value";
 import {pick, pickOrDefault} from "../../utils/pick";
 import {csvSerializer} from "../../serializers";
 import {
@@ -13,7 +13,7 @@ import {
 } from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {DbTransaction, LightrailDbTransactionStep} from "../../model/Transaction";
-import {codeLastFour, DbCode} from "../../model/DbCode";
+import {DbCode} from "../../model/DbCode";
 import {generateCode} from "../../services/codeGenerator";
 import {computeCodeLookupHash} from "../../utils/codeCryptoUtils";
 import {getProgram} from "./programs";
@@ -21,6 +21,7 @@ import {Program} from "../../model/Program";
 import * as Knex from "knex";
 import {GenerateCodeParameters} from "../../model/GenerateCodeParameters";
 import {getTransactions} from "./transactions/transactions";
+import {formatForCurrencyDisplay} from "../../model/Currency";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -44,15 +45,20 @@ export function installValuesRest(router: cassava.Router): void {
 
             const showCode: boolean = (evt.queryStringParameters.showCode === "true");
             const res = await getValues(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt), showCode);
+            let values = res.values;
 
             if (evt.queryStringParameters.stats === "true") {
                 // For now this is a secret param only Yervana knows about.
                 await injectValueStats(auth, res.values);
             }
 
+            if (evt.headers["Accept"] === "text/csv") {
+                values = await formatForCurrencyDisplay(auth, values, "Value");
+            }
+
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
-                body: res.values
+                body: values
             };
         });
 
@@ -206,7 +212,7 @@ export function installValuesRest(router: cassava.Router): void {
                 isGenericCode = false;
             }
 
-            const dbCode = new DbCode(code, isGenericCode, auth);
+            const dbCode = new DbCode(code, auth);
             let partialValue: Partial<DbValue> = {
                 code: dbCode.lastFour,
                 codeEncrypted: dbCode.codeEncrypted,
@@ -414,7 +420,7 @@ export async function getValueByCode(auth: giftbitRoutes.jwtauth.AuthorizationBa
             codeHashed
         });
     if (res.length === 0) {
-        throw new giftbitRoutes.GiftbitRestError(404, `Value with code '${codeLastFour(code)}' not found.`, "ValueNotFound");
+        throw new giftbitRoutes.GiftbitRestError(404, `Value with code '${formatCodeForLastFourDisplay(code)}' not found.`, "ValueNotFound");
     }
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);

@@ -1,5 +1,6 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {pick} from "../utils/pick";
+import {getCurrency} from "../lambdas/rest/currencies";
 
 export interface Currency {
     code: string;
@@ -41,4 +42,26 @@ export namespace DbCurrency {
             decimalPlaces: c.decimalPlaces
         };
     }
+}
+
+export async function formatForCurrencyDisplay(auth: giftbitRoutes.jwtauth.AuthorizationBadge, objects: any[], type: string): Promise<any[]> {
+    let formattedValues = [];
+    let retrievedCurrencies: { [key: string]: Currency } = {};
+    for (let object of objects) {
+        if (!retrievedCurrencies[object.currency]) {
+            retrievedCurrencies[object.currency] = await getCurrency(auth, object.currency);
+        }
+        if (type == "Value") {
+            formattedValues.push({
+                ...object,
+                balance: formatCentsForCurrencyDisplay(object.balance, retrievedCurrencies[object.currency])
+            });
+        }
+    }
+    return formattedValues;
+}
+
+export function formatCentsForCurrencyDisplay(cents: number, c: Currency) {
+    let converted = cents / (Math.pow(10, c.decimalPlaces));
+    return c.symbol + converted.toFixed(c.decimalPlaces);
 }

@@ -173,7 +173,7 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
         chai.assert.equal(resp2.body.id, value4.id);
         chai.assert.equal(resp2.body.contactId, contact.id);
-        chai.assert.equal(resp2.body.code, `…${value4Code.slice(-4)}`);
+        chai.assert.equal(resp2.body.code, `...${value4Code.slice(-4)}`);
         chai.assert.isNotNull(resp2.body.updatedContactIdDate);
         chai.assert.equal(resp2.body.updatedContactIdDate, resp2.body.updatedDate);
         value4 = resp2.body;
@@ -195,7 +195,7 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
         chai.assert.equal(resp2.body.id, value5.id);
         chai.assert.equal(resp2.body.contactId, contact.id);
-        chai.assert.equal(resp2.body.code, `…${value5Code.slice(-4)}`);
+        chai.assert.equal(resp2.body.code, `...${value5Code.slice(-4)}`);
         chai.assert.isNotNull(resp2.body.updatedContactIdDate);
         chai.assert.equal(resp2.body.updatedContactIdDate, resp2.body.updatedDate);
         value5 = resp2.body;
@@ -223,7 +223,7 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(resp3.statusCode, 200, `body=${JSON.stringify(resp3.body)}`);
         chai.assert.equal(resp3.body.id, value6.id);
         chai.assert.equal(resp3.body.contactId, contact.id);
-        chai.assert.equal(resp3.body.code, `…${value6Code.slice(-4)}`);
+        chai.assert.equal(resp3.body.code, `...${value6Code.slice(-4)}`);
         chai.assert.isNotNull(resp3.body.updatedContactIdDate);
         chai.assert.equal(resp3.body.updatedContactIdDate, resp3.body.updatedDate);
         value6 = resp3.body;
@@ -277,7 +277,7 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.id, value6.id);
         chai.assert.equal(resp.body.contactId, contact2.id);
-        chai.assert.equal(resp.body.code, `…${value6Code.slice(-4)}`);
+        chai.assert.equal(resp.body.code, `...${value6Code.slice(-4)}`);
         chai.assert.isNotNull(resp.body.updatedContactIdDate);
         chai.assert.equal(resp.body.updatedContactIdDate, resp.body.updatedDate);
         value6.contactId = contact2.id;

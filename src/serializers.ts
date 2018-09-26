@@ -9,7 +9,6 @@ export function csvSerializer(body: any): string {
         body = stringifyChildObjects(body);
     }
     const result = papaparse.unparse(body);
-    console.log(result);
     return result;
 }
 

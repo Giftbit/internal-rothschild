@@ -1,7 +1,8 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {codeLastFour, DbCode} from "./DbCode";
+import {DbCode, getCodeLastFourNoPrefix} from "./DbCode";
 import {pickDefined} from "../utils/pick";
 import {decryptCode} from "../utils/codeCryptoUtils";
+import {Currency} from "./Currency";
 
 export interface Value {
     id: string;
@@ -41,7 +42,7 @@ export namespace Value {
     export function toDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Value): DbValue {
         let dbCode: DbCode = null;
         if (v.code) {
-            dbCode = new DbCode(v.code, v.isGenericCode, auth);
+            dbCode = new DbCode(v.code, auth);
         }
         return {
             userId: auth.userId,
@@ -99,7 +100,7 @@ export namespace Value {
     export function toStringSanitized(v: Value): string {
         return JSON.stringify({
             ...v,
-            code: v.code && !v.isGenericCode ? codeLastFour(v.code) : v.code
+            code: v.code && !v.isGenericCode ? formatCodeForLastFourDisplay(v.code) : v.code
         });
     }
 }
@@ -145,7 +146,7 @@ export namespace DbValue {
             programId: v.programId,
             issuanceId: v.issuanceId,
             contactId: v.contactId,
-            code: v.code && (v.isGenericCode || showCode) ? decryptCode(v.codeEncrypted) : v.code,
+            code: formatCodeForDbValueToValue(v, showCode),
             isGenericCode: v.isGenericCode,
             pretax: v.pretax,
             active: v.active,
@@ -165,4 +166,24 @@ export namespace DbValue {
             createdBy: v.createdBy
         };
     }
+}
+
+function formatCodeForDbValueToValue(v: DbValue, showCode: boolean): string {
+    if (v.code) {
+        if (v.isGenericCode || showCode) {
+            return decryptCode(v.codeEncrypted)
+        } else {
+            return formatCodeForLastFourDisplay(v.code);
+        }
+    } else {
+        return null;
+    }
+}
+
+export function formatCodeForLastFourDisplay(code: string): string {
+    return "..." + getCodeLastFourNoPrefix(code);
+}
+
+export function convertUnitsToCurrencyForDisplay(value: Value, currency: Currency): any {
+    return {}
 }
