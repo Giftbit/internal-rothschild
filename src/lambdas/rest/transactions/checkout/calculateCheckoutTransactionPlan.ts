@@ -13,10 +13,17 @@ import {bankersRounding} from "../../../../utils/moneyUtils";
 import log = require("loglevel");
 
 /**
- * This function mutates the preTaxSteps and postTaxSteps to set the correct amounts
- * used in the checkout Transaction.
+ * Build a TransactionPlan for checkout.  This mutates the steps by setting the amount.
  */
 export function calculateCheckoutTransactionPlan(checkout: CheckoutRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
+    // Reset step amounts in case they were set in a previous call to this function.
+    for (const step of preTaxSteps) {
+        step.amount = 0;
+    }
+    for (const step of postTaxSteps) {
+        step.amount = 0;
+    }
+
     let transactionPlan = new CheckoutTransactionPlan(checkout, preTaxSteps.concat(postTaxSteps));
     log.info(`Build checkout transaction plan: ${JSON.stringify(transactionPlan)}`);
     calculateAmountsForTransactionSteps(preTaxSteps, transactionPlan);

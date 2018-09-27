@@ -24,7 +24,7 @@ describe("/v2/transactions/checkout - lightrail ordering", () => {
         });
     });
 
-    async function testTransactionOrder(lineItems: LineItem[], orderedValues: Partial<Value>[]): Promise<void> {
+    async function testTransactionOrder({lineItems, orderedValues}: { lineItems: LineItem[], orderedValues: Partial<Value>[] }): Promise<void> {
         const transactionId = generateId();
         for (let valueIx = 0; valueIx < orderedValues.length; valueIx++) {
             const value = orderedValues[valueIx];
@@ -55,15 +55,15 @@ describe("/v2/transactions/checkout - lightrail ordering", () => {
     }
 
     it("processes without redemptionRule before with", async () => {
-        await testTransactionOrder(
-            [
+        await testTransactionOrder({
+            lineItems: [
                 {
                     type: "product",
                     productId: "123",
                     unitPrice: 2
                 }
             ],
-            [
+            orderedValues: [
                 {
                     balance: 1
                 },
@@ -75,19 +75,19 @@ describe("/v2/transactions/checkout - lightrail ordering", () => {
                     }
                 }
             ]
-        );
+        });
     });
 
     it("processes Values that expire before those that don't", async () => {
-        await testTransactionOrder(
-            [
+        await testTransactionOrder({
+            lineItems: [
                 {
                     type: "product",
                     productId: "123",
                     unitPrice: 4
                 }
             ],
-            [
+            orderedValues: [
                 {
                     balance: 1,
                     endDate: new Date("2098-01-01")
@@ -111,19 +111,19 @@ describe("/v2/transactions/checkout - lightrail ordering", () => {
                     }
                 }
             ]
-        );
+        });
     });
 
     it("processes Values that expire sooner before those that expire later", async () => {
-        await testTransactionOrder(
-            [
+        await testTransactionOrder({
+            lineItems: [
                 {
                     type: "product",
                     productId: "123",
                     unitPrice: 6
                 }
             ],
-            [
+            orderedValues: [
                 {
                     balance: 1,
                     endDate: new Date("2098-01-01")
@@ -159,19 +159,19 @@ describe("/v2/transactions/checkout - lightrail ordering", () => {
                     }
                 }
             ]
-        );
+        });
     });
 
     it("processes Values that are discounts before those that aren't", async () => {
-        await testTransactionOrder(
-            [
+        await testTransactionOrder({
+            lineItems: [
                 {
                     type: "product",
                     productId: "123",
                     unitPrice: 12
                 }
             ],
-            [
+            orderedValues: [
                 {
                     balance: 1,
                     endDate: new Date("2098-01-01"),
@@ -247,6 +247,6 @@ describe("/v2/transactions/checkout - lightrail ordering", () => {
                     }
                 }
             ]
-        );
+        });
     });
 });

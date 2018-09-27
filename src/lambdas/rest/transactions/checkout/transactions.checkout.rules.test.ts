@@ -597,7 +597,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
             "steps": [
                 {
                     "rail": "lightrail",
-                    "valueId": "cp-7011168a-1d78-4388-b",
+                    "valueId": cartPromotion.id,
                     "contactId": null,
                     "code": null,
                     "balanceBefore": 0,
@@ -606,7 +606,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                 },
                 {
                     "rail": "lightrail",
-                    "valueId": "gc-a13113b9-9565-46ae-9",
+                    "valueId": giftCard1.id,
                     "contactId": null,
                     "code": null,
                     "balanceBefore": 800,

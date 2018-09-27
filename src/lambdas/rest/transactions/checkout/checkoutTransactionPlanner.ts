@@ -20,6 +20,9 @@ export function optimizeCheckout(checkout: CheckoutRequest, steps: TransactionPl
     return calculateCheckoutTransactionPlan(checkout, sortedPretaxSteps, sortedPostTaxSteps);
 }
 
+/**
+ * Sort the given unsorted steps and append them to pretax or postTax steps.
+ */
 function optimizeSteps(pretax: boolean, unsortedSteps: TransactionPlanStep[], checkout: CheckoutRequest, sortedPretaxSteps: TransactionPlanStep[], sortedPostTaxSteps: TransactionPlanStep[]): void {
     log.info(`optimizing ${unsortedSteps.length} ${pretax ? "pretax" : "postTax"} steps`);
 
@@ -35,12 +38,13 @@ function optimizeSteps(pretax: boolean, unsortedSteps: TransactionPlanStep[], ch
                 break;
             }
 
+            // Find the next step that reduces the payable the most and use that.
             let bestPlan: TransactionPlan = null;
             let bestStepIx = -1;
             for (let stepIx = 0; stepIx < lightrailStepBucket.length; stepIx++) {
                 const step = lightrailStepBucket[stepIx];
-                const newPlanPretaxSteps = JSON.parse(JSON.stringify(pretax ? [...sortedPretaxSteps, step] : sortedPretaxSteps));
-                const newPlanPostTaxSteps = JSON.parse(JSON.stringify(pretax ? sortedPostTaxSteps : [...sortedPostTaxSteps, step]));
+                const newPlanPretaxSteps = pretax ? [...sortedPretaxSteps, step] : sortedPretaxSteps;
+                const newPlanPostTaxSteps = pretax ? sortedPostTaxSteps : [...sortedPostTaxSteps, step];
                 const newPlan = calculateCheckoutTransactionPlan(checkout, newPlanPretaxSteps, newPlanPostTaxSteps);
 
                 log.info(`step ${step.value.id} has payable ${newPlan.totals.payable}`);
@@ -78,8 +82,9 @@ function bucketLightrailSteps(steps: LightrailTransactionPlanStep[]): LightrailT
 
     const bucketedSteps = steps
         .concat()
-        .sort(lightrailTransactionPlanStepComparer)
+        .sort(lightrailTransactionPlanStepComparer)     // Sorts in place, thus the concat() above.
         .reduce((bucketedArray: LightrailTransactionPlanStep[][], currentStep: LightrailTransactionPlanStep) => {
+            // Put steps that sort to the same place in a bucket so they can be sorted another way.
             if (bucketedArray.length === 0) {
                 log.info(`step ${currentStep.value.id} is the first step`);
                 bucketedArray.push([currentStep]);
