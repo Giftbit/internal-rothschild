@@ -7,7 +7,7 @@ import * as cassava from "cassava";
 import {installRestRoutes} from "./installRestRoutes";
 
 
-describe("/v2/transactions/credit", () => {
+describe.only("/v2/transactions/credit", () => {
 
     const router = new cassava.Router();
 
@@ -50,8 +50,16 @@ describe("/v2/transactions/credit", () => {
             currency: currency.code,
             balance: 15490
         };
+        const valueBalanceRule: Partial<Value> = {
+            id: generateId(),
+            currency: currency.code,
+            balanceRule: {
+                rule: "1",
+                explanation: "1"
+            }
+        };
 
-        const values: Partial<Value>[] = [valueBalance0, valueBalance40, valueBalance549, valueBalance1549, valueBalance15490];
+        const values: Partial<Value>[] = [valueBalance0, valueBalance40, valueBalance549, valueBalance1549, valueBalance15490, valueBalanceRule];
         for (let value of values) {
             const res = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
             chai.assert.equal(res.statusCode, 201);
@@ -59,12 +67,13 @@ describe("/v2/transactions/credit", () => {
 
         const resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/values?id.in=${values.map(v => v.id).join(",")}&formatCurrencyUnits=true`, "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.lengthOf(resp.body, 5);
+        chai.assert.lengthOf(resp.body, 6);
         chai.assert.equal(resp.body.find(v => v.id == valueBalance0.id).balance.toString(), "¥0");
         chai.assert.equal(resp.body.find(v => v.id == valueBalance40.id).balance.toString(), "¥40");
         chai.assert.equal(resp.body.find(v => v.id == valueBalance549.id).balance.toString(), "¥549");
         chai.assert.equal(resp.body.find(v => v.id == valueBalance1549.id).balance.toString(), "¥1549");
         chai.assert.equal(resp.body.find(v => v.id == valueBalance15490.id).balance.toString(), "¥15490");
+        chai.assert.isNull(resp.body.find(v => v.id == valueBalanceRule.id).balance);
     });
 
     it("can format for currency with 0 decimal places", async () => {

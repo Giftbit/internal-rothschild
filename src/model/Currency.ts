@@ -54,7 +54,7 @@ export async function formatForCurrencyDisplay(auth: giftbitRoutes.jwtauth.Autho
         if (type == "Value") {
             formattedValues.push({
                 ...object,
-                balance: formatCentsForCurrencyDisplay(object.balance, retrievedCurrencies[object.currency])
+                balance: object.balance != undefined ? formatCentsForCurrencyDisplay(object.balance, retrievedCurrencies[object.currency]) : object.balance
             });
         }
     }
