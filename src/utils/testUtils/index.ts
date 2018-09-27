@@ -77,7 +77,14 @@ export const alternateTestUser = {
 /**
  * A Cassava Route that enables authorization with the above JWTs.
  */
-export const authRoute: cassava.routes.Route = new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"}), Promise.resolve(rolesConfig));
+export const authRoute: cassava.routes.Route = new giftbitRoutes.jwtauth.JwtAuthorizationRoute({
+    authConfigPromise: Promise.resolve({secretkey: "secret"}),
+    rolesConfigPromise: Promise.resolve(rolesConfig),
+    infoLogFunction: () => {
+        // too noisy for testing
+    },
+    errorLogFunction: log.error
+});
 
 export async function resetDb(): Promise<void> {
     const credentials = await getDbCredentials();
