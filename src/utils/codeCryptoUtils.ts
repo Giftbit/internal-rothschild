@@ -48,7 +48,16 @@ export function removeCodebasePepperFromDecryptedCode(decryptedCode: string) {
     return decryptedCode.replace(CODEBASE_ENCRYPTION_PEPPER, "");
 }
 
+export function getIntercomSecret() {
+    if (!codeCryptographySecrets) {
+        throw "Code cryptography secrets have not been initialized.";
+    }
+
+    return codeCryptographySecrets.lookupHashSecret;
+}
+
 export interface CodeCryptographySecrets {
     encryptionSecret: string;
     lookupHashSecret: string;
+    intercomSecret: string;
 }
