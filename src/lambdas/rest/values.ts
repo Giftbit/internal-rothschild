@@ -21,7 +21,8 @@ import {Program} from "../../model/Program";
 import * as Knex from "knex";
 import {GenerateCodeParameters} from "../../model/GenerateCodeParameters";
 import {getTransactions} from "./transactions/transactions";
-import {formatForCurrencyDisplay} from "../../model/Currency";
+import {Currency, formatAmountForCurrencyDisplay} from "../../model/Currency";
+import {getCurrency} from "./currencies";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -53,7 +54,7 @@ export function installValuesRest(router: cassava.Router): void {
             }
 
             if (evt.queryStringParameters.formatCurrencyUnits === "true") {
-                values = await formatForCurrencyDisplay(auth, values, "Value");
+                values = await formatValueForCurrencyDisplay(auth, values);
             }
 
             return {
@@ -625,6 +626,21 @@ export function checkCodeParameters(generateCode: GenerateCodeParameters, code: 
     if (generateCode && (code || isGenericCode)) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Parameter generateCode is not allowed with parameters code or isGenericCode:true.`);
     }
+}
+
+async function formatValueForCurrencyDisplay(auth: giftbitRoutes.jwtauth.AuthorizationBadge, values: Value[]): Promise<Value[]> {
+    let formattedValues = [];
+    let retrievedCurrencies: { [key: string]: Currency } = {};
+    for (let object of values) {
+        if (!retrievedCurrencies[object.currency]) {
+            retrievedCurrencies[object.currency] = await getCurrency(auth, object.currency);
+        }
+        formattedValues.push({
+            ...object,
+            balance: object.balance != undefined ? formatAmountForCurrencyDisplay(object.balance, retrievedCurrencies[object.currency]) : object.balance
+        });
+    }
+    return formattedValues;
 }
 
 const valueSchema: jsonschema.Schema = {

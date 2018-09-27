@@ -7,7 +7,7 @@ import * as cassava from "cassava";
 import {installRestRoutes} from "./installRestRoutes";
 
 
-describe.only("/v2/transactions/credit", () => {
+describe("/v2/transactions/credit", () => {
 
     const router = new cassava.Router();
 

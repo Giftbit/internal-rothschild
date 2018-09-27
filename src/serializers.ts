@@ -2,14 +2,13 @@ import papaparse = require("papaparse");
 
 export function csvSerializer(body: any): string {
     if (body instanceof Array) {
-        for (let obj of body) {
-            obj = stringifyChildObjects(obj);
+        for (let index in body) {
+            body[index] = stringifyChildObjects(body[index]);
         }
     } else if (body instanceof Object) {
         body = stringifyChildObjects(body);
     }
-    const result = papaparse.unparse(body);
-    return result;
+    return papaparse.unparse(body);
 }
 
 function stringifyChildObjects(object: any): any {

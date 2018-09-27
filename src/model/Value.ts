@@ -2,7 +2,6 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {DbCode, getCodeLastFourNoPrefix} from "./DbCode";
 import {pickDefined} from "../utils/pick";
 import {decryptCode} from "../utils/codeCryptoUtils";
-import {Currency} from "./Currency";
 
 export interface Value {
     id: string;
@@ -146,7 +145,7 @@ export namespace DbValue {
             programId: v.programId,
             issuanceId: v.issuanceId,
             contactId: v.contactId,
-            code: formatCodeForDbValueToValue(v, showCode),
+            code: dbValueCodeToValueCode(v, showCode),
             isGenericCode: v.isGenericCode,
             pretax: v.pretax,
             active: v.active,
@@ -168,7 +167,7 @@ export namespace DbValue {
     }
 }
 
-function formatCodeForDbValueToValue(v: DbValue, showCode: boolean): string {
+function dbValueCodeToValueCode(v: DbValue, showCode: boolean): string {
     if (v.code) {
         if (v.isGenericCode || showCode) {
             return decryptCode(v.codeEncrypted)
@@ -182,8 +181,4 @@ function formatCodeForDbValueToValue(v: DbValue, showCode: boolean): string {
 
 export function formatCodeForLastFourDisplay(code: string): string {
     return "..." + getCodeLastFourNoPrefix(code);
-}
-
-export function convertUnitsToCurrencyForDisplay(value: Value, currency: Currency): any {
-    return {}
 }

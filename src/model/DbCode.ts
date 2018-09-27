@@ -18,5 +18,5 @@ export class DbCode {
  */
 export function getCodeLastFourNoPrefix(code: string) {
     const lengthForLastFour = Math.min(code.length, 4);
-    return code.substring(code.length - lengthForLastFour);
+    return Array.from(code).slice(-lengthForLastFour).join("");
 }
