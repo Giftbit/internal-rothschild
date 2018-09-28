@@ -574,7 +574,7 @@ describe("/v2/values/", () => {
 
             const page1 = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/values?id.in=${ids.join(",")}`, "GET");
             chai.assert.equal(page1.statusCode, 200, `body=${JSON.stringify(page1.body)}`);
-            chai.assert.deepEqualExcludingEvery(page1.body, expected, ["userId", "codeHashed", "codeLastFour", "startDate", "endDate", "createdDate", "updatedDate", "updatedContactIdDate", "codeEncrypted", "isGenericCode", "uses" /* todo - remove these checks once valueRule and uses are no longer supported. */, "valueRule" /* todo - remove these checks once valueRule and uses are no longer supported. */]);
+            chai.assert.deepEqualExcludingEvery(page1.body, expected, ["userId", "codeHashed", "code", "codeLastFour", "startDate", "endDate", "createdDate", "updatedDate", "updatedContactIdDate", "codeEncrypted", "isGenericCode", "uses" /* todo - remove these checks once valueRule and uses are no longer supported. */, "valueRule" /* todo - remove these checks once valueRule and uses are no longer supported. */]);
             chai.assert.isDefined(page1.headers["Link"]);
         });
     });
@@ -611,7 +611,7 @@ describe("/v2/values/", () => {
         chai.assert.isNotNull(res[0].codeEncrypted);
         chai.assert.isNotNull(res[0].codeHashed);
         chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(publicCode.code, testUtils.defaultTestUser.auth));
-        chai.assert.equal(res[0].code, "BLIC");
+        chai.assert.equal(res[0].codeLastFour, "BLIC");
 
         const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
         let codeInListShowCodeFalse: Value = list.body.find(it => it.id === publicCode.id);
@@ -653,7 +653,7 @@ describe("/v2/values/", () => {
         chai.assert.isNotNull(res[0].codeEncrypted);
         chai.assert.isNotNull(res[0].codeHashed);
         chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(publicCode.code, testUtils.defaultTestUser.auth));
-        chai.assert.equal(res[0].code, "A");
+        chai.assert.equal(res[0].codeLastFour, "A");
 
         const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
         let codeInListShowCodeFalse: Value = list.body.find(it => it.id === publicCode.id);
@@ -846,7 +846,7 @@ describe("/v2/values/", () => {
         chai.assert.isNotNull(res[0].codeEncrypted);
         chai.assert.isNotNull(res[0].codeHashed);
         chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(secureCode.code, testUtils.defaultTestUser.auth));
-        chai.assert.equal(res[0].code, "CURE");
+        chai.assert.equal(res[0].codeLastFour, "CURE");
 
         const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
         let codeInListShowCodeFalse: Value = list.body.find(it => it.id === secureCode.id);
@@ -893,7 +893,7 @@ describe("/v2/values/", () => {
             chai.assert.isNotNull(res[0].codeEncrypted);
             chai.assert.isNotNull(res[0].codeHashed);
             chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(code, testUtils.defaultTestUser.auth));
-            chai.assert.equal(res[0].code, getCodeLastFourNoPrefix(code));
+            chai.assert.equal(res[0].codeLastFour, getCodeLastFourNoPrefix(code));
             chai.assert.equal(decryptCode(res[0].codeEncrypted), code);
 
             const changeCodeSecure = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}/changeCode`, "POST", {code: code});
@@ -911,7 +911,7 @@ describe("/v2/values/", () => {
             chai.assert.isNotNull(res[0].codeEncrypted);
             chai.assert.isNotNull(res[0].codeHashed);
             chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(code, testUtils.defaultTestUser.auth));
-            chai.assert.equal(res[0].code, getCodeLastFourNoPrefix(code));
+            chai.assert.equal(res[0].codeLastFour, getCodeLastFourNoPrefix(code));
             chai.assert.equal(decryptCode(res[0].codeEncrypted), code);
         }
     });
@@ -951,7 +951,7 @@ describe("/v2/values/", () => {
             chai.assert.isNotNull(res[0].codeEncrypted);
             chai.assert.isNotNull(res[0].codeHashed);
             chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(firstGeneratedCode, testUtils.defaultTestUser.auth));
-            chai.assert.equal(res[0].code, getCodeLastFourNoPrefix(firstGeneratedCode));
+            chai.assert.equal(res[0].codeLastFour, getCodeLastFourNoPrefix(firstGeneratedCode));
             chai.assert.equal(decryptCode(res[0].codeEncrypted), firstGeneratedCode);
             chai.assert.notEqual(res[0].codeEncrypted, firstGeneratedCode);
             chai.assert.notEqual(res[0].codeHashed, firstGeneratedCode);
@@ -986,7 +986,7 @@ describe("/v2/values/", () => {
             chai.assert.isNotNull(res[0].codeEncrypted);
             chai.assert.isNotNull(res[0].codeHashed);
             chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(secondGeneratedCode, testUtils.defaultTestUser.auth));
-            chai.assert.equal(res[0].code, getCodeLastFourNoPrefix(secondGeneratedCode));
+            chai.assert.equal(res[0].codeLastFour, getCodeLastFourNoPrefix(secondGeneratedCode));
             chai.assert.equal(decryptCode(res[0].codeEncrypted), secondGeneratedCode);
             chai.assert.notEqual(res[0].codeEncrypted, secondGeneratedCode);
             chai.assert.notEqual(res[0].codeHashed, secondGeneratedCode);
@@ -1040,7 +1040,7 @@ describe("/v2/values/", () => {
             chai.assert.isNotNull(res[0].codeEncrypted);
             chai.assert.isNotNull(res[0].codeHashed);
             chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(firstGeneratedCode, testUtils.defaultTestUser.auth));
-            chai.assert.equal(res[0].code, getCodeLastFourNoPrefix(firstGeneratedCode));
+            chai.assert.equal(res[0].codeLastFour, getCodeLastFourNoPrefix(firstGeneratedCode));
             chai.assert.equal(decryptCode(res[0].codeEncrypted), firstGeneratedCode);
             chai.assert.notEqual(res[0].codeEncrypted, firstGeneratedCode);
             chai.assert.notEqual(res[0].codeHashed, firstGeneratedCode);

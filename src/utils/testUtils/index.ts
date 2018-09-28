@@ -205,6 +205,7 @@ export async function testAuthedCsvRequest<T>(router: cassava.Router, url: strin
         },
         body: body && JSON.stringify(body) || undefined
     }));
+    console.log(JSON.stringify(resp.body));
 
     const parseRes = papaparse.parse(resp.body, {
         dynamicTyping: true,

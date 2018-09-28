@@ -51,7 +51,7 @@ export namespace Value {
             usesRemaining: v.usesRemaining,
             programId: v.programId,
             issuanceId: v.issuanceId,
-            code: dbCode ? dbCode.lastFour : null,
+            codeLastFour: dbCode ? dbCode.lastFour : null,
             isGenericCode: v.isGenericCode,
             codeEncrypted: dbCode ? dbCode.codeEncrypted : null,
             codeHashed: dbCode ? dbCode.codeHashed : null,
@@ -112,7 +112,7 @@ export interface DbValue {
     usesRemaining: number | null;
     programId: string | null;
     issuanceId: string | null;
-    code: string | null;
+    codeLastFour: string | null;
     isGenericCode: boolean | null;
     codeHashed: string | null;
     codeEncrypted: string | null;
@@ -168,11 +168,11 @@ export namespace DbValue {
 }
 
 function dbValueCodeToValueCode(v: DbValue, showCode: boolean): string {
-    if (v.code) {
+    if (v.codeLastFour) {
         if (v.isGenericCode || showCode) {
             return decryptCode(v.codeEncrypted)
         } else {
-            return formatCodeForLastFourDisplay(v.code);
+            return formatCodeForLastFourDisplay(v.codeLastFour);
         }
     } else {
         return null;

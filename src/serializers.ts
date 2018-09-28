@@ -8,7 +8,8 @@ export function csvSerializer(body: any): string {
     } else if (body instanceof Object) {
         body = stringifyChildObjects(body);
     }
-    return "data:text/csv;charset=utf-8,\ufeff" + papaparse.unparse(body);
+    // "data:text/csv;charset=utf-8,\ufeff" +
+    return papaparse.unparse(body);
 }
 
 function stringifyChildObjects(object: any): any {
