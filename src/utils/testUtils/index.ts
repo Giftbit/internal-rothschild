@@ -205,7 +205,7 @@ export async function testAuthedCsvRequest<T>(router: cassava.Router, url: strin
         },
         body: body && JSON.stringify(body) || undefined
     }));
-    console.log(JSON.stringify(resp.body));
+    resp.body = resp.body.substr(1); // clear universal bom from tests.
 
     const parseRes = papaparse.parse(resp.body, {
         dynamicTyping: true,

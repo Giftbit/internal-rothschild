@@ -1,5 +1,8 @@
 import papaparse = require("papaparse");
 
+// so that special characters display correctly in CSV
+const UNIVERSAL_BOM = "\uFEFF";
+
 export function csvSerializer(body: any): string {
     if (body instanceof Array) {
         for (let index in body) {
@@ -8,8 +11,7 @@ export function csvSerializer(body: any): string {
     } else if (body instanceof Object) {
         body = stringifyChildObjects(body);
     }
-    // "data:text/csv;charset=utf-8,\ufeff" +
-    return papaparse.unparse(body);
+    return UNIVERSAL_BOM + papaparse.unparse(body);
 }
 
 function stringifyChildObjects(object: any): any {
