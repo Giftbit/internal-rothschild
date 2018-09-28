@@ -63,7 +63,10 @@ describe("/v2/transactions/credit", () => {
                     contactId: null,
                     balanceBefore: 0,
                     balanceAfter: 1000,
-                    balanceChange: 1000
+                    balanceChange: 1000,
+                    usesRemainingBefore: null,
+                    usesRemainingAfter: null,
+                    usesRemainingChange: null
                 }
             ],
             lineItems: null,
@@ -149,7 +152,10 @@ describe("/v2/transactions/credit", () => {
                     contactId: null,
                     balanceBefore: 0,
                     balanceAfter: 1000,
-                    balanceChange: 1000
+                    balanceChange: 1000,
+                    usesRemainingBefore: null,
+                    usesRemainingAfter: null,
+                    usesRemainingChange: null
                 }
             ],
             lineItems: null,
@@ -204,7 +210,10 @@ describe("/v2/transactions/credit", () => {
                     contactId: null,
                     balanceBefore: 0,
                     balanceAfter: 1000,
-                    balanceChange: 1000
+                    balanceChange: 1000,
+                    usesRemainingBefore: null,
+                    usesRemainingAfter: null,
+                    usesRemainingChange: null
                 }
             ],
             lineItems: null,
@@ -263,7 +272,10 @@ describe("/v2/transactions/credit", () => {
                     contactId: null,
                     balanceBefore: 1000,
                     balanceAfter: 2100,
-                    balanceChange: 1100
+                    balanceChange: 1100,
+                    usesRemainingBefore: null,
+                    usesRemainingAfter: null,
+                    usesRemainingChange: null
                 }
             ],
             lineItems: null,

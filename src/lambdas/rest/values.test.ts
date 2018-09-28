@@ -344,7 +344,10 @@ describe("/v2/values/", () => {
             contactId: null,
             balanceBefore: 0,
             balanceAfter: value3.balance,
-            balanceChange: value3.balance
+            balanceChange: value3.balance,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         // check DbTransaction created by creating Value

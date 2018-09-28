@@ -145,9 +145,12 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "valueId": promotion.id,
                     "contactId": null,
                     "code": null,
-                    "balanceBefore": 0,
-                    "balanceAfter": 0,
-                    "balanceChange": -500
+                    "balanceBefore": null,
+                    "balanceAfter": null,
+                    "balanceChange": -500,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
                 }
             ],
             "paymentSources": [
@@ -165,7 +168,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
         }, ["createdDate", "createdBy"]);
     });
 
-    it("basic 25% off select item", async () => {
+    it.only("basic 25% off select item", async () => {
         const promotion: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
@@ -266,9 +269,12 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "valueId": promotion.id,
                     "contactId": null,
                     "code": null,
-                    "balanceBefore": 0,
-                    "balanceAfter": 0,
-                    "balanceChange": -125
+                    "balanceBefore": null,
+                    "balanceAfter": null,
+                    "balanceChange": -125,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
                 }
             ],
             "paymentSources": [
@@ -411,7 +417,10 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "code": null,
                     "balanceBefore": 0,
                     "balanceAfter": 0,
-                    "balanceChange": -100
+                    "balanceChange": -100,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
                 },
                 {
                     "rail": "lightrail",
@@ -420,7 +429,10 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "code": null,
                     "balanceBefore": 0,
                     "balanceAfter": 0,
-                    "balanceChange": -25
+                    "balanceChange": -25,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
                 }
             ],
             "paymentSources": [
@@ -602,7 +614,10 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "code": null,
                     "balanceBefore": 0,
                     "balanceAfter": 0,
-                    "balanceChange": -85
+                    "balanceChange": -85,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
                 },
                 {
                     "rail": "lightrail",
@@ -611,7 +626,10 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "code": null,
                     "balanceBefore": 800,
                     "balanceAfter": 10,
-                    "balanceChange": -790
+                    "balanceChange": -790,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
                 }
             ],
             "paymentSources": [
@@ -740,7 +758,10 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "code": null,
                     "balanceBefore": 0,
                     "balanceAfter": 0,
-                    "balanceChange": -768
+                    "balanceChange": -768,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
                 }
             ],
             "paymentSources": [
@@ -926,7 +947,10 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "code": null,
                     "balanceBefore": 0,
                     "balanceAfter": 0,
-                    "balanceChange": -480
+                    "balanceChange": -480,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
                 },
                 {
                     "rail": "lightrail",
@@ -935,7 +959,10 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "code": null,
                     "balanceBefore": 0,
                     "balanceAfter": 0,
-                    "balanceChange": -240
+                    "balanceChange": -240,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
                 }
             ],
             "paymentSources": [

@@ -89,7 +89,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
             if ((err as TransactionPlanError).isTransactionPlanError) {
                 throw err;
             } else if (err.code === "ER_DUP_ENTRY") {
-                log.debug(err);
+                log.error(err);
                 giftbitRoutes.sentry.sendErrorNotification(err);
                 throw new giftbitRoutes.GiftbitRestError(409, `A transaction step in transaction '${plan.id}' already exists. This should not be possible.`, "TransactionStepExists");
             } else {

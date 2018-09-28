@@ -125,7 +125,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 1500,
             balanceAfter: 500,
-            balanceChange: -1000
+            balanceChange: -1000,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad2.id) as LightrailTransactionStep;
@@ -136,7 +139,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 2500,
             balanceAfter: 3500,
-            balanceChange: 1000
+            balanceChange: 1000,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const getValue1Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCad1.id}`, "GET");
@@ -243,7 +249,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 100,
             balanceAfter: 0,
-            balanceChange: -100
+            balanceChange: -100,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === basicValue.id);
@@ -254,7 +263,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 100,
             balanceAfter: 200,
-            balanceChange: 100
+            balanceChange: 100,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const getSecretCodeValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueSecretCode.id}`, "GET");
@@ -329,7 +341,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 100,
             balanceAfter: 0,
-            balanceChange: -100
+            balanceChange: -100,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueSecretCode.id);
@@ -340,7 +355,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 100,
             balanceAfter: 200,
-            balanceChange: 100
+            balanceChange: 100,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const getSecretCodeValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueSecretCode.id}`, "GET");
@@ -416,7 +434,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 100,
             balanceAfter: 0,
-            balanceChange: -100
+            balanceChange: -100,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === basicValue.id);
@@ -427,7 +448,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 100,
             balanceAfter: 200,
-            balanceChange: 100
+            balanceChange: 100,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const getSecretCodeValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueGenericCode.id}`, "GET");
@@ -503,7 +527,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 100,
             balanceAfter: 0,
-            balanceChange: -100
+            balanceChange: -100,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueGenericCode.id);
@@ -514,7 +541,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 100,
             balanceAfter: 200,
-            balanceChange: 100
+            balanceChange: 100,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const getSecretCodeValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueGenericCode.id}`, "GET");
@@ -590,7 +620,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 500,
             balanceAfter: 0,
-            balanceChange: -500
+            balanceChange: -500,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad2.id) as LightrailTransactionStep;
@@ -601,7 +634,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 3500,
             balanceAfter: 4000,
-            balanceChange: 500
+            balanceChange: 500,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const getValue1Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCad1.id}`, "GET");
@@ -654,7 +690,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 500,
             balanceAfter: 0,
-            balanceChange: -500
+            balanceChange: -500,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad2.id) as LightrailTransactionStep;
@@ -665,7 +704,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 3500,
             balanceAfter: 4000,
-            balanceChange: 500
+            balanceChange: 500,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const getValue1Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCad1.id}`, "GET");
@@ -990,7 +1032,10 @@ describe("/v2/transactions/transfer", () => {
                 contactId: null,
                 balanceBefore: 0,
                 balanceAfter: 1000,
-                balanceChange: 1000
+                balanceChange: 1000,
+                usesRemainingBefore: null,
+                usesRemainingAfter: null,
+                usesRemainingChange: null
             });
 
             const getValue3Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCadForStripeTests.id}`, "GET");
@@ -1191,7 +1236,10 @@ describe("/v2/transactions/transfer", () => {
                 contactId: null,
                 balanceBefore: 0,
                 balanceAfter: 900,
-                balanceChange: 900
+                balanceChange: 900,
+                usesRemainingBefore: null,
+                usesRemainingAfter: null,
+                usesRemainingChange: null
             });
 
             const getValue4Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCad2ForStripeTests.id}`, "GET");

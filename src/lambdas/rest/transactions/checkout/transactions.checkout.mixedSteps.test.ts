@@ -327,7 +327,10 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             "code": null,
             "balanceBefore": 10,
             "balanceAfter": 0,
-            "balanceChange": -10
+            "balanceChange": -10,
+            "usesRemainingBefore": null,
+            "usesRemainingAfter": null,
+            "usesRemainingChange": null
         });
         chai.assert.deepEqual(postCheckoutResp.body.steps[2], {
             "rail": "internal",
@@ -343,7 +346,10 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             "code": null,
             "balanceBefore": 60,
             "balanceAfter": 0,
-            "balanceChange": -60
+            "balanceChange": -60,
+            "usesRemainingBefore": null,
+            "usesRemainingAfter": null,
+            "usesRemainingChange": null
         });
         chai.assert.deepEqual(postCheckoutResp.body.steps[4], {
             "rail": "internal",
@@ -495,7 +501,10 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             code: "…CRET",
             balanceBefore: 100,
             balanceAfter: 0,
-            balanceChange: -100
+            balanceChange: -100,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
 
         });
         const step2 = postCheckoutResp.body.steps.find(step => (step as LightrailTransactionStep).valueId === valueGenericCode.id);
@@ -506,7 +515,10 @@ describe("/v2/transactions/checkout - mixed sources", () => {
                 code: valueGenericCode.code,
                 balanceBefore: 2000,
                 balanceAfter: 0,
-                balanceChange: -2000
+                balanceChange: -2000,
+                usesRemainingBefore: null,
+                usesRemainingAfter: null,
+                usesRemainingChange: null
             }
         );
 

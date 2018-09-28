@@ -107,7 +107,10 @@ describe("/v2/contacts/values", () => {
                     code: null,
                     balanceBefore: null,
                     balanceAfter: null,
-                    balanceChange: 0
+                    balanceChange: 0,
+                    usesRemainingBefore: null,
+                    usesRemainingAfter: null,
+                    usesRemainingChange: null
                 },
                 {
                     rail: "lightrail",

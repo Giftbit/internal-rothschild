@@ -1,6 +1,7 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as kvsAccess from "../kvsAccess";
 import * as sinon from "sinon";
+import log = require("loglevel");
 
 export function setStubsForStripeTests() {
     const testAssumeToken: giftbitRoutes.secureConfig.AssumeScopeToken = {
@@ -47,7 +48,7 @@ export function stripeEnvVarsPresent(): boolean {
     ) {
         return true;
     } else {
-        console.log("Missing environment variables required to run Stripe-related tests: skipping. See readme to set up.");
+        log.warn("Missing environment variables required to run Stripe-related tests: skipping. See readme to set up.");
         return false;
     }
 }

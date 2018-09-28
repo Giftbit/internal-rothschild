@@ -67,7 +67,10 @@ describe("/v2/transactions/debit", () => {
                     contactId: null,
                     balanceBefore: 1000,
                     balanceAfter: 401,
-                    balanceChange: -599
+                    balanceChange: -599,
+                    usesRemainingBefore: null,
+                    usesRemainingAfter: null,
+                    usesRemainingChange: null
                 }
             ],
             lineItems: null,
@@ -154,7 +157,10 @@ describe("/v2/transactions/debit", () => {
                     contactId: null,
                     balanceBefore: 1000,
                     balanceAfter: 999,
-                    balanceChange: -1
+                    balanceChange: -1,
+                    usesRemainingBefore: null,
+                    usesRemainingAfter: null,
+                    usesRemainingChange: null
                 }
             ],
             lineItems: null,
@@ -211,7 +217,10 @@ describe("/v2/transactions/debit", () => {
                     contactId: null,
                     balanceBefore: 1000,
                     balanceAfter: 999,
-                    balanceChange: -1
+                    balanceChange: -1,
+                    usesRemainingBefore: null,
+                    usesRemainingAfter: null,
+                    usesRemainingChange: null
                 }
             ],
             lineItems: null,
@@ -272,7 +281,10 @@ describe("/v2/transactions/debit", () => {
                     contactId: null,
                     balanceBefore: 401,
                     balanceAfter: 101,
-                    balanceChange: -300
+                    balanceChange: -300,
+                    usesRemainingBefore: null,
+                    usesRemainingAfter: null,
+                    usesRemainingChange: null
                 }
             ],
             lineItems: null,
@@ -315,7 +327,10 @@ describe("/v2/transactions/debit", () => {
                     contactId: null,
                     balanceBefore: 401,
                     balanceAfter: 0,
-                    balanceChange: -401
+                    balanceChange: -401,
+                    usesRemainingBefore: null,
+                    usesRemainingAfter: null,
+                    usesRemainingChange: null
                 }
             ],
             lineItems: null,

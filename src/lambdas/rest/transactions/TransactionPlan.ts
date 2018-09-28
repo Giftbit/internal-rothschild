@@ -73,17 +73,14 @@ export namespace LightrailTransactionPlanStep {
             userId: auth.userId,
             id: `${plan.id}-${stepIndex}`,
             transactionId: plan.id,
-            ...getSharedProperties(step),
-            usesRemainingBefore: step.value.usesRemaining,
-            usesRemainingAfter: step.value.usesRemaining != null ? step.value.usesRemaining + step.uses : null,
-            usesRemainingChange: step.uses
+            ...getSharedProperties(step)
         };
     }
 
     export function toLightrailTransactionStep(step: LightrailTransactionPlanStep): LightrailTransactionStep {
         return {
             rail: "lightrail",
-            ...getSharedProperties(step),
+            ...getSharedProperties(step)
         };
     }
 
@@ -94,7 +91,10 @@ export namespace LightrailTransactionPlanStep {
             code: step.value.code,
             balanceBefore: step.value.balance,
             balanceAfter: step.value.balance != null ? step.value.balance + step.amount : null,
-            balanceChange: step.amount
+            balanceChange: step.amount,
+            usesRemainingBefore: step.value.usesRemaining !== undefined ? step.value.usesRemaining : null,
+            usesRemainingAfter: step.value.usesRemaining != null ? step.value.usesRemaining + step.uses : null,
+            usesRemainingChange: step.uses !== undefined ? step.uses : null
         };
     }
 }
