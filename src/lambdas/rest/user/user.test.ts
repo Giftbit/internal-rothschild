@@ -2,9 +2,7 @@ import * as testUtils from "../../../utils/testUtils";
 import * as cassava from "cassava";
 import * as chai from "chai";
 import {installRestRoutes} from "../installRestRoutes";
-import {createCurrency} from "../currencies";
 import chaiExclude = require("chai-exclude");
-import {setCodeCryptographySecrets} from "../../../utils/testUtils";
 import * as crypto from "crypto";
 import {getIntercomSecret} from "../../../utils/codeCryptoUtils";
 
@@ -18,13 +16,6 @@ describe("/v2/user", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-        await setCodeCryptographySecrets();
-        await createCurrency(testUtils.defaultTestUser.auth, {
-            code: "USD",
-            name: "USDees",
-            symbol: "$",
-            decimalPlaces: 2
-        });
     });
 
     describe("/v2/user/intercom", () => {
