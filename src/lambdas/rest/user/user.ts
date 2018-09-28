@@ -1,7 +1,12 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as crypto from "crypto";
-import {getIntercomSecret} from "../../../utils/codeCryptoUtils";
+
+interface IntercomSecretConfig {
+    secretKey: string;
+}
+
+
 
 export function installUserRest(router: cassava.Router): void {
     router.route("/v2/user/intercom")
@@ -13,7 +18,7 @@ export function installUserRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
 
-            const hmac = crypto.createHmac("sha256", getIntercomSecret());
+            const hmac = crypto.createHmac("sha256", "");
             hmac.update(auth.userId);
 
             return {

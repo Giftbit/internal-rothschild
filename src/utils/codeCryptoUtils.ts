@@ -48,10 +48,6 @@ export function removeCodebasePepperFromDecryptedCode(decryptedCode: string) {
     return decryptedCode.replace(CODEBASE_ENCRYPTION_PEPPER, "");
 }
 
-export function getIntercomSecret(): string {
-    return "8Hukl21alPrTFcHjeNx3tn0BmzyB1O8-zE2c7rqQ";
-}
-
 export interface CodeCryptographySecrets {
     encryptionSecret: string;
     lookupHashSecret: string;

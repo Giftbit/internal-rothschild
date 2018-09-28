@@ -4,7 +4,6 @@ import * as chai from "chai";
 import {installRestRoutes} from "../installRestRoutes";
 import chaiExclude = require("chai-exclude");
 import * as crypto from "crypto";
-import {getIntercomSecret} from "../../../utils/codeCryptoUtils";
 
 chai.use(chaiExclude);
 
@@ -20,7 +19,7 @@ describe("/v2/user", () => {
 
     describe("/v2/user/intercom", () => {
         it("gets expected hash", async () => {
-            const hmac = crypto.createHmac("sha256", getIntercomSecret());
+            const hmac = crypto.createHmac("sha256", "");
             hmac.update(testUtils.defaultTestUser.userId);
             const expectedOutput = hmac.digest("hex");
 
