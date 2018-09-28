@@ -12,7 +12,18 @@ import {CheckoutTransactionPlan} from "./CheckoutTransactionPlan";
 import {bankersRounding} from "../../../../utils/moneyUtils";
 import log = require("loglevel");
 
+/**
+ * Build a TransactionPlan for checkout.  This mutates the steps by setting the amount.
+ */
 export function calculateCheckoutTransactionPlan(checkout: CheckoutRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
+    // Reset step amounts in case they were set in a previous call to this function.
+    for (const step of preTaxSteps) {
+        step.amount = 0;
+    }
+    for (const step of postTaxSteps) {
+        step.amount = 0;
+    }
+
     let transactionPlan = new CheckoutTransactionPlan(checkout, preTaxSteps.concat(postTaxSteps));
     log.info(`Build checkout transaction plan: ${JSON.stringify(transactionPlan)}`);
     calculateAmountsForTransactionSteps(preTaxSteps, transactionPlan);
@@ -27,7 +38,7 @@ export function calculateCheckoutTransactionPlan(checkout: CheckoutRequest, preT
 function isValueRedeemable(value: Value): boolean {
     const now = new Date();
 
-    if (value.frozen || !value.active || value.endDate > now || value.usesRemaining === 0) {
+    if (value.frozen || !value.active || value.usesRemaining === 0) {
         return false;
     }
     if (value.startDate && value.startDate > now) {
@@ -57,10 +68,11 @@ function calculateAmountsForTransactionSteps(steps: TransactionPlanStep[], trans
 }
 
 function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPlanStep, transactionPlan: TransactionPlan): void {
-    log.info(`Processing ValueStore ${JSON.stringify(step)}.`);
+    log.info(`calculateAmountForLightrailTransactionStep ${JSON.stringify(step)}.`);
 
     let value = step.value;
     if (!isValueRedeemable(value)) {
+        log.info(`Value ${value.id} CANNOT be redeemed.`);
         return;
     }
     for (const index in transactionPlan.lineItems) {
@@ -68,12 +80,12 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
         if (item.lineTotal.remainder > 0) {
             if (value.redemptionRule) {
                 if (!new RuleContext(transactionPlan.totals, transactionPlan.lineItems, item).evaluateRedemptionRule(value.redemptionRule)) {
-                    log.info(`ValueStore ${JSON.stringify(value)} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
+                    log.info(`Value ${value.id} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
                     continue;
                 }
             }
 
-            log.info(`ValueStore ${JSON.stringify(value)} CAN be applied to ${JSON.stringify(item)}.`);
+            log.info(`Value ${value.id} CAN be applied to ${JSON.stringify(item)}.`);
             let amount: number;
             if (value.balanceRule) {
                 let valueFromRule = new RuleContext(transactionPlan.totals, transactionPlan.lineItems, item).evaluateBalanceRule(value.balanceRule);
