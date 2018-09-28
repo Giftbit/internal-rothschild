@@ -17,6 +17,5 @@ export class DbCode {
  * Done this way to support unicode and emoji characters. Length of emoji characters is often 2.
  */
 export function getCodeLastFourNoPrefix(code: string) {
-    const lengthForLastFour = Math.min(code.length, 4);
-    return Array.from(code).slice(-lengthForLastFour).join("");
+    return Array.from(code).slice(-4).join("");
 }

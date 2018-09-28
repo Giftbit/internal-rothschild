@@ -5,7 +5,7 @@ const UNIVERSAL_BOM = "\uFEFF";
 
 export function csvSerializer(body: any): string {
     if (body instanceof Array) {
-        for (let index in body) {
+        for (let index = 0; index < body.length; index++) {
             body[index] = stringifyChildObjects(body[index]);
         }
     } else if (body instanceof Object) {

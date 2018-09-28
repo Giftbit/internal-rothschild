@@ -46,15 +46,15 @@ export function installValuesRest(router: cassava.Router): void {
 
             const showCode: boolean = (evt.queryStringParameters.showCode === "true");
             const res = await getValues(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt), showCode);
-            let values = res.values;
 
             if (evt.queryStringParameters.stats === "true") {
                 // For now this is a secret param only Yervana knows about.
                 await injectValueStats(auth, res.values);
             }
 
+            let values: Value[] | StringBalanceValue[] = res.values;
             if (evt.queryStringParameters.formatCurrencyUnits === "true") {
-                values = await formatValueForCurrencyDisplay(auth, values);
+                values = await formatValueForCurrencyDisplay(auth, res.values);
             }
 
             return {
@@ -628,16 +628,19 @@ export function checkCodeParameters(generateCode: GenerateCodeParameters, code: 
     }
 }
 
-async function formatValueForCurrencyDisplay(auth: giftbitRoutes.jwtauth.AuthorizationBadge, values: Value[]): Promise<Value[]> {
-    let formattedValues = [];
-    let retrievedCurrencies: { [key: string]: Currency } = {};
-    for (let object of values) {
-        if (!retrievedCurrencies[object.currency]) {
-            retrievedCurrencies[object.currency] = await getCurrency(auth, object.currency);
+type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>
+export type StringBalanceValue = Omit<Value, "balance"> & { balance: string | number };
+
+async function formatValueForCurrencyDisplay(auth: giftbitRoutes.jwtauth.AuthorizationBadge, values: Value[]): Promise<StringBalanceValue[]> {
+    const formattedValues: StringBalanceValue[] = [];
+    const retrievedCurrencies: { [key: string]: Currency } = {};
+    for (const value of values) {
+        if (!retrievedCurrencies[value.currency]) {
+            retrievedCurrencies[value.currency] = await getCurrency(auth, value.currency);
         }
         formattedValues.push({
-            ...object,
-            balance: object.balance != undefined ? formatAmountForCurrencyDisplay(object.balance, retrievedCurrencies[object.currency]) : object.balance
+            ...value,
+            balance: value.balance != undefined ? formatAmountForCurrencyDisplay(value.balance, retrievedCurrencies[value.currency]) : value.balance
         });
     }
     return formattedValues;
