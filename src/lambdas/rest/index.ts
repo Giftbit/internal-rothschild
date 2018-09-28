@@ -1,9 +1,9 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as logPrefix from "loglevel-plugin-prefix";
-import log = require("loglevel");
 import {installRestRoutes} from "./installRestRoutes";
-import {CodeCryptographySecrets, initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils";
+import {CodeCryptographySecrets, initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils"; // Prefix log messages with the level.
+import log = require("loglevel");
 
 // Prefix log messages with the level.
 logPrefix.reg(log);
