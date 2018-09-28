@@ -9,6 +9,7 @@ import {getContact} from "./contacts";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
 import {getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
 import log = require("loglevel");
+import {DbTransaction, LightrailDbTransactionStep, Transaction} from "../../model/Transaction";
 
 export function installContactValuesRest(router: cassava.Router): void {
     router.route("/v2/contacts/{id}/values")
@@ -117,11 +118,53 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         isGenericCode: null,
         contactId: contactId,
         usesRemaining: 1,
+        createdDate: now,
         updatedDate: now,
         updatedContactIdDate: now,
         createdBy: auth.teamMemberId
     };
     const dbClaimedValue: DbValue = Value.toDbValue(auth, claimedValue);
+
+    const attachTransaction: Transaction = {
+        id: claimedValue.id,
+        transactionType: "attach",
+        currency: originalValue.currency,
+        steps: [],
+        totals: null,
+        lineItems: null,
+        paymentSources: null,
+        createdDate: now,
+        createdBy: auth.teamMemberId,
+        metadata: null,
+        tax: null
+    };
+    const dbAttachTransaction: DbTransaction = Transaction.toDbTransaction(auth, attachTransaction);
+    const dbLightrailTransactionStep0: LightrailDbTransactionStep = {
+        userId: auth.userId,
+        id: `${dbAttachTransaction.id}-0`,
+        transactionId: dbAttachTransaction.id,
+        valueId: originalValue.id,
+        contactId: null,
+        balanceBefore: originalValue.balance,
+        balanceAfter: originalValue.balance,
+        balanceChange: 0,
+        usesRemainingBefore: originalValue.usesRemaining != null ? originalValue.usesRemaining : null,
+        usesRemainingAfter: originalValue.usesRemaining != null ? originalValue.usesRemaining - 1 : null,
+        usesRemainingChange: originalValue.usesRemaining != null ? -1 : null
+    };
+    const dbLightrailTransactionStep1: LightrailDbTransactionStep = {
+        userId: auth.userId,
+        id: `${dbAttachTransaction.id}-1`,
+        transactionId: dbAttachTransaction.id,
+        valueId: claimedValue.id,
+        contactId: claimedValue.contactId,
+        balanceBefore: claimedValue.balance != null ? 0 : null,
+        balanceAfter: claimedValue.balance,
+        balanceChange: claimedValue.balance || 0,
+        usesRemainingBefore: 0,
+        usesRemainingAfter: claimedValue.usesRemaining,
+        usesRemainingChange: claimedValue.usesRemaining
+    };
 
     const knex = await getKnexWrite();
     await knex.transaction(async trx => {
@@ -155,6 +198,13 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             }
             throw err;
         }
+
+        await trx("Transactions")
+            .insert(dbAttachTransaction);
+        await trx("LightrailTransactionSteps")
+            .insert(dbLightrailTransactionStep0);
+        await trx("LightrailTransactionSteps")
+            .insert(dbLightrailTransactionStep1);
     });
 
     return DbValue.toValue(dbClaimedValue);

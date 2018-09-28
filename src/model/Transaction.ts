@@ -147,6 +147,7 @@ function hasNonNullTotals(dbT: DbTransaction): boolean {
 
 export type TransactionType =
     "initialBalance"
+    | "attach"
     | "credit"
     | "debit"
     | "checkout"
@@ -165,6 +166,9 @@ export interface LightrailTransactionStep {
     balanceBefore: number;
     balanceAfter: number;
     balanceChange: number;
+    usesRemainingBefore?: number;
+    usesRemainingAfter?: number;
+    usesRemainingChange?: number;
 }
 
 export interface StripeTransactionStep {
@@ -213,6 +217,9 @@ export interface LightrailDbTransactionStep {
     balanceBefore: number;
     balanceAfter: number;
     balanceChange: number;
+    usesRemainingBefore: number | null;
+    usesRemainingAfter: number | null;
+    usesRemainingChange: number | null;
 }
 
 export interface StripeDbTransactionStep {
@@ -234,18 +241,6 @@ export interface InternalDbTransactionStep {
     balanceChange: number;
 }
 
-function isLightrailDbTransactionStep(step: DbTransactionStep): step is LightrailDbTransactionStep {
-    return (<LightrailDbTransactionStep>step).valueId !== undefined;
-}
-
-function isStripeDbTransactionStep(step: DbTransactionStep): step is StripeDbTransactionStep {
-    return (<StripeDbTransactionStep>step).chargeId !== undefined;
-}
-
-function isInternalDbTransactionStep(step: DbTransactionStep): step is InternalDbTransactionStep {
-    return (<InternalDbTransactionStep>step).internalId !== undefined;
-}
-
 export namespace DbTransactionStep {
     export function toTransactionStep(step: DbTransactionStep): TransactionStep {
         if (isLightrailDbTransactionStep(step)) {
@@ -259,6 +254,18 @@ export namespace DbTransactionStep {
         }
     }
 
+    export function isLightrailDbTransactionStep(step: DbTransactionStep): step is LightrailDbTransactionStep {
+        return (<LightrailDbTransactionStep>step).valueId !== undefined;
+    }
+
+    export function isStripeDbTransactionStep(step: DbTransactionStep): step is StripeDbTransactionStep {
+        return (<StripeDbTransactionStep>step).chargeId !== undefined;
+    }
+
+    export function isInternalDbTransactionStep(step: DbTransactionStep): step is InternalDbTransactionStep {
+        return (<InternalDbTransactionStep>step).internalId !== undefined;
+    }
+
     export function toLightrailTransactionStep(step: LightrailDbTransactionStep): LightrailTransactionStep {
         return {
             rail: "lightrail",
@@ -268,6 +275,9 @@ export namespace DbTransactionStep {
             balanceBefore: step.balanceBefore,
             balanceAfter: step.balanceAfter,
             balanceChange: step.balanceChange,
+            usesRemainingBefore: step.usesRemainingBefore !== null ? step.usesRemainingBefore : undefined,
+            usesRemainingAfter: step.usesRemainingAfter !== null ? step.usesRemainingAfter : undefined,
+            usesRemainingChange: step.usesRemainingChange !== null ? step.usesRemainingChange : undefined
         };
     }
 

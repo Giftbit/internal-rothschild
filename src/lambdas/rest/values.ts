@@ -39,7 +39,7 @@ export function installValuesRest(router: cassava.Router): void {
             // todo - remove this check once uses is no longer supported.
             if (evt.pathParameters.uses) {
                 evt.pathParameters.usesRemaining = evt.pathParameters.uses;
-                delete evt.pathParameters.uses
+                delete evt.pathParameters.uses;
             }
 
             const showCode: boolean = (evt.queryStringParameters.showCode === "true");
@@ -97,15 +97,6 @@ export function installValuesRest(router: cassava.Router): void {
                 statusCode: cassava.httpStatusCode.success.CREATED,
                 body: value
             };
-        });
-
-    router.route("/v2/values")
-        .method("PATCH")
-        .handler(async evt => {
-            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("userId");
-            auth.requireScopes("lightrailV2:values:list", "lightrailV2:values:update");
-            throw new giftbitRoutes.GiftbitRestError(500, "Not implemented");   // TODO
         });
 
     router.route("/v2/values/{id}")
@@ -356,7 +347,10 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 valueId: value.id,
                 balanceBefore: 0,
                 balanceAfter: value.balance,
-                balanceChange: value.balance
+                balanceChange: value.balance,
+                usesRemainingBefore: value.usesRemaining === null ? null : 0,
+                usesRemainingAfter: value.usesRemaining,
+                usesRemainingChange: value.usesRemaining
             };
             await trx.into("Transactions").insert(initialBalanceTransaction);
             await trx.into("LightrailTransactionSteps").insert(initialBalanceTransactionStep);
@@ -509,22 +503,23 @@ export async function injectValueStats(auth: giftbitRoutes.jwtauth.Authorization
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
-    const res: { valueId: string, balanceChange: number }[] = await knex("LightrailTransactionSteps")
+    const res: { valueId: string, balanceChange: number, usesRemainingChange }[] = await knex("LightrailTransactionSteps")
         .join("Transactions", {
             "Transactions.userId": "LightrailTransactionSteps.userId",
             "Transactions.id": "LightrailTransactionSteps.transactionId"
         })
         .where({
             "LightrailTransactionSteps.userId": auth.userId,
-            "Transactions.transactionType": "initialBalance"
+            "Transactions.transactionType": "initialBalance"    // TODO how do I get the right attach transaction step here?
         })
         .whereIn("LightrailTransactionSteps.valueId", values.map(value => value.id))
-        .select("LightrailTransactionSteps.valueId", "LightrailTransactionSteps.balanceChange");
+        .select("LightrailTransactionSteps.valueId", "LightrailTransactionSteps.balanceChange", "LightrailTransactionSteps.usesRemainingChange");
 
-    const valueMap: { [id: string]: Value & { stats: { initialBalance: number } } } = {};
+    const valueMap: { [id: string]: Value & { stats: { initialBalance: number | null, initialUsesRemaining: number | null } } } = {};
     for (const value of values) {
         (value as any).stats = {
-            initialBalance: 0
+            initialBalance: null,
+            initialUsesRemaining: null
         };
         valueMap[value.id] = value as any;
     }
@@ -536,6 +531,7 @@ export async function injectValueStats(auth: giftbitRoutes.jwtauth.Authorization
             continue;
         }
         value.stats.initialBalance = row.balanceChange;
+        value.stats.initialUsesRemaining = row.usesRemainingChange;
     }
 }
 

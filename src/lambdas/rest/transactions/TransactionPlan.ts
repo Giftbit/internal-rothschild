@@ -41,6 +41,7 @@ export interface LightrailTransactionPlanStep {
     rail: "lightrail";
     value: Value;
     amount: number;
+    uses?: number | null;
 }
 
 export interface StripeTransactionPlanStep {
@@ -72,7 +73,10 @@ export namespace LightrailTransactionPlanStep {
             userId: auth.userId,
             id: `${plan.id}-${stepIndex}`,
             transactionId: plan.id,
-            ...getSharedProperties(step)
+            ...getSharedProperties(step),
+            usesRemainingBefore: step.value.usesRemaining,
+            usesRemainingAfter: step.value.usesRemaining != null ? step.value.usesRemaining + step.uses : null,
+            usesRemainingChange: step.uses
         };
     }
 
@@ -84,19 +88,14 @@ export namespace LightrailTransactionPlanStep {
     }
 
     function getSharedProperties(step: LightrailTransactionPlanStep) {
-        let sharedProperties = {
+        return {
             valueId: step.value.id,
             contactId: step.value.contactId,
             code: step.value.code,
             balanceBefore: step.value.balance,
-            balanceAfter: step.value.balance + step.amount,
+            balanceAfter: step.value.balance != null ? step.value.balance + step.amount : null,
             balanceChange: step.amount
         };
-        if (step.value.balanceRule !== null) {
-            sharedProperties.balanceBefore = 0;
-            sharedProperties.balanceAfter = 0;
-        }
-        return sharedProperties;
     }
 }
 

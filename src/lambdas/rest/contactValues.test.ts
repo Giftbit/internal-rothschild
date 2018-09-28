@@ -9,17 +9,11 @@ import {createContact} from "./contacts";
 import {Currency} from "../../model/Currency";
 import {createCurrency} from "./currencies";
 import {Value} from "../../model/Value";
+import {Transaction} from "../../model/Transaction";
 
 describe("/v2/contacts/values", () => {
 
     const router = new cassava.Router();
-
-    before(async function () {
-        await testUtils.resetDb();
-        router.route(testUtils.authRoute);
-        installRestRoutes(router);
-        await setCodeCryptographySecrets();
-    });
 
     const currency: Currency = {
         code: "AUD",
@@ -39,12 +33,18 @@ describe("/v2/contacts/values", () => {
         createdBy: defaultTestUser.auth.teamMemberId
     };
 
+    before(async function () {
+        await testUtils.resetDb();
+        router.route(testUtils.authRoute);
+        installRestRoutes(router);
+        await setCodeCryptographySecrets();
+        await createCurrency(testUtils.defaultTestUser.auth, currency);
+        await createContact(testUtils.defaultTestUser.auth, contact);
+    });
+
     let value1: Value;
 
     it("can attach a code-less Value by valueId", async () => {
-        await createCurrency(testUtils.defaultTestUser.auth, currency);
-        await createContact(testUtils.defaultTestUser.auth, contact);
-
         const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
             id: "add-code-less-by-id",
             currency: currency.code
@@ -73,8 +73,7 @@ describe("/v2/contacts/values", () => {
                 explanation: "$5 done the hard way"
             },
             code: code,
-            isGenericCode: true,
-            usesRemaining: null
+            isGenericCode: true
         });
         chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
 
@@ -92,6 +91,45 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(resp2.body.updatedContactIdDate, resp2.body.updatedDate);
         chai.assert.equal(resp2.body.createdBy, testUtils.defaultTestUser.auth.teamMemberId);
         value2 = resp2.body;
+
+        // Should be a transaction for the attach.
+        const resp3 = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${resp2.body.id}`, "GET");
+        chai.assert.equal(resp3.statusCode, 200, `there should be a transaction for the attach body=${JSON.stringify(resp2.body)}`);
+        chai.assert.deepEqual(resp3.body, {
+            id: resp2.body.id,
+            transactionType: "attach",
+            currency: resp2.body.currency,
+            steps: [
+                {
+                    rail: "lightrail",
+                    valueId: resp1.body.id,
+                    contactId: null,
+                    code: null,
+                    balanceBefore: null,
+                    balanceAfter: null,
+                    balanceChange: 0
+                },
+                {
+                    rail: "lightrail",
+                    valueId: resp2.body.id,
+                    contactId: resp2.body.contactId,
+                    code: null,
+                    balanceBefore: null,
+                    balanceAfter: null,
+                    balanceChange: 0,
+                    usesRemainingBefore: 0,
+                    usesRemainingAfter: 1,
+                    usesRemainingChange: 1
+                }
+            ],
+            totals: null,
+            lineItems: null,
+            paymentSources: null,
+            createdDate: resp2.body.createdDate,
+            createdBy: resp2.body.createdBy,
+            metadata: null,
+            tax: null
+        });
     });
 
     const value3Code = "GETONDOWN";
@@ -128,7 +166,126 @@ describe("/v2/contacts/values", () => {
         // usesRemaining should be decremented on original Value.
         const resp3 = await await testUtils.testAuthedRequest<Value>(router, `/v2/values/${resp1.body.id}`, "GET");
         chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp3.body)}`);
-        chai.assert.equal(resp3.body.usesRemaining, 19);
+        chai.assert.equal(resp3.body.usesRemaining, resp1.body.usesRemaining - 1);
+
+        // Should be a transaction for the attach.
+        const resp4 = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${resp2.body.id}`, "GET");
+        chai.assert.equal(resp4.statusCode, 200, `there should be a transaction for the attach body=${JSON.stringify(resp2.body)}`);
+        chai.assert.deepEqual(resp4.body, {
+            id: resp2.body.id,
+            transactionType: "attach",
+            currency: resp2.body.currency,
+            steps: [
+                {
+                    rail: "lightrail",
+                    valueId: resp1.body.id,
+                    contactId: null,
+                    code: null,
+                    balanceBefore: null,
+                    balanceAfter: null,
+                    balanceChange: 0,
+                    usesRemainingBefore: resp1.body.usesRemaining,
+                    usesRemainingAfter: resp1.body.usesRemaining - 1,
+                    usesRemainingChange: -1
+                },
+                {
+                    rail: "lightrail",
+                    valueId: resp2.body.id,
+                    contactId: resp2.body.contactId,
+                    code: null,
+                    balanceBefore: null,
+                    balanceAfter: null,
+                    balanceChange: 0,
+                    usesRemainingBefore: 0,
+                    usesRemainingAfter: 1,
+                    usesRemainingChange: 1
+                }
+            ],
+            totals: null,
+            lineItems: null,
+            paymentSources: null,
+            createdDate: resp2.body.createdDate,
+            createdBy: resp2.body.createdBy,
+            metadata: null,
+            tax: null
+        });
+    });
+
+    const value4Code = "GETYOURFREAKON";
+    let value4: Value;
+
+    it("can attach a generic-code Value with a balance", async () => {
+        const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: "add-generic-with-balance",
+            currency: currency.code,
+            balance: 500,
+            code: value4Code,
+            isGenericCode: true,
+            usesRemaining: 135
+        });
+        chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
+
+        // Should return a new Value.
+        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: value4Code});
+        chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
+        chai.assert.equal(resp2.body.currency, resp1.body.currency);
+        chai.assert.deepEqual(resp2.body.balance, resp1.body.balance);
+        chai.assert.equal(resp2.body.contactId, contact.id);
+        chai.assert.equal(resp2.body.usesRemaining, 1);
+        chai.assert.equal(resp2.body.code, null);
+        chai.assert.equal(resp2.body.isGenericCode, null);
+        chai.assert.notEqual(resp2.body.id, resp1.body.id);
+        chai.assert.isNotNull(resp2.body.updatedContactIdDate);
+        chai.assert.equal(resp2.body.updatedContactIdDate, resp2.body.updatedDate);
+        value4 = resp2.body;
+
+        // usesRemaining should be decremented on original Value and balance unchanged.
+        const resp3 = await await testUtils.testAuthedRequest<Value>(router, `/v2/values/${resp1.body.id}`, "GET");
+        chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp3.body)}`);
+        chai.assert.equal(resp3.body.balance, resp1.body.balance);
+        chai.assert.equal(resp3.body.usesRemaining, resp1.body.usesRemaining - 1);
+
+        // Should be a transaction for the attach.
+        const resp4 = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${resp2.body.id}`, "GET");
+        chai.assert.equal(resp4.statusCode, 200, `there should be a transaction for the attach body=${JSON.stringify(resp2.body)}`);
+        chai.assert.deepEqual(resp4.body, {
+            id: resp2.body.id,
+            transactionType: "attach",
+            currency: resp2.body.currency,
+            steps: [
+                {
+                    rail: "lightrail",
+                    valueId: resp1.body.id,
+                    contactId: null,
+                    code: null,
+                    balanceBefore: resp1.body.balance,
+                    balanceAfter: resp1.body.balance,
+                    balanceChange: 0,
+                    usesRemainingBefore: resp1.body.usesRemaining,
+                    usesRemainingAfter: resp1.body.usesRemaining - 1,
+                    usesRemainingChange: -1
+                },
+                {
+                    rail: "lightrail",
+                    valueId: resp2.body.id,
+                    contactId: resp2.body.contactId,
+                    code: null,
+                    balanceBefore: 0,
+                    balanceAfter: resp1.body.balance,
+                    balanceChange: resp1.body.balance,
+                    usesRemainingBefore: 0,
+                    usesRemainingAfter: 1,
+                    usesRemainingChange: 1
+                }
+            ],
+            totals: null,
+            lineItems: null,
+            paymentSources: null,
+            createdDate: resp2.body.createdDate,
+            createdBy: resp2.body.createdBy,
+            metadata: null,
+            tax: null
+        });
     });
 
     it("a Contact cannot claim a generic-code Value twice", async () => {
@@ -157,41 +314,19 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(resp2.body.messageCode, "InsufficientUsesRemaining");
     });
 
-    const value4Code = "DROPITLIKEITSHOT";
-    let value4: Value;
-
-    it("can attach a unique-code Value by code", async () => {
-        const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
-            id: "add-unique-by-id",
-            currency: currency.code,
-            code: value4Code
-        });
-        chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
-        value4 = resp1.body;
-
-        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value4.id});
-        chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
-        chai.assert.equal(resp2.body.id, value4.id);
-        chai.assert.equal(resp2.body.contactId, contact.id);
-        chai.assert.equal(resp2.body.code, `…${value4Code.slice(-4)}`);
-        chai.assert.isNotNull(resp2.body.updatedContactIdDate);
-        chai.assert.equal(resp2.body.updatedContactIdDate, resp2.body.updatedDate);
-        value4 = resp2.body;
-    });
-
-    const value5Code = "ANDPICKITBACKUP";
+    const value5Code = "DROPITLIKEITSHOT";
     let value5: Value;
 
-    it("can attach a unique-code Value by code", async () => {
+    it("can attach a unique-code Value by valueId", async () => {
         const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
-            id: "add-unique-by-code",
+            id: "add-unique-by-id",
             currency: currency.code,
             code: value5Code
         });
         chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
         value5 = resp1.body;
 
-        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: value5Code});
+        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value5.id});
         chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
         chai.assert.equal(resp2.body.id, value5.id);
         chai.assert.equal(resp2.body.contactId, contact.id);
@@ -201,8 +336,30 @@ describe("/v2/contacts/values", () => {
         value5 = resp2.body;
     });
 
-    let value6Code: string;
+    const value6Code = "ANDPICKITBACKUP";
     let value6: Value;
+
+    it("can attach a unique-code Value by code", async () => {
+        const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: "add-unique-by-code",
+            currency: currency.code,
+            code: value6Code
+        });
+        chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
+        value6 = resp1.body;
+
+        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: value6Code});
+        chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
+        chai.assert.equal(resp2.body.id, value6.id);
+        chai.assert.equal(resp2.body.contactId, contact.id);
+        chai.assert.equal(resp2.body.code, `…${value6Code.slice(-4)}`);
+        chai.assert.isNotNull(resp2.body.updatedContactIdDate);
+        chai.assert.equal(resp2.body.updatedContactIdDate, resp2.body.updatedDate);
+        value6 = resp2.body;
+    });
+
+    let value7Code: string;
+    let value7: Value;
 
     it("can attach a unique-generated-code Value by code", async () => {
         const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
@@ -213,20 +370,20 @@ describe("/v2/contacts/values", () => {
             }
         });
         chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
-        value6 = resp1.body;
+        value7 = resp1.body;
 
-        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value6.id}?showCode=true`, "GET");
+        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value7.id}?showCode=true`, "GET");
         chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
-        value6Code = resp2.body.code;
+        value7Code = resp2.body.code;
 
-        const resp3 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: value6Code});
+        const resp3 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: value7Code});
         chai.assert.equal(resp3.statusCode, 200, `body=${JSON.stringify(resp3.body)}`);
-        chai.assert.equal(resp3.body.id, value6.id);
+        chai.assert.equal(resp3.body.id, value7.id);
         chai.assert.equal(resp3.body.contactId, contact.id);
-        chai.assert.equal(resp3.body.code, `…${value6Code.slice(-4)}`);
+        chai.assert.equal(resp3.body.code, `…${value7Code.slice(-4)}`);
         chai.assert.isNotNull(resp3.body.updatedContactIdDate);
         chai.assert.equal(resp3.body.updatedContactIdDate, resp3.body.updatedDate);
-        value6 = resp3.body;
+        value7 = resp3.body;
     });
 
     const contact2: Contact = {
@@ -243,16 +400,16 @@ describe("/v2/contacts/values", () => {
     it("can list values attached to a contact", async () => {
         const resp1 = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${contact.id}/values`, "GET");
         chai.assert.equal(resp1.statusCode, 200, `body=${JSON.stringify(resp1.body)}`);
-        chai.assert.sameDeepMembers(resp1.body, [value1, value2, value3, value4, value5, value6]);
+        chai.assert.sameDeepMembers(resp1.body, [value1, value2, value3, value4, value5, value6, value7]);
     });
 
     it("can list values attached to a contact with showCode = true", async () => {
         const resp1 = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${contact.id}/values?showCode=true`, "GET");
         chai.assert.equal(resp1.statusCode, 200, `body=${JSON.stringify(resp1.body)}`);
 
-        chai.assert.isObject(resp1.body.find(v => v.code === value4Code), "find a Value with decrypted value4Code");
         chai.assert.isObject(resp1.body.find(v => v.code === value5Code), "find a Value with decrypted value5Code");
         chai.assert.isObject(resp1.body.find(v => v.code === value6Code), "find a Value with decrypted value6Code");
+        chai.assert.isObject(resp1.body.find(v => v.code === value7Code), "find a Value with decrypted value7Code");
     });
 
     it("cannot attach an already attached value using a token scoped to a Contact", async () => {
@@ -266,24 +423,24 @@ describe("/v2/contacts/values", () => {
                 Authorization: `Bearer ${contact2Badge.sign("secret")}`,
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({code: value6Code})
+            body: JSON.stringify({code: value7Code})
         }));
         chai.assert.equal(resp.statusCode, 409, `body=${resp.body}`);
         chai.assert.equal(JSON.parse(resp.body).messageCode, "ValueNotFound", `body=${resp.body}`);
     });
 
     it("can attach an already attached value using a plain JWT", async () => {
-        const resp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact2.id}/values/attach`, "POST", {code: value6Code});
+        const resp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact2.id}/values/attach`, "POST", {code: value7Code});
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.equal(resp.body.id, value6.id);
+        chai.assert.equal(resp.body.id, value7.id);
         chai.assert.equal(resp.body.contactId, contact2.id);
-        chai.assert.equal(resp.body.code, `…${value6Code.slice(-4)}`);
+        chai.assert.equal(resp.body.code, `…${value7Code.slice(-4)}`);
         chai.assert.isNotNull(resp.body.updatedContactIdDate);
         chai.assert.equal(resp.body.updatedContactIdDate, resp.body.updatedDate);
-        value6.contactId = contact2.id;
+        value7.contactId = contact2.id;
     });
 
-    let value7: Value;
+    let value8: Value;
 
     it("cannot attach a frozen Value", async () => {
         const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
@@ -291,19 +448,19 @@ describe("/v2/contacts/values", () => {
             currency: currency.code
         });
         chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
-        value7 = resp1.body;
+        value8 = resp1.body;
 
-        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value7.id}`, "PATCH", {
+        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value8.id}`, "PATCH", {
             frozen: true
         });
         chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
 
-        const resp3 = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value7.id});
+        const resp3 = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value8.id});
         chai.assert.equal(resp3.statusCode, 409, `body=${JSON.stringify(resp3.body)}`);
         chai.assert.equal(resp3.body.messageCode, "ValueFrozen");
     });
 
-    let value8: Value;
+    let value9: Value;
 
     it("cannot attach a canceled Value", async () => {
         const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
@@ -311,14 +468,14 @@ describe("/v2/contacts/values", () => {
             currency: currency.code
         });
         chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
-        value8 = resp1.body;
+        value9 = resp1.body;
 
-        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value8.id}`, "PATCH", {
+        const resp2 = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value9.id}`, "PATCH", {
             canceled: true
         });
         chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
 
-        const resp3 = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value8.id});
+        const resp3 = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value9.id});
         chai.assert.equal(resp3.statusCode, 409, `body=${JSON.stringify(resp3.body)}`);
         chai.assert.equal(resp3.body.messageCode, "ValueCanceled");
     });
