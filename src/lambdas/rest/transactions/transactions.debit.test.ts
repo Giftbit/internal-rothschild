@@ -63,7 +63,7 @@ describe("/v2/transactions/debit", () => {
                 {
                     rail: "lightrail",
                     valueId: value1.id,
-                    code: "...CODE",
+                    code: "…CODE",
                     contactId: null,
                     balanceBefore: 1000,
                     balanceAfter: 401,
@@ -150,7 +150,7 @@ describe("/v2/transactions/debit", () => {
                 {
                     rail: "lightrail",
                     valueId: valueWithCode.id,
-                    code: "...ARGE",
+                    code: "…ARGE",
                     contactId: null,
                     balanceBefore: 1000,
                     balanceAfter: 999,
@@ -268,7 +268,7 @@ describe("/v2/transactions/debit", () => {
                 {
                     rail: "lightrail",
                     valueId: value1.id,
-                    code: "...CODE",
+                    code: "…CODE",
                     contactId: null,
                     balanceBefore: 401,
                     balanceAfter: 101,
@@ -311,7 +311,7 @@ describe("/v2/transactions/debit", () => {
                 {
                     rail: "lightrail",
                     valueId: value1.id,
-                    code: "...CODE",
+                    code: "…CODE",
                     contactId: null,
                     balanceBefore: 401,
                     balanceAfter: 0,

@@ -180,5 +180,5 @@ function dbValueCodeToValueCode(v: DbValue, showCode: boolean): string {
 }
 
 export function formatCodeForLastFourDisplay(code: string): string {
-    return "..." + getCodeLastFourNoPrefix(code);
+    return "…" + getCodeLastFourNoPrefix(code);
 }

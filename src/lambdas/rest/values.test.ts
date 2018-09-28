@@ -746,11 +746,11 @@ describe("/v2/values/", () => {
 
         const post = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(post.statusCode, 201, `body=${JSON.stringify(post.body)}`);
-        chai.assert.equal(post.body.code, "...ⳢⳫⳂⳀ");
+        chai.assert.equal(post.body.code, "…ⳢⳫⳂⳀ");
 
         const get = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(get.statusCode, 200, `body=${JSON.stringify(get.body)}`);
-        chai.assert.equal(get.body.code, "...ⳢⳫⳂⳀ");
+        chai.assert.equal(get.body.code, "…ⳢⳫⳂⳀ");
 
         const showCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}?showCode=true`, "GET");
         chai.assert.equal(showCode.statusCode, 200, `body=${JSON.stringify(showCode.body)}`);
@@ -769,7 +769,7 @@ describe("/v2/values/", () => {
 
         const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
         let codeInListShowCodeFalse: Value = list.body.find(it => it.id === value.id);
-        chai.assert.equal(codeInListShowCodeFalse.code, "...ⳢⳫⳂⳀ");
+        chai.assert.equal(codeInListShowCodeFalse.code, "…ⳢⳫⳂⳀ");
         const listShowCode = await testUtils.testAuthedRequest<any>(router, `/v2/values?showCode=true`, "GET");
         let codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === value.id);
         chai.assert.equal(codeInListShowCodeTrue.code, "芷若⳥ⳢⳫⳂⳀ");
@@ -824,12 +824,12 @@ describe("/v2/values/", () => {
 
         const respPost = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", secureCode);
         chai.assert.equal(respPost.statusCode, 201, `body=${JSON.stringify(respPost.body)}`);
-        chai.assert.equal(respPost.body.code, "...CURE");
+        chai.assert.equal(respPost.body.code, "…CURE");
         chai.assert.isFalse(respPost.body.isGenericCode);
 
         const respGet = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${secureCode.id}`, "GET");
         chai.assert.equal(respGet.statusCode, 200, `body=${JSON.stringify(respGet.body)}`);
-        chai.assert.equal(respGet.body.code, "...CURE");
+        chai.assert.equal(respGet.body.code, "…CURE");
         chai.assert.isFalse(respGet.body.isGenericCode);
 
         const showCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${secureCode.id}?showCode=true`, "GET");
@@ -850,7 +850,7 @@ describe("/v2/values/", () => {
 
         const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
         let codeInListShowCodeFalse: Value = list.body.find(it => it.id === secureCode.id);
-        chai.assert.equal(codeInListShowCodeFalse.code, "...CURE");
+        chai.assert.equal(codeInListShowCodeFalse.code, "…CURE");
         const listShowCode = await testUtils.testAuthedRequest<any>(router, `/v2/values?showCode=true`, "GET");
         let codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === secureCode.id);
         chai.assert.equal(codeInListShowCodeTrue.code, "SECURE");
@@ -932,8 +932,8 @@ describe("/v2/values/", () => {
         it("can generate a code with empty generateCode parameters", async () => {
             const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
             chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
-            const lastFour = create.body.code.substring(3);
-            chai.assert.equal(create.body.code, "..." + lastFour);
+            const lastFour = create.body.code.substring(1);
+            chai.assert.equal(create.body.code, "…" + lastFour);
             chai.assert.equal(lastFour.length, 4);
 
             const showCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}?showCode=true`, "GET");
@@ -967,8 +967,8 @@ describe("/v2/values/", () => {
             chai.assert.equal(changeCodeSecure.statusCode, 200, `body=${JSON.stringify(changeCodeSecure.body)}`);
 
             const get = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET", value);
-            const lastFour = get.body.code.substring(3);
-            chai.assert.equal(get.body.code, "..." + lastFour);
+            const lastFour = get.body.code.substring(1);
+            chai.assert.equal(get.body.code, "…" + lastFour);
             chai.assert.equal(lastFour.length, 4);
 
             const showCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}?showCode=true`, "GET");

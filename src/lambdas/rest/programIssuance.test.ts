@@ -226,7 +226,7 @@ describe("/v2/issuances", () => {
         const listResponse = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?limit=1000&issuanceId=${issuance.id}`, "GET");
         chai.assert.equal(listResponse.statusCode, 200, `body=${JSON.stringify(listResponse.body)}`);
         chai.assert.equal(listResponse.body.length, issuance.count);
-        chai.assert.equal(listResponse.body[0].code, "...WKRJ");
+        chai.assert.equal(listResponse.body[0].code, "…WKRJ");
         chai.assert.isFalse(listResponse.body[0].isGenericCode);
     });
 

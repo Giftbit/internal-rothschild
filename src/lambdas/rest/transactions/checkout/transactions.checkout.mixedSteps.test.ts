@@ -472,7 +472,7 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             "paymentSources": [
                 {
                     rail: "lightrail",
-                    code: "...CRET"
+                    code: "…CRET"
                 },
                 {
                     rail: "lightrail",
@@ -492,7 +492,7 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             rail: "lightrail",
             valueId: valueSecretCode.id,
             contactId: null,
-            code: "...CRET",
+            code: "…CRET",
             balanceBefore: 100,
             balanceAfter: 0,
             balanceChange: -100
