@@ -312,9 +312,12 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     try {
         await trx.into("Values")
             .insert(dbValue);
-        if (value.balance) {
+        if (value.balance || value.usesRemaining) {
             if (value.balance < 0) {
                 throw new Error("balance cannot be negative");
+            }
+            if (value.usesRemaining < 0) {
+                throw new Error("usesRemaining cannot be negative");
             }
 
             const transactionId = value.id;
@@ -345,10 +348,10 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 id: `${value.id}-0`,
                 transactionId: transactionId,
                 valueId: value.id,
-                balanceBefore: 0,
+                balanceBefore: value.balance != null ? 0 : null,
                 balanceAfter: value.balance,
                 balanceChange: value.balance,
-                usesRemainingBefore: value.usesRemaining === null ? null : 0,
+                usesRemainingBefore: value.usesRemaining != null ? 0 : null,
                 usesRemainingAfter: value.usesRemaining,
                 usesRemainingChange: value.usesRemaining
             };
@@ -508,18 +511,27 @@ export async function injectValueStats(auth: giftbitRoutes.jwtauth.Authorization
             "Transactions.userId": "LightrailTransactionSteps.userId",
             "Transactions.id": "LightrailTransactionSteps.transactionId"
         })
-        .where({
-            "LightrailTransactionSteps.userId": auth.userId,
-            "Transactions.transactionType": "initialBalance"    // TODO how do I get the right attach transaction step here?
-        })
+        .where({"LightrailTransactionSteps.userId": auth.userId})
         .whereIn("LightrailTransactionSteps.valueId", values.map(value => value.id))
+        .where(query =>
+            query.where({"Transactions.transactionType": "initialBalance"})
+                .orWhere(query =>
+                    query.where({
+                        // `attach` transactions have 2 steps.  The steps for the Value being created
+                        // goes from 0 usesRemaining to 1.
+                        "Transactions.transactionType": "attach",
+                        "LightrailTransactionSteps.usesRemainingBefore": 0,
+                        "LightrailTransactionSteps.usesRemainingChange": 1
+                    })
+                )
+        )
         .select("LightrailTransactionSteps.valueId", "LightrailTransactionSteps.balanceChange", "LightrailTransactionSteps.usesRemainingChange");
 
     const valueMap: { [id: string]: Value & { stats: { initialBalance: number | null, initialUsesRemaining: number | null } } } = {};
     for (const value of values) {
         (value as any).stats = {
-            initialBalance: null,
-            initialUsesRemaining: null
+            initialBalance: value.balance != null ? 0 : null,
+            initialUsesRemaining: value.usesRemaining != null ? 0 : null
         };
         valueMap[value.id] = value as any;
     }

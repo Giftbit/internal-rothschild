@@ -214,9 +214,9 @@ export interface LightrailDbTransactionStep {
     valueId: string;
     contactId?: string;
     code?: string;
-    balanceBefore: number;
-    balanceAfter: number;
-    balanceChange: number;
+    balanceBefore: number | null;
+    balanceAfter: number | null;
+    balanceChange: number | null;
     usesRemainingBefore: number | null;
     usesRemainingAfter: number | null;
     usesRemainingChange: number | null;
@@ -275,9 +275,9 @@ export namespace DbTransactionStep {
             balanceBefore: step.balanceBefore,
             balanceAfter: step.balanceAfter,
             balanceChange: step.balanceChange,
-            usesRemainingBefore: step.usesRemainingBefore !== null ? step.usesRemainingBefore : undefined,
-            usesRemainingAfter: step.usesRemainingAfter !== null ? step.usesRemainingAfter : undefined,
-            usesRemainingChange: step.usesRemainingChange !== null ? step.usesRemainingChange : undefined
+            usesRemainingBefore: step.usesRemainingBefore,
+            usesRemainingAfter: step.usesRemainingAfter,
+            usesRemainingChange: step.usesRemainingChange
         };
     }
 
