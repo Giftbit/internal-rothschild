@@ -4,6 +4,7 @@ import * as logPrefix from "loglevel-plugin-prefix";
 import {installRestRoutes} from "./installRestRoutes";
 import {CodeCryptographySecrets, initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils"; // Prefix log messages with the level.
 import log = require("loglevel");
+import {initializeIntercomSecrets, IntercomSecrets} from "../../utils/intercomUtils";
 
 // Prefix log messages with the level.
 logPrefix.reg(log);
@@ -35,6 +36,10 @@ router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute({
 
 initializeCodeCryptographySecrets(
     giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<CodeCryptographySecrets>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY")
+);
+
+initializeIntercomSecrets(
+    giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<IntercomSecrets>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_INTERCOM_SECRET")
 );
 
 installRestRoutes(router);
