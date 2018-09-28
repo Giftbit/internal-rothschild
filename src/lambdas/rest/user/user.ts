@@ -12,7 +12,6 @@ export function installUserRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
-            auth.requireScopes("lightrailV2");
 
             const hmac = crypto.createHmac("sha256", getIntercomSecret());
             hmac.update(auth.userId);

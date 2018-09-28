@@ -447,18 +447,29 @@ async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
 async function updateDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, value: Partial<DbValue>): Promise<Value> {
     auth.requireIds("userId");
 
-    const knex = await getKnexWrite();
-    const res = await knex("Values")
-        .where({
-            userId: auth.userId,
-            id: id
-        })
-        .update(value);
-    if (res === 0) {
-        throw new cassava.RestError(404);
-    }
-    if (res > 1) {
-        throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
+    try {
+        const knex = await getKnexWrite();
+        const res = await knex("Values")
+            .where({
+                userId: auth.userId,
+                id: id
+            })
+            .update(value);
+        if (res === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (res > 1) {
+            throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
+        }
+    } catch (err) {
+        const constraint = getSqlErrorConstraintName(err);
+        if (constraint === "uq_Values_codeHashed") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with the given code already exists.`, "ValueCodeExists");
+        }
+        if (constraint === "fk_Values_Currencies") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${value.currency}' does not exist. See the documentation on creating currencies.`, "CurrencyNotFound");
+        }
+        throw err;
     }
     return {
         ...await getValue(auth, id)

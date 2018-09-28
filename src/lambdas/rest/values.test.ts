@@ -917,6 +917,29 @@ describe("/v2/values/", () => {
         }
     });
 
+    it("cannot change a code to one already in use", async () => {
+        const code = generateId();
+
+        const res = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: generateId(),
+            currency: "USD",
+            code: code
+        });
+        chai.assert.equal(res.statusCode, 201, `body=${JSON.stringify(res.body)}`);
+
+        const res2 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: generateId(),
+            currency: "USD"
+        });
+        chai.assert.equal(res2.statusCode, 201, `body=${JSON.stringify(res.body)}`);
+
+        const res3 = await testUtils.testAuthedRequest<any>(router, `/v2/values/${res2.body.id}/changeCode`, "POST", {
+            code: code
+        });
+        chai.assert.equal(res3.statusCode, 409, `body=${JSON.stringify(res.body)}`);
+        chai.assert.equal(res3.body.messageCode, "ValueCodeExists");
+    });
+
     describe("code generation tests", () => {
         let value = {
             id: "generateCodeTest-1",
