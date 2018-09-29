@@ -58,7 +58,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         try {
             await insertTransaction(trx, auth, plan);
         } catch (err) {
-            log.warn(`Error inserting transaction: ${err}`);
+            log.warn("Error inserting transaction:", err);
             if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "TransactionExists") {
                 throw err;
             } else {

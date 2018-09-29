@@ -142,13 +142,14 @@ describe("rest/transactions/executeTransactionPlan", () => {
 
         const plan: TransactionPlan = {
             id: "xxx",
-            transactionType: "credit",
+            transactionType: "debit",
             currency: "CAD",
             steps: [
                 {
                     rail: "lightrail",
                     value: DbValue.toValue(value),
-                    amount: 1200
+                    amount: -1200,
+                    uses: -1
                 }
             ],
             totals: {remainder: null},

@@ -168,7 +168,7 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
         }, ["createdDate", "createdBy"]);
     });
 
-    it.only("basic 25% off select item", async () => {
+    it("basic 25% off select item", async () => {
         const promotion: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
@@ -415,8 +415,8 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "valueId": productPromotion.id,
                     "contactId": null,
                     "code": null,
-                    "balanceBefore": 0,
-                    "balanceAfter": 0,
+                    "balanceBefore": null,
+                    "balanceAfter": null,
                     "balanceChange": -100,
                     "usesRemainingBefore": null,
                     "usesRemainingAfter": null,
@@ -427,8 +427,8 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "valueId": cartPromotion.id,
                     "contactId": null,
                     "code": null,
-                    "balanceBefore": 0,
-                    "balanceAfter": 0,
+                    "balanceBefore": null,
+                    "balanceAfter": null,
                     "balanceChange": -25,
                     "usesRemainingBefore": null,
                     "usesRemainingAfter": null,
@@ -612,8 +612,8 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "valueId": cartPromotion.id,
                     "contactId": null,
                     "code": null,
-                    "balanceBefore": 0,
-                    "balanceAfter": 0,
+                    "balanceBefore": null,
+                    "balanceAfter": null,
                     "balanceChange": -85,
                     "usesRemainingBefore": null,
                     "usesRemainingAfter": null,
@@ -756,12 +756,12 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "valueId": promotion.id,
                     "contactId": null,
                     "code": null,
-                    "balanceBefore": 0,
-                    "balanceAfter": 0,
+                    "balanceBefore": null,
+                    "balanceAfter": null,
                     "balanceChange": -768,
-                    "usesRemainingBefore": null,
-                    "usesRemainingAfter": null,
-                    "usesRemainingChange": null
+                    "usesRemainingBefore": 1,
+                    "usesRemainingAfter": 0,
+                    "usesRemainingChange": -1
                 }
             ],
             "paymentSources": [
@@ -945,24 +945,24 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
                     "valueId": promotion20PercentOffRemainder.id,
                     "contactId": null,
                     "code": null,
-                    "balanceBefore": 0,
-                    "balanceAfter": 0,
+                    "balanceBefore": null,
+                    "balanceAfter": null,
                     "balanceChange": -480,
-                    "usesRemainingBefore": null,
-                    "usesRemainingAfter": null,
-                    "usesRemainingChange": null
+                    "usesRemainingBefore": 1,
+                    "usesRemainingAfter": 0,
+                    "usesRemainingChange": -1
                 },
                 {
                     "rail": "lightrail",
                     "valueId": promotion10PercentOffSubtotal.id,
                     "contactId": null,
                     "code": null,
-                    "balanceBefore": 0,
-                    "balanceAfter": 0,
+                    "balanceBefore": null,
+                    "balanceAfter": null,
                     "balanceChange": -240,
-                    "usesRemainingBefore": null,
-                    "usesRemainingAfter": null,
-                    "usesRemainingChange": null
+                    "usesRemainingBefore": 1,
+                    "usesRemainingAfter": 0,
+                    "usesRemainingChange": -1
                 }
             ],
             "paymentSources": [

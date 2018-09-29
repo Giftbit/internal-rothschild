@@ -10,7 +10,7 @@ import {DbValue} from "../../../model/Value";
 import {Transaction} from "../../../model/Transaction";
 import Knex = require("knex");
 
-export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan) {
+export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<void> {
     try {
         await trx.into("Transactions")
             .insert(Transaction.toDbTransaction(auth, TransactionPlan.toTransaction(auth, plan)));
@@ -23,7 +23,7 @@ export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.A
     }
 }
 
-export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan) {
+export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan): Promise<void> {
     const steps = plan.steps.filter(step => step.rail === "lightrail");
     for (let stepIx = 0; stepIx < steps.length; stepIx++) {
         const step = steps[stepIx] as LightrailTransactionPlanStep;
@@ -38,7 +38,7 @@ export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtaut
 }
 
 async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, step: LightrailTransactionPlanStep, plan: TransactionPlan): Promise<void> {
-    let updateProperties: any = {
+    let updateProperties: { [P in keyof DbValue]?: DbValue[P] | Knex.Raw } = {
         updatedDate: plan.createdDate
     };
 
@@ -50,14 +50,14 @@ async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.Authoriza
     if (step.amount !== 0 && step.amount != null) {
         updateProperties.balance = trx.raw(`balance + ?`, [step.amount]);
     }
-    if (step.amount < 0) {
+    if (step.value.balance != null && step.amount < 0) {
         query = query.where("balance", ">=", -step.amount);
     }
     if (step.uses !== 0 && step.uses != null) {
         updateProperties.usesRemaining = trx.raw("usesRemaining + ?", [step.uses]);
     }
-    if (step.uses < 0) {
-        query = query.where("usesRemaining", ">", 0);
+    if (step.value.usesRemaining != null && step.uses < 0) {
+        query = query.where("usesRemaining", ">=", -step.uses);
     }
     query = query.update(updateProperties);
 
@@ -88,7 +88,7 @@ async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.Authoriza
     if (step.value.balance != null) {
         step.value.balance = selectRes[0].balance - step.amount;
     }
-    if (step.value.usesRemaining != null) {
+    if (step.value.usesRemaining != null && step.uses != null) {
         step.value.usesRemaining = selectRes[0].usesRemaining - step.uses;
     }
 }
