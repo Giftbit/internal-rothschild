@@ -354,6 +354,23 @@ const stripePartySchema: jsonschema.Schema = {
         },
         maxAmount: {
             type: "integer"
+        },
+        additionalStripeParams: {
+            type: "object",
+            properties: {
+                on_behalf_of: {
+                    type: "string"
+                },
+                receipt_email: {
+                    type: "string"
+                },
+                statement_descriptor: {
+                    type: "string"
+                },
+                transfer_group: {
+                    type: "string"
+                }
+            }
         }
     },
     anyOf: [
