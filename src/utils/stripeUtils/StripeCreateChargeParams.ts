@@ -5,4 +5,8 @@ export interface StripeCreateChargeParams {
     customer?: string;
     description?: string;
     metadata?: any;
+    on_behalf_of?: string;
+    receipt_email?: string;
+    statement_descriptor?: string;
+    transfer_group?: string;
 }
