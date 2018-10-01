@@ -47,6 +47,7 @@ export async function resolveTransactionParties(auth: giftbitRoutes.jwtauth.Auth
             source: p.source || null,
             customer: p.customer || null,
             maxAmount: p.maxAmount || null,
+            additionalStripeParams: p.additionalStripeParams || null,
             amount: 0
         }));
 
