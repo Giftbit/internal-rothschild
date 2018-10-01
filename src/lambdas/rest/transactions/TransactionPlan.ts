@@ -92,9 +92,9 @@ export namespace LightrailTransactionPlanStep {
             balanceBefore: step.value.balance,
             balanceAfter: step.value.balance != null ? step.value.balance + step.amount : null,
             balanceChange: step.amount,
-            usesRemainingBefore: step.value.usesRemaining !== undefined ? step.value.usesRemaining : null,
+            usesRemainingBefore: step.value.usesRemaining != null ? step.value.usesRemaining : null,
             usesRemainingAfter: step.value.usesRemaining != null ? step.value.usesRemaining + step.uses : null,
-            usesRemainingChange: step.uses !== undefined ? step.uses : null
+            usesRemainingChange: step.uses != null ? step.uses : null
         };
     }
 }

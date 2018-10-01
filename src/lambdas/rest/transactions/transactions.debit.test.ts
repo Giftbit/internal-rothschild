@@ -11,7 +11,7 @@ import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe("/v2/transactions/debit", () => {
+describe.only("/v2/transactions/debit", () => {
 
     const router = new cassava.Router();
 
@@ -232,6 +232,67 @@ describe("/v2/transactions/debit", () => {
         }, ["createdDate", "createdBy"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueWithGenericCode.id}`, "GET");
+        chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
+        chai.assert.equal(getValueResp.body.balance, 999);
+
+        const getDebitResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${postDebitResp.body.id}`, "GET");
+        chai.assert.equal(getDebitResp.statusCode, 200, `body=${JSON.stringify(getDebitResp.body)}`);
+        chai.assert.deepEqualExcluding(getDebitResp.body, postDebitResp.body, "statusCode");
+    });
+
+    it.only("debiting does not affect uses by default", async () => {
+        const valueWithUses = {
+            id: generateId(),
+            code: generateId(),
+            currency: "CAD",
+            balance: 2000,
+            usesRemaining: 20
+        };
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueWithUses);
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
+
+        const request = {
+            id: "debit-uses",
+            source: {
+                rail: "lightrail",
+                code: valueWithUses.code
+            },
+            amount: 1000,
+            currency: "CAD"
+        };
+        const postDebitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", request);
+
+        chai.assert.equal(postDebitResp.statusCode, 201, `body=${JSON.stringify(postDebitResp.body)}`);
+        chai.assert.deepEqualExcluding(postDebitResp.body, {
+            id: request.id,
+            transactionType: "debit",
+            currency: "CAD",
+            totals: {
+                remainder: 0
+            },
+            steps: [
+                {
+                    rail: "lightrail",
+                    valueId: valueWithUses.id,
+                    code: valueWithUses.code,
+                    contactId: null,
+                    balanceBefore: 2000,
+                    balanceAfter: 1000,
+                    balanceChange: -1000,
+                    usesRemainingBefore: 20,
+                    usesRemainingAfter: 20,
+                    usesRemainingChange: 0
+                }
+            ],
+            lineItems: null,
+            paymentSources: null,
+            metadata: null,
+            tax: null,
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
+        }, ["createdDate", "createdBy"]);
+
+        const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueWithUses.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
         chai.assert.equal(getValueResp.body.balance, 999);
 
