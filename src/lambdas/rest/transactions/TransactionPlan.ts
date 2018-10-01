@@ -54,7 +54,7 @@ export interface StripeTransactionPlanStep {
     customer?: string;
     maxAmount: number | null;
     amount: number;
-    additionalStripeParams?: AdditionalStripeChargeParams;
+    additionalStripeParams: AdditionalStripeChargeParams | null;
 
     /**
      * Result of creating the charge in Stripe is only set if the plan is executed.
