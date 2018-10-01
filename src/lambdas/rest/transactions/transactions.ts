@@ -223,7 +223,19 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable Value.", "InvalidParty");
             }
 
-            const amount = Math.min(req.amount, (parties[0] as LightrailTransactionPlanStep).value.balance);
+            const party = parties[0] as LightrailTransactionPlanStep;
+            if (req.amount && party.value.balance == null) {
+                throw new giftbitRoutes.GiftbitRestError(409, "Cannot debit amount from a Value with balance=null.", "NullBalance");
+            }
+            if (req.uses && party.value.uses == null) {
+                throw new giftbitRoutes.GiftbitRestError(409, "Cannot debit uses from a Value with uses=null.", "NullUses");
+            }
+            if (req.uses && req.allowRemainder !== true && req.uses > party.value.usesRemaining) {
+                throw new giftbitRoutes.GiftbitRestError(409, "Insufficient uses for the transaction.", "InsufficientUses");
+            }
+
+            const amount = req.amount != null ? Math.min(req.amount, party.value.balance) : null;
+            const uses = req.uses != null ? Math.min(req.uses, party.value.usesRemaining) : null;
             return {
                 id: req.id,
                 transactionType: "debit",
@@ -231,13 +243,16 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
                 steps: [
                     {
                         rail: "lightrail",
-                        value: (parties[0] as LightrailTransactionPlanStep).value,
-                        amount: -amount
+                        value: party.value,
+                        amount: amount && -amount,
+                        uses: uses && -uses
                     }
                 ],
                 createdDate: nowInDbPrecision(),
                 metadata: req.metadata,
-                totals: {remainder: req.amount - amount},
+                totals: {
+                    remainder: (req.amount || 0) - (amount || 0)
+                },
                 tax: null,
                 lineItems: null,
                 paymentSources: null
@@ -436,6 +451,10 @@ const debitSchema: jsonschema.Schema = {
             type: "integer",
             minimum: 1
         },
+        uses: {
+            type: "integer",
+            minimum: 1
+        },
         currency: {
             type: "string",
             minLength: 3,
@@ -451,7 +470,17 @@ const debitSchema: jsonschema.Schema = {
             type: ["object", "null"]
         }
     },
-    required: ["id", "source", "amount", "currency"]
+    anyOf: [
+        {
+            title: "amount specified",
+            required: ["amount"]
+        },
+        {
+            title: "uses specified",
+            required: ["uses"]
+        }
+    ],
+    required: ["id", "source", "currency"]
 };
 
 const transferSchema: jsonschema.Schema = {

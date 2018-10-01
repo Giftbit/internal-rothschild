@@ -24,7 +24,8 @@ export interface CreditRequest {
 export interface DebitRequest {
     id: string;
     source: TransactionParty;
-    amount: number;
+    amount?: number;
+    uses?: number;
     currency: string;
     simulate?: boolean;
     allowRemainder?: boolean;

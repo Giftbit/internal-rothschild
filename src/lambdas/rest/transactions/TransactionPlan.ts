@@ -90,11 +90,11 @@ export namespace LightrailTransactionPlanStep {
             contactId: step.value.contactId,
             code: step.value.code,
             balanceBefore: step.value.balance,
-            balanceAfter: step.value.balance != null ? step.value.balance + step.amount : null,
-            balanceChange: step.amount,
+            balanceAfter: step.value.balance != null ? step.value.balance + (step.amount || 0) : null,
+            balanceChange: step.value.balance != null || step.amount != null ? (step.amount || 0) : null,
             usesRemainingBefore: step.value.usesRemaining != null ? step.value.usesRemaining : null,
-            usesRemainingAfter: step.value.usesRemaining != null ? step.value.usesRemaining + step.uses : null,
-            usesRemainingChange: step.uses != null ? step.uses : null
+            usesRemainingAfter: step.value.usesRemaining != null ? step.value.usesRemaining + (step.uses || 0) : null,
+            usesRemainingChange: step.value.usesRemaining != null || step.uses != null ? (step.uses || 0) : null
         };
     }
 }

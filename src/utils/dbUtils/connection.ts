@@ -94,7 +94,7 @@ export async function getKnexRead(): Promise<knex> {
 function getKnex(username: string, password: string, endpoint: string, port: string): knex {
     log.info(`connecting to ${endpoint}:${port}`);
     return knex({
-        debug: true,     // uncomment to dump very verbose SQL statement info to console.log
+        // debug: true,     // uncomment to dump very verbose SQL statement info to console.log
         client: "mysql2",
         connection: {
             host: endpoint,

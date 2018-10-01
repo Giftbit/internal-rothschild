@@ -45,7 +45,10 @@ async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.Authoriza
     let query = trx.into("Values")
         .where({
             userId: auth.userId,
-            id: step.value.id
+            id: step.value.id,
+            frozen: false,
+            active: true,
+            canceled: false
         });
     if (step.amount !== 0 && step.amount != null) {
         updateProperties.balance = trx.raw(`balance + ?`, [step.amount]);
