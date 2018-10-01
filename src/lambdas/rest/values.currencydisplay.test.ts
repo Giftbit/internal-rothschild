@@ -65,7 +65,7 @@ describe("/v2/transactions/credit", () => {
             chai.assert.equal(res.statusCode, 201);
         }
 
-        const resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/values?id.in=${values.map(v => v.id).join(",")}&formatCurrencyUnits=true`, "GET");
+        const resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/values?id.in=${values.map(v => v.id).join(",")}&formatCurrencies=true`, "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
         chai.assert.lengthOf(resp.body, 6);
         chai.assert.equal(resp.body.find(v => v.id == valueBalance0.id).balance.toString(), "¥0");
@@ -116,7 +116,7 @@ describe("/v2/transactions/credit", () => {
             chai.assert.equal(res.statusCode, 201);
         }
 
-        const resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/values?id.in=${values.map(v => v.id).join(",")}&formatCurrencyUnits=true`, "GET");
+        const resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/values?id.in=${values.map(v => v.id).join(",")}&formatCurrencies=true`, "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
         chai.assert.lengthOf(resp.body, 5);
         chai.assert.equal(resp.body.find(v => v.id == valueBalance0.id).balance.toString(), "I0.0");
@@ -166,7 +166,7 @@ describe("/v2/transactions/credit", () => {
             chai.assert.equal(res.statusCode, 201);
         }
 
-        const resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/values?id.in=${values.map(v => v.id).join(",")}&formatCurrencyUnits=true`, "GET");
+        const resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/values?id.in=${values.map(v => v.id).join(",")}&formatCurrencies=true`, "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
         chai.assert.lengthOf(resp.body, 5);
         chai.assert.equal(resp.body.find(v => v.id == valueBalance0.id).balance.toString(), "$0.00");

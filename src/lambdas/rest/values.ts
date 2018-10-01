@@ -53,7 +53,7 @@ export function installValuesRest(router: cassava.Router): void {
             }
 
             let values: Value[] | StringBalanceValue[] = res.values;
-            if (evt.queryStringParameters.formatCurrencyUnits === "true") {
+            if (evt.queryStringParameters.formatCurrencies === "true") {
                 values = await formatValueForCurrencyDisplay(auth, res.values);
             }
 
