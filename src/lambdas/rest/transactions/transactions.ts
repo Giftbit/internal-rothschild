@@ -188,6 +188,14 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable Value.", "InvalidParty");
             }
 
+            const party = parties[0] as LightrailTransactionPlanStep;
+            if (req.amount && party.value.balance == null) {
+                throw new giftbitRoutes.GiftbitRestError(409, "Cannot credit amount to a Value with balance=null.", "NullBalance");
+            }
+            if (req.uses && party.value.uses == null) {
+                throw new giftbitRoutes.GiftbitRestError(409, "Cannot credit uses to a Value with uses=null.", "NullUses");
+            }
+
             return {
                 id: req.id,
                 transactionType: "credit",
@@ -195,8 +203,9 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
                 steps: [
                     {
                         rail: "lightrail",
-                        value: (parties[0] as LightrailTransactionPlanStep).value,
-                        amount: req.amount
+                        value: party.value,
+                        amount: req.amount || 0,
+                        uses: req.uses || 0
                     }
                 ],
                 createdDate: nowInDbPrecision(),
@@ -422,6 +431,10 @@ const creditSchema: jsonschema.Schema = {
             type: "integer",
             minimum: 1
         },
+        uses: {
+            type: "integer",
+            minimum: 1
+        },
         currency: {
             type: "string",
             minLength: 3,
@@ -434,7 +447,17 @@ const creditSchema: jsonschema.Schema = {
             type: ["object", "null"]
         }
     },
-    required: ["id", "destination", "amount", "currency"]
+    anyOf: [
+        {
+            title: "amount specified",
+            required: ["amount"]
+        },
+        {
+            title: "uses specified",
+            required: ["uses"]
+        }
+    ],
+    required: ["id", "destination", "currency"]
 };
 
 const debitSchema: jsonschema.Schema = {

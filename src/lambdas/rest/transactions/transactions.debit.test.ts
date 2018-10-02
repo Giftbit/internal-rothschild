@@ -686,7 +686,7 @@ describe("/v2/transactions/debit", () => {
         chai.assert.equal(resp.body.messageCode, "NullUses");
     });
 
-    it("409s debiting uses on a Value that is canceled", async () => {
+    it("409s debiting a Value that is canceled", async () => {
         const value: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
@@ -712,7 +712,7 @@ describe("/v2/transactions/debit", () => {
         chai.assert.equal(resp2.statusCode, 409, `body=${JSON.stringify(resp2.body)}`);
     });
 
-    it("409s debiting uses on a Value that is frozen", async () => {
+    it("409s debiting a Value that is frozen", async () => {
         const value: Partial<Value> = {
             id: generateId(),
             currency: "CAD",

@@ -291,7 +291,7 @@ describe("/v2/transactions/credit", () => {
         chai.assert.equal(getValueResp.body.balance, 1000, "value did not actually change");
     });
 
-    it("409s crediting by valueId of the wrong currency", async () => {
+    it("409s crediting with the wrong currency", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
             id: "credit-3",
             destination: {
@@ -305,7 +305,59 @@ describe("/v2/transactions/credit", () => {
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
     });
 
-    it("409s crediting a valueId that does not exist", async () => {
+    it("409s crediting a Value that is canceled", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balance: 7800
+        };
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
+
+        const resp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.id}`, "PATCH", {
+            canceled: true
+        });
+        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+
+        const resp2 = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
+            id: "credit-canceled",
+            destination: {
+                rail: "lightrail",
+                valueId: value.id
+            },
+            amount: 300,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp2.statusCode, 409, `body=${JSON.stringify(resp2.body)}`);
+    });
+
+    it("409s crediting a Value that is frozen", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balance: 7800
+        };
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
+
+        const resp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.id}`, "PATCH", {
+            frozen: true
+        });
+        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+
+        const resp2 = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
+            id: "credit-frozen",
+            destination: {
+                rail: "lightrail",
+                valueId: value.id
+            },
+            amount: 300,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp2.statusCode, 409, `body=${JSON.stringify(resp2.body)}`);
+    });
+
+    it("409s crediting a value that does not exist", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
             id: "credit-4",
             destination: {
