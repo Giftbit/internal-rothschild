@@ -42,3 +42,8 @@ export namespace DbCurrency {
         };
     }
 }
+
+export function formatAmountForCurrencyDisplay(amountInSmallestUnits: number, c: Currency) {
+    const converted = amountInSmallestUnits / (Math.pow(10, c.decimalPlaces));
+    return c.symbol + converted.toFixed(c.decimalPlaces);
+}

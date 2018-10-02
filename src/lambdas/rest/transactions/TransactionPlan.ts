@@ -11,7 +11,7 @@ import {
     TransactionTotals,
     TransactionType
 } from "../../../model/Transaction";
-import {Value} from "../../../model/Value";
+import {formatCodeForLastFourDisplay, Value} from "../../../model/Value";
 import {LineItemResponse} from "../../../model/LineItem";
 import {
     AdditionalStripeChargeParams,
@@ -20,7 +20,6 @@ import {
 } from "../../../model/TransactionRequest";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {codeLastFour} from "../../../model/DbCode";
 import {TaxRequestProperties} from "../../../model/TaxProperties";
 
 export interface TransactionPlan {
@@ -189,7 +188,7 @@ export namespace TransactionPlan {
                 } else {
                     cleanSources.push({
                         rail: source.rail,
-                        code: codeLastFour(source.code)
+                        code: formatCodeForLastFourDisplay(source.code)
                     });
                 }
             } else {
