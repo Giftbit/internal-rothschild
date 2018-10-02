@@ -180,13 +180,14 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
             await trx.into("Issuances")
                 .insert(dbIssuance);
             const issuancePaddingWidth = (issuance.count - 1 /* -1 since ids start at 0 */).toString().length;
+            console.log("issuance.balance " + issuance.balance);
             for (let i = 0; i < issuance.count; i++) {
                 const partialValue: Partial<Value> = {
                     id: issuance.id + "-" + padValueIdForIssuance(i, issuancePaddingWidth) /* padding is for nice sorting in CSV lists */,
                     code: codeParameters.code,
                     isGenericCode: codeParameters.isGenericCode,
                     issuanceId: issuance.id,
-                    balance: issuance.balance ? issuance.balance : null,
+                    balance: (issuance.balance == null && issuance.balanceRule == null) ? 0 : issuance.balance,
                     redemptionRule: issuance.redemptionRule ? issuance.redemptionRule : null,
                     valueRule: issuance.balanceRule ? issuance.balanceRule : null, // todo - remove these checks once valueRule and uses are no longer supported.
                     balanceRule: issuance.balanceRule ? issuance.balanceRule : null,

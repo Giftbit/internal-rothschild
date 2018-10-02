@@ -484,4 +484,17 @@ describe("/v2/issuances", () => {
         });
     });
 
+    it("creating Issuance will no balance results in values with balance of 0.", async () => {
+        let issuance: Partial<Issuance> = {
+            id: generateId(),
+            name: "issuance name",
+            count: 1
+        };
+
+        const createIssuance = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", issuance);
+        chai.assert.equal(createIssuance.statusCode, 201, JSON.stringify(createIssuance.body));
+
+        const getValue = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?issuanceId=${issuance.id}`, "GET");
+        chai.assert.equal(getValue.body[0].balance, 0);
+    });
 });
