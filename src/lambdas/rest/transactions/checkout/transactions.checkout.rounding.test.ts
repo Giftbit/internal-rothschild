@@ -21,8 +21,8 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
         transactions.installTransactionsRest(router);
         valueStores.installValuesRest(router);
         await createCurrency(testUtils.defaultTestUser.auth, {
-            code: "USD",
-            name: "US Dollars",
+            code: "CAD",
+            name: "Canadian Dollars",
             symbol: "$",
             decimalPlaces: 2
         });
