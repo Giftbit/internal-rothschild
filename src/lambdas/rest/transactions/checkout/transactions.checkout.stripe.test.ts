@@ -1445,12 +1445,12 @@ describe("split tender checkout with Stripe", () => {
                 });
                 chai.assert.deepEqual(stripeRefundStub.getCall(0).args[0], {
                     "rail": "stripe",
+                    "additionalStripeParams": null,
                     "idempotentStepId": `${request.id}-0`,
                     "source": "tok_visa",
                     "customer": null,
                     "maxAmount": null,
                     "amount": -400,
-                    "additionalStripeParams": null,
                     "chargeResult": exampleStripeCharge
                 });
             }
