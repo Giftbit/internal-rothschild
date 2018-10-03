@@ -280,7 +280,7 @@ describe("/v2/issuances", () => {
         chai.assert.include(createIssuance.body.message, "Parameter generateCode is not allowed with parameters code or isGenericCode:true.");
     });
 
-    it(`422 if program has balanceRuleand try to issue with balance`, async () => {
+    it(`422 if program has balanceRule and try to issue with balance`, async () => {
         const program: Partial<Program> = {
             id: generateId(),
             name: "program-name",
