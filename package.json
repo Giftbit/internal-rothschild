@@ -35,6 +35,7 @@
     "@types/node": "^10.10.1",
     "@types/papaparse": "^4.5.4",
     "@types/parse-link-header": "^1.0.0",
+    "@types/sinon": "^5.0.2",
     "@types/stripe": "^5.0.18",
     "@types/uuid": "^3.4.4",
     "aws-sdk": "^2.318.0",
