@@ -1451,7 +1451,6 @@ describe("split tender checkout with Stripe", () => {
                     "customer": null,
                     "maxAmount": null,
                     "amount": -400,
-                    "additionalStripeParams": null,
                     "chargeResult": exampleStripeCharge
                 });
             }
