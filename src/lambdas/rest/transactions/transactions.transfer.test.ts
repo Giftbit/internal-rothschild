@@ -835,12 +835,10 @@ describe("/v2/transactions/transfer", () => {
             unsetStubsForStripeTests();
         });
 
-        const sinonStubs: sinon.SinonStub[] = [];
+        const sinonSandbox = sinon.createSandbox();
 
         afterEach(() => {
-            while (sinonStubs.length) {
-                sinonStubs.pop().restore();
-            }
+            sinonSandbox.restore();
         });
 
         it("can transfer from Stripe to Lightrail", async () => {
@@ -935,18 +933,18 @@ describe("/v2/transactions/transfer", () => {
                 "transfer_group": null
             };
             if (!testStripeLive()) {
-                const stub = sinon.stub(stripeTransactions, "createStripeCharge");
-                stub.withArgs(sinon.match({
-                    "amount": request.amount,
-                    "currency": request.currency,
-                    "metadata": {
-                        "lightrailTransactionId": request.id,
-                        "lightrailTransactionSources": `[{\"rail\":\"lightrail\",\"valueId\":\"${valueCadForStripeTests.id}\"}]`,
-                        "lightrailUserId": defaultTestUser.userId
-                    },
-                    "source": "tok_visa"
-                }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-src`)).resolves(exampleStripeResponse);
-                sinonStubs.push(stub);
+                sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                    .withArgs(sinon.match({
+                        "amount": request.amount,
+                        "currency": request.currency,
+                        "metadata": {
+                            "lightrailTransactionId": request.id,
+                            "lightrailTransactionSources": `[{\"rail\":\"lightrail\",\"valueId\":\"${valueCadForStripeTests.id}\"}]`,
+                            "lightrailUserId": defaultTestUser.userId
+                        },
+                        "source": "tok_visa"
+                    }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-src`))
+                    .resolves(exampleStripeResponse);
             }
 
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
@@ -1020,8 +1018,8 @@ describe("/v2/transactions/transfer", () => {
 
         it("422s transferring a negative amount from Stripe", async () => {
             if (!testStripeLive()) {
-                sinonStubs.push(sinon.stub(stripeTransactions, "createStripeCharge")
-                    .rejects(new Error("The Stripe stub should never be called in this test")));
+                sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                    .rejects(new Error("The Stripe stub should never be called in this test"));
             }
 
             const request = {
@@ -1137,18 +1135,18 @@ describe("/v2/transactions/transfer", () => {
             };
 
             if (!testStripeLive()) {
-                const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
-                stripeStub.withArgs(sinon.match({
-                    "amount": request.source.maxAmount,
-                    "currency": request.currency,
-                    "metadata": {
-                        "lightrailTransactionId": request.id,
-                        "lightrailTransactionSources": `[{\"rail\":\"lightrail\",\"valueId\":\"${valueCad2ForStripeTests.id}\"}]`,
-                        "lightrailUserId": defaultTestUser.userId
-                    },
-                    "source": "tok_visa"
-                }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-src`)).resolves(exampleStripeResponse);
-                sinonStubs.push(stripeStub);
+                sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                    .withArgs(sinon.match({
+                        "amount": request.source.maxAmount,
+                        "currency": request.currency,
+                        "metadata": {
+                            "lightrailTransactionId": request.id,
+                            "lightrailTransactionSources": `[{\"rail\":\"lightrail\",\"valueId\":\"${valueCad2ForStripeTests.id}\"}]`,
+                            "lightrailUserId": defaultTestUser.userId
+                        },
+                        "source": "tok_visa"
+                    }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-src`))
+                    .resolves(exampleStripeResponse);
             }
 
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
@@ -1222,8 +1220,8 @@ describe("/v2/transactions/transfer", () => {
 
         it("409s transferring from Stripe with insufficient maxAmount and allowRemainder=false", async () => {
             if (!testStripeLive()) {
-                sinonStubs.push(sinon.stub(stripeTransactions, "createStripeCharge")
-                    .rejects(new Error("The Stripe stub should never be called in this test")));
+                sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                    .rejects(new Error("The Stripe stub should never be called in this test"));
             }
 
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
@@ -1245,8 +1243,8 @@ describe("/v2/transactions/transfer", () => {
 
         it("422s transferring to Stripe from Lightrail", async () => {
             if (!testStripeLive()) {
-                sinonStubs.push(sinon.stub(stripeTransactions, "createStripeCharge")
-                    .rejects(new Error("The Stripe stub should never be called in this test")));
+                sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                    .rejects(new Error("The Stripe stub should never be called in this test"));
             }
 
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
@@ -1347,18 +1345,18 @@ describe("/v2/transactions/transfer", () => {
                 const exampleErrorResponse = new StripeRestError(422, "Error for tests: Stripe minimum not met", "StripeAmountTooSmall", exampleStripeError);
 
                 if (!testStripeLive()) {
-                    const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
-                    stripeStub.withArgs(sinon.match({
-                        "amount": request.amount,
-                        "currency": request.currency,
-                        "metadata": {
-                            "lightrailTransactionId": request.id,
-                            "lightrailTransactionSources": `[{\"rail\":\"lightrail\",\"valueId\":\"${valueCadForStripeTests.id}\"}]`,
-                            "lightrailUserId": defaultTestUser.userId
-                        },
-                        "source": "tok_visa"
-                    }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-src`)).rejects(exampleErrorResponse);
-                    sinonStubs.push(stripeStub);
+                    sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                        .withArgs(sinon.match({
+                            "amount": request.amount,
+                            "currency": request.currency,
+                            "metadata": {
+                                "lightrailTransactionId": request.id,
+                                "lightrailTransactionSources": `[{\"rail\":\"lightrail\",\"valueId\":\"${valueCadForStripeTests.id}\"}]`,
+                                "lightrailUserId": defaultTestUser.userId
+                            },
+                            "source": "tok_visa"
+                        }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-src`))
+                        .rejects(exampleErrorResponse);
                 }
 
                 const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
