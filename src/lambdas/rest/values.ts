@@ -558,7 +558,7 @@ function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partial
         programId: program ? program.id : null,
         issuanceId: null,
         code: null,
-        isGenericCode: null, // todo - should this be false?
+        isGenericCode: false,
         contactId: null,
         pretax: program ? program.pretax : false,
         active: program ? program.active : true,
