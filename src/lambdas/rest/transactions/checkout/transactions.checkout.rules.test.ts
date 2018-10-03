@@ -31,7 +31,7 @@ describe("/v2/transactions/checkout - balanceRule and redemption rule tests", ()
 
     it("test balanceRule evaluateToNumber", async () => {
         const promotion: Partial<Value> = {
-            id: "test value rule",
+            id: "test balanceRule",
             currency: "CAD",
             balanceRule: {
                 rule: "total*0.5",

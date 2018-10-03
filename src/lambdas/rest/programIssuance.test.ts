@@ -131,7 +131,7 @@ describe("/v2/issuances", () => {
         chai.assert.sameDeepMembers(listIssuances.body, issuances);
     }).timeout(10000);
 
-    it(`issuing from program that has a value rule`, async () => {
+    it(`issuing from program that has a balanceRule`, async () => {
         let issuance: Partial<Issuance> = {
             id: generateId(),
             name: "name",
