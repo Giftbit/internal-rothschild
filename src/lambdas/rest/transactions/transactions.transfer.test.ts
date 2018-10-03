@@ -835,11 +835,11 @@ describe("/v2/transactions/transfer", () => {
             unsetStubsForStripeTests();
         });
 
+        const sinonStubs: sinon.SinonStub[] = [];
+
         afterEach(() => {
-            if (!testStripeLive()) {
-                if ((stripeTransactions.createStripeCharge as sinon).restore) {
-                    (stripeTransactions.createStripeCharge as sinon).restore();
-                }
+            while (sinonStubs.length) {
+                sinonStubs.pop().restore();
             }
         });
 
@@ -935,8 +935,8 @@ describe("/v2/transactions/transfer", () => {
                 "transfer_group": null
             };
             if (!testStripeLive()) {
-                const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
-                stripeStub.withArgs(sinon.match({
+                const stub = sinon.stub(stripeTransactions, "createStripeCharge");
+                stub.withArgs(sinon.match({
                     "amount": request.amount,
                     "currency": request.currency,
                     "metadata": {
@@ -946,6 +946,7 @@ describe("/v2/transactions/transfer", () => {
                     },
                     "source": "tok_visa"
                 }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-src`)).resolves(exampleStripeResponse);
+                sinonStubs.push(stub);
             }
 
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
@@ -1019,8 +1020,8 @@ describe("/v2/transactions/transfer", () => {
 
         it("422s transferring a negative amount from Stripe", async () => {
             if (!testStripeLive()) {
-                const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
-                stripeStub.rejects(new Error("The Stripe stub should never be called in this test"));
+                sinonStubs.push(sinon.stub(stripeTransactions, "createStripeCharge")
+                    .rejects(new Error("The Stripe stub should never be called in this test")));
             }
 
             const request = {
@@ -1147,6 +1148,7 @@ describe("/v2/transactions/transfer", () => {
                     },
                     "source": "tok_visa"
                 }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-src`)).resolves(exampleStripeResponse);
+                sinonStubs.push(stripeStub);
             }
 
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
@@ -1220,8 +1222,8 @@ describe("/v2/transactions/transfer", () => {
 
         it("409s transferring from Stripe with insufficient maxAmount and allowRemainder=false", async () => {
             if (!testStripeLive()) {
-                const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
-                stripeStub.rejects(new Error("The Stripe stub should never be called in this test"));
+                sinonStubs.push(sinon.stub(stripeTransactions, "createStripeCharge")
+                    .rejects(new Error("The Stripe stub should never be called in this test")));
             }
 
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
@@ -1243,8 +1245,8 @@ describe("/v2/transactions/transfer", () => {
 
         it("422s transferring to Stripe from Lightrail", async () => {
             if (!testStripeLive()) {
-                const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
-                stripeStub.rejects(new Error("The Stripe stub should never be called in this test"));
+                sinonStubs.push(sinon.stub(stripeTransactions, "createStripeCharge")
+                    .rejects(new Error("The Stripe stub should never be called in this test")));
             }
 
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
@@ -1356,6 +1358,7 @@ describe("/v2/transactions/transfer", () => {
                         },
                         "source": "tok_visa"
                     }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-src`)).rejects(exampleErrorResponse);
+                    sinonStubs.push(stripeStub);
                 }
 
                 const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
