@@ -44,7 +44,8 @@ export interface LightrailTransactionPlanStep {
     rail: "lightrail";
     value: Value;
     amount: number;
-    uses?: number | null;
+    uses: number | null;
+    knownTransactable: boolean;
 }
 
 export interface StripeTransactionPlanStep {

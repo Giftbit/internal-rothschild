@@ -2,16 +2,19 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {CheckoutRequest, CreditRequest, DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
-import {resolveTransactionParties} from "./resolveTransactionParties";
+import {
+    resolveTransactionPlanSteps
+} from "./resolveTransactionPlanSteps";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {executeTransactionPlanner} from "./executeTransactionPlan";
 import {Pagination, PaginationParams} from "../../../model/Pagination";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
-import {LightrailTransactionPlanStep} from "./TransactionPlan";
 import {optimizeCheckout} from "./checkout/checkoutTransactionPlanner";
-import {filterAndPaginateQuery, nowInDbPrecision} from "../../../utils/dbUtils";
-import {createTransferTransactionPlan, resolveTransferTransactionParties} from "./transferTransactionPlanner";
+import {filterAndPaginateQuery} from "../../../utils/dbUtils";
+import {createTransferTransactionPlan, resolveTransferTransactionPlanSteps} from "./transactions.transfer";
 import getPaginationParams = Pagination.getPaginationParams;
+import {createCreditTransactionPlan} from "./transactions.credit";
+import {createDebitTransactionPlan} from "./transactions.debit";
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions")
@@ -182,40 +185,7 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
             simulate: req.simulate,
             allowRemainder: false
         },
-        async () => {
-            const parties = await resolveTransactionParties(auth, req.currency, [req.destination], req.id);
-            if (parties.length !== 1 || parties[0].rail !== "lightrail") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable Value.", "InvalidParty");
-            }
-
-            const party = parties[0] as LightrailTransactionPlanStep;
-            if (req.amount && party.value.balance == null) {
-                throw new giftbitRoutes.GiftbitRestError(409, "Cannot credit amount to a Value with balance=null.", "NullBalance");
-            }
-            if (req.uses && party.value.uses == null) {
-                throw new giftbitRoutes.GiftbitRestError(409, "Cannot credit uses to a Value with uses=null.", "NullUses");
-            }
-
-            return {
-                id: req.id,
-                transactionType: "credit",
-                currency: req.currency,
-                steps: [
-                    {
-                        rail: "lightrail",
-                        value: party.value,
-                        amount: req.amount || 0,
-                        uses: req.uses || 0
-                    }
-                ],
-                createdDate: nowInDbPrecision(),
-                metadata: req.metadata,
-                totals: null,
-                tax: null,
-                lineItems: null,
-                paymentSources: null
-            };
-        }
+        async () => createCreditTransactionPlan(auth, req)
     );
 }
 
@@ -226,47 +196,7 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
             simulate: req.simulate,
             allowRemainder: req.allowRemainder
         },
-        async () => {
-            const parties = await resolveTransactionParties(auth, req.currency, [req.source], req.id);
-            if (parties.length !== 1 || parties[0].rail !== "lightrail") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable Value.", "InvalidParty");
-            }
-
-            const party = parties[0] as LightrailTransactionPlanStep;
-            if (req.amount && party.value.balance == null) {
-                throw new giftbitRoutes.GiftbitRestError(409, "Cannot debit amount from a Value with balance=null.", "NullBalance");
-            }
-            if (req.uses && party.value.uses == null) {
-                throw new giftbitRoutes.GiftbitRestError(409, "Cannot debit uses from a Value with uses=null.", "NullUses");
-            }
-            if (req.uses && req.allowRemainder !== true && req.uses > party.value.usesRemaining) {
-                throw new giftbitRoutes.GiftbitRestError(409, "Insufficient uses for the transaction.", "InsufficientUses");
-            }
-
-            const amount = req.amount != null ? Math.min(req.amount, party.value.balance) : null;
-            const uses = req.uses != null ? Math.min(req.uses, party.value.usesRemaining) : null;
-            return {
-                id: req.id,
-                transactionType: "debit",
-                currency: req.currency,
-                steps: [
-                    {
-                        rail: "lightrail",
-                        value: party.value,
-                        amount: amount && -amount,
-                        uses: uses && -uses
-                    }
-                ],
-                createdDate: nowInDbPrecision(),
-                metadata: req.metadata,
-                totals: {
-                    remainder: (req.amount || 0) - (amount || 0)
-                },
-                tax: null,
-                lineItems: null,
-                paymentSources: null
-            };
-        }
+        async () => createDebitTransactionPlan(auth, req)
     );
 }
 
@@ -278,7 +208,14 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
             allowRemainder: checkout.allowRemainder
         },
         async () => {
-            const steps = await resolveTransactionParties(auth, checkout.currency, checkout.sources, checkout.id);
+            const steps = await resolveTransactionPlanSteps(auth, {
+                currency: checkout.currency,
+                parties: checkout.sources,
+                transactionId: checkout.id,
+                acceptNotTansactable: false,
+                acceptZeroBalance: !!checkout.allowRemainder,
+                acceptZeroUses: !!checkout.allowRemainder
+            });
             return optimizeCheckout(checkout, steps);
         }
     );
@@ -292,7 +229,7 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
             allowRemainder: req.allowRemainder
         },
         async () => {
-            const parties = await resolveTransferTransactionParties(auth, req);
+            const parties = await resolveTransferTransactionPlanSteps(auth, req);
             return await createTransferTransactionPlan(req, parties);
         }
     );
@@ -319,12 +256,15 @@ const lightrailPartySchema: jsonschema.Schema = {
     },
     oneOf: [
         {
+            title: "lightrail specifies contactId",
             required: ["contactId"]
         },
         {
+            title: "lightrail specifies code",
             required: ["code"]
         },
         {
+            title: "lightrail specifies valueId",
             required: ["valueId"]
         }
     ],
@@ -352,9 +292,11 @@ const lightrailUniquePartySchema: jsonschema.Schema = {
     },
     oneOf: [
         {
+            title: "lightrail specifies code",
             required: ["code"]
         },
         {
+            title: "lightrail specifies valueId",
             required: ["valueId"]
         }
     ],
@@ -399,9 +341,11 @@ const stripePartySchema: jsonschema.Schema = {
     },
     anyOf: [
         {
+            title: "stripe specifies source",
             required: ["source"]
         },
         {
+            title: "stripe specifies customer",
             required: ["customer"]
         },
     ],
@@ -466,11 +410,11 @@ const creditSchema: jsonschema.Schema = {
     },
     anyOf: [
         {
-            title: "amount specified",
+            title: "credit specifies amount",
             required: ["amount"]
         },
         {
-            title: "uses specified",
+            title: "credit specifies uses",
             required: ["uses"]
         }
     ],
@@ -512,11 +456,11 @@ const debitSchema: jsonschema.Schema = {
     },
     anyOf: [
         {
-            title: "amount specified",
+            title: "debit specifies amount",
             required: ["amount"]
         },
         {
-            title: "uses specified",
+            title: "debit specifies uses",
             required: ["uses"]
         }
     ],

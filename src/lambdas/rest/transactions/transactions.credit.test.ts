@@ -30,21 +30,21 @@ describe("/v2/transactions/credit", () => {
         });
     });
 
-    const value: Partial<Value> = {
-        id: "v-credit-1",
+    const value1: Partial<Value> = {
+        id: generateId(),
         currency: "CAD",
         balance: 0
     };
 
     it("can credit by valueId", async () => {
-        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
         chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
 
         const postCreditResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", {
             id: "credit-1",
             destination: {
                 rail: "lightrail",
-                valueId: value.id
+                valueId: value1.id
             },
             amount: 1000,
             currency: "CAD"
@@ -58,7 +58,7 @@ describe("/v2/transactions/credit", () => {
             steps: [
                 {
                     rail: "lightrail",
-                    valueId: value.id,
+                    valueId: value1.id,
                     code: null,
                     contactId: null,
                     balanceBefore: 0,
@@ -75,9 +75,9 @@ describe("/v2/transactions/credit", () => {
             tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "createdBy"]);
+        }, ["createdDate"]);
 
-        const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
+        const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(postValueResp.body)}`);
         chai.assert.equal(getValueResp.body.balance, 1000);
 
@@ -119,9 +119,10 @@ describe("/v2/transactions/credit", () => {
     });
 
     it("can credit by secret code", async () => {
-        const valueSecretCode = {
-            ...value,
+        const valueSecretCode: Partial<Value> = {
             id: generateId(),
+            currency: "CAD",
+            balance: 0,
             code: "SUPER-SECRET"
         };
         const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueSecretCode);
@@ -164,7 +165,7 @@ describe("/v2/transactions/credit", () => {
             tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "createdBy"]);
+        }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueSecretCode.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(postValueResp.body)}`);
@@ -176,9 +177,10 @@ describe("/v2/transactions/credit", () => {
     });
 
     it("can credit by generic code", async () => {
-        const valueGenericCode = {
-            ...value,
+        const valueGenericCode: Partial<Value> = {
             id: generateId(),
+            currency: "CAD",
+            balance: 0,
             code: "SUPER-GENERIC",
             isGenericCode: true
         };
@@ -222,11 +224,133 @@ describe("/v2/transactions/credit", () => {
             tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "createdBy"]);
+        }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueGenericCode.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(postValueResp.body)}`);
         chai.assert.equal(getValueResp.body.balance, 1000);
+
+        const getCreditResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
+        chai.assert.equal(getCreditResp.statusCode, 200, `body=${JSON.stringify(getCreditResp.body)}`);
+        chai.assert.deepEqualExcluding(getCreditResp.body, postCreditResp.body, "statusCode");
+    });
+
+    it("can credit uses", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balanceRule: {
+                rule: "349",
+                explanation: "About tree fiddy."
+            },
+            uses: 0
+        };
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
+
+        const request = {
+            id: generateId(),
+            destination: {
+                rail: "lightrail",
+                valueId: value.id
+            },
+            uses: 2,
+            currency: "CAD"
+        };
+
+        const postCreditResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", request);
+        chai.assert.equal(postCreditResp.statusCode, 201, `body=${JSON.stringify(postCreditResp.body)}`);
+        chai.assert.deepEqualExcluding(postCreditResp.body, {
+            id: request.id,
+            transactionType: "credit",
+            currency: "CAD",
+            totals: null,
+            steps: [
+                {
+                    rail: "lightrail",
+                    valueId: value.id,
+                    code: null,
+                    contactId: null,
+                    balanceBefore: null,
+                    balanceAfter: null,
+                    balanceChange: 0,
+                    usesRemainingBefore: 0,
+                    usesRemainingAfter: 2,
+                    usesRemainingChange: 2
+                }
+            ],
+            lineItems: null,
+            paymentSources: null,
+            metadata: null,
+            tax: null,
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
+        }, ["createdDate"]);
+
+        const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
+        chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(postValueResp.body)}`);
+        chai.assert.equal(getValueResp.body.balance, null);
+        chai.assert.equal(getValueResp.body.uses, 2);
+
+        const getCreditResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
+        chai.assert.equal(getCreditResp.statusCode, 200, `body=${JSON.stringify(getCreditResp.body)}`);
+        chai.assert.deepEqualExcluding(getCreditResp.body, postCreditResp.body, "statusCode");
+    });
+
+    it("can credit balance and uses at the same time", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balance: 349,
+            uses: 3
+        };
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
+
+        const request = {
+            id: generateId(),
+            destination: {
+                rail: "lightrail",
+                valueId: value.id
+            },
+            amount: 101,
+            uses: 1,
+            currency: "CAD"
+        };
+
+        const postCreditResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", request);
+        chai.assert.equal(postCreditResp.statusCode, 201, `body=${JSON.stringify(postCreditResp.body)}`);
+        chai.assert.deepEqualExcluding(postCreditResp.body, {
+            id: request.id,
+            transactionType: "credit",
+            currency: "CAD",
+            totals: null,
+            steps: [
+                {
+                    rail: "lightrail",
+                    valueId: value.id,
+                    code: null,
+                    contactId: null,
+                    balanceBefore: 349,
+                    balanceAfter: 450,
+                    balanceChange: 101,
+                    usesRemainingBefore: 3,
+                    usesRemainingAfter: 4,
+                    usesRemainingChange: 1
+                }
+            ],
+            lineItems: null,
+            paymentSources: null,
+            metadata: null,
+            tax: null,
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
+        }, ["createdDate"]);
+
+        const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
+        chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(postValueResp.body)}`);
+        chai.assert.equal(getValueResp.body.balance, 450);
+        chai.assert.equal(getValueResp.body.uses, 4);
 
         const getCreditResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCreditResp.statusCode, 200, `body=${JSON.stringify(getCreditResp.body)}`);
@@ -238,7 +362,7 @@ describe("/v2/transactions/credit", () => {
             id: "credit-1",  // same as above
             destination: {
                 rail: "lightrail",
-                valueId: value.id
+                valueId: value1.id
             },
             amount: 1350,
             currency: "CAD"
@@ -252,7 +376,7 @@ describe("/v2/transactions/credit", () => {
             id: "credit-2",
             destination: {
                 rail: "lightrail",
-                valueId: value.id
+                valueId: value1.id
             },
             amount: 1100,
             currency: "CAD",
@@ -267,7 +391,7 @@ describe("/v2/transactions/credit", () => {
             steps: [
                 {
                     rail: "lightrail",
-                    valueId: value.id,
+                    valueId: value1.id,
                     code: null,
                     contactId: null,
                     balanceBefore: 1000,
@@ -284,9 +408,9 @@ describe("/v2/transactions/credit", () => {
             tax: null,
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "createdBy"]);
+        }, ["createdDate"]);
 
-        const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
+        const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
         chai.assert.equal(getValueResp.body.balance, 1000, "value did not actually change");
     });
@@ -296,13 +420,60 @@ describe("/v2/transactions/credit", () => {
             id: "credit-3",
             destination: {
                 rail: "lightrail",
-                valueId: value.id
+                valueId: value1.id
             },
             amount: 1500,
             currency: "USD"
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
+    });
+
+    it("409s crediting balance on a Value with balance=null", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balanceRule: {
+                rule: "300",
+                explanation: "This is sparta!"
+            }
+        };
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
+            id: "debit-balance-rule",
+            destination: {
+                rail: "lightrail",
+                valueId: value.id
+            },
+            amount: 500,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.messageCode, "NullBalance");
+    });
+
+    it("409s crediting uses on a Value with uses=null", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balance: 7800
+        };
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
+            id: "debit-balance-rule",
+            destination: {
+                rail: "lightrail",
+                valueId: value.id
+            },
+            uses: 1,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.messageCode, "NullUses");
     });
 
     it("409s crediting a Value that is canceled", async () => {
@@ -329,6 +500,7 @@ describe("/v2/transactions/credit", () => {
             currency: "CAD"
         });
         chai.assert.equal(resp2.statusCode, 409, `body=${JSON.stringify(resp2.body)}`);
+        chai.assert.equal(resp2.body.messageCode, "ValueCanceled");
     });
 
     it("409s crediting a Value that is frozen", async () => {
@@ -355,6 +527,7 @@ describe("/v2/transactions/credit", () => {
             currency: "CAD"
         });
         chai.assert.equal(resp2.statusCode, 409, `body=${JSON.stringify(resp2.body)}`);
+        chai.assert.equal(resp2.body.messageCode, "ValueFrozen");
     });
 
     it("409s crediting a value that does not exist", async () => {

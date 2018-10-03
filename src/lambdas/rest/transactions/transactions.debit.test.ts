@@ -245,7 +245,10 @@ describe("/v2/transactions/debit", () => {
             id: generateId(),
             code: generateId(),
             currency: "CAD",
-            balance: 2000,
+            balanceRule: {
+                rule: "349",
+                explanation: "About tree fiddy."
+            },
             usesRemaining: 20
         };
         const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
@@ -276,9 +279,9 @@ describe("/v2/transactions/debit", () => {
                     valueId: value.id,
                     code: "…" + value.code.slice(-4),
                     contactId: null,
-                    balanceBefore: 2000,
-                    balanceAfter: 2000,
-                    balanceChange: 0,
+                    balanceBefore: null,
+                    balanceAfter: null,
+                    balanceChange: null,
                     usesRemainingBefore: 20,
                     usesRemainingAfter: 17,
                     usesRemainingChange: -3
@@ -294,7 +297,7 @@ describe("/v2/transactions/debit", () => {
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
-        chai.assert.equal(getValueResp.body.balance, 2000);
+        chai.assert.equal(getValueResp.body.balance, null);
         chai.assert.equal(getValueResp.body.usesRemaining, 17);
 
         const getDebitResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${postDebitResp.body.id}`, "GET");
@@ -710,6 +713,7 @@ describe("/v2/transactions/debit", () => {
             currency: "CAD"
         });
         chai.assert.equal(resp2.statusCode, 409, `body=${JSON.stringify(resp2.body)}`);
+        chai.assert.equal(resp2.body.messageCode, "ValueCanceled");
     });
 
     it("409s debiting a Value that is frozen", async () => {
@@ -736,6 +740,7 @@ describe("/v2/transactions/debit", () => {
             currency: "CAD"
         });
         chai.assert.equal(resp2.statusCode, 409, `body=${JSON.stringify(resp2.body)}`);
+        chai.assert.equal(resp2.body.messageCode, "ValueFrozen");
     });
 
     it("409s debiting a value ID that does not exist", async () => {
