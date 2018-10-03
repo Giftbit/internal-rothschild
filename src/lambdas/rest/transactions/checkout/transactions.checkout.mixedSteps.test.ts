@@ -56,12 +56,10 @@ describe("/v2/transactions/checkout - mixed sources", () => {
         unsetStubsForStripeTests();
     });
 
+    const sinonSandbox = sinon.createSandbox();
+
     afterEach(() => {
-        if (!testStripeLive()) {
-            if ((stripeTransactions.createStripeCharge as sinon).restore) {
-                (stripeTransactions.createStripeCharge as sinon).restore();
-            }
-        }
+        sinonSandbox.restore();
     });
 
     it("checkout with mixed sources", async () => {
@@ -220,23 +218,24 @@ describe("/v2/transactions/checkout - mixed sources", () => {
         };
 
         if (!testStripeLive()) {
-            const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
-            stripeStub.withArgs(sinon.match({
-                "amount": 1360,
-                "currency": request.currency,
-                "metadata": {
-                    "lightrailTransactionId": request.id,
-                    "lightrailTransactionSources": sinon.match("{\"rail\":\"internal\"")
-                        .and(sinon.match("\"rail\":\"lightrail\""))
-                        .and(sinon.match(`\"internalId\":\"${request.sources[1].internalId}\"`))
-                        .and(sinon.match(`\"internalId\":\"${request.sources[2].internalId}\"`))
-                        .and(sinon.match(`\"valueId\":\"${request.sources[3].valueId}\"`))
-                        .and(sinon.match(`\"internalId\":\"${request.sources[4].internalId}\"`))
-                        .and(sinon.match(`\"valueId\":\"${request.sources[5].valueId}\"`)),
-                    "lightrailUserId": defaultTestUser.userId
-                },
-                "source": "tok_visa"
-            }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`)).resolves(exampleStripeResponse);
+            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                .withArgs(sinon.match({
+                    "amount": 1360,
+                    "currency": request.currency,
+                    "metadata": {
+                        "lightrailTransactionId": request.id,
+                        "lightrailTransactionSources": sinon.match("{\"rail\":\"internal\"")
+                            .and(sinon.match("\"rail\":\"lightrail\""))
+                            .and(sinon.match(`\"internalId\":\"${request.sources[1].internalId}\"`))
+                            .and(sinon.match(`\"internalId\":\"${request.sources[2].internalId}\"`))
+                            .and(sinon.match(`\"valueId\":\"${request.sources[3].valueId}\"`))
+                            .and(sinon.match(`\"internalId\":\"${request.sources[4].internalId}\"`))
+                            .and(sinon.match(`\"valueId\":\"${request.sources[5].valueId}\"`)),
+                        "lightrailUserId": defaultTestUser.userId
+                    },
+                    "source": "tok_visa"
+                }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`))
+                .resolves(exampleStripeResponse);
         }
 
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);

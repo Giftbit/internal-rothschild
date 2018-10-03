@@ -38,12 +38,6 @@ export function installValuesRest(router: cassava.Router): void {
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:values:list");
 
-            // todo - remove this check once uses is no longer supported.
-            if (evt.pathParameters.uses) {
-                evt.pathParameters.usesRemaining = evt.pathParameters.uses;
-                delete evt.pathParameters.uses
-            }
-
             const showCode: boolean = (evt.queryStringParameters.showCode === "true");
             const res = await getValues(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt), showCode);
 
@@ -69,17 +63,6 @@ export function installValuesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:values:create");
-
-            // todo - remove these checks once valueRule and uses are no longer supported.
-            if (evt.body.valueRule && !evt.body.balanceRule) {
-                evt.body.balanceRule = evt.body.valueRule;
-                delete evt.body.valueRule;
-            }
-            if (evt.body.uses != null && evt.body.usesRemaining == null) {
-                evt.body.usesRemaining = evt.body.uses;
-                delete evt.body.uses;
-            }
-
             evt.validateBody(valueSchema);
 
             let program: Program = null;
@@ -141,11 +124,6 @@ export function installValuesRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:values:update");
-            // todo - remove this when valueRule is no longer supported
-            if (evt.body.valueRule && !evt.body.balanceRule) {
-                evt.body.balanceRule = evt.body.valueRule;
-                delete evt.body.valueRule;
-            }
             evt.validateBody(valueUpdateSchema);
 
             if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
@@ -548,37 +526,34 @@ export async function injectValueStats(auth: giftbitRoutes.jwtauth.Authorization
 
 function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partialValue: Partial<Value>, program: Program = null, generateCodeParameters: GenerateCodeParameters = null): Value {
     const now = nowInDbPrecision();
-    let value: Value = {
+
+    let value: Value = pickOrDefault(partialValue, {
         id: null,
-        balance: partialValue.balanceRule && !partialValue.balance ? null : 0,
-        uses: null, // todo - remove these checks once valueRule and uses are no longer supported.
+        currency: program ? program.currency : null,
+        balance: partialValue.balanceRule == null ? 0 : null,
         usesRemaining: null,
-        code: null,
+        programId: program ? program.id : null,
         issuanceId: null,
-        isGenericCode: null,
+        code: null,
+        isGenericCode: false,
         contactId: null,
+        pretax: program ? program.pretax : false,
+        active: program ? program.active : true,
         canceled: false,
         frozen: false,
+        discount: program ? program.discount : false,
+        discountSellerLiability: program ? program.discountSellerLiability : null,
+        redemptionRule: program ? program.redemptionRule : null,
+        balanceRule: program ? program.balanceRule : null,
+        startDate: program ? program.startDate : null,
+        endDate: program ? program.endDate : null,
         metadata: {},
         createdDate: now,
         updatedDate: now,
         updatedContactIdDate: partialValue.contactId ? now : null,
         createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
-        ...partialValue,
-        ...pickOrDefault(partialValue, {
-            currency: program ? program.currency : null,
-            programId: program ? program.id : null,
-            pretax: program ? program.pretax : false,
-            active: program ? program.active : true,
-            redemptionRule: program ? program.redemptionRule : null,
-            valueRule: program ? program.balanceRule : null, // todo - remove these checks once valueRule and uses are no longer supported.
-            balanceRule: program ? program.balanceRule : null,
-            discount: program ? program.discount : false,
-            discountSellerLiability: program ? program.discountSellerLiability : null,
-            startDate: program ? program.startDate : null,
-            endDate: program ? program.endDate : null
-        })
-    };
+    });
+
     value.metadata = {...(program && program.metadata ? program.metadata : {}), ...value.metadata};
 
     if (generateCodeParameters) {
@@ -597,7 +572,7 @@ function checkValueProperties(value: Value, program: Program = null): void {
     }
 
     if (value.balance && value.balanceRule) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a balance and valueRule.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a balance and balanceRule.`);
     }
     if (value.discountSellerLiability !== null && !value.discount) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have discountSellerLiability if it is not a discount.`);
