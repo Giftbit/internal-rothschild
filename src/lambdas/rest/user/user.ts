@@ -10,10 +10,15 @@ export function installUserRest(router: cassava.Router): void {
         })
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("userId");
+            auth.requireIds("userId", "teamMemberId");
+
+            console.log("userRest =>" + auth.teamMemberId);
 
             return {
-                body: hashUserId(auth.userId)
+                body: {
+                    userHash: hashUserId(auth.teamMemberId),
+                    userId: auth.teamMemberId
+                }
             };
         });
 }
