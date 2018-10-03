@@ -548,37 +548,36 @@ export async function injectValueStats(auth: giftbitRoutes.jwtauth.Authorization
 
 function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partialValue: Partial<Value>, program: Program = null, generateCodeParameters: GenerateCodeParameters = null): Value {
     const now = nowInDbPrecision();
-    let value: Value = {
+
+    let value: Value = pickOrDefault(partialValue, {
         id: null,
-        balance: partialValue.balanceRule && !partialValue.balance ? null : 0,
-        uses: null, // todo - remove these checks once valueRule and uses are no longer supported.
+        currency: program ? program.currency : null,
+        balance: partialValue.balanceRule == null ? 0 : null,
+        uses: null, // todo - remove when uses is no longer supported
         usesRemaining: null,
-        code: null,
+        programId: program ? program.id : null,
         issuanceId: null,
-        isGenericCode: null,
+        code: null,
+        isGenericCode: false,
         contactId: null,
+        pretax: program ? program.pretax : false,
+        active: program ? program.active : true,
         canceled: false,
         frozen: false,
+        discount: program ? program.discount : false,
+        discountSellerLiability: program ? program.discountSellerLiability : null,
+        redemptionRule: program ? program.redemptionRule : null,
+        valueRule: program ? program.balanceRule : null, // todo - remove these checks once valueRule and uses are no longer supported.
+        balanceRule: program ? program.balanceRule : null,
+        startDate: program ? program.startDate : null,
+        endDate: program ? program.endDate : null,
         metadata: {},
         createdDate: now,
         updatedDate: now,
         updatedContactIdDate: partialValue.contactId ? now : null,
         createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
-        ...partialValue,
-        ...pickOrDefault(partialValue, {
-            currency: program ? program.currency : null,
-            programId: program ? program.id : null,
-            pretax: program ? program.pretax : false,
-            active: program ? program.active : true,
-            redemptionRule: program ? program.redemptionRule : null,
-            valueRule: program ? program.balanceRule : null, // todo - remove these checks once valueRule and uses are no longer supported.
-            balanceRule: program ? program.balanceRule : null,
-            discount: program ? program.discount : false,
-            discountSellerLiability: program ? program.discountSellerLiability : null,
-            startDate: program ? program.startDate : null,
-            endDate: program ? program.endDate : null
-        })
-    };
+    });
+
     value.metadata = {...(program && program.metadata ? program.metadata : {}), ...value.metadata};
 
     if (generateCodeParameters) {
