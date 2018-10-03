@@ -70,12 +70,10 @@ describe("handling fraudulent charges", () => {
         unsetStubsForStripeTests();
     });
 
+    const sinonSandbox = sinon.createSandbox();
+
     afterEach(() => {
-        if (!testStripeLive()) {
-            if ((stripeTransactions.createStripeCharge as sinon).restore) {
-                (stripeTransactions.createStripeCharge as sinon).restore();
-            }
-        }
+        sinonSandbox.restore();
     });
 
     it("does nothing if the charge succeeds but is flagged for review in Stripe", async () => {
@@ -169,17 +167,18 @@ describe("handling fraudulent charges", () => {
         };
 
         if (!testStripeLive()) {
-            const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
-            stripeStub.withArgs(sinon.match({
-                "amount": 500,
-                "currency": request.currency,
-                "metadata": {
-                    "lightrailTransactionId": request.id,
-                    "lightrailTransactionSources": "[]",
-                    "lightrailUserId": defaultTestUser.userId
-                },
-                "source": "tok_riskLevelElevated"
-            }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`)).resolves(exampleStripeResponse);
+            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                .withArgs(sinon.match({
+                    "amount": 500,
+                    "currency": request.currency,
+                    "metadata": {
+                        "lightrailTransactionId": request.id,
+                        "lightrailTransactionSources": "[]",
+                        "lightrailUserId": defaultTestUser.userId
+                    },
+                    "source": "tok_riskLevelElevated"
+                }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`))
+                .resolves(exampleStripeResponse);
         }
 
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
@@ -273,17 +272,18 @@ describe("handling fraudulent charges", () => {
         const exampleErrorResponse = new StripeRestError(422, "Error for tests: card blocked by Stripe for fraud", "StripeCardDeclined", exampleStripeError);
 
         if (!testStripeLive()) {
-            const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
-            stripeStub.withArgs(sinon.match({
-                "amount": 500,
-                "currency": request.currency,
-                "metadata": {
-                    "lightrailTransactionId": request.id,
-                    "lightrailTransactionSources": "[]",
-                    "lightrailUserId": defaultTestUser.userId
-                },
-                "source": "tok_chargeDeclinedFraudulent"
-            }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`)).rejects(exampleErrorResponse);
+            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                .withArgs(sinon.match({
+                    "amount": 500,
+                    "currency": request.currency,
+                    "metadata": {
+                        "lightrailTransactionId": request.id,
+                        "lightrailTransactionSources": "[]",
+                        "lightrailUserId": defaultTestUser.userId
+                    },
+                    "source": "tok_chargeDeclinedFraudulent"
+                }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`))
+                .rejects(exampleErrorResponse);
         }
 
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
@@ -364,17 +364,18 @@ describe("handling fraudulent charges", () => {
         const exampleErrorResponse = new StripeRestError(422, "Error for tests: card declined by provider", "StripeCardDeclined", exampleStripeError);
 
         if (!testStripeLive()) {
-            const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
-            stripeStub.withArgs(sinon.match({
-                "amount": 500,
-                "currency": request.currency,
-                "metadata": {
-                    "lightrailTransactionId": request.id,
-                    "lightrailTransactionSources": "[]",
-                    "lightrailUserId": defaultTestUser.userId
-                },
-                "source": "tok_chargeDeclined"
-            }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`)).rejects(exampleErrorResponse);
+            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                .withArgs(sinon.match({
+                    "amount": 500,
+                    "currency": request.currency,
+                    "metadata": {
+                        "lightrailTransactionId": request.id,
+                        "lightrailTransactionSources": "[]",
+                        "lightrailUserId": defaultTestUser.userId
+                    },
+                    "source": "tok_chargeDeclined"
+                }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`))
+                .rejects(exampleErrorResponse);
         }
 
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);

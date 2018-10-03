@@ -917,6 +917,143 @@ describe("split tender checkout with Stripe", () => {
         }
     }).timeout(3000);
 
+    it("passes additionalStripeParams to Stripe", async () => {
+        const request = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "stripe",
+                    source: source,
+                    additionalStripeParams: {
+                        on_behalf_of: "aaa",
+                        receipt_email: "bbb@example.com",
+                        statement_descriptor: "ccc",
+                        transfer_group: "ddd"
+                    }
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "xyz-123",
+                    unitPrice: 500
+                }
+            ],
+            currency: "CAD"
+        };
+        const exampleStripeResponse = {
+            "id": "ch_1Ctjy5G3cz9DRdBthqHMBUoh",
+            "object": "charge",
+            "amount": 500,
+            "amount_refunded": 0,
+            "application": "ca_D5LfFkNWh8XbFWxIcEx6N9FXaNmfJ9Fr",
+            "application_fee": null,
+            "balance_transaction": "txn_1Ctjy5G3cz9DRdBtoTRcm2z6",
+            "captured": true,
+            "created": 1532990157,
+            "currency": "cad",
+            "customer": null,
+            "description": null,
+            "destination": null,
+            "dispute": null,
+            "failure_code": null,
+            "failure_message": null,
+            "fraud_details": {},
+            "invoice": null,
+            "livemode": false,
+            "metadata": {
+                "meta": "data",
+                "lightrailTransactionId": request.id,
+                "lightrailTransactionSources": "[]",
+                "lightrailUserId": "default-test-user-TEST"
+            },
+            "on_behalf_of": "aaa",
+            "order": null,
+            "outcome": {
+                "network_status": "approved_by_network",
+                "reason": null,
+                "risk_level": "normal",
+                "seller_message": "Payment complete.",
+                "type": "authorized"
+            },
+            "paid": true,
+            "receipt_email": "bbb@example.com",
+            "receipt_number": null,
+            "refunded": false,
+            "refunds": {
+                "object": "list",
+                "data": [],
+                "has_more": false,
+                "total_count": 0,
+                "url": "/v1/charges/ch_1Ctjy5G3cz9DRdBthqHMBUoh/refunds"
+            },
+            "review": null,
+            "shipping": null,
+            "source": {
+                "id": "card_1Ctjy5G3cz9DRdBtwIkIcTsK",
+                "object": "card",
+                "address_city": null,
+                "address_country": null,
+                "address_line1": null,
+                "address_line1_check": null,
+                "address_line2": null,
+                "address_state": null,
+                "address_zip": null,
+                "address_zip_check": null,
+                "brand": "Visa",
+                "country": "US",
+                "customer": null,
+                "cvc_check": null,
+                "dynamic_last4": null,
+                "exp_month": 7,
+                "exp_year": 2019,
+                "fingerprint": "LMHNXKv7kEbxUNL9",
+                "funding": "credit",
+                "last4": "4242",
+                "metadata": {},
+                "name": null,
+                "tokenization_method": null
+            },
+            "source_transfer": null,
+            "statement_descriptor": "ccc",
+            "status": "succeeded",
+            "transfer_group": "ddd"
+        };
+
+        if (!testStripeLive()) {
+            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                .withArgs(sinon.match({
+                    amount: 500,
+                    currency: request.currency,
+                    on_behalf_of: "aaa",
+                    receipt_email: "bbb@example.com",
+                    statement_descriptor: "ccc",
+                    transfer_group: "ddd"
+                }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`)).resolves(exampleStripeResponse);
+        }
+
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+
+        chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
+        chai.assert.equal(postCheckoutResp.body.id, request.id);
+
+        const stripeStep = postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep;
+        chai.assert.isObject(stripeStep, "found stripe step");
+        chai.assert.equal(stripeStep.charge.on_behalf_of, "aaa");
+        chai.assert.equal(stripeStep.charge.receipt_email, "bbb@example.com");
+        chai.assert.equal(stripeStep.charge.statement_descriptor, "ccc");
+        chai.assert.equal(stripeStep.charge.transfer_group, "ddd");
+
+        if (testStripeLive()) {
+            const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
+            const stripeChargeId = (postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId;
+            const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
+                stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
+            });
+            chai.assert.deepEqual(stripeCharge.metadata, stripeStep.charge.metadata);
+        }
+    }).timeout(3000);
+
     it("does not charge Stripe when 'simulate: true'", async () => {
         if (testStripeLive()) {
             unsetStubsForStripeTests();
