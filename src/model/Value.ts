@@ -1,5 +1,5 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {codeLastFour, DbCode} from "./DbCode";
+import {DbCode, getCodeLastFourNoPrefix} from "./DbCode";
 import {pickDefined} from "../utils/pick";
 import {decryptCode} from "../utils/codeCryptoUtils";
 
@@ -39,7 +39,7 @@ export namespace Value {
     export function toDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Value): DbValue {
         let dbCode: DbCode = null;
         if (v.code) {
-            dbCode = new DbCode(v.code, v.isGenericCode, auth);
+            dbCode = new DbCode(v.code, auth);
         }
         return {
             userId: auth.userId,
@@ -49,7 +49,7 @@ export namespace Value {
             usesRemaining: v.usesRemaining,
             programId: v.programId,
             issuanceId: v.issuanceId,
-            code: dbCode ? dbCode.lastFour : null,
+            codeLastFour: dbCode ? dbCode.lastFour : null,
             isGenericCode: v.isGenericCode,
             codeEncrypted: dbCode ? dbCode.codeEncrypted : null,
             codeHashed: dbCode ? dbCode.codeHashed : null,
@@ -97,7 +97,7 @@ export namespace Value {
     export function toStringSanitized(v: Value): string {
         return JSON.stringify({
             ...v,
-            code: v.code && !v.isGenericCode ? codeLastFour(v.code) : v.code
+            code: v.code && !v.isGenericCode ? formatCodeForLastFourDisplay(v.code) : v.code
         });
     }
 }
@@ -110,7 +110,7 @@ export interface DbValue {
     usesRemaining: number | null;
     programId: string | null;
     issuanceId: string | null;
-    code: string | null;
+    codeLastFour: string | null;
     isGenericCode: boolean | null;
     codeHashed: string | null;
     codeEncrypted: string | null;
@@ -142,7 +142,7 @@ export namespace DbValue {
             programId: v.programId,
             issuanceId: v.issuanceId,
             contactId: v.contactId,
-            code: v.code && (v.isGenericCode || showCode) ? decryptCode(v.codeEncrypted) : v.code,
+            code: dbValueCodeToValueCode(v, showCode),
             isGenericCode: v.isGenericCode,
             pretax: v.pretax,
             active: v.active,
@@ -161,4 +161,20 @@ export namespace DbValue {
             createdBy: v.createdBy
         };
     }
+}
+
+function dbValueCodeToValueCode(v: DbValue, showCode: boolean): string {
+    if (v.codeLastFour) {
+        if (v.isGenericCode || showCode) {
+            return decryptCode(v.codeEncrypted)
+        } else {
+            return formatCodeForLastFourDisplay(v.codeLastFour);
+        }
+    } else {
+        return null;
+    }
+}
+
+export function formatCodeForLastFourDisplay(code: string): string {
+    return "…" + getCodeLastFourNoPrefix(code);
 }

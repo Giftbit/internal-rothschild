@@ -37,7 +37,7 @@ export function installIssuancesRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("userId");
+            auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:issuances:create");
 
             evt.validateBody(issuanceSchema);
@@ -61,7 +61,8 @@ export function installIssuancesRest(router: cassava.Router): void {
                     }
                 ),
                 createdDate: now,
-                updatedDate: now
+                updatedDate: now,
+                createdBy: auth.teamMemberId
             };
 
             issuance.startDate = issuance.startDate && dateInDbPrecision(new Date(issuance.startDate));
@@ -139,7 +140,7 @@ async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, prog
 }
 
 async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, issuance: Issuance, codeParameters: CodeParameters): Promise<Issuance> {
-    auth.requireIds("userId");
+    auth.requireIds("userId", "teamMemberId");
     let program: Program = await getProgram(auth, issuance.programId);
     log.info(`Creating issuance for userId: ${auth.userId}. Issuance: ${JSON.stringify(issuance)}`);
 

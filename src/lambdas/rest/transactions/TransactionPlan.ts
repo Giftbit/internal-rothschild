@@ -11,12 +11,15 @@ import {
     TransactionTotals,
     TransactionType
 } from "../../../model/Transaction";
-import {Value} from "../../../model/Value";
+import {formatCodeForLastFourDisplay, Value} from "../../../model/Value";
 import {LineItemResponse} from "../../../model/LineItem";
-import {LightrailTransactionParty, TransactionParty} from "../../../model/TransactionRequest";
+import {
+    AdditionalStripeChargeParams,
+    LightrailTransactionParty,
+    TransactionParty
+} from "../../../model/TransactionRequest";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {codeLastFour} from "../../../model/DbCode";
 import {TaxRequestProperties} from "../../../model/TaxProperties";
 
 export interface TransactionPlan {
@@ -50,6 +53,7 @@ export interface StripeTransactionPlanStep {
     customer?: string;
     maxAmount: number | null;
     amount: number;
+    additionalStripeParams: AdditionalStripeChargeParams | null;
 
     /**
      * Result of creating the charge in Stripe is only set if the plan is executed.
@@ -164,7 +168,7 @@ export namespace TransactionPlan {
             steps: plan.steps.map(step => transactionPlanStepToTransactionStep(step)),
             paymentSources: plan.paymentSources && getSanitizedPaymentSources(plan),
             metadata: plan.metadata || null,
-            createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
+            createdBy: auth.teamMemberId
         };
         if (simulated) {
             transaction.simulated = true;
@@ -184,7 +188,7 @@ export namespace TransactionPlan {
                 } else {
                     cleanSources.push({
                         rail: source.rail,
-                        code: codeLastFour(source.code)
+                        code: formatCodeForLastFourDisplay(source.code)
                     });
                 }
             } else {

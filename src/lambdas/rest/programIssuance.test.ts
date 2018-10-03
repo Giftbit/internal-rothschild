@@ -87,7 +87,8 @@ describe("/v2/issuances", () => {
                 usesRemaining: null,
                 startDate: null,
                 endDate: null,
-                metadata: {}
+                metadata: {},
+                createdBy: testUtils.defaultTestUser.auth.teamMemberId
             }, ["createdDate", "updatedDate"]);
             issuances.push(createIssuance.body);
 

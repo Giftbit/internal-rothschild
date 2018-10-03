@@ -40,7 +40,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             usesRemaining: null,
             programId: null,
             issuanceId: null,
-            code: null,
+            codeLastFour: null,
             isGenericCode: false,
             codeEncrypted: null,
             codeHashed: null,
@@ -60,8 +60,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             createdDate: new Date(),
             updatedDate: new Date(),
             updatedContactIdDate: null,
-            createdBy: defaultTestUser.auth.userId
-            // createdBy: defaultTestUser.auth.teamMemberId  // todo require tmi again
+            createdBy: defaultTestUser.auth.teamMemberId
         };
 
         const knex = await getKnexWrite();
@@ -115,7 +114,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             usesRemaining: 0,
             programId: null,
             issuanceId: null,
-            code: null,
+            codeLastFour: null,
             isGenericCode: false,
             codeEncrypted: null,
             codeHashed: null,

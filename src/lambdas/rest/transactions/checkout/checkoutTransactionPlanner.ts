@@ -1,138 +1,141 @@
-import {calculateCheckoutTransactionPlan} from "./calculateTransactionPlan";
+import {calculateCheckoutTransactionPlan} from "./calculateCheckoutTransactionPlan";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "../TransactionPlan";
-import {listPermutations} from "../../../../utils/combinatoricUtils";
 import log = require("loglevel");
 
 export function optimizeCheckout(checkout: CheckoutRequest, steps: TransactionPlanStep[]): TransactionPlan {
-    let bestPlan: TransactionPlan = null;
+    log.info(`optimizing checkout transaction`);
 
-    log.info(`Getting checkout permutations.`);
-    const permutations = getAllPermutations(steps);
+    const unsortedPretaxSteps = steps.filter(step => (step.rail === "internal" && step.pretax) || (step.rail === "lightrail" && step.value.pretax));
+    const unsortedPostTaxSteps = steps.filter(step => unsortedPretaxSteps.indexOf(step) === -1);
 
-    for (const perm of permutations) {
-        log.info(`Calculating transaction plan for permutation: ${JSON.stringify(perm)}.`);
-        let newPlan = calculateCheckoutTransactionPlan(checkout, perm.preTaxSteps, perm.postTaxSteps);
-        log.info(`Calculated new transaction plan: ${JSON.stringify(newPlan)}.`);
-        if (!bestPlan || (newPlan.totals.payable < bestPlan.totals.payable)) {
-            bestPlan = newPlan;
-            log.info(`Found a better transaction plan: ${JSON.stringify(bestPlan)}`);
-        } else {
-            log.info(`Old bestPlan's payable ${bestPlan.totals.payable} < new plan's payable ${newPlan.totals.payable}.`);
-        }
-    }
+    const sortedPretaxSteps = [];
+    const sortedPostTaxSteps = [];
 
-    if (!bestPlan) {
-        log.info("No steps provided.");
-        bestPlan = calculateCheckoutTransactionPlan(checkout, [], []);
-    }
+    optimizeSteps(true, unsortedPretaxSteps, checkout, sortedPretaxSteps, sortedPostTaxSteps);
+    optimizeSteps(false, unsortedPostTaxSteps, checkout, sortedPretaxSteps, sortedPostTaxSteps);
 
-    log.info(`Overall best plan: ${JSON.stringify(bestPlan)}`);
-    return bestPlan;
-}
+    log.info(`optimized checkout transaction\nsortedPretaxSteps: ${JSON.stringify(sortedPretaxSteps)}\nsortedPostTaxSteps: ${JSON.stringify(sortedPostTaxSteps)}`);
 
-export interface StepPermutation {
-    preTaxSteps: TransactionPlanStep[];
-    postTaxSteps: TransactionPlanStep[];
-}
-
-export function* getAllPermutations(steps: TransactionPlanStep[]): IterableIterator<StepPermutation> {
-    const [preTaxSteps, postTaxSteps] = dualFilter(steps, step => (step.rail === "internal" && step.pretax) || (step.rail === "lightrail" && step.value.pretax));
-
-    if (preTaxSteps.length > 0 && postTaxSteps.length > 0) {
-        const preTaxPerms = getStepPermutations(preTaxSteps);
-        for (const preTaxPerm of preTaxPerms) {
-            const postTaxPerms = getStepPermutations(postTaxSteps);
-            for (const postTaxPerm of postTaxPerms) {
-                yield {
-                    preTaxSteps: JSON.parse(JSON.stringify(preTaxPerm)) /* this is subtle, need to be clones, otherwise object gets modified */,
-                    postTaxSteps: JSON.parse(JSON.stringify(postTaxPerm))
-                };
-            }
-        }
-    } else if (preTaxSteps.length > 0 && postTaxSteps.length === 0) {
-        const preTaxPerms = getStepPermutations(preTaxSteps);
-        for (const preTaxPerm of preTaxPerms) {
-            yield {preTaxSteps: JSON.parse(JSON.stringify(preTaxPerm)), postTaxSteps: []};
-        }
-    } else if (preTaxSteps.length === 0 && postTaxSteps.length > 0) {
-        const postTaxPerms = getStepPermutations(postTaxSteps);
-        for (const postTaxPerm of postTaxPerms) {
-            yield {preTaxSteps: [], postTaxSteps: JSON.parse(JSON.stringify(postTaxPerm))};
-        }
-    } else {
-        log.info("No steps were supplied.");
-    }
-    return;
+    return calculateCheckoutTransactionPlan(checkout, sortedPretaxSteps, sortedPostTaxSteps);
 }
 
 /**
- * IDEA: turn this into a generator function to save on memory usage.  That
- *       only works if listPermutations is also a generator.
+ * Sort the given unsorted steps and append them to pretax or postTax steps.
  */
-export function getStepPermutations(steps: TransactionPlanStep[]): TransactionPlanStep[][] {
-    let filteredSteps = filterSteps(steps);
-    let lightrailPerms: TransactionPlanStep[][] = listPermutations(filteredSteps.lightrailSteps).map(perm => flattenOneLevel(perm));
+function optimizeSteps(pretax: boolean, unsortedSteps: TransactionPlanStep[], checkout: CheckoutRequest, sortedPretaxSteps: TransactionPlanStep[], sortedPostTaxSteps: TransactionPlanStep[]): void {
+    log.info(`optimizing ${unsortedSteps.length} ${pretax ? "pretax" : "postTax"} steps`);
 
-    return lightrailPerms.map(perm => [...filteredSteps.stepsBeforeLightrail, ...perm, ...filteredSteps.stepsAfterLightrail]);
+    const splitUnsortedSteps = splitNonLightrailSteps(unsortedSteps);
+    (pretax ? sortedPretaxSteps : sortedPostTaxSteps).push(...splitUnsortedSteps.stepsBeforeLightrail);
+
+    for (const lightrailStepBucket of bucketLightrailSteps(splitUnsortedSteps.lightrailSteps)) {
+        log.info(`ordering bucket with ${lightrailStepBucket.length} lightrail steps:`, lightrailStepBucket.map(step => step.value.id));
+        while (lightrailStepBucket.length) {
+            if (lightrailStepBucket.length === 1) {
+                log.info("only 1 step, easy");
+                (pretax ? sortedPretaxSteps : sortedPostTaxSteps).push(lightrailStepBucket[0]);
+                break;
+            }
+
+            // Find the next step that reduces the payable the most and use that.
+            let bestPlan: TransactionPlan = null;
+            let bestStepIx = -1;
+            for (let stepIx = 0; stepIx < lightrailStepBucket.length; stepIx++) {
+                const step = lightrailStepBucket[stepIx];
+                const newPlanPretaxSteps = pretax ? [...sortedPretaxSteps, step] : sortedPretaxSteps;
+                const newPlanPostTaxSteps = pretax ? sortedPostTaxSteps : [...sortedPostTaxSteps, step];
+                const newPlan = calculateCheckoutTransactionPlan(checkout, newPlanPretaxSteps, newPlanPostTaxSteps);
+
+                log.info(`step ${step.value.id} has payable ${newPlan.totals.payable}`);
+                if (!bestPlan || (newPlan.totals.payable < bestPlan.totals.payable)) {
+                    bestPlan = newPlan;
+                    bestStepIx = stepIx;
+                }
+            }
+
+            log.info(`step ${lightrailStepBucket[bestStepIx].value.id} has the lowest payable`);
+            (pretax ? sortedPretaxSteps : sortedPostTaxSteps).push(lightrailStepBucket.splice(bestStepIx, 1)[0]);
+        }
+    }
+
+    (pretax ? sortedPretaxSteps : sortedPostTaxSteps).push(...splitUnsortedSteps.stepsAfterLightrail);
 }
 
-export function filterSteps(steps: TransactionPlanStep[]): FilteredSteps {
+function splitNonLightrailSteps(steps: TransactionPlanStep[]) {
     return {
         stepsBeforeLightrail: steps.filter(step => step.rail === "internal" && step.beforeLightrail),
         stepsAfterLightrail: steps.filter(step => step.rail !== "lightrail" && !step["beforeLightrail"]),
-        lightrailSteps: batchEquivalentLightrailSteps(steps.filter(step => step.rail === "lightrail") as LightrailTransactionPlanStep[]),
+        lightrailSteps: steps.filter(step => step.rail === "lightrail") as LightrailTransactionPlanStep[],
     };
 }
 
 /**
- * Group Lightrail steps that reordering could not change the payable total for.
- * When the return value is permutated and then flattened one layer you get all
- * permutations with the grouped steps still together.
+ * Bucket steps into groups such that buckets are in the correct order but
+ * steps within the bucket might not be in the correct order.
+ *
+ * For example if the result is `[a, b],[c, d],[e]` then `a` and `b` should
+ * come before `c` and `d`, but it's not yet known if `a` or `b` should be first.
  */
-function batchEquivalentLightrailSteps(lightrailSteps: LightrailTransactionPlanStep[]): (LightrailTransactionPlanStep | LightrailTransactionPlanStep[])[] {
-    let [lightrailSimpleSteps, lightrailComplexSteps] = dualFilter(lightrailSteps, step => !step.value.balanceRule && !step.value.redemptionRule);
-    lightrailSimpleSteps.sort((a, b) => {
-        // Prefer soonest expiration, then any expiration, then discounts then lowest balance
-        if (a.value.endDate && b.value.endDate) {
-            return (b.value.endDate as any) - (a.value.endDate as any); // subtracting Dates really does work
-        } else if (a.value.endDate) {
-            return -1;
-        } else if (b.value.endDate) {
-            return 1;
-        } else if (a.value.discount !== b.value.discount) {
-            return +b.value.discount - +a.value.discount;
-        }
-        return a.value.balance - b.value.balance;
-    });
-    return [lightrailSimpleSteps, ...lightrailComplexSteps];
-}
+function bucketLightrailSteps(steps: LightrailTransactionPlanStep[]): LightrailTransactionPlanStep[][] {
+    log.info("bucketing lightrail steps:", steps.map(step => step.value.id));
 
-interface FilteredSteps {
-    stepsBeforeLightrail: TransactionPlanStep[];
-    stepsAfterLightrail: TransactionPlanStep[];
-    lightrailSteps: (LightrailTransactionPlanStep | LightrailTransactionPlanStep[])[];
+    const bucketedSteps = steps
+        .concat()
+        .sort(lightrailTransactionPlanStepComparer)     // Sorts in place, thus the concat() above.
+        .reduce((bucketedArray: LightrailTransactionPlanStep[][], currentStep: LightrailTransactionPlanStep) => {
+            // Put steps that sort to the same place in a bucket so they can be sorted another way.
+            if (bucketedArray.length === 0) {
+                log.info(`step ${currentStep.value.id} is the first step`);
+                bucketedArray.push([currentStep]);
+                return bucketedArray;
+            }
+
+            const lastBucket = bucketedArray[bucketedArray.length - 1];
+            const lastBucketedStep = lastBucket[lastBucket.length - 1];
+            const belongsInSameBucket = lightrailTransactionPlanStepComparer(lastBucketedStep, currentStep) === 0;
+
+            if (belongsInSameBucket) {
+                log.info(`step ${currentStep.value.id} belongs in the same bucket`);
+                lastBucket.push(currentStep);
+            } else {
+                log.info(`step ${currentStep.value.id} belongs in a new bucket`);
+                bucketedArray.push([currentStep]);
+            }
+
+            return bucketedArray;
+        }, []);
+
+    log.info("bucketed lightrail steps:", bucketedSteps.map(b => b.map(step => step.value.id)));
+    return bucketedSteps;
 }
 
 /**
- * Get an array of elements that pass the filter and another of elements that don't
- * pass the filter.  All items are in one of the two arrays exactly once.
+ * Compare LightrailTransactionPlanSteps so that earlier values are used first.
  */
-function dualFilter<T>(steps: T[], filter: (step: T) => boolean): [T[], T[]] {
-    return [
-        steps.filter(filter),
-        steps.filter(step => !filter(step))
-    ];
-}
-
-function flattenOneLevel<T>(arr: (T | T[])[]): T[] {
-    const res: T[] = [];
-    for (const element of arr) {
-        if (Array.isArray(element)) {
-            res.push(...element);
-        } else {
-            res.push(element);
-        }
+function lightrailTransactionPlanStepComparer(a: LightrailTransactionPlanStep, b: LightrailTransactionPlanStep): number {
+    if (a.value.discount !== b.value.discount) {
+        // Discounts before not discounts.
+        return a.value.discount ? -1 : 1;
     }
-    return res;
+    if (a.value.endDate && b.value.endDate) {
+        // Earlier expiration before later expiration.
+        let dateDifference = (a.value.endDate as any) - (b.value.endDate as any); // subtracting Dates really does work
+        if (dateDifference !== 0) {
+            return dateDifference;
+        }
+    } else if (!a.value.endDate !== !b.value.endDate) {
+        // Any expiration before no expiration.
+        return a.value.endDate ? -1 : 1;
+    }
+    if (!a.value.redemptionRule !== !b.value.redemptionRule) {
+        // No redemption rule before redemption rule.
+        return a.value.redemptionRule ? 1 : -1;
+    }
+    if (!a.value.redemptionRule && !b.value.redemptionRule
+        && !a.value.balanceRule && !b.value.balanceRule) {
+        // For plain values without rules, empty the smaller balance first.
+        return a.value.balance - b.value.balance;
+    }
+    return 0;
 }
