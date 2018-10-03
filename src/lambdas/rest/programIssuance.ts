@@ -168,7 +168,7 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
                     code: codeParameters.code,
                     isGenericCode: codeParameters.isGenericCode,
                     issuanceId: issuance.id,
-                    balance: issuance.balance ? issuance.balance : null,
+                    balance: (issuance.balance == null && issuance.balanceRule == null) ? 0 : issuance.balance,
                     redemptionRule: issuance.redemptionRule ? issuance.redemptionRule : null,
                     balanceRule: issuance.balanceRule ? issuance.balanceRule : null,
                     usesRemaining: issuance.usesRemaining ? issuance.usesRemaining : null,

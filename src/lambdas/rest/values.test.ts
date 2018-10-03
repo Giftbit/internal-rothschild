@@ -82,7 +82,7 @@ describe("/v2/values/", () => {
             issuanceId: null,
             contactId: null,
             code: null,
-            isGenericCode: null,
+            isGenericCode: false,
             active: true,
             canceled: false,
             frozen: false,
@@ -122,7 +122,7 @@ describe("/v2/values/", () => {
             issuanceId: null,
             contactId: null,
             code: null,
-            isGenericCode: null,
+            isGenericCode: false,
             balance: null,
             active: true,
             canceled: false,
@@ -158,7 +158,7 @@ describe("/v2/values/", () => {
             issuanceId: null,
             contactId: null,
             code: null,
-            isGenericCode: null,
+            isGenericCode: false,
             balance: null,
             active: true,
             canceled: false,
@@ -383,6 +383,16 @@ describe("/v2/values/", () => {
         };
         const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
+    });
+
+    it("can create Value with null balance and balanceRule which will default to balance of 0", async () => {
+        let value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD"
+        };
+        const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
+        chai.assert.equal(valueResp.body.balance, 0, JSON.stringify(valueResp.body));
     });
 
     it("startDate > endDate 409s", async () => {
