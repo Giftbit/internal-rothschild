@@ -40,7 +40,7 @@ export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtaut
         if (step.amount !== 0 && step.amount !== null) {
             updateProperties.balance = trx.raw(`balance + ?`, [step.amount]);
         }
-        if (step.amount < 0 && !step.value.balanceRule /* if it has a balanceRule then balance is 0 or null */) {
+        if (step.amount < 0 && !step.value.balanceRule /* if it has a valueRule then balance is 0 or null */) {
             query = query.where("balance", ">=", -step.amount);
         }
         if (step.value.usesRemaining !== null) {

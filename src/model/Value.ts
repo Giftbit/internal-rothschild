@@ -7,6 +7,7 @@ export interface Value {
     id: string;
     currency: string;
     balance: number | null;
+    uses: number | null; // todo - remove these checks once valueRule and uses are no longer supported.
     usesRemaining: number | null;
     programId: string | null;
     issuanceId: string | null;
@@ -20,6 +21,7 @@ export interface Value {
     discount: boolean;
     discountSellerLiability: number | null;
     redemptionRule: Rule | null;
+    valueRule: Rule | null; // todo - remove these checks once valueRule and uses are no longer supported.
     balanceRule: Rule | null;
     startDate: Date | null;
     endDate: Date | null;
@@ -138,6 +140,7 @@ export namespace DbValue {
             id: v.id,
             currency: v.currency,
             balance: v.balance,
+            uses: v.usesRemaining, // todo - remove these checks once valueRule and uses are no longer supported.
             usesRemaining: v.usesRemaining,
             programId: v.programId,
             issuanceId: v.issuanceId,
@@ -151,6 +154,7 @@ export namespace DbValue {
             discount: v.discount,
             discountSellerLiability: v.discountSellerLiability,
             redemptionRule: JSON.parse(v.redemptionRule),
+            valueRule: JSON.parse(v.balanceRule), // todo - remove these checks once valueRule and uses are no longer supported.
             balanceRule: JSON.parse(v.balanceRule),
             startDate: v.startDate,
             endDate: v.endDate,

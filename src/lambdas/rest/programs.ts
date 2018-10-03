@@ -38,6 +38,16 @@ export function installProgramsRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:programs:create");
+            // todo - remove these checks once valueRule and fixedInitialUses are no longer supported.
+            if (evt.body.valueRule && !evt.body.balanceRule) {
+                evt.body.balanceRule = evt.body.valueRule;
+                delete evt.body.valueRule;
+            }
+            if (evt.body.fixedInitialUses && !evt.body.fixedInitialUsesRemaining) {
+                evt.body.fixedInitialUsesRemaining = evt.body.fixedInitialUses;
+                delete evt.body.fixedInitialUses;
+            }
+
             evt.validateBody(programSchema);
 
             const now = nowInDbPrecision();
@@ -52,10 +62,12 @@ export function installProgramsRest(router: cassava.Router): void {
                         pretax: true,
                         active: true,
                         redemptionRule: null,
+                        valueRule: null, // todo - remove these checks once valueRule and uses are no longer supported.
                         balanceRule: null,
                         minInitialBalance: null,
                         maxInitialBalance: null,
                         fixedInitialBalances: null,
+                        fixedInitialUses: null, // todo - remove these checks once valueRule and uses are no longer supported.
                         fixedInitialUsesRemaining: null,
                         startDate: null,
                         endDate: null,
@@ -93,6 +105,17 @@ export function installProgramsRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:programs:update");
+
+            // todo - remove these checks once valueRule and fixedInitialUses are no longer supported.
+            if (evt.body.valueRule && !evt.body.balanceRule) {
+                evt.body.balanceRule = evt.body.valueRule;
+                delete evt.body.valueRule
+            }
+            if (evt.body.fixedInitialUses && !evt.body.fixedInitialUsesRemaining) {
+                evt.body.fixedInitialUsesRemaining = evt.body.fixedInitialUses;
+                delete evt.body.fixedInitialUses
+            }
+
             evt.validateBody(updateProgramSchema);
 
             if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
