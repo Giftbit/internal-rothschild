@@ -54,6 +54,20 @@ function stripeTransactionPlanStepToStripeRequest(auth: giftbitRoutes.jwtauth.Au
     if (step.customer) {
         stepForStripe.customer = step.customer;
     }
+    if (step.additionalStripeParams) {
+        if (step.additionalStripeParams.on_behalf_of) {
+            stepForStripe.on_behalf_of = step.additionalStripeParams.on_behalf_of;
+        }
+        if (step.additionalStripeParams.receipt_email) {
+            stepForStripe.receipt_email = step.additionalStripeParams.receipt_email;
+        }
+        if (step.additionalStripeParams.statement_descriptor) {
+            stepForStripe.statement_descriptor = step.additionalStripeParams.statement_descriptor;
+        }
+        if (step.additionalStripeParams.transfer_group) {
+            stepForStripe.transfer_group = step.additionalStripeParams.transfer_group;
+        }
+    }
 
     log.debug("Created stepForStripe: \n" + JSON.stringify(stepForStripe, null, 4));
     return stepForStripe;

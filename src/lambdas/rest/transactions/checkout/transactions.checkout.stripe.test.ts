@@ -94,15 +94,10 @@ describe("split tender checkout with Stripe", () => {
         unsetStubsForStripeTests();
     });
 
+    const sinonSandbox = sinon.createSandbox();
+
     afterEach(() => {
-        if (!testStripeLive()) {
-            if ((stripeTransactions.createStripeCharge as sinon).restore) {
-                (stripeTransactions.createStripeCharge as sinon).restore();
-            }
-            if ((stripeTransactions.createRefund as sinon).restore) {
-                (stripeTransactions.createRefund as sinon).restore();
-            }
-        }
+        sinonSandbox.restore();
     });
 
     it("processes basic checkout with Stripe only", async () => {
@@ -202,17 +197,17 @@ describe("split tender checkout with Stripe", () => {
             "transfer_group": null
         };
         if (!testStripeLive()) {
-            const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
-            stripeStub.withArgs(sinon.match({
-                "amount": 123,
-                "currency": request.currency,
-                "metadata": {
-                    "lightrailTransactionId": request.id,
-                    "lightrailTransactionSources": "[]",
-                    "lightrailUserId": defaultTestUser.userId
-                },
-                "source": "tok_visa"
-            }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`)).resolves(exampleStripeResponse);
+            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                .withArgs(sinon.match({
+                    "amount": 123,
+                    "currency": request.currency,
+                    "metadata": {
+                        "lightrailTransactionId": request.id,
+                        "lightrailTransactionSources": "[]",
+                        "lightrailUserId": defaultTestUser.userId
+                    },
+                    "source": "tok_visa"
+                }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`)).resolves(exampleStripeResponse);
         }
 
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
@@ -366,17 +361,17 @@ describe("split tender checkout with Stripe", () => {
             "transfer_group": null
         };
         if (!testStripeLive()) {
-            const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
-            stripeStub.withArgs(sinon.match({
-                "amount": 123,
-                "currency": request.currency,
-                "metadata": {
-                    "lightrailTransactionId": `${request.id}`,
-                    "lightrailTransactionSources": "[]",
-                    "lightrailUserId": defaultTestUser.userId
-                },
-                "customer": request.sources[0].customer
-            }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`)).resolves(exampleStripeResponse);
+            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                .withArgs(sinon.match({
+                    "amount": 123,
+                    "currency": request.currency,
+                    "metadata": {
+                        "lightrailTransactionId": `${request.id}`,
+                        "lightrailTransactionSources": "[]",
+                        "lightrailUserId": defaultTestUser.userId
+                    },
+                    "customer": request.sources[0].customer
+                }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`)).resolves(exampleStripeResponse);
         }
 
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
@@ -568,17 +563,17 @@ describe("split tender checkout with Stripe", () => {
             "transfer_group": null
         };
         if (!testStripeLive()) {
-            const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
-            stripeStub.withArgs(sinon.match({
-                "amount": 400,
-                "currency": basicRequest.currency,
-                "metadata": {
-                    "lightrailTransactionId": basicRequest.id,
-                    "lightrailTransactionSources": `[{\"rail\":\"lightrail\",\"valueId\":\"${value.id}\"}]`,
-                    "lightrailUserId": defaultTestUser.userId
-                },
-                "source": "tok_visa"
-            }), sinon.match("test"), sinon.match("test"), sinon.match(`${basicRequest.id}-0`)).resolves(exampleStripeResponse);
+            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                .withArgs(sinon.match({
+                    "amount": 400,
+                    "currency": basicRequest.currency,
+                    "metadata": {
+                        "lightrailTransactionId": basicRequest.id,
+                        "lightrailTransactionSources": `[{\"rail\":\"lightrail\",\"valueId\":\"${value.id}\"}]`,
+                        "lightrailUserId": defaultTestUser.userId
+                    },
+                    "source": "tok_visa"
+                }), sinon.match("test"), sinon.match("test"), sinon.match(`${basicRequest.id}-0`)).resolves(exampleStripeResponse);
         }
 
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", basicRequest);
@@ -656,8 +651,8 @@ describe("split tender checkout with Stripe", () => {
 
     it("does not charge Stripe when Lightrail value is sufficient", async () => {
         if (!testStripeLive()) {
-            const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
-            stripeStub.rejects(new Error("The Stripe stub should never be called in this test"));
+            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                .rejects(new Error("The Stripe stub should never be called in this test"));
         }
 
         const sufficientValue: Partial<Value> = {
@@ -877,17 +872,17 @@ describe("split tender checkout with Stripe", () => {
         };
 
         if (!testStripeLive()) {
-            const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
-            stripeStub.withArgs(sinon.match({
-                "amount": 500,
-                "currency": request.currency,
-                "metadata": {
-                    ...request.metadata,
-                    "lightrailTransactionId": `${request.id}`,
-                    "lightrailTransactionSources": "[]",
-                    "lightrailUserId": defaultTestUser.userId,
-                }
-            }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`)).resolves(exampleStripeResponse);
+            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                .withArgs(sinon.match({
+                    "amount": 500,
+                    "currency": request.currency,
+                    "metadata": {
+                        ...request.metadata,
+                        "lightrailTransactionId": `${request.id}`,
+                        "lightrailTransactionSources": "[]",
+                        "lightrailUserId": defaultTestUser.userId,
+                    }
+                }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`)).resolves(exampleStripeResponse);
         }
 
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
@@ -918,6 +913,143 @@ describe("split tender checkout with Stripe", () => {
                 lightrailUserId: defaultTestUser.userId
             }, "lightrailTransactionId");
         }
+
+        if (testStripeLive()) {
+            const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
+            const stripeChargeId = (postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId;
+            const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
+                stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
+            });
+            chai.assert.deepEqual(stripeCharge.metadata, stripeStep.charge.metadata);
+        }
+    }).timeout(3000);
+
+    it("passes additionalStripeParams to Stripe", async () => {
+        const request = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "stripe",
+                    source: source,
+                    additionalStripeParams: {
+                        on_behalf_of: "aaa",
+                        receipt_email: "bbb@example.com",
+                        statement_descriptor: "ccc",
+                        transfer_group: "ddd"
+                    }
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "xyz-123",
+                    unitPrice: 500
+                }
+            ],
+            currency: "CAD"
+        };
+        const exampleStripeResponse = {
+            "id": "ch_1Ctjy5G3cz9DRdBthqHMBUoh",
+            "object": "charge",
+            "amount": 500,
+            "amount_refunded": 0,
+            "application": "ca_D5LfFkNWh8XbFWxIcEx6N9FXaNmfJ9Fr",
+            "application_fee": null,
+            "balance_transaction": "txn_1Ctjy5G3cz9DRdBtoTRcm2z6",
+            "captured": true,
+            "created": 1532990157,
+            "currency": "cad",
+            "customer": null,
+            "description": null,
+            "destination": null,
+            "dispute": null,
+            "failure_code": null,
+            "failure_message": null,
+            "fraud_details": {},
+            "invoice": null,
+            "livemode": false,
+            "metadata": {
+                "meta": "data",
+                "lightrailTransactionId": request.id,
+                "lightrailTransactionSources": "[]",
+                "lightrailUserId": "default-test-user-TEST"
+            },
+            "on_behalf_of": "aaa",
+            "order": null,
+            "outcome": {
+                "network_status": "approved_by_network",
+                "reason": null,
+                "risk_level": "normal",
+                "seller_message": "Payment complete.",
+                "type": "authorized"
+            },
+            "paid": true,
+            "receipt_email": "bbb@example.com",
+            "receipt_number": null,
+            "refunded": false,
+            "refunds": {
+                "object": "list",
+                "data": [],
+                "has_more": false,
+                "total_count": 0,
+                "url": "/v1/charges/ch_1Ctjy5G3cz9DRdBthqHMBUoh/refunds"
+            },
+            "review": null,
+            "shipping": null,
+            "source": {
+                "id": "card_1Ctjy5G3cz9DRdBtwIkIcTsK",
+                "object": "card",
+                "address_city": null,
+                "address_country": null,
+                "address_line1": null,
+                "address_line1_check": null,
+                "address_line2": null,
+                "address_state": null,
+                "address_zip": null,
+                "address_zip_check": null,
+                "brand": "Visa",
+                "country": "US",
+                "customer": null,
+                "cvc_check": null,
+                "dynamic_last4": null,
+                "exp_month": 7,
+                "exp_year": 2019,
+                "fingerprint": "LMHNXKv7kEbxUNL9",
+                "funding": "credit",
+                "last4": "4242",
+                "metadata": {},
+                "name": null,
+                "tokenization_method": null
+            },
+            "source_transfer": null,
+            "statement_descriptor": "ccc",
+            "status": "succeeded",
+            "transfer_group": "ddd"
+        };
+
+        if (!testStripeLive()) {
+            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                .withArgs(sinon.match({
+                    amount: 500,
+                    currency: request.currency,
+                    on_behalf_of: "aaa",
+                    receipt_email: "bbb@example.com",
+                    statement_descriptor: "ccc",
+                    transfer_group: "ddd"
+                }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`)).resolves(exampleStripeResponse);
+        }
+
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+
+        chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
+        chai.assert.equal(postCheckoutResp.body.id, request.id);
+
+        const stripeStep = postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep;
+        chai.assert.isObject(stripeStep, "found stripe step");
+        chai.assert.equal(stripeStep.charge.on_behalf_of, "aaa");
+        chai.assert.equal(stripeStep.charge.receipt_email, "bbb@example.com");
+        chai.assert.equal(stripeStep.charge.statement_descriptor, "ccc");
+        chai.assert.equal(stripeStep.charge.transfer_group, "ddd");
 
         if (testStripeLive()) {
             const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
@@ -1120,8 +1252,14 @@ describe("split tender checkout with Stripe", () => {
                     "statusCode": 400
                 };
                 const exampleErrorResponse = new StripeRestError(409, "Error for tests", null, exampleStripeError);
-                const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
-                stripeStub.withArgs(sinon.match.has("metadata", sinon.match.has("lightrailTransactionId", request.id)), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`)).rejects(exampleErrorResponse);
+
+                sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                    .withArgs(
+                        sinon.match.has("metadata", sinon.match.has("lightrailTransactionId", request.id)),
+                        sinon.match("test"),
+                        sinon.match("test"),
+                        sinon.match(`${request.id}-0`))
+                    .rejects(exampleErrorResponse);
             }
 
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
@@ -1130,12 +1268,12 @@ describe("split tender checkout with Stripe", () => {
 
         it("does not charge Stripe when the Lightrail parent transaction fails", async () => {
             if (!testStripeLive()) {
-                const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
-                stripeStub.rejects(new Error("The Stripe stub should never be called in this test"));
+                sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                    .rejects(new Error("The Stripe stub should never be called in this test"));
             }
 
-            let stubInsertParentTransaction = sinon.stub(insertTransaction, "insertTransaction");
-            stubInsertParentTransaction.rejects(new TransactionPlanError("Error for tests: inserting checkout parent transaction", {isReplanable: false}));
+            sinonSandbox.stub(insertTransaction, "insertTransaction")
+                .rejects(new TransactionPlanError("Error for tests: inserting checkout parent transaction", {isReplanable: false}));
 
             const request = {
                 ...basicRequest,
@@ -1143,8 +1281,6 @@ describe("split tender checkout with Stripe", () => {
             };
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
             chai.assert.equal(postCheckoutResp.statusCode, 500, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
-
-            (insertTransaction.insertTransaction as any).restore();
         }).timeout(3500);
 
         it("rolls back the Stripe transaction when the Lightrail transaction steps fail", async () => {
@@ -1268,10 +1404,10 @@ describe("split tender checkout with Stripe", () => {
                 "receipt_number": null,
                 "status": "succeeded"
             };
-            let stripeChargeStub: sinon;
-            let stripeRefundStub: sinon;
+            let stripeChargeStub: sinon.SinonStub;
+            let stripeRefundStub: sinon.SinonStub;
             if (!testStripeLive()) {
-                stripeChargeStub = sinon.stub(stripeTransactions, "createStripeCharge");
+                stripeChargeStub = sinonSandbox.stub(stripeTransactions, "createStripeCharge");
                 stripeChargeStub.withArgs(sinon.match({
                     "amount": 400,
                     "currency": request.currency,
@@ -1281,8 +1417,10 @@ describe("split tender checkout with Stripe", () => {
                         "lightrailUserId": "default-test-user-TEST"
                     },
                     "source": "tok_visa"
-                }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`)).resolves(exampleStripeCharge);
-                stripeRefundStub = sinon.stub(stripeTransactions, "createRefund");
+                }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`))
+                    .resolves(exampleStripeCharge);
+
+                stripeRefundStub = sinonSandbox.stub(stripeTransactions, "createRefund");
                 stripeRefundStub.withArgs(sinon.match({
                     "rail": "stripe",
                     "idempotentStepId": `${request.id}-0`,
@@ -1291,11 +1429,12 @@ describe("split tender checkout with Stripe", () => {
                     "maxAmount": null,
                     "amount": -400,
                     "chargeResult": exampleStripeCharge
-                }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`)).resolves(exampleStripeRefund);
+                }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`))
+                    .resolves(exampleStripeRefund);
             }
 
-            let stubProcessLightrailTransactionSteps = sinon.stub(insertTransaction, "insertLightrailTransactionSteps");
-            stubProcessLightrailTransactionSteps.throws(new TransactionPlanError("Error for tests: transaction step insertion error", {isReplanable: false}));
+            sinonSandbox.stub(insertTransaction, "insertLightrailTransactionSteps")
+                .throws(new TransactionPlanError("Error for tests: transaction step insertion error", {isReplanable: false}));
 
             const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value4);
             chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
@@ -1321,21 +1460,21 @@ describe("split tender checkout with Stripe", () => {
                     "customer": null,
                     "maxAmount": null,
                     "amount": -400,
+                    "additionalStripeParams": null,
                     "chargeResult": exampleStripeCharge
                 });
             }
-
-            (insertTransaction.insertLightrailTransactionSteps as any).restore();
         }).timeout(4000);
 
         it("throws 409 'transaction already exists' if the Lightrail transaction fails for idempotency reasons", async () => {
             if (!testStripeLive()) {
-                const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
-                stripeStub.rejects(new Error("The Stripe stub should never be called in this test"));
+                sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                    .rejects(new Error("The Stripe stub should never be called in this test"));
             }
 
-            let stubInsertTransaction = sinon.stub(insertTransaction, "insertTransaction");
-            stubInsertTransaction.withArgs(sinon.match.any, sinon.match.any, sinon.match.any).throws(new giftbitRoutes.GiftbitRestError(409, `A transaction with transactionId 'TEST-ID-IRRELEVANT' already exists.`, "TransactionExists"));
+            sinonSandbox.stub(insertTransaction, "insertTransaction")
+                .withArgs(sinon.match.any, sinon.match.any, sinon.match.any)
+                .throws(new giftbitRoutes.GiftbitRestError(409, `A transaction with transactionId 'TEST-ID-IRRELEVANT' already exists.`, "TransactionExists"));
             const request = {
                 ...basicRequest,
                 id: `rollback-test-2-${Math.random()}`  // needs to be generated for every test so the Stripe refund succeeds (charges use idempotency keys, refunds can't)
@@ -1344,8 +1483,6 @@ describe("split tender checkout with Stripe", () => {
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
             chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
             chai.assert.equal((postCheckoutResp.body as any).messageCode, "TransactionExists", `messageCode=${(postCheckoutResp.body as any).messageCode}`);
-
-            (insertTransaction.insertTransaction as any).restore();
         }).timeout(3000);
 
         it("handles idempotency errors: fails the repeated transaction but doesn't roll back the original Stripe charge", async function () {
@@ -1558,9 +1695,9 @@ describe("split tender checkout with Stripe", () => {
             "status": "succeeded",
             "transfer_group": null
         };
-        let stripeStub: sinon;
+        let stripeStub: sinon.SinonStub;
         if (!testStripeLive()) {
-            stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
+            stripeStub = sinonSandbox.stub(stripeTransactions, "createStripeCharge");
             stripeStub.onFirstCall().resolves(exampleStripeResponse1);
             stripeStub.onSecondCall().resolves(exampleStripeResponse2);
         }
@@ -1804,8 +1941,9 @@ describe("split tender checkout with Stripe", () => {
             };
             const exampleErrorResponse = new StripeRestError(422, "Error for tests", null, exampleStripeError);
             if (!testStripeLive()) {
-                const stripeStub = sinon.stub(stripeTransactions, "createStripeCharge");
-                stripeStub.withArgs(sinon.match.has("amount", 25), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`)).rejects(exampleErrorResponse);
+                sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                    .withArgs(sinon.match.has("amount", 25), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`))
+                    .rejects(exampleErrorResponse);
             }
 
             const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value3);
@@ -1853,7 +1991,7 @@ describe("split tender checkout with Stripe", () => {
                     assumeToken: "this-is-an-assume-token"
                 };
 
-                let stubFetchFromS3ByEnvVar = sinon.stub(giftbitRoutes.secureConfig, "fetchFromS3ByEnvVar");
+                let stubFetchFromS3ByEnvVar = sinonSandbox.stub(giftbitRoutes.secureConfig, "fetchFromS3ByEnvVar");
                 stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH").resolves(testAssumeToken);
                 stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE").resolves({
                     email: "test@test.com",
@@ -1865,20 +2003,21 @@ describe("split tender checkout with Stripe", () => {
                     live: {}
                 });
 
-                let stubKvsGet = sinon.stub(kvsAccess, "kvsGet");
-                stubKvsGet.withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string).resolves({
-                    token_type: "bearer",
-                    stripe_user_id: "acct_1BOVE6CM9MOvFvZK", // specific stripe account id for test. stripe user: integrationtesting+merchant@giftbit.com
-                });
+                sinonSandbox.stub(kvsAccess, "kvsGet")
+                    .withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string)
+                    .resolves({
+                        token_type: "bearer",
+                        stripe_user_id: "acct_1BOVE6CM9MOvFvZK", // specific stripe account id for test. stripe user: integrationtesting+merchant@giftbit.com
+                    });
             });
 
             after(async function () {
-                if ((giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as sinon).displayName === "fetchFromS3ByEnvVar") {
-                    (giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as sinon).restore();
+                if ((giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as any).displayName === "fetchFromS3ByEnvVar") {
+                    (giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as sinon.SinonStub).restore();
                 }
 
-                if ((kvsAccess.kvsGet as sinon).displayName === "kvsGet") {
-                    (kvsAccess.kvsGet as sinon).restore();
+                if ((kvsAccess.kvsGet as any).displayName === "kvsGet") {
+                    (kvsAccess.kvsGet as sinon.SinonStub).restore();
                 }
             });
 
@@ -1938,4 +2077,3 @@ describe("split tender checkout with Stripe", () => {
         });
     }
 });
-

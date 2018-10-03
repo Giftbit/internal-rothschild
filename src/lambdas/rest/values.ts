@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
-import {DbValue, Value} from "../../model/Value";
+import {DbValue, formatCodeForLastFourDisplay, Value} from "../../model/Value";
 import {pick, pickOrDefault} from "../../utils/pick";
 import {csvSerializer} from "../../serializers";
 import {
@@ -13,7 +13,7 @@ import {
 } from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {DbTransaction, LightrailDbTransactionStep} from "../../model/Transaction";
-import {codeLastFour, DbCode} from "../../model/DbCode";
+import {DbCode} from "../../model/DbCode";
 import {generateCode} from "../../services/codeGenerator";
 import {computeCodeLookupHash} from "../../utils/codeCryptoUtils";
 import {getProgram} from "./programs";
@@ -21,6 +21,8 @@ import {Program} from "../../model/Program";
 import * as Knex from "knex";
 import {GenerateCodeParameters} from "../../model/GenerateCodeParameters";
 import {getTransactions} from "./transactions/transactions";
+import {Currency, formatAmountForCurrencyDisplay} from "../../model/Currency";
+import {getCurrency} from "./currencies";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -50,9 +52,14 @@ export function installValuesRest(router: cassava.Router): void {
                 await injectValueStats(auth, res.values);
             }
 
+            let values: Value[] | StringBalanceValue[] = res.values;
+            if (evt.queryStringParameters.formatCurrencies === "true") {
+                values = await formatValueForCurrencyDisplay(auth, res.values);
+            }
+
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
-                body: res.values
+                body: values
             };
         });
 
@@ -197,9 +204,9 @@ export function installValuesRest(router: cassava.Router): void {
                 isGenericCode = false;
             }
 
-            const dbCode = new DbCode(code, isGenericCode, auth);
+            const dbCode = new DbCode(code, auth);
             let partialValue: Partial<DbValue> = {
-                code: dbCode.lastFour,
+                codeLastFour: dbCode.lastFour,
                 codeEncrypted: dbCode.codeEncrypted,
                 codeHashed: dbCode.codeHashed,
                 isGenericCode: isGenericCode,
@@ -411,7 +418,7 @@ export async function getValueByCode(auth: giftbitRoutes.jwtauth.AuthorizationBa
             codeHashed
         });
     if (res.length === 0) {
-        throw new giftbitRoutes.GiftbitRestError(404, `Value with code '${codeLastFour(code)}' not found.`, "ValueNotFound");
+        throw new giftbitRoutes.GiftbitRestError(404, `Value with code '${formatCodeForLastFourDisplay(code)}' not found.`, "ValueNotFound");
     }
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
@@ -638,6 +645,24 @@ export function checkCodeParameters(generateCode: GenerateCodeParameters, code: 
     if (generateCode && (code || isGenericCode)) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Parameter generateCode is not allowed with parameters code or isGenericCode:true.`);
     }
+}
+
+type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>
+export type StringBalanceValue = Omit<Value, "balance"> & { balance: string | number };
+
+async function formatValueForCurrencyDisplay(auth: giftbitRoutes.jwtauth.AuthorizationBadge, values: Value[]): Promise<StringBalanceValue[]> {
+    const formattedValues: StringBalanceValue[] = [];
+    const retrievedCurrencies: { [key: string]: Currency } = {};
+    for (const value of values) {
+        if (!retrievedCurrencies[value.currency]) {
+            retrievedCurrencies[value.currency] = await getCurrency(auth, value.currency);
+        }
+        formattedValues.push({
+            ...value,
+            balance: value.balance != undefined ? formatAmountForCurrencyDisplay(value.balance, retrievedCurrencies[value.currency]) : value.balance
+        });
+    }
+    return formattedValues;
 }
 
 const valueSchema: jsonschema.Schema = {

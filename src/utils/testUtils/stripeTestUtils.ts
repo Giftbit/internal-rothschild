@@ -3,12 +3,14 @@ import * as kvsAccess from "../kvsAccess";
 import * as sinon from "sinon";
 import log = require("loglevel");
 
+let sinonSandbox = sinon.createSandbox();
+
 export function setStubsForStripeTests() {
     const testAssumeToken: giftbitRoutes.secureConfig.AssumeScopeToken = {
         assumeToken: "this-is-an-assume-token"
     };
 
-    let stubFetchFromS3ByEnvVar = sinon.stub(giftbitRoutes.secureConfig, "fetchFromS3ByEnvVar");
+    let stubFetchFromS3ByEnvVar = sinonSandbox.stub(giftbitRoutes.secureConfig, "fetchFromS3ByEnvVar");
     stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH").resolves(testAssumeToken);
     stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE").resolves({
         email: "test@test.com",
@@ -20,7 +22,7 @@ export function setStubsForStripeTests() {
         live: {}
     });
 
-    let stubKvsGet = sinon.stub(kvsAccess, "kvsGet");
+    let stubKvsGet = sinonSandbox.stub(kvsAccess, "kvsGet");
     stubKvsGet.withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string).resolves({
         token_type: "bearer",
         stripe_user_id: testStripeLive() ? process.env["STRIPE_CONNECTED_ACCOUNT_ID"] : "test",
@@ -28,13 +30,7 @@ export function setStubsForStripeTests() {
 }
 
 export function unsetStubsForStripeTests() {
-    if ((giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as sinon).displayName === "fetchFromS3ByEnvVar") {
-        (giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as sinon).restore();
-    }
-
-    if ((kvsAccess.kvsGet as sinon).displayName === "kvsGet") {
-        (kvsAccess.kvsGet as sinon).restore();
-    }
+    sinonSandbox.restore();
 }
 
 export function stripeEnvVarsPresent(): boolean {

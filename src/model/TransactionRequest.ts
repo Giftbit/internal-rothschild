@@ -50,6 +50,14 @@ export interface StripeTransactionParty {
     customer?: string;
     maxAmount?: number;
     priority?: number;
+    additionalStripeParams?: AdditionalStripeChargeParams;
+}
+
+export interface AdditionalStripeChargeParams {
+    on_behalf_of?: string;
+    receipt_email?: string;
+    statement_descriptor?: string;
+    transfer_group?: string;
 }
 
 export interface InternalTransactionParty {
