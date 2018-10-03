@@ -484,7 +484,7 @@ describe("/v2/issuances", () => {
         });
     });
 
-    it("creating Issuance will no balance results in values with balance of 0.", async () => {
+    it("creating Issuance with no balance results in values with balance of 0.", async () => {
         let issuance: Partial<Issuance> = {
             id: generateId(),
             name: "issuance name",
