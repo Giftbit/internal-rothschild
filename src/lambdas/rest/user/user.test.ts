@@ -8,7 +8,7 @@ import {initializeIntercomSecrets} from "../../../utils/intercomUtils";
 
 chai.use(chaiExclude);
 
-describe.only("/v2/user", () => {
+describe("/v2/user", () => {
 
     const intercomTestSecret = "TEST_SECRET";
     const router = new cassava.Router();
