@@ -5,6 +5,7 @@ import * as valueStores from "../../values";
 import * as currencies from "../../currencies";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as sinon from "sinon";
+import log = require("loglevel");
 import {Value} from "../../../../model/Value";
 import {StripeTransactionStep, Transaction} from "../../../../model/Transaction";
 import {Currency} from "../../../../model/Currency";
@@ -613,7 +614,10 @@ describe("split tender checkout with Stripe", () => {
                 contactId: null,
                 balanceBefore: 100,
                 balanceAfter: 0,
-                balanceChange: -100
+                balanceChange: -100,
+                usesRemainingBefore: null,
+                usesRemainingAfter: null,
+                usesRemainingChange: null
             },
             {
                 rail: "stripe",
@@ -718,7 +722,10 @@ describe("split tender checkout with Stripe", () => {
                 contactId: null,
                 balanceBefore: 1000,
                 balanceAfter: 500,
-                balanceChange: -500
+                balanceChange: -500,
+                usesRemainingBefore: null,
+                usesRemainingAfter: null,
+                usesRemainingChange: null
             }
         ], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
         chai.assert.deepEqual(postCheckoutResp.body.paymentSources, [
@@ -746,7 +753,7 @@ describe("split tender checkout with Stripe", () => {
         // depends on first split tender test
 
         if (!testStripeLive()) {
-            console.log("this test verifies that Lightrail transaction information is saved to Stripe charges. Must be run live.");
+            log.warn("this test verifies that Lightrail transaction information is saved to Stripe charges. Must be run live.");
             this.skip();
             return;
         }
@@ -1117,7 +1124,10 @@ describe("split tender checkout with Stripe", () => {
                 contactId: null,
                 balanceBefore: 100,
                 balanceAfter: 0,
-                balanceChange: -100
+                balanceChange: -100,
+                usesRemainingBefore: null,
+                usesRemainingAfter: null,
+                usesRemainingChange: null
             },
             {
                 rail: "stripe",
@@ -1262,6 +1272,9 @@ describe("split tender checkout with Stripe", () => {
                     .rejects(new Error("The Stripe stub should never be called in this test"));
             }
 
+            // Non-replanable transaction errors bubble up to the router.
+            sinonSandbox.stub(router, "errorHandler")
+                .callsFake(err => log.debug("router.errorHandler", err));
             sinonSandbox.stub(insertTransaction, "insertTransaction")
                 .rejects(new TransactionPlanError("Error for tests: inserting checkout parent transaction", {isReplanable: false}));
 
@@ -1423,6 +1436,9 @@ describe("split tender checkout with Stripe", () => {
                     .resolves(exampleStripeRefund);
             }
 
+            // Non-replanable transaction errors bubble up to the router.
+            sinonSandbox.stub(router, "errorHandler")
+                .callsFake(err => log.debug("router.errorHandler", err));
             sinonSandbox.stub(insertTransaction, "insertLightrailTransactionSteps")
                 .throws(new TransactionPlanError("Error for tests: transaction step insertion error", {isReplanable: false}));
 
@@ -1477,7 +1493,7 @@ describe("split tender checkout with Stripe", () => {
 
         it("handles idempotency errors: fails the repeated transaction but doesn't roll back the original Stripe charge", async function () {
             if (!testStripeLive()) {
-                console.log("Skipping test that currently requires live call to Stripe");
+                log.warn("Skipping test that currently requires live call to Stripe");
                 this.skip();
                 return;
             }
@@ -1765,7 +1781,10 @@ describe("split tender checkout with Stripe", () => {
                 contactId: null,
                 balanceBefore: 100,
                 balanceAfter: 0,
-                balanceChange: -100
+                balanceChange: -100,
+                usesRemainingBefore: null,
+                usesRemainingAfter: null,
+                usesRemainingChange: null
             },
             {
                 rail: "stripe",

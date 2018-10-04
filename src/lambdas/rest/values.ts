@@ -89,15 +89,6 @@ export function installValuesRest(router: cassava.Router): void {
             };
         });
 
-    router.route("/v2/values")
-        .method("PATCH")
-        .handler(async evt => {
-            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("userId");
-            auth.requireScopes("lightrailV2:values:list", "lightrailV2:values:update");
-            throw new giftbitRoutes.GiftbitRestError(500, "Not implemented");   // TODO
-        });
-
     router.route("/v2/values/{id}")
         .method("GET")
         .handler(async evt => {
@@ -306,9 +297,12 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     try {
         await trx.into("Values")
             .insert(dbValue);
-        if (value.balance) {
+        if (value.balance || value.usesRemaining) {
             if (value.balance < 0) {
                 throw new Error("balance cannot be negative");
+            }
+            if (value.usesRemaining < 0) {
+                throw new Error("usesRemaining cannot be negative");
             }
 
             const transactionId = value.id;
@@ -339,9 +333,12 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 id: `${value.id}-0`,
                 transactionId: transactionId,
                 valueId: value.id,
-                balanceBefore: 0,
+                balanceBefore: value.balance != null ? 0 : null,
                 balanceAfter: value.balance,
-                balanceChange: value.balance
+                balanceChange: value.balance,
+                usesRemainingBefore: value.usesRemaining != null ? 0 : null,
+                usesRemainingAfter: value.usesRemaining,
+                usesRemainingChange: value.usesRemaining
             };
             await trx.into("Transactions").insert(initialBalanceTransaction);
             await trx.into("LightrailTransactionSteps").insert(initialBalanceTransactionStep);
@@ -494,22 +491,29 @@ export async function injectValueStats(auth: giftbitRoutes.jwtauth.Authorization
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
-    const res: { valueId: string, balanceChange: number }[] = await knex("LightrailTransactionSteps")
+    const res: { valueId: string, balanceChange: number, usesRemainingChange }[] = await knex("LightrailTransactionSteps")
         .join("Transactions", {
             "Transactions.userId": "LightrailTransactionSteps.userId",
             "Transactions.id": "LightrailTransactionSteps.transactionId"
         })
-        .where({
-            "LightrailTransactionSteps.userId": auth.userId,
-            "Transactions.transactionType": "initialBalance"
-        })
+        .where({"LightrailTransactionSteps.userId": auth.userId})
         .whereIn("LightrailTransactionSteps.valueId", values.map(value => value.id))
-        .select("LightrailTransactionSteps.valueId", "LightrailTransactionSteps.balanceChange");
+        .where(query =>
+            query.where({"Transactions.transactionType": "initialBalance"})
+                .orWhere(query =>
+                    // `attach` transactions have 2 steps.  The step for the Value being created
+                    // (the one we want) has a positive usesRemainingChange.
+                    query.where({"Transactions.transactionType": "attach"})
+                        .where("LightrailTransactionSteps.usesRemainingChange", ">", 0)
+                )
+        )
+        .select("LightrailTransactionSteps.valueId", "LightrailTransactionSteps.balanceChange", "LightrailTransactionSteps.usesRemainingChange");
 
-    const valueMap: { [id: string]: Value & { stats: { initialBalance: number } } } = {};
+    const valueMap: { [id: string]: Value & { stats: { initialBalance: number | null, initialUsesRemaining: number | null } } } = {};
     for (const value of values) {
         (value as any).stats = {
-            initialBalance: 0
+            initialBalance: value.balance != null ? 0 : null,
+            initialUsesRemaining: value.usesRemaining != null ? 0 : null
         };
         valueMap[value.id] = value as any;
     }
@@ -521,6 +525,7 @@ export async function injectValueStats(auth: giftbitRoutes.jwtauth.Authorization
             continue;
         }
         value.stats.initialBalance = row.balanceChange;
+        value.stats.initialUsesRemaining = row.usesRemainingChange;
     }
 }
 

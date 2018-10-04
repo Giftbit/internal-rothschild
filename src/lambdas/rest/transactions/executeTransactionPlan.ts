@@ -36,9 +36,9 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
             }
             return await executeTransactionPlan(auth, plan);
         } catch (err) {
-            log.warn(`Err ${err} was thrown.`);
+            log.warn("Error thrown executing transaction plan.", err);
             if ((err as TransactionPlanError).isTransactionPlanError && (err as TransactionPlanError).isReplanable) {
-                log.info(`Retrying. It's a transaction plan error and it is replanable.`);
+                log.info("Retrying. It's a TransactionPlanError and is replanable.");
                 continue;
             }
             throw err;
@@ -58,7 +58,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         try {
             await insertTransaction(trx, auth, plan);
         } catch (err) {
-            log.warn(`Error inserting transaction: ${err}`);
+            log.warn("Error inserting transaction:", err);
             if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "TransactionExists") {
                 throw err;
             } else {
@@ -89,7 +89,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
             if ((err as TransactionPlanError).isTransactionPlanError) {
                 throw err;
             } else if (err.code === "ER_DUP_ENTRY") {
-                log.debug(err);
+                log.error(err);
                 giftbitRoutes.sentry.sendErrorNotification(err);
                 throw new giftbitRoutes.GiftbitRestError(409, `A transaction step in transaction '${plan.id}' already exists. This should not be possible.`, "TransactionStepExists");
             } else {

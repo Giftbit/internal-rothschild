@@ -145,9 +145,12 @@ describe("/v2/transactions/checkout - balanceRule and redemption rule tests", ()
                     "valueId": promotion.id,
                     "contactId": null,
                     "code": null,
-                    "balanceBefore": 0,
-                    "balanceAfter": 0,
-                    "balanceChange": -500
+                    "balanceBefore": null,
+                    "balanceAfter": null,
+                    "balanceChange": -500,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
                 }
             ],
             "paymentSources": [
@@ -266,9 +269,12 @@ describe("/v2/transactions/checkout - balanceRule and redemption rule tests", ()
                     "valueId": promotion.id,
                     "contactId": null,
                     "code": null,
-                    "balanceBefore": 0,
-                    "balanceAfter": 0,
-                    "balanceChange": -125
+                    "balanceBefore": null,
+                    "balanceAfter": null,
+                    "balanceChange": -125,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
                 }
             ],
             "paymentSources": [
@@ -409,18 +415,24 @@ describe("/v2/transactions/checkout - balanceRule and redemption rule tests", ()
                     "valueId": productPromotion.id,
                     "contactId": null,
                     "code": null,
-                    "balanceBefore": 0,
-                    "balanceAfter": 0,
-                    "balanceChange": -100
+                    "balanceBefore": null,
+                    "balanceAfter": null,
+                    "balanceChange": -100,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
                 },
                 {
                     "rail": "lightrail",
                     "valueId": cartPromotion.id,
                     "contactId": null,
                     "code": null,
-                    "balanceBefore": 0,
-                    "balanceAfter": 0,
-                    "balanceChange": -25
+                    "balanceBefore": null,
+                    "balanceAfter": null,
+                    "balanceChange": -25,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
                 }
             ],
             "paymentSources": [
@@ -600,9 +612,12 @@ describe("/v2/transactions/checkout - balanceRule and redemption rule tests", ()
                     "valueId": cartPromotion.id,
                     "contactId": null,
                     "code": null,
-                    "balanceBefore": 0,
-                    "balanceAfter": 0,
-                    "balanceChange": -85
+                    "balanceBefore": null,
+                    "balanceAfter": null,
+                    "balanceChange": -85,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
                 },
                 {
                     "rail": "lightrail",
@@ -611,7 +626,10 @@ describe("/v2/transactions/checkout - balanceRule and redemption rule tests", ()
                     "code": null,
                     "balanceBefore": 800,
                     "balanceAfter": 10,
-                    "balanceChange": -790
+                    "balanceChange": -790,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
                 }
             ],
             "paymentSources": [
@@ -738,9 +756,12 @@ describe("/v2/transactions/checkout - balanceRule and redemption rule tests", ()
                     "valueId": promotion.id,
                     "contactId": null,
                     "code": null,
-                    "balanceBefore": 0,
-                    "balanceAfter": 0,
-                    "balanceChange": -768
+                    "balanceBefore": null,
+                    "balanceAfter": null,
+                    "balanceChange": -768,
+                    "usesRemainingBefore": 1,
+                    "usesRemainingAfter": 0,
+                    "usesRemainingChange": -1
                 }
             ],
             "paymentSources": [
@@ -924,18 +945,24 @@ describe("/v2/transactions/checkout - balanceRule and redemption rule tests", ()
                     "valueId": promotion20PercentOffRemainder.id,
                     "contactId": null,
                     "code": null,
-                    "balanceBefore": 0,
-                    "balanceAfter": 0,
-                    "balanceChange": -480
+                    "balanceBefore": null,
+                    "balanceAfter": null,
+                    "balanceChange": -480,
+                    "usesRemainingBefore": 1,
+                    "usesRemainingAfter": 0,
+                    "usesRemainingChange": -1
                 },
                 {
                     "rail": "lightrail",
                     "valueId": promotion10PercentOffSubtotal.id,
                     "contactId": null,
                     "code": null,
-                    "balanceBefore": 0,
-                    "balanceAfter": 0,
-                    "balanceChange": -240
+                    "balanceBefore": null,
+                    "balanceAfter": null,
+                    "balanceChange": -240,
+                    "usesRemainingBefore": 1,
+                    "usesRemainingAfter": 0,
+                    "usesRemainingChange": -1
                 }
             ],
             "paymentSources": [

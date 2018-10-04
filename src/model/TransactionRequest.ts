@@ -15,7 +15,8 @@ export interface CheckoutRequest {
 export interface CreditRequest {
     id: string;
     destination: TransactionParty;
-    amount: number;
+    amount?: number;
+    uses?: number;
     currency: string;
     simulate?: boolean;
     metadata?: object;
@@ -24,7 +25,8 @@ export interface CreditRequest {
 export interface DebitRequest {
     id: string;
     source: TransactionParty;
-    amount: number;
+    amount?: number;
+    uses?: number;
     currency: string;
     simulate?: boolean;
     allowRemainder?: boolean;

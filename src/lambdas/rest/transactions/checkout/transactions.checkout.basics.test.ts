@@ -97,7 +97,10 @@ describe("/v2/transactions/checkout - basics", () => {
                     contactId: null,
                     balanceBefore: 1000,
                     balanceAfter: 950,
-                    balanceChange: -50
+                    balanceChange: -50,
+                    usesRemainingBefore: null,
+                    usesRemainingAfter: null,
+                    usesRemainingChange: null
                 }
             ],
             "paymentSources": [
@@ -236,7 +239,10 @@ describe("/v2/transactions/checkout - basics", () => {
                     contactId: null,
                     balanceBefore: 10,
                     balanceAfter: 0,
-                    balanceChange: -10
+                    balanceChange: -10,
+                    usesRemainingBefore: null,
+                    usesRemainingAfter: null,
+                    usesRemainingChange: null
                 },
                 {
                     rail: "lightrail",
@@ -245,7 +251,10 @@ describe("/v2/transactions/checkout - basics", () => {
                     contactId: null,
                     balanceBefore: 1000,
                     balanceAfter: 960,
-                    balanceChange: -40
+                    balanceChange: -40,
+                    usesRemainingBefore: null,
+                    usesRemainingAfter: null,
+                    usesRemainingChange: null
                 }
             ],
             "paymentSources": [
@@ -398,7 +407,10 @@ describe("/v2/transactions/checkout - basics", () => {
                     "code": null,
                     "balanceBefore": 200,
                     "balanceAfter": 0,
-                    "balanceChange": -200
+                    "balanceChange": -200,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
                 },
                 {
                     "rail": "lightrail",
@@ -407,7 +419,10 @@ describe("/v2/transactions/checkout - basics", () => {
                     "code": null,
                     "balanceBefore": 25,
                     "balanceAfter": 0,
-                    "balanceChange": -25
+                    "balanceChange": -25,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
                 },
                 {
                     "rail": "lightrail",
@@ -416,7 +431,10 @@ describe("/v2/transactions/checkout - basics", () => {
                     "code": null,
                     "balanceBefore": 1010,
                     "balanceAfter": 7,
-                    "balanceChange": -1003
+                    "balanceChange": -1003,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
                 }
             ],
             "paymentSources": [
@@ -530,7 +548,10 @@ describe("/v2/transactions/checkout - basics", () => {
                     contactId: null,
                     balanceBefore: 1000,
                     balanceAfter: 950,
-                    balanceChange: -50
+                    balanceChange: -50,
+                    usesRemainingBefore: null,
+                    usesRemainingAfter: null,
+                    usesRemainingChange: null
                 }
             ],
             paymentSources: [

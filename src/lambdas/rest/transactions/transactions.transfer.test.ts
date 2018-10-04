@@ -125,7 +125,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 1500,
             balanceAfter: 500,
-            balanceChange: -1000
+            balanceChange: -1000,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad2.id) as LightrailTransactionStep;
@@ -136,7 +139,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 2500,
             balanceAfter: 3500,
-            balanceChange: 1000
+            balanceChange: 1000,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const getValue1Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCad1.id}`, "GET");
@@ -243,7 +249,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 100,
             balanceAfter: 0,
-            balanceChange: -100
+            balanceChange: -100,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === basicValue.id);
@@ -254,7 +263,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 100,
             balanceAfter: 200,
-            balanceChange: 100
+            balanceChange: 100,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const getSecretCodeValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueSecretCode.id}`, "GET");
@@ -329,7 +341,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 100,
             balanceAfter: 0,
-            balanceChange: -100
+            balanceChange: -100,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueSecretCode.id);
@@ -340,7 +355,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 100,
             balanceAfter: 200,
-            balanceChange: 100
+            balanceChange: 100,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const getSecretCodeValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueSecretCode.id}`, "GET");
@@ -416,7 +434,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 100,
             balanceAfter: 0,
-            balanceChange: -100
+            balanceChange: -100,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === basicValue.id);
@@ -427,7 +448,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 100,
             balanceAfter: 200,
-            balanceChange: 100
+            balanceChange: 100,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const getSecretCodeValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueGenericCode.id}`, "GET");
@@ -503,7 +527,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 100,
             balanceAfter: 0,
-            balanceChange: -100
+            balanceChange: -100,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueGenericCode.id);
@@ -514,7 +541,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 100,
             balanceAfter: 200,
-            balanceChange: 100
+            balanceChange: 100,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const getSecretCodeValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueGenericCode.id}`, "GET");
@@ -590,7 +620,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 500,
             balanceAfter: 0,
-            balanceChange: -500
+            balanceChange: -500,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad2.id) as LightrailTransactionStep;
@@ -601,7 +634,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 3500,
             balanceAfter: 4000,
-            balanceChange: 500
+            balanceChange: 500,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const getValue1Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCad1.id}`, "GET");
@@ -654,7 +690,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 500,
             balanceAfter: 0,
-            balanceChange: -500
+            balanceChange: -500,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad2.id) as LightrailTransactionStep;
@@ -665,7 +704,10 @@ describe("/v2/transactions/transfer", () => {
             contactId: null,
             balanceBefore: 3500,
             balanceAfter: 4000,
-            balanceChange: 500
+            balanceChange: 500,
+            usesRemainingBefore: null,
+            usesRemainingAfter: null,
+            usesRemainingChange: null
         });
 
         const getValue1Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCad1.id}`, "GET");
@@ -714,7 +756,7 @@ describe("/v2/transactions/transfer", () => {
             currency: "XXX"
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.equal(resp.body.messageCode, "InvalidParty");
+        chai.assert.equal(resp.body.messageCode, "WrongCurrency");
     });
 
     it("409s transferring from an invalid valueId", async () => {
@@ -751,6 +793,186 @@ describe("/v2/transactions/transfer", () => {
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
+    });
+
+    it("409s transferring to or from a Value that is canceled", async () => {
+        const canceledValue: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balance: 7800
+        };
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", canceledValue);
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
+
+        const cancelResp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${canceledValue.id}`, "PATCH", {
+            canceled: true
+        });
+        chai.assert.equal(cancelResp.statusCode, 200, `body=${JSON.stringify(cancelResp.body)}`);
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
+            id: "transfer-canceled",
+            source: {
+                rail: "lightrail",
+                valueId: canceledValue.id
+            },
+            destination: {
+                rail: "lightrail",
+                valueId: valueCad1.id
+            },
+            amount: 300,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.messageCode, "ValueCanceled");
+
+        const resp2 = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
+            id: "transfer-canceled-2",
+            source: {
+                rail: "lightrail",
+                valueId: valueCad1.id
+            },
+            destination: {
+                rail: "lightrail",
+                valueId: canceledValue.id
+            },
+            amount: 300,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp2.statusCode, 409, `body=${JSON.stringify(resp2.body)}`);
+        chai.assert.equal(resp2.body.messageCode, "ValueCanceled");
+    });
+
+    it("409s transferring to or from a Value that is frozen", async () => {
+        const frozenValue: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balance: 7800
+        };
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", frozenValue);
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
+
+        const freezeResp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${frozenValue.id}`, "PATCH", {
+            frozen: true
+        });
+        chai.assert.equal(freezeResp.statusCode, 200, `body=${JSON.stringify(freezeResp.body)}`);
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
+            id: "transfer-frozen",
+            source: {
+                rail: "lightrail",
+                valueId: frozenValue.id
+            },
+            destination: {
+                rail: "lightrail",
+                valueId: valueCad1.id
+            },
+            amount: 300,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.messageCode, "ValueFrozen");
+
+        const resp2 = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
+            id: "transfer-frozen-2",
+            source: {
+                rail: "lightrail",
+                valueId: valueCad1.id
+            },
+            destination: {
+                rail: "lightrail",
+                valueId: frozenValue.id
+            },
+            amount: 300,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp2.statusCode, 409, `body=${JSON.stringify(resp2.body)}`);
+        chai.assert.equal(resp2.body.messageCode, "ValueFrozen");
+    });
+
+    it("409s transferring to or from a Value that has not started yet", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balance: 734545,
+            startDate: new Date("2099-02-03")
+        };
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
+            id: "transfer-not-started",
+            source: {
+                rail: "lightrail",
+                valueId: value.id
+            },
+            destination: {
+                rail: "lightrail",
+                valueId: valueCad1.id
+            },
+            amount: 8,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.messageCode, "ValueNotStarted");
+
+        const resp2 = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
+            id: "transfer-not-started-2",
+            source: {
+                rail: "lightrail",
+                valueId: valueCad1.id
+            },
+            destination: {
+                rail: "lightrail",
+                valueId: value.id
+            },
+            amount: 8,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp2.statusCode, 409, `body=${JSON.stringify(resp2.body)}`);
+        chai.assert.equal(resp2.body.messageCode, "ValueNotStarted");
+    });
+
+    it("409s transferring to or from a Value that has ended", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balance: 734545,
+            endDate: new Date("1999-02-03")
+        };
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
+            id: "transfer-ended",
+            source: {
+                rail: "lightrail",
+                valueId: value.id
+            },
+            destination: {
+                rail: "lightrail",
+                valueId: valueCad1.id
+            },
+            amount: 8,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.messageCode, "ValueEnded");
+
+        const resp2 = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
+            id: "transfer-ended-2",
+            source: {
+                rail: "lightrail",
+                valueId: valueCad1.id
+            },
+            destination: {
+                rail: "lightrail",
+                valueId: value.id
+            },
+            amount: 8,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp2.statusCode, 409, `body=${JSON.stringify(resp2.body)}`);
+        chai.assert.equal(resp2.body.messageCode, "ValueEnded");
     });
 
     it("409s transferring from a valueId in the wrong currency", async () => {
@@ -989,7 +1211,10 @@ describe("/v2/transactions/transfer", () => {
                 contactId: null,
                 balanceBefore: 0,
                 balanceAfter: 1000,
-                balanceChange: 1000
+                balanceChange: 1000,
+                usesRemainingBefore: null,
+                usesRemainingAfter: null,
+                usesRemainingChange: null
             });
 
             const getValue3Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCadForStripeTests.id}`, "GET");
@@ -1191,7 +1416,10 @@ describe("/v2/transactions/transfer", () => {
                 contactId: null,
                 balanceBefore: 0,
                 balanceAfter: 900,
-                balanceChange: 900
+                balanceChange: 900,
+                usesRemainingBefore: null,
+                usesRemainingAfter: null,
+                usesRemainingChange: null
             });
 
             const getValue4Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueCad2ForStripeTests.id}`, "GET");
