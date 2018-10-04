@@ -50,17 +50,17 @@ async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.Authoriza
             active: true,
             canceled: false
         });
-    if (step.amount !== 0 && step.amount != null) {
+    if (step.value.balance != null && step.amount !== 0 && step.amount != null) {
         updateProperties.balance = trx.raw(`balance + ?`, [step.amount]);
+        if (step.amount < 0) {
+            query = query.where("balance", ">=", -step.amount);
+        }
     }
-    if (step.value.balance != null && step.amount < 0) {
-        query = query.where("balance", ">=", -step.amount);
-    }
-    if (step.uses !== 0 && step.uses != null) {
+    if (step.value.usesRemaining != null && step.uses !== 0 && step.uses != null) {
         updateProperties.usesRemaining = trx.raw("usesRemaining + ?", [step.uses]);
-    }
-    if (step.value.usesRemaining != null && step.uses < 0) {
-        query = query.where("usesRemaining", ">=", -step.uses);
+        if (step.uses < 0) {
+            query = query.where("usesRemaining", ">=", -step.uses);
+        }
     }
     query = query.update(updateProperties);
 
