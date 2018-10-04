@@ -12,7 +12,7 @@ import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe("/v2/transactions/checkout - valueRule and redemption rule tests", () => {
+describe("/v2/transactions/checkout - balanceRule and redemption rule tests", () => {
 
     const router = new cassava.Router();
 
@@ -29,9 +29,9 @@ describe("/v2/transactions/checkout - valueRule and redemption rule tests", () =
         });
     });
 
-    it("test valueRule evaluateToNumber", async () => {
+    it("test balanceRule evaluateToNumber", async () => {
         const promotion: Partial<Value> = {
-            id: "test value rule",
+            id: "test balanceRule",
             currency: "CAD",
             balanceRule: {
                 rule: "total*0.5",
