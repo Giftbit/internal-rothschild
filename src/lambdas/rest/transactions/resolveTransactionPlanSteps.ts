@@ -145,6 +145,10 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     const values = dbValues.map(value => DbValue.toValue(value));
 
     if (options.nonTransactableHandling === "error") {
+        // Throw an error if we have any Values that *would* have been filtered out
+        // on `options.nonTransactableHandling === "filter"`.  This is inherently a
+        // duplication of logic (which is often a bad idea) but filtering on the DB
+        // when acceptable is a *huge* performance gain.
         for (const value of values) {
             if (value.currency !== options.currency) {
                 throw new giftbitRoutes.GiftbitRestError(409, `Value '${value.id}' is in currency '${value.currency}' which is not the transaction's currency '${options.currency}'.`, "WrongCurrency");
@@ -165,7 +169,7 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 throw new giftbitRoutes.GiftbitRestError(409, `Value '${value.id}' cannot be transacted against because it has not started.`, "ValueNotStarted");
             }
             if (value.endDate && value.endDate < now) {
-                throw new giftbitRoutes.GiftbitRestError(409, `Value '${value.id}' cannot be transacted against because it expired.`, "ValueExpired");
+                throw new giftbitRoutes.GiftbitRestError(409, `Value '${value.id}' cannot be transacted against because it expired.`, "ValueEnded");
             }
         }
     }
