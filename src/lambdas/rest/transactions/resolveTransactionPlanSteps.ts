@@ -21,10 +21,36 @@ import {nowInDbPrecision} from "../../../utils/dbUtils";
  */
 export interface ResolveTransactionPartiesOptions {
     parties: TransactionParty[];
+
+    /**
+     * The currency of the transaction.
+     * NOTE: when we do currency conversion transactions this will have
+     * to be refactored.
+     */
     currency: string;
+
+    /**
+     * The ID that will be given to the transaction.
+     */
     transactionId: string;
-    nonTransactableHandling: "error" | "filter";
+
+    /**
+     * What to do about Lightrail Values that can not be transacted against
+     * (because they are canceled, frozen, etc...).
+     * - error: throw a 409 GiftbitRestError
+     * - filter: remove them from the results
+     * - accept: accept them in the results
+     */
+    nonTransactableHandling: "error" | "filter" | "accept";
+
+    /**
+     * Whether to accept Lightrail Values with 0 usesRemaining in the results.
+     */
     acceptZeroUses: boolean;
+
+    /**
+     * Whether to accept Lightrail Values with 0 balance in the results.
+     */
     acceptZeroBalance: boolean;
 }
 
