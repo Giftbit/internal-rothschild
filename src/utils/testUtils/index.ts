@@ -20,6 +20,7 @@ if (!process.env["TEST_ENV"]) {
 
 export const defaultTestUser = {
     userId: "default-test-user-TEST",
+    teamMemberId: "default-test-user-TEST",
     jwt: "eyJ2ZXIiOjIsInZhdiI6MSwiYWxnIjoiSFMyNTYiLCJ0eXAiOiJKV1QifQ.eyJnIjp7Imd1aSI6ImRlZmF1bHQtdGVzdC11c2VyLVRFU1QiLCJnbWkiOiJkZWZhdWx0LXRlc3QtdXNlci1URVNUIiwidG1pIjoiZGVmYXVsdC10ZXN0LXVzZXItVEVTVCJ9LCJpYXQiOiIyMDE3LTAzLTA3VDE4OjM0OjA2LjYwMyswMDAwIiwianRpIjoiYmFkZ2UtZGQ5NWI5YjU4MmU4NDBlY2JhMWNiZjQxMzY1ZDU3ZTEiLCJzY29wZXMiOltdLCJyb2xlcyI6WyJhY2NvdW50TWFuYWdlciIsImNvbnRhY3RNYW5hZ2VyIiwiY3VzdG9tZXJTZXJ2aWNlTWFuYWdlciIsImN1c3RvbWVyU2VydmljZVJlcHJlc2VudGF0aXZlIiwicG9pbnRPZlNhbGUiLCJwcm9ncmFtTWFuYWdlciIsInByb21vdGVyIiwicmVwb3J0ZXIiLCJzZWN1cml0eU1hbmFnZXIiLCJ0ZWFtQWRtaW4iLCJ3ZWJQb3J0YWwiXX0.Pz9XaaNX3HenvSUb6MENm_KEBheztiscGr2h2TJfhIc",
     auth: new AuthorizationBadge({
         "g": {
@@ -48,6 +49,7 @@ export const defaultTestUser = {
 
 export const alternateTestUser = {
     userId: "alternate-test-user-TEST",
+    teamMemberId: "alternate-test-user-TEST",
     jwt: "eyJ2ZXIiOjIsInZhdiI6MSwiYWxnIjoiSFMyNTYiLCJ0eXAiOiJKV1QifQ.eyJnIjp7Imd1aSI6ImFsdGVybmF0ZS10ZXN0LXVzZXItVEVTVCIsImdtaSI6ImFsdGVybmF0ZS10ZXN0LXVzZXItVEVTVCIsInRtaSI6ImFsdGVybmF0ZS10ZXN0LXVzZXItVEVTVCJ9LCJpYXQiOiIyMDE4LTAzLTIzVDIxOjI1OjI2LjgxMiswMDAwIiwianRpIjoiYmFkZ2UtMmYxOGZkMjk2YmNkNDg4ZWFkODUzNTllYjY2ODA0MTkiLCJzY29wZXMiOltdLCJyb2xlcyI6WyJhY2NvdW50TWFuYWdlciIsImNvbnRhY3RNYW5hZ2VyIiwiY3VzdG9tZXJTZXJ2aWNlTWFuYWdlciIsImN1c3RvbWVyU2VydmljZVJlcHJlc2VudGF0aXZlIiwicG9pbnRPZlNhbGUiLCJwcm9ncmFtTWFuYWdlciIsInByb21vdGVyIiwicmVwb3J0ZXIiLCJzZWN1cml0eU1hbmFnZXIiLCJ0ZWFtQWRtaW4iLCJ3ZWJQb3J0YWwiXX0.9Xdsk8q4dLTp5baeeP_kHi61C0jU8pvFshUhCmoDLbY",
     auth: new AuthorizationBadge({
         "g": {
