@@ -111,11 +111,14 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     }
 
     const now = nowInDbPrecision();
-    const claimedValue: Value = {
+    const newAttachedValue: Value = {
         ...originalValue,
+
+        // Constructing the ID this way prevents the same contactId attaching
+        // the Value twice and thus should not be changed.
         id: crypto.createHash("sha1").update(originalValue.id + "/" + contactId).digest("base64"),
         code: null,
-        isGenericCode: null,
+        isGenericCode: false,
         contactId: contactId,
         usesRemaining: 1,
         createdDate: now,
@@ -123,10 +126,10 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         updatedContactIdDate: now,
         createdBy: auth.teamMemberId
     };
-    const dbClaimedValue: DbValue = Value.toDbValue(auth, claimedValue);
+    const dbNewAttachedValue: DbValue = Value.toDbValue(auth, newAttachedValue);
 
     const attachTransaction: Transaction = {
-        id: claimedValue.id,
+        id: newAttachedValue.id,
         transactionType: "attach",
         currency: originalValue.currency,
         steps: [],
@@ -156,14 +159,14 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         userId: auth.userId,
         id: `${dbAttachTransaction.id}-1`,
         transactionId: dbAttachTransaction.id,
-        valueId: claimedValue.id,
-        contactId: claimedValue.contactId,
-        balanceBefore: claimedValue.balance != null ? 0 : null,
-        balanceAfter: claimedValue.balance,
-        balanceChange: claimedValue.balance || 0,
+        valueId: newAttachedValue.id,
+        contactId: newAttachedValue.contactId,
+        balanceBefore: newAttachedValue.balance != null ? 0 : null,
+        balanceAfter: newAttachedValue.balance,
+        balanceChange: newAttachedValue.balance || 0,
         usesRemainingBefore: 0,
-        usesRemainingAfter: claimedValue.usesRemaining,
-        usesRemainingChange: claimedValue.usesRemaining
+        usesRemainingAfter: newAttachedValue.usesRemaining,
+        usesRemainingChange: newAttachedValue.usesRemaining
     };
 
     const knex = await getKnexWrite();
@@ -177,7 +180,7 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 .where("usesRemaining", ">", 0)
                 .increment("usesRemaining", -1);
             if (usesDecrementRes === 0) {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${originalValue.id}' cannot be claimed because it has 0 usesRemaining.`, "InsufficientUsesRemaining");
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${originalValue.id}' cannot be attached because it has 0 usesRemaining.`, "InsufficientUsesRemaining");
             }
             if (usesDecrementRes > 1) {
                 throw new Error(`Illegal UPDATE query.  Updated ${usesDecrementRes} values.`);
@@ -186,12 +189,12 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 
         try {
             await trx("Values")
-                .insert(dbClaimedValue);
+                .insert(dbNewAttachedValue);
         } catch (err) {
             log.debug(err);
             const constraint = getSqlErrorConstraintName(err);
             if (constraint === "PRIMARY") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${originalValue.id}' has already been claimed by the Contact with id '${contactId}'.`, "ValueAlreadyClaimed");
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${originalValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
             }
             if (constraint === "fk_Values_Contacts") {
                 throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${contactId}' not found.`, "ContactNotFound");
@@ -207,7 +210,7 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             .insert(dbLightrailTransactionStep1);
     });
 
-    return DbValue.toValue(dbClaimedValue);
+    return DbValue.toValue(dbNewAttachedValue);
 }
 
 async function attachUniqueValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, value: Value, allowOverwrite: boolean): Promise<Value> {
