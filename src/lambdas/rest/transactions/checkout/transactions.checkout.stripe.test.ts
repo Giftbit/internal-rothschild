@@ -1272,6 +1272,9 @@ describe("split tender checkout with Stripe", () => {
                     .rejects(new Error("The Stripe stub should never be called in this test"));
             }
 
+            // Non-replanable transaction errors bubble up to the router.
+            sinonSandbox.stub(router, "errorHandler")
+                .callsFake(err => log.debug("router.errorHandler", err));
             sinonSandbox.stub(insertTransaction, "insertTransaction")
                 .rejects(new TransactionPlanError("Error for tests: inserting checkout parent transaction", {isReplanable: false}));
 
@@ -1433,6 +1436,9 @@ describe("split tender checkout with Stripe", () => {
                     .resolves(exampleStripeRefund);
             }
 
+            // Non-replanable transaction errors bubble up to the router.
+            sinonSandbox.stub(router, "errorHandler")
+                .callsFake(err => log.debug("router.errorHandler", err));
             sinonSandbox.stub(insertTransaction, "insertLightrailTransactionSteps")
                 .throws(new TransactionPlanError("Error for tests: transaction step insertion error", {isReplanable: false}));
 
