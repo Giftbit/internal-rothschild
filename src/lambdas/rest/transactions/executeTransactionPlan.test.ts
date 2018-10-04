@@ -75,7 +75,8 @@ describe("rest/transactions/executeTransactionPlan", () => {
                 {
                     rail: "lightrail",
                     value: DbValue.toValue(value),
-                    amount: -3500    // more than is in the value
+                    amount: -3500,    // more than is in the value
+                    uses: null
                 }
             ],
             totals: {remainder: 0},
@@ -142,13 +143,14 @@ describe("rest/transactions/executeTransactionPlan", () => {
 
         const plan: TransactionPlan = {
             id: "xxx",
-            transactionType: "credit",
+            transactionType: "debit",
             currency: "CAD",
             steps: [
                 {
                     rail: "lightrail",
                     value: DbValue.toValue(value),
-                    amount: 1200
+                    amount: -1200,
+                    uses: -1
                 }
             ],
             totals: {remainder: null},

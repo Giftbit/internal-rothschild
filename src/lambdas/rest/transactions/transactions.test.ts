@@ -277,13 +277,16 @@ describe("/v2/transactions", () => {
                 ],
                 steps: [
                     {
+                        rail: "lightrail",
+                        valueId: "vs-gc-2",
+                        code: null,
+                        contactId: null,
                         balanceAfter: 0,
                         balanceBefore: 1,
                         balanceChange: -1,
-                        code: null,
-                        contactId: null,
-                        rail: "lightrail",
-                        valueId: "vs-gc-2"
+                        usesRemainingBefore: null,
+                        usesRemainingAfter: null,
+                        usesRemainingChange: null
                     },
                     {
                         rail: "lightrail",
@@ -292,7 +295,10 @@ describe("/v2/transactions", () => {
                         contactId: null,
                         balanceBefore: 995,
                         balanceAfter: 946,
-                        balanceChange: -49
+                        balanceChange: -49,
+                        usesRemainingBefore: null,
+                        usesRemainingAfter: null,
+                        usesRemainingChange: null
                     }
                 ],
                 paymentSources: [

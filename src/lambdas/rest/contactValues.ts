@@ -9,6 +9,7 @@ import {getContact} from "./contacts";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
 import {getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
 import log = require("loglevel");
+import {DbTransaction, LightrailDbTransactionStep, Transaction} from "../../model/Transaction";
 
 export function installContactValuesRest(router: cassava.Router): void {
     router.route("/v2/contacts/{id}/values")
@@ -110,18 +111,63 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     }
 
     const now = nowInDbPrecision();
-    const claimedValue: Value = {
+    const newAttachedValue: Value = {
         ...originalValue,
+
+        // Constructing the ID this way prevents the same contactId attaching
+        // the Value twice and thus should not be changed.
         id: crypto.createHash("sha1").update(originalValue.id + "/" + contactId).digest("base64"),
         code: null,
-        isGenericCode: null,
+        isGenericCode: false,
         contactId: contactId,
         usesRemaining: 1,
+        createdDate: now,
         updatedDate: now,
         updatedContactIdDate: now,
         createdBy: auth.teamMemberId
     };
-    const dbClaimedValue: DbValue = Value.toDbValue(auth, claimedValue);
+    const dbNewAttachedValue: DbValue = Value.toDbValue(auth, newAttachedValue);
+
+    const attachTransaction: Transaction = {
+        id: newAttachedValue.id,
+        transactionType: "attach",
+        currency: originalValue.currency,
+        steps: [],
+        totals: null,
+        lineItems: null,
+        paymentSources: null,
+        createdDate: now,
+        createdBy: auth.teamMemberId,
+        metadata: null,
+        tax: null
+    };
+    const dbAttachTransaction: DbTransaction = Transaction.toDbTransaction(auth, attachTransaction);
+    const dbLightrailTransactionStep0: LightrailDbTransactionStep = {
+        userId: auth.userId,
+        id: `${dbAttachTransaction.id}-0`,
+        transactionId: dbAttachTransaction.id,
+        valueId: originalValue.id,
+        contactId: null,
+        balanceBefore: originalValue.balance,
+        balanceAfter: originalValue.balance,
+        balanceChange: 0,
+        usesRemainingBefore: originalValue.usesRemaining != null ? originalValue.usesRemaining : null,
+        usesRemainingAfter: originalValue.usesRemaining != null ? originalValue.usesRemaining - 1 : null,
+        usesRemainingChange: originalValue.usesRemaining != null ? -1 : null
+    };
+    const dbLightrailTransactionStep1: LightrailDbTransactionStep = {
+        userId: auth.userId,
+        id: `${dbAttachTransaction.id}-1`,
+        transactionId: dbAttachTransaction.id,
+        valueId: newAttachedValue.id,
+        contactId: newAttachedValue.contactId,
+        balanceBefore: newAttachedValue.balance != null ? 0 : null,
+        balanceAfter: newAttachedValue.balance,
+        balanceChange: newAttachedValue.balance || 0,
+        usesRemainingBefore: 0,
+        usesRemainingAfter: newAttachedValue.usesRemaining,
+        usesRemainingChange: newAttachedValue.usesRemaining
+    };
 
     const knex = await getKnexWrite();
     await knex.transaction(async trx => {
@@ -134,7 +180,7 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 .where("usesRemaining", ">", 0)
                 .increment("usesRemaining", -1);
             if (usesDecrementRes === 0) {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${originalValue.id}' cannot be claimed because it has 0 usesRemaining.`, "InsufficientUsesRemaining");
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${originalValue.id}' cannot be attached because it has 0 usesRemaining.`, "InsufficientUsesRemaining");
             }
             if (usesDecrementRes > 1) {
                 throw new Error(`Illegal UPDATE query.  Updated ${usesDecrementRes} values.`);
@@ -143,21 +189,28 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 
         try {
             await trx("Values")
-                .insert(dbClaimedValue);
+                .insert(dbNewAttachedValue);
         } catch (err) {
             log.debug(err);
             const constraint = getSqlErrorConstraintName(err);
             if (constraint === "PRIMARY") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${originalValue.id}' has already been claimed by the Contact with id '${contactId}'.`, "ValueAlreadyClaimed");
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${originalValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
             }
             if (constraint === "fk_Values_Contacts") {
                 throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${contactId}' not found.`, "ContactNotFound");
             }
             throw err;
         }
+
+        await trx("Transactions")
+            .insert(dbAttachTransaction);
+        await trx("LightrailTransactionSteps")
+            .insert(dbLightrailTransactionStep0);
+        await trx("LightrailTransactionSteps")
+            .insert(dbLightrailTransactionStep1);
     });
 
-    return DbValue.toValue(dbClaimedValue);
+    return DbValue.toValue(dbNewAttachedValue);
 }
 
 async function attachUniqueValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, value: Value, allowOverwrite: boolean): Promise<Value> {

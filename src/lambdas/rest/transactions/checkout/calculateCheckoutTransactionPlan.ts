@@ -19,9 +19,15 @@ export function calculateCheckoutTransactionPlan(checkout: CheckoutRequest, preT
     // Reset step amounts in case they were set in a previous call to this function.
     for (const step of preTaxSteps) {
         step.amount = 0;
+        if ((step as LightrailTransactionPlanStep).uses != null) {
+            (step as LightrailTransactionPlanStep).uses = 0;
+        }
     }
     for (const step of postTaxSteps) {
         step.amount = 0;
+        if ((step as LightrailTransactionPlanStep).uses != null) {
+            (step as LightrailTransactionPlanStep).uses = 0;
+        }
     }
 
     let transactionPlan = new CheckoutTransactionPlan(checkout, preTaxSteps.concat(postTaxSteps));
@@ -94,6 +100,9 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
             } else {
                 amount = Math.min(item.lineTotal.remainder, getAvailableBalance(value.balance, step.amount));
                 step.amount -= amount;
+            }
+            if (value.usesRemaining != null && !step.uses) {
+                step.uses = -1;
             }
             item.lineTotal.remainder -= amount;
             if (value.discount) {

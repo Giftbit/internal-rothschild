@@ -137,7 +137,10 @@ describe("/v2/transactions/checkout - simulation tests", () => {
                     "code": null,
                     "balanceBefore": 500,
                     "balanceAfter": 0,
-                    "balanceChange": -500
+                    "balanceChange": -500,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
                 },
                 {
                     "rail": "lightrail",
@@ -146,7 +149,10 @@ describe("/v2/transactions/checkout - simulation tests", () => {
                     "code": null,
                     "balanceBefore": 4000,
                     "balanceAfter": 0,
-                    "balanceChange": -4000
+                    "balanceChange": -4000,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
                 }
             ],
             "paymentSources": [
