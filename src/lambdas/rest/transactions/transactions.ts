@@ -212,9 +212,9 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
                 currency: checkout.currency,
                 parties: checkout.sources,
                 transactionId: checkout.id,
-                nonTransactableHandling: "filter",
-                acceptZeroBalance: !!checkout.allowRemainder,
-                acceptZeroUses: !!checkout.allowRemainder
+                nonTransactableHandling: "exclude",
+                includeZeroBalance: !!checkout.allowRemainder,
+                includeZeroUsesRemaining: !!checkout.allowRemainder
             });
             return optimizeCheckout(checkout, steps);
         }

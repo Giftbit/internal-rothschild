@@ -501,13 +501,10 @@ export async function injectValueStats(auth: giftbitRoutes.jwtauth.Authorization
         .where(query =>
             query.where({"Transactions.transactionType": "initialBalance"})
                 .orWhere(query =>
-                    query.where({
-                        // `attach` transactions have 2 steps.  The steps for the Value being created
-                        // goes from 0 usesRemaining to 1.
-                        "Transactions.transactionType": "attach",
-                        "LightrailTransactionSteps.usesRemainingBefore": 0,
-                        "LightrailTransactionSteps.usesRemainingChange": 1
-                    })
+                    // `attach` transactions have 2 steps.  The step for the Value being created
+                    // (the one we want) has a positive usesRemainingChange.
+                    query.where({"Transactions.transactionType": "attach"})
+                        .where("LightrailTransactionSteps.usesRemainingChange", ">", 0)
                 )
         )
         .select("LightrailTransactionSteps.valueId", "LightrailTransactionSteps.balanceChange", "LightrailTransactionSteps.usesRemainingChange");

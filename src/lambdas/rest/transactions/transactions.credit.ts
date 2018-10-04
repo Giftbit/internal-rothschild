@@ -11,8 +11,8 @@ export async function createCreditTransactionPlan(auth: giftbitRoutes.jwtauth.Au
         parties: [req.destination],
         transactionId: req.id,
         nonTransactableHandling: "error",
-        acceptZeroBalance: true,
-        acceptZeroUses: true
+        includeZeroBalance: true,
+        includeZeroUsesRemaining: true
     });
     if (steps.length !== 1 || steps[0].rail !== "lightrail") {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable Value.", "InvalidParty");

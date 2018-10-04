@@ -38,20 +38,20 @@ export interface ResolveTransactionPartiesOptions {
      * What to do about Lightrail Values that can not be transacted against
      * (because they are canceled, frozen, etc...).
      * - error: throw a 409 GiftbitRestError
-     * - filter: remove them from the results
-     * - accept: accept them in the results
+     * - exclude: remove them from the results
+     * - include: accept them in the results
      */
-    nonTransactableHandling: "error" | "filter" | "accept";
+    nonTransactableHandling: "error" | "exclude" | "include";
 
     /**
      * Whether to accept Lightrail Values with 0 usesRemaining in the results.
      */
-    acceptZeroUses: boolean;
+    includeZeroUsesRemaining: boolean;
 
     /**
      * Whether to accept Lightrail Values with 0 balance in the results.
      */
-    acceptZeroBalance: boolean;
+    includeZeroBalance: boolean;
 }
 
 export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions): Promise<TransactionPlanStep[]> {
@@ -123,7 +123,7 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             }
             return q;
         });
-    if (options.nonTransactableHandling === "filter") {
+    if (options.nonTransactableHandling === "exclude") {
         query = query
             .where({
                 currency: options.currency,
@@ -134,10 +134,10 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             .where(q => q.whereNull("startDate").orWhere("startDate", "<", now))
             .where(q => q.whereNull("endDate").orWhere("endDate", ">", now));
     }
-    if (!options.acceptZeroUses) {
+    if (!options.includeZeroUsesRemaining) {
         query = query.where(q => q.whereNull("usesRemaining").orWhere("usesRemaining", ">", 0));
     }
-    if (!options.acceptZeroBalance) {
+    if (!options.includeZeroBalance) {
         query = query.where(q => q.whereNull("balance").orWhere("balance", ">", 0));
     }
 
