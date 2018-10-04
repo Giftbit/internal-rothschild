@@ -12,10 +12,12 @@ export function installUserRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId", "teamMemberId");
 
+            const teamMemberId = auth.teamMemberId.replace("-TEST", "");
+
             return {
                 body: {
-                    userHash: hashUserId(auth.teamMemberId),
-                    userId: auth.teamMemberId
+                    userHash: hashUserId(teamMemberId),
+                    teamMemberId
                 }
             };
         });
