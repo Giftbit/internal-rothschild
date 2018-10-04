@@ -1,9 +1,6 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
-import {
-    requireLightrailTransactionPlanStepTransactable,
-    resolveTransactionPlanSteps
-} from "./resolveTransactionPlanSteps";
+import {resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
 import {TransferRequest} from "../../../model/TransactionRequest";
 import {
     LightrailTransactionPlanStep,
@@ -23,7 +20,7 @@ export async function resolveTransferTransactionPlanSteps(auth: giftbitRoutes.jw
         currency: req.currency,
         parties: [req.source],
         transactionId: req.id,
-        acceptNotTansactable: true,
+        nonTransactableHandling: "error",
         acceptZeroBalance: true,
         acceptZeroUses: true
     });
@@ -31,9 +28,6 @@ export async function resolveTransferTransactionPlanSteps(auth: giftbitRoutes.jw
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable Value.", "InvalidParty");
     }
     const sourceStep = sourceSteps[0] as LightrailTransactionPlanStep | StripeTransactionPlanStep;
-    if (sourceStep.rail === "lightrail") {
-        requireLightrailTransactionPlanStepTransactable(sourceStep);
-    }
     if (sourceStep.rail === "stripe" && !req.allowRemainder && sourceStep.maxAmount != null && sourceStep.maxAmount < req.amount) {
         throw new giftbitRoutes.GiftbitRestError(409, `Stripe source 'maxAmount' of ${sourceStep.maxAmount} is less than transfer amount ${req.amount}.`);
     }
@@ -42,7 +36,7 @@ export async function resolveTransferTransactionPlanSteps(auth: giftbitRoutes.jw
         currency: req.currency,
         parties: [req.destination],
         transactionId: req.id,
-        acceptNotTansactable: true,
+        nonTransactableHandling: "error",
         acceptZeroBalance: true,
         acceptZeroUses: true
     });
@@ -50,7 +44,6 @@ export async function resolveTransferTransactionPlanSteps(auth: giftbitRoutes.jw
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable Value.", "InvalidParty");
     }
     const destStep = destSteps[0] as LightrailTransactionPlanStep;
-    requireLightrailTransactionPlanStepTransactable(destStep);
 
     return {sourceStep, destStep};
 }
@@ -60,7 +53,10 @@ export function createTransferTransactionPlan(req: TransferRequest, steps: Trans
         id: req.id,
         transactionType: "transfer" as TransactionType,
         currency: req.currency,
-        steps: [steps.sourceStep, steps.destStep],
+        steps: [
+            steps.sourceStep,
+            steps.destStep
+        ],
         totals: {
             remainder: 0
         },

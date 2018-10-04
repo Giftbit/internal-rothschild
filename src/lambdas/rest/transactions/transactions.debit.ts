@@ -1,10 +1,7 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {CreditRequest, DebitRequest} from "../../../model/TransactionRequest";
+import {DebitRequest} from "../../../model/TransactionRequest";
 import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
-import {
-    requireLightrailTransactionPlanStepTransactable,
-    resolveTransactionPlanSteps
-} from "./resolveTransactionPlanSteps";
+import {resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
 import * as cassava from "cassava";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 
@@ -13,7 +10,7 @@ export async function createDebitTransactionPlan(auth: giftbitRoutes.jwtauth.Aut
         currency: req.currency,
         parties: [req.source],
         transactionId: req.id,
-        acceptNotTansactable: true,
+        nonTransactableHandling: "error",
         acceptZeroBalance: true,
         acceptZeroUses: true
     });
@@ -22,7 +19,6 @@ export async function createDebitTransactionPlan(auth: giftbitRoutes.jwtauth.Aut
     }
 
     const step = steps[0] as LightrailTransactionPlanStep;
-    requireLightrailTransactionPlanStepTransactable(step);
     if (req.amount && step.value.balance == null) {
         throw new giftbitRoutes.GiftbitRestError(409, "Cannot debit amount from a Value with balance=null.", "NullBalance");
     }

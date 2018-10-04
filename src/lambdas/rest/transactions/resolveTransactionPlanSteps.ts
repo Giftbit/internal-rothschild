@@ -23,7 +23,7 @@ export interface ResolveTransactionPartiesOptions {
     parties: TransactionParty[];
     currency: string;
     transactionId: string;
-    acceptNotTansactable: boolean;
+    nonTransactableHandling: "error" | "filter";
     acceptZeroUses: boolean;
     acceptZeroBalance: boolean;
 }
@@ -35,8 +35,7 @@ export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.Au
             rail: "lightrail",
             value: v,
             amount: 0,
-            uses: null,
-            knownTransactable: !options.acceptNotTansactable
+            uses: null
         }));
 
     const internalSteps = options.parties
@@ -84,8 +83,7 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     const now = nowInDbPrecision();
     let query = knex("Values")
         .where({
-            userId: auth.userId,
-            currency: options.currency
+            userId: auth.userId
         })
         .where(q => {
             if (valueIds.length) {
@@ -99,15 +97,16 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             }
             return q;
         });
-    if (!options.acceptNotTansactable) {
+    if (options.nonTransactableHandling === "filter") {
         query = query
             .where({
+                currency: options.currency,
                 canceled: false,
                 frozen: false,
                 active: true
             })
-            .where(q => q.whereNull("startDate").orWhere("startDate", ">", now))
-            .where(q => q.whereNull("endDate").orWhere("endDate", "<", now));
+            .where(q => q.whereNull("startDate").orWhere("startDate", "<", now))
+            .where(q => q.whereNull("endDate").orWhere("endDate", ">", now));
     }
     if (!options.acceptZeroUses) {
         query = query.where(q => q.whereNull("usesRemaining").orWhere("usesRemaining", ">", 0));
@@ -116,28 +115,34 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         query = query.where(q => q.whereNull("balance").orWhere("balance", ">", 0));
     }
 
-    const values: DbValue[] = await query;
-    return values.map(value => DbValue.toValue(value));
-}
+    const dbValues: DbValue[] = await query;
+    const values = dbValues.map(value => DbValue.toValue(value));
 
-export function requireLightrailTransactionPlanStepTransactable(step: LightrailTransactionPlanStep): void {
-    if (step.value.canceled) {
-        throw new giftbitRoutes.GiftbitRestError(409, `Value '${step.value.id}' cannot be transacted against because it is canceled.`, "ValueCanceled");
-    }
-    if (step.value.frozen) {
-        throw new giftbitRoutes.GiftbitRestError(409, `Value '${step.value.id}' cannot be transacted against because it is frozen.`, "ValueFrozen");
-    }
-    if (!step.value.active) {
-        throw new giftbitRoutes.GiftbitRestError(409, `Value '${step.value.id}' cannot be transacted against because it is inactive.`, "ValueInactive");
+    if (options.nonTransactableHandling === "error") {
+        for (const value of values) {
+            if (value.currency !== options.currency) {
+                throw new giftbitRoutes.GiftbitRestError(409, `Value '${value.id}' is in currency '${value.currency}' which is not the transaction's currency '${options.currency}'.`, "WrongCurrency");
+            }
+
+            if (value.canceled) {
+                throw new giftbitRoutes.GiftbitRestError(409, `Value '${value.id}' cannot be transacted against because it is canceled.`, "ValueCanceled");
+            }
+            if (value.frozen) {
+                throw new giftbitRoutes.GiftbitRestError(409, `Value '${value.id}' cannot be transacted against because it is frozen.`, "ValueFrozen");
+            }
+            if (!value.active) {
+                throw new giftbitRoutes.GiftbitRestError(409, `Value '${value.id}' cannot be transacted against because it is inactive.`, "ValueInactive");
+            }
+
+            const now = nowInDbPrecision();
+            if (value.startDate && value.startDate > now) {
+                throw new giftbitRoutes.GiftbitRestError(409, `Value '${value.id}' cannot be transacted against because it has not started.`, "ValueNotStarted");
+            }
+            if (value.endDate && value.endDate < now) {
+                throw new giftbitRoutes.GiftbitRestError(409, `Value '${value.id}' cannot be transacted against because it expired.`, "ValueExpired");
+            }
+        }
     }
 
-    const now = nowInDbPrecision();
-    if (step.value.startDate && step.value.startDate > now) {
-        throw new giftbitRoutes.GiftbitRestError(409, `Value '${step.value.id}' cannot be transacted against because it has not started.`, "ValueNotStarted");
-    }
-    if (step.value.endDate && step.value.endDate < now) {
-        throw new giftbitRoutes.GiftbitRestError(409, `Value '${step.value.id}' cannot be transacted against because it expired.`, "ValueExpired");
-    }
-
-    step.knownTransactable = true;
+    return values;
 }

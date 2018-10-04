@@ -28,10 +28,6 @@ export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtaut
     for (let stepIx = 0; stepIx < steps.length; stepIx++) {
         const step = steps[stepIx] as LightrailTransactionPlanStep;
 
-        if (!step.knownTransactable) {
-            throw new Error(`Attempting to execute a LightrailTransactionPlanStep that has not been checked as transactable. ${JSON.stringify(step)}`);
-        }
-
         if (step.value.balance != null || step.value.usesRemaining != null) {
             await updateLightrailValueForStep(auth, trx, step, plan);
         }

@@ -1,8 +1,5 @@
 import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
-import {
-    requireLightrailTransactionPlanStepTransactable,
-    resolveTransactionPlanSteps
-} from "./resolveTransactionPlanSteps";
+import {resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import {CreditRequest} from "../../../model/TransactionRequest";
@@ -13,7 +10,7 @@ export async function createCreditTransactionPlan(auth: giftbitRoutes.jwtauth.Au
         currency: req.currency,
         parties: [req.destination],
         transactionId: req.id,
-        acceptNotTansactable: true,
+        nonTransactableHandling: "error",
         acceptZeroBalance: true,
         acceptZeroUses: true
     });
@@ -22,7 +19,6 @@ export async function createCreditTransactionPlan(auth: giftbitRoutes.jwtauth.Au
     }
 
     const step = steps[0] as LightrailTransactionPlanStep;
-    requireLightrailTransactionPlanStepTransactable(step);
     if (req.amount && step.value.balance == null) {
         throw new giftbitRoutes.GiftbitRestError(409, "Cannot credit amount to a Value with balance=null.", "NullBalance");
     }

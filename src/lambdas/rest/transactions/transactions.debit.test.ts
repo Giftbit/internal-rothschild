@@ -601,7 +601,7 @@ describe("/v2/transactions/debit", () => {
             currency: "USD"
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.equal(resp.body.messageCode, "InvalidParty");
+        chai.assert.equal(resp.body.messageCode, "WrongCurrency");
     });
 
     it("409s debiting more balance than is available", async () => {

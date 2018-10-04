@@ -76,8 +76,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
                     rail: "lightrail",
                     value: DbValue.toValue(value),
                     amount: -3500,    // more than is in the value
-                    uses: null,
-                    knownTransactable: true
+                    uses: null
                 }
             ],
             totals: {remainder: 0},
@@ -151,8 +150,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
                     rail: "lightrail",
                     value: DbValue.toValue(value),
                     amount: -1200,
-                    uses: -1,
-                    knownTransactable: true
+                    uses: -1
                 }
             ],
             totals: {remainder: null},
