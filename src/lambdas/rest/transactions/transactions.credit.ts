@@ -22,8 +22,8 @@ export async function createCreditTransactionPlan(auth: giftbitRoutes.jwtauth.Au
     if (req.amount && step.value.balance == null) {
         throw new giftbitRoutes.GiftbitRestError(409, "Cannot credit amount to a Value with balance=null.", "NullBalance");
     }
-    if (req.uses && step.value.uses == null) {
-        throw new giftbitRoutes.GiftbitRestError(409, "Cannot credit uses to a Value with uses=null.", "NullUses");
+    if (req.uses && step.value.usesRemaining == null) {
+        throw new giftbitRoutes.GiftbitRestError(409, "Cannot credit uses to a Value with usesRemaining=null.", "NullUses");
     }
 
     step.amount = req.amount || 0;

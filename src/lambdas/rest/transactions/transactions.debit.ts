@@ -22,8 +22,8 @@ export async function createDebitTransactionPlan(auth: giftbitRoutes.jwtauth.Aut
     if (req.amount && step.value.balance == null) {
         throw new giftbitRoutes.GiftbitRestError(409, "Cannot debit amount from a Value with balance=null.", "NullBalance");
     }
-    if (req.uses && step.value.uses == null) {
-        throw new giftbitRoutes.GiftbitRestError(409, "Cannot debit uses from a Value with uses=null.", "NullUses");
+    if (req.uses && step.value.usesRemaining == null) {
+        throw new giftbitRoutes.GiftbitRestError(409, "Cannot debit uses from a Value with usesRemaining=null.", "NullUses");
     }
     if (req.uses && req.allowRemainder !== true && req.uses > step.value.usesRemaining) {
         throw new giftbitRoutes.GiftbitRestError(409, "Insufficient uses for the transaction.", "InsufficientUses");

@@ -243,7 +243,7 @@ describe("/v2/transactions/credit", () => {
                 rule: "349",
                 explanation: "About tree fiddy."
             },
-            uses: 0
+            usesRemaining: 0
         };
         const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
@@ -290,7 +290,7 @@ describe("/v2/transactions/credit", () => {
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(postValueResp.body)}`);
         chai.assert.equal(getValueResp.body.balance, null);
-        chai.assert.equal(getValueResp.body.uses, 2);
+        chai.assert.equal(getValueResp.body.usesRemaining, 2);
 
         const getCreditResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCreditResp.statusCode, 200, `body=${JSON.stringify(getCreditResp.body)}`);
@@ -302,7 +302,7 @@ describe("/v2/transactions/credit", () => {
             id: generateId(),
             currency: "CAD",
             balance: 349,
-            uses: 3
+            usesRemaining: 3
         };
         const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
@@ -350,7 +350,7 @@ describe("/v2/transactions/credit", () => {
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(postValueResp.body)}`);
         chai.assert.equal(getValueResp.body.balance, 450);
-        chai.assert.equal(getValueResp.body.uses, 4);
+        chai.assert.equal(getValueResp.body.usesRemaining, 4);
 
         const getCreditResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCreditResp.statusCode, 200, `body=${JSON.stringify(getCreditResp.body)}`);
