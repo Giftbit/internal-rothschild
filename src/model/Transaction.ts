@@ -18,6 +18,8 @@ export interface Transaction {
     createdDate: Date;
     createdBy: string;
     metadata: object | null;
+    rootChainTransactionId?: string;
+    nextChainTransactionId?: string;
     tax: TaxRequestProperties | null;
 }
 
@@ -41,6 +43,8 @@ export interface DbTransaction {
     createdDate: Date;
     createdBy: string;
     metadata: string | null;
+    rootChainTransactionId: string | null;
+    nextChainTransactionId: string | null;
     tax: string | null;
 }
 
@@ -65,6 +69,8 @@ export namespace Transaction {
             lineItems: JSON.stringify(t.lineItems),
             paymentSources: JSON.stringify(t.paymentSources),
             metadata: JSON.stringify(t.metadata),
+            rootChainTransactionId: t.rootChainTransactionId,
+            nextChainTransactionId: t.nextChainTransactionId,
             tax: JSON.stringify(t.tax),
             createdDate: t.createdDate,
             createdBy: t.createdBy,
@@ -97,6 +103,8 @@ export namespace DbTransaction {
                 paymentSources: JSON.parse(dbT.paymentSources),
                 steps: dbSteps.filter(s => s.transactionId === dbT.id).map(DbTransactionStep.toTransactionStep),
                 metadata: JSON.parse(dbT.metadata),
+                rootChainTransactionId: dbT.rootChainTransactionId,
+                nextChainTransactionId: dbT.nextChainTransactionId,
                 tax: JSON.parse(dbT.tax),
                 createdDate: dbT.createdDate,
                 createdBy: dbT.createdBy
@@ -154,7 +162,8 @@ export type TransactionType =
     | "transfer"
     | "pending_create"
     | "pending_capture"
-    | "pending_void";
+    | "pending_void"
+    | "reverse";
 
 export type TransactionStep = LightrailTransactionStep | StripeTransactionStep | InternalTransactionStep;
 

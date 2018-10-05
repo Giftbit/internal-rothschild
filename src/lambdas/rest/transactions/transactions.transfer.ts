@@ -2,11 +2,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import {resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
 import {TransferRequest} from "../../../model/TransactionRequest";
-import {
-    LightrailTransactionPlanStep,
-    StripeTransactionPlanStep,
-    TransactionPlan
-} from "./TransactionPlan";
+import {LightrailTransactionPlanStep, StripeTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {TransactionType} from "../../../model/Transaction";
 

@@ -62,6 +62,11 @@ export interface StripeTransactionPlanStep {
     chargeResult?: stripe.charges.ICharge;
 }
 
+export interface StripeRefundTransactionPlanStep {
+    chargeId: string;
+    // include amount? default is full
+}
+
 export interface InternalTransactionPlanStep {
     rail: "internal";
     internalId: string;

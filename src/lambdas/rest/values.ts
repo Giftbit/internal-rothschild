@@ -324,6 +324,8 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 lineItems: null,
                 paymentSources: null,
                 metadata: null,
+                rootChainTransactionId: null,
+                nextChainTransactionId: null,
                 createdDate: value.createdDate,
                 tax: null,
                 createdBy: auth.teamMemberId,

@@ -33,6 +33,13 @@ export interface DebitRequest {
     metadata?: object;
 }
 
+export interface ReverseRequest {
+    transactionIdToReverse: string;
+    id: string;
+    simulate?: boolean;
+    // allowRemainder? I don't think so. All or nothing.
+}
+
 export type TransferRequest = CreditRequest & DebitRequest;
 
 export type TransactionParty = LightrailTransactionParty | StripeTransactionParty | InternalTransactionParty;

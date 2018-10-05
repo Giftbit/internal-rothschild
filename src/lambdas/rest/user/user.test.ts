@@ -2,13 +2,13 @@ import * as testUtils from "../../../utils/testUtils";
 import * as cassava from "cassava";
 import * as chai from "chai";
 import {installRestRoutes} from "../installRestRoutes";
-import chaiExclude = require("chai-exclude");
 import * as crypto from "crypto";
 import {initializeIntercomSecrets} from "../../../utils/intercomUtils";
+import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe.only("/v2/user", () => {
+describe("/v2/user", () => {
 
     const intercomTestSecret = "TEST_SECRET";
     const router = new cassava.Router();
@@ -30,7 +30,7 @@ describe.only("/v2/user", () => {
                 .update(testId)
                 .digest("hex");
 
-            const resp = await testUtils.testAuthedRequest<{userHash: string; teamMemberId: string; }>(router, "/v2/user/intercom", "GET");
+            const resp = await testUtils.testAuthedRequest<{ userHash: string; teamMemberId: string; }>(router, "/v2/user/intercom", "GET");
             chai.assert.equal(resp.statusCode, 200);
             chai.assert.equal(expectedOutput, resp.body.userHash);
             chai.assert.equal(testId, resp.body.teamMemberId);
