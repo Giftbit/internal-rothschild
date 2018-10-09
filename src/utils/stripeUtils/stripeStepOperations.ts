@@ -56,6 +56,8 @@ function stripeTransactionPlanStepToStripeRequest(auth: giftbitRoutes.jwtauth.Au
         stepForStripe.customer = step.customer;
     }
     if (step.additionalStripeParams) {
+        // Only copy these keys on to the charge request.  We don't want to accidentally
+        // expose some kind of attack vector.
         const paramKeys: (keyof AdditionalStripeChargeParams)[] = [
             "description",
             "on_behalf_of",
