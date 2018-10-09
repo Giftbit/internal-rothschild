@@ -8,7 +8,7 @@ import {initializeIntercomSecrets} from "../../../utils/intercomUtils";
 
 chai.use(chaiExclude);
 
-describe.only("/v2/user", () => {
+describe("/v2/user", () => {
 
     const intercomTestSecret = "TEST_SECRET";
     const router = new cassava.Router();
@@ -30,7 +30,7 @@ describe.only("/v2/user", () => {
                 .update(testId)
                 .digest("hex");
 
-            const resp = await testUtils.testAuthedRequest<{userHash: string; teamMemberId: string; }>(router, "/v2/user/intercom", "GET");
+            const resp = await testUtils.testAuthedRequest<{ userHash: string; teamMemberId: string; }>(router, "/v2/user/intercom", "GET");
             chai.assert.equal(resp.statusCode, 200);
             chai.assert.equal(expectedOutput, resp.body.userHash);
             chai.assert.equal(testId, resp.body.teamMemberId);

@@ -925,6 +925,9 @@ describe("split tender checkout with Stripe", () => {
     }).timeout(3000);
 
     it("passes additionalStripeParams to Stripe", async () => {
+        // This cannot be tested live with a dummy value.
+        const onBehalfOf = testStripeLive() ? null : "aaa";
+
         const request = {
             id: generateId(),
             sources: [
@@ -932,7 +935,8 @@ describe("split tender checkout with Stripe", () => {
                     rail: "stripe",
                     source: source,
                     additionalStripeParams: {
-                        on_behalf_of: "aaa",
+                        description: "eee",
+                        on_behalf_of: onBehalfOf,
                         receipt_email: "bbb@example.com",
                         statement_descriptor: "ccc",
                         transfer_group: "ddd"
@@ -960,7 +964,7 @@ describe("split tender checkout with Stripe", () => {
             "created": 1532990157,
             "currency": "cad",
             "customer": null,
-            "description": null,
+            "description": "eee",
             "destination": null,
             "dispute": null,
             "failure_code": null,
@@ -974,7 +978,7 @@ describe("split tender checkout with Stripe", () => {
                 "lightrailTransactionSources": "[]",
                 "lightrailUserId": "default-test-user-TEST"
             },
-            "on_behalf_of": "aaa",
+            "on_behalf_of": onBehalfOf,
             "order": null,
             "outcome": {
                 "network_status": "approved_by_network",
@@ -1032,7 +1036,8 @@ describe("split tender checkout with Stripe", () => {
                 .withArgs(sinon.match({
                     amount: 500,
                     currency: request.currency,
-                    on_behalf_of: "aaa",
+                    description: "eee",
+                    on_behalf_of: onBehalfOf,
                     receipt_email: "bbb@example.com",
                     statement_descriptor: "ccc",
                     transfer_group: "ddd"
@@ -1046,7 +1051,8 @@ describe("split tender checkout with Stripe", () => {
 
         const stripeStep = postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep;
         chai.assert.isObject(stripeStep, "found stripe step");
-        chai.assert.equal(stripeStep.charge.on_behalf_of, "aaa");
+        chai.assert.equal(stripeStep.charge.description, "eee");
+        chai.assert.equal(stripeStep.charge.on_behalf_of, onBehalfOf);
         chai.assert.equal(stripeStep.charge.receipt_email, "bbb@example.com");
         chai.assert.equal(stripeStep.charge.statement_descriptor, "ccc");
         chai.assert.equal(stripeStep.charge.transfer_group, "ddd");
