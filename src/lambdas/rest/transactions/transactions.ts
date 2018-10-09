@@ -324,17 +324,20 @@ const stripePartySchema: jsonschema.Schema = {
         additionalStripeParams: {
             type: "object",
             properties: {
+                description: {
+                    type: ["string", "null"]
+                },
                 on_behalf_of: {
-                    type: "string"
+                    type: ["string", "null"]
                 },
                 receipt_email: {
-                    type: "string"
+                    type: ["string", "null"]
                 },
                 statement_descriptor: {
-                    type: "string"
+                    type: ["string", "null"]
                 },
                 transfer_group: {
-                    type: "string"
+                    type: ["string", "null"]
                 }
             }
         }

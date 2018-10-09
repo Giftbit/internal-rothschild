@@ -54,6 +54,7 @@ export interface StripeTransactionParty {
 }
 
 export interface AdditionalStripeChargeParams {
+    description?: string;
     on_behalf_of?: string;
     receipt_email?: string;
     statement_descriptor?: string;

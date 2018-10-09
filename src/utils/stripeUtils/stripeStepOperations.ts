@@ -11,6 +11,7 @@ import {TransactionPlanError} from "../../lambdas/rest/transactions/TransactionP
 import {StripeCreateChargeParams} from "./StripeCreateChargeParams";
 import {PaymentSourceForStripeMetadata, StripeSourceForStripeMetadata} from "./PaymentSourceForStripeMetadata";
 import log = require("loglevel");
+import {AdditionalStripeChargeParams} from "../../model/TransactionRequest";
 
 export async function chargeStripeSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, stripeConfig: LightrailAndMerchantStripeConfig, plan: TransactionPlan): Promise<void> {
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
@@ -55,17 +56,17 @@ function stripeTransactionPlanStepToStripeRequest(auth: giftbitRoutes.jwtauth.Au
         stepForStripe.customer = step.customer;
     }
     if (step.additionalStripeParams) {
-        if (step.additionalStripeParams.on_behalf_of) {
-            stepForStripe.on_behalf_of = step.additionalStripeParams.on_behalf_of;
-        }
-        if (step.additionalStripeParams.receipt_email) {
-            stepForStripe.receipt_email = step.additionalStripeParams.receipt_email;
-        }
-        if (step.additionalStripeParams.statement_descriptor) {
-            stepForStripe.statement_descriptor = step.additionalStripeParams.statement_descriptor;
-        }
-        if (step.additionalStripeParams.transfer_group) {
-            stepForStripe.transfer_group = step.additionalStripeParams.transfer_group;
+        const paramKeys: (keyof AdditionalStripeChargeParams)[] = [
+            "description",
+            "on_behalf_of",
+            "receipt_email",
+            "statement_descriptor",
+            "transfer_group"
+        ];
+        for (const key of paramKeys) {
+            if (step.additionalStripeParams[key]) {
+                stepForStripe[key] = step.additionalStripeParams[key];
+            }
         }
     }
 
