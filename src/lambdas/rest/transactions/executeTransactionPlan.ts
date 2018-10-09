@@ -12,7 +12,7 @@ import {
     insertStripeTransactionSteps,
     insertTransaction
 } from "./insertTransactions";
-import {chargeStripeSteps, rollbackStripeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
+import {processStripeSteps, rollbackStripeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
 import log = require("loglevel");
 
 export interface ExecuteTransactionPlannerOptions {
@@ -68,9 +68,9 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         }
 
         if (stripeSteps.length > 0) {
-            chargeStripe = true;
+            chargeStripe = stripeSteps.find(step => step.type === "charge") != null;
             stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
-            await chargeStripeSteps(auth, stripeConfig, plan);
+            await processStripeSteps(auth, stripeConfig, plan);
         }
 
         try {

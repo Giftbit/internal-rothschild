@@ -184,7 +184,7 @@ export interface StripeTransactionStep {
     rail: "stripe";
     amount: number;
     chargeId?: string;
-    charge?: stripe.charges.ICharge;
+    charge?: stripe.charges.ICharge | stripe.refunds.IRefund;
 }
 
 export interface InternalTransactionStep {

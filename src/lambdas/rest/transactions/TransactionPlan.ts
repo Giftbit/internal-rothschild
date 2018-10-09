@@ -47,8 +47,9 @@ export interface LightrailTransactionPlanStep {
     uses: number | null;
 }
 
-export interface StripeTransactionPlanStep {
+export interface StripeChargeTransactionPlanStep {
     rail: "stripe";
+    type: "charge";
     idempotentStepId: string;
     source?: string;
     customer?: string;
@@ -63,9 +64,16 @@ export interface StripeTransactionPlanStep {
 }
 
 export interface StripeRefundTransactionPlanStep {
+    rail: "stripe";
+    type: "refund";
+    idempotentStepId: string;
     chargeId: string;
-    // include amount? default is full
+    amount: number;
+    refundResult?: stripe.refunds.IRefund;
+    reason: string;
 }
+
+export type StripeTransactionPlanStep = StripeChargeTransactionPlanStep | StripeRefundTransactionPlanStep;
 
 export interface InternalTransactionPlanStep {
     rail: "internal";
@@ -110,14 +118,25 @@ export namespace LightrailTransactionPlanStep {
 
 export namespace StripeTransactionPlanStep {
     export function toStripeDbTransactionStep(step: StripeTransactionPlanStep, plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge): StripeDbTransactionStep {
-        return {
-            userId: auth.userId,
-            id: step.idempotentStepId,
-            transactionId: plan.id,
-            chargeId: step.chargeResult.id,
-            amount: -step.chargeResult.amount /* Note, chargeResult.amount is positive in Stripe but Lightrail treats debits as negative amounts on Steps. */,
-            charge: JSON.stringify(step.chargeResult)
-        };
+        if (step.type === "charge") {
+            return {
+                userId: auth.userId,
+                id: step.idempotentStepId,
+                transactionId: plan.id,
+                chargeId: step.chargeResult.id,
+                amount: -step.chargeResult.amount /* Note, chargeResult.amount is positive in Stripe but Lightrail treats debits as negative amounts on Steps. */,
+                charge: JSON.stringify(step.chargeResult)
+            };
+        } else {
+            return {
+                userId: auth.userId,
+                id: step.idempotentStepId,
+                transactionId: plan.id,
+                chargeId: step.chargeId,
+                amount: step.refundResult.amount,
+                charge: JSON.stringify(step.refundResult) // todo - maybe this shouldn't be stored on the charge field?
+            };
+        }
     }
 
     export function toStripeTransactionStep(step: StripeTransactionPlanStep): StripeTransactionStep {
@@ -127,10 +146,18 @@ export namespace StripeTransactionPlanStep {
             charge: null,
             amount: step.amount
         };
-        if (step.chargeResult) {
-            stripeTransactionStep.chargeId = step.chargeResult.id;
-            stripeTransactionStep.charge = step.chargeResult;
-            stripeTransactionStep.amount = -step.chargeResult.amount /* Note, chargeResult.amount is positive in Stripe but Lightrail treats debits as negative amounts on Steps. */;
+        if (step.type == "charge") {
+            if (step.chargeResult) {
+                stripeTransactionStep.chargeId = step.chargeResult.id;
+                stripeTransactionStep.charge = step.chargeResult;
+                stripeTransactionStep.amount = -step.chargeResult.amount /* Note, chargeResult.amount is positive in Stripe but Lightrail treats debits as negative amounts on Steps. */;
+            }
+        } else {
+            if (step.refundResult) {
+                stripeTransactionStep.chargeId = step.chargeId;
+                stripeTransactionStep.charge = step.refundResult;
+                stripeTransactionStep.amount = step.refundResult.amount;
+            }
         }
         return stripeTransactionStep;
     }
