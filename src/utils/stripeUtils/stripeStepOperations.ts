@@ -7,16 +7,16 @@ import {
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {createCharge, createRefund} from "./stripeTransactions";
 import {LightrailAndMerchantStripeConfig} from "./StripeConfig";
-import {StripeRestError} from "./StripeRestError";
-import {TransactionPlanError} from "../../lambdas/rest/transactions/TransactionPlanError";
 import {StripeCreateChargeParams} from "./StripeCreateChargeParams";
 import {PaymentSourceForStripeMetadata, StripeSourceForStripeMetadata} from "./PaymentSourceForStripeMetadata";
 import {StripeCreateRefundParams} from "./StripeCreateRefundParams";
+import {StripeRestError} from "./StripeRestError";
+import {TransactionPlanError} from "../../lambdas/rest/transactions/TransactionPlanError";
 import log = require("loglevel");
 
 export async function processStripeSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, stripeConfig: LightrailAndMerchantStripeConfig, plan: TransactionPlan): Promise<void> {
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
-
+    console.log("processing stripe steps");
     try {
         for (let step of stripeSteps) {
             if (step.type === "charge") {
@@ -27,11 +27,13 @@ export async function processStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
                     amount: step.amount,
                     chargeId: step.chargeId
                 };
-                step.refundResult = await createRefund(stepForStripe, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id)
+                step.refundResult = await createRefund(stepForStripe, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id);
+                // console.log("HERES!ZS " + JSON.stringify(step.refundResult))
             }
         }
     } catch (err) {
         if ((err as StripeRestError).additionalParams && (err as StripeRestError).additionalParams.stripeError) {
+            // Error was returned from Stripe. Passing original error along so that details of Stripe failure can be returned.
             throw err;
         } else {
             throw new TransactionPlanError(`Transaction execution canceled because there was a problem charging Stripe: ${err}`, {
@@ -79,7 +81,7 @@ function stripeTransactionPlanStepToStripeChargeRequest(auth: giftbitRoutes.jwta
     return stepForStripe;
 }
 
-export async function rollbackStripeSteps(lightrailStripeSecretKey: string, merchantStripeAccountId: string, steps: StripeChargeTransactionPlanStep[], reason: string): Promise<void> {
+export async function rollbackStripeChargeSteps(lightrailStripeSecretKey: string, merchantStripeAccountId: string, steps: StripeChargeTransactionPlanStep[], reason: string): Promise<void> {
     try {
         for (const step of steps) {
             const refundParams: StripeCreateRefundParams = {

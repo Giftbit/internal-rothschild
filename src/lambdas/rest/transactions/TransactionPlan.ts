@@ -128,6 +128,7 @@ export namespace StripeTransactionPlanStep {
                 charge: JSON.stringify(step.chargeResult)
             };
         } else {
+            console.log("IS THE FOLLOWING BLOWING Up? Step: " + JSON.stringify(step));
             return {
                 userId: auth.userId,
                 id: step.idempotentStepId,

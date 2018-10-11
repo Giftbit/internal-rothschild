@@ -5,7 +5,6 @@ import * as valueStores from "../../values";
 import * as currencies from "../../currencies";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as sinon from "sinon";
-import log = require("loglevel");
 import {Value} from "../../../../model/Value";
 import {StripeTransactionStep, Transaction} from "../../../../model/Transaction";
 import {Currency} from "../../../../model/Currency";
@@ -24,6 +23,7 @@ import {
 } from "../../../../utils/testUtils/stripeTestUtils";
 import {StripeRestError} from "../../../../utils/stripeUtils/StripeRestError";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
+import log = require("loglevel");
 import chaiExclude = require("chai-exclude");
 import Stripe = require("stripe");
 import ICharge = Stripe.charges.ICharge;
@@ -197,7 +197,7 @@ describe("split tender checkout with Stripe", () => {
             "transfer_group": null
         };
         if (!testStripeLive()) {
-            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+            sinonSandbox.stub(stripeTransactions, "createCharge")
                 .withArgs(sinon.match({
                     "amount": 123,
                     "currency": request.currency,
@@ -361,7 +361,7 @@ describe("split tender checkout with Stripe", () => {
             "transfer_group": null
         };
         if (!testStripeLive()) {
-            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+            sinonSandbox.stub(stripeTransactions, "createCharge")
                 .withArgs(sinon.match({
                     "amount": 123,
                     "currency": request.currency,
@@ -563,7 +563,7 @@ describe("split tender checkout with Stripe", () => {
             "transfer_group": null
         };
         if (!testStripeLive()) {
-            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+            sinonSandbox.stub(stripeTransactions, "createCharge")
                 .withArgs(sinon.match({
                     "amount": 400,
                     "currency": basicRequest.currency,
@@ -651,7 +651,7 @@ describe("split tender checkout with Stripe", () => {
 
     it("does not charge Stripe when Lightrail value is sufficient", async () => {
         if (!testStripeLive()) {
-            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+            sinonSandbox.stub(stripeTransactions, "createCharge")
                 .rejects(new Error("The Stripe stub should never be called in this test"));
         }
 
@@ -872,7 +872,7 @@ describe("split tender checkout with Stripe", () => {
         };
 
         if (!testStripeLive()) {
-            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+            sinonSandbox.stub(stripeTransactions, "createCharge")
                 .withArgs(sinon.match({
                     "amount": 500,
                     "currency": request.currency,
@@ -1028,7 +1028,7 @@ describe("split tender checkout with Stripe", () => {
         };
 
         if (!testStripeLive()) {
-            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+            sinonSandbox.stub(stripeTransactions, "createCharge")
                 .withArgs(sinon.match({
                     amount: 500,
                     currency: request.currency,
@@ -1046,10 +1046,10 @@ describe("split tender checkout with Stripe", () => {
 
         const stripeStep = postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep;
         chai.assert.isObject(stripeStep, "found stripe step");
-        chai.assert.equal(stripeStep.charge.on_behalf_of, "aaa");
-        chai.assert.equal(stripeStep.charge.receipt_email, "bbb@example.com");
-        chai.assert.equal(stripeStep.charge.statement_descriptor, "ccc");
-        chai.assert.equal(stripeStep.charge.transfer_group, "ddd");
+        chai.assert.equal((stripeStep.charge as ICharge).on_behalf_of, "aaa");
+        chai.assert.equal((stripeStep.charge as ICharge).receipt_email, "bbb@example.com");
+        chai.assert.equal((stripeStep.charge as ICharge).statement_descriptor, "ccc");
+        chai.assert.equal((stripeStep.charge as ICharge).transfer_group, "ddd");
 
         if (testStripeLive()) {
             const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
@@ -1253,7 +1253,7 @@ describe("split tender checkout with Stripe", () => {
                 };
                 const exampleErrorResponse = new StripeRestError(409, "Error for tests", null, exampleStripeError);
 
-                sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                sinonSandbox.stub(stripeTransactions, "createCharge")
                     .withArgs(
                         sinon.match.has("metadata", sinon.match.has("lightrailTransactionId", request.id)),
                         sinon.match("test"),
@@ -1268,7 +1268,7 @@ describe("split tender checkout with Stripe", () => {
 
         it("does not charge Stripe when the Lightrail parent transaction fails", async () => {
             if (!testStripeLive()) {
-                sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                sinonSandbox.stub(stripeTransactions, "createCharge")
                     .rejects(new Error("The Stripe stub should never be called in this test"));
             }
 
@@ -1410,7 +1410,7 @@ describe("split tender checkout with Stripe", () => {
             let stripeChargeStub: sinon.SinonStub;
             let stripeRefundStub: sinon.SinonStub;
             if (!testStripeLive()) {
-                stripeChargeStub = sinonSandbox.stub(stripeTransactions, "createStripeCharge");
+                stripeChargeStub = sinonSandbox.stub(stripeTransactions, "createCharge");
                 stripeChargeStub.withArgs(sinon.match({
                     "amount": 400,
                     "currency": request.currency,
@@ -1460,21 +1460,16 @@ describe("split tender checkout with Stripe", () => {
                     "source": "tok_visa"
                 });
                 chai.assert.deepEqual(stripeRefundStub.getCall(0).args[0], {
-                    "rail": "stripe",
-                    "additionalStripeParams": null,
-                    "idempotentStepId": `${request.id}-0`,
-                    "source": "tok_visa",
-                    "customer": null,
-                    "maxAmount": null,
-                    "amount": -400,
-                    "chargeResult": exampleStripeCharge
+                    "amount": 400,
+                    "chargeId": exampleStripeCharge.id,
+                    "reason": "Refunded due to error on the Lightrail side"
                 });
             }
         }).timeout(4000);
 
         it("throws 409 'transaction already exists' if the Lightrail transaction fails for idempotency reasons", async () => {
             if (!testStripeLive()) {
-                sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                sinonSandbox.stub(stripeTransactions, "createCharge")
                     .rejects(new Error("The Stripe stub should never be called in this test"));
             }
 
@@ -1703,7 +1698,7 @@ describe("split tender checkout with Stripe", () => {
         };
         let stripeStub: sinon.SinonStub;
         if (!testStripeLive()) {
-            stripeStub = sinonSandbox.stub(stripeTransactions, "createStripeCharge");
+            stripeStub = sinonSandbox.stub(stripeTransactions, "createCharge");
             stripeStub.onFirstCall().resolves(exampleStripeResponse1);
             stripeStub.onSecondCall().resolves(exampleStripeResponse2);
         }
@@ -1947,7 +1942,7 @@ describe("split tender checkout with Stripe", () => {
             };
             const exampleErrorResponse = new StripeRestError(422, "Error for tests", null, exampleStripeError);
             if (!testStripeLive()) {
-                sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                sinonSandbox.stub(stripeTransactions, "createCharge")
                     .withArgs(sinon.match.has("amount", 25), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`))
                     .rejects(exampleErrorResponse);
             }

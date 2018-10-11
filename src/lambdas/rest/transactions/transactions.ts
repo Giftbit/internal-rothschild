@@ -118,7 +118,6 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            console.log("ARE WE MAKING IT IN?")
             auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:transactions:reverse");
             evt.validateBody(reverseSchema);

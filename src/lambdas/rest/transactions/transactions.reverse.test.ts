@@ -4,16 +4,25 @@ import * as testUtils from "../../../utils/testUtils";
 import {generateId, setCodeCryptographySecrets} from "../../../utils/testUtils";
 import {installRestRoutes} from "../installRestRoutes";
 import {createCurrency} from "../currencies";
+import * as sinon from "sinon";
 import {Value} from "../../../model/Value";
 import {Transaction} from "../../../model/Transaction";
 import {CheckoutRequest, DebitRequest, ReverseRequest} from "../../../model/TransactionRequest";
+import {after} from "mocha";
+import {
+    setStubsForStripeTests,
+    testStripeLive,
+    unsetStubsForStripeTests
+} from "../../../utils/testUtils/stripeTestUtils";
+import * as stripeTransactions from "../../../utils/stripeUtils/stripeTransactions";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe.only("/v2/transactions/transfer", () => {
+describe.only("/v2/transactions/reverse", () => {
 
     const router = new cassava.Router();
+    const sinonSandbox = sinon.createSandbox();
 
     before(async function () {
         await testUtils.resetDb();
@@ -29,6 +38,11 @@ describe.only("/v2/transactions/transfer", () => {
             decimalPlaces: 2
         });
         chai.assert.equal(currency.code, "USD");
+        setStubsForStripeTests();
+    });
+
+    after(() => {
+        unsetStubsForStripeTests();
     });
 
     describe("reversing initialBalance", () => {
@@ -161,6 +175,215 @@ describe.only("/v2/transactions/transfer", () => {
             const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
             chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate")
         });
+    });
+
+    describe.only("reversing checkouts", () => {
+        if (!testStripeLive()) {
+            it("can reverse a checkout with balance and tok_visa", async () => {
+                // create value
+                const value: Partial<Value> = {
+                    id: generateId(),
+                    currency: "USD",
+                    balance: 100
+                };
+                const postValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+                chai.assert.equal(postValue.statusCode, 201);
+
+                // create checkout
+                const checkout: CheckoutRequest = {
+                    id: generateId(),
+                    lineItems: [{
+                        unitPrice: 250
+                    }],
+                    currency: "USD",
+                    sources: [
+                        {
+                            rail: "lightrail",
+                            valueId: value.id
+                        },
+                        {
+                            rail: "stripe",
+                            source: "tok_visa",
+                        }
+                    ]
+                };
+
+                const mockCharge = {
+                    "id": "ch_1DJrEhG3cz9DRdBt5C8kJywD",
+                    "object": "charge",
+                    "amount": 150,
+                    "amount_refunded": 0,
+                    "application": "ca_D5LfFkNWh8XbFWxIcEx6N9FXaNmfJ9Fr",
+                    "application_fee": null,
+                    "balance_transaction": "txn_1DJrEhG3cz9DRdBtmSD458ek",
+                    "captured": true,
+                    "created": 1539214623,
+                    "currency": "usd",
+                    "customer": null,
+                    "description": null,
+                    "destination": null,
+                    "dispute": null,
+                    "failure_code": null,
+                    "failure_message": null,
+                    "fraud_details": {},
+                    "invoice": null,
+                    "livemode": false,
+                    "metadata": {
+                        "lightrailTransactionId": "8cfec752-7baf-437b-a",
+                        "lightrailTransactionSources": "[{\"rail\":\"lightrail\",\"valueId\":\"3696a20a-00fc-4381-8\"},{\"rail\":\"stripe\",\"source\":\"tok_visa\"}]",
+                        "lightrailUserId": "default-test-user-TEST"
+                    },
+                    "on_behalf_of": null,
+                    "order": null,
+                    "outcome": {
+                        "network_status": "approved_by_network",
+                        "reason": null,
+                        "risk_level": "normal",
+                        "risk_score": 1,
+                        "seller_message": "Payment complete.",
+                        "type": "authorized"
+                    },
+                    "paid": true,
+                    "payment_intent": null,
+                    "receipt_email": null,
+                    "receipt_number": null,
+                    "refunded": false,
+                    "refunds": {
+                        "object": "list",
+                        "data": [],
+                        "has_more": false,
+                        "total_count": 0,
+                        "url": "/v1/charges/ch_1DJrEhG3cz9DRdBt5C8kJywD/refunds"
+                    },
+                    "review": null,
+                    "shipping": null,
+                    "source": {
+                        "id": "card_1DJrEhG3cz9DRdBtdPdVeocl",
+                        "object": "card",
+                        "address_city": null,
+                        "address_country": null,
+                        "address_line1": null,
+                        "address_line1_check": null,
+                        "address_line2": null,
+                        "address_state": null,
+                        "address_zip": null,
+                        "address_zip_check": null,
+                        "brand": "Visa",
+                        "country": "US",
+                        "customer": null,
+                        "cvc_check": null,
+                        "dynamic_last4": null,
+                        "exp_month": 10,
+                        "exp_year": 2019,
+                        "fingerprint": "LMHNXKv7kEbxUNL9",
+                        "funding": "credit",
+                        "last4": "4242",
+                        "metadata": {},
+                        "name": null,
+                        "tokenization_method": null
+                    },
+                    "source_transfer": null,
+                    "statement_descriptor": null,
+                    "status": "succeeded",
+                    "transfer_group": null
+                };
+                sinonSandbox.stub(stripeTransactions, "createCharge")
+                    .withArgs(sinon.match({
+                        amount: 150,
+                        currency: "USD",
+                        source: "tok_visa"
+                    }), sinon.match("test"), sinon.match("test"), sinon.match(`${checkout.id}-0`)).resolves(mockCharge);
+
+                const postCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
+                chai.assert.equal(postCheckout.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
+                console.log(JSON.stringify(postCheckout.body));
+
+                // create reverse
+                const mockRefund = {
+                    "id": "ch_1DJrEhG3cz9DRdBt5C8kJywD",
+                    "object": "refund",
+                    "amount": 150,
+                    "balance_transaction": "txn_1DJrPcG3cz9DRdBtKuhccbBC",
+                    "charge": "ch_1DJrPaG3cz9DRdBtxc6bo6FE",
+                    "created": 1539215300,
+                    "currency": "usd",
+                    "metadata": {"reason": "not specified"},
+                    "reason": null,
+                    "receipt_number": null,
+                    "source_transfer_reversal": null,
+                    "status": "succeeded"
+                };
+                sinonSandbox.stub(stripeTransactions, "createRefund")
+                    .withArgs(sinon.match({
+                        "amount": 150,
+                        "chargeId": "ch_1DJrEhG3cz9DRdBt5C8kJywD"
+                    }), sinon.match("test"), sinon.match("test")).resolves(mockRefund);
+
+
+                console.log("here!");
+                const reverse: Partial<ReverseRequest> = {
+                    id: generateId()
+                };
+                const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.id}/reverse`, "POST", reverse);
+                console.log(JSON.stringify(postReverse));
+                chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
+
+                // check value is same as before
+                const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
+                chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate")
+            });
+        }
+        if (testStripeLive()) {
+            it("can reverse a checkout with balance and tok_visa", async () => {
+                // create value
+                const value: Partial<Value> = {
+                    id: generateId(),
+                    currency: "USD",
+                    balance: 100
+                };
+                const postValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+                chai.assert.equal(postValue.statusCode, 201);
+
+                // create checkout
+                const checkout: CheckoutRequest = {
+                    id: generateId(),
+                    lineItems: [{
+                        unitPrice: 250
+                    }],
+                    currency: "USD",
+                    sources: [
+                        {
+                            rail: "lightrail",
+                            valueId: value.id
+                        },
+                        {
+                            rail: "stripe",
+                            source: "tok_visa",
+                            maxAmount: 50
+                        },
+                        {
+                            rail: "stripe",
+                            source: "tok_visa",
+                            maxAmount: 200
+                        }
+                    ]
+                };
+                const postCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
+                chai.assert.equal(postCheckout.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
+
+                // create reverse
+                const reverse: Partial<ReverseRequest> = {
+                    id: generateId()
+                };
+                const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.id}/reverse`, "POST", reverse);
+                console.log(JSON.stringify(postReverse));
+                chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
+
+                // check value is same as before
+                const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
+                chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate")
+            }).timeout(10000);
+        }
     });
 
     function verifyCheckoutReverseTotals(checkout: Transaction, reverse: Transaction): void {

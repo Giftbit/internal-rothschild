@@ -218,7 +218,7 @@ describe("/v2/transactions/checkout - mixed sources", () => {
         };
 
         if (!testStripeLive()) {
-            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+            sinonSandbox.stub(stripeTransactions, "createCharge")
                 .withArgs(sinon.match({
                     "amount": 1360,
                     "currency": request.currency,

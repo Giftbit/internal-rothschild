@@ -108,6 +108,8 @@ describe("/v2/transactions/debit", () => {
                 "metadata": "null",
                 "tax": "null",
                 "createdBy": defaultTestUser.auth.teamMemberId,
+                "nextChainTransactionId": null,
+                "rootChainTransactionId": null,
                 "totals_subtotal": null,
                 "totals_tax": null,
                 "totals_discountLightrail": null,

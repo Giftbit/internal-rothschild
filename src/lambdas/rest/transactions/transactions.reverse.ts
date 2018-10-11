@@ -80,7 +80,7 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
                 break;
             case "stripe":
                 const stripeStepNumber = plan.steps.filter(step => step.rail === "stripe").length;
-                plan.steps.push(await getReverseForStripeTransactionStep(auth, step, `${plan.id}-${stripeStepNumber}`,));
+                plan.steps.push(await getReverseForStripeTransactionStep(auth, step, `${plan.id}-${stripeStepNumber}`, `Being refunded as part of reverse transaction ${plan.id}.`));
                 break;
         }
 
@@ -98,13 +98,14 @@ async function getReverseForLightrailTransactionStep(auth: giftbitRoutes.jwtauth
     }
 }
 
-async function getReverseForStripeTransactionStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: StripeTransactionStep, idempotentStepId: string): Promise<TransactionPlanStep> {
+async function getReverseForStripeTransactionStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: StripeTransactionStep, idempotentStepId: string, refundMetadataReason: string): Promise<TransactionPlanStep> {
     return {
         rail: "stripe",
         type: "refund",
         idempotentStepId: idempotentStepId,
         chargeId: step.chargeId,
         amount: -step.amount, // step.amount is a negative for a charge
+        reason: refundMetadataReason
     }
 }
 

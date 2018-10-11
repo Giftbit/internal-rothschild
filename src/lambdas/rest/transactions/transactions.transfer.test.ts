@@ -176,6 +176,8 @@ describe("/v2/transactions/transfer", () => {
                 "metadata": "null",
                 "tax": "null",
                 "createdBy": "default-test-user-TEST",
+                "nextChainTransactionId": null,
+                "rootChainTransactionId": null,
                 "totals_subtotal": null,
                 "totals_tax": null,
                 "totals_discountLightrail": null,
@@ -1155,7 +1157,7 @@ describe("/v2/transactions/transfer", () => {
                 "transfer_group": null
             };
             if (!testStripeLive()) {
-                sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                sinonSandbox.stub(stripeTransactions, "createCharge")
                     .withArgs(sinon.match({
                         "amount": request.amount,
                         "currency": request.currency,
@@ -1243,7 +1245,7 @@ describe("/v2/transactions/transfer", () => {
 
         it("422s transferring a negative amount from Stripe", async () => {
             if (!testStripeLive()) {
-                sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                sinonSandbox.stub(stripeTransactions, "createCharge")
                     .rejects(new Error("The Stripe stub should never be called in this test"));
             }
 
@@ -1360,7 +1362,7 @@ describe("/v2/transactions/transfer", () => {
             };
 
             if (!testStripeLive()) {
-                sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                sinonSandbox.stub(stripeTransactions, "createCharge")
                     .withArgs(sinon.match({
                         "amount": request.source.maxAmount,
                         "currency": request.currency,
@@ -1448,7 +1450,7 @@ describe("/v2/transactions/transfer", () => {
 
         it("409s transferring from Stripe with insufficient maxAmount and allowRemainder=false", async () => {
             if (!testStripeLive()) {
-                sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                sinonSandbox.stub(stripeTransactions, "createCharge")
                     .rejects(new Error("The Stripe stub should never be called in this test"));
             }
 
@@ -1471,7 +1473,7 @@ describe("/v2/transactions/transfer", () => {
 
         it("422s transferring to Stripe from Lightrail", async () => {
             if (!testStripeLive()) {
-                sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                sinonSandbox.stub(stripeTransactions, "createCharge")
                     .rejects(new Error("The Stripe stub should never be called in this test"));
             }
 
@@ -1573,7 +1575,7 @@ describe("/v2/transactions/transfer", () => {
                 const exampleErrorResponse = new StripeRestError(422, "Error for tests: Stripe minimum not met", "StripeAmountTooSmall", exampleStripeError);
 
                 if (!testStripeLive()) {
-                    sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                    sinonSandbox.stub(stripeTransactions, "createCharge")
                         .withArgs(sinon.match({
                             "amount": request.amount,
                             "currency": request.currency,

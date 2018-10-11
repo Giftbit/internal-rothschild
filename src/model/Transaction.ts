@@ -103,8 +103,8 @@ export namespace DbTransaction {
                 paymentSources: JSON.parse(dbT.paymentSources),
                 steps: dbSteps.filter(s => s.transactionId === dbT.id).map(DbTransactionStep.toTransactionStep),
                 metadata: JSON.parse(dbT.metadata),
-                rootChainTransactionId: dbT.rootChainTransactionId,
-                nextChainTransactionId: dbT.nextChainTransactionId,
+                rootChainTransactionId: dbT.rootChainTransactionId != null ? dbT.rootChainTransactionId : undefined,
+                nextChainTransactionId: dbT.nextChainTransactionId != null ? dbT.nextChainTransactionId : undefined,
                 tax: JSON.parse(dbT.tax),
                 createdDate: dbT.createdDate,
                 createdBy: dbT.createdBy

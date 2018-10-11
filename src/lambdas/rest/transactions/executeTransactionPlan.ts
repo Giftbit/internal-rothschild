@@ -1,6 +1,6 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
-import {StripeTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
+import {StripeChargeTransactionPlanStep, StripeTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {Transaction} from "../../../model/Transaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
@@ -12,7 +12,8 @@ import {
     insertStripeTransactionSteps,
     insertTransaction
 } from "./insertTransactions";
-import {processStripeSteps, rollbackStripeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
+import {processStripeSteps, rollbackStripeChargeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
+import {StripeRestError} from "../../../utils/stripeUtils/StripeRestError";
 import log = require("loglevel");
 
 export interface ExecuteTransactionPlannerOptions {
@@ -48,7 +49,6 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
 
 export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<Transaction> {
     auth.requireIds("userId", "teamMemberId");
-    let chargeStripe = false;
     let stripeConfig: LightrailAndMerchantStripeConfig;
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
 
@@ -67,26 +67,35 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
             }
         }
 
-        if (stripeSteps.length > 0) {
-            chargeStripe = stripeSteps.find(step => step.type === "charge") != null;
-            stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
-            await processStripeSteps(auth, stripeConfig, plan);
-        }
-
         try {
-            if (chargeStripe) {
-                await insertStripeTransactionSteps(auth, trx, plan);
+            if (stripeSteps.length > 0) {
+                stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
+                await processStripeSteps(auth, stripeConfig, plan);
             }
+            console.log("made it sdfgdf!")
+            await insertStripeTransactionSteps(auth, trx, plan);
+            console.log("made it heresAWERS!")
             await insertLightrailTransactionSteps(auth, trx, plan);
             await insertInternalTransactionSteps(auth, trx, plan);
         } catch (err) {
             log.warn(`Error inserting transaction step: ${err}`);
-            if (chargeStripe) {
-                await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side`);
-                log.warn(`An error occurred while processing transaction '${plan.id}'. The Stripe charge(s) '${stripeSteps.map(step => step.chargeResult.id)}' have been refunded.`);
+            if (stripeSteps.length > 0) {
+                const stripeChargeStepsToRefund = stripeSteps.filter(step => step.type === "charge" && step.chargeResult != null) as StripeChargeTransactionPlanStep[];
+                if (stripeChargeStepsToRefund.length > 0) {
+                    await rollbackStripeChargeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeChargeStepsToRefund, `Refunded due to error on the Lightrail side`);
+                    log.warn(`An error occurred while processing transaction '${plan.id}'. The Stripe charge(s) '${stripeChargeStepsToRefund.map(step => step.chargeResult.id)}' have been refunded.`);
+                }
+                if (stripeSteps.filter(step => step.type === "refund").length > 0) {
+                    const message = `An error occurred while processing reverse transaction ${plan.id} with stripe refund charges. An exception occurred during transaction. The refunds ${JSON.stringify(stripeSteps)} cannot be undone.`;
+                    log.warn(message);
+                    giftbitRoutes.sentry.sendErrorNotification(new Error(message));
+                }
             }
 
-            if ((err as TransactionPlanError).isTransactionPlanError) {
+            if ((err as StripeRestError).additionalParams && (err as StripeRestError).additionalParams.stripeError) {
+                // Error was returned from Stripe. Passing original error along so that details of Stripe failure can be returned.
+                throw err;
+            } else if ((err as TransactionPlanError).isTransactionPlanError) {
                 throw err;
             } else if (err.code === "ER_DUP_ENTRY") {
                 log.error(err);
