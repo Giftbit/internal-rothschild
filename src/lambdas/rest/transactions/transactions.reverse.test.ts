@@ -319,8 +319,7 @@ describe.only("/v2/transactions/reverse", () => {
                         "chargeId": "ch_1DJrEhG3cz9DRdBt5C8kJywD"
                     }), sinon.match("test"), sinon.match("test")).resolves(mockRefund);
 
-
-                console.log("here!");
+                
                 const reverse: Partial<ReverseRequest> = {
                     id: generateId()
                 };
