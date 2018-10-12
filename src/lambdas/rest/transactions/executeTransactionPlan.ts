@@ -72,9 +72,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
                 stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
                 await processStripeSteps(auth, stripeConfig, plan);
             }
-            console.log("made it sdfgdf!")
             await insertStripeTransactionSteps(auth, trx, plan);
-            console.log("made it heresAWERS!")
             await insertLightrailTransactionSteps(auth, trx, plan);
             await insertInternalTransactionSteps(auth, trx, plan);
         } catch (err) {

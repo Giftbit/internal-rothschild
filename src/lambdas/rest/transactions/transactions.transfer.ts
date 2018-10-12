@@ -2,7 +2,12 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import {resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
 import {TransferRequest} from "../../../model/TransactionRequest";
-import {LightrailTransactionPlanStep, StripeTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
+import {
+    LightrailTransactionPlanStep,
+    StripeChargeTransactionPlanStep,
+    StripeTransactionPlanStep,
+    TransactionPlan
+} from "./TransactionPlan";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {TransactionType} from "../../../model/Transaction";
 
@@ -23,7 +28,7 @@ export async function resolveTransferTransactionPlanSteps(auth: giftbitRoutes.jw
     if (sourceSteps.length !== 1 || (sourceSteps[0].rail !== "lightrail" && sourceSteps[0].rail !== "stripe")) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable Value.", "InvalidParty");
     }
-    const sourceStep = sourceSteps[0] as LightrailTransactionPlanStep | StripeTransactionPlanStep;
+    const sourceStep = sourceSteps[0] as LightrailTransactionPlanStep | StripeChargeTransactionPlanStep;
     if (sourceStep.rail === "stripe" && !req.allowRemainder && sourceStep.maxAmount != null && sourceStep.maxAmount < req.amount) {
         throw new giftbitRoutes.GiftbitRestError(409, `Stripe source 'maxAmount' of ${sourceStep.maxAmount} is less than transfer amount ${req.amount}.`);
     }
@@ -70,6 +75,7 @@ export function createTransferTransactionPlan(req: TransferRequest, steps: Trans
         steps.destStep.amount = amount;
         plan.totals.remainder = req.amount - amount;
     } else if (steps.sourceStep.rail === "stripe") {
+        steps.sourceStep = steps.sourceStep as StripeChargeTransactionPlanStep;
         const amount = steps.sourceStep.maxAmount != null ? (Math.min(steps.sourceStep.maxAmount, req.amount)) : req.amount;
 
         steps.sourceStep.amount = -amount;

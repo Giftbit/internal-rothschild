@@ -16,7 +16,6 @@ import log = require("loglevel");
 
 export async function processStripeSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, stripeConfig: LightrailAndMerchantStripeConfig, plan: TransactionPlan): Promise<void> {
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
-    console.log("processing stripe steps");
     try {
         for (let step of stripeSteps) {
             if (step.type === "charge") {
@@ -28,7 +27,6 @@ export async function processStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
                     chargeId: step.chargeId
                 };
                 step.refundResult = await createRefund(stepForStripe, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id);
-                // console.log("HERES!ZS " + JSON.stringify(step.refundResult))
             }
         }
     } catch (err) {

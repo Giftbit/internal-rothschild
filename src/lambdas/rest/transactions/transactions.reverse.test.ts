@@ -6,7 +6,12 @@ import {installRestRoutes} from "../installRestRoutes";
 import {createCurrency} from "../currencies";
 import * as sinon from "sinon";
 import {Value} from "../../../model/Value";
-import {Transaction} from "../../../model/Transaction";
+import {
+    InternalTransactionStep,
+    LightrailTransactionStep,
+    StripeTransactionStep,
+    Transaction
+} from "../../../model/Transaction";
 import {CheckoutRequest, DebitRequest, ReverseRequest} from "../../../model/TransactionRequest";
 import {after} from "mocha";
 import {
@@ -45,6 +50,11 @@ describe.only("/v2/transactions/reverse", () => {
         unsetStubsForStripeTests();
     });
 
+    afterEach(() => {
+        sinonSandbox.restore();
+    });
+
+
     describe("reversing initialBalance", () => {
         it("can reverse initialBalance", async () => {
             // create value
@@ -57,14 +67,12 @@ describe.only("/v2/transactions/reverse", () => {
             chai.assert.equal(postValue.statusCode, 201);
 
             const initialBalanceTransaction: Transaction = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${value.id}`, "GET").then(tx => tx.body[0]);
-            console.log(JSON.stringify(initialBalanceTransaction));
 
             // create reverse
             const reverse: Partial<ReverseRequest> = {
                 id: generateId()
             };
             const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${initialBalanceTransaction.id}/reverse`, "POST", reverse);
-            console.log(JSON.stringify(postReverse.body));
             chai.assert.equal(postReverse.statusCode, 201);
 
             // chai.assert.deepEqualExcluding(postReverse.body, {
@@ -122,7 +130,6 @@ describe.only("/v2/transactions/reverse", () => {
                 id: generateId()
             };
             const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${debit.id}/reverse`, "POST", reverse);
-            console.log(JSON.stringify(postReverse));
             chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postDebit.body)}`);
 
             // check value is same as before
@@ -167,7 +174,6 @@ describe.only("/v2/transactions/reverse", () => {
                 id: generateId()
             };
             const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.id}/reverse`, "POST", reverse);
-            console.log(JSON.stringify(postReverse));
             chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
             verifyCheckoutReverseTotals(postCheckout.body, postReverse.body);
 
@@ -177,7 +183,7 @@ describe.only("/v2/transactions/reverse", () => {
         });
     });
 
-    describe.only("reversing checkouts", () => {
+    describe("reversing checkouts", () => {
         if (!testStripeLive()) {
             it("can reverse a checkout with balance and tok_visa", async () => {
                 // create value
@@ -296,7 +302,6 @@ describe.only("/v2/transactions/reverse", () => {
 
                 const postCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
                 chai.assert.equal(postCheckout.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
-                console.log(JSON.stringify(postCheckout.body));
 
                 // create reverse
                 const mockRefund = {
@@ -319,12 +324,10 @@ describe.only("/v2/transactions/reverse", () => {
                         "chargeId": "ch_1DJrEhG3cz9DRdBt5C8kJywD"
                     }), sinon.match("test"), sinon.match("test")).resolves(mockRefund);
 
-                
                 const reverse: Partial<ReverseRequest> = {
                     id: generateId()
                 };
                 const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.id}/reverse`, "POST", reverse);
-                console.log(JSON.stringify(postReverse));
                 chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
 
                 // check value is same as before
@@ -352,6 +355,12 @@ describe.only("/v2/transactions/reverse", () => {
                     currency: "USD",
                     sources: [
                         {
+                            rail: "internal",
+                            beforeLightrail: true,
+                            balance: 1,
+                            internalId: "id"
+                        },
+                        {
                             rail: "lightrail",
                             valueId: value.id
                         },
@@ -369,18 +378,27 @@ describe.only("/v2/transactions/reverse", () => {
                 };
                 const postCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
                 chai.assert.equal(postCheckout.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
+                chai.assert.equal((postCheckout.body.steps[0] as InternalTransactionStep).balanceChange, -1, `body=${JSON.stringify(postCheckout.body)}`);
+                chai.assert.equal((postCheckout.body.steps[1] as LightrailTransactionStep).balanceChange, -100, `body=${JSON.stringify(postCheckout.body)}`);
+                chai.assert.equal((postCheckout.body.steps[2] as StripeTransactionStep).amount, -50, `body=${JSON.stringify(postCheckout.body)}`);
+                chai.assert.equal((postCheckout.body.steps[3] as StripeTransactionStep).amount, -99, `body=${JSON.stringify(postCheckout.body)}`);
 
                 // create reverse
                 const reverse: Partial<ReverseRequest> = {
                     id: generateId()
                 };
                 const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.id}/reverse`, "POST", reverse);
-                console.log(JSON.stringify(postReverse));
                 chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
 
                 // check value is same as before
                 const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
-                chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate")
+                chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate");
+
+
+                chai.assert.isNotNull(postCheckout.body.steps.find(step => step.rail === "internal" && step.balanceChange === 1));
+                chai.assert.isNotNull(postCheckout.body.steps.find(step => step.rail === "lightrail" && step.balanceChange === 100));
+                chai.assert.isNotNull(postCheckout.body.steps.find(step => step.rail === "stripe" && step.amount === 50));
+                chai.assert.isNotNull(postCheckout.body.steps.find(step => step.rail === "stripe" && step.amount === 99));
             }).timeout(10000);
         }
     });

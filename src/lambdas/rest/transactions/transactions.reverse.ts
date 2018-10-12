@@ -2,10 +2,11 @@ import {ReverseRequest} from "../../../model/TransactionRequest";
 import {
     InternalTransactionPlanStep,
     LightrailTransactionPlanStep,
-    TransactionPlan,
-    TransactionPlanStep
+    StripeTransactionPlanStep,
+    TransactionPlan
 } from "./TransactionPlan";
 import {
+    InternalTransactionStep,
     LightrailTransactionStep,
     StripeTransactionStep,
     Transaction,
@@ -36,7 +37,7 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
     if (transactionToReverse.nextChainTransactionId) {
         // flip out
     }
-    // todo - What happens if trying to reverse a pending_capture or a pending_void? Can you re-capture or re-void the original tx?
+
     // todo - What happens if trying to reverse an attach transaction? Does it unattach the contact? What happens to the created Value if the original code was GENERIC?
     // todo - Is is just checkout that needs to be reversable? Everything else has pretty obvious workarounds.
     if (transactionToReverse.transactionType === "pending_create") {
@@ -82,14 +83,20 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
                 const stripeStepNumber = plan.steps.filter(step => step.rail === "stripe").length;
                 plan.steps.push(await getReverseForStripeTransactionStep(auth, step, `${plan.id}-${stripeStepNumber}`, `Being refunded as part of reverse transaction ${plan.id}.`));
                 break;
+            case "internal":
+                plan.steps.push(await getReverseForInternalTransactionStep(auth, step));
+                break;
+            default:
+                throw Error(`Unexpected step rail type found in transaction for reverse. ${transactionToReverse}.`)
         }
 
 
     }
+    console.log("Reverse plan: " + JSON.stringify(plan, null, 4));
     return plan;
 }
 
-async function getReverseForLightrailTransactionStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: LightrailTransactionStep): Promise<TransactionPlanStep> {
+async function getReverseForLightrailTransactionStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: LightrailTransactionStep): Promise<LightrailTransactionPlanStep> {
     return {
         rail: "lightrail",
         value: await getValue(auth, step.valueId),
@@ -98,7 +105,7 @@ async function getReverseForLightrailTransactionStep(auth: giftbitRoutes.jwtauth
     }
 }
 
-async function getReverseForStripeTransactionStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: StripeTransactionStep, idempotentStepId: string, refundMetadataReason: string): Promise<TransactionPlanStep> {
+async function getReverseForStripeTransactionStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: StripeTransactionStep, idempotentStepId: string, refundMetadataReason: string): Promise<StripeTransactionPlanStep> {
     return {
         rail: "stripe",
         type: "refund",
@@ -106,6 +113,18 @@ async function getReverseForStripeTransactionStep(auth: giftbitRoutes.jwtauth.Au
         chargeId: step.chargeId,
         amount: -step.amount, // step.amount is a negative for a charge
         reason: refundMetadataReason
+    }
+}
+
+async function getReverseForInternalTransactionStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: InternalTransactionStep): Promise<InternalTransactionPlanStep> {
+    console.log("internal step for reverse: " + JSON.stringify(step, null, 4));
+    return {
+        rail: "internal",
+        internalId: step.internalId,
+        balance: step.balanceAfter,
+        pretax: null,
+        beforeLightrail: null,
+        amount: -step.balanceChange
     }
 }
 
