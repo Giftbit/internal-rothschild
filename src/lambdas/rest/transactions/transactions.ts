@@ -126,6 +126,23 @@ export function installTransactionsRest(router: cassava.Router): void {
                 body: await createReverse(auth, {transactionIdToReverse: evt.pathParameters.id, ...evt.body})
             };
         });
+
+    router.route("/v2/transactions/{id}/chain")
+        .method("GET")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:transactions:chain");
+            evt.validateBody(reverseSchema);
+            const dbTransaction = await getDbTransaction(auth, evt.pathParameters.id);
+            evt.queryStringParameters["rootChainTransactionId"] = dbTransaction.rootChainTransactionId;
+            const res = await getTransactions(auth, evt.queryStringParameters, getPaginationParams(evt));
+
+            return {
+                headers: Pagination.toHeaders(evt, res.pagination),
+                body: res.transactions
+            };
+        });
 }
 
 export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ transactions: Transaction[], pagination: Pagination }> {
@@ -164,6 +181,10 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
                 "currency": {
                     type: "string",
                     operators: ["eq", "in"]
+                },
+                "rootChainTransactionId": {
+                    type: "string",
+                    operators: ["eq", "in"]
                 }
             },
             tableName: "Transactions"
@@ -176,7 +197,7 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
     };
 }
 
-export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Transaction> {
+export async function getDbTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<DbTransaction> {
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
@@ -192,8 +213,14 @@ export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBa
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
-    const transacs: Transaction[] = await DbTransaction.toTransactions(res, auth.userId);
-    return transacs[0];   // at this point there will only ever be one
+    return res[0];
+}
+
+export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Transaction> {
+    const dbTransaction = await getDbTransaction(auth, id);
+
+    const transactions: Transaction[] = await DbTransaction.toTransactions([dbTransaction], auth.userId);
+    return transactions[0];   // at this point there will only ever be one
 }
 
 async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CreditRequest): Promise<Transaction> {

@@ -24,7 +24,7 @@ import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe.only("/v2/transactions/reverse", () => {
+describe("/v2/transactions/reverse", () => {
 
     const router = new cassava.Router();
     const sinonSandbox = sinon.createSandbox();
@@ -383,6 +383,10 @@ describe.only("/v2/transactions/reverse", () => {
                 chai.assert.equal((postCheckout.body.steps[2] as StripeTransactionStep).amount, -50, `body=${JSON.stringify(postCheckout.body)}`);
                 chai.assert.equal((postCheckout.body.steps[3] as StripeTransactionStep).amount, -99, `body=${JSON.stringify(postCheckout.body)}`);
 
+                // lookup chain
+                const getChain1 = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions/${checkout.id}/chain`, "GET");
+                chai.assert.equal(getChain1.body.length, 1);
+
                 // create reverse
                 const reverse: Partial<ReverseRequest> = {
                     id: generateId()
@@ -393,12 +397,14 @@ describe.only("/v2/transactions/reverse", () => {
                 // check value is same as before
                 const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
                 chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate");
-
-
                 chai.assert.isNotNull(postCheckout.body.steps.find(step => step.rail === "internal" && step.balanceChange === 1));
                 chai.assert.isNotNull(postCheckout.body.steps.find(step => step.rail === "lightrail" && step.balanceChange === 100));
                 chai.assert.isNotNull(postCheckout.body.steps.find(step => step.rail === "stripe" && step.amount === 50));
                 chai.assert.isNotNull(postCheckout.body.steps.find(step => step.rail === "stripe" && step.amount === 99));
+
+                // lookup chain2
+                const getChain2 = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions/${checkout.id}/chain`, "GET");
+                chai.assert.equal(getChain2.body.length, 2);
             }).timeout(10000);
         }
     });

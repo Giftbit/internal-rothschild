@@ -20,13 +20,6 @@ import {getValue} from "../values";
 import * as cassava from "cassava";
 import * as stripe from "stripe";
 
-export interface ReverseTransactionSteps {
-    lightrailTransactionSteps: LightrailTransactionPlanStep[];
-    internalTransactionSteps: InternalTransactionPlanStep[];
-    stripeTransactionSteps: LightrailTransactionPlanStep[];
-}
-
-
 /**
  * I'm not super happy with a few things.
  *  - The id. Why not just hash the original? This would give better confidence around idempotency. With this, all you'd need is to set the rootTransactionId. ()
@@ -71,7 +64,9 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
         metadata: transactionToReverse.metadata,
         tax: transactionToReverse.tax ? transactionToReverse.tax : undefined,
         lineItems: null, // seems like a duplication of information to copy lineItems over.
-        paymentSources: null
+        paymentSources: null,
+        rootChainTransactionId: transactionToReverse.id,
+        previousChainTransactionId: transactionToReverse.id
     };
 
     for (const step of transactionToReverse.steps) {

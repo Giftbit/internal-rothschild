@@ -7,13 +7,16 @@ import {
 } from "./TransactionPlan";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {DbValue} from "../../../model/Value";
-import {Transaction} from "../../../model/Transaction";
+import {DbTransaction, Transaction} from "../../../model/Transaction";
 import Knex = require("knex");
 
 export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<void> {
     try {
+        let dbT: DbTransaction = Transaction.toDbTransaction(auth, TransactionPlan.toTransaction(auth, plan));
+        dbT.rootChainTransactionId = plan.rootChainTransactionId ? plan.rootChainTransactionId : plan.id;
         await trx.into("Transactions")
-            .insert(Transaction.toDbTransaction(auth, TransactionPlan.toTransaction(auth, plan)));
+            .insert(dbT);
+        // todo - if we go with next architecture will need to update previous
     } catch (err) {
         if (err.code === "ER_DUP_ENTRY") {
             throw new giftbitRoutes.GiftbitRestError(409, `A Lightrail transaction with transactionId '${plan.id}' already exists.`, "TransactionExists");

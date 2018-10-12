@@ -44,7 +44,7 @@ export interface DbTransaction {
     createdBy: string;
     metadata: string | null;
     rootChainTransactionId: string | null;
-    nextChainTransactionId: string | null;
+    // nextChainTransactionId: string | null;
     tax: string | null;
 }
 
@@ -69,8 +69,8 @@ export namespace Transaction {
             lineItems: JSON.stringify(t.lineItems),
             paymentSources: JSON.stringify(t.paymentSources),
             metadata: JSON.stringify(t.metadata),
-            rootChainTransactionId: t.rootChainTransactionId,
-            nextChainTransactionId: t.nextChainTransactionId,
+            rootChainTransactionId: t.rootChainTransactionId ? t.rootChainTransactionId : t.id,
+            // nextChainTransactionId: t.nextChainTransactionId,
             tax: JSON.stringify(t.tax),
             createdDate: t.createdDate,
             createdBy: t.createdBy,
@@ -103,8 +103,8 @@ export namespace DbTransaction {
                 paymentSources: JSON.parse(dbT.paymentSources),
                 steps: dbSteps.filter(s => s.transactionId === dbT.id).map(DbTransactionStep.toTransactionStep),
                 metadata: JSON.parse(dbT.metadata),
-                rootChainTransactionId: dbT.rootChainTransactionId != null ? dbT.rootChainTransactionId : undefined,
-                nextChainTransactionId: dbT.nextChainTransactionId != null ? dbT.nextChainTransactionId : undefined,
+                // rootChainTransactionId: dbT.rootChainTransactionId != null ? dbT.rootChainTransactionId : undefined,
+                // nextChainTransactionId: dbT.nextChainTransactionId != null ? dbT.nextChainTransactionId : undefined,
                 tax: JSON.parse(dbT.tax),
                 createdDate: dbT.createdDate,
                 createdBy: dbT.createdBy
