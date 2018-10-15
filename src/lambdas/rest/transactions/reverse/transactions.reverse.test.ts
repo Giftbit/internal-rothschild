@@ -1,25 +1,25 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import * as testUtils from "../../../utils/testUtils";
-import {generateId, setCodeCryptographySecrets} from "../../../utils/testUtils";
-import {installRestRoutes} from "../installRestRoutes";
-import {createCurrency} from "../currencies";
+import * as testUtils from "../../../../utils/testUtils/index";
+import {generateId, setCodeCryptographySecrets} from "../../../../utils/testUtils/index";
+import {installRestRoutes} from "../../installRestRoutes";
+import {createCurrency} from "../../currencies";
 import * as sinon from "sinon";
-import {Value} from "../../../model/Value";
+import {Value} from "../../../../model/Value";
 import {
     InternalTransactionStep,
     LightrailTransactionStep,
     StripeTransactionStep,
     Transaction
-} from "../../../model/Transaction";
-import {CheckoutRequest, DebitRequest, ReverseRequest} from "../../../model/TransactionRequest";
+} from "../../../../model/Transaction";
+import {CheckoutRequest, DebitRequest, ReverseRequest} from "../../../../model/TransactionRequest";
 import {after} from "mocha";
 import {
     setStubsForStripeTests,
     testStripeLive,
     unsetStubsForStripeTests
-} from "../../../utils/testUtils/stripeTestUtils";
-import * as stripeTransactions from "../../../utils/stripeUtils/stripeTransactions";
+} from "../../../../utils/testUtils/stripeTestUtils";
+import * as stripeTransactions from "../../../../utils/stripeUtils/stripeTransactions";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -415,5 +415,8 @@ describe("/v2/transactions/reverse", () => {
             chai.assert.equal(reverse.totals[key], -checkout.totals[key]);
         }
     }
+
+    // todo - test the transaction chain that's created from a reverse (look up db objects and ensure the correct values are there).
+    // todo - test you can't reverse a reverse
 
 });

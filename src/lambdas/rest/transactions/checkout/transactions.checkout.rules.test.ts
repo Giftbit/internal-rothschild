@@ -983,45 +983,4 @@ describe("/v2/transactions/checkout - balanceRule and redemption rule tests", ()
             "createdBy": defaultTestUser.auth.teamMemberId
         }, ["createdDate", "createdBy"]);
     });
-
-// todo - delete
-    it.only("Test for ethan.", async () => {
-        // promotion off remainder should be applied first.
-        const promo: Partial<Value> = {
-            id: generateId(),
-            currency: "CAD",
-            balanceRule: {
-                rule: "max(currentLineItem.tags.some(tag => tag == 'cat1') ? 100 : 0, currentLineItem.tags.some(tag => tag == 'cat2') ? 200 : 0)",
-                explanation: "10% off everything"
-            },
-            pretax: true,
-            discount: true,
-        };
-
-        const createPromo10PercentOffSubtotal = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", promo);
-        chai.assert.equal(createPromo10PercentOffSubtotal.statusCode, 201, `body=${JSON.stringify(createPromo10PercentOffSubtotal.body)}`);
-
-
-        let checkoutRequest: any = {
-            id: generateId(),
-            allowRemainder: true,
-            sources: [
-                {
-                    rail: "lightrail",
-                    valueId: promo.id
-                },
-            ],
-            lineItems: [
-                {
-                    unitPrice: 500,
-                    quantity: 2,
-                    tags: ["cat1", "cat2"]
-                }
-            ],
-            currency: "CAD"
-        };
-
-        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-        console.log(JSON.stringify(postCheckoutResp.body, null, 4))
-    });
 });

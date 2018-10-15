@@ -18,7 +18,7 @@ import {filterAndPaginateQuery} from "../../../utils/dbUtils";
 import {createTransferTransactionPlan, resolveTransferTransactionPlanSteps} from "./transactions.transfer";
 import {createCreditTransactionPlan} from "./transactions.credit";
 import {createDebitTransactionPlan} from "./transactions.debit";
-import {createReverseTransactionPlan} from "./transactions.reverse";
+import {createReverseTransactionPlan} from "./reverse/transactions.reverse";
 import getPaginationParams = Pagination.getPaginationParams;
 
 export function installTransactionsRest(router: cassava.Router): void {

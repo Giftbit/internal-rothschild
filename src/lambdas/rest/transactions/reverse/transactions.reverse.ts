@@ -1,10 +1,10 @@
-import {ReverseRequest} from "../../../model/TransactionRequest";
+import {ReverseRequest} from "../../../../model/TransactionRequest";
 import {
     InternalTransactionPlanStep,
     LightrailTransactionPlanStep,
     StripeTransactionPlanStep,
     TransactionPlan
-} from "./TransactionPlan";
+} from "../TransactionPlan";
 import {
     InternalTransactionStep,
     LightrailTransactionStep,
@@ -12,11 +12,11 @@ import {
     Transaction,
     TransactionTotals,
     TransactionType
-} from "../../../model/Transaction";
+} from "../../../../model/Transaction";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {getTransaction} from "./transactions";
-import {nowInDbPrecision} from "../../../utils/dbUtils";
-import {getValue} from "../values";
+import {getTransaction} from "../transactions";
+import {nowInDbPrecision} from "../../../../utils/dbUtils/index";
+import {getValue} from "../../values";
 import * as cassava from "cassava";
 import * as stripe from "stripe";
 
@@ -33,26 +33,10 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
 
     // todo - What happens if trying to reverse an attach transaction? Does it unattach the contact? What happens to the created Value if the original code was GENERIC?
     // todo - Is is just checkout that needs to be reversable? Everything else has pretty obvious workarounds.
-    if (transactionToReverse.transactionType === "pending_create") {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Cannot reverse a pending transaction. Use void instead.`);
-    }
     if (transactionToReverse.transactionType === "reverse") {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Cannot reverse a pending transaction. Use void instead.`);
     }
 
-
-    /*
-        initialBalance
-        attach
-        credit
-        debit
-        checkout
-        transfer
-        pending_create
-        pending_capture
-        pending_void
-        reverse
-     */
 
     const plan: TransactionPlan = {
         id: req.id,

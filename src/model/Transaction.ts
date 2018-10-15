@@ -20,7 +20,7 @@ export interface Transaction {
     metadata: object | null;
     rootChainTransactionId?: string;
     nextChainTransactionId?: string;
-    tax: TaxRequestProperties | null;
+    tax?: TaxRequestProperties | null;
 }
 
 export interface DbTransaction {
@@ -160,7 +160,6 @@ export type TransactionType =
     | "debit"
     | "checkout"
     | "transfer"
-    | "pending_create"
     | "pending_capture"
     | "pending_void"
     | "reverse";
