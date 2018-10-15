@@ -1052,11 +1052,7 @@ describe("split tender checkout with Stripe", () => {
         const stripeStep = postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep;
         chai.assert.isObject(stripeStep, "found stripe step");
         chai.assert.equal(stripeStep.charge.description, "eee");
-        chai.assert.equal(stripeStep.charge.on_behalf_of, onBehalfOf);
-        chai.assert.equal(stripeStep.charge.receipt_email, "bbb@example.com");
-        chai.assert.equal(stripeStep.charge.statement_descriptor, "ccc");
-        chai.assert.equal(stripeStep.charge.transfer_group, "ddd");
-        chai.assert.equal((stripeStep.charge as ICharge).on_behalf_of, "aaa");
+        chai.assert.equal((stripeStep.charge as ICharge).on_behalf_of, onBehalfOf);
         chai.assert.equal((stripeStep.charge as ICharge).receipt_email, "bbb@example.com");
         chai.assert.equal((stripeStep.charge as ICharge).statement_descriptor, "ccc");
         chai.assert.equal((stripeStep.charge as ICharge).transfer_group, "ddd");
