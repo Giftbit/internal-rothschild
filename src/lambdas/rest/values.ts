@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
-import {DbValue, formatCodeForLastFourDisplay, Value} from "../../model/Value";
+import {DbValue, formatCodeForLastFourDisplay, Rule, Value} from "../../model/Value";
 import {pick, pickOrDefault} from "../../utils/pick";
 import {csvSerializer} from "../../serializers";
 import {
@@ -25,6 +25,7 @@ import {Currency, formatAmountForCurrencyDisplay} from "../../model/Currency";
 import {getCurrency} from "./currencies";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
+import {getRuleFromCache} from "./transactions/getRuleFromCache";
 
 export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
@@ -591,6 +592,33 @@ function checkValueProperties(value: Value, program: Program = null): void {
     if (!value.currency) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Property currency cannot be null. Please provide a currency or a programId.");
     }
+
+    checkRulesSyntax(value, "Value");
+}
+
+export function checkRulesSyntax(holder: { redemptionRule?: Rule, balanceRule?: Rule }, holderType: "Value" | "Program"): void {
+    if (holder.balanceRule) {
+        const rule = getRuleFromCache(holder.balanceRule.rule);
+        if (rule.compileError) {
+            throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `${holderType} balanceRule has a syntax error.`, {
+                messageCode: "BalanceRuleSyntaxError",
+                syntaxErrorMessage: rule.compileError.msg,
+                row: rule.compileError.row,
+                column: rule.compileError.column
+            });
+        }
+    }
+    if (holder.redemptionRule) {
+        const rule = getRuleFromCache(holder.redemptionRule.rule);
+        if (rule.compileError) {
+            throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `${holderType} redemptionRule has a syntax error.`, {
+                messageCode: "RedemptionRuleSyntaxError",
+                syntaxErrorMessage: rule.compileError.msg,
+                row: rule.compileError.row,
+                column: rule.compileError.column
+            });
+        }
+    }
 }
 
 function checkProgramConstraints(value: Value, program: Program): void {
@@ -619,7 +647,7 @@ export function checkCodeParameters(generateCode: GenerateCodeParameters, code: 
     }
 }
 
-type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>
+type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
 export type StringBalanceValue = Omit<Value, "balance"> & { balance: string | number };
 
 async function formatValueForCurrencyDisplay(auth: giftbitRoutes.jwtauth.AuthorizationBadge, values: Value[]): Promise<StringBalanceValue[]> {
@@ -631,7 +659,7 @@ async function formatValueForCurrencyDisplay(auth: giftbitRoutes.jwtauth.Authori
         }
         formattedValues.push({
             ...value,
-            balance: value.balance != undefined ? formatAmountForCurrencyDisplay(value.balance, retrievedCurrencies[value.currency]) : value.balance
+            balance: value.balance != null ? formatAmountForCurrencyDisplay(value.balance, retrievedCurrencies[value.currency]) : value.balance
         });
     }
     return formattedValues;
