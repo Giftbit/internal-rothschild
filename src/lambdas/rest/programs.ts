@@ -13,6 +13,7 @@ import {
 } from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import log = require("loglevel");
+import {checkRulesSyntax} from "./values";
 
 export function installProgramsRest(router: cassava.Router): void {
     router.route("/v2/programs")
@@ -197,6 +198,8 @@ function checkProgramProperties(program: Program): void {
     if (program.minInitialBalance && program.maxInitialBalance && program.minInitialBalance > program.maxInitialBalance) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Program's minInitialBalance cannot exceed maxInitialBalance.");
     }
+
+    checkRulesSyntax(program, "Program");
 }
 
 export async function getProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Program> {

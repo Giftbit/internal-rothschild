@@ -398,6 +398,44 @@ describe("/v2/values/", () => {
         chai.assert.equal(valueResp.body.balance, 0, JSON.stringify(valueResp.body));
     });
 
+    it("can't create a Value with a balanceRule that does not compile", async () => {
+        const postBody: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balanceRule: {
+                rule: "currentLineItem.lineTotal.subtotal * (0.1",
+                explanation: "unbalanced paranthesis"
+            }
+        };
+        const valueResp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", postBody);
+        chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
+        chai.assert.equal(valueResp.body.messageCode, "BalanceRuleSyntaxError", JSON.stringify(valueResp.body));
+        chai.assert.isString(valueResp.body.syntaxErrorMessage);
+        chai.assert.isNumber(valueResp.body.row);
+        chai.assert.isNumber(valueResp.body.column);
+    });
+
+    it("can't create a Value with a redemptionRule that does not compile", async () => {
+        const postBody: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balanceRule: {
+                rule: "currentLineItem.lineTotal.subtotal * (0.1)",
+                explanation: "this is fine"
+            },
+            redemptionRule: {
+                rule: "currentLineItem.lineTotal.subtotal > (0.1",
+                explanation: "unbalanced paranthesis"
+            },
+        };
+        const valueResp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", postBody);
+        chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
+        chai.assert.equal(valueResp.body.messageCode, "RedemptionRuleSyntaxError", JSON.stringify(valueResp.body));
+        chai.assert.isString(valueResp.body.syntaxErrorMessage);
+        chai.assert.isNumber(valueResp.body.row);
+        chai.assert.isNumber(valueResp.body.column);
+    });
+
     it("startDate > endDate 409s", async () => {
         let value: Partial<Value> = {
             id: generateId(),
@@ -1035,7 +1073,7 @@ describe("/v2/values/", () => {
             chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
             chai.assert.lengthOf(resp.body, 1);
             chai.assert.equal(resp.body[0].code, secondGeneratedCode);
-            chai.assert.equal(resp.body[0].metadata.toString(), '{"allyourbase":"arebelongtous"}');
+            chai.assert.equal(resp.body[0].metadata.toString(), "{\"allyourbase\":\"arebelongtous\"}");
         });
 
         it.skip("can generate a code using an emoji charset", async () => {
