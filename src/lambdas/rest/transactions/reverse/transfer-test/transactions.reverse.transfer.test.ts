@@ -1,14 +1,20 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import * as testUtils from "../../../../utils/testUtils/index";
-import {generateId} from "../../../../utils/testUtils/index";
-import {installRestRoutes} from "../../installRestRoutes";
-import {createCurrency} from "../../currencies";
-import {Value} from "../../../../model/Value";
-import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../../model/Transaction";
-import {ReverseRequest, TransferRequest} from "../../../../model/TransactionRequest";
-import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../utils/testUtils/stripeTestUtils";
+import * as testUtils from "../../../../../utils/testUtils/index";
+import {generateId} from "../../../../../utils/testUtils/index";
+import {installRestRoutes} from "../../../installRestRoutes";
+import {createCurrency} from "../../../currencies";
+import {Value} from "../../../../../model/Value";
+import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../../../model/Transaction";
+import {ReverseRequest, TransferRequest} from "../../../../../model/TransactionRequest";
+import {
+    setStubsForStripeTests,
+    testStripeLive,
+    unsetStubsForStripeTests
+} from "../../../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
+import * as sinon from "sinon";
+import * as stripeTransactions from "../../../../../utils/stripeUtils/stripeTransactions";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -16,6 +22,7 @@ chai.use(chaiExclude);
 describe("/v2/transactions/reverse - transfer", () => {
 
     const router = new cassava.Router();
+    const sinonSandbox = sinon.createSandbox();
 
     before(async function () {
         await testUtils.resetDb();
@@ -35,6 +42,11 @@ describe("/v2/transactions/reverse - transfer", () => {
     after(() => {
         unsetStubsForStripeTests();
     });
+
+    afterEach(() => {
+        sinonSandbox.restore();
+    });
+
 
     it("can reverse a balance transfer from lightrail to lightrail", async () => {
         // create values
@@ -81,7 +93,7 @@ describe("/v2/transactions/reverse - transfer", () => {
         };
         const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transfer.id}/reverse`, "POST", reverse);
         chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postTransfer.body)}`);
-        chai.assert.deepEqualExcluding(postReverse.body, {
+        chai.assert.deepEqualExcluding(postReverse.body as any, {
                 "id": reverse.id,
                 "transactionType": "reverse",
                 "currency": "USD",
@@ -128,6 +140,22 @@ describe("/v2/transactions/reverse - transfer", () => {
     });
 
     it("can reverse a balance transfer from stripe to lightrail", async () => {
+        if (!testStripeLive()) {
+            const mockCharge1 = require("./_mockChargeResult1.json");
+            const mockRefund1 = require("./_mockRefundResult1.json");
+
+            sinonSandbox.stub(stripeTransactions, "createCharge")
+                .withArgs(sinon.match({
+                    amount: 75,
+                })).resolves(mockCharge1);
+
+            sinonSandbox.stub(stripeTransactions, "createRefund")
+                .withArgs(sinon.match({
+                    "amount": 75,
+                    "chargeId": mockCharge1.id
+                })).resolves(mockRefund1);
+        }
+
         // create values
         const value: Partial<Value> = {
             id: generateId(),
@@ -217,5 +245,5 @@ describe("/v2/transactions/reverse - transfer", () => {
         // check value is same as before
         const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate")
-    }).timeout(4000);
+    }).timeout(15000);
 });

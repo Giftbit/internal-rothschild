@@ -5,6 +5,17 @@ import log = require("loglevel");
 
 let sinonSandbox = sinon.createSandbox();
 
+// Stripe keys can go here.
+export const STRIPE_TEST_CONFIG = {
+    secretKey: "sk_test_Fwb3uGyZsIb9eJ5ZQchNH5Em",
+    stripeUserId: "acct_1BOVE6CM9MOvFvZK",
+    customer: {
+        id: "cus_CP4Zd1Dddy4cOH",
+        defaultCard: "card_1C0GSUCM9MOvFvZK8VB29qaz",
+        nonDefaultCard: "card_1C0ZH9CM9MOvFvZKyZZc2X4Z"
+    }
+};
+
 export function setStubsForStripeTests() {
     const testAssumeToken: giftbitRoutes.secureConfig.AssumeScopeToken = {
         assumeToken: "this-is-an-assume-token"
@@ -16,7 +27,7 @@ export function setStubsForStripeTests() {
         email: "test@test.com",
         test: {
             clientId: "test-client-id",
-            secretKey: testStripeLive() ? process.env["STRIPE_PLATFORM_KEY"] : "test",
+            secretKey: testStripeLive() ? STRIPE_TEST_CONFIG.secretKey : "test",
             publishableKey: "test-pk",
         },
         live: {}
@@ -25,7 +36,7 @@ export function setStubsForStripeTests() {
     let stubKvsGet = sinonSandbox.stub(kvsAccess, "kvsGet");
     stubKvsGet.withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string).resolves({
         token_type: "bearer",
-        stripe_user_id: testStripeLive() ? process.env["STRIPE_CONNECTED_ACCOUNT_ID"] : "test",
+        stripe_user_id: testStripeLive() ? STRIPE_TEST_CONFIG.stripeUserId : "test",
     });
 }
 
@@ -35,8 +46,8 @@ export function unsetStubsForStripeTests() {
 
 export function stripeEnvVarsPresent(): boolean {
     if (
-        !!process.env["STRIPE_PLATFORM_KEY"] &&
-        !!process.env["STRIPE_CONNECTED_ACCOUNT_ID"] &&
+        !!STRIPE_TEST_CONFIG.secretKey &&
+        !!STRIPE_TEST_CONFIG.stripeUserId &&
         !!process.env["STRIPE_CUSTOMER_ID"] &&
         !!process.env["SECURE_CONFIG_BUCKET"] &&
         !!process.env["SECURE_CONFIG_KEY_STRIPE"] &&

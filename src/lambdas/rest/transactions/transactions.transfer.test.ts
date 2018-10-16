@@ -8,6 +8,7 @@ import {Currency} from "../../../model/Currency";
 import {installRestRoutes} from "../installRestRoutes";
 import {
     setStubsForStripeTests,
+    STRIPE_TEST_CONFIG,
     stripeEnvVarsPresent,
     testStripeLive,
     unsetStubsForStripeTests
@@ -1234,10 +1235,10 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.deepEqual(destStepFromGet, destStep);
 
             if (testStripeLive()) {
-                const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
+                const lightrailStripe = require("stripe")(STRIPE_TEST_CONFIG.secretKey);
                 const stripeChargeId = (postTransferResp.body.steps.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
                 const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                    stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
+                    stripe_account: STRIPE_TEST_CONFIG.stripeUserId
                 });
                 chai.assert.deepEqual(stripeCharge, sourceStep.charge);
             }
@@ -1439,10 +1440,10 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.deepEqual(destStepFromGet, destStep);
 
             if (testStripeLive()) {
-                const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
+                const lightrailStripe = require("stripe")(STRIPE_TEST_CONFIG.secretKey);
                 const stripeChargeId = (postTransferResp.body.steps.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
                 const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                    stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
+                    stripe_account: STRIPE_TEST_CONFIG.stripeUserId
                 });
                 chai.assert.deepEqual(stripeCharge, sourceStep.charge);
             }

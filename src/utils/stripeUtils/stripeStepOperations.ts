@@ -12,8 +12,8 @@ import {PaymentSourceForStripeMetadata, StripeSourceForStripeMetadata} from "./P
 import {StripeCreateRefundParams} from "./StripeCreateRefundParams";
 import {StripeRestError} from "./StripeRestError";
 import {TransactionPlanError} from "../../lambdas/rest/transactions/TransactionPlanError";
-import log = require("loglevel");
 import {AdditionalStripeChargeParams} from "../../model/TransactionRequest";
+import log = require("loglevel");
 
 export async function processStripeSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, stripeConfig: LightrailAndMerchantStripeConfig, plan: TransactionPlan): Promise<void> {
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
@@ -21,7 +21,9 @@ export async function processStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
         for (let step of stripeSteps) {
             if (step.type === "charge") {
                 const stepForStripe = stripeTransactionPlanStepToStripeChargeRequest(auth, step, plan);
+                console.log("calling create charge params: " + JSON.stringify(stepForStripe) + " " + stripeConfig.lightrailStripeConfig.secretKey + " " + stripeConfig.merchantStripeConfig + " " + step.idempotentStepId);
                 step.chargeResult = await createCharge(stepForStripe, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, step.idempotentStepId);
+                console.log("finished charge. result " + JSON.stringify(step.chargeResult))
             } else {
                 let stepForStripe: StripeCreateRefundParams = {
                     amount: step.amount,

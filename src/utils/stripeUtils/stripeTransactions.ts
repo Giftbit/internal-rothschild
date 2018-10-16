@@ -13,6 +13,7 @@ export async function createCharge(params: StripeCreateChargeParams, lightrailSt
     const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
     lightrailStripe.setApiVersion(stripeApiVersion);
     log.info(`Creating Stripe charge ${JSON.stringify(params)}.`);
+    console.log(`createCharge called ${JSON.stringify(params)}.`);
 
     let charge: ICharge;
     try {
@@ -44,6 +45,7 @@ export async function createCharge(params: StripeCreateChargeParams, lightrailSt
         }
     }
     log.info(`Created Stripe charge '${charge.id}'`);
+    console.log(`Created Stripe charge '${JSON.stringify(charge)}'`);
     return charge;
 }
 
@@ -51,6 +53,7 @@ export async function createRefund(params: StripeCreateRefundParams, lightrailSt
     const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
     lightrailStripe.setApiVersion(stripeApiVersion);
     log.info(`Creating refund for Stripe charge ${params.chargeId}.`);
+    console.log(`createRefund called ${JSON.stringify(params)}.`);
     const refund = await lightrailStripe.refunds.create({
         charge: params.chargeId,
         metadata: {reason: params.reason || "not specified"} /* Doesn't show up in charge in stripe. Need to update charge so that it's obvious as to why it was refunded. */
@@ -65,7 +68,8 @@ export async function createRefund(params: StripeCreateRefundParams, lightrailSt
         giftbitRoutes.sentry.sendErrorNotification(err);
         throw err;
     }
-    log.info(`Created Stripe refund for charge ${params.chargeId}: ${refund}`);
+    log.info(`Created Stripe refund for charge ${params.chargeId}: ${JSON.stringify(refund)}`);
+    console.log(`Created Stripe refund for charge ${params.chargeId}: ${JSON.stringify(refund)}`);
     return refund;
 }
 

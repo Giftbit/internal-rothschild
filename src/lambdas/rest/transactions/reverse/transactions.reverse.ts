@@ -68,8 +68,6 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
             default:
                 throw Error(`Unexpected step rail type found in transaction for reverse. ${transactionToReverse}.`)
         }
-
-
     }
     console.log("Reverse plan: " + JSON.stringify(plan, null, 4));
     return plan;
