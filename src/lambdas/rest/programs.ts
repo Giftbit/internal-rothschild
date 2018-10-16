@@ -25,6 +25,7 @@ export function installProgramsRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:programs:list");
+
             const res = await getPrograms(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
@@ -82,8 +83,16 @@ export function installProgramsRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:programs:read");
+
+            const program = await getProgram(auth, evt.pathParameters.id);
+
+            if (evt.queryStringParameters.stats === "true") {
+                // For now this is a secret param only the web app knows about.
+                await injectProgramStats(auth, program);
+            }
+
             return {
-                body: await getProgram(auth, evt.pathParameters.id)
+                body: program
             };
         });
 
@@ -257,6 +266,32 @@ async function deleteProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
         throw new Error(`Illegal DELETE query.  Deleted ${res.length} values.`);
     }
     return {success: true};
+}
+
+/**
+ * This is currently a secret operation only the web app knows about.
+ */
+export async function injectProgramStats(auth: giftbitRoutes.jwtauth.AuthorizationBadge, program: Program): Promise<void> {
+    auth.requireIds("userId");
+
+    const now = nowInDbPrecision();
+    const knex = await getKnexRead();
+    const res: { sumBalance: number, count: number, canceled: boolean, expired: boolean, active: boolean }[] = await knex("Values")
+        .where({
+            "userId": auth.userId,
+            "programId": program.id
+        })
+        .select({
+            sumBalance: "SUM(balance)",
+            count: "COUNT(*)",
+            canceled: "canceled",
+            expired: knex.raw("endDate = NULL OR endDate < ?", [now]),
+            active: "active"
+        })
+        .groupBy("canceled", "expired", "active");
+
+    console.log("res=", res);
+    // TODO inject so much test data to test this properly
 }
 
 const programSchema: jsonschema.Schema = {
