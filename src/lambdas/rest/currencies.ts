@@ -126,29 +126,48 @@ export async function getCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     return DbCurrency.toCurrency(res[0]);
 }
 
-export async function updateCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string, currency: Partial<Currency>): Promise<Currency> {
+export async function updateCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string, currencyUpdates: Partial<Currency>): Promise<Currency> {
     auth.requireIds("userId");
 
     const knex = await getKnexWrite();
-    const res: number = await knex("Currencies")
-        .where({
-            userId: auth.userId,
-            code: code
-        })
-        .update(Currency.toDbCurrencyUpdate(currency));
-    if (res === 0) {
-        throw new cassava.RestError(404);
-    }
-    if (res > 1) {
-        throw new Error(`Illegal UPDATE query.  Updated ${res} values.`);
-    }
-    return {
-        ...await getCurrency(auth, code),
-        ...currency
-    };
+    return knex.transaction(async trx => {
+        // Get the master version of the Currency and read lock it.
+        const currencyRes: DbCurrency[] = await trx("Currencies")
+            .select()
+            .where({
+                userId: auth.userId,
+                code: code
+            })
+            .forShare();
+        if (currencyRes.length === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (currencyRes.length > 1) {
+            throw new Error(`Illegal SELECT query.  Returned ${currencyRes.length} values.`);
+        }
+        const existingCurrency = DbCurrency.toCurrency(currencyRes[0]);
+        const updatedCurrency = {
+            ...existingCurrency,
+            ...currencyUpdates
+        };
+
+        const patchRes: number = await trx("Currencies")
+            .where({
+                userId: auth.userId,
+                code: code
+            })
+            .update(Currency.toDbCurrencyUpdate(currencyUpdates));
+        if (patchRes === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (patchRes > 1) {
+            throw new Error(`Illegal UPDATE query.  Updated ${patchRes} values.`);
+        }
+        return updatedCurrency;
+    });
 }
 
-export async function deleteCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string): Promise<{success: true}> {
+export async function deleteCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string): Promise<{ success: true }> {
     auth.requireIds("userId");
 
     try {
