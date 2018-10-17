@@ -33,8 +33,8 @@ export interface TransactionPlan {
     createdDate: Date;
     metadata: object | null;
     tax: TaxRequestProperties;
-    rootChainTransactionId?: string;
-    previousChainTransactionId?: string;
+    rootTransactionId?: string;
+    previousTransactionId?: string;
 }
 
 export type TransactionPlanStep =

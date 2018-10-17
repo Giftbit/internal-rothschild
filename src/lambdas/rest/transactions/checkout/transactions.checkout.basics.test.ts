@@ -151,8 +151,8 @@ describe("/v2/transactions/checkout - basics", () => {
                 "totals_paidStripe": 0,
                 "totals_paidInternal": 0,
                 "totals_remainder": 0,
-                "nextChainTransactionId": null,
-                "rootChainTransactionId": null,
+                "nextTransactionId": null,
+                "rootTransactionId": null,
                 "totals_marketplace_sellerGross": null,
                 "totals_marketplace_sellerDiscount": null,
                 "totals_marketplace_sellerNet": null

@@ -135,8 +135,13 @@ export function installTransactionsRest(router: cassava.Router): void {
             auth.requireScopes("lightrailV2:transactions:chain");
             evt.validateBody(reverseSchema);
             const dbTransaction = await getDbTransaction(auth, evt.pathParameters.id);
-            evt.queryStringParameters["rootChainTransactionId"] = dbTransaction.rootChainTransactionId;
-            const res = await getTransactions(auth, evt.queryStringParameters, getPaginationParams(evt));
+            evt.queryStringParameters["rootTransactionId"] = dbTransaction.rootTransactionId;
+            const res = await getTransactions(auth, evt.queryStringParameters, getPaginationParams(evt, {
+                sort: {
+                    field: "createdDate",
+                    asc: true
+                }
+            }));
 
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
@@ -182,7 +187,7 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
                     type: "string",
                     operators: ["eq", "in"]
                 },
-                "rootChainTransactionId": {
+                "rootTransactionId": {
                     type: "string",
                     operators: ["eq", "in"]
                 }

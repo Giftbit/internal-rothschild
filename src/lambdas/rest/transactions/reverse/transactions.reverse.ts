@@ -6,6 +6,7 @@ import {
     TransactionPlan
 } from "../TransactionPlan";
 import {
+    DbTransaction,
     InternalTransactionStep,
     LightrailTransactionStep,
     StripeTransactionStep,
@@ -14,7 +15,7 @@ import {
     TransactionType
 } from "../../../../model/Transaction";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {getTransaction} from "../transactions";
+import {getDbTransaction} from "../transactions";
 import {nowInDbPrecision} from "../../../../utils/dbUtils/index";
 import {getValue} from "../../values";
 import * as cassava from "cassava";
@@ -25,16 +26,17 @@ import * as stripe from "stripe";
  *  - The id. Why not just hash the original? This would give better confidence around idempotency. With this, all you'd need is to set the rootTransactionId. ()
  */
 export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: ReverseRequest): Promise<TransactionPlan> {
-    const transactionToReverse: Transaction = await getTransaction(auth, req.transactionIdToReverse);
+    const dbTransaction = await getDbTransaction(auth, req.transactionIdToReverse);
 
-    if (transactionToReverse.nextChainTransactionId) {
-        // flip out
+    if (dbTransaction.nextTransactionId) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Cannot reverse transaction that is not last in the transaction chain. Use endpoint .../v2/transactions/${req.transactionIdToReverse}/chain to find last transaction in chain.`);
     }
+    const transactionToReverse: Transaction = (await DbTransaction.toTransactions([dbTransaction], auth.userId))[0];
 
     // todo - What happens if trying to reverse an attach transaction? Does it unattach the contact? What happens to the created Value if the original code was GENERIC?
     // todo - Is is just checkout that needs to be reversable? Everything else has pretty obvious workarounds.
     if (transactionToReverse.transactionType === "reverse") {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Cannot reverse a pending transaction. Use void instead.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Cannot reverse a reverse transaction.`);
     }
 
 
@@ -46,11 +48,11 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
         totals: transactionToReverse.totals ? reverseTotals(transactionToReverse.totals) : null,
         createdDate: nowInDbPrecision(),
         metadata: transactionToReverse.metadata,
-        tax: transactionToReverse.tax ? transactionToReverse.tax : undefined,
+        tax: transactionToReverse.tax ? transactionToReverse.tax : null,
         lineItems: null, // seems like a duplication of information to copy lineItems over.
         paymentSources: null,
-        rootChainTransactionId: transactionToReverse.id,
-        previousChainTransactionId: transactionToReverse.id
+        rootTransactionId: transactionToReverse.id,
+        previousTransactionId: transactionToReverse.id
     };
 
     for (const step of transactionToReverse.steps) {

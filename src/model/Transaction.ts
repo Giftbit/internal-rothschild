@@ -18,9 +18,7 @@ export interface Transaction {
     createdDate: Date;
     createdBy: string;
     metadata: object | null;
-    rootChainTransactionId?: string;
-    nextChainTransactionId?: string;
-    tax?: TaxRequestProperties | null;
+    tax: TaxRequestProperties | null;
 }
 
 export interface DbTransaction {
@@ -43,8 +41,8 @@ export interface DbTransaction {
     createdDate: Date;
     createdBy: string;
     metadata: string | null;
-    rootChainTransactionId: string | null;
-    // nextChainTransactionId: string | null;
+    rootTransactionId: string | null;
+    nextTransactionId: string | null;
     tax: string | null;
 }
 
@@ -69,8 +67,8 @@ export namespace Transaction {
             lineItems: JSON.stringify(t.lineItems),
             paymentSources: JSON.stringify(t.paymentSources),
             metadata: JSON.stringify(t.metadata),
-            rootChainTransactionId: t.rootChainTransactionId ? t.rootChainTransactionId : t.id,
-            // nextChainTransactionId: t.nextChainTransactionId,
+            rootTransactionId: null, // set during insert
+            nextTransactionId: null,
             tax: JSON.stringify(t.tax),
             createdDate: t.createdDate,
             createdBy: t.createdBy,
@@ -103,8 +101,8 @@ export namespace DbTransaction {
                 paymentSources: JSON.parse(dbT.paymentSources),
                 steps: dbSteps.filter(s => s.transactionId === dbT.id).map(DbTransactionStep.toTransactionStep),
                 metadata: JSON.parse(dbT.metadata),
-                // rootChainTransactionId: dbT.rootChainTransactionId != null ? dbT.rootChainTransactionId : undefined,
-                // nextChainTransactionId: dbT.nextChainTransactionId != null ? dbT.nextChainTransactionId : undefined,
+                // rootTransactionId: dbT.rootTransactionId != null ? dbT.rootTransactionId : undefined,
+                // nextTransactionId: dbT.nextTransactionId != null ? dbT.nextTransactionId : undefined,
                 tax: JSON.parse(dbT.tax),
                 createdDate: dbT.createdDate,
                 createdBy: dbT.createdBy
