@@ -206,8 +206,37 @@ describe("/v2/programs", () => {
         chai.assert.equal(getResp.statusCode, 404);
     });
 
+    it("can't create a program with minInitialBalance > maxInitialBalance", async () => {
+        const request: Partial<Program> = {
+            id: generateId(),
+            name: generateId(),
+            currency: "USD",
+            minInitialBalance: 10,
+            maxInitialBalance: 5
+        };
+        const res = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", request);
+        chai.assert.equal(res.statusCode, 422);
+    });
+
+    it("can't update a program to have minInitialBalance > maxInitialBalance", async () => {
+        const createRequest: Partial<Program> = {
+            id: generateId(),
+            name: generateId(),
+            currency: "USD",
+            minInitialBalance: 5,
+            maxInitialBalance: 10
+        };
+        const createRes = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", createRequest);
+        chai.assert.equal(createRes.statusCode, 201);
+
+        const patchRes = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${createRequest.id}`, "PATCH", {
+            minInitialBalance: 15
+        });
+        chai.assert.equal(patchRes.statusCode, 422);
+    });
+
     it("creating a program with an unknown currency 409s", async () => {
-        let request: Partial<Program> = {
+        const request: Partial<Program> = {
             id: generateId(),
             name: generateId(),
             currency: generateId().replace(/-/g, "").substring(0, 15)
@@ -217,19 +246,19 @@ describe("/v2/programs", () => {
     });
 
     it("creating a program with a duplicate id results in a 409", async () => {
-        let request: Partial<Program> = {
+        const request: Partial<Program> = {
             id: generateId(),
             name: generateId(),
             currency: "USD"
         };
-        let res = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", request);
+        const res = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", request);
         chai.assert.equal(res.statusCode, 201);
 
-        res = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", request);
-        chai.assert.equal(res.statusCode, 409);
+        const res2 = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", request);
+        chai.assert.equal(res2.statusCode, 409);
     });
 
-    it(`default sorting createdDate`, async () => {
+    it("default sorting createdDate", async () => {
         const idAndDates = [
             {id: generateId(), createdDate: new Date("3030-02-01")},
             {id: generateId(), createdDate: new Date("3030-02-02")},
