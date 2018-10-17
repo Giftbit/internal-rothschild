@@ -285,60 +285,77 @@ describe("/v2/values/", () => {
         chai.assert.equal(resp.body.messageCode, "CannotUncancelValue");
     });
 
-    let contact1: Partial<Contact> = {
-        id: "c1",
-    };
-
-    let value2: Partial<Value> = {
-        id: "v2",
-        currency: "USD",
-        balance: 0,
-        contactId: contact1.id
-    };
-
     it("can create a value attached to a contact", async () => {
-        const resp1 = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact1);
-        chai.assert.equal(resp1.statusCode, 201);
+        const contact: Partial<Contact> = {
+            id: generateId(),
+        };
+        const contactResp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact);
+        chai.assert.equal(contactResp.statusCode, 201);
 
-        const resp2 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value2);
-        chai.assert.equal(resp2.statusCode, 201, `body=${JSON.stringify(resp2.body)}`);
-        chai.assert.equal(resp2.body.contactId, value2.contactId);
-        chai.assert.equal(resp2.body.createdDate, resp2.body.updatedContactIdDate);
-        value2 = resp2.body;
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 0,
+            contactId: contact.id
+        };
+        const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(valueResp.statusCode, 201, `body=${JSON.stringify(valueResp.body)}`);
+        chai.assert.equal(valueResp.body.contactId, value.contactId);
+        chai.assert.equal(valueResp.body.createdDate, valueResp.body.updatedContactIdDate);
     });
 
-    let value3: Partial<Value> = {
-        id: "v3",
-        currency: "USD",
-        balance: 5000,
-        startDate: new Date("2077-01-01"),
-        endDate: new Date("2077-02-02")
-    };
+    it("cannot patch contactId (must use attach)", async () => {
+        const contact: Partial<Contact> = {
+            id: generateId(),
+        };
+        const contactResp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact);
+        chai.assert.equal(contactResp.statusCode, 201);
+
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 0
+        };
+        const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(valueResp.statusCode, 201, `body=${JSON.stringify(valueResp.body)}`);
+
+        const patchResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", {
+            contactId: contact.id
+        });
+        chai.assert.equal(patchResp.statusCode, 422, `body=${JSON.stringify(patchResp.body)}`);
+    });
 
     it("can create a value with an initial balance, startDate and endDate", async () => {
-        const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value3);
-        chai.assert.equal(resp.statusCode, 201, `create body=${JSON.stringify(resp.body)}`);
-        chai.assert.equal(resp.body.balance, value3.balance);
-        chai.assert.isNull(resp.body.updatedContactIdDate);
-        chai.assert.equal((resp.body as any).startDate, value3.startDate.toISOString());
-        chai.assert.equal((resp.body as any).endDate, value3.endDate.toISOString());
-        value3 = resp.body;
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 5000,
+            startDate: new Date("2077-01-01"),
+            endDate: new Date("2077-02-02")
+        };
 
-        const intitialBalanceTx = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${value3.id}`, "GET");
+        const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(resp.statusCode, 201, `create body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.balance, value.balance);
+        chai.assert.isNull(resp.body.updatedContactIdDate);
+        chai.assert.equal((resp.body as any).startDate, value.startDate.toISOString());
+        chai.assert.equal((resp.body as any).endDate, value.endDate.toISOString());
+
+        const intitialBalanceTx = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${value.id}`, "GET");
         chai.assert.equal(intitialBalanceTx.statusCode, 200, `body=${JSON.stringify(intitialBalanceTx.body)}`);
         chai.assert.equal(intitialBalanceTx.body.transactionType, "initialBalance");
-        chai.assert.equal(intitialBalanceTx.body.currency, value3.currency);
+        chai.assert.equal(intitialBalanceTx.body.currency, value.currency);
         chai.assert.equal(intitialBalanceTx.body.metadata, null);
         chai.assert.lengthOf(intitialBalanceTx.body.steps, 1);
         chai.assert.equal(intitialBalanceTx.body.steps[0].rail, "lightrail");
         chai.assert.deepEqual((intitialBalanceTx.body.steps[0] as LightrailTransactionStep), {
             rail: "lightrail",
-            valueId: value3.id,
+            valueId: value.id,
             code: null,
             contactId: null,
             balanceBefore: 0,
-            balanceAfter: value3.balance,
-            balanceChange: value3.balance,
+            balanceAfter: value.balance,
+            balanceChange: value.balance,
             usesRemainingBefore: null,
             usesRemainingAfter: null,
             usesRemainingChange: null
@@ -355,14 +372,14 @@ describe("/v2/values/", () => {
         chai.assert.deepEqualExcluding(
             res[0], {
                 "userId": "default-test-user-TEST",
-                "id": "v3",
+                "id": value.id,
                 "transactionType": "initialBalance",
                 "currency": "USD",
                 "lineItems": null,
                 "paymentSources": null,
                 "metadata": null,
                 "tax": null,
-                "createdBy": "default-test-user-TEST",
+                "createdBy": testUtils.defaultTestUser.teamMemberId,
                 "totals_subtotal": null,
                 "totals_tax": null,
                 "totals_discountLightrail": null,
@@ -415,6 +432,50 @@ describe("/v2/values/", () => {
         chai.assert.isNumber(valueResp.body.column);
     });
 
+    it("can't patch a Value to have a balanceRule that does not compile", async () => {
+        const postBody: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balanceRule: {
+                rule: "currentLineItem.lineTotal.subtotal * (0.1)",
+                explanation: "this is fine"
+            }
+        };
+        const valueResp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", postBody);
+        chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
+
+        const patchResp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${postBody.id}`, "PATCH", {
+            balanceRule: {
+                rule: "currentLineItem.lineTotal.subtotal * (0.1",
+                explanation: "unbalanced paranthesis"
+            }
+        });
+        chai.assert.equal(patchResp.statusCode, 422, JSON.stringify(patchResp.body));
+        chai.assert.equal(patchResp.body.messageCode, "BalanceRuleSyntaxError", JSON.stringify(patchResp.body));
+        chai.assert.isString(patchResp.body.syntaxErrorMessage);
+        chai.assert.isNumber(patchResp.body.row);
+        chai.assert.isNumber(patchResp.body.column);
+    });
+
+    it("can't patch a Value to have a balanceRule when it has a balance", async () => {
+        const postBody: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 500
+        };
+        const valueResp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", postBody);
+        chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
+
+        const patchResp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${postBody.id}`, "PATCH", {
+            balanceRule: {
+                rule: "currentLineItem.lineTotal.subtotal * 0.1",
+                explanation: "balance rule"
+            }
+        });
+        chai.assert.equal(patchResp.statusCode, 422, JSON.stringify(patchResp.body));
+        chai.assert.notEqual(patchResp.body.messageCode, "BalanceRuleSyntaxError", JSON.stringify(patchResp.body));
+    });
+
     it("can't create a Value with a redemptionRule that does not compile", async () => {
         const postBody: Partial<Value> = {
             id: generateId(),
@@ -436,18 +497,63 @@ describe("/v2/values/", () => {
         chai.assert.isNumber(valueResp.body.column);
     });
 
-    it("startDate > endDate 409s", async () => {
+    it("can't patch a Value to have a redemptionRule that does not compile", async () => {
+        const postBody: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balanceRule: {
+                rule: "currentLineItem.lineTotal.subtotal * (0.1)",
+                explanation: "this is fine"
+            },
+            redemptionRule: {
+                rule: "currentLineItem.lineTotal.subtotal > (0.1)",
+                explanation: "this is fine"
+            },
+        };
+        const valueResp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", postBody);
+        chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
+
+        const patchResp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${postBody.id}`, "PATCH", {
+            redemptionRule: {
+                rule: "currentLineItem.lineTotal.subtotal > (0.1",
+                explanation: "unbalanced paranthesis"
+            }
+        });
+        chai.assert.equal(patchResp.statusCode, 422, JSON.stringify(patchResp.body));
+        chai.assert.equal(patchResp.body.messageCode, "RedemptionRuleSyntaxError", JSON.stringify(patchResp.body));
+        chai.assert.isString(patchResp.body.syntaxErrorMessage);
+        chai.assert.isNumber(patchResp.body.row);
+        chai.assert.isNumber(patchResp.body.column);
+    });
+
+    it("can't create a Value with startDate > endDate", async () => {
         let value: Partial<Value> = {
             id: generateId(),
             balance: 50,
             currency: "USD",
             startDate: new Date("2077-01-02"),
-            endDate: new Date("2077-01-01"),
-
+            endDate: new Date("2077-01-01")
         };
         const valueResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", value);
         chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
         chai.assert.equal(valueResp.body.message, "Property startDate cannot exceed endDate.");
+    });
+
+    it("can't patch a Value to have startDate > endDate", async () => {
+        let value: Partial<Value> = {
+            id: generateId(),
+            balance: 50,
+            currency: "USD",
+            startDate: new Date("2077-01-01"),
+            endDate: new Date("2077-01-02")
+        };
+        const valueResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", value);
+        chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
+
+        const patchResp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.id}`, "PATCH", {
+            startDate: new Date("2077-01-03")
+        });
+        chai.assert.equal(patchResp.statusCode, 422, JSON.stringify(patchResp.body));
     });
 
     it("if no currency or programId is provided during value creation returns a 422", async () => {

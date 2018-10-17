@@ -408,6 +408,12 @@ export async function getValueByCode(auth: giftbitRoutes.jwtauth.AuthorizationBa
 async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, value: Partial<Value>): Promise<Value> {
     auth.requireIds("userId");
 
+    const existingValue = await getValue(auth, id);
+    checkValueProperties({
+        ...existingValue,
+        ...value
+    });
+
     const dbValue = Value.toDbValueUpdate(auth, value);
     const knex = await getKnexWrite();
     const res: number = await knex("Values")

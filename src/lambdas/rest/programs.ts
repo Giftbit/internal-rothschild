@@ -194,14 +194,6 @@ async function createProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pro
     }
 }
 
-function checkProgramProperties(program: Program): void {
-    if (program.minInitialBalance && program.maxInitialBalance && program.minInitialBalance > program.maxInitialBalance) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Program's minInitialBalance cannot exceed maxInitialBalance.");
-    }
-
-    checkRulesSyntax(program, "Program");
-}
-
 export async function getProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Program> {
     auth.requireIds("userId");
 
@@ -223,6 +215,12 @@ export async function getProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
 
 async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, program: Partial<Program>): Promise<Program> {
     auth.requireIds("userId");
+
+    const existingProgram = await getProgram(auth, id);
+    checkProgramProperties({
+        ...existingProgram,
+        ...program
+    });
 
     const knex = await getKnexWrite();
     const res = await knex("Programs")
@@ -260,6 +258,14 @@ async function deleteProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
         throw new Error(`Illegal DELETE query.  Deleted ${res.length} values.`);
     }
     return {success: true};
+}
+
+function checkProgramProperties(program: Program): void {
+    if (program.minInitialBalance != null && program.maxInitialBalance != null && program.minInitialBalance > program.maxInitialBalance) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Program's minInitialBalance cannot exceed maxInitialBalance.");
+    }
+
+    checkRulesSyntax(program, "Program");
 }
 
 const programSchema: jsonschema.Schema = {
