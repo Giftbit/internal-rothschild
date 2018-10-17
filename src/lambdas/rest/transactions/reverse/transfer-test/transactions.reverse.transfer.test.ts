@@ -102,6 +102,7 @@ describe("/v2/transactions/reverse - transfer", () => {
                     "remainder": 0
                 },
                 "lineItems": null,
+                "tax": null,
                 "steps": [
                     {
                         "rail": "lightrail",
@@ -201,6 +202,7 @@ describe("/v2/transactions/reverse - transfer", () => {
                     "remainder": 0
                 },
                 "lineItems": null,
+                "tax": null,
                 "steps": [
                     {
                         "rail": "lightrail",

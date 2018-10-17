@@ -54,6 +54,7 @@ describe("/v2/transactions/reverse - initialBalance", () => {
             "createdDate": null,
             "totals": null,
             "lineItems": null,
+            "tax": null,
             "steps": [
                 {
                     "rail": "lightrail",
@@ -109,6 +110,7 @@ describe("/v2/transactions/reverse - initialBalance", () => {
             "createdDate": null,
             "totals": null,
             "lineItems": null,
+            "tax": null,
             "steps": [
                 {
                     "rail": "lightrail",

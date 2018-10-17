@@ -69,6 +69,7 @@ describe("/v2/transactions/reverse - credit", () => {
                 "createdDate": null,
                 "totals": null,
                 "lineItems": null,
+                "tax": null,
                 "steps": [
                     {
                         "rail": "lightrail",
@@ -137,6 +138,7 @@ describe("/v2/transactions/reverse - credit", () => {
                 "createdDate": null,
                 "totals": null,
                 "lineItems": null,
+                "tax": null,
                 "steps": [
                     {
                         "rail": "lightrail",

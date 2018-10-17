@@ -72,6 +72,7 @@ describe("/v2/transactions/reverse - debit", () => {
                     "remainder": 0
                 },
                 "lineItems": null,
+                "tax": null,
                 "steps": [
                     {
                         "rail": "lightrail",
@@ -143,6 +144,7 @@ describe("/v2/transactions/reverse - debit", () => {
                     "remainder": 0
                 },
                 "lineItems": null,
+                "tax": null,
                 "steps": [
                     {
                         "rail": "lightrail",

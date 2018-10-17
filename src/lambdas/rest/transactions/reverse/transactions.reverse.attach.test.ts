@@ -74,6 +74,7 @@ describe("/v2/transactions/reverse - debit", () => {
                 "createdDate": null,
                 "totals": null,
                 "lineItems": null,
+                "tax": null,
                 "steps": [
                     {
                         "rail": "lightrail",

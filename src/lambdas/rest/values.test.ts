@@ -364,7 +364,7 @@ describe("/v2/values/", () => {
                 "tax": null,
                 "createdBy": "default-test-user-TEST",
                 "nextTransactionId": null,
-                "rootTransactionId": null,
+                "rootTransactionId": "v3",
                 "totals_subtotal": null,
                 "totals_tax": null,
                 "totals_discountLightrail": null,

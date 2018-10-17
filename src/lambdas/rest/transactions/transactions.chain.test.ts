@@ -11,7 +11,7 @@ import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe.only("/v2/transactions/chain", () => {
+describe("/v2/transactions/chain", () => {
 
     const router = new cassava.Router();
 
@@ -44,7 +44,6 @@ describe.only("/v2/transactions/chain", () => {
         const getInitialBalanceTransaction = (await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${value.id}`, "GET")).body[0];
         chai.assert.isNotNull(getInitialBalanceTransaction);
         firstTransaction = getInitialBalanceTransaction;
-
 
         // get chain
         const getChain = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions/${firstTransaction.id}/chain`, "GET");

@@ -178,7 +178,7 @@ describe("/v2/transactions/transfer", () => {
                 "tax": "null",
                 "createdBy": "default-test-user-TEST",
                 "nextTransactionId": null,
-                "rootTransactionId": null,
+                "rootTransactionId": "transfer-1",
                 "totals_subtotal": null,
                 "totals_tax": null,
                 "totals_discountLightrail": null,

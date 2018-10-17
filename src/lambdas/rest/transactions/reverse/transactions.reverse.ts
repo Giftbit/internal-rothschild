@@ -20,25 +20,21 @@ import {nowInDbPrecision} from "../../../../utils/dbUtils/index";
 import {getValue} from "../../values";
 import * as cassava from "cassava";
 import * as stripe from "stripe";
+import log = require("loglevel");
 
-/**
- * I'm not super happy with a few things.
- *  - The id. Why not just hash the original? This would give better confidence around idempotency. With this, all you'd need is to set the rootTransactionId. ()
- */
 export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: ReverseRequest): Promise<TransactionPlan> {
-    const dbTransaction = await getDbTransaction(auth, req.transactionIdToReverse);
+    log.info(`Creating reverse transaction plan for user: ${auth.userId} and reverse request: ${JSON.stringify(req)}.`);
 
+    const dbTransaction = await getDbTransaction(auth, req.transactionIdToReverse);
     if (dbTransaction.nextTransactionId) {
+        log.info(`Transaction ${JSON.stringify(dbTransaction)} was not last in chain and cannot be reversed.`);
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Cannot reverse transaction that is not last in the transaction chain. Use endpoint .../v2/transactions/${req.transactionIdToReverse}/chain to find last transaction in chain.`);
     }
     const transactionToReverse: Transaction = (await DbTransaction.toTransactions([dbTransaction], auth.userId))[0];
 
-    // todo - What happens if trying to reverse an attach transaction? Does it unattach the contact? What happens to the created Value if the original code was GENERIC?
-    // todo - Is is just checkout that needs to be reversable? Everything else has pretty obvious workarounds.
     if (transactionToReverse.transactionType === "reverse") {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Cannot reverse a reverse transaction.`);
     }
-
 
     const plan: TransactionPlan = {
         id: req.id,
@@ -49,7 +45,7 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
         createdDate: nowInDbPrecision(),
         metadata: transactionToReverse.metadata,
         tax: transactionToReverse.tax ? transactionToReverse.tax : null,
-        lineItems: null, // seems like a duplication of information to copy lineItems over.
+        lineItems: null,
         paymentSources: null,
         rootTransactionId: transactionToReverse.id,
         previousTransactionId: transactionToReverse.id
@@ -71,7 +67,7 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
                 throw Error(`Unexpected step rail type found in transaction for reverse. ${transactionToReverse}.`)
         }
     }
-    console.log("Reverse plan: " + JSON.stringify(plan, null, 4));
+    log.info("Reverse plan: " + JSON.stringify(plan, null, 4));
     return plan;
 }
 
