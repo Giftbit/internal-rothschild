@@ -21,9 +21,7 @@ export async function processStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
         for (let step of stripeSteps) {
             if (step.type === "charge") {
                 const stepForStripe = stripeTransactionPlanStepToStripeChargeRequest(auth, step, plan);
-                console.log("calling create charge params: " + JSON.stringify(stepForStripe) + " " + stripeConfig.lightrailStripeConfig.secretKey + " " + stripeConfig.merchantStripeConfig + " " + step.idempotentStepId);
                 step.chargeResult = await createCharge(stepForStripe, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, step.idempotentStepId);
-                console.log("finished charge. result " + JSON.stringify(step.chargeResult))
             } else {
                 let stepForStripe: StripeCreateRefundParams = {
                     amount: step.amount,

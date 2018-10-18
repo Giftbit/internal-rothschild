@@ -57,9 +57,6 @@ describe("/v2/transactions/reverse - attach", () => {
         chai.assert.equal(postAttach.body.contactId, contact.id);
         chai.assert.equal(postAttach.body.balance, 100);
 
-        const listTransaction = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions`, "GET");
-        console.log("TXNS: " + JSON.stringify(listTransaction.body));
-
         // create reverse
         const reverse: Partial<ReverseRequest> = {
             id: generateId()
@@ -129,7 +126,6 @@ describe("/v2/transactions/reverse - attach", () => {
 
         // create attach
         const postAttach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: genericValue.id});
-        console.log("postAttach: " + JSON.stringify(postAttach, null, 4));
         chai.assert.equal(postAttach.statusCode, 200, `body=${JSON.stringify(postAttach.body)}`);
         chai.assert.equal(postAttach.body.contactId, contact.id);
         chai.assert.equal(postAttach.body.usesRemaining, 1);

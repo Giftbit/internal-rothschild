@@ -1244,7 +1244,7 @@ describe("/v2/transactions/transfer", () => {
                 });
                 chai.assert.deepEqual(stripeCharge, sourceStep.charge);
             }
-        }).timeout(3000);
+        }).timeout(10000);
 
         it("422s transferring a negative amount from Stripe", async () => {
             if (!testStripeLive()) {
@@ -1450,7 +1450,7 @@ describe("/v2/transactions/transfer", () => {
                 });
                 chai.assert.deepEqual(stripeCharge, sourceStep.charge);
             }
-        }).timeout(3000);
+        }).timeout(10000);
 
         it("409s transferring from Stripe with insufficient maxAmount and allowRemainder=false", async () => {
             if (!testStripeLive()) {

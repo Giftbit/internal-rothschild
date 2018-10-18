@@ -247,5 +247,5 @@ describe("/v2/transactions/reverse - transfer", () => {
         // check value is same as before
         const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate")
-    }).timeout(15000);
+    }).timeout(10000);
 });

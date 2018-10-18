@@ -61,7 +61,6 @@ describe("/v2/transactions/reverse - debit", () => {
             id: generateId()
         };
         const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${debit.id}/reverse`, "POST", reverse);
-        console.log(JSON.stringify(postReverse, null, 4));
         chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postDebit.body)}`);
         chai.assert.deepEqualExcluding(postReverse.body, {
                 "id": reverse.id,
@@ -133,7 +132,6 @@ describe("/v2/transactions/reverse - debit", () => {
             id: generateId()
         };
         const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${debit.id}/reverse`, "POST", reverse);
-        console.log(JSON.stringify(postReverse, null, 4));
         chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postCredit.body)}`);
         chai.assert.deepEqualExcluding(postReverse.body, {
                 "id": reverse.id,

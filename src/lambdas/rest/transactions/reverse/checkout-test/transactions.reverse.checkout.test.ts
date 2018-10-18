@@ -91,7 +91,6 @@ describe("/v2/transactions/reverse", () => {
             const postValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
             chai.assert.equal(postValue.statusCode, 201);
 
-            console.log("setup value and will now post checkout");
             // create checkout
             const checkout: CheckoutRequest = {
                 id: generateId(),
@@ -123,7 +122,6 @@ describe("/v2/transactions/reverse", () => {
                 ]
             };
             const postCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
-            console.log("finished checkout");
             chai.assert.equal(postCheckout.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
             chai.assert.equal((postCheckout.body.steps[0] as InternalTransactionStep).balanceChange, -1, `body=${JSON.stringify(postCheckout.body)}`);
             chai.assert.equal((postCheckout.body.steps[1] as LightrailTransactionStep).balanceChange, -100, `body=${JSON.stringify(postCheckout.body)}`);
@@ -158,7 +156,6 @@ describe("/v2/transactions/reverse", () => {
 
     function verifyCheckoutReverseTotals(checkout: Transaction, reverse: Transaction): void {
         for (const key of Object.keys(checkout.totals)) {
-            console.log("key " + key + ". " + reverse.totals[key] + " == " + -checkout.totals[key]);
             chai.assert.equal(reverse.totals[key], -checkout.totals[key]);
         }
     }

@@ -92,7 +92,6 @@ async function getReverseForStripeTransactionStep(auth: giftbitRoutes.jwtauth.Au
 }
 
 async function getReverseForInternalTransactionStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: InternalTransactionStep): Promise<InternalTransactionPlanStep> {
-    console.log("internal step for reverse: " + JSON.stringify(step, null, 4));
     return {
         rail: "internal",
         internalId: step.internalId,
