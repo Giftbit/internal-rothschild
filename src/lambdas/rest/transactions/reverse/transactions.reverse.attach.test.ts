@@ -12,7 +12,7 @@ import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe("/v2/transactions/reverse - debit", () => {
+describe("/v2/transactions/reverse - attach", () => {
 
     const router = new cassava.Router();
 
@@ -32,7 +32,6 @@ describe("/v2/transactions/reverse - debit", () => {
         chai.assert.equal(currency.code, "USD");
     });
 
-    // todo this is an odd one.
     it("can reverse attach on non generic value", async () => {
         // create value
         const value: Partial<Value> = {
@@ -149,6 +148,7 @@ describe("/v2/transactions/reverse - debit", () => {
                 "createdDate": null,
                 "totals": null,
                 "lineItems": null,
+                "tax": null,
                 "steps": [
                     {
                         "rail": "lightrail",

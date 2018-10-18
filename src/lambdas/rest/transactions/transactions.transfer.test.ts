@@ -24,7 +24,7 @@ import ICharge = Stripe.charges.ICharge;
 
 chai.use(chaiExclude);
 
-describe("/v2/transactions/transfer", () => {
+describe.only("/v2/transactions/transfer", () => {
 
     const router = new cassava.Router();
 
@@ -1188,7 +1188,7 @@ describe("/v2/transactions/transfer", () => {
                 tax: null,
                 createdDate: null,
                 createdBy: defaultTestUser.auth.teamMemberId
-            }, ["steps", "createdDate", , "createdBy"]);
+            }, ["steps", "createdDate", "createdBy"]);
             chai.assert.lengthOf(postTransferResp.body.steps, 2);
             chai.assert.equal(postTransferResp.body.steps[0].rail, "stripe");
 

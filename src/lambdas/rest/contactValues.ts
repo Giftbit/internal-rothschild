@@ -8,8 +8,8 @@ import {DbValue, Value} from "../../model/Value";
 import {getContact} from "./contacts";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
 import {getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
-import log = require("loglevel");
 import {DbTransaction, LightrailDbTransactionStep, Transaction} from "../../model/Transaction";
+import log = require("loglevel");
 
 export function installContactValuesRest(router: cassava.Router): void {
     router.route("/v2/contacts/{id}/values")
@@ -142,6 +142,8 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         tax: null
     };
     const dbAttachTransaction: DbTransaction = Transaction.toDbTransaction(auth, attachTransaction);
+    dbAttachTransaction.rootTransactionId = dbAttachTransaction.id;
+
     const dbLightrailTransactionStep0: LightrailDbTransactionStep = {
         userId: auth.userId,
         id: `${dbAttachTransaction.id}-0`,
