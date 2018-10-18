@@ -1,6 +1,11 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
-import {StripeChargeTransactionPlanStep, StripeTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
+import {
+    StripeChargeTransactionPlanStep,
+    StripeRefundTransactionPlanStep,
+    StripeTransactionPlanStep,
+    TransactionPlan
+} from "./TransactionPlan";
 import {Transaction} from "../../../model/Transaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
@@ -76,24 +81,35 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
             await insertLightrailTransactionSteps(auth, trx, plan);
             await insertInternalTransactionSteps(auth, trx, plan);
         } catch (err) {
-            log.warn(`Error inserting transaction step: ${err}`);
-            if (stripeSteps.length > 0) {
-                const stripeChargeStepsToRefund = stripeSteps.filter(step => step.type === "charge" && step.chargeResult != null) as StripeChargeTransactionPlanStep[];
+            log.error(`Error occurred while processing transaction steps: ${err}`);
+            const stripeChargeSteps: StripeChargeTransactionPlanStep[] = stripeSteps.filter(step => step.type === "charge") as StripeChargeTransactionPlanStep[];
+            if (stripeChargeSteps.length > 0) {
+                const stripeChargeStepsToRefund = stripeChargeSteps.filter(step => step.chargeResult != null) as StripeChargeTransactionPlanStep[];
                 if (stripeChargeStepsToRefund.length > 0) {
                     await rollbackStripeChargeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeChargeStepsToRefund, `Refunded due to error on the Lightrail side`);
                     log.warn(`An error occurred while processing transaction '${plan.id}'. The Stripe charge(s) '${stripeChargeStepsToRefund.map(step => step.chargeResult.id)}' have been refunded.`);
                 }
-                if (stripeSteps.filter(step => step.type === "refund").length > 0) {
-                    const message = `An error occurred while processing reverse transaction ${plan.id} with stripe refund charges. An exception occurred during transaction. The refunds ${JSON.stringify(stripeSteps)} cannot be undone.`;
-                    log.warn(message);
+            }
+
+            const stripeRefundSteps: StripeRefundTransactionPlanStep[] = stripeSteps.filter(step => step.type === "refund") as StripeRefundTransactionPlanStep[];
+            if (stripeRefundSteps.length > 0) {
+                const stepsSuccessfullyRefunded: StripeRefundTransactionPlanStep[] = stripeRefundSteps.filter(step => step.refundResult != null);
+                if (stepsSuccessfullyRefunded.length > 0) {
+                    // this is really bad
+                    const message = `Exception ${JSON.stringify(err)} was thrown while processing steps. There was a refund that was successfully refunded but the exception was thrown after and refunds cannot be undone. This is a bad situation as the Transaction could not be saved.`;
+                    log.error(message);
                     giftbitRoutes.sentry.sendErrorNotification(new Error(message));
+                    throw new GiftbitRestError(424, `An irrecoverable exception occurred while reversing the Transaction ${plan.previousTransactionId}. The charges ${stepsSuccessfullyRefunded.map(step => step.chargeId).toString()} were refunded in Stripe but an exception occurred after and the Transaction could not be completed. Please review your records in Lightrail and Stripe to adjust for this situation.`)
+                } else {
+                    // this is okay
+                    log.info(`An exception occurred while reversing transaction ${plan.previousTransactionId}. The reverse included refunds in Stripe but they were not successfully refunded. The state of Stripe and Lightrail are consistent.`)
                 }
             }
 
             if ((err as StripeRestError).additionalParams && (err as StripeRestError).additionalParams.stripeError) {
                 // Error was returned from Stripe. Passing original error along so that details of Stripe failure can be returned.
                 throw err;
-            } else if ((err as TransactionPlanError).isTransactionPlanError) {
+            } else if ((err as TransactionPlanError).isTransactionPlanError || err instanceof GiftbitRestError) {
                 throw err;
             } else if (err.code === "ER_DUP_ENTRY") {
                 log.error(err);

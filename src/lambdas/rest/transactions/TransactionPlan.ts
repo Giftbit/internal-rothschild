@@ -136,7 +136,7 @@ export namespace StripeTransactionPlanStep {
                 transactionId: plan.id,
                 chargeId: step.chargeId,
                 amount: step.refundResult.amount,
-                charge: JSON.stringify(step.refundResult) // todo - maybe this shouldn't be stored on the charge field?
+                charge: JSON.stringify(step.refundResult)
             };
         }
     }

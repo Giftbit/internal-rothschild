@@ -5,6 +5,7 @@ import {
     TransactionPlanStep
 } from "../../lambdas/rest/transactions/TransactionPlan";
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import {GiftbitRestError} from "giftbit-cassava-routes";
 import {createCharge, createRefund} from "./stripeTransactions";
 import {LightrailAndMerchantStripeConfig} from "./StripeConfig";
 import {StripeCreateChargeParams} from "./StripeCreateChargeParams";
@@ -13,7 +14,10 @@ import {StripeCreateRefundParams} from "./StripeCreateRefundParams";
 import {StripeRestError} from "./StripeRestError";
 import {TransactionPlanError} from "../../lambdas/rest/transactions/TransactionPlanError";
 import {AdditionalStripeChargeParams} from "../../model/TransactionRequest";
+import * as Stripe from "stripe";
 import log = require("loglevel");
+import IRefund = Stripe.refunds.IRefund;
+import ICharge = Stripe.charges.ICharge;
 
 export async function processStripeSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, stripeConfig: LightrailAndMerchantStripeConfig, plan: TransactionPlan): Promise<void> {
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
@@ -82,9 +86,11 @@ function stripeTransactionPlanStepToStripeChargeRequest(auth: giftbitRoutes.jwta
     return stepForStripe;
 }
 
-export async function rollbackStripeChargeSteps(lightrailStripeSecretKey: string, merchantStripeAccountId: string, steps: StripeChargeTransactionPlanStep[], reason: string): Promise<void> {
-    try {
-        for (const step of steps) {
+export async function rollbackStripeChargeSteps(lightrailStripeSecretKey: string, merchantStripeAccountId: string, steps: StripeChargeTransactionPlanStep[], reason: string): Promise<IRefund[]> {
+    let errorOccurredDuringRollback = false;
+    let refunded: IRefund[] = [];
+    for (const step of steps) {
+        try {
             const refundParams: StripeCreateRefundParams = {
                 chargeId: step.chargeResult.id,
                 amount: step.chargeResult.amount,
@@ -92,11 +98,19 @@ export async function rollbackStripeChargeSteps(lightrailStripeSecretKey: string
             };
             const refund = await createRefund(refundParams, lightrailStripeSecretKey, merchantStripeAccountId);
             log.info(`Refunded Stripe charge ${step.chargeResult.id}. Refund: ${JSON.stringify(refund)}.`);
+            refunded.push(refund);
+        } catch (err) {
+            giftbitRoutes.sentry.sendErrorNotification(err);
+            log.error(`Exception occurred during refund while rolling back charge ${JSON.stringify(step)}`);
+            errorOccurredDuringRollback = true;
         }
-    } catch (err) {
-        giftbitRoutes.sentry.sendErrorNotification(err);
-        throw err;
     }
+    if (errorOccurredDuringRollback) {
+        const chargeIds = steps.map(step => step.chargeResult.id);
+        const refundedChargeIds = refunded.map(refund => (refund.charge as ICharge).id);
+        throw new GiftbitRestError(424, `Exception occurred during refund while rolling back charges. Charges that were attempted to be rolled back: ${chargeIds.toString()}. Could not refund: ${chargeIds.filter(ch => !refundedChargeIds.find(id => ch == id)).toString()}.`);
+    }
+    return refunded;
 }
 
 function condensePaymentSourceForStripeMetadata(step: TransactionPlanStep): PaymentSourceForStripeMetadata {

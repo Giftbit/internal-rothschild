@@ -8,6 +8,7 @@ import * as sinon from "sinon";
 import {Value} from "../../../../model/Value";
 import {StripeTransactionStep, Transaction} from "../../../../model/Transaction";
 import {Currency} from "../../../../model/Currency";
+import * as kvsAccess from "../../../../utils/kvsAccess";
 import {TransactionPlanError} from "../TransactionPlanError";
 import * as insertTransaction from "../insertTransactions";
 import * as testUtils from "../../../../utils/testUtils";
@@ -1159,22 +1160,21 @@ describe("split tender checkout with Stripe", () => {
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 404, "the transaction was not actually created");
 
-        // if (testStripeLive()) {
-        //     setStubsForStripeTests();
-        //     chai.assert.deepEqual(await giftbitRoutes.secureConfig.fetchFromS3ByEnvVar("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE"), {
-        //         email: "test@test.com",
-        //         test: {
-        //             clientId: "test-client-id",
-        //             secretKey: STRIPE_TEST_CONFIG.secretKey,
-        //             publishableKey: "test-pk",
-        //         },
-        //         live: {},
-        //     });
-        //     chai.assert.deepEqual(await kvsAccess.kvsGet("this-is-an-assume-token", "stripeAuth", ""), {
-        //         token_type: "bearer",
-        //         stripe_user_id: STRIPE_TEST_CONFIG.stripeUserId,
-        //     });
-        // }
+        if (testStripeLive()) {
+            chai.assert.deepEqual(await giftbitRoutes.secureConfig.fetchFromS3ByEnvVar("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE"), {
+                email: "test@test.com",
+                test: {
+                    clientId: "test-client-id",
+                    secretKey: STRIPE_TEST_CONFIG.secretKey,
+                    publishableKey: "test-pk",
+                },
+                live: {},
+            });
+            chai.assert.deepEqual(await kvsAccess.kvsGet("this-is-an-assume-token", "stripeAuth", ""), {
+                token_type: "bearer",
+                stripe_user_id: STRIPE_TEST_CONFIG.stripeUserId,
+            });
+        }
     });
 
     it.skip("creates a charge auth in Stripe when 'pending: true'");
@@ -1991,43 +1991,6 @@ describe("split tender checkout with Stripe", () => {
 
     if (testStripeLive()) {
         describe("stripe customer + source tests", () => {
-            // before(async function () {
-            //     unsetStubsForStripeTests();
-            //
-            //     const testAssumeToken: giftbitRoutes.secureConfig.AssumeScopeToken = {
-            //         assumeToken: "this-is-an-assume-token"
-            //     };
-            //
-            //     let stubFetchFromS3ByEnvVar = sinonSandbox.stub(giftbitRoutes.secureConfig, "fetchFromS3ByEnvVar");
-            //     stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH").resolves(testAssumeToken);
-            //     stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE").resolves({
-            //         email: "test@test.com",
-            //         test: {
-            //             clientId: "test-client-id",
-            //             secretKey: "sk_test_Fwb3uGyZsIb9eJ5ZQchNH5Em", // specific stripe api key for test. stripe user: integrationtesting+merchant@giftbit.com
-            //             publishableKey: "test-pk",
-            //         },
-            //         live: {}
-            //     });
-            //
-            //     sinonSandbox.stub(kvsAccess, "kvsGet")
-            //         .withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string)
-            //         .resolves({
-            //             token_type: "bearer",
-            //             stripe_user_id: "acct_1BOVE6CM9MOvFvZK", // specific stripe account id for test. stripe user: integrationtesting+merchant@giftbit.com
-            //         });
-            // });
-            //
-            // after(async function () {
-            //     if ((giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as any).displayName === "fetchFromS3ByEnvVar") {
-            //         (giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as sinon.SinonStub).restore();
-            //     }
-            //
-            //     if ((kvsAccess.kvsGet as any).displayName === "kvsGet") {
-            //         (kvsAccess.kvsGet as sinon.SinonStub).restore();
-            //     }
-            // });
-
             it("can charge a customer's default card", async () => {
                 const request: CheckoutRequest = {
                     id: generateId(),
