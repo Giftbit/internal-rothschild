@@ -439,7 +439,7 @@ Resources:
       Handler: index.handler
       Runtime: nodejs8.10
       MemorySize: 512
-      Timeout: 180 # seconds, 300 max
+      Timeout: 180 # seconds, 900 max
       ReservedConcurrentExecutions: 100
       Environment:
         Variables:
@@ -530,7 +530,7 @@ Resources:
       Handler: index.handler
       Runtime: nodejs8.10
       MemorySize: 256
-      Timeout: 300 # seconds, 300 max
+      Timeout: 900 # seconds, 900 max
       Environment:
         Variables:
           DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
