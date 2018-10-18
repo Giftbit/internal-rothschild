@@ -197,14 +197,14 @@ export async function updateContact(auth: giftbitRoutes.jwtauth.AuthorizationBad
 
     const knex = await getKnexWrite();
     return await knex.transaction(async trx => {
-        // Get the master version of the Contact and read lock it.
+        // Get the master version of the Contact and lock it.
         const selectContactRes: DbContact[] = await trx("Contacts")
             .select()
             .where({
                 userId: auth.userId,
                 id: id
             })
-            .forShare();
+            .forUpdate();
         if (selectContactRes.length === 0) {
             throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${id}' not found.`, "ContactNotFound");
         }

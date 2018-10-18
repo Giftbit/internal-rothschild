@@ -410,13 +410,13 @@ async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
 
     const knex = await getKnexWrite();
     return await knex.transaction(async trx => {
-        // Get the master version of the Value and read lock it.
+        // Get the master version of the Value and lock it.
         const selectValueRes: DbValue[] = await trx("Values").select()
             .where({
                 userId: auth.userId,
                 id: id
             })
-            .forShare();
+            .forUpdate();
         if (selectValueRes.length === 0) {
             throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${id}' not found.`, "ValueNotFound");
         }

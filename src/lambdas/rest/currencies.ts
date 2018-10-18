@@ -131,14 +131,14 @@ export async function updateCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBa
 
     const knex = await getKnexWrite();
     return knex.transaction(async trx => {
-        // Get the master version of the Currency and read lock it.
+        // Get the master version of the Currency and lock it.
         const currencyRes: DbCurrency[] = await trx("Currencies")
             .select()
             .where({
                 userId: auth.userId,
                 code: code
             })
-            .forShare();
+            .forUpdate();
         if (currencyRes.length === 0) {
             throw new cassava.RestError(404);
         }

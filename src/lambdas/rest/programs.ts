@@ -218,14 +218,14 @@ async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
 
     const knex = await getKnexWrite();
     return await knex.transaction(async trx => {
-        // Get the master version of the Program and read lock it.
+        // Get the master version of the Program and lock it.
         const selectProgramRes: DbProgram[] = await trx("Programs")
             .select()
             .where({
                 userId: auth.userId,
                 id: id
             })
-            .forShare();
+            .forUpdate();
         if (selectProgramRes.length === 0) {
             throw new cassava.RestError(404);
         }
