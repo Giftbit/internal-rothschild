@@ -405,26 +405,48 @@ export async function getValueByCode(auth: giftbitRoutes.jwtauth.AuthorizationBa
     return DbValue.toValue(res[0], showCode);
 }
 
-async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, value: Partial<Value>): Promise<Value> {
+async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, valueUpdates: Partial<Value>): Promise<Value> {
     auth.requireIds("userId");
 
-    const dbValue = Value.toDbValueUpdate(auth, value);
     const knex = await getKnexWrite();
-    const res: number = await knex("Values")
-        .where({
-            userId: auth.userId,
-            id: id
-        })
-        .update(dbValue);
-    if (res === 0) {
-        throw new cassava.RestError(404);
-    }
-    if (res > 1) {
-        throw new Error(`Illegal UPDATE query.  Updated ${res} values.`);
-    }
-    return {
-        ...await getValue(auth, id)
-    };
+    return await knex.transaction(async trx => {
+        // Get the master version of the Value and lock it.
+        const selectValueRes: DbValue[] = await trx("Values").select()
+            .where({
+                userId: auth.userId,
+                id: id
+            })
+            .forUpdate();
+        if (selectValueRes.length === 0) {
+            throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${id}' not found.`, "ValueNotFound");
+        }
+        if (selectValueRes.length > 1) {
+            throw new Error(`Illegal SELECT query.  Returned ${selectValueRes.length} values.`);
+        }
+        const existingValue = DbValue.toValue(selectValueRes[0]);
+        const updatedValue = {
+            ...existingValue,
+            ...valueUpdates
+        };
+
+        checkValueProperties(updatedValue);
+
+        const dbValue = Value.toDbValueUpdate(auth, valueUpdates);
+        const updateRes: number = await trx("Values")
+            .where({
+                userId: auth.userId,
+                id: id
+            })
+            .update(dbValue);
+        if (updateRes === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (updateRes > 1) {
+            throw new Error(`Illegal UPDATE query.  Updated ${updateRes} values.`);
+        }
+
+        return updatedValue;
+    });
 }
 
 async function updateDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, value: Partial<DbValue>): Promise<Value> {
