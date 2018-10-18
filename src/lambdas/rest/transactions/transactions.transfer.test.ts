@@ -18,13 +18,14 @@ import * as stripeTransactions from "../../../utils/stripeUtils/stripeTransactio
 import * as sinon from "sinon";
 import {StripeRestError} from "../../../utils/stripeUtils/StripeRestError";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
+import {stripeApiVersion} from "../../../utils/stripeUtils/StripeConfig";
 import chaiExclude = require("chai-exclude");
 import Stripe = require("stripe");
 import ICharge = Stripe.charges.ICharge;
 
 chai.use(chaiExclude);
 
-describe.only("/v2/transactions/transfer", () => {
+describe("/v2/transactions/transfer", () => {
 
     const router = new cassava.Router();
 
@@ -1236,6 +1237,7 @@ describe.only("/v2/transactions/transfer", () => {
 
             if (testStripeLive()) {
                 const lightrailStripe = require("stripe")(STRIPE_TEST_CONFIG.secretKey);
+                lightrailStripe.setApiVersion(stripeApiVersion);
                 const stripeChargeId = (postTransferResp.body.steps.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
                 const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
                     stripe_account: STRIPE_TEST_CONFIG.stripeUserId
@@ -1441,6 +1443,7 @@ describe.only("/v2/transactions/transfer", () => {
 
             if (testStripeLive()) {
                 const lightrailStripe = require("stripe")(STRIPE_TEST_CONFIG.secretKey);
+                lightrailStripe.setApiVersion(stripeApiVersion);
                 const stripeChargeId = (postTransferResp.body.steps.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
                 const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
                     stripe_account: STRIPE_TEST_CONFIG.stripeUserId
