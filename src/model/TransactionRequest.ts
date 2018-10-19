@@ -34,7 +34,6 @@ export interface DebitRequest {
 }
 
 export interface ReverseRequest {
-    transactionIdToReverse: string;
     id: string;
     simulate?: boolean;
 }

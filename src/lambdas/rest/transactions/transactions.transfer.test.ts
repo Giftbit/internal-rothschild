@@ -8,7 +8,7 @@ import {Currency} from "../../../model/Currency";
 import {installRestRoutes} from "../installRestRoutes";
 import {
     setStubsForStripeTests,
-    STRIPE_TEST_CONFIG,
+    stripeTestConfig,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../../utils/testUtils/stripeTestUtils";
@@ -1231,11 +1231,11 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.deepEqual(destStepFromGet, destStep);
 
             if (testStripeLive()) {
-                const lightrailStripe = require("stripe")(STRIPE_TEST_CONFIG.secretKey);
+                const lightrailStripe = require("stripe")(stripeTestConfig.secretKey);
                 lightrailStripe.setApiVersion(stripeApiVersion);
                 const stripeChargeId = (postTransferResp.body.steps.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
                 const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                    stripe_account: STRIPE_TEST_CONFIG.stripeUserId
+                    stripe_account: stripeTestConfig.stripeUserId
                 });
                 chai.assert.deepEqual(stripeCharge, sourceStep.charge);
             }
@@ -1437,11 +1437,11 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.deepEqual(destStepFromGet, destStep);
 
             if (testStripeLive()) {
-                const lightrailStripe = require("stripe")(STRIPE_TEST_CONFIG.secretKey);
+                const lightrailStripe = require("stripe")(stripeTestConfig.secretKey);
                 lightrailStripe.setApiVersion(stripeApiVersion);
                 const stripeChargeId = (postTransferResp.body.steps.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
                 const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                    stripe_account: STRIPE_TEST_CONFIG.stripeUserId
+                    stripe_account: stripeTestConfig.stripeUserId
                 });
                 chai.assert.deepEqual(stripeCharge, sourceStep.charge);
             }

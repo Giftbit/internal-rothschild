@@ -123,7 +123,7 @@ export function installTransactionsRest(router: cassava.Router): void {
             evt.validateBody(reverseSchema);
             return {
                 statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
-                body: await createReverse(auth, {transactionIdToReverse: evt.pathParameters.id, ...evt.body})
+                body: await createReverse(auth, {...evt.body}, evt.pathParameters.id)
             };
         });
 
@@ -132,7 +132,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
-            auth.requireScopes("lightrailV2:transactions:chain");
+            auth.requireScopes("lightrailV2:transactions:read");
             evt.validateBody(reverseSchema);
             const dbTransaction = await getDbTransaction(auth, evt.pathParameters.id);
             evt.queryStringParameters["rootTransactionId"] = dbTransaction.rootTransactionId;
@@ -285,7 +285,7 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
     );
 }
 
-async function createReverse(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: ReverseRequest): Promise<Transaction> {
+async function createReverse(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: ReverseRequest, transactionIdToReverse: string): Promise<Transaction> {
     return executeTransactionPlanner(
         auth,
         {
@@ -293,7 +293,7 @@ async function createReverse(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req
             allowRemainder: false
         },
         async () => {
-            return await createReverseTransactionPlan(auth, req);
+            return await createReverseTransactionPlan(auth, req, transactionIdToReverse);
         }
     );
 }

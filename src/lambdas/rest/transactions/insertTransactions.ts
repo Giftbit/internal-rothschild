@@ -80,7 +80,7 @@ async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.Authoriza
     const updateRes = await query;
     if (updateRes !== 1) {
         throw new TransactionPlanError(`Transaction execution canceled because Value updated ${updateRes} rows.  userId=${auth.userId} value.id=${step.value.id} value.balance=${step.value.balance} value.usesRemaining=${step.value.usesRemaining} step.amount=${step.amount} step.uses=${step.uses}`, {
-            isReplanable: updateRes === 0
+            isReplanable: updateRes === 0 // todo - should we add this? `&& (step.value.balance == null || step.value.balance + step.amount >= 0)` otherwise this will want to spin.
         });
     }
 

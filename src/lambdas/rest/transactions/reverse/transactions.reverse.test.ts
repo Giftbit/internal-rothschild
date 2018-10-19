@@ -97,4 +97,6 @@ describe("/v2/transactions/reverse", () => {
         chai.assert.equal(postReverse1.statusCode, 409);
         chai.assert.equal(postReverse1.body.message, `A Lightrail transaction with transactionId '${getInitialBalanceTransaction.body[0].id}' already exists.`);
     });
+
+    // todo - add simulate coverage.
 });

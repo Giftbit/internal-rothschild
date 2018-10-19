@@ -90,7 +90,7 @@ function stripeTransactionPlanStepToStripeChargeRequest(auth: giftbitRoutes.jwta
 
 export async function rollbackStripeChargeSteps(lightrailStripeSecretKey: string, merchantStripeAccountId: string, steps: StripeChargeTransactionPlanStep[], reason: string): Promise<IRefund[]> {
     let errorOccurredDuringRollback = false;
-    let refunded: IRefund[] = [];
+    const refunded: IRefund[] = [];
     for (const step of steps) {
         try {
             const refundParams: StripeCreateRefundParams = {

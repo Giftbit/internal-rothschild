@@ -6,7 +6,7 @@ import {installRestRoutes} from "../../../installRestRoutes";
 import {createCurrency} from "../../../currencies";
 import {Value} from "../../../../../model/Value";
 import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../../../model/Transaction";
-import {ReverseRequest, TransferRequest} from "../../../../../model/TransactionRequest";
+import {CreditRequest, DebitRequest, ReverseRequest, TransferRequest} from "../../../../../model/TransactionRequest";
 import {
     setStubsForStripeTests,
     testStripeLive,
@@ -248,4 +248,88 @@ describe("/v2/transactions/reverse - transfer", () => {
         const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate");
     }).timeout(10000);
+
+    it("can't reverse a transfer if the value has been spent before the reverse is applied", async () => {
+        // create values
+        const sourceValue: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 100
+        };
+        const postSourceValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", sourceValue);
+        chai.assert.equal(postSourceValue.statusCode, 201);
+        chai.assert.equal(postSourceValue.body.balance, 100);
+
+        const desValue: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 0
+        };
+        const postDesValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", desValue);
+        chai.assert.equal(postDesValue.statusCode, 201);
+        chai.assert.equal(postDesValue.body.balance, 0);
+
+        // create transfer
+        const transfer: TransferRequest = {
+            id: generateId(),
+            source: {
+                rail: "lightrail",
+                valueId: sourceValue.id
+            },
+            destination: {
+                rail: "lightrail",
+                valueId: desValue.id
+            },
+            amount: 75,
+            currency: "USD"
+        };
+        const postCredit = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", transfer);
+        chai.assert.equal(postCredit.statusCode, 201, `body=${JSON.stringify(postCredit.body)}`);
+        chai.assert.equal((postCredit.body.steps[0] as LightrailTransactionStep).balanceAfter, 25);
+        chai.assert.equal((postCredit.body.steps[1] as LightrailTransactionStep).balanceAfter, 75);
+
+        // create debit
+        const debit: DebitRequest = {
+            id: generateId(),
+            source: {
+                rail: "lightrail",
+                valueId: desValue.id
+            },
+            amount: 1,
+            currency: "USD"
+        };
+        const postDebit = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", debit);
+        chai.assert.equal(postDebit.statusCode, 201, `body=${JSON.stringify(postDebit.body)}`);
+        chai.assert.equal((postDebit.body.steps[0] as LightrailTransactionStep).balanceAfter, 74);
+
+        // create reverse
+        const reverse: Partial<ReverseRequest> = {
+            id: generateId()
+        };
+        const postReverse = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${transfer.id}/reverse`, "POST", reverse);
+        chai.assert.equal(postReverse.statusCode, 409, `body=${JSON.stringify(postDebit.body)}`);
+        chai.assert.equal(postReverse.body.messageCode, "InsufficientBalance");
+
+        // add credit for 2
+        const credit2: CreditRequest = {
+            id: generateId(),
+            destination: {
+                rail: "lightrail",
+                valueId: desValue.id
+            },
+            amount: 2,
+            currency: "USD"
+        };
+        const postCredit2 = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", credit2);
+        chai.assert.equal(postCredit2.statusCode, 201, `body=${JSON.stringify(postCredit2.body)}`);
+        chai.assert.equal((postCredit2.body.steps[0] as LightrailTransactionStep).balanceAfter, 76);
+
+        // now can do reverse
+        const postReverseAgain = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transfer.id}/reverse`, "POST", reverse);
+        chai.assert.equal(postReverseAgain.statusCode, 201, `body=${JSON.stringify(postDebit.body)}`);
+        chai.assert.equal((postReverseAgain.body.steps[0] as LightrailTransactionStep).balanceChange, 75);
+        chai.assert.equal((postReverseAgain.body.steps[0] as LightrailTransactionStep).balanceAfter, 100);
+        chai.assert.equal((postReverseAgain.body.steps[1] as LightrailTransactionStep).balanceChange, -75);
+        chai.assert.equal((postReverseAgain.body.steps[1] as LightrailTransactionStep).balanceAfter, 1);
+    });
 });

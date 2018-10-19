@@ -31,10 +31,12 @@ export interface ExecuteTransactionPlannerOptions {
  * but can be replanned then the planner will be called again.
  */
 export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ExecuteTransactionPlannerOptions, planner: () => Promise<TransactionPlan>): Promise<Transaction> {
+    let i = 0;
     while (true) {
         try {
             const plan = await planner();
-            if (plan.totals && plan.totals.remainder && !options.allowRemainder) {
+            if ((plan.totals && plan.totals.remainder && !options.allowRemainder) ||
+                plan.steps.find(step => step.rail === "lightrail" && step.value.balance != null && step.value.balance + step.amount < 0)) {
                 throw new giftbitRoutes.GiftbitRestError(409, "Insufficient balance for the transaction.", "InsufficientBalance");
             }
             if (options.simulate) {

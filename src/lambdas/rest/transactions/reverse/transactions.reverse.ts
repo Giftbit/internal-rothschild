@@ -22,13 +22,13 @@ import * as cassava from "cassava";
 import * as stripe from "stripe";
 import log = require("loglevel");
 
-export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: ReverseRequest): Promise<TransactionPlan> {
+export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: ReverseRequest, transactionIdToReverse: string): Promise<TransactionPlan> {
     log.info(`Creating reverse transaction plan for user: ${auth.userId} and reverse request: ${JSON.stringify(req)}.`);
 
-    const dbTransaction = await getDbTransaction(auth, req.transactionIdToReverse);
+    const dbTransaction = await getDbTransaction(auth, transactionIdToReverse);
     if (dbTransaction.nextTransactionId) {
         log.info(`Transaction ${JSON.stringify(dbTransaction)} was not last in chain and cannot be reversed.`);
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Cannot reverse transaction that is not last in the transaction chain. Use endpoint .../v2/transactions/${req.transactionIdToReverse}/chain to find last transaction in chain.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Cannot reverse transaction that is not last in the transaction chain. Use endpoint .../v2/transactions/${transactionIdToReverse}/chain to find last transaction in chain.`);
     }
     const transactionToReverse: Transaction = (await DbTransaction.toTransactions([dbTransaction], auth.userId))[0];
 

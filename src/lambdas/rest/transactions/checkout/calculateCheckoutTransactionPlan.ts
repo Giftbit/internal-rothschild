@@ -64,7 +64,11 @@ function calculateAmountsForTransactionSteps(steps: TransactionPlanStep[], trans
                 calculateAmountForLightrailTransactionStep(step, transactionPlan);
                 break;
             case "stripe":
-                calculateAmountForStripeTransactionStep(step as StripeChargeTransactionPlanStep, transactionPlan);
+                if (step.type === "charge") {
+                    calculateAmountForStripeTransactionStep(step as StripeChargeTransactionPlanStep, transactionPlan);
+                } else {
+                    throw new Error(`Invalid transaction plan step. Expecting type = 'charge' but received ${step.type}.`)
+                }
                 break;
             case "internal":
                 calculateAmountForInternalTransactionStep(step, transactionPlan);

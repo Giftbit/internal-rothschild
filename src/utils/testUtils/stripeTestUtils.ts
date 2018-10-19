@@ -4,7 +4,10 @@ import * as sinon from "sinon";
 
 let sinonSandbox = sinon.createSandbox();
 
-export const STRIPE_TEST_CONFIG = {
+/**
+ * Config from stripe test account//pass: integrationtesting+merchant@giftbit.com // x39Rlf4TH3pzn29hsb#
+ */
+export const stripeTestConfig = {
     secretKey: "sk_test_Fwb3uGyZsIb9eJ5ZQchNH5Em",
     stripeUserId: "acct_1BOVE6CM9MOvFvZK",
     customer: {
@@ -25,7 +28,7 @@ export function setStubsForStripeTests() {
         email: "test@test.com",
         test: {
             clientId: "test-client-id",
-            secretKey: testStripeLive() ? STRIPE_TEST_CONFIG.secretKey : "test",
+            secretKey: testStripeLive() ? stripeTestConfig.secretKey : "test",
             publishableKey: "test-pk",
         },
         live: {}
@@ -34,7 +37,7 @@ export function setStubsForStripeTests() {
     let stubKvsGet = sinonSandbox.stub(kvsAccess, "kvsGet");
     stubKvsGet.withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string).resolves({
         token_type: "bearer",
-        stripe_user_id: testStripeLive() ? STRIPE_TEST_CONFIG.stripeUserId : "test",
+        stripe_user_id: testStripeLive() ? stripeTestConfig.stripeUserId : "test",
     });
 }
 

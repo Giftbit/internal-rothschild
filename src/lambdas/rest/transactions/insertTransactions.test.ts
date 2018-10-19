@@ -54,9 +54,8 @@ describe("insertTransactions", () => {
 
         // create a valid transaction plan
         const reverseTransactionPlan: TransactionPlan = await createReverseTransactionPlan(testUtils.defaultTestUser.auth, {
-            transactionIdToReverse: getInitialBalanceTransaction.id,
             id: generateId()
-        });
+        }, getInitialBalanceTransaction.id);
 
         // can insert the transaction
         const trx = await getKnexWrite();
@@ -83,13 +82,12 @@ describe("insertTransactions", () => {
 
         // create two reverse transaction plans
         const reverseTransactionPlan1: TransactionPlan = await createReverseTransactionPlan(testUtils.defaultTestUser.auth, {
-            transactionIdToReverse: initialBalanceTransaction.id,
-            id: generateId()
-        });
+                id: generateId()
+            }, initialBalanceTransaction.id)
+        ;
         const reverseTransactionPlan2: TransactionPlan = await createReverseTransactionPlan(testUtils.defaultTestUser.auth, {
-            transactionIdToReverse: initialBalanceTransaction.id,
             id: generateId()
-        });
+        }, initialBalanceTransaction.id);
 
         // insert reverseTransactionPlan1 does not throw exception
         const trx = await getKnexWrite();
