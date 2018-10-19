@@ -92,7 +92,7 @@ describe("/v2/transactions/reverse - credit", () => {
 
         // check value is same as before
         const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
-        chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate")
+        chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate");
     });
 
     it("can reverse a credit with balanceRule and usesRemaining", async () => {
@@ -161,6 +161,6 @@ describe("/v2/transactions/reverse - credit", () => {
 
         // check value is same as before
         const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
-        chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate")
+        chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate");
     });
 });

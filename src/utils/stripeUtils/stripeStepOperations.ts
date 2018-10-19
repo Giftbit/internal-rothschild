@@ -26,12 +26,14 @@ export async function processStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
             if (step.type === "charge") {
                 const stepForStripe = stripeTransactionPlanStepToStripeChargeRequest(auth, step, plan);
                 step.chargeResult = await createCharge(stepForStripe, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, step.idempotentStepId);
-            } else {
+            } else if (step.type === "refund") {
                 let stepForStripe: StripeCreateRefundParams = {
                     amount: step.amount,
                     chargeId: step.chargeId
                 };
                 step.refundResult = await createRefund(stepForStripe, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id);
+            } else {
+                throw new Error(`Unexpected stripe step. This should not happen. Step: ${JSON.stringify(step)}.`);
             }
         }
     } catch (err) {
@@ -108,7 +110,7 @@ export async function rollbackStripeChargeSteps(lightrailStripeSecretKey: string
     if (errorOccurredDuringRollback) {
         const chargeIds = steps.map(step => step.chargeResult.id);
         const refundedChargeIds = refunded.map(refund => (refund.charge as ICharge).id);
-        throw new GiftbitRestError(424, `Exception occurred during refund while rolling back charges. Charges that were attempted to be rolled back: ${chargeIds.toString()}. Could not refund: ${chargeIds.filter(ch => !refundedChargeIds.find(id => ch == id)).toString()}.`);
+        throw new GiftbitRestError(424, `Exception occurred during refund while rolling back charges. Charges that were attempted to be rolled back: ${chargeIds.toString()}. Could not refund: ${chargeIds.filter(chargeId => !refundedChargeIds.find(id => chargeId === id)).toString()}.`);
     }
     return refunded;
 }
@@ -136,7 +138,6 @@ function condensePaymentSourceForStripeMetadata(step: TransactionPlanStep): Paym
                 }
                 return stripeStep as StripeSourceForStripeMetadata;
             }
-
     }
 }
 

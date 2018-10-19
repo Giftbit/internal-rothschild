@@ -4,7 +4,6 @@ import * as sinon from "sinon";
 
 let sinonSandbox = sinon.createSandbox();
 
-// Stripe keys can go here.
 export const STRIPE_TEST_CONFIG = {
     secretKey: "sk_test_Fwb3uGyZsIb9eJ5ZQchNH5Em",
     stripeUserId: "acct_1BOVE6CM9MOvFvZK",

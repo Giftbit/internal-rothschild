@@ -64,7 +64,7 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
                 plan.steps.push(await getReverseForInternalTransactionStep(auth, step));
                 break;
             default:
-                throw Error(`Unexpected step rail type found in transaction for reverse. ${transactionToReverse}.`)
+                throw Error(`Unexpected step rail type found in transaction for reverse. ${transactionToReverse}.`);
         }
     }
     log.info("Reverse plan: " + JSON.stringify(plan, null, 4));
@@ -77,7 +77,7 @@ async function getReverseForLightrailTransactionStep(auth: giftbitRoutes.jwtauth
         value: await getValue(auth, step.valueId),
         amount: -step.balanceChange,
         uses: -step.usesRemainingChange
-    }
+    };
 }
 
 async function getReverseForStripeTransactionStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: StripeTransactionStep, idempotentStepId: string, refundMetadataReason: string): Promise<StripeTransactionPlanStep> {
@@ -88,7 +88,7 @@ async function getReverseForStripeTransactionStep(auth: giftbitRoutes.jwtauth.Au
         chargeId: step.chargeId,
         amount: -step.amount, // step.amount is a negative for a charge
         reason: refundMetadataReason
-    }
+    };
 }
 
 async function getReverseForInternalTransactionStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: InternalTransactionStep): Promise<InternalTransactionPlanStep> {
@@ -99,7 +99,7 @@ async function getReverseForInternalTransactionStep(auth: giftbitRoutes.jwtauth.
         pretax: null,
         beforeLightrail: null,
         amount: -step.balanceChange
-    }
+    };
 }
 
 // todo - there must be a more elegant way to do this.
@@ -119,5 +119,5 @@ function reverseTotals(totals: TransactionTotals): TransactionTotals {
             sellerDiscount: totals.marketplace.sellerDiscount != null ? -totals.marketplace.sellerDiscount : totals.marketplace.sellerDiscount,
             sellerNet: totals.marketplace.sellerNet != null ? -totals.marketplace.sellerNet : totals.marketplace.sellerNet
         } : totals.marketplace
-    }
+    };
 }

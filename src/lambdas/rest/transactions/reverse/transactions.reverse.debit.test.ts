@@ -94,7 +94,7 @@ describe("/v2/transactions/reverse - debit", () => {
 
         // check value is same as before
         const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
-        chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate")
+        chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate");
     });
 
     it("can reverse a debit with balanceRule and usesRemaining", async () => {
@@ -165,6 +165,6 @@ describe("/v2/transactions/reverse - debit", () => {
 
         // check value is same as before
         const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
-        chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate")
+        chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate");
     });
 });

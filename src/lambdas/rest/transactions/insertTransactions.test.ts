@@ -61,9 +61,9 @@ describe("insertTransactions", () => {
         // can insert the transaction
         const trx = await getKnexWrite();
         try {
-            await insertTransaction(trx, testUtils.defaultTestUser.auth, reverseTransactionPlan)
+            await insertTransaction(trx, testUtils.defaultTestUser.auth, reverseTransactionPlan);
         } catch (e) {
-            chai.assert.fail(`This shouldn't have thrown an exception. e: ${JSON.stringify(e)}.`)
+            chai.assert.fail(`This shouldn't have thrown an exception. e: ${JSON.stringify(e)}.`);
         }
     });
 
@@ -103,7 +103,7 @@ describe("insertTransactions", () => {
         // insert reverseTransactionPlan2 throws exception
         try {
             await insertTransaction(trx, testUtils.defaultTestUser.auth, reverseTransactionPlan2);
-            chai.assert.fail(`This shouldn't have happened because an exception should have been thrown.`)
+            chai.assert.fail(`This shouldn't have happened because an exception should have been thrown.`);
         } catch (e) {
             chai.assert.isDefined(e, `Exception ${JSON.stringify(e)} was expected to be thrown.`);
         }

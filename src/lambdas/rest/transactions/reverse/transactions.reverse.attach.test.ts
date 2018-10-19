@@ -97,7 +97,7 @@ describe("/v2/transactions/reverse - attach", () => {
             ...postValue.body,
             contactId: contact.id,
             balance: 0
-        }, ["updatedDate", "updatedContactIdDate"])
+        }, ["updatedDate", "updatedContactIdDate"]);
     });
 
     it("can reverse attach on generic value", async () => {
@@ -179,6 +179,6 @@ describe("/v2/transactions/reverse - attach", () => {
 
         // check value is same as before
         const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${genericValue.id}`, "GET");
-        chai.assert.deepEqualExcluding(getValue.body, postValue.body, ["updatedDate", "updatedContactIdDate"])
+        chai.assert.deepEqualExcluding(getValue.body, postValue.body, ["updatedDate", "updatedContactIdDate"]);
     });
 });

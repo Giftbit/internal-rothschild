@@ -137,7 +137,7 @@ describe("/v2/transactions/reverse - transfer", () => {
 
         // check value is same as before
         const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value2.id}`, "GET");
-        chai.assert.deepEqualExcluding(postValue2.body, getValue.body, "updatedDate")
+        chai.assert.deepEqualExcluding(postValue2.body, getValue.body, "updatedDate");
     });
 
     it("can reverse a balance transfer from stripe to lightrail", async () => {
@@ -246,6 +246,6 @@ describe("/v2/transactions/reverse - transfer", () => {
 
         // check value is same as before
         const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
-        chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate")
+        chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate");
     }).timeout(10000);
 });

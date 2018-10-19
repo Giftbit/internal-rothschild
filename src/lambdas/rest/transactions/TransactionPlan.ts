@@ -148,18 +148,20 @@ export namespace StripeTransactionPlanStep {
             charge: null,
             amount: step.amount
         };
-        if (step.type == "charge") {
+        if (step.type === "charge") {
             if (step.chargeResult) {
                 stripeTransactionStep.chargeId = step.chargeResult.id;
                 stripeTransactionStep.charge = step.chargeResult;
                 stripeTransactionStep.amount = -step.chargeResult.amount /* Note, chargeResult.amount is positive in Stripe but Lightrail treats debits as negative amounts on Steps. */;
             }
-        } else {
+        } else if (step.type === "refund") {
             if (step.refundResult) {
                 stripeTransactionStep.chargeId = step.chargeId;
                 stripeTransactionStep.charge = step.refundResult;
                 stripeTransactionStep.amount = step.refundResult.amount;
             }
+        } else {
+            throw new Error(`Unexpected stripe step. This should not happen. Step: ${JSON.stringify(step)}.`);
         }
         return stripeTransactionStep;
     }
