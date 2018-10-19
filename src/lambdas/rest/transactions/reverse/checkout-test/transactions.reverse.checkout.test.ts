@@ -54,113 +54,208 @@ describe("/v2/transactions/reverse", () => {
         sinonSandbox.restore();
     });
 
-    describe("reversing checkouts TESTING STRIPE FORMAT", () => {
+    it("can reverse a checkout with lightrail and 2 stripe payment sources", async () => {
+        if (!testStripeLive()) {
+            const mockCharge1 = require("./_mockChargeResult1.json");
+            const mockCharge2 = require("./_mockChargeResult2.json");
+            const mockRefund1 = require("./_mockRefundResult1.json");
+            const mockRefund2 = require("./_mockRefundResult2.json");
 
-        it("can reverse a checkout with balance and tok_visa", async () => {
-            if (!testStripeLive()) {
-                const mockCharge1 = require("./_mockChargeResult1.json");
-                const mockCharge2 = require("./_mockChargeResult2.json");
-                const mockRefund1 = require("./_mockRefundResult1.json");
-                const mockRefund2 = require("./_mockRefundResult2.json");
+            sinonSandbox.stub(stripeTransactions, "createCharge")
+                .withArgs(sinon.match({
+                    amount: 50,
+                })).resolves(mockCharge1)
+                .withArgs(sinon.match({
+                    amount: 99,
+                })).resolves(mockCharge2);
 
-                sinonSandbox.stub(stripeTransactions, "createCharge")
-                    .withArgs(sinon.match({
-                        amount: 50,
-                    })).resolves(mockCharge1)
-                    .withArgs(sinon.match({
-                        amount: 99,
-                    })).resolves(mockCharge2);
+            sinonSandbox.stub(stripeTransactions, "createRefund")
+                .withArgs(sinon.match({
+                    "amount": 50,
+                    "chargeId": mockCharge1.id
+                })).resolves(mockRefund1)
+                .withArgs(sinon.match({
+                    "amount": 99,
+                    "chargeId": mockCharge2.id,
+                })).resolves(mockRefund2);
+        }
 
-                sinonSandbox.stub(stripeTransactions, "createRefund")
-                    .withArgs(sinon.match({
-                        "amount": 50,
-                        "chargeId": mockCharge1.id
-                    })).resolves(mockRefund1)
-                    .withArgs(sinon.match({
-                        "amount": 99,
-                        "chargeId": mockCharge2.id,
-                    })).resolves(mockRefund2);
-            }
+        // create value
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 100
+        };
+        const postValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+        chai.assert.equal(postValue.statusCode, 201);
 
-            // create value
-            const value: Partial<Value> = {
-                id: generateId(),
-                currency: "USD",
-                balance: 100
-            };
-            const postValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
-            chai.assert.equal(postValue.statusCode, 201);
+        // create checkout
+        const checkout: CheckoutRequest = {
+            id: generateId(),
+            lineItems: [{
+                unitPrice: 250
+            }],
+            currency: "USD",
+            sources: [
+                {
+                    rail: "internal",
+                    beforeLightrail: true,
+                    balance: 1,
+                    internalId: "id"
+                },
+                {
+                    rail: "lightrail",
+                    valueId: value.id
+                },
+                {
+                    rail: "stripe",
+                    source: "tok_visa",
+                    maxAmount: 50
+                },
+                {
+                    rail: "stripe",
+                    source: "tok_visa",
+                    maxAmount: 200
+                }
+            ]
+        };
+        const postCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
+        chai.assert.equal(postCheckout.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
+        chai.assert.equal((postCheckout.body.steps[0] as InternalTransactionStep).balanceChange, -1, `body=${JSON.stringify(postCheckout.body)}`);
+        chai.assert.equal((postCheckout.body.steps[1] as LightrailTransactionStep).balanceChange, -100, `body=${JSON.stringify(postCheckout.body)}`);
+        chai.assert.equal((postCheckout.body.steps[2] as StripeTransactionStep).amount, -50, `body=${JSON.stringify(postCheckout.body)}`);
+        chai.assert.equal((postCheckout.body.steps[3] as StripeTransactionStep).amount, -99, `body=${JSON.stringify(postCheckout.body)}`);
 
-            // create checkout
-            const checkout: CheckoutRequest = {
-                id: generateId(),
-                lineItems: [{
-                    unitPrice: 250
-                }],
-                currency: "USD",
-                sources: [
-                    {
-                        rail: "internal",
-                        beforeLightrail: true,
-                        balance: 1,
-                        internalId: "id"
-                    },
-                    {
-                        rail: "lightrail",
-                        valueId: value.id
-                    },
-                    {
-                        rail: "stripe",
-                        source: "tok_visa",
-                        maxAmount: 50
-                    },
-                    {
-                        rail: "stripe",
-                        source: "tok_visa",
-                        maxAmount: 200
-                    }
-                ]
-            };
-            const postCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
-            chai.assert.equal(postCheckout.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
-            chai.assert.equal((postCheckout.body.steps[0] as InternalTransactionStep).balanceChange, -1, `body=${JSON.stringify(postCheckout.body)}`);
-            chai.assert.equal((postCheckout.body.steps[1] as LightrailTransactionStep).balanceChange, -100, `body=${JSON.stringify(postCheckout.body)}`);
-            chai.assert.equal((postCheckout.body.steps[2] as StripeTransactionStep).amount, -50, `body=${JSON.stringify(postCheckout.body)}`);
-            chai.assert.equal((postCheckout.body.steps[3] as StripeTransactionStep).amount, -99, `body=${JSON.stringify(postCheckout.body)}`);
+        // lookup chain
+        const getChain1 = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions/${checkout.id}/chain`, "GET");
+        chai.assert.equal(getChain1.body.length, 1);
 
-            // lookup chain
-            const getChain1 = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions/${checkout.id}/chain`, "GET");
-            chai.assert.equal(getChain1.body.length, 1);
+        // create reverse
+        const reverse: Partial<ReverseRequest> = {
+            id: generateId()
+        };
+        const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.id}/reverse`, "POST", reverse);
+        chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
+        verifyCheckoutReverseTotals(postCheckout.body, postReverse.body);
+        chai.assert.isDefined(postReverse.body.steps.find(step => step.rail === "internal" && step.balanceChange === 1));
+        chai.assert.isDefined(postReverse.body.steps.find(step => step.rail === "lightrail" && step.balanceChange === 100));
+        chai.assert.isDefined(postReverse.body.steps.find(step => step.rail === "stripe" && step.amount === 50));
+        chai.assert.isDefined(postReverse.body.steps.find(step => step.rail === "stripe" && step.amount === 99));
 
-            // create reverse
-            const reverse: Partial<ReverseRequest> = {
-                id: generateId()
-            };
-            const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.id}/reverse`, "POST", reverse);
-            chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
-            verifyCheckoutReverseTotals(postCheckout.body, postReverse.body);
-            chai.assert.isDefined(postReverse.body.steps.find(step => step.rail === "internal" && step.balanceChange === 1));
-            chai.assert.isDefined(postReverse.body.steps.find(step => step.rail === "lightrail" && step.balanceChange === 100));
-            chai.assert.isDefined(postReverse.body.steps.find(step => step.rail === "stripe" && step.amount === 50));
-            chai.assert.isDefined(postReverse.body.steps.find(step => step.rail === "stripe" && step.amount === 99));
+        // check value is same as before
+        const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
+        chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate");
 
-            // check value is same as before
-            const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
-            chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate");
+        // lookup chain2
+        const getChain2 = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions/${checkout.id}/chain`, "GET");
+        chai.assert.equal(getChain2.body.length, 2);
+        chai.assert.deepEqualExcluding(getChain2.body.find(tx => tx.transactionType === "reverse"), postReverse.body, ["steps"]);
+        chai.assert.sameDeepMembers(getChain2.body.find(tx => tx.transactionType === "reverse").steps, postReverse.body.steps);
+        chai.assert.deepEqualExcluding(getChain2.body.find(tx => tx.transactionType === "checkout"), postCheckout.body, ["steps"]);
+        chai.assert.sameDeepMembers(getChain2.body.find(tx => tx.transactionType === "checkout").steps, postCheckout.body.steps);
+    }).timeout(12000);
 
-            // lookup chain2
-            const getChain2 = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions/${checkout.id}/chain`, "GET");
-            chai.assert.equal(getChain2.body.length, 2);
-        }).timeout(12000);
-    });
+    it("can reverse a checkout with balanceRule, balance and credit card", async () => {
+        if (!testStripeLive()) {
+            const mockCharge1 = require("./_mockChargeResult1.json");
+            const mockRefund1 = require("./_mockRefundResult1.json");
+
+            sinonSandbox.stub(stripeTransactions, "createCharge")
+                .withArgs(sinon.match({
+                    amount: 50,
+                })).resolves(mockCharge1);
+
+            sinonSandbox.stub(stripeTransactions, "createRefund")
+                .withArgs(sinon.match({
+                    "amount": 50,
+                    "chargeId": mockCharge1.id
+                })).resolves(mockRefund1);
+        }
+
+
+        // create gift card
+        const giftCard: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 140
+        };
+        const postGiftCard = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", giftCard);
+        chai.assert.equal(postGiftCard.statusCode, 201);
+
+        // create gift card
+        const promotion: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balanceRule: {
+                rule: "currentLineItem.lineTotal.subtotal * 0.05",
+                explanation: "5% off all items"
+            },
+            discount: true
+        };
+        const postPromotion = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", promotion);
+        chai.assert.equal(postPromotion.statusCode, 201);
+
+        // create checkout
+        const checkout: CheckoutRequest = {
+            id: generateId(),
+            lineItems: [{
+                unitPrice: 200
+            }],
+            currency: "USD",
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: promotion.id
+                },
+                {
+                    rail: "lightrail",
+                    valueId: giftCard.id
+                },
+                {
+                    rail: "stripe",
+                    source: "tok_visa",
+                    maxAmount: 50
+                }
+            ]
+        };
+        const postCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
+        chai.assert.equal(postCheckout.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
+        chai.assert.equal((postCheckout.body.steps[0] as LightrailTransactionStep).balanceChange, -10, `body=${JSON.stringify(postCheckout.body)}`);
+        chai.assert.equal((postCheckout.body.steps[1] as LightrailTransactionStep).balanceChange, -140, `body=${JSON.stringify(postCheckout.body)}`);
+        chai.assert.equal((postCheckout.body.steps[2] as StripeTransactionStep).amount, -50, `body=${JSON.stringify(postCheckout.body)}`);
+
+        // lookup chain
+        const getChain1 = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions/${checkout.id}/chain`, "GET");
+        chai.assert.equal(getChain1.body.length, 1);
+
+        // create reverse
+        const reverse: Partial<ReverseRequest> = {
+            id: generateId()
+        };
+        const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.id}/reverse`, "POST", reverse);
+        chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
+        verifyCheckoutReverseTotals(postCheckout.body, postReverse.body);
+        chai.assert.isDefined(postReverse.body.steps.find(step => step.rail === "lightrail" && step.balanceChange === 10));
+        chai.assert.isDefined(postReverse.body.steps.find(step => step.rail === "lightrail" && step.balanceChange === 140));
+        chai.assert.isDefined(postReverse.body.steps.find(step => step.rail === "stripe" && step.amount === 50));
+
+        // check value is same as before
+        const getGiftCard = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
+        chai.assert.deepEqualExcluding(postGiftCard.body, getGiftCard.body, "updatedDate");
+
+        const getPromotion = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${promotion.id}`, "GET");
+        chai.assert.deepEqualExcluding(postPromotion.body, getPromotion.body, "updatedDate");
+
+        // lookup chain2
+        const getChain2 = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions/${checkout.id}/chain`, "GET");
+        chai.assert.equal(getChain2.body.length, 2);
+        chai.assert.deepEqual(getChain2.body.find(tx => tx.transactionType === "reverse"), postReverse.body);
+        chai.assert.deepEqual(getChain2.body.find(tx => tx.transactionType === "checkout"), postCheckout.body);
+    }).timeout(12000);
 
     function verifyCheckoutReverseTotals(checkout: Transaction, reverse: Transaction): void {
         for (const key of Object.keys(checkout.totals)) {
             chai.assert.equal(reverse.totals[key], -checkout.totals[key]);
         }
     }
-
-    // todo - test the transaction chain that's created from a reverse (look up db objects and ensure the correct values are there).
-    // todo - test you can't reverse a reverse
-
 });

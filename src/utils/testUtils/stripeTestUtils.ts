@@ -1,7 +1,6 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as kvsAccess from "../kvsAccess";
 import * as sinon from "sinon";
-import log = require("loglevel");
 
 let sinonSandbox = sinon.createSandbox();
 
@@ -42,22 +41,6 @@ export function setStubsForStripeTests() {
 
 export function unsetStubsForStripeTests() {
     sinonSandbox.restore();
-}
-
-export function stripeEnvVarsPresent(): boolean {
-    if (
-        !!STRIPE_TEST_CONFIG.secretKey &&
-        !!STRIPE_TEST_CONFIG.stripeUserId &&
-        !!process.env["STRIPE_CUSTOMER_ID"] &&
-        !!process.env["SECURE_CONFIG_BUCKET"] &&
-        !!process.env["SECURE_CONFIG_KEY_STRIPE"] &&
-        !!process.env["SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH"]
-    ) {
-        return true;
-    } else {
-        log.warn("Missing environment variables required to run Stripe-related tests: skipping. See readme to set up.");
-        return false;
-    }
 }
 
 export function testStripeLive(): boolean {

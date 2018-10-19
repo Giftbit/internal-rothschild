@@ -7,7 +7,6 @@ import * as testUtils from "../../../../utils/testUtils";
 import {defaultTestUser} from "../../../../utils/testUtils";
 import {
     setStubsForStripeTests,
-    stripeEnvVarsPresent,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
@@ -43,11 +42,6 @@ describe("handling fraudulent charges", () => {
     ];
 
     before(async function () {
-        if (!stripeEnvVarsPresent() && testStripeLive()) {
-            this.skip();
-            return;
-        }
-
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);

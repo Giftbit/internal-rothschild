@@ -18,7 +18,6 @@ import * as stripeTransactions from "../../../../utils/stripeUtils/stripeTransac
 import {
     setStubsForStripeTests,
     STRIPE_TEST_CONFIG,
-    stripeEnvVarsPresent,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
@@ -65,11 +64,6 @@ describe("split tender checkout with Stripe", () => {
     };
 
     before(async function () {
-        if (!stripeEnvVarsPresent() && testStripeLive()) {
-            this.skip();
-            return;
-        }
-
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         transactions.installTransactionsRest(router);
@@ -1182,13 +1176,6 @@ describe("split tender checkout with Stripe", () => {
     it.skip("captures Lightrail and Stripe charges together");
 
     describe("rollback", () => {
-        before(function () {
-            if (!stripeEnvVarsPresent() && testStripeLive()) {
-                this.skip();
-                return;
-            }
-        });
-
         it("passes on the Stripe error", async () => {
             const request = {
                 ...basicRequest,
@@ -1854,13 +1841,6 @@ describe("split tender checkout with Stripe", () => {
     }).timeout(10000);
 
     describe("respects Stripe minimum charge of $0.50", () => {
-        before(function () {
-            if (!stripeEnvVarsPresent()) {
-                this.skip();
-                return;
-            }
-        });
-
         it("fails the transaction by default", async () => {
             const value3: Partial<Value> = {
                 id: "value-for-checkout3",

@@ -95,13 +95,11 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
             if (stripeRefundSteps.length > 0) {
                 const stepsSuccessfullyRefunded: StripeRefundTransactionPlanStep[] = stripeRefundSteps.filter(step => step.refundResult != null);
                 if (stepsSuccessfullyRefunded.length > 0) {
-                    // this is really bad
                     const message = `Exception ${JSON.stringify(err)} was thrown while processing steps. There was a refund that was successfully refunded but the exception was thrown after and refunds cannot be undone. This is a bad situation as the Transaction could not be saved.`;
                     log.error(message);
                     giftbitRoutes.sentry.sendErrorNotification(new Error(message));
                     throw new GiftbitRestError(424, `An irrecoverable exception occurred while reversing the Transaction ${plan.previousTransactionId}. The charges ${stepsSuccessfullyRefunded.map(step => step.chargeId).toString()} were refunded in Stripe but an exception occurred after and the Transaction could not be completed. Please review your records in Lightrail and Stripe to adjust for this situation.`)
                 } else {
-                    // this is okay
                     log.info(`An exception occurred while reversing transaction ${plan.previousTransactionId}. The reverse included refunds in Stripe but they were not successfully refunded. The state of Stripe and Lightrail are consistent.`)
                 }
             }

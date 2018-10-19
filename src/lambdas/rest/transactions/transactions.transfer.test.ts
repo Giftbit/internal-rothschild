@@ -9,7 +9,6 @@ import {installRestRoutes} from "../installRestRoutes";
 import {
     setStubsForStripeTests,
     STRIPE_TEST_CONFIG,
-    stripeEnvVarsPresent,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../../utils/testUtils/stripeTestUtils";
@@ -1050,10 +1049,6 @@ describe("/v2/transactions/transfer", () => {
 
     describe("stripe transfers", () => {
         before(function () {
-            if (!stripeEnvVarsPresent() && testStripeLive()) {
-                this.skip();
-                return;
-            }
             setStubsForStripeTests();
         });
 
@@ -1498,13 +1493,6 @@ describe("/v2/transactions/transfer", () => {
         });
 
         describe("respects Stripe minimum of $0.50", () => {
-            before(async function () {
-                if (!stripeEnvVarsPresent()) {
-                    this.skip();
-                    return;
-                }
-            });
-
             it("fails the transfer by default", async () => {
                 const request = {
                     id: "TR-insuff-stripe-amount",
