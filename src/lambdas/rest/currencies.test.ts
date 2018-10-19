@@ -1,14 +1,16 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as testUtils from "../../utils/testUtils";
+import {generateId} from "../../utils/testUtils";
 import {Currency} from "../../model/Currency";
 import {Value} from "../../model/Value";
 import {installRestRoutes} from "./installRestRoutes";
+import {DebitRequest} from "../../model/TransactionRequest";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe("/v2/currencies", () => {
+describe.only("/v2/currencies", () => {
 
     const router = new cassava.Router();
 
@@ -128,5 +130,77 @@ describe("/v2/currencies", () => {
         const resp3 = await testUtils.testAuthedRequest<any>(router, `/v2/currencies/${funbux.code}`, "DELETE");
         chai.assert.equal(resp3.statusCode, 409);
         chai.assert.equal(resp3.body.messageCode, "CurrencyInUse");
+    });
+
+    describe("test common requests involving currency", () => {
+        const currencies: Currency[] = [
+            {
+                code: "NPR",
+                name: "Nepalese Rupee",
+                symbol: "npr",
+                decimalPlaces: 0
+            },
+            {
+                code: "A",
+                name: "A-Currency",
+                symbol: "ã",
+                decimalPlaces: 1
+            },
+            {
+                code: "AB",
+                name: "Two code currency",
+                symbol: "AB",
+                decimalPlaces: 2
+            },
+            {
+                code: "ABC",
+                name: "Three code currency",
+                symbol: "ABC",
+                decimalPlaces: 2
+            },
+            {
+                code: "BHD",
+                name: "Bahraini dinar",
+                symbol: "BD",
+                decimalPlaces: 3
+            }
+        ];
+
+        for (const currency of currencies) {
+            it(`can create currency ${currency.code}`, async () => {
+                const resp = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", currency);
+                chai.assert.equal(resp.statusCode, 201, `body=${JSON.stringify(resp.body)}`);
+                chai.assert.deepEqual(resp.body, currency);
+            });
+
+            let valueId: string;
+            it("can create value in currency", async () => {
+                const value: Partial<Value> = {
+                    id: generateId(),
+                    currency: currency.code,
+                    balance: 1
+                };
+
+                const postValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+                chai.assert.equal(postValue.statusCode, 201);
+                chai.assert.equal(postValue.body.currency, currency.code);
+                valueId = postValue.body.id;
+            });
+
+            it("can create a debit against value in currency", async () => {
+                const debit: Partial<DebitRequest> = {
+                    id: generateId(),
+                    currency: currency.code,
+                    amount: 1,
+                    source: {
+                        rail: "lightrail",
+                        valueId: valueId
+                    }
+                };
+                const postTransaction = await testUtils.testAuthedRequest<Value>(router, `/v2/transactions/debit`, "POST", debit);
+                chai.assert.equal(postTransaction.statusCode, 201);
+                chai.assert.equal(postTransaction.body.currency, currency.code);
+            });
+        }
     });
 });

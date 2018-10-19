@@ -2,9 +2,7 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {CheckoutRequest, CreditRequest, DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
-import {
-    resolveTransactionPlanSteps
-} from "./resolveTransactionPlanSteps";
+import {resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {executeTransactionPlanner} from "./executeTransactionPlan";
 import {Pagination, PaginationParams} from "../../../model/Pagination";
@@ -12,9 +10,9 @@ import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {optimizeCheckout} from "./checkout/checkoutTransactionPlanner";
 import {filterAndPaginateQuery} from "../../../utils/dbUtils";
 import {createTransferTransactionPlan, resolveTransferTransactionPlanSteps} from "./transactions.transfer";
-import getPaginationParams = Pagination.getPaginationParams;
 import {createCreditTransactionPlan} from "./transactions.credit";
 import {createDebitTransactionPlan} from "./transactions.debit";
+import getPaginationParams = Pagination.getPaginationParams;
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions")
@@ -401,7 +399,7 @@ const creditSchema: jsonschema.Schema = {
         },
         currency: {
             type: "string",
-            minLength: 3,
+            minLength: 1,
             maxLength: 16
         },
         simulate: {
@@ -444,7 +442,7 @@ const debitSchema: jsonschema.Schema = {
         },
         currency: {
             type: "string",
-            minLength: 3,
+            minLength: 1,
             maxLength: 16
         },
         simulate: {
@@ -493,7 +491,7 @@ const transferSchema: jsonschema.Schema = {
         },
         currency: {
             type: "string",
-            minLength: 3,
+            minLength: 1,
             maxLength: 16
         },
         simulate: {
@@ -554,7 +552,7 @@ const checkoutSchema: jsonschema.Schema = {
         },
         currency: {
             type: "string",
-            minLength: 3,
+            minLength: 1,
             maxLength: 16
         },
         sources: {
