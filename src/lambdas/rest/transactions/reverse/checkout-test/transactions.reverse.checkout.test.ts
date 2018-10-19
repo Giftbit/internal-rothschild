@@ -253,9 +253,70 @@ describe("/v2/transactions/reverse", () => {
         chai.assert.deepEqual(getChain2.body.find(tx => tx.transactionType === "checkout"), postCheckout.body);
     }).timeout(12000);
 
+    it("can reverse checkout with marketplaceRate set", async () => {
+        // create value
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 110
+        };
+        const postValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+        chai.assert.equal(postValue.statusCode, 201);
+
+        // create checkout
+        const checkout: CheckoutRequest = {
+            id: generateId(),
+            lineItems: [{
+                unitPrice: 100,
+                marketplaceRate: 0.20,
+                taxRate: 0.10
+            }],
+            currency: "USD",
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: value.id
+                }
+            ]
+        };
+        const postCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
+        chai.assert.equal(postCheckout.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
+        chai.assert.equal((postCheckout.body.steps[0] as LightrailTransactionStep).balanceChange, -110, `body=${JSON.stringify(postCheckout.body)}`);
+        chai.assert.deepEqual(postCheckout.body.totals.marketplace, {
+            "sellerGross": 80,
+            "sellerDiscount": 0,
+            "sellerNet": 80
+        });
+
+        // create reverse
+        const reverse: Partial<ReverseRequest> = {
+            id: generateId()
+        };
+        const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.id}/reverse`, "POST", reverse);
+        chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
+        verifyCheckoutReverseTotals(postCheckout.body, postReverse.body);
+        chai.assert.isDefined(postReverse.body.steps.find(step => step.rail === "lightrail" && step.balanceChange === 110));
+        chai.assert.deepEqual(postReverse.body.totals.marketplace, {
+            "sellerGross": -80,
+            "sellerDiscount": 0,
+            "sellerNet": -80
+        });
+
+        // check value is same as before
+        const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
+        chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate");
+    });
+
     function verifyCheckoutReverseTotals(checkout: Transaction, reverse: Transaction): void {
         for (const key of Object.keys(checkout.totals)) {
-            chai.assert.equal(reverse.totals[key], -checkout.totals[key]);
+            if (key !== "marketplace") {
+                chai.assert.equal(reverse.totals[key], -checkout.totals[key]);
+            } else {
+                chai.assert.equal(reverse.totals.marketplace.sellerNet, -checkout.totals.marketplace.sellerNet);
+                chai.assert.equal(reverse.totals.marketplace.sellerDiscount, -checkout.totals.marketplace.sellerDiscount);
+                chai.assert.equal(reverse.totals.marketplace.sellerGross, -checkout.totals.marketplace.sellerGross);
+            }
         }
+
     }
 });
