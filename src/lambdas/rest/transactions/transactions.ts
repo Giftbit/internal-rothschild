@@ -9,7 +9,6 @@ import {
     ReverseRequest,
     TransferRequest
 } from "../../../model/TransactionRequest";
-import {resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {executeTransactionPlanner} from "./executeTransactionPlan";
 import {Pagination, PaginationParams} from "../../../model/Pagination";
