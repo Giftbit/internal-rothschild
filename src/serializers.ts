@@ -23,6 +23,6 @@ function stringifyChildObjects(object: any): any {
         }
         return object;
     } else {
-        return object
+        return object;
     }
 }

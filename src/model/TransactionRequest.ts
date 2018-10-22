@@ -33,6 +33,11 @@ export interface DebitRequest {
     metadata?: object;
 }
 
+export interface ReverseRequest {
+    id: string;
+    simulate?: boolean;
+}
+
 export type TransferRequest = CreditRequest & DebitRequest;
 
 export type TransactionParty = LightrailTransactionParty | StripeTransactionParty | InternalTransactionParty;

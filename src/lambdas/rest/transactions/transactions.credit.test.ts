@@ -104,6 +104,8 @@ describe("/v2/transactions/credit", () => {
                 "metadata": "null",
                 "tax": "null",
                 "createdBy": "default-test-user-TEST",
+                "nextTransactionId": null,
+                "rootTransactionId": "credit-1",
                 "totals_subtotal": null,
                 "totals_tax": null,
                 "totals_discountLightrail": null,

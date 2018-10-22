@@ -1,7 +1,7 @@
 import {
     InternalTransactionPlanStep,
     LightrailTransactionPlanStep,
-    StripeTransactionPlanStep,
+    StripeChargeTransactionPlanStep,
     TransactionPlan,
     TransactionPlanStep
 } from "../TransactionPlan";
@@ -64,7 +64,11 @@ function calculateAmountsForTransactionSteps(steps: TransactionPlanStep[], trans
                 calculateAmountForLightrailTransactionStep(step, transactionPlan);
                 break;
             case "stripe":
-                calculateAmountForStripeTransactionStep(step, transactionPlan);
+                if (step.type === "charge") {
+                    calculateAmountForStripeTransactionStep(step as StripeChargeTransactionPlanStep, transactionPlan);
+                } else {
+                    throw new Error(`Invalid transaction plan step. Expecting type = 'charge' but received ${step.type}.`);
+                }
                 break;
             case "internal":
                 calculateAmountForInternalTransactionStep(step, transactionPlan);
@@ -114,7 +118,7 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
     }
 }
 
-function calculateAmountForStripeTransactionStep(step: StripeTransactionPlanStep, transactionPlan: TransactionPlan): void {
+function calculateAmountForStripeTransactionStep(step: StripeChargeTransactionPlanStep, transactionPlan: TransactionPlan): void {
     let amount: number = 0;
 
     for (const item of transactionPlan.lineItems) {

@@ -166,7 +166,7 @@ export namespace DbValue {
 function dbValueCodeToValueCode(v: DbValue, showCode: boolean): string {
     if (v.codeLastFour) {
         if (v.isGenericCode || showCode) {
-            return decryptCode(v.codeEncrypted)
+            return decryptCode(v.codeEncrypted);
         } else {
             return formatCodeForLastFourDisplay(v.codeLastFour);
         }
