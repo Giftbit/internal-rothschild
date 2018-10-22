@@ -133,7 +133,6 @@ export function installTransactionsRest(router: cassava.Router): void {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:transactions:read");
-            evt.validateBody(reverseSchema);
             const dbTransaction = await getDbTransaction(auth, evt.pathParameters.id);
             evt.queryStringParameters["rootTransactionId"] = dbTransaction.rootTransactionId;
             const res = await getTransactions(auth, evt.queryStringParameters, getPaginationParams(evt, {
