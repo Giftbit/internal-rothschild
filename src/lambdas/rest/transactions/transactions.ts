@@ -1,6 +1,7 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
+import {resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
 import {
     CheckoutRequest,
     CreditRequest,
@@ -464,7 +465,7 @@ const creditSchema: jsonschema.Schema = {
         },
         currency: {
             type: "string",
-            minLength: 3,
+            minLength: 1,
             maxLength: 16
         },
         simulate: {
@@ -507,7 +508,7 @@ const debitSchema: jsonschema.Schema = {
         },
         currency: {
             type: "string",
-            minLength: 3,
+            minLength: 1,
             maxLength: 16
         },
         simulate: {
@@ -556,7 +557,7 @@ const transferSchema: jsonschema.Schema = {
         },
         currency: {
             type: "string",
-            minLength: 3,
+            minLength: 1,
             maxLength: 16
         },
         simulate: {
@@ -617,7 +618,7 @@ const checkoutSchema: jsonschema.Schema = {
         },
         currency: {
             type: "string",
-            minLength: 3,
+            minLength: 1,
             maxLength: 16
         },
         sources: {
