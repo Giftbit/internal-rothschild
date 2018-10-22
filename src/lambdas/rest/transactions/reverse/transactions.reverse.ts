@@ -78,7 +78,7 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
 
 function getReverseForLightrailTransactionStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: LightrailTransactionStep, value: Value): LightrailTransactionPlanStep {
     if (!value) {
-        throw new Error(`No value found with id ${step.valueId} and user ${auth.userId}. This is a serious problem since step ${JSON.stringify(step)} claims one exists.`)
+        throw new Error(`No value found with id ${step.valueId} and user ${auth.userId}. This is a serious problem since step ${JSON.stringify(step)} claims one exists.`);
     }
     return {
         rail: "lightrail",
@@ -116,7 +116,7 @@ function invertNumbers<T extends object>(t: T): T {
         if (typeof res[key] === "number") {
             res[key] = -res[key] as any;
         } else if (res[key] && typeof res[key] === "object") {
-            res[key] = invertNumbers(res[key] as any) as any
+            res[key] = invertNumbers(res[key] as any) as any;
         }
     }
     return res;

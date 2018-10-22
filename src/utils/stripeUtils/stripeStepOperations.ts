@@ -19,7 +19,7 @@ import log = require("loglevel");
 import IRefund = Stripe.refunds.IRefund;
 import ICharge = Stripe.charges.ICharge;
 
-export async function processStripeSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, stripeConfig: LightrailAndMerchantStripeConfig, plan: TransactionPlan): Promise<void> {
+export async function chargeStripeSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, stripeConfig: LightrailAndMerchantStripeConfig, plan: TransactionPlan): Promise<void> {
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
     try {
         for (let step of stripeSteps) {

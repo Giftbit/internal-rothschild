@@ -17,7 +17,7 @@ import {
     insertStripeTransactionSteps,
     insertTransaction
 } from "./insertTransactions";
-import {processStripeSteps, rollbackStripeChargeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
+import {chargeStripeSteps, rollbackStripeChargeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
 import {StripeRestError} from "../../../utils/stripeUtils/StripeRestError";
 import log = require("loglevel");
 
@@ -31,7 +31,6 @@ export interface ExecuteTransactionPlannerOptions {
  * but can be replanned then the planner will be called again.
  */
 export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ExecuteTransactionPlannerOptions, planner: () => Promise<TransactionPlan>): Promise<Transaction> {
-    let i = 0;
     while (true) {
         try {
             const plan = await planner();
@@ -77,7 +76,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         try {
             if (stripeSteps.length > 0) {
                 stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
-                await processStripeSteps(auth, stripeConfig, plan);
+                await chargeStripeSteps(auth, stripeConfig, plan);
             }
             await insertStripeTransactionSteps(auth, trx, plan);
             await insertLightrailTransactionSteps(auth, trx, plan);

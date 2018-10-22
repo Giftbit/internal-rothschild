@@ -135,7 +135,6 @@ describe("/v2/transactions/reverse - checkout", () => {
             id: generateId()
         };
         const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.id}/reverse`, "POST", reverse);
-        console.log(JSON.stringify(postReverse));
         chai.assert.equal(postReverse.statusCode, 201);
         verifyCheckoutReverseTotals(postCheckout.body, postReverse.body);
         chai.assert.isDefined(postReverse.body.steps.find(step => step.rail === "internal" && step.balanceChange === 1));
