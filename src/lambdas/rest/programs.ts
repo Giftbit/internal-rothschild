@@ -13,6 +13,7 @@ import {
 } from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import log = require("loglevel");
+import {checkRulesSyntax} from "./values";
 
 export function installProgramsRest(router: cassava.Router): void {
     router.route("/v2/programs")
@@ -202,12 +203,6 @@ async function createProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pro
     }
 }
 
-function checkProgramProperties(program: Program): void {
-    if (program.minInitialBalance && program.maxInitialBalance && program.minInitialBalance > program.maxInitialBalance) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Program's minInitialBalance cannot exceed maxInitialBalance.");
-    }
-}
-
 export async function getProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Program> {
     auth.requireIds("userId");
 
@@ -227,25 +222,47 @@ export async function getProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
     return DbProgram.toProgram(res[0]);
 }
 
-async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, program: Partial<Program>): Promise<Program> {
+async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, programUpdates: Partial<Program>): Promise<Program> {
     auth.requireIds("userId");
 
     const knex = await getKnexWrite();
-    const res = await knex("Programs")
-        .where({
-            userId: auth.userId,
-            id: id
-        })
-        .update(Program.toDbProgramUpdate(auth, program));
-    if (res === 0) {
-        throw new cassava.RestError(404);
-    }
-    if (res > 1) {
-        throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
-    }
-    return {
-        ...await getProgram(auth, id)
-    };
+    return await knex.transaction(async trx => {
+        // Get the master version of the Program and lock it.
+        const selectProgramRes: DbProgram[] = await trx("Programs")
+            .select()
+            .where({
+                userId: auth.userId,
+                id: id
+            })
+            .forUpdate();
+        if (selectProgramRes.length === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (selectProgramRes.length > 1) {
+            throw new Error(`Illegal SELECT query.  Returned ${selectProgramRes.length} values.`);
+        }
+        const existingProgram = DbProgram.toProgram(selectProgramRes[0]);
+        const updatedProgram = {
+            ...existingProgram,
+            ...programUpdates
+        };
+
+        checkProgramProperties(updatedProgram);
+
+        const patchRes = await trx("Programs")
+            .where({
+                userId: auth.userId,
+                id: id
+            })
+            .update(Program.toDbProgramUpdate(auth, programUpdates));
+        if (patchRes === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (patchRes > 1) {
+            throw new Error(`Illegal UPDATE query.  Updated ${patchRes.length} values.`);
+        }
+        return updatedProgram;
+    });
 }
 
 
@@ -266,6 +283,14 @@ async function deleteProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
         throw new Error(`Illegal DELETE query.  Deleted ${res.length} values.`);
     }
     return {success: true};
+}
+
+function checkProgramProperties(program: Program): void {
+    if (program.minInitialBalance != null && program.maxInitialBalance != null && program.minInitialBalance > program.maxInitialBalance) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Program's minInitialBalance cannot exceed maxInitialBalance.");
+    }
+
+    checkRulesSyntax(program, "Program");
 }
 
 /**

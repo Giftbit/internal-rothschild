@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
-import {DbValue, formatCodeForLastFourDisplay, Value} from "../../model/Value";
+import {DbValue, formatCodeForLastFourDisplay, Rule, Value} from "../../model/Value";
 import {pick, pickOrDefault} from "../../utils/pick";
 import {csvSerializer} from "../../serializers";
 import {
@@ -25,6 +25,7 @@ import {Currency, formatAmountForCurrencyDisplay} from "../../model/Currency";
 import {getCurrency} from "./currencies";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
+import {getRuleFromCache} from "./transactions/getRuleFromCache";
 
 export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
@@ -404,26 +405,48 @@ export async function getValueByCode(auth: giftbitRoutes.jwtauth.AuthorizationBa
     return DbValue.toValue(res[0], showCode);
 }
 
-async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, value: Partial<Value>): Promise<Value> {
+async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, valueUpdates: Partial<Value>): Promise<Value> {
     auth.requireIds("userId");
 
-    const dbValue = Value.toDbValueUpdate(auth, value);
     const knex = await getKnexWrite();
-    const res: number = await knex("Values")
-        .where({
-            userId: auth.userId,
-            id: id
-        })
-        .update(dbValue);
-    if (res === 0) {
-        throw new cassava.RestError(404);
-    }
-    if (res > 1) {
-        throw new Error(`Illegal UPDATE query.  Updated ${res} values.`);
-    }
-    return {
-        ...await getValue(auth, id)
-    };
+    return await knex.transaction(async trx => {
+        // Get the master version of the Value and lock it.
+        const selectValueRes: DbValue[] = await trx("Values").select()
+            .where({
+                userId: auth.userId,
+                id: id
+            })
+            .forUpdate();
+        if (selectValueRes.length === 0) {
+            throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${id}' not found.`, "ValueNotFound");
+        }
+        if (selectValueRes.length > 1) {
+            throw new Error(`Illegal SELECT query.  Returned ${selectValueRes.length} values.`);
+        }
+        const existingValue = DbValue.toValue(selectValueRes[0]);
+        const updatedValue = {
+            ...existingValue,
+            ...valueUpdates
+        };
+
+        checkValueProperties(updatedValue);
+
+        const dbValue = Value.toDbValueUpdate(auth, valueUpdates);
+        const updateRes: number = await trx("Values")
+            .where({
+                userId: auth.userId,
+                id: id
+            })
+            .update(dbValue);
+        if (updateRes === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (updateRes > 1) {
+            throw new Error(`Illegal UPDATE query.  Updated ${updateRes} values.`);
+        }
+
+        return updatedValue;
+    });
 }
 
 async function updateDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, value: Partial<DbValue>): Promise<Value> {
@@ -591,6 +614,33 @@ function checkValueProperties(value: Value, program: Program = null): void {
     if (!value.currency) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Property currency cannot be null. Please provide a currency or a programId.");
     }
+
+    checkRulesSyntax(value, "Value");
+}
+
+export function checkRulesSyntax(holder: { redemptionRule?: Rule, balanceRule?: Rule }, holderType: "Value" | "Program"): void {
+    if (holder.balanceRule) {
+        const rule = getRuleFromCache(holder.balanceRule.rule);
+        if (rule.compileError) {
+            throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `${holderType} balanceRule has a syntax error.`, {
+                messageCode: "BalanceRuleSyntaxError",
+                syntaxErrorMessage: rule.compileError.msg,
+                row: rule.compileError.row,
+                column: rule.compileError.column
+            });
+        }
+    }
+    if (holder.redemptionRule) {
+        const rule = getRuleFromCache(holder.redemptionRule.rule);
+        if (rule.compileError) {
+            throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `${holderType} redemptionRule has a syntax error.`, {
+                messageCode: "RedemptionRuleSyntaxError",
+                syntaxErrorMessage: rule.compileError.msg,
+                row: rule.compileError.row,
+                column: rule.compileError.column
+            });
+        }
+    }
 }
 
 function checkProgramConstraints(value: Value, program: Program): void {
@@ -619,7 +669,7 @@ export function checkCodeParameters(generateCode: GenerateCodeParameters, code: 
     }
 }
 
-type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>
+type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
 export type StringBalanceValue = Omit<Value, "balance"> & { balance: string | number };
 
 async function formatValueForCurrencyDisplay(auth: giftbitRoutes.jwtauth.AuthorizationBadge, values: Value[]): Promise<StringBalanceValue[]> {
@@ -631,7 +681,7 @@ async function formatValueForCurrencyDisplay(auth: giftbitRoutes.jwtauth.Authori
         }
         formattedValues.push({
             ...value,
-            balance: value.balance != undefined ? formatAmountForCurrencyDisplay(value.balance, retrievedCurrencies[value.currency]) : value.balance
+            balance: value.balance != null ? formatAmountForCurrencyDisplay(value.balance, retrievedCurrencies[value.currency]) : value.balance
         });
     }
     return formattedValues;

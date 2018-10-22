@@ -192,26 +192,45 @@ export async function getContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
     return DbContact.toContact(res[0]);
 }
 
-export async function updateContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, contact: Partial<Contact>): Promise<Contact> {
+export async function updateContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, contactUpdates: Partial<Contact>): Promise<Contact> {
     auth.requireIds("userId");
 
     const knex = await getKnexWrite();
-    const res: number = await knex("Contacts")
-        .where({
-            userId: auth.userId,
-            id: id
-        })
-        .update(Contact.toDbContactUpdate(contact));
-    if (res === 0) {
-        throw new cassava.RestError(404);
-    }
-    if (res > 1) {
-        throw new Error(`Illegal UPDATE query.  Updated ${res} values.`);
-    }
-    return {
-        ...await getContact(auth, id),
-        ...contact
-    };
+    return await knex.transaction(async trx => {
+        // Get the master version of the Contact and lock it.
+        const selectContactRes: DbContact[] = await trx("Contacts")
+            .select()
+            .where({
+                userId: auth.userId,
+                id: id
+            })
+            .forUpdate();
+        if (selectContactRes.length === 0) {
+            throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${id}' not found.`, "ContactNotFound");
+        }
+        if (selectContactRes.length > 1) {
+            throw new Error(`Illegal SELECT query.  Returned ${selectContactRes.length} values.`);
+        }
+        const existingContact = DbContact.toContact(selectContactRes[0]);
+        const updatedContact = {
+            ...existingContact,
+            ...contactUpdates
+        };
+
+        const patchRes: number = await trx("Contacts")
+            .where({
+                userId: auth.userId,
+                id: id
+            })
+            .update(Contact.toDbContactUpdate(contactUpdates));
+        if (patchRes === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (patchRes > 1) {
+            throw new Error(`Illegal UPDATE query.  Updated ${patchRes} values.`);
+        }
+        return updatedContact;
+    });
 }
 
 export async function deleteContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<{ success: true }> {
