@@ -222,6 +222,7 @@ export async function getDbTransaction(auth: giftbitRoutes.jwtauth.Authorization
 }
 
 export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Transaction> {
+    auth.requireIds("userId");
     const dbTransaction = await getDbTransaction(auth, id);
 
     const transactions: Transaction[] = await DbTransaction.toTransactions([dbTransaction], auth.userId);
