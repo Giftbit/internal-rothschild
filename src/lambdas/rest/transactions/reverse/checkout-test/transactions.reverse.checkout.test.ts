@@ -24,7 +24,7 @@ import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe("/v2/transactions/reverse", () => {
+describe("/v2/transactions/reverse - checkout", () => {
 
     const router = new cassava.Router();
     const sinonSandbox = sinon.createSandbox();
@@ -135,7 +135,8 @@ describe("/v2/transactions/reverse", () => {
             id: generateId()
         };
         const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.id}/reverse`, "POST", reverse);
-        chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
+        console.log(JSON.stringify(postReverse));
+        chai.assert.equal(postReverse.statusCode, 201);
         verifyCheckoutReverseTotals(postCheckout.body, postReverse.body);
         chai.assert.isDefined(postReverse.body.steps.find(step => step.rail === "internal" && step.balanceChange === 1));
         chai.assert.isDefined(postReverse.body.steps.find(step => step.rail === "lightrail" && step.balanceChange === 100));

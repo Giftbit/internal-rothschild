@@ -187,7 +187,7 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
                     type: "string",
                     operators: ["eq", "in"]
                 },
-                "rootTransactionId": {
+                "rootTransactionId": { // only used internally for looking up transaction chain and not exposed publicly
                     type: "string",
                     operators: ["eq", "in"]
                 }
