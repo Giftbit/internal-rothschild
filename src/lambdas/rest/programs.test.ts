@@ -7,6 +7,7 @@ import {installRestRoutes} from "./installRestRoutes";
 import {createCurrency} from "./currencies";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
 import chaiExclude = require("chai-exclude");
+import {Value} from "../../model/Value";
 
 chai.use(chaiExclude);
 
@@ -387,5 +388,77 @@ describe("/v2/programs", () => {
         chai.assert.isString(patchResp.body.syntaxErrorMessage);
         chai.assert.isNumber(patchResp.body.row);
         chai.assert.isNumber(patchResp.body.column);
+    });
+
+    it.only("fetches program stats", async () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            name: generateId(),
+            currency: "USD",
+            minInitialBalance: 1
+        };
+        const progResp = await testUtils.testAuthedRequest<any>(router, "/v2/programs", "POST", program);
+        chai.assert.equal(progResp.statusCode, 201, JSON.stringify(progResp.body));
+
+        const values: Partial<Value>[] = [
+            // outstanding
+            {
+                id: generateId(),
+                programId: program.id,
+                balance: 1
+            },
+            {
+                id: generateId(),
+                programId: program.id,
+                balance: 3
+            },
+            // expired
+            {
+                id: generateId(),
+                programId: program.id,
+                balance: 100,
+                endDate: new Date("2011-11-11")
+            },
+            // canceled
+            {
+                id: generateId(),
+                programId: program.id,
+                balance: 10000,
+                canceled: true
+            },
+            {
+                id: generateId(),
+                programId: program.id,
+                balance: 30000,
+                canceled: true,
+                endDate: new Date("2011-11-11") // still canceled
+            },
+        ];
+        for (const value of values) {
+            const valueResp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", {
+                ...value,
+                canceled: undefined
+            });
+            chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
+
+            if (value.canceled) {
+                const patchResp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.id}`, "PATCH", {
+                    canceled: true
+                });
+                chai.assert.equal(patchResp.statusCode, 200, JSON.stringify(patchResp.body));
+            }
+        }
+
+        const statsResp = await testUtils.testAuthedRequest<Program & { stats: any }>(router, `/v2/programs/${program.id}?stats=true`, "GET");
+        chai.assert.equal(statsResp.statusCode, 200, JSON.stringify(statsResp.body));
+
+        chai.assert.equal(statsResp.body.stats.outstanding.balance, 4);
+        chai.assert.equal(statsResp.body.stats.outstanding.count, 2);
+
+        chai.assert.equal(statsResp.body.stats.expired.balance, 100);
+        chai.assert.equal(statsResp.body.stats.expired.count, 1);
+
+        chai.assert.equal(statsResp.body.stats.canceled.balance, 40000);
+        chai.assert.equal(statsResp.body.stats.canceled.count, 2);
     });
 });

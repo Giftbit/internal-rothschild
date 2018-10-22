@@ -307,16 +307,49 @@ export async function injectProgramStats(auth: giftbitRoutes.jwtauth.Authorizati
             "programId": program.id
         })
         .select({
-            sumBalance: "SUM(balance)",
-            count: "COUNT(*)",
             canceled: "canceled",
-            expired: knex.raw("endDate = NULL OR endDate < ?", [now]),
             active: "active"
+        })
+        .select(knex.raw("endDate = NULL OR endDate < ? AS expired", [now]))
+        .sum({
+            sumBalance: "balance"
+        })
+        .count({
+            count: "*"
         })
         .groupBy("canceled", "expired", "active");
 
+    const stats = {
+        outstanding: {
+            balance: 0,
+            count: 0
+        },
+        canceled: {
+            balance: 0,
+            count: 0
+        },
+        expired: {
+            balance: 0,
+            count: 0
+        }
+    };
+
     console.log("res=", res);
-    // TODO inject so much test data to test this properly
+
+    for (const resLine of res) {
+        if (resLine.canceled) {
+            stats.canceled.balance += +resLine.sumBalance;  // for some reason SUM() comes back as a string
+            stats.canceled.count += resLine.count;
+        } else if (resLine.expired) {
+            stats.expired.balance += +resLine.sumBalance;
+            stats.expired.count += resLine.count;
+        } else if (resLine.active) {
+            stats.outstanding.balance += +resLine.sumBalance;
+            stats.outstanding.count += resLine.count;
+        }
+    }
+
+    (program as any).stats = stats;
 }
 
 const programSchema: jsonschema.Schema = {
