@@ -5,7 +5,6 @@ import * as valueStores from "../../values";
 import * as currencies from "../../currencies";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as sinon from "sinon";
-import log = require("loglevel");
 import {Value} from "../../../../model/Value";
 import {StripeTransactionStep, Transaction} from "../../../../model/Transaction";
 import {Currency} from "../../../../model/Currency";
@@ -18,12 +17,13 @@ import {after} from "mocha";
 import * as stripeTransactions from "../../../../utils/stripeUtils/stripeTransactions";
 import {
     setStubsForStripeTests,
-    stripeEnvVarsPresent,
+    stripeTestConfig,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
 import {StripeRestError} from "../../../../utils/stripeUtils/StripeRestError";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
+import log = require("loglevel");
 import chaiExclude = require("chai-exclude");
 import Stripe = require("stripe");
 import ICharge = Stripe.charges.ICharge;
@@ -64,11 +64,6 @@ describe("split tender checkout with Stripe", () => {
     };
 
     before(async function () {
-        if (!stripeEnvVarsPresent() && testStripeLive()) {
-            this.skip();
-            return;
-        }
-
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         transactions.installTransactionsRest(router);
@@ -197,7 +192,7 @@ describe("split tender checkout with Stripe", () => {
             "transfer_group": null
         };
         if (!testStripeLive()) {
-            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+            sinonSandbox.stub(stripeTransactions, "createCharge")
                 .withArgs(sinon.match({
                     "amount": 123,
                     "currency": request.currency,
@@ -270,7 +265,7 @@ describe("split tender checkout with Stripe", () => {
             sources: [
                 {
                     rail: "stripe",
-                    customer: process.env["STRIPE_CUSTOMER_ID"]
+                    customer: stripeTestConfig.customer.id
                 }
             ],
             lineItems: [
@@ -361,7 +356,7 @@ describe("split tender checkout with Stripe", () => {
             "transfer_group": null
         };
         if (!testStripeLive()) {
-            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+            sinonSandbox.stub(stripeTransactions, "createCharge")
                 .withArgs(sinon.match({
                     "amount": 123,
                     "currency": request.currency,
@@ -415,7 +410,7 @@ describe("split tender checkout with Stripe", () => {
         ], ["chargeId", "charge"], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
         chai.assert.deepEqual(postCheckoutResp.body.paymentSources[0], {
             rail: "stripe",
-            customer: process.env["STRIPE_CUSTOMER_ID"],
+            customer: stripeTestConfig.customer.id,
         }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
 
         if (!testStripeLive()) {
@@ -426,7 +421,7 @@ describe("split tender checkout with Stripe", () => {
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["statusCode"], `body=${JSON.stringify(getCheckoutResp.body, null, 4)}`);
-    });
+    }).timeout(10000);
 
     it("checkout with multiple payment sources that result in multiple permutations should not over calculate the stripe charge amount", async () => {
         const promoA: Partial<Value> = {
@@ -563,7 +558,7 @@ describe("split tender checkout with Stripe", () => {
             "transfer_group": null
         };
         if (!testStripeLive()) {
-            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+            sinonSandbox.stub(stripeTransactions, "createCharge")
                 .withArgs(sinon.match({
                     "amount": 400,
                     "currency": basicRequest.currency,
@@ -647,11 +642,11 @@ describe("split tender checkout with Stripe", () => {
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${basicRequest.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["statusCode"], `body=${JSON.stringify(getCheckoutResp.body, null, 4)}`);
-    }).timeout(3000);
+    }).timeout(10000);
 
     it("does not charge Stripe when Lightrail value is sufficient", async () => {
         if (!testStripeLive()) {
-            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+            sinonSandbox.stub(stripeTransactions, "createCharge")
                 .rejects(new Error("The Stripe stub should never be called in this test"));
         }
 
@@ -760,10 +755,10 @@ describe("split tender checkout with Stripe", () => {
 
         const lrCheckoutTransaction = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${basicRequest.id}`, "GET");  // created in first split tender test
 
-        const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
+        const lightrailStripe = require("stripe")(stripeTestConfig.secretKey);
         const stripeChargeId = (lrCheckoutTransaction.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).charge.id;
         const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-            stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
+            stripe_account: stripeTestConfig.stripeUserId
         });
 
         chai.assert.deepEqual(stripeCharge.metadata, {
@@ -872,7 +867,7 @@ describe("split tender checkout with Stripe", () => {
         };
 
         if (!testStripeLive()) {
-            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+            sinonSandbox.stub(stripeTransactions, "createCharge")
                 .withArgs(sinon.match({
                     "amount": 500,
                     "currency": request.currency,
@@ -915,14 +910,14 @@ describe("split tender checkout with Stripe", () => {
         }
 
         if (testStripeLive()) {
-            const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
+            const lightrailStripe = require("stripe")(stripeTestConfig.secretKey);
             const stripeChargeId = (postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId;
             const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
+                stripe_account: stripeTestConfig.stripeUserId
             });
             chai.assert.deepEqual(stripeCharge.metadata, stripeStep.charge.metadata);
         }
-    }).timeout(3000);
+    }).timeout(10000);
 
     it("passes additionalStripeParams to Stripe", async () => {
         // This cannot be tested live with a dummy value.
@@ -1032,7 +1027,7 @@ describe("split tender checkout with Stripe", () => {
         };
 
         if (!testStripeLive()) {
-            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+            sinonSandbox.stub(stripeTransactions, "createCharge")
                 .withArgs(sinon.match({
                     amount: 500,
                     currency: request.currency,
@@ -1052,26 +1047,22 @@ describe("split tender checkout with Stripe", () => {
         const stripeStep = postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep;
         chai.assert.isObject(stripeStep, "found stripe step");
         chai.assert.equal(stripeStep.charge.description, "eee");
-        chai.assert.equal(stripeStep.charge.on_behalf_of, onBehalfOf);
-        chai.assert.equal(stripeStep.charge.receipt_email, "bbb@example.com");
-        chai.assert.equal(stripeStep.charge.statement_descriptor, "ccc");
-        chai.assert.equal(stripeStep.charge.transfer_group, "ddd");
+        chai.assert.equal((stripeStep.charge as ICharge).on_behalf_of, onBehalfOf);
+        chai.assert.equal((stripeStep.charge as ICharge).receipt_email, "bbb@example.com");
+        chai.assert.equal((stripeStep.charge as ICharge).statement_descriptor, "ccc");
+        chai.assert.equal((stripeStep.charge as ICharge).transfer_group, "ddd");
 
         if (testStripeLive()) {
-            const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
+            const lightrailStripe = require("stripe")(stripeTestConfig.secretKey);
             const stripeChargeId = (postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId;
             const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
+                stripe_account: stripeTestConfig.stripeUserId
             });
             chai.assert.deepEqual(stripeCharge.metadata, stripeStep.charge.metadata);
         }
-    }).timeout(3000);
+    }).timeout(10000);
 
     it("does not charge Stripe when 'simulate: true'", async () => {
-        if (testStripeLive()) {
-            unsetStubsForStripeTests();
-        }
-
         const valueForSimulate: Partial<Value> = {
             id: "value-for-checkout-simulation",
             currency: "CAD",
@@ -1160,19 +1151,18 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.equal(getCheckoutResp.statusCode, 404, "the transaction was not actually created");
 
         if (testStripeLive()) {
-            setStubsForStripeTests();
             chai.assert.deepEqual(await giftbitRoutes.secureConfig.fetchFromS3ByEnvVar("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE"), {
                 email: "test@test.com",
                 test: {
                     clientId: "test-client-id",
-                    secretKey: process.env["STRIPE_PLATFORM_KEY"],
+                    secretKey: stripeTestConfig.secretKey,
                     publishableKey: "test-pk",
                 },
                 live: {},
             });
             chai.assert.deepEqual(await kvsAccess.kvsGet("this-is-an-assume-token", "stripeAuth", ""), {
                 token_type: "bearer",
-                stripe_user_id: process.env["STRIPE_CONNECTED_ACCOUNT_ID"],
+                stripe_user_id: stripeTestConfig.stripeUserId,
             });
         }
     });
@@ -1182,17 +1172,10 @@ describe("split tender checkout with Stripe", () => {
     it.skip("captures Lightrail and Stripe charges together");
 
     describe("rollback", () => {
-        before(function () {
-            if (!stripeEnvVarsPresent() && testStripeLive()) {
-                this.skip();
-                return;
-            }
-        });
-
         it("passes on the Stripe error", async () => {
             const request = {
                 ...basicRequest,
-                id: "bad-idempotent-key"
+                id: "bad_idempotent_key"
             };
 
             if (testStripeLive()) {
@@ -1201,19 +1184,19 @@ describe("split tender checkout with Stripe", () => {
                     currency: "CAD",
                     source: "tok_visa"
                 };
-                const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
+                const lightrailStripe = require("stripe")(stripeTestConfig.secretKey);
                 await lightrailStripe.charges.create(stripeChargeRequest, {
-                    stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"],
-                    idempotency_key: "bad-idempotent-key-0"
+                    stripe_account: stripeTestConfig.stripeUserId,
+                    idempotency_key: "bad_idempotent_key-0"
                 });
             } else {
                 const exampleStripeError = {
                     "type": "StripeIdempotencyError",
-                    "stack": "Error: Keys for idempotent requests can only be used with the same parameters they were first used with. Try using a key other than 'bad-idempotent-key-0' if you meant to execute a different request.\n    at Constructor._Error (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/Error.js:12:17)\n    at Constructor (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/utils.js:124:13)\n    at Constructor (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/utils.js:124:13)\n    at Function.StripeError.generate (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/Error.js:61:12)\n    at IncomingMessage.<anonymous> (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/StripeResource.js:170:39)\n    at emitNone (events.js:110:20)\n    at IncomingMessage.emit (events.js:207:7)\n    at endReadableNT (_stream_readable.js:1059:12)\n    at _combinedTickCallback (internal/process/next_tick.js:138:11)\n    at process._tickDomainCallback (internal/process/next_tick.js:218:9)",
+                    "stack": "Error: Keys for idempotent requests can only be used with the same parameters they were first used with. Try using a key other than 'bad_idempotent_key-0' if you meant to execute a different request.\n    at Constructor._Error (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/Error.js:12:17)\n    at Constructor (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/utils.js:124:13)\n    at Constructor (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/utils.js:124:13)\n    at Function.StripeError.generate (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/Error.js:61:12)\n    at IncomingMessage.<anonymous> (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/StripeResource.js:170:39)\n    at emitNone (events.js:110:20)\n    at IncomingMessage.emit (events.js:207:7)\n    at endReadableNT (_stream_readable.js:1059:12)\n    at _combinedTickCallback (internal/process/next_tick.js:138:11)\n    at process._tickDomainCallback (internal/process/next_tick.js:218:9)",
                     "rawType": "idempotency_error",
-                    "message": "Keys for idempotent requests can only be used with the same parameters they were first used with. Try using a key other than 'bad-idempotent-key-0' if you meant to execute a different request.",
+                    "message": "Keys for idempotent requests can only be used with the same parameters they were first used with. Try using a key other than 'bad_idempotent_key-0' if you meant to execute a different request.",
                     "raw": {
-                        "message": "Keys for idempotent requests can only be used with the same parameters they were first used with. Try using a key other than 'bad-idempotent-key-0' if you meant to execute a different request.",
+                        "message": "Keys for idempotent requests can only be used with the same parameters they were first used with. Try using a key other than 'bad_idempotent_key-0' if you meant to execute a different request.",
                         "type": "idempotency_error",
                         "headers": {
                             "server": "nginx",
@@ -1227,7 +1210,7 @@ describe("split tender checkout with Stripe", () => {
                             "access-control-expose-headers": "Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required",
                             "access-control-max-age": "300",
                             "cache-control": "no-cache, no-store",
-                            "idempotency-key": "bad-idempotent-key-0",
+                            "idempotency-key": "bad_idempotent_key-0",
                             "request-id": "req_pKaP2QTnOweLxJ",
                             "stripe-account": "acct_1CfBBRG3cz9DRdBt",
                             "stripe-version": "2018-05-21",
@@ -1248,7 +1231,7 @@ describe("split tender checkout with Stripe", () => {
                         "access-control-expose-headers": "Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required",
                         "access-control-max-age": "300",
                         "cache-control": "no-cache, no-store",
-                        "idempotency-key": "bad-idempotent-key-0",
+                        "idempotency-key": "bad_idempotent_key-0",
                         "request-id": "req_pKaP2QTnOweLxJ",
                         "stripe-account": "acct_1CfBBRG3cz9DRdBt",
                         "stripe-version": "2018-05-21",
@@ -1259,7 +1242,7 @@ describe("split tender checkout with Stripe", () => {
                 };
                 const exampleErrorResponse = new StripeRestError(409, "Error for tests", null, exampleStripeError);
 
-                sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                sinonSandbox.stub(stripeTransactions, "createCharge")
                     .withArgs(
                         sinon.match.has("metadata", sinon.match.has("lightrailTransactionId", request.id)),
                         sinon.match("test"),
@@ -1270,11 +1253,11 @@ describe("split tender checkout with Stripe", () => {
 
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
             chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
-        }).timeout(4000);
+        }).timeout(10000);
 
         it("does not charge Stripe when the Lightrail parent transaction fails", async () => {
             if (!testStripeLive()) {
-                sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                sinonSandbox.stub(stripeTransactions, "createCharge")
                     .rejects(new Error("The Stripe stub should never be called in this test"));
             }
 
@@ -1290,7 +1273,7 @@ describe("split tender checkout with Stripe", () => {
             };
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
             chai.assert.equal(postCheckoutResp.statusCode, 500, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
-        }).timeout(3500);
+        }).timeout(10000);
 
         it("rolls back the Stripe transaction when the Lightrail transaction steps fail", async () => {
             const value4: Partial<Value> = {
@@ -1416,7 +1399,7 @@ describe("split tender checkout with Stripe", () => {
             let stripeChargeStub: sinon.SinonStub;
             let stripeRefundStub: sinon.SinonStub;
             if (!testStripeLive()) {
-                stripeChargeStub = sinonSandbox.stub(stripeTransactions, "createStripeCharge");
+                stripeChargeStub = sinonSandbox.stub(stripeTransactions, "createCharge");
                 stripeChargeStub.withArgs(sinon.match({
                     "amount": 400,
                     "currency": request.currency,
@@ -1466,21 +1449,16 @@ describe("split tender checkout with Stripe", () => {
                     "source": "tok_visa"
                 });
                 chai.assert.deepEqual(stripeRefundStub.getCall(0).args[0], {
-                    "rail": "stripe",
-                    "additionalStripeParams": null,
-                    "idempotentStepId": `${request.id}-0`,
-                    "source": "tok_visa",
-                    "customer": null,
-                    "maxAmount": null,
-                    "amount": -400,
-                    "chargeResult": exampleStripeCharge
+                    "amount": 400,
+                    "chargeId": exampleStripeCharge.id,
+                    "reason": "Refunded due to error on the Lightrail side"
                 });
             }
-        }).timeout(4000);
+        }).timeout(10000);
 
         it("throws 409 'transaction already exists' if the Lightrail transaction fails for idempotency reasons", async () => {
             if (!testStripeLive()) {
-                sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                sinonSandbox.stub(stripeTransactions, "createCharge")
                     .rejects(new Error("The Stripe stub should never be called in this test"));
             }
 
@@ -1495,7 +1473,7 @@ describe("split tender checkout with Stripe", () => {
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
             chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
             chai.assert.equal((postCheckoutResp.body as any).messageCode, "TransactionExists", `messageCode=${(postCheckoutResp.body as any).messageCode}`);
-        }).timeout(3000);
+        }).timeout(10000);
 
         it("handles idempotency errors: fails the repeated transaction but doesn't roll back the original Stripe charge", async function () {
             if (!testStripeLive()) {
@@ -1529,10 +1507,10 @@ describe("split tender checkout with Stripe", () => {
             chai.assert.equal(postCheckoutResp2.statusCode, 409, `body=${JSON.stringify(postCheckoutResp2.body)}`);
 
             // get the stripe charge and make sure that it hasn't been refunded
-            const lightrailStripe = require("stripe")(process.env["STRIPE_PLATFORM_KEY"]);
+            const lightrailStripe = require("stripe")(stripeTestConfig.secretKey);
             const stripeChargeId = (postCheckoutResp.body.steps.find(steps => steps.rail === "stripe") as StripeTransactionStep).charge.id;
             const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
+                stripe_account: stripeTestConfig.stripeUserId
             });
             chai.assert.equal(stripeCharge.refunded, false, `stripeCharge first GET: check 'refunded': ${JSON.stringify(stripeCharge)}`);
             chai.assert.equal(stripeCharge.amount_refunded, 0, `stripeCharge first GET: check 'amount_refunded': ${JSON.stringify(stripeCharge)}`);
@@ -1543,11 +1521,11 @@ describe("split tender checkout with Stripe", () => {
 
             // make sure the original stripe charge still hasn't been affected
             const stripeCharge2 = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                stripe_account: process.env["STRIPE_CONNECTED_ACCOUNT_ID"]
+                stripe_account: stripeTestConfig.stripeUserId
             });
             chai.assert.equal(stripeCharge2.refunded, 0, `stripeCharge second GET: check 'refunded': ${JSON.stringify(stripeCharge)}`);
             chai.assert.equal(stripeCharge2.amount_refunded, false, `stripeCharge second GET: check 'amount_refunded': ${JSON.stringify(stripeCharge)}`);
-        }).timeout(4000);
+        }).timeout(10000);
     });
 
     it("processes split tender checkout with two Stripe sources", async () => {
@@ -1709,7 +1687,7 @@ describe("split tender checkout with Stripe", () => {
         };
         let stripeStub: sinon.SinonStub;
         if (!testStripeLive()) {
-            stripeStub = sinonSandbox.stub(stripeTransactions, "createStripeCharge");
+            stripeStub = sinonSandbox.stub(stripeTransactions, "createCharge");
             stripeStub.onFirstCall().resolves(exampleStripeResponse1);
             stripeStub.onSecondCall().resolves(exampleStripeResponse2);
         }
@@ -1856,16 +1834,9 @@ describe("split tender checkout with Stripe", () => {
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["statusCode"], `body=${JSON.stringify(getCheckoutResp.body, null, 4)}`);
-    }).timeout(3000);
+    }).timeout(10000);
 
     describe("respects Stripe minimum charge of $0.50", () => {
-        before(function () {
-            if (!stripeEnvVarsPresent()) {
-                this.skip();
-                return;
-            }
-        });
-
         it("fails the transaction by default", async () => {
             const value3: Partial<Value> = {
                 id: "value-for-checkout3",
@@ -1953,7 +1924,7 @@ describe("split tender checkout with Stripe", () => {
             };
             const exampleErrorResponse = new StripeRestError(422, "Error for tests", null, exampleStripeError);
             if (!testStripeLive()) {
-                sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+                sinonSandbox.stub(stripeTransactions, "createCharge")
                     .withArgs(sinon.match.has("amount", 25), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`))
                     .rejects(exampleErrorResponse);
             }
@@ -1996,43 +1967,6 @@ describe("split tender checkout with Stripe", () => {
 
     if (testStripeLive()) {
         describe("stripe customer + source tests", () => {
-            before(async function () {
-                unsetStubsForStripeTests();
-
-                const testAssumeToken: giftbitRoutes.secureConfig.AssumeScopeToken = {
-                    assumeToken: "this-is-an-assume-token"
-                };
-
-                let stubFetchFromS3ByEnvVar = sinonSandbox.stub(giftbitRoutes.secureConfig, "fetchFromS3ByEnvVar");
-                stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH").resolves(testAssumeToken);
-                stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE").resolves({
-                    email: "test@test.com",
-                    test: {
-                        clientId: "test-client-id",
-                        secretKey: "sk_test_Fwb3uGyZsIb9eJ5ZQchNH5Em", // specific stripe api key for test. stripe user: integrationtesting+merchant@giftbit.com
-                        publishableKey: "test-pk",
-                    },
-                    live: {}
-                });
-
-                sinonSandbox.stub(kvsAccess, "kvsGet")
-                    .withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string)
-                    .resolves({
-                        token_type: "bearer",
-                        stripe_user_id: "acct_1BOVE6CM9MOvFvZK", // specific stripe account id for test. stripe user: integrationtesting+merchant@giftbit.com
-                    });
-            });
-
-            after(async function () {
-                if ((giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as any).displayName === "fetchFromS3ByEnvVar") {
-                    (giftbitRoutes.secureConfig.fetchFromS3ByEnvVar as sinon.SinonStub).restore();
-                }
-
-                if ((kvsAccess.kvsGet as any).displayName === "kvsGet") {
-                    (kvsAccess.kvsGet as sinon.SinonStub).restore();
-                }
-            });
-
             it("can charge a customer's default card", async () => {
                 const request: CheckoutRequest = {
                     id: generateId(),
@@ -2057,7 +1991,7 @@ describe("split tender checkout with Stripe", () => {
                 chai.assert.equal(checkout.statusCode, 201);
                 chai.assert.equal(checkout.body.steps[0]["amount"], -500);
                 chai.assert.equal(checkout.body.steps[0]["charge"]["source"]["id"], "card_1C0GSUCM9MOvFvZK8VB29qaz", "This is the customer's (cus_CP4Zd1Dddy4cOH in integrationtesting+merchant@giftbit.com) default card in. It should have been automatically charged.");
-            }).timeout(3000);
+            }).timeout(10000);
 
             it("can charge a customer's non-default card", async () => {
                 const request: CheckoutRequest = {
@@ -2085,7 +2019,7 @@ describe("split tender checkout with Stripe", () => {
                 chai.assert.equal(checkout.statusCode, 201);
                 chai.assert.equal(checkout.body.steps[0]["amount"], -500);
                 chai.assert.equal(checkout.body.steps[0]["charge"]["source"]["id"], "card_1C0ZH9CM9MOvFvZKyZZc2X4Z");
-            }).timeout(3000);
+            }).timeout(10000);
         });
     }
 });

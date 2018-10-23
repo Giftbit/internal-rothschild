@@ -380,6 +380,8 @@ describe("/v2/values/", () => {
                 "metadata": null,
                 "tax": null,
                 "createdBy": testUtils.defaultTestUser.teamMemberId,
+                "nextTransactionId": null,
+                "rootTransactionId": value.id,
                 "totals_subtotal": null,
                 "totals_tax": null,
                 "totals_discountLightrail": null,

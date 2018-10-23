@@ -1,9 +1,9 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {DebitRequest} from "../../../model/TransactionRequest";
 import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
 import * as cassava from "cassava";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
+import {DebitRequest} from "../../../model/TransactionRequest";
 
 export async function createDebitTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: DebitRequest): Promise<TransactionPlan> {
     const steps = await resolveTransactionPlanSteps(auth, {
