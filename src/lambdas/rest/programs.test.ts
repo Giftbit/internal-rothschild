@@ -8,6 +8,8 @@ import {createCurrency} from "./currencies";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
 import chaiExclude = require("chai-exclude");
 import {Value} from "../../model/Value";
+import {Transaction} from "../../model/Transaction";
+import {CheckoutRequest, CreditRequest, DebitRequest} from "../../model/TransactionRequest";
 
 chai.use(chaiExclude);
 
@@ -401,25 +403,27 @@ describe("/v2/programs", () => {
         chai.assert.equal(progResp.statusCode, 201, JSON.stringify(progResp.body));
 
         const values: Partial<Value>[] = [
-            // outstanding
             {
                 id: generateId(),
                 programId: program.id,
-                balance: 1
+                balance: 10
             },
             {
                 id: generateId(),
                 programId: program.id,
-                balance: 3
+                balance: 10
             },
-            // expired
+            {
+                id: generateId(),
+                programId: program.id,
+                balance: 10
+            },
             {
                 id: generateId(),
                 programId: program.id,
                 balance: 100,
                 endDate: new Date("2011-11-11")
             },
-            // canceled
             {
                 id: generateId(),
                 programId: program.id,
@@ -449,16 +453,88 @@ describe("/v2/programs", () => {
             }
         }
 
+        const credits: Partial<CreditRequest>[] = [
+            {
+                id: generateId(),
+                destination: {
+                    rail: "lightrail",
+                    valueId: values[0].id
+                },
+                amount: 15,
+                currency: "USD"
+            }
+        ];
+        for (const credit of credits) {
+            const creditResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", credit);
+            chai.assert.equal(creditResp.statusCode, 201, JSON.stringify(creditResp.body));
+        }
+
+        const debits: Partial<DebitRequest>[] = [
+            {
+                id: generateId(),
+                source: {
+                    rail: "lightrail",
+                    valueId: values[0].id
+                },
+                amount: 5,
+                currency: "USD"
+            },
+            {
+                id: generateId(),
+                source: {
+                    rail: "lightrail",
+                    valueId: values[0].id
+                },
+                amount: 5,
+                currency: "USD"
+            },
+            {
+                id: generateId(),
+                source: {
+                    rail: "lightrail",
+                    valueId: values[1].id
+                },
+                amount: 2,
+                currency: "USD"
+            }
+        ];
+        for (const debit of debits) {
+            const debitResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/debit", "POST", debit);
+            chai.assert.equal(debitResp.statusCode, 201, JSON.stringify(debitResp.body));
+        }
+
+        const checkouts: Partial<CheckoutRequest>[] = [];
+        for (const checkout of checkouts) {
+            const checkoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkout);
+            chai.assert.equal(checkoutResp.statusCode, 201, JSON.stringify(checkoutResp.body));
+        }
+
         const statsResp = await testUtils.testAuthedRequest<Program & { stats: any }>(router, `/v2/programs/${program.id}?stats=true`, "GET");
         chai.assert.equal(statsResp.statusCode, 200, JSON.stringify(statsResp.body));
 
-        chai.assert.equal(statsResp.body.stats.outstanding.balance, 4);
-        chai.assert.equal(statsResp.body.stats.outstanding.count, 2);
-
-        chai.assert.equal(statsResp.body.stats.expired.balance, 100);
-        chai.assert.equal(statsResp.body.stats.expired.count, 1);
-
-        chai.assert.equal(statsResp.body.stats.canceled.balance, 40000);
-        chai.assert.equal(statsResp.body.stats.canceled.count, 2);
+        chai.assert.deepEqual(statsResp.body.stats, {
+            outstanding: {
+                balance: 33,
+                count: 3
+            },
+            expired: {
+                balance: 100,
+                count: 1
+            },
+            canceled: {
+                balance: 40000,
+                count: 2
+            },
+            redeemed: {
+                balance: 12,
+                count: 2,
+                transactionCount: 3
+            },
+            checkout: {
+                lightrailSpend: 0,
+                overspend: 0,
+                transactionCount: 0
+            }
+        });
     });
 });

@@ -299,26 +299,6 @@ function checkProgramProperties(program: Program): void {
 export async function injectProgramStats(auth: giftbitRoutes.jwtauth.AuthorizationBadge, program: Program): Promise<void> {
     auth.requireIds("userId");
 
-    const now = nowInDbPrecision();
-    const knex = await getKnexRead();
-    const res: { sumBalance: number, count: number, canceled: boolean, expired: boolean, active: boolean }[] = await knex("Values")
-        .where({
-            "userId": auth.userId,
-            "programId": program.id
-        })
-        .select({
-            canceled: "canceled",
-            active: "active"
-        })
-        .select(knex.raw("endDate = NULL OR endDate < ? AS expired", [now]))
-        .sum({
-            sumBalance: "balance"
-        })
-        .count({
-            count: "*"
-        })
-        .groupBy("canceled", "expired", "active");
-
     const stats = {
         outstanding: {
             balance: 0,
@@ -331,23 +311,108 @@ export async function injectProgramStats(auth: giftbitRoutes.jwtauth.Authorizati
         expired: {
             balance: 0,
             count: 0
+        },
+        redeemed: {
+            balance: 0,
+            count: 0,
+            transactionCount: 0
+        },
+        checkout: {
+            lightrailSpend: 0,
+            overspend: 0,
+            transactionCount: 0
         }
     };
 
-    console.log("res=", res);
-
-    for (const resLine of res) {
-        if (resLine.canceled) {
-            stats.canceled.balance += +resLine.sumBalance;  // for some reason SUM() comes back as a string
-            stats.canceled.count += resLine.count;
-        } else if (resLine.expired) {
-            stats.expired.balance += +resLine.sumBalance;
-            stats.expired.count += resLine.count;
-        } else if (resLine.active) {
-            stats.outstanding.balance += +resLine.sumBalance;
-            stats.outstanding.count += resLine.count;
+    const now = nowInDbPrecision();
+    const knex = await getKnexRead();
+    const valueStatsRes: { sumBalance: number, count: number, canceled: boolean, expired: boolean }[] = await knex("Values")
+        .where({
+            "userId": auth.userId,
+            "programId": program.id,
+            "active": true
+        })
+        .select({canceled: "canceled"})
+        .select(knex.raw("endDate = NULL OR endDate < ? AS expired", [now]))
+        .sum({sumBalance: "balance"})
+        .count({count: "*"})
+        .groupBy("canceled", "expired");
+    for (const valueStatsResLine of valueStatsRes) {
+        if (valueStatsResLine.canceled) {
+            // Includes canceled AND expired.
+            stats.canceled.balance += +valueStatsResLine.sumBalance;  // for some reason SUM() comes back as a string
+            stats.canceled.count += valueStatsResLine.count;
+        } else if (valueStatsResLine.expired) {
+            stats.expired.balance += +valueStatsResLine.sumBalance;
+            stats.expired.count += valueStatsResLine.count;
+        } else {
+            stats.outstanding.balance += +valueStatsResLine.sumBalance;
+            stats.outstanding.count += valueStatsResLine.count;
         }
     }
+
+    console.log("valueStatsRes=", valueStatsRes);
+
+    // programId -> valueId -> balanceChange < 0, lrTxStepId -> txIds
+    // sum tx balanceChange
+
+    const redeemedStatsRes: { balance: number, transactionCount: number, valueCount: number }[] = await knex("Values")
+        .where({
+            "Values.userId": auth.userId,
+            "Values.programId": program.id,
+            "Values.active": true
+        })
+        .join("LightrailTransactionSteps", {
+            "LightrailTransactionSteps.userId": "Values.userId",
+            "LightrailTransactionSteps.valueId": "Values.id"
+        })
+        .where("LightrailTransactionSteps.balanceChange", "<", 0)
+        .sum({balance: "LightrailTransactionSteps.balanceChange"})
+        .countDistinct({transactionCount: "LightrailTransactionSteps.transactionId"})
+        .countDistinct({valueCount: "Values.id"});
+    stats.redeemed.count = redeemedStatsRes[0].valueCount;
+    stats.redeemed.balance = -redeemedStatsRes[0].balance;
+    stats.redeemed.transactionCount = redeemedStatsRes[0].transactionCount;
+
+    console.log("redeemedStatsRes=", redeemedStatsRes);
+
+    const overspendStatsRes: { lrBalance: number, iBalance: number, sBalance: number, remainder: number, transactionCount: number }[] = await knex("Values")
+        .where({
+            "Values.userId": auth.userId,
+            "Values.programId": program.id,
+            "Values.active": true
+        })
+        .join("LightrailTransactionSteps", {
+            "LightrailTransactionSteps.userId": "Values.userId",
+            "LightrailTransactionSteps.valueId": "Values.id"
+        })
+        .join("Transactions", {
+            "Transactions.userId": "LightrailTransactionSteps.userId",
+            "Transactions.id": "LightrailTransactionSteps.transactionId"
+        })
+        .where({"Transactions.transactionType": "checkout"})
+        .join("LightrailTransactionSteps as LrSteps", {
+            "LrSteps.userId": "Transactions.userId",
+            "LrSteps.transactionId": "Transactions.id"
+        })
+        .join("InternalTransactionSteps as ISteps", {
+            "ISteps.userId": "Transactions.userId",
+            "ISteps.transactionId": "Transactions.id"
+        })
+        .join("StripeTransactionSteps as SSteps", {
+            "SSteps.userId": "Transactions.userId",
+            "SSteps.transactionId": "Transactions.id"
+        })
+        .sum({lrBalance: "LrSteps.balanceChange"})
+        .sum({iBalance: "ISteps.balanceChange"})
+        .sum({sBalance: "SSteps.amount"})
+        .sum({remainder: "Transactions.totals_remainder"})
+        .countDistinct({transactionCount: "Transactions.id"});
+    stats.checkout.lightrailSpend = -overspendStatsRes[0].lrBalance;
+    stats.checkout.overspend = -overspendStatsRes[0].iBalance - overspendStatsRes[0].sBalance + +overspendStatsRes[0].remainder;
+    stats.checkout.transactionCount = overspendStatsRes[0].transactionCount;
+
+    console.log("overspendStatsRes=", overspendStatsRes);
 
     (program as any).stats = stats;
 }
