@@ -28,7 +28,7 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
     const dbTransactionToReverse = await getDbTransaction(auth, transactionIdToReverse);
     if (dbTransactionToReverse.nextTransactionId) {
         log.info(`Transaction ${JSON.stringify(dbTransactionToReverse)} was not last in chain and cannot be reversed.`);
-        throw new GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Cannot reverse transaction that is not last in the transaction chain. Use endpoint .../v2/transactions/${transactionIdToReverse}/chain to find last transaction in chain.`, "TransactionNotReversible");
+        throw new GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Cannot reverse Transaction that is not last in the Transaction Chain. See documentation for more information on the Transaction Chain.`, "TransactionNotReversible");
     }
     const transactionToReverse: Transaction = (await DbTransaction.toTransactions([dbTransactionToReverse], auth.userId))[0];
 
