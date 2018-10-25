@@ -12,7 +12,6 @@ import * as stripeTransactions from "../../../../utils/stripeUtils/stripeTransac
 import * as sinon from "sinon";
 import {
     setStubsForStripeTests,
-    stripeEnvVarsPresent,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
@@ -29,19 +28,11 @@ describe("/v2/transactions/checkout - mixed sources", () => {
     const router = new cassava.Router();
 
     before(async function () {
-        if (!stripeEnvVarsPresent() && testStripeLive()) {
-            this.skip();
-            return;
-        }
-
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         transactions.installTransactionsRest(router);
         valueStores.installValuesRest(router);
-        if (!stripeEnvVarsPresent()) {
-            this.skip();
-            return;
-        }
+
         setStubsForStripeTests();
         await createCurrency(testUtils.defaultTestUser.auth, {
             code: "CAD",
@@ -218,7 +209,7 @@ describe("/v2/transactions/checkout - mixed sources", () => {
         };
 
         if (!testStripeLive()) {
-            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+            sinonSandbox.stub(stripeTransactions, "createCharge")
                 .withArgs(sinon.match({
                     "amount": 1360,
                     "currency": request.currency,

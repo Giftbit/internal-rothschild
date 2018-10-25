@@ -1,9 +1,21 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as kvsAccess from "../kvsAccess";
 import * as sinon from "sinon";
-import log = require("loglevel");
 
 let sinonSandbox = sinon.createSandbox();
+
+/**
+ * Config from stripe test account//pass: integrationtesting+merchant@giftbit.com // x39Rlf4TH3pzn29hsb#
+ */
+export const stripeTestConfig = {
+    secretKey: "sk_test_Fwb3uGyZsIb9eJ5ZQchNH5Em",
+    stripeUserId: "acct_1BOVE6CM9MOvFvZK",
+    customer: {
+        id: "cus_CP4Zd1Dddy4cOH",
+        defaultCard: "card_1C0GSUCM9MOvFvZK8VB29qaz",
+        nonDefaultCard: "card_1C0ZH9CM9MOvFvZKyZZc2X4Z"
+    }
+};
 
 export function setStubsForStripeTests() {
     const testAssumeToken: giftbitRoutes.secureConfig.AssumeScopeToken = {
@@ -16,7 +28,7 @@ export function setStubsForStripeTests() {
         email: "test@test.com",
         test: {
             clientId: "test-client-id",
-            secretKey: testStripeLive() ? process.env["STRIPE_PLATFORM_KEY"] : "test",
+            secretKey: testStripeLive() ? stripeTestConfig.secretKey : "test",
             publishableKey: "test-pk",
         },
         live: {}
@@ -25,28 +37,12 @@ export function setStubsForStripeTests() {
     let stubKvsGet = sinonSandbox.stub(kvsAccess, "kvsGet");
     stubKvsGet.withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string).resolves({
         token_type: "bearer",
-        stripe_user_id: testStripeLive() ? process.env["STRIPE_CONNECTED_ACCOUNT_ID"] : "test",
+        stripe_user_id: testStripeLive() ? stripeTestConfig.stripeUserId : "test",
     });
 }
 
 export function unsetStubsForStripeTests() {
     sinonSandbox.restore();
-}
-
-export function stripeEnvVarsPresent(): boolean {
-    if (
-        !!process.env["STRIPE_PLATFORM_KEY"] &&
-        !!process.env["STRIPE_CONNECTED_ACCOUNT_ID"] &&
-        !!process.env["STRIPE_CUSTOMER_ID"] &&
-        !!process.env["SECURE_CONFIG_BUCKET"] &&
-        !!process.env["SECURE_CONFIG_KEY_STRIPE"] &&
-        !!process.env["SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH"]
-    ) {
-        return true;
-    } else {
-        log.warn("Missing environment variables required to run Stripe-related tests: skipping. See readme to set up.");
-        return false;
-    }
 }
 
 export function testStripeLive(): boolean {

@@ -1,0 +1,16 @@
+{
+  "id": "re_1DLyvdCM9MOvFvZKeIPCBGXU",
+  "object": "refund",
+  "amount": 50,
+  "balance_transaction": "txn_1DLyvdCM9MOvFvZKKbApbOdo",
+  "charge": "ch_1DLyvaCM9MOvFvZKXzIviRn3",
+  "created": 1539720849,
+  "currency": "usd",
+  "metadata": {
+    "reason": "not specified"
+  },
+  "reason": null,
+  "receipt_number": null,
+  "source_transfer_reversal": null,
+  "status": "succeeded"
+}

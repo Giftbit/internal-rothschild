@@ -79,6 +79,7 @@ export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.Au
         .filter(p => p.rail === "stripe")
         .map((p: StripeTransactionParty, index): StripeTransactionPlanStep => ({
             rail: "stripe",
+            type: "charge",
             idempotentStepId: `${options.transactionId}-${index}`,
             source: p.source || null,
             customer: p.customer || null,

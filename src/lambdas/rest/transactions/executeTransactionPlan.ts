@@ -1,6 +1,11 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
-import {StripeTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
+import {
+    StripeChargeTransactionPlanStep,
+    StripeRefundTransactionPlanStep,
+    StripeTransactionPlanStep,
+    TransactionPlan
+} from "./TransactionPlan";
 import {Transaction} from "../../../model/Transaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
@@ -12,7 +17,8 @@ import {
     insertStripeTransactionSteps,
     insertTransaction
 } from "./insertTransactions";
-import {chargeStripeSteps, rollbackStripeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
+import {chargeStripeSteps, rollbackStripeChargeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
+import {StripeRestError} from "../../../utils/stripeUtils/StripeRestError";
 import log = require("loglevel");
 
 export interface ExecuteTransactionPlannerOptions {
@@ -28,7 +34,8 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
     while (true) {
         try {
             const plan = await planner();
-            if (plan.totals && plan.totals.remainder && !options.allowRemainder) {
+            if ((plan.totals && plan.totals.remainder && !options.allowRemainder) ||
+                plan.steps.find(step => step.rail === "lightrail" && step.value.balance != null && step.value.balance + step.amount < 0)) {
                 throw new giftbitRoutes.GiftbitRestError(409, "Insufficient balance for the transaction.", "InsufficientBalance");
             }
             if (options.simulate) {
@@ -48,7 +55,6 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
 
 export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<Transaction> {
     auth.requireIds("userId", "teamMemberId");
-    let chargeStripe = false;
     let stripeConfig: LightrailAndMerchantStripeConfig;
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
 
@@ -67,26 +73,42 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
             }
         }
 
-        if (stripeSteps.length > 0) {
-            chargeStripe = true;
-            stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
-            await chargeStripeSteps(auth, stripeConfig, plan);
-        }
-
         try {
-            if (chargeStripe) {
-                await insertStripeTransactionSteps(auth, trx, plan);
+            if (stripeSteps.length > 0) {
+                stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
+                await chargeStripeSteps(auth, stripeConfig, plan);
             }
+            await insertStripeTransactionSteps(auth, trx, plan);
             await insertLightrailTransactionSteps(auth, trx, plan);
             await insertInternalTransactionSteps(auth, trx, plan);
         } catch (err) {
-            log.warn(`Error inserting transaction step: ${err}`);
-            if (chargeStripe) {
-                await rollbackStripeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeSteps, `Refunded due to error on the Lightrail side`);
-                log.warn(`An error occurred while processing transaction '${plan.id}'. The Stripe charge(s) '${stripeSteps.map(step => step.chargeResult.id)}' have been refunded.`);
+            log.error(`Error occurred while processing transaction steps: ${err}`);
+            const stripeChargeSteps: StripeChargeTransactionPlanStep[] = stripeSteps.filter(step => step.type === "charge") as StripeChargeTransactionPlanStep[];
+            if (stripeChargeSteps.length > 0) {
+                const stripeChargeStepsToRefund = stripeChargeSteps.filter(step => step.chargeResult != null) as StripeChargeTransactionPlanStep[];
+                if (stripeChargeStepsToRefund.length > 0) {
+                    await rollbackStripeChargeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeChargeStepsToRefund, `Refunded due to error on the Lightrail side`);
+                    log.warn(`An error occurred while processing transaction '${plan.id}'. The Stripe charge(s) '${stripeChargeStepsToRefund.map(step => step.chargeResult.id)}' have been refunded.`);
+                }
             }
 
-            if ((err as TransactionPlanError).isTransactionPlanError) {
+            const stripeRefundSteps: StripeRefundTransactionPlanStep[] = stripeSteps.filter(step => step.type === "refund") as StripeRefundTransactionPlanStep[];
+            if (stripeRefundSteps.length > 0) {
+                const stepsSuccessfullyRefunded: StripeRefundTransactionPlanStep[] = stripeRefundSteps.filter(step => step.refundResult != null);
+                if (stepsSuccessfullyRefunded.length > 0) {
+                    const message = `Exception ${JSON.stringify(err)} was thrown while processing steps. There was a refund that was successfully refunded but the exception was thrown after and refunds cannot be undone. This is a bad situation as the Transaction could not be saved.`;
+                    log.error(message);
+                    giftbitRoutes.sentry.sendErrorNotification(new Error(message));
+                    throw new GiftbitRestError(424, `An irrecoverable exception occurred while reversing the Transaction ${plan.previousTransactionId}. The charges ${stepsSuccessfullyRefunded.map(step => step.chargeId).toString()} were refunded in Stripe but an exception occurred after and the Transaction could not be completed. Please review your records in Lightrail and Stripe to adjust for this situation.`);
+                } else {
+                    log.info(`An exception occurred while reversing transaction ${plan.previousTransactionId}. The reverse included refunds in Stripe but they were not successfully refunded. The state of Stripe and Lightrail are consistent.`);
+                }
+            }
+
+            if ((err as StripeRestError).additionalParams && (err as StripeRestError).additionalParams.stripeError) {
+                // Error was returned from Stripe. Passing original error along so that details of Stripe failure can be returned.
+                throw err;
+            } else if ((err as TransactionPlanError).isTransactionPlanError || err instanceof GiftbitRestError) {
                 throw err;
             } else if (err.code === "ER_DUP_ENTRY") {
                 log.error(err);

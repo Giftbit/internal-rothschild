@@ -7,7 +7,6 @@ import * as testUtils from "../../../../utils/testUtils";
 import {defaultTestUser} from "../../../../utils/testUtils";
 import {
     setStubsForStripeTests,
-    stripeEnvVarsPresent,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
@@ -16,6 +15,7 @@ import {LineItem} from "../../../../model/LineItem";
 import * as stripeTransactions from "../../../../utils/stripeUtils/stripeTransactions";
 import * as sinon from "sinon";
 import {StripeRestError} from "../../../../utils/stripeUtils/StripeRestError";
+import * as stripe from "stripe";
 import chaiExclude = require("chai-exclude");
 import Stripe = require("stripe");
 import ICharge = Stripe.charges.ICharge;
@@ -42,11 +42,6 @@ describe("handling fraudulent charges", () => {
     ];
 
     before(async function () {
-        if (!stripeEnvVarsPresent() && testStripeLive()) {
-            this.skip();
-            return;
-        }
-
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
@@ -167,7 +162,7 @@ describe("handling fraudulent charges", () => {
         };
 
         if (!testStripeLive()) {
-            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+            sinonSandbox.stub(stripeTransactions, "createCharge")
                 .withArgs(sinon.match({
                     "amount": 500,
                     "currency": request.currency,
@@ -197,7 +192,7 @@ describe("handling fraudulent charges", () => {
             rail: "stripe",
             source: "tok_riskLevelElevated",
         }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
-        chai.assert.equal((postCheckoutResp.body.steps[0] as StripeTransactionStep).charge.outcome.risk_level, "elevated", `outcome=${JSON.stringify((postCheckoutResp.body.steps[0] as StripeTransactionStep).charge.outcome, null, 4)}`);
+        chai.assert.equal(((postCheckoutResp.body.steps[0] as StripeTransactionStep).charge as stripe.charges.ICharge).outcome.risk_level, "elevated", `outcome=${JSON.stringify(((postCheckoutResp.body.steps[0] as StripeTransactionStep).charge  as stripe.charges.ICharge).outcome, null, 4)}`);
     });
 
     it("fails with a clear error if the charge is blocked by Stripe (fraudulent)", async () => {
@@ -272,7 +267,7 @@ describe("handling fraudulent charges", () => {
         const exampleErrorResponse = new StripeRestError(422, "Error for tests: card blocked by Stripe for fraud", "StripeCardDeclined", exampleStripeError);
 
         if (!testStripeLive()) {
-            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+            sinonSandbox.stub(stripeTransactions, "createCharge")
                 .withArgs(sinon.match({
                     "amount": 500,
                     "currency": request.currency,
@@ -364,7 +359,7 @@ describe("handling fraudulent charges", () => {
         const exampleErrorResponse = new StripeRestError(422, "Error for tests: card declined by provider", "StripeCardDeclined", exampleStripeError);
 
         if (!testStripeLive()) {
-            sinonSandbox.stub(stripeTransactions, "createStripeCharge")
+            sinonSandbox.stub(stripeTransactions, "createCharge")
                 .withArgs(sinon.match({
                     "amount": 500,
                     "currency": request.currency,

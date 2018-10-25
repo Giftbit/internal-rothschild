@@ -1,10 +1,14 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import {CheckoutRequest, CreditRequest, DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
+import {resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
 import {
-    resolveTransactionPlanSteps
-} from "./resolveTransactionPlanSteps";
+    CheckoutRequest,
+    CreditRequest,
+    DebitRequest,
+    ReverseRequest,
+    TransferRequest
+} from "../../../model/TransactionRequest";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {executeTransactionPlanner} from "./executeTransactionPlan";
 import {Pagination, PaginationParams} from "../../../model/Pagination";
@@ -12,9 +16,10 @@ import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {optimizeCheckout} from "./checkout/checkoutTransactionPlanner";
 import {filterAndPaginateQuery} from "../../../utils/dbUtils";
 import {createTransferTransactionPlan, resolveTransferTransactionPlanSteps} from "./transactions.transfer";
-import getPaginationParams = Pagination.getPaginationParams;
 import {createCreditTransactionPlan} from "./transactions.credit";
 import {createDebitTransactionPlan} from "./transactions.debit";
+import {createReverseTransactionPlan} from "./reverse/transactions.reverse";
+import getPaginationParams = Pagination.getPaginationParams;
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions")
@@ -108,6 +113,40 @@ export function installTransactionsRest(router: cassava.Router): void {
                 body: await createTransfer(auth, evt.body)
             };
         });
+
+    router.route("/v2/transactions/{id}/reverse")
+        .method("POST")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("userId", "teamMemberId");
+            auth.requireScopes("lightrailV2:transactions:reverse");
+            evt.validateBody(reverseSchema);
+            return {
+                statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
+                body: await createReverse(auth, {...evt.body}, evt.pathParameters.id)
+            };
+        });
+
+    router.route("/v2/transactions/{id}/chain")
+        .method("GET")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:transactions:read");
+            const dbTransaction = await getDbTransaction(auth, evt.pathParameters.id);
+            evt.queryStringParameters["rootTransactionId"] = dbTransaction.rootTransactionId;
+            const res = await getTransactions(auth, evt.queryStringParameters, getPaginationParams(evt, {
+                sort: {
+                    field: "createdDate",
+                    asc: true
+                }
+            }));
+
+            return {
+                headers: Pagination.toHeaders(evt, res.pagination),
+                body: res.transactions
+            };
+        });
 }
 
 export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ transactions: Transaction[], pagination: Pagination }> {
@@ -146,6 +185,10 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
                 "currency": {
                     type: "string",
                     operators: ["eq", "in"]
+                },
+                "rootTransactionId": { // only used internally for looking up transaction chain and not exposed publicly
+                    type: "string",
+                    operators: ["eq", "in"]
                 }
             },
             tableName: "Transactions"
@@ -158,7 +201,7 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
     };
 }
 
-export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Transaction> {
+export async function getDbTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<DbTransaction> {
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
@@ -174,8 +217,15 @@ export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBa
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
-    const transacs: Transaction[] = await DbTransaction.toTransactions(res, auth.userId);
-    return transacs[0];   // at this point there will only ever be one
+    return res[0];
+}
+
+export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Transaction> {
+    auth.requireIds("userId");
+    const dbTransaction = await getDbTransaction(auth, id);
+
+    const transactions: Transaction[] = await DbTransaction.toTransactions([dbTransaction], auth.userId);
+    return transactions[0];   // at this point there will only ever be one
 }
 
 async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CreditRequest): Promise<Transaction> {
@@ -231,6 +281,19 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
         async () => {
             const parties = await resolveTransferTransactionPlanSteps(auth, req);
             return await createTransferTransactionPlan(req, parties);
+        }
+    );
+}
+
+async function createReverse(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: ReverseRequest, transactionIdToReverse: string): Promise<Transaction> {
+    return executeTransactionPlanner(
+        auth,
+        {
+            simulate: req.simulate,
+            allowRemainder: false
+        },
+        async () => {
+            return await createReverseTransactionPlan(auth, req, transactionIdToReverse);
         }
     );
 }
@@ -401,7 +464,7 @@ const creditSchema: jsonschema.Schema = {
         },
         currency: {
             type: "string",
-            minLength: 3,
+            minLength: 1,
             maxLength: 16
         },
         simulate: {
@@ -444,7 +507,7 @@ const debitSchema: jsonschema.Schema = {
         },
         currency: {
             type: "string",
-            minLength: 3,
+            minLength: 1,
             maxLength: 16
         },
         simulate: {
@@ -493,7 +556,7 @@ const transferSchema: jsonschema.Schema = {
         },
         currency: {
             type: "string",
-            minLength: 3,
+            minLength: 1,
             maxLength: 16
         },
         simulate: {
@@ -554,7 +617,7 @@ const checkoutSchema: jsonschema.Schema = {
         },
         currency: {
             type: "string",
-            minLength: 3,
+            minLength: 1,
             maxLength: 16
         },
         sources: {
@@ -589,4 +652,20 @@ const checkoutSchema: jsonschema.Schema = {
         }
     },
     required: ["id", "lineItems", "currency", "sources"]
+};
+
+const reverseSchema: jsonschema.Schema = {
+    title: "reverse",
+    type: "object",
+    additionalProperties: false,
+    properties: {
+        id: {
+            type: "string",
+            minLength: 1
+        },
+        simulate: {
+            type: "boolean"
+        }
+    },
+    required: ["id"]
 };

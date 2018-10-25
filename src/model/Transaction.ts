@@ -41,6 +41,8 @@ export interface DbTransaction {
     createdDate: Date;
     createdBy: string;
     metadata: string | null;
+    rootTransactionId: string | null;
+    nextTransactionId: string | null;
     tax: string | null;
 }
 
@@ -65,6 +67,8 @@ export namespace Transaction {
             lineItems: JSON.stringify(t.lineItems),
             paymentSources: JSON.stringify(t.paymentSources),
             metadata: JSON.stringify(t.metadata),
+            rootTransactionId: null, // set during insert
+            nextTransactionId: null,
             tax: JSON.stringify(t.tax),
             createdDate: t.createdDate,
             createdBy: t.createdBy,
@@ -152,9 +156,9 @@ export type TransactionType =
     | "debit"
     | "checkout"
     | "transfer"
-    | "pending_create"
     | "pending_capture"
-    | "pending_void";
+    | "pending_void"
+    | "reverse";
 
 export type TransactionStep = LightrailTransactionStep | StripeTransactionStep | InternalTransactionStep;
 
@@ -175,7 +179,7 @@ export interface StripeTransactionStep {
     rail: "stripe";
     amount: number;
     chargeId?: string;
-    charge?: stripe.charges.ICharge;
+    charge?: stripe.charges.ICharge | stripe.refunds.IRefund;
 }
 
 export interface InternalTransactionStep {

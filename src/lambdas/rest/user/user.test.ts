@@ -2,9 +2,9 @@ import * as testUtils from "../../../utils/testUtils";
 import * as cassava from "cassava";
 import * as chai from "chai";
 import {installRestRoutes} from "../installRestRoutes";
-import chaiExclude = require("chai-exclude");
 import * as crypto from "crypto";
 import {initializeIntercomSecrets} from "../../../utils/intercomUtils";
+import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 

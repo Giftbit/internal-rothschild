@@ -68,12 +68,12 @@ describe("/v2/transactions/credit", () => {
         const resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/values?id.in=${values.map(v => v.id).join(",")}&formatCurrencies=true`, "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
         chai.assert.lengthOf(resp.body, 6);
-        chai.assert.equal(resp.body.find(v => v.id == valueBalance0.id).balance.toString(), "¥0");
-        chai.assert.equal(resp.body.find(v => v.id == valueBalance40.id).balance.toString(), "¥40");
-        chai.assert.equal(resp.body.find(v => v.id == valueBalance549.id).balance.toString(), "¥549");
-        chai.assert.equal(resp.body.find(v => v.id == valueBalance1549.id).balance.toString(), "¥1549");
-        chai.assert.equal(resp.body.find(v => v.id == valueBalance15490.id).balance.toString(), "¥15490");
-        chai.assert.isNull(resp.body.find(v => v.id == valueBalanceRule.id).balance);
+        chai.assert.equal(resp.body.find(v => v.id === valueBalance0.id).balance.toString(), "¥0");
+        chai.assert.equal(resp.body.find(v => v.id === valueBalance40.id).balance.toString(), "¥40");
+        chai.assert.equal(resp.body.find(v => v.id === valueBalance549.id).balance.toString(), "¥549");
+        chai.assert.equal(resp.body.find(v => v.id === valueBalance1549.id).balance.toString(), "¥1549");
+        chai.assert.equal(resp.body.find(v => v.id === valueBalance15490.id).balance.toString(), "¥15490");
+        chai.assert.isNull(resp.body.find(v => v.id === valueBalanceRule.id).balance);
     });
 
     it("can format for currency with 0 decimal places", async () => {
@@ -119,11 +119,11 @@ describe("/v2/transactions/credit", () => {
         const resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/values?id.in=${values.map(v => v.id).join(",")}&formatCurrencies=true`, "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
         chai.assert.lengthOf(resp.body, 5);
-        chai.assert.equal(resp.body.find(v => v.id == valueBalance0.id).balance.toString(), "I0.0");
-        chai.assert.equal(resp.body.find(v => v.id == valueBalance40.id).balance.toString(), "I4.0");
-        chai.assert.equal(resp.body.find(v => v.id == valueBalance549.id).balance.toString(), "I54.9");
-        chai.assert.equal(resp.body.find(v => v.id == valueBalance1549.id).balance.toString(), "I154.9");
-        chai.assert.equal(resp.body.find(v => v.id == valueBalance15490.id).balance.toString(), "I1549.0");
+        chai.assert.equal(resp.body.find(v => v.id === valueBalance0.id).balance.toString(), "I0.0");
+        chai.assert.equal(resp.body.find(v => v.id === valueBalance40.id).balance.toString(), "I4.0");
+        chai.assert.equal(resp.body.find(v => v.id === valueBalance549.id).balance.toString(), "I54.9");
+        chai.assert.equal(resp.body.find(v => v.id === valueBalance1549.id).balance.toString(), "I154.9");
+        chai.assert.equal(resp.body.find(v => v.id === valueBalance15490.id).balance.toString(), "I1549.0");
     });
 
     it("can format for currency with 2 decimal places", async () => {
@@ -169,11 +169,11 @@ describe("/v2/transactions/credit", () => {
         const resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/values?id.in=${values.map(v => v.id).join(",")}&formatCurrencies=true`, "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
         chai.assert.lengthOf(resp.body, 5);
-        chai.assert.equal(resp.body.find(v => v.id == valueBalance0.id).balance.toString(), "$0.00");
-        chai.assert.equal(resp.body.find(v => v.id == valueBalance40.id).balance.toString(), "$0.40");
-        chai.assert.equal(resp.body.find(v => v.id == valueBalance549.id).balance.toString(), "$5.49");
-        chai.assert.equal(resp.body.find(v => v.id == valueBalance1549.id).balance.toString(), "$15.49");
-        chai.assert.equal(resp.body.find(v => v.id == valueBalance15490.id).balance.toString(), "$154.90");
+        chai.assert.equal(resp.body.find(v => v.id === valueBalance0.id).balance.toString(), "$0.00");
+        chai.assert.equal(resp.body.find(v => v.id === valueBalance40.id).balance.toString(), "$0.40");
+        chai.assert.equal(resp.body.find(v => v.id === valueBalance549.id).balance.toString(), "$5.49");
+        chai.assert.equal(resp.body.find(v => v.id === valueBalance1549.id).balance.toString(), "$15.49");
+        chai.assert.equal(resp.body.find(v => v.id === valueBalance15490.id).balance.toString(), "$154.90");
     });
 });
 
