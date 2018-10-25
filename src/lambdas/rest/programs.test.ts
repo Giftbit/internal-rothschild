@@ -2,13 +2,18 @@ import * as testUtils from "../../utils/testUtils";
 import {defaultTestUser, generateId} from "../../utils/testUtils";
 import * as cassava from "cassava";
 import * as chai from "chai";
+import * as sinon from "sinon";
 import {Program} from "../../model/Program";
 import {installRestRoutes} from "./installRestRoutes";
 import {createCurrency} from "./currencies";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
 import chaiExclude = require("chai-exclude");
-import {Value} from "../../model/Value";
 import {CheckoutRequest, CreditRequest, DebitRequest} from "../../model/TransactionRequest";
+import {
+    setStubsForStripeTests,
+    stubCheckoutStripeCharge,
+    unsetStubsForStripeTests
+} from "../../utils/testUtils/stripeTestUtils";
 
 chai.use(chaiExclude);
 
@@ -26,6 +31,18 @@ describe("/v2/programs", () => {
             symbol: "$",
             decimalPlaces: 2
         });
+
+        setStubsForStripeTests();
+    });
+
+    after(() => {
+        unsetStubsForStripeTests();
+    });
+
+    const sinonSandbox = sinon.createSandbox();
+
+    afterEach(() => {
+        sinonSandbox.restore();
     });
 
     it("can list 0 programs", async () => {
@@ -401,9 +418,12 @@ describe("/v2/programs", () => {
         const progResp = await testUtils.testAuthedRequest<any>(router, "/v2/programs", "POST", program);
         chai.assert.equal(progResp.statusCode, 201, JSON.stringify(progResp.body));
 
-        console.log(progResp.body);
-
         const values = {
+            unused: {
+                id: generateId(),
+                programId: program.id,
+                balance: 2
+            },
             creditAndDebit: {
                 id: generateId(),
                 programId: program.id,
@@ -428,6 +448,16 @@ describe("/v2/programs", () => {
                 id: generateId(),
                 programId: program.id,
                 balance: 3
+            },
+            checkoutStripeBalance1: {
+                id: generateId(),
+                programId: program.id,
+                balance: 5
+            },
+            checkoutStripeBalance2: {
+                id: generateId(),
+                programId: program.id,
+                balance: 5
             },
             expired: {
                 id: generateId(),
@@ -515,7 +545,7 @@ describe("/v2/programs", () => {
             chai.assert.equal(debitResp.statusCode, 201, JSON.stringify(debitResp.body));
         }
 
-        const checkouts: Partial<CheckoutRequest>[] = [
+        const checkouts: CheckoutRequest[] = [
             {
                 id: generateId(),
                 lineItems: [
@@ -580,8 +610,35 @@ describe("/v2/programs", () => {
                         beforeLightrail: true
                     }
                 ]
+            },
+            {
+                id: generateId(),
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "squishee",
+                        quantity: 1,
+                        unitPrice: 15
+                    }
+                ],
+                currency: "USD",
+                sources: [
+                    {
+                        rail: "lightrail",
+                        valueId: values.checkoutStripeBalance1.id
+                    },
+                    {
+                        rail: "lightrail",
+                        valueId: values.checkoutStripeBalance2.id
+                    },
+                    {
+                        rail: "stripe",
+                        source: "tok_visa"
+                    }
+                ]
             }
         ];
+        stubCheckoutStripeCharge(checkouts[3], 2, 5);
         for (const checkout of checkouts) {
             const checkoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkout);
             chai.assert.equal(checkoutResp.statusCode, 201, JSON.stringify(checkoutResp.body));
@@ -592,8 +649,8 @@ describe("/v2/programs", () => {
 
         chai.assert.deepEqual(statsResp.body.stats, {
             outstanding: {
-                balance: 24,
-                count: 5
+                balance: 26,
+                count: 8
             },
             expired: {
                 balance: 100,
@@ -604,14 +661,14 @@ describe("/v2/programs", () => {
                 count: 2
             },
             redeemed: {
-                balance: 19,
-                count: 5,
-                transactionCount: 6
+                balance: 29,
+                count: 7,
+                transactionCount: 7
             },
             checkout: {
-                lightrailSpend: 7,
-                overspend: 6,
-                transactionCount: 3
+                lightrailSpend: 17,
+                overspend: 11,
+                transactionCount: 4
             }
         });
     });

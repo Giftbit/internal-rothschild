@@ -431,14 +431,10 @@ export async function injectProgramStats(auth: giftbitRoutes.jwtauth.Authorizati
         .sum({iBalance: "InternalBalances.balanceChange"})
         .sum({sBalance: "StripeAmounts.amount"});
 
-    console.log("query=", query.toString());
-
     const overspendStatsRes: { lrBalance: number, iBalance: number, sBalance: number, remainder: number, transactionCount: number }[] = await query;
     stats.checkout.transactionCount = overspendStatsRes[0].transactionCount;
     stats.checkout.lightrailSpend = -overspendStatsRes[0].lrBalance;
     stats.checkout.overspend = -overspendStatsRes[0].iBalance - overspendStatsRes[0].sBalance + +overspendStatsRes[0].remainder;
-
-    console.log("overspendStatsRes=", overspendStatsRes);
 
     (program as any).stats = stats;
 
