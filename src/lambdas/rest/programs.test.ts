@@ -8,7 +8,6 @@ import {createCurrency} from "./currencies";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
 import chaiExclude = require("chai-exclude");
 import {Value} from "../../model/Value";
-import {Transaction} from "../../model/Transaction";
 import {CheckoutRequest, CreditRequest, DebitRequest} from "../../model/TransactionRequest";
 
 chai.use(chaiExclude);
@@ -51,9 +50,9 @@ describe("/v2/programs", () => {
             id: programRequest.id,
             name: programRequest.name,
             currency: programRequest.currency,
-            discount: true,
+            discount: false,
             discountSellerLiability: null,
-            pretax: true,
+            pretax: false,
             active: true,
             redemptionRule: null,
             balanceRule: null,
@@ -392,7 +391,7 @@ describe("/v2/programs", () => {
         chai.assert.isNumber(patchResp.body.column);
     });
 
-    it.only("fetches program stats", async () => {
+    it("fetches program stats", async () => {
         const program: Partial<Program> = {
             id: generateId(),
             name: generateId(),
@@ -402,49 +401,56 @@ describe("/v2/programs", () => {
         const progResp = await testUtils.testAuthedRequest<any>(router, "/v2/programs", "POST", program);
         chai.assert.equal(progResp.statusCode, 201, JSON.stringify(progResp.body));
 
-        const values: Partial<Value>[] = [
-            {
+        console.log(progResp.body);
+
+        const values = {
+            creditAndDebit: {
                 id: generateId(),
                 programId: program.id,
                 balance: 10
             },
-            {
+            debit: {
                 id: generateId(),
                 programId: program.id,
                 balance: 10
             },
-            {
+            checkout: {
                 id: generateId(),
                 programId: program.id,
                 balance: 2
             },
-            {
+            checkoutShared: {
                 id: generateId(),
                 programId: program.id,
                 balance: 3
             },
-            {
-                // expired
+            checkoutWithInternal: {
+                id: generateId(),
+                programId: program.id,
+                balance: 3
+            },
+            expired: {
                 id: generateId(),
                 programId: program.id,
                 balance: 100,
                 endDate: new Date("2011-11-11")
             },
-            {
+            canceled: {
                 id: generateId(),
                 programId: program.id,
                 balance: 10000,
                 canceled: true
             },
-            {
+            canceledExpired: {
                 id: generateId(),
                 programId: program.id,
                 balance: 30000,
                 canceled: true,
-                endDate: new Date("2011-11-11") // still canceled
-            },
-        ];
-        for (const value of values) {
+                endDate: new Date("2011-11-11")
+            }
+        };
+        for (const key in values) {
+            const value = values[key];
             const valueResp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", {
                 ...value,
                 canceled: undefined
@@ -464,7 +470,7 @@ describe("/v2/programs", () => {
                 id: generateId(),
                 destination: {
                     rail: "lightrail",
-                    valueId: values[0].id
+                    valueId: values.creditAndDebit.id
                 },
                 amount: 15,
                 currency: "USD"
@@ -480,7 +486,7 @@ describe("/v2/programs", () => {
                 id: generateId(),
                 source: {
                     rail: "lightrail",
-                    valueId: values[0].id
+                    valueId: values.creditAndDebit.id
                 },
                 amount: 5,
                 currency: "USD"
@@ -489,7 +495,7 @@ describe("/v2/programs", () => {
                 id: generateId(),
                 source: {
                     rail: "lightrail",
-                    valueId: values[0].id
+                    valueId: values.creditAndDebit.id
                 },
                 amount: 5,
                 currency: "USD"
@@ -498,7 +504,7 @@ describe("/v2/programs", () => {
                 id: generateId(),
                 source: {
                     rail: "lightrail",
-                    valueId: values[1].id
+                    valueId: values.debit.id
                 },
                 amount: 2,
                 currency: "USD"
@@ -524,7 +530,7 @@ describe("/v2/programs", () => {
                 sources: [
                     {
                         rail: "lightrail",
-                        valueId: values[2].id
+                        valueId: values.checkout.id
                     }
                 ]
             },
@@ -533,7 +539,7 @@ describe("/v2/programs", () => {
                 lineItems: [
                     {
                         type: "product",
-                        productId: "leprechaun-chow",
+                        productId: "bachelor-chow",
                         quantity: 1,
                         unitPrice: 6
                     }
@@ -542,20 +548,43 @@ describe("/v2/programs", () => {
                 sources: [
                     {
                         rail: "lightrail",
-                        valueId: values[2].id
+                        valueId: values.checkout.id
                     },
                     {
                         rail: "lightrail",
-                        valueId: values[3].id
+                        valueId: values.checkoutShared.id
                     }
                 ],
                 allowRemainder: true
+            },
+            {
+                id: generateId(),
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "squishee",
+                        quantity: 1,
+                        unitPrice: 6
+                    }
+                ],
+                currency: "USD",
+                sources: [
+                    {
+                        rail: "lightrail",
+                        valueId: values.checkoutWithInternal.id
+                    },
+                    {
+                        rail: "internal",
+                        internalId: generateId(),
+                        balance: 4,
+                        beforeLightrail: true
+                    }
+                ]
             }
         ];
         for (const checkout of checkouts) {
             const checkoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkout);
             chai.assert.equal(checkoutResp.statusCode, 201, JSON.stringify(checkoutResp.body));
-            console.log(checkoutResp.body);
         }
 
         const statsResp = await testUtils.testAuthedRequest<Program & { stats: any }>(router, `/v2/programs/${program.id}?stats=true`, "GET");
@@ -563,8 +592,8 @@ describe("/v2/programs", () => {
 
         chai.assert.deepEqual(statsResp.body.stats, {
             outstanding: {
-                balance: 23,
-                count: 4
+                balance: 24,
+                count: 5
             },
             expired: {
                 balance: 100,
@@ -575,14 +604,14 @@ describe("/v2/programs", () => {
                 count: 2
             },
             redeemed: {
-                balance: 17,
-                count: 4,
-                transactionCount: 5
+                balance: 19,
+                count: 5,
+                transactionCount: 6
             },
             checkout: {
-                lightrailSpend: 5,
-                overspend: 2,
-                transactionCount: 2
+                lightrailSpend: 7,
+                overspend: 6,
+                transactionCount: 3
             }
         });
     });
