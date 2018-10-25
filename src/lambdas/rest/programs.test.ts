@@ -416,9 +416,15 @@ describe("/v2/programs", () => {
             {
                 id: generateId(),
                 programId: program.id,
-                balance: 10
+                balance: 2
             },
             {
+                id: generateId(),
+                programId: program.id,
+                balance: 3
+            },
+            {
+                // expired
                 id: generateId(),
                 programId: program.id,
                 balance: 100,
@@ -503,10 +509,53 @@ describe("/v2/programs", () => {
             chai.assert.equal(debitResp.statusCode, 201, JSON.stringify(debitResp.body));
         }
 
-        const checkouts: Partial<CheckoutRequest>[] = [];
+        const checkouts: Partial<CheckoutRequest>[] = [
+            {
+                id: generateId(),
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "dead-parrot",
+                        quantity: 1,
+                        unitPrice: 1
+                    }
+                ],
+                currency: "USD",
+                sources: [
+                    {
+                        rail: "lightrail",
+                        valueId: values[2].id
+                    }
+                ]
+            },
+            {
+                id: generateId(),
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "leprechaun-chow",
+                        quantity: 1,
+                        unitPrice: 6
+                    }
+                ],
+                currency: "USD",
+                sources: [
+                    {
+                        rail: "lightrail",
+                        valueId: values[2].id
+                    },
+                    {
+                        rail: "lightrail",
+                        valueId: values[3].id
+                    }
+                ],
+                allowRemainder: true
+            }
+        ];
         for (const checkout of checkouts) {
             const checkoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkout);
             chai.assert.equal(checkoutResp.statusCode, 201, JSON.stringify(checkoutResp.body));
+            console.log(checkoutResp.body);
         }
 
         const statsResp = await testUtils.testAuthedRequest<Program & { stats: any }>(router, `/v2/programs/${program.id}?stats=true`, "GET");
@@ -514,8 +563,8 @@ describe("/v2/programs", () => {
 
         chai.assert.deepEqual(statsResp.body.stats, {
             outstanding: {
-                balance: 33,
-                count: 3
+                balance: 23,
+                count: 4
             },
             expired: {
                 balance: 100,
@@ -526,14 +575,14 @@ describe("/v2/programs", () => {
                 count: 2
             },
             redeemed: {
-                balance: 12,
-                count: 2,
-                transactionCount: 3
+                balance: 17,
+                count: 4,
+                transactionCount: 5
             },
             checkout: {
-                lightrailSpend: 0,
-                overspend: 0,
-                transactionCount: 0
+                lightrailSpend: 5,
+                overspend: 2,
+                transactionCount: 2
             }
         });
     });

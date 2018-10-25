@@ -299,6 +299,7 @@ function checkProgramProperties(program: Program): void {
 export async function injectProgramStats(auth: giftbitRoutes.jwtauth.AuthorizationBadge, program: Program): Promise<void> {
     auth.requireIds("userId");
 
+    const startTime = Date.now();
     const stats = {
         outstanding: {
             balance: 0,
@@ -351,11 +352,6 @@ export async function injectProgramStats(auth: giftbitRoutes.jwtauth.Authorizati
         }
     }
 
-    console.log("valueStatsRes=", valueStatsRes);
-
-    // programId -> valueId -> balanceChange < 0, lrTxStepId -> txIds
-    // sum tx balanceChange
-
     const redeemedStatsRes: { balance: number, transactionCount: number, valueCount: number }[] = await knex("Values")
         .where({
             "Values.userId": auth.userId,
@@ -374,47 +370,79 @@ export async function injectProgramStats(auth: giftbitRoutes.jwtauth.Authorizati
     stats.redeemed.balance = -redeemedStatsRes[0].balance;
     stats.redeemed.transactionCount = redeemedStatsRes[0].transactionCount;
 
-    console.log("redeemedStatsRes=", redeemedStatsRes);
+    const query = knex
+        .from(knex.raw("? as Txs", [
+            knex("Values")
+                .where({
+                    "Values.userId": auth.userId,
+                    "Values.programId": program.id,
+                    "Values.active": true
+                })
+                .join("LightrailTransactionSteps", {
+                    "LightrailTransactionSteps.userId": "Values.userId",
+                    "LightrailTransactionSteps.valueId": "Values.id"
+                })
+                .join("Transactions", {
+                    "Transactions.userId": "LightrailTransactionSteps.userId",
+                    "Transactions.id": "LightrailTransactionSteps.transactionId"
+                })
+                .where({"Transactions.transactionType": "checkout"})
+                .distinct("Transactions.id as id", "Transactions.totals_remainder as totals_remainder")
+        ]))
+        .leftJoin(
+            knex.raw(
+                "? as LightrailBalances on LightrailBalances.transactionId = Txs.id",
+                [
+                    knex("LightrailTransactionSteps")
+                        .where({userId: auth.userId})
+                        .groupBy("transactionId")
+                        .sum("balanceChange as balanceChange")
+                        .select("transactionId")
+                ]
+            )
+        )
+        .leftJoin(
+            knex.raw(
+                "? as InternalBalances on InternalBalances.transactionId = Txs.id",
+                [
+                    knex("InternalTransactionSteps")
+                        .where({userId: auth.userId})
+                        .groupBy("transactionId")
+                        .sum("balanceChange as balanceChange")
+                        .select("transactionId")
+                ]
+            )
+        )
+        .leftJoin(
+            knex.raw(
+                "? as StripeAmounts on StripeAmounts.transactionId = Txs.id",
+                [
+                    knex("StripeTransactionSteps")
+                        .where({userId: auth.userId})
+                        .groupBy("transactionId")
+                        .sum("amount as amount")
+                        .select("transactionId")
+                ]
+            )
+        )
+        .countDistinct({transactionCount: "Txs.id"})
+        .sum({remainder: "Txs.totals_remainder"})
+        .sum({lrBalance: "LightrailBalances.balanceChange"})
+        .sum({iBalance: "InternalBalances.balanceChange"})
+        .sum({sBalance: "StripeAmounts.amount"});
 
-    const overspendStatsRes: { lrBalance: number, iBalance: number, sBalance: number, remainder: number, transactionCount: number }[] = await knex("Values")
-        .where({
-            "Values.userId": auth.userId,
-            "Values.programId": program.id,
-            "Values.active": true
-        })
-        .join("LightrailTransactionSteps", {
-            "LightrailTransactionSteps.userId": "Values.userId",
-            "LightrailTransactionSteps.valueId": "Values.id"
-        })
-        .join("Transactions", {
-            "Transactions.userId": "LightrailTransactionSteps.userId",
-            "Transactions.id": "LightrailTransactionSteps.transactionId"
-        })
-        .where({"Transactions.transactionType": "checkout"})
-        .join("LightrailTransactionSteps as LrSteps", {
-            "LrSteps.userId": "Transactions.userId",
-            "LrSteps.transactionId": "Transactions.id"
-        })
-        .join("InternalTransactionSteps as ISteps", {
-            "ISteps.userId": "Transactions.userId",
-            "ISteps.transactionId": "Transactions.id"
-        })
-        .join("StripeTransactionSteps as SSteps", {
-            "SSteps.userId": "Transactions.userId",
-            "SSteps.transactionId": "Transactions.id"
-        })
-        .sum({lrBalance: "LrSteps.balanceChange"})
-        .sum({iBalance: "ISteps.balanceChange"})
-        .sum({sBalance: "SSteps.amount"})
-        .sum({remainder: "Transactions.totals_remainder"})
-        .countDistinct({transactionCount: "Transactions.id"});
+    console.log("query=", query.toString());
+
+    const overspendStatsRes: { lrBalance: number, iBalance: number, sBalance: number, remainder: number, transactionCount: number }[] = await query;
+    stats.checkout.transactionCount = overspendStatsRes[0].transactionCount;
     stats.checkout.lightrailSpend = -overspendStatsRes[0].lrBalance;
     stats.checkout.overspend = -overspendStatsRes[0].iBalance - overspendStatsRes[0].sBalance + +overspendStatsRes[0].remainder;
-    stats.checkout.transactionCount = overspendStatsRes[0].transactionCount;
 
     console.log("overspendStatsRes=", overspendStatsRes);
 
     (program as any).stats = stats;
+
+    log.info(`injectProgramStats in ${Date.now() - startTime}ms`);
 }
 
 const programSchema: jsonschema.Schema = {
