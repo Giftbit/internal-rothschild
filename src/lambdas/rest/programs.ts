@@ -370,8 +370,9 @@ export async function injectProgramStats(auth: giftbitRoutes.jwtauth.Authorizati
     stats.redeemed.balance = -redeemedStatsRes[0].balance;
     stats.redeemed.transactionCount = redeemedStatsRes[0].transactionCount;
 
-    const query = knex
+    const overspendStatsRes: { lrBalance: number, iBalance: number, sBalance: number, remainder: number, transactionCount: number }[] = await knex
         .from(knex.raw("? as Txs", [
+            // Get unique Transaction IDs related to the Program
             knex("Values")
                 .where({
                     "Values.userId": auth.userId,
@@ -390,6 +391,7 @@ export async function injectProgramStats(auth: giftbitRoutes.jwtauth.Authorizati
                 .distinct("Transactions.id as id", "Transactions.totals_remainder as totals_remainder")
         ]))
         .leftJoin(
+            // For each Transaction, sum LightrailTransactionSteps.balanceChange
             knex.raw(
                 "? as LightrailBalances on LightrailBalances.transactionId = Txs.id",
                 [
@@ -402,6 +404,7 @@ export async function injectProgramStats(auth: giftbitRoutes.jwtauth.Authorizati
             )
         )
         .leftJoin(
+            // For each Transaction, sum InternalTransactionSteps.balanceChange
             knex.raw(
                 "? as InternalBalances on InternalBalances.transactionId = Txs.id",
                 [
@@ -414,6 +417,7 @@ export async function injectProgramStats(auth: giftbitRoutes.jwtauth.Authorizati
             )
         )
         .leftJoin(
+            // For each Transaction, sum StripeTransactionSteps.amount
             knex.raw(
                 "? as StripeAmounts on StripeAmounts.transactionId = Txs.id",
                 [
@@ -431,14 +435,13 @@ export async function injectProgramStats(auth: giftbitRoutes.jwtauth.Authorizati
         .sum({iBalance: "InternalBalances.balanceChange"})
         .sum({sBalance: "StripeAmounts.amount"});
 
-    const overspendStatsRes: { lrBalance: number, iBalance: number, sBalance: number, remainder: number, transactionCount: number }[] = await query;
     stats.checkout.transactionCount = overspendStatsRes[0].transactionCount;
     stats.checkout.lightrailSpend = -overspendStatsRes[0].lrBalance;
     stats.checkout.overspend = -overspendStatsRes[0].iBalance - overspendStatsRes[0].sBalance + +overspendStatsRes[0].remainder;
 
     (program as any).stats = stats;
 
-    log.info(`injectProgramStats in ${Date.now() - startTime}ms`);
+    log.info(`injectProgramStats took ${Date.now() - startTime}ms`);
 }
 
 const programSchema: jsonschema.Schema = {
