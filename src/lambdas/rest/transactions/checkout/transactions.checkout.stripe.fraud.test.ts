@@ -12,7 +12,6 @@ import {
 } from "../../../../utils/testUtils/stripeTestUtils";
 import {installRestRoutes} from "../../installRestRoutes";
 import {LineItem} from "../../../../model/LineItem";
-import * as sinon from "sinon";
 import {StripeRestError} from "../../../../utils/stripeUtils/StripeRestError";
 import * as stripe from "stripe";
 import chaiExclude = require("chai-exclude");
@@ -60,12 +59,6 @@ describe("handling fraudulent charges", () => {
 
     after(() => {
         unsetStubsForStripeTests();
-    });
-
-    const sinonSandbox = sinon.createSandbox();
-
-    afterEach(() => {
-        sinonSandbox.restore();
     });
 
     it("does nothing if the charge succeeds but is flagged for review in Stripe", async () => {

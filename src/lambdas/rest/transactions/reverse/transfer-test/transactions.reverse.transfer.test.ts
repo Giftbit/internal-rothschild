@@ -9,12 +9,9 @@ import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../.
 import {CreditRequest, DebitRequest, ReverseRequest, TransferRequest} from "../../../../../model/TransactionRequest";
 import {
     setStubsForStripeTests, stubStripeRefund, stubTransferStripeCharge,
-    testStripeLive,
     unsetStubsForStripeTests
 } from "../../../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
-import * as sinon from "sinon";
-import * as stripeTransactions from "../../../../../utils/stripeUtils/stripeTransactions";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);

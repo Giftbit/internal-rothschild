@@ -13,7 +13,6 @@ import {
     unsetStubsForStripeTests
 } from "../../../utils/testUtils/stripeTestUtils";
 import {createCurrency} from "../currencies";
-import * as sinon from "sinon";
 import {StripeRestError} from "../../../utils/stripeUtils/StripeRestError";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {stripeApiVersion} from "../../../utils/stripeUtils/StripeConfig";

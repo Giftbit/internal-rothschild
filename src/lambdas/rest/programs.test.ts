@@ -2,7 +2,6 @@ import * as testUtils from "../../utils/testUtils";
 import {defaultTestUser, generateId} from "../../utils/testUtils";
 import * as cassava from "cassava";
 import * as chai from "chai";
-import * as sinon from "sinon";
 import {Program} from "../../model/Program";
 import {installRestRoutes} from "./installRestRoutes";
 import {createCurrency} from "./currencies";
@@ -37,12 +36,6 @@ describe("/v2/programs", () => {
 
     after(() => {
         unsetStubsForStripeTests();
-    });
-
-    const sinonSandbox = sinon.createSandbox();
-
-    afterEach(() => {
-        sinonSandbox.restore();
     });
 
     it("can list 0 programs", async () => {

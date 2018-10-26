@@ -4,7 +4,6 @@ import * as testUtils from "../../../../../utils/testUtils/index";
 import {generateId, setCodeCryptographySecrets} from "../../../../../utils/testUtils/index";
 import {installRestRoutes} from "../../../installRestRoutes";
 import {createCurrency} from "../../../currencies";
-import * as sinon from "sinon";
 import {Value} from "../../../../../model/Value";
 import {
     InternalTransactionStep,
@@ -16,10 +15,8 @@ import {CheckoutRequest, ReverseRequest} from "../../../../../model/TransactionR
 import {after} from "mocha";
 import {
     setStubsForStripeTests, stubCheckoutStripeCharge, stubStripeRefund,
-    testStripeLive,
     unsetStubsForStripeTests
 } from "../../../../../utils/testUtils/stripeTestUtils";
-import * as stripeTransactions from "../../../../../utils/stripeUtils/stripeTransactions";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);

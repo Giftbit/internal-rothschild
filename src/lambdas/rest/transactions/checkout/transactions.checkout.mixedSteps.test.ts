@@ -8,7 +8,6 @@ import {LightrailTransactionStep, Transaction} from "../../../../model/Transacti
 import {createCurrency} from "../../currencies";
 import {Value} from "../../../../model/Value";
 import {after} from "mocha";
-import * as sinon from "sinon";
 import {
     setStubsForStripeTests,
     stubCheckoutStripeCharge,
