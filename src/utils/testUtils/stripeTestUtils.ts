@@ -4,9 +4,10 @@ import * as sinon from "sinon";
 import * as stripe from "stripe";
 import {defaultTestUser} from "./index";
 import * as stripeTransactions from "../stripeUtils/stripeTransactions";
-import {CheckoutRequest, StripeTransactionParty} from "../../model/TransactionRequest";
+import {CheckoutRequest, StripeTransactionParty, TransactionParty} from "../../model/TransactionRequest";
 
-let sinonSandbox = sinon.createSandbox();
+const sinonSandbox = sinon.createSandbox();
+let createChargeStub: sinon.SinonStub = null;
 
 /**
  * Config from stripe test account//pass: integrationtesting+merchant@giftbit.com // x39Rlf4TH3pzn29hsb#
@@ -52,6 +53,7 @@ export function setStubsForStripeTests() {
 
 export function unsetStubsForStripeTests() {
     sinonSandbox.restore();
+    createChargeStub = null;
 }
 
 export function testStripeLive(): boolean {
@@ -59,9 +61,12 @@ export function testStripeLive(): boolean {
 }
 
 export interface GenerateStripeChargeResponseOptions {
+    transactionId: string;
     amount: number;
     currency: string;
     stripeChargeId?: string;
+    sources?: TransactionParty[];
+    metadata?: object;
 }
 
 export function generateStripeChargeResponse(options: GenerateStripeChargeResponseOptions): stripe.charges.ICharge {
@@ -87,8 +92,10 @@ export function generateStripeChargeResponse(options: GenerateStripeChargeRespon
         "invoice": null,
         "livemode": false,
         "metadata": {
-            "lightrailTransactionId": "CO-stripe-only",
-            "lightrailTransactionSources": "[]",
+            // This metadata object is tightly coupled to how the code that creates the charge.
+            ...options.metadata,
+            "lightrailTransactionId": options.transactionId,
+            "lightrailTransactionSources": JSON.stringify((options.sources || []).filter(source => source.rail === "lightrail")),
             "lightrailUserId": defaultTestUser.userId
         },
         "on_behalf_of": null,
@@ -145,7 +152,7 @@ export function generateStripeChargeResponse(options: GenerateStripeChargeRespon
     };
 }
 
-export function stubCheckoutStripeCharge(request: CheckoutRequest, stripeStepIx: number, amount: number): void {
+export function stubCheckoutStripeCharge(request: CheckoutRequest, stripeStepIx: number, amount: number): stripe.charges.ICharge {
     if (testStripeLive()) {
         return;
     }
@@ -155,18 +162,40 @@ export function stubCheckoutStripeCharge(request: CheckoutRequest, stripeStepIx:
     }
     const stripeSource = request.sources[stripeStepIx] as StripeTransactionParty;
 
-    const stub = sinonSandbox.stub(stripeTransactions, "createCharge");
+    const response = generateStripeChargeResponse({
+            transactionId: request.id,
+            amount: amount,
+            currency: request.currency,
+            sources: request.sources,
+            metadata: request.metadata
+        }
+    );
+    const stub = createChargeStub || (createChargeStub = sinonSandbox.stub(stripeTransactions, "createCharge").callThrough());
     stub.withArgs(
         sinon.match.has("amount", amount)
             .and(sinon.match.hasNested("metadata.lightrailTransactionId", request.id))
-            .and(sinon.match.hasNested("source", stripeSource.source)),
+            .and(stripeSource.source ? sinon.match.hasNested("source", stripeSource.source) : sinon.match.hasNested("customer", stripeSource.customer)),
         sinon.match(stripeStubbedConfig.secretKey),
         sinon.match(stripeStubbedConfig.stripeUserId),
         sinon.match.any
-    ).resolves(generateStripeChargeResponse({
-            amount: amount,
-            currency: request.currency
-        }
-    ));
-    stub.callThrough();
+    ).resolves(response);
+
+    return response;
+}
+
+/**
+ * Throw an error if Stripe is charged for this request.
+ */
+export function stubCheckoutNoStripe(request: CheckoutRequest): void {
+    if (testStripeLive()) {
+        return;
+    }
+
+    const stub = createChargeStub || (createChargeStub = sinonSandbox.stub(stripeTransactions, "createCharge").callThrough());
+    stub.withArgs(
+        sinon.match.hasNested("metadata.lightrailTransactionId", request.id),
+        sinon.match(stripeStubbedConfig.secretKey),
+        sinon.match(stripeStubbedConfig.stripeUserId),
+        sinon.match.any
+    ).rejects(new Error("The Stripe stub should never be called in this test"));
 }
