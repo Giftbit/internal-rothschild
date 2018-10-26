@@ -352,6 +352,8 @@ export async function injectProgramStats(auth: giftbitRoutes.jwtauth.Authorizati
         }
     }
 
+    log.info(`injectProgramStats got value stats ${Date.now() - startTime}ms`);
+
     const redeemedStatsRes: { balance: number, transactionCount: number, valueCount: number }[] = await knex("Values")
         .where({
             "Values.userId": auth.userId,
@@ -369,6 +371,8 @@ export async function injectProgramStats(auth: giftbitRoutes.jwtauth.Authorizati
     stats.redeemed.count = redeemedStatsRes[0].valueCount;
     stats.redeemed.balance = -redeemedStatsRes[0].balance;
     stats.redeemed.transactionCount = redeemedStatsRes[0].transactionCount;
+
+    log.info(`injectProgramStats got redeemed stats ${Date.now() - startTime}ms`);
 
     const overspendStatsRes: { lrBalance: number, iBalance: number, sBalance: number, remainder: number, transactionCount: number }[] = await knex
         .from(knex.raw("? as Txs", [
@@ -434,14 +438,13 @@ export async function injectProgramStats(auth: giftbitRoutes.jwtauth.Authorizati
         .sum({lrBalance: "LightrailBalances.balanceChange"})
         .sum({iBalance: "InternalBalances.balanceChange"})
         .sum({sBalance: "StripeAmounts.amount"});
-
     stats.checkout.transactionCount = overspendStatsRes[0].transactionCount;
     stats.checkout.lightrailSpend = -overspendStatsRes[0].lrBalance;
     stats.checkout.overspend = -overspendStatsRes[0].iBalance - overspendStatsRes[0].sBalance + +overspendStatsRes[0].remainder;
 
-    (program as any).stats = stats;
+    log.info(`injectProgramStats got overspend stats and done ${Date.now() - startTime}ms`);
 
-    log.info(`injectProgramStats took ${Date.now() - startTime}ms`);
+    (program as any).stats = stats;
 }
 
 const programSchema: jsonschema.Schema = {
