@@ -45,12 +45,6 @@ describe("/v2/transactions/checkout - mixed sources", () => {
         unsetStubsForStripeTests();
     });
 
-    const sinonSandbox = sinon.createSandbox();
-
-    afterEach(() => {
-        sinonSandbox.restore();
-    });
-
     it("checkout with mixed sources", async () => {
         const giftCard: Partial<Value> = {
             id: generateId(),

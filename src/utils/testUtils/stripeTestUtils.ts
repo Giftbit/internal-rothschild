@@ -241,7 +241,7 @@ export function getStripeRefundStub(options: GetStripeRefundStubOptions): sinon.
 
 export function stubCheckoutStripeCharge(request: CheckoutRequest, stripeStepIx: number, amount: number, additionalProperties?: Partial<stripe.charges.ICharge>): [stripe.charges.ICharge, sinon.SinonStub] {
     if (testStripeLive()) {
-        return;
+        return [null, null];
     }
 
     if (request.sources[stripeStepIx].rail !== "stripe") {
@@ -274,7 +274,7 @@ export function stubCheckoutStripeCharge(request: CheckoutRequest, stripeStepIx:
 
 export function stubTransferStripeCharge(request: TransferRequest, additionalProperties?: Partial<stripe.charges.ICharge>): [stripe.charges.ICharge, sinon.SinonStub] {
     if (testStripeLive()) {
-        return;
+        return [null, null];
     }
 
     if (request.source.rail !== "stripe") {
@@ -350,7 +350,7 @@ export function stubTransferStripeError(request: TransferRequest, error: StripeR
 
 export function stubStripeRefund(charge: stripe.charges.ICharge, additionalProperties?: Partial<stripe.refunds.IRefund>): [stripe.refunds.IRefund, sinon.SinonStub] {
     if (testStripeLive()) {
-        return;
+        return [null, null];
     }
 
     const response = generateStripeRefundResponse({
@@ -373,7 +373,7 @@ export function stubStripeRefund(charge: stripe.charges.ICharge, additionalPrope
 /**
  * Throw an error if Stripe is charged for this transaction request.
  */
-export function stubNoStripe(request: { id: string }): void {
+export function stubNoStripeCharge(request: { id: string }): void {
     if (testStripeLive()) {
         return;
     }

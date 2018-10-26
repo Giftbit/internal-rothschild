@@ -8,7 +8,7 @@ import {Currency} from "../../../model/Currency";
 import {installRestRoutes} from "../installRestRoutes";
 import {
     setStubsForStripeTests,
-    stripeTestConfig, stubNoStripe, stubTransferStripeCharge, stubTransferStripeError,
+    stripeTestConfig, stubNoStripeCharge, stubTransferStripeCharge, stubTransferStripeError,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../../utils/testUtils/stripeTestUtils";
@@ -1054,12 +1054,6 @@ describe("/v2/transactions/transfer", () => {
             unsetStubsForStripeTests();
         });
 
-        const sinonSandbox = sinon.createSandbox();
-
-        afterEach(() => {
-            sinonSandbox.restore();
-        });
-
         it("can transfer from Stripe to Lightrail", async () => {
             const request: TransferRequest = {
                 id: generateId(),
@@ -1164,7 +1158,7 @@ describe("/v2/transactions/transfer", () => {
                 currency: "CAD"
             };
 
-            stubNoStripe(request);
+            stubNoStripeCharge(request);
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
             chai.assert.equal(postTransferResp.statusCode, 422, `body=${JSON.stringify(postTransferResp.body)}`);
         });
@@ -1275,7 +1269,7 @@ describe("/v2/transactions/transfer", () => {
                 amount: 1000,
                 currency: "CAD",
             };
-            stubNoStripe(request);
+            stubNoStripeCharge(request);
 
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
             chai.assert.equal(postTransferResp.statusCode, 409, `body=${JSON.stringify(postTransferResp.body)}`);
@@ -1296,7 +1290,7 @@ describe("/v2/transactions/transfer", () => {
                 currency: "CAD",
             };
 
-            stubNoStripe(request);
+            stubNoStripeCharge(request);
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
             chai.assert.equal(postTransferResp.statusCode, 422, `body=${JSON.stringify(postTransferResp.body)}`);
         });

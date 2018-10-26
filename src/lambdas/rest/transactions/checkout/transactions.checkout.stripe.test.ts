@@ -16,7 +16,7 @@ import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {after} from "mocha";
 import {
     setStubsForStripeTests,
-    stripeTestConfig, stubCheckoutStripeCharge, stubNoStripe,
+    stripeTestConfig, stubCheckoutStripeCharge, stubNoStripeCharge,
     testStripeLive,
     unsetStubsForStripeTests, getStripeChargeStub, stubStripeRefund, stubCheckoutStripeError
 } from "../../../../utils/testUtils/stripeTestUtils";
@@ -403,7 +403,7 @@ describe("split tender checkout with Stripe", () => {
             ],
             currency: "CAD"
         };
-        stubNoStripe(request);
+        stubNoStripeCharge(request);
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.equal(postCheckoutResp.body.id, request.id);
@@ -811,7 +811,7 @@ describe("split tender checkout with Stripe", () => {
                 ...basicRequest,
                 id: generateId()
             };
-            stubNoStripe(request);
+            stubNoStripeCharge(request);
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
             chai.assert.equal(postCheckoutResp.statusCode, 500, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
         }).timeout(10000);
@@ -886,7 +886,7 @@ describe("split tender checkout with Stripe", () => {
                 ...basicRequest,
                 id: `rollback-test-2-${Math.random()}`  // needs to be generated for every test so the Stripe refund succeeds (charges use idempotency keys, refunds can't)
             };
-            stubNoStripe(request);
+            stubNoStripeCharge(request);
 
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
             chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);

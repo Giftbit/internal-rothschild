@@ -618,7 +618,7 @@ describe("/v2/programs", () => {
                         type: "product",
                         productId: "squishee",
                         quantity: 1,
-                        unitPrice: 15
+                        unitPrice: 65
                     }
                 ],
                 currency: "USD",
@@ -638,7 +638,7 @@ describe("/v2/programs", () => {
                 ]
             }
         ];
-        stubCheckoutStripeCharge(checkouts[3], 2, 5);
+        stubCheckoutStripeCharge(checkouts[3], 2, 55);
         for (const checkout of checkouts) {
             const checkoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkout);
             chai.assert.equal(checkoutResp.statusCode, 201, JSON.stringify(checkoutResp.body));
@@ -667,7 +667,7 @@ describe("/v2/programs", () => {
             },
             checkout: {
                 lightrailSpend: 17,
-                overspend: 11,
+                overspend: 61,
                 transactionCount: 4
             }
         });

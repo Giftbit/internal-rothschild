@@ -22,7 +22,6 @@ chai.use(chaiExclude);
 describe("/v2/transactions/reverse - transfer", () => {
 
     const router = new cassava.Router();
-    const sinonSandbox = sinon.createSandbox();
 
     before(async function () {
         await testUtils.resetDb();
@@ -42,11 +41,6 @@ describe("/v2/transactions/reverse - transfer", () => {
     after(() => {
         unsetStubsForStripeTests();
     });
-
-    afterEach(() => {
-        sinonSandbox.restore();
-    });
-
 
     it("can reverse a balance transfer from lightrail to lightrail", async () => {
         // create values

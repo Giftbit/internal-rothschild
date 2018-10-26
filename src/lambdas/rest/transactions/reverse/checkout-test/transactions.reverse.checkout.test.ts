@@ -27,7 +27,6 @@ chai.use(chaiExclude);
 describe("/v2/transactions/reverse - checkout", () => {
 
     const router = new cassava.Router();
-    const sinonSandbox = sinon.createSandbox();
 
     before(async function () {
         await testUtils.resetDb();
@@ -48,10 +47,6 @@ describe("/v2/transactions/reverse - checkout", () => {
 
     after(() => {
         unsetStubsForStripeTests();
-    });
-
-    afterEach(() => {
-        sinonSandbox.restore();
     });
 
     it("can reverse a checkout with lightrail and 2 stripe payment sources", async () => {
