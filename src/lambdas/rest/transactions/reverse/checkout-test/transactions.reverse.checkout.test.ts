@@ -15,7 +15,7 @@ import {
 import {CheckoutRequest, ReverseRequest} from "../../../../../model/TransactionRequest";
 import {after} from "mocha";
 import {
-    setStubsForStripeTests,
+    setStubsForStripeTests, stubCheckoutStripeCharge, stubStripeRefund,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../../../../utils/testUtils/stripeTestUtils";
@@ -55,31 +55,6 @@ describe("/v2/transactions/reverse - checkout", () => {
     });
 
     it("can reverse a checkout with lightrail and 2 stripe payment sources", async () => {
-        if (!testStripeLive()) {
-            const mockCharge1 = require("./_mockChargeResult1.json");
-            const mockCharge2 = require("./_mockChargeResult2.json");
-            const mockRefund1 = require("./_mockRefundResult1.json");
-            const mockRefund2 = require("./_mockRefundResult2.json");
-
-            sinonSandbox.stub(stripeTransactions, "createCharge")
-                .withArgs(sinon.match({
-                    amount: 50,
-                })).resolves(mockCharge1)
-                .withArgs(sinon.match({
-                    amount: 99,
-                })).resolves(mockCharge2);
-
-            sinonSandbox.stub(stripeTransactions, "createRefund")
-                .withArgs(sinon.match({
-                    "amount": 50,
-                    "chargeId": mockCharge1.id
-                })).resolves(mockRefund1)
-                .withArgs(sinon.match({
-                    "amount": 99,
-                    "chargeId": mockCharge2.id,
-                })).resolves(mockRefund2);
-        }
-
         // create value
         const value: Partial<Value> = {
             id: generateId(),
@@ -119,6 +94,10 @@ describe("/v2/transactions/reverse - checkout", () => {
                 }
             ]
         };
+        const [charge0] = stubCheckoutStripeCharge(checkout, 2, 50);
+        const [charge1] = stubCheckoutStripeCharge(checkout, 3, 99);
+        stubStripeRefund(charge0);
+        stubStripeRefund(charge1);
         const postCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
         chai.assert.equal(postCheckout.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
         chai.assert.equal((postCheckout.body.steps[0] as InternalTransactionStep).balanceChange, -1, `body=${JSON.stringify(postCheckout.body)}`);
@@ -156,23 +135,6 @@ describe("/v2/transactions/reverse - checkout", () => {
     }).timeout(12000);
 
     it("can reverse a checkout with balanceRule, balance and credit card", async () => {
-        if (!testStripeLive()) {
-            const mockCharge1 = require("./_mockChargeResult1.json");
-            const mockRefund1 = require("./_mockRefundResult1.json");
-
-            sinonSandbox.stub(stripeTransactions, "createCharge")
-                .withArgs(sinon.match({
-                    amount: 50,
-                })).resolves(mockCharge1);
-
-            sinonSandbox.stub(stripeTransactions, "createRefund")
-                .withArgs(sinon.match({
-                    "amount": 50,
-                    "chargeId": mockCharge1.id
-                })).resolves(mockRefund1);
-        }
-
-
         // create gift card
         const giftCard: Partial<Value> = {
             id: generateId(),
@@ -218,6 +180,8 @@ describe("/v2/transactions/reverse - checkout", () => {
                 }
             ]
         };
+        const [charge] = stubCheckoutStripeCharge(checkout, 2, 50);
+        stubStripeRefund(charge);
         const postCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
         chai.assert.equal(postCheckout.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
         chai.assert.equal((postCheckout.body.steps[0] as LightrailTransactionStep).balanceChange, -10, `body=${JSON.stringify(postCheckout.body)}`);
