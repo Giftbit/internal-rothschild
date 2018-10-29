@@ -392,7 +392,7 @@ export async function injectProgramStats(auth: giftbitRoutes.jwtauth.Authorizati
                     "Transactions.id": "LightrailTransactionSteps.transactionId"
                 })
                 .where({"Transactions.transactionType": "checkout"})
-                .distinct("Transactions.id as id", "Transactions.totals_remainder as totals_remainder")
+                .distinct("Transactions.id", "Transactions.totals_remainder")
         ]))
         .leftJoin(
             // For each Transaction, sum LightrailTransactionSteps.balanceChange

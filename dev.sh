@@ -124,6 +124,8 @@ elif [ "$COMMAND" = "rdstunnel" ]; then
 
     AWS_USER="$(aws sts get-caller-identity --query \"Arn\" --output text | sed 's/arn:.*:user\///')"
 
+    echo "establishing connection with tunnel on port 3306"
+
     ssh -L localhost:3306:${DATABASE_ADDRESS}:3306 ${AWS_USER}@${BASTION_HOST_EXTERNAL_IP}
 
 elif [ "$COMMAND" = "upload" ]; then
