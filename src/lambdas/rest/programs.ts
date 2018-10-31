@@ -86,12 +86,6 @@ export function installProgramsRest(router: cassava.Router): void {
             auth.requireScopes("lightrailV2:programs:read");
 
             const program = await getProgram(auth, evt.pathParameters.id);
-
-            if (evt.queryStringParameters.stats === "true") {
-                // For now this is a secret param only the web app knows about.
-                await injectProgramStats(auth, program);
-            }
-
             return {
                 body: program
             };
@@ -131,6 +125,16 @@ export function installProgramsRest(router: cassava.Router): void {
             };
         });
 
+    router.route("/v2/programs/{id}/stats")
+        .method("GET")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:programs:read");
+            return {
+                body: await getProgramStats(auth, evt.pathParameters.id)
+            };
+        });
 }
 
 async function getPrograms(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ programs: Program[], pagination: Pagination }> {
@@ -296,7 +300,7 @@ function checkProgramProperties(program: Program): void {
 /**
  * This is currently a secret operation only the web app knows about.
  */
-export async function injectProgramStats(auth: giftbitRoutes.jwtauth.AuthorizationBadge, program: Program): Promise<void> {
+export async function getProgramStats(auth: giftbitRoutes.jwtauth.AuthorizationBadge, programId: string): Promise<any> {
     auth.requireIds("userId");
 
     const startTime = Date.now();
@@ -330,11 +334,11 @@ export async function injectProgramStats(auth: giftbitRoutes.jwtauth.Authorizati
     const valueStatsRes: { sumBalance: number, count: number, canceled: boolean, expired: boolean }[] = await knex("Values")
         .where({
             "userId": auth.userId,
-            "programId": program.id,
+            "programId": programId,
             "active": true
         })
-        .select({canceled: "canceled"})
-        .select(knex.raw("endDate = NULL OR endDate < ? AS expired", [now]))
+        .select("canceled")
+        .select(knex.raw("endDate IS NOT NULL AND endDate < ? AS expired", [now]))
         .sum({sumBalance: "balance"})
         .count({count: "*"})
         .groupBy("canceled", "expired");
@@ -357,7 +361,7 @@ export async function injectProgramStats(auth: giftbitRoutes.jwtauth.Authorizati
     const redeemedStatsRes: { balance: number, transactionCount: number, valueCount: number }[] = await knex("Values")
         .where({
             "Values.userId": auth.userId,
-            "Values.programId": program.id,
+            "Values.programId": programId,
             "Values.active": true
         })
         .join("LightrailTransactionSteps", {
@@ -380,7 +384,7 @@ export async function injectProgramStats(auth: giftbitRoutes.jwtauth.Authorizati
             knex("Values")
                 .where({
                     "Values.userId": auth.userId,
-                    "Values.programId": program.id,
+                    "Values.programId": programId,
                     "Values.active": true
                 })
                 .join("LightrailTransactionSteps", {
@@ -444,7 +448,7 @@ export async function injectProgramStats(auth: giftbitRoutes.jwtauth.Authorizati
 
     log.info(`injectProgramStats got overspend stats and done ${Date.now() - startTime}ms`);
 
-    (program as any).stats = stats;
+    return stats;
 }
 
 const programSchema: jsonschema.Schema = {

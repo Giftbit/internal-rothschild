@@ -401,7 +401,7 @@ describe("/v2/programs", () => {
         chai.assert.isNumber(patchResp.body.column);
     });
 
-    it("fetches program stats", async () => {
+    it.only("fetches program stats", async () => {
         const program: Partial<Program> = {
             id: generateId(),
             name: generateId(),
@@ -637,10 +637,10 @@ describe("/v2/programs", () => {
             chai.assert.equal(checkoutResp.statusCode, 201, JSON.stringify(checkoutResp.body));
         }
 
-        const statsResp = await testUtils.testAuthedRequest<Program & { stats: any }>(router, `/v2/programs/${program.id}?stats=true`, "GET");
+        const statsResp = await testUtils.testAuthedRequest<any>(router, `/v2/programs/${program.id}/stats`, "GET");
         chai.assert.equal(statsResp.statusCode, 200, JSON.stringify(statsResp.body));
 
-        chai.assert.deepEqual(statsResp.body.stats, {
+        chai.assert.deepEqual(statsResp.body, {
             outstanding: {
                 balance: 26,
                 count: 8
