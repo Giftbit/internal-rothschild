@@ -8,13 +8,10 @@ import {Value} from "../../../../../model/Value";
 import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../../../model/Transaction";
 import {CreditRequest, DebitRequest, ReverseRequest, TransferRequest} from "../../../../../model/TransactionRequest";
 import {
-    setStubsForStripeTests,
-    testStripeLive,
+    setStubsForStripeTests, stubStripeRefund, stubTransferStripeCharge,
     unsetStubsForStripeTests
 } from "../../../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
-import * as sinon from "sinon";
-import * as stripeTransactions from "../../../../../utils/stripeUtils/stripeTransactions";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -22,7 +19,6 @@ chai.use(chaiExclude);
 describe("/v2/transactions/reverse - transfer", () => {
 
     const router = new cassava.Router();
-    const sinonSandbox = sinon.createSandbox();
 
     before(async function () {
         await testUtils.resetDb();
@@ -42,11 +38,6 @@ describe("/v2/transactions/reverse - transfer", () => {
     after(() => {
         unsetStubsForStripeTests();
     });
-
-    afterEach(() => {
-        sinonSandbox.restore();
-    });
-
 
     it("can reverse a balance transfer from lightrail to lightrail", async () => {
         // create values
@@ -141,22 +132,6 @@ describe("/v2/transactions/reverse - transfer", () => {
     });
 
     it("can reverse a balance transfer from stripe to lightrail", async () => {
-        if (!testStripeLive()) {
-            const mockCharge1 = require("./_mockChargeResult1.json");
-            const mockRefund1 = require("./_mockRefundResult1.json");
-
-            sinonSandbox.stub(stripeTransactions, "createCharge")
-                .withArgs(sinon.match({
-                    amount: 75,
-                })).resolves(mockCharge1);
-
-            sinonSandbox.stub(stripeTransactions, "createRefund")
-                .withArgs(sinon.match({
-                    "amount": 75,
-                    "chargeId": mockCharge1.id
-                })).resolves(mockRefund1);
-        }
-
         // create values
         const value: Partial<Value> = {
             id: generateId(),
@@ -181,6 +156,11 @@ describe("/v2/transactions/reverse - transfer", () => {
             amount: 75,
             currency: "USD"
         };
+        const [charge] = stubTransferStripeCharge(transfer);
+        stubStripeRefund(charge, {
+            metadata: {reason: "not specified"},
+            source_transfer_reversal: null
+        } as any);  //  source_transfer_reversal is in the docs, but not d.ts and it's mysterious
         const postTransfer = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", transfer);
         chai.assert.equal(postTransfer.statusCode, 201, `body=${JSON.stringify(postTransfer.body)}`);
         chai.assert.equal((postTransfer.body.steps[0] as StripeTransactionStep).amount, -75);

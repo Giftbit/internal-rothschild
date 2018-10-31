@@ -516,7 +516,7 @@ export async function injectValueStats(auth: giftbitRoutes.jwtauth.Authorization
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
-    const res: { valueId: string, balanceChange: number, usesRemainingChange }[] = await knex("LightrailTransactionSteps")
+    const res: { valueId: string, balanceChange: number, usesRemainingChange: number }[] = await knex("LightrailTransactionSteps")
         .join("Transactions", {
             "Transactions.userId": "LightrailTransactionSteps.userId",
             "Transactions.id": "LightrailTransactionSteps.transactionId"

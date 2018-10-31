@@ -7,6 +7,12 @@ import {installRestRoutes} from "./installRestRoutes";
 import {createCurrency} from "./currencies";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
 import chaiExclude = require("chai-exclude");
+import {CheckoutRequest, CreditRequest, DebitRequest} from "../../model/TransactionRequest";
+import {
+    setStubsForStripeTests,
+    stubCheckoutStripeCharge,
+    unsetStubsForStripeTests
+} from "../../utils/testUtils/stripeTestUtils";
 
 chai.use(chaiExclude);
 
@@ -24,6 +30,12 @@ describe("/v2/programs", () => {
             symbol: "$",
             decimalPlaces: 2
         });
+
+        setStubsForStripeTests();
+    });
+
+    after(() => {
+        unsetStubsForStripeTests();
     });
 
     it("can list 0 programs", async () => {
@@ -48,9 +60,9 @@ describe("/v2/programs", () => {
             id: programRequest.id,
             name: programRequest.name,
             currency: programRequest.currency,
-            discount: true,
+            discount: false,
             discountSellerLiability: null,
-            pretax: true,
+            pretax: false,
             active: true,
             redemptionRule: null,
             balanceRule: null,
@@ -387,5 +399,270 @@ describe("/v2/programs", () => {
         chai.assert.isString(patchResp.body.syntaxErrorMessage);
         chai.assert.isNumber(patchResp.body.row);
         chai.assert.isNumber(patchResp.body.column);
+    });
+
+    it("fetches program stats", async () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            name: generateId(),
+            currency: "USD",
+            minInitialBalance: 1
+        };
+        const progResp = await testUtils.testAuthedRequest<any>(router, "/v2/programs", "POST", program);
+        chai.assert.equal(progResp.statusCode, 201, JSON.stringify(progResp.body));
+
+        const values = {
+            unused: {
+                id: generateId(),
+                programId: program.id,
+                balance: 2
+            },
+            creditAndDebit: {
+                id: generateId(),
+                programId: program.id,
+                balance: 10
+            },
+            debit: {
+                id: generateId(),
+                programId: program.id,
+                balance: 10
+            },
+            checkout: {
+                id: generateId(),
+                programId: program.id,
+                balance: 2
+            },
+            checkoutShared: {
+                id: generateId(),
+                programId: program.id,
+                balance: 3
+            },
+            checkoutWithInternal: {
+                id: generateId(),
+                programId: program.id,
+                balance: 3
+            },
+            checkoutStripeBalance1: {
+                id: generateId(),
+                programId: program.id,
+                balance: 5
+            },
+            checkoutStripeBalance2: {
+                id: generateId(),
+                programId: program.id,
+                balance: 5
+            },
+            expired: {
+                id: generateId(),
+                programId: program.id,
+                balance: 100,
+                endDate: new Date("2011-11-11")
+            },
+            canceled: {
+                id: generateId(),
+                programId: program.id,
+                balance: 10000,
+                canceled: true
+            },
+            canceledExpired: {
+                id: generateId(),
+                programId: program.id,
+                balance: 30000,
+                canceled: true,
+                endDate: new Date("2011-11-11")
+            }
+        };
+        for (const key in values) {
+            const value = values[key];
+            const valueResp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", {
+                ...value,
+                canceled: undefined
+            });
+            chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
+
+            if (value.canceled) {
+                const patchResp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.id}`, "PATCH", {
+                    canceled: true
+                });
+                chai.assert.equal(patchResp.statusCode, 200, JSON.stringify(patchResp.body));
+            }
+        }
+
+        const credits: Partial<CreditRequest>[] = [
+            {
+                id: generateId(),
+                destination: {
+                    rail: "lightrail",
+                    valueId: values.creditAndDebit.id
+                },
+                amount: 15,
+                currency: "USD"
+            }
+        ];
+        for (const credit of credits) {
+            const creditResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", credit);
+            chai.assert.equal(creditResp.statusCode, 201, JSON.stringify(creditResp.body));
+        }
+
+        const debits: Partial<DebitRequest>[] = [
+            {
+                id: generateId(),
+                source: {
+                    rail: "lightrail",
+                    valueId: values.creditAndDebit.id
+                },
+                amount: 5,
+                currency: "USD"
+            },
+            {
+                id: generateId(),
+                source: {
+                    rail: "lightrail",
+                    valueId: values.creditAndDebit.id
+                },
+                amount: 5,
+                currency: "USD"
+            },
+            {
+                id: generateId(),
+                source: {
+                    rail: "lightrail",
+                    valueId: values.debit.id
+                },
+                amount: 2,
+                currency: "USD"
+            }
+        ];
+        for (const debit of debits) {
+            const debitResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/debit", "POST", debit);
+            chai.assert.equal(debitResp.statusCode, 201, JSON.stringify(debitResp.body));
+        }
+
+        const checkouts: CheckoutRequest[] = [
+            {
+                id: generateId(),
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "dead-parrot",
+                        quantity: 1,
+                        unitPrice: 1
+                    }
+                ],
+                currency: "USD",
+                sources: [
+                    {
+                        rail: "lightrail",
+                        valueId: values.checkout.id
+                    }
+                ]
+            },
+            {
+                id: generateId(),
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "bachelor-chow",
+                        quantity: 1,
+                        unitPrice: 6
+                    }
+                ],
+                currency: "USD",
+                sources: [
+                    {
+                        rail: "lightrail",
+                        valueId: values.checkout.id
+                    },
+                    {
+                        rail: "lightrail",
+                        valueId: values.checkoutShared.id
+                    }
+                ],
+                allowRemainder: true
+            },
+            {
+                id: generateId(),
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "squishee",
+                        quantity: 1,
+                        unitPrice: 6
+                    }
+                ],
+                currency: "USD",
+                sources: [
+                    {
+                        rail: "lightrail",
+                        valueId: values.checkoutWithInternal.id
+                    },
+                    {
+                        rail: "internal",
+                        internalId: generateId(),
+                        balance: 4,
+                        beforeLightrail: true
+                    }
+                ]
+            },
+            {
+                id: generateId(),
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "squishee",
+                        quantity: 1,
+                        unitPrice: 65
+                    }
+                ],
+                currency: "USD",
+                sources: [
+                    {
+                        rail: "lightrail",
+                        valueId: values.checkoutStripeBalance1.id
+                    },
+                    {
+                        rail: "lightrail",
+                        valueId: values.checkoutStripeBalance2.id
+                    },
+                    {
+                        rail: "stripe",
+                        source: "tok_visa"
+                    }
+                ]
+            }
+        ];
+        stubCheckoutStripeCharge(checkouts[3], 2, 55);
+        for (const checkout of checkouts) {
+            const checkoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkout);
+            chai.assert.equal(checkoutResp.statusCode, 201, JSON.stringify(checkoutResp.body));
+        }
+
+        const statsResp = await testUtils.testAuthedRequest<any>(router, `/v2/programs/${program.id}/stats`, "GET");
+        chai.assert.equal(statsResp.statusCode, 200, JSON.stringify(statsResp.body));
+
+        chai.assert.deepEqual(statsResp.body, {
+            outstanding: {
+                balance: 26,
+                count: 8
+            },
+            expired: {
+                balance: 100,
+                count: 1
+            },
+            canceled: {
+                balance: 40000,
+                count: 2
+            },
+            redeemed: {
+                balance: 29,
+                count: 7,
+                transactionCount: 7
+            },
+            checkout: {
+                lightrailSpend: 17,
+                overspend: 61,
+                transactionCount: 4
+            }
+        });
     });
 });
