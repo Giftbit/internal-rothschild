@@ -451,7 +451,8 @@ const creditSchema: jsonschema.Schema = {
     properties: {
         id: {
             type: "string",
-            minLength: 1
+            minLength: 1,
+            maxLength: 32
         },
         destination: lightrailUniquePartySchema,
         amount: {
@@ -494,7 +495,8 @@ const debitSchema: jsonschema.Schema = {
     properties: {
         id: {
             type: "string",
-            minLength: 1
+            minLength: 1,
+            maxLength: 32
         },
         source: lightrailUniquePartySchema,
         amount: {
@@ -540,7 +542,8 @@ const transferSchema: jsonschema.Schema = {
     properties: {
         id: {
             type: "string",
-            minLength: 1
+            minLength: 1,
+            maxLength: 32
         },
         source: {
             oneOf: [
@@ -579,7 +582,8 @@ const checkoutSchema: jsonschema.Schema = {
     properties: {
         id: {
             type: "string",
-            minLength: 1
+            minLength: 1,
+            maxLength: 32
         },
         lineItems: {
             type: "array",
@@ -661,7 +665,8 @@ const reverseSchema: jsonschema.Schema = {
     properties: {
         id: {
             type: "string",
-            minLength: 1
+            minLength: 1,
+            maxLength: 32
         },
         simulate: {
             type: "boolean"
