@@ -884,7 +884,7 @@ describe("split tender checkout with Stripe", () => {
                 .throws(new giftbitRoutes.GiftbitRestError(409, `A transaction with transactionId 'TEST-ID-IRRELEVANT' already exists.`, "TransactionExists"));
             const request = {
                 ...basicRequest,
-                id: `rollback-test-2-${Math.random()}`  // needs to be generated for every test so the Stripe refund succeeds (charges use idempotency keys, refunds can't)
+                id: generateId()  // needs to be generated for every test so the Stripe refund succeeds (charges use idempotency keys, refunds can't)
             };
             stubNoStripeCharge(request);
 
