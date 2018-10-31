@@ -401,7 +401,7 @@ describe("/v2/programs", () => {
         chai.assert.isNumber(patchResp.body.column);
     });
 
-    it.only("fetches program stats", async () => {
+    it("fetches program stats", async () => {
         const program: Partial<Program> = {
             id: generateId(),
             name: generateId(),
