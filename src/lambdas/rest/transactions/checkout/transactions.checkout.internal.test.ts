@@ -6,6 +6,7 @@ import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import {installRestRoutes} from "../../installRestRoutes";
 import chaiExclude = require("chai-exclude");
+import {Value} from "../../../../model/Value";
 
 chai.use(chaiExclude);
 
@@ -144,7 +145,7 @@ describe("/v2/transactions/checkout - internal sources", () => {
             },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "createdBy"]);
+        }, ["createdDate"]);
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.deepEqual(getCheckoutResp.body, postCheckoutResp.body);
     });
@@ -287,7 +288,7 @@ describe("/v2/transactions/checkout - internal sources", () => {
             },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "createdBy"]);
+        }, ["createdDate"]);
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["steps"]);
         chai.assert.includeDeepMembers(getCheckoutResp.body.steps, postCheckoutResp.body.steps);
@@ -403,7 +404,119 @@ describe("/v2/transactions/checkout - internal sources", () => {
             },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "createdBy"]);
+        }, ["createdDate"]);
+        const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
+        chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["steps"]);
+        chai.assert.includeDeepMembers(getCheckoutResp.body.steps, postCheckoutResp.body.steps);
+    });
+
+    it("respects beforeLightrail", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balance: 2000
+        };
+        const postValueResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/values", "POST", value);
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
+
+        const request = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: value.id
+                },
+                {
+                    rail: "internal",
+                    balance: 300,
+                    internalId: generateId(),
+                    beforeLightrail: true
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "salsa",
+                    unitPrice: 499,
+                    taxRate: 0.05
+                }
+            ],
+            currency: "CAD"
+        };
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+        chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
+        chai.assert.deepEqualExcluding(postCheckoutResp.body, {
+            "id": request.id,
+            "transactionType": "checkout",
+            "currency": "CAD",
+            "totals": {
+                "subtotal": 499,
+                "tax": 25,
+                "discount": 0,
+                "discountLightrail": 0,
+                "payable": 524,
+                "paidInternal": 300,
+                "paidLightrail": 224,
+                "paidStripe": 0,
+                "remainder": 0
+            },
+            "lineItems": [
+                {
+                    "type": "product",
+                    "productId": "salsa",
+                    "unitPrice": 499,
+                    "quantity": 1,
+                    "taxRate": 0.05,
+                    "lineTotal": {
+                        "subtotal": 499,
+                        "taxable": 499,
+                        "tax": 25,
+                        "discount": 0,
+                        "remainder": 0,
+                        "payable": 524
+                    }
+                }
+            ],
+            "steps": [
+                {
+                    "rail": "internal",
+                    "internalId": request.sources[1].internalId,
+                    "balanceBefore": 300,
+                    "balanceAfter": 0,
+                    "balanceChange": -300
+                },
+                {
+                    "rail": "lightrail",
+                    "valueId": value.id,
+                    "balanceBefore": 2000,
+                    "balanceAfter": 1776,
+                    "balanceChange": -224,
+                    "code": null,
+                    "contactId": null,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
+                }
+            ],
+            "paymentSources": [
+                {
+                    "rail": "lightrail",
+                    "valueId": value.id
+                },
+                {
+                    "rail": "internal",
+                    "balance": 300,
+                    "internalId": request.sources[1].internalId,
+                    "beforeLightrail": true
+                }
+            ],
+            "metadata": null,
+            tax: {
+                "roundingMode": "HALF_EVEN"
+            },
+            "createdDate": null,
+            "createdBy": defaultTestUser.auth.teamMemberId
+        }, ["createdDate"]);
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["steps"]);
         chai.assert.includeDeepMembers(getCheckoutResp.body.steps, postCheckoutResp.body.steps);

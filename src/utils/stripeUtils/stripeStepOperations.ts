@@ -55,9 +55,10 @@ function stripeTransactionPlanStepToStripeChargeRequest(auth: giftbitRoutes.jwta
         metadata: {
             ...plan.metadata,
             lightrailTransactionId: plan.id,
-            lightrailTransactionSources: JSON.stringify(plan.steps
-                .filter(src => !isCurrentStripeStep(src, step))
-                .map(src => condensePaymentSourceForStripeMetadata(src))),
+            lightrailTransactionSources: JSON.stringify(
+                plan.steps.filter(src => !isCurrentStripeStep(src, step))
+                    .map(src => condensePaymentSourceForStripeMetadata(src))
+            ),
             lightrailUserId: auth.userId
         }
     };

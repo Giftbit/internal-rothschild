@@ -4,22 +4,18 @@ import {Value} from "../../../../model/Value";
 import {StripeTransactionStep, Transaction} from "../../../../model/Transaction";
 import {Currency} from "../../../../model/Currency";
 import * as testUtils from "../../../../utils/testUtils";
-import {defaultTestUser} from "../../../../utils/testUtils";
 import {
     setStubsForStripeTests,
-    testStripeLive,
+    stubCheckoutStripeCharge,
+    stubCheckoutStripeError,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
 import {installRestRoutes} from "../../installRestRoutes";
 import {LineItem} from "../../../../model/LineItem";
-import * as stripeTransactions from "../../../../utils/stripeUtils/stripeTransactions";
-import * as sinon from "sinon";
 import {StripeRestError} from "../../../../utils/stripeUtils/StripeRestError";
 import * as stripe from "stripe";
 import chaiExclude = require("chai-exclude");
-import Stripe = require("stripe");
-import ICharge = Stripe.charges.ICharge;
-
+import {CheckoutRequest} from "../../../../model/TransactionRequest";
 
 chai.use(chaiExclude);
 
@@ -65,14 +61,8 @@ describe("handling fraudulent charges", () => {
         unsetStubsForStripeTests();
     });
 
-    const sinonSandbox = sinon.createSandbox();
-
-    afterEach(() => {
-        sinonSandbox.restore();
-    });
-
     it("does nothing if the charge succeeds but is flagged for review in Stripe", async () => {
-        const request = {
+        const request: CheckoutRequest = {
             id: "risk-elevated",
             sources: [
                 {
@@ -83,98 +73,16 @@ describe("handling fraudulent charges", () => {
             currency: "CAD",
             lineItems
         };
-        const exampleStripeResponse: ICharge = {
-            "id": "ch_1CtgK3G3cz9DRdBtaGhXnGYB",
-            "object": "charge",
-            "amount": 500,
-            "amount_refunded": 0,
-            "application": "ca_D5LfFkNWh8XbFWxIcEx6N9FXaNmfJ9Fr",
-            "application_fee": null,
-            "balance_transaction": "txn_1CtgK3G3cz9DRdBtPD9AMxHl",
-            "captured": true,
-            "created": 1532976143,
-            "currency": "cad",
-            "customer": null,
-            "description": null,
-            "destination": null,
-            "dispute": null,
-            "failure_code": null,
-            "failure_message": null,
-            "fraud_details": {},
-            "invoice": null,
-            "livemode": false,
-            "metadata": {
-                "lightrailTransactionId": "risk-elevated",
-                "lightrailTransactionSources": "[]",
-                "lightrailUserId": "default-test-user-TEST"
-            },
-            "on_behalf_of": null,
-            "order": null,
+
+        stubCheckoutStripeCharge(request, 0, 500, {
             "outcome": {
                 "network_status": "approved_by_network",
                 "reason": null,
                 "risk_level": "elevated",
                 "seller_message": "Payment complete.",
                 "type": "authorized"
-            },
-            "paid": true,
-            "receipt_email": null,
-            "receipt_number": null,
-            "refunded": false,
-            "refunds": {
-                "object": "list",
-                "data": [],
-                "has_more": false,
-                "total_count": 0,
-                "url": "/v1/charges/ch_1CtgK3G3cz9DRdBtaGhXnGYB/refunds"
-            },
-            "review": null,
-            "shipping": null,
-            "source": {
-                "id": "card_1CtgK3G3cz9DRdBtDYGWVSA0",
-                "object": "card",
-                "address_city": null,
-                "address_country": null,
-                "address_line1": null,
-                "address_line1_check": null,
-                "address_line2": null,
-                "address_state": null,
-                "address_zip": null,
-                "address_zip_check": null,
-                "brand": "Visa",
-                "country": "US",
-                "customer": null,
-                "cvc_check": null,
-                "dynamic_last4": null,
-                "exp_month": 7,
-                "exp_year": 2019,
-                "fingerprint": "Y0lx5nkastNe4YAs",
-                "funding": "credit",
-                "last4": "9235",
-                "metadata": {},
-                "name": null,
-                "tokenization_method": null
-            },
-            "source_transfer": null,
-            "statement_descriptor": null,
-            "status": "succeeded",
-            "transfer_group": null
-        };
-
-        if (!testStripeLive()) {
-            sinonSandbox.stub(stripeTransactions, "createCharge")
-                .withArgs(sinon.match({
-                    "amount": 500,
-                    "currency": request.currency,
-                    "metadata": {
-                        "lightrailTransactionId": request.id,
-                        "lightrailTransactionSources": "[]",
-                        "lightrailUserId": defaultTestUser.userId
-                    },
-                    "source": "tok_riskLevelElevated"
-                }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`))
-                .resolves(exampleStripeResponse);
-        }
+            }
+        });
 
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
 
@@ -196,7 +104,7 @@ describe("handling fraudulent charges", () => {
     });
 
     it("fails with a clear error if the charge is blocked by Stripe (fraudulent)", async () => {
-        const request = {
+        const request: CheckoutRequest = {
             id: "chg-fraudulent",
             sources: [
                 {
@@ -265,21 +173,7 @@ describe("handling fraudulent charges", () => {
             "statusCode": 402
         };
         const exampleErrorResponse = new StripeRestError(422, "Error for tests: card blocked by Stripe for fraud", "StripeCardDeclined", exampleStripeError);
-
-        if (!testStripeLive()) {
-            sinonSandbox.stub(stripeTransactions, "createCharge")
-                .withArgs(sinon.match({
-                    "amount": 500,
-                    "currency": request.currency,
-                    "metadata": {
-                        "lightrailTransactionId": request.id,
-                        "lightrailTransactionSources": "[]",
-                        "lightrailUserId": defaultTestUser.userId
-                    },
-                    "source": "tok_chargeDeclinedFraudulent"
-                }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`))
-                .rejects(exampleErrorResponse);
-        }
+        stubCheckoutStripeError(request, 0, exampleErrorResponse);
 
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
 
@@ -288,7 +182,7 @@ describe("handling fraudulent charges", () => {
     });
 
     it("fails with a clear error if the charge is declined by the card provider (any reason)", async () => {
-        const request = {
+        const request: CheckoutRequest = {
             id: "chg-declined",
             sources: [
                 {
@@ -357,21 +251,7 @@ describe("handling fraudulent charges", () => {
             "statusCode": 402
         };
         const exampleErrorResponse = new StripeRestError(422, "Error for tests: card declined by provider", "StripeCardDeclined", exampleStripeError);
-
-        if (!testStripeLive()) {
-            sinonSandbox.stub(stripeTransactions, "createCharge")
-                .withArgs(sinon.match({
-                    "amount": 500,
-                    "currency": request.currency,
-                    "metadata": {
-                        "lightrailTransactionId": request.id,
-                        "lightrailTransactionSources": "[]",
-                        "lightrailUserId": defaultTestUser.userId
-                    },
-                    "source": "tok_chargeDeclined"
-                }), sinon.match("test"), sinon.match("test"), sinon.match(`${request.id}-0`))
-                .rejects(exampleErrorResponse);
-        }
+        stubCheckoutStripeError(request, 0, exampleErrorResponse);
 
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
 
