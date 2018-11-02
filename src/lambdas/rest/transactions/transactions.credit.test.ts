@@ -644,7 +644,7 @@ describe("/v2/transactions/credit", () => {
             chai.assert.equal(createCredit.statusCode, 201, `body=${JSON.stringify(createCredit.body)}`);
         });
 
-        it("cannot create debit with id exceeding max length of 64 - returns 422", async () => {
+        it("cannot create credit with id exceeding max length of 64 - returns 422", async () => {
             const credit: Partial<CreditRequest> = {
                 id: generateId(65),
                 destination: {

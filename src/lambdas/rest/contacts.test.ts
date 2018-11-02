@@ -813,7 +813,8 @@ describe("/v2/contacts", () => {
         };
         chai.assert.equal(contact.id.length, 65);
 
-        const createContact = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts`, "POST", contact);
+        const createContact = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/contacts`, "POST", contact);
         chai.assert.equal(createContact.statusCode, 422);
+        chai.assert.include(createContact.body.message, "requestBody.id does not meet maximum length of 64");
     });
 });

@@ -131,7 +131,7 @@ describe("/v2/transactions/reverse", () => {
             chai.assert.include(createReverse.body.message, "requestBody.id does not meet maximum length of 64");
         });
 
-        it("can create transfer with maximum id length", async () => {
+        it("can create reverse with maximum id length", async () => {
             const reverse: Partial<ReverseRequest> = {
                 id: generateId(64)
             };

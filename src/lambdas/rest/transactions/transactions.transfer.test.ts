@@ -1417,7 +1417,7 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.equal(createTransfer.statusCode, 201, `body=${JSON.stringify(createTransfer.body)}`);
         });
 
-        it("cannot create debit with id exceeding max length of 64 - returns 422", async () => {
+        it("cannot create transfer with id exceeding max length of 64 - returns 422", async () => {
             const credit: Partial<TransferRequest> = {
                 id: generateId(65),
                 source: {
@@ -1431,9 +1431,9 @@ describe("/v2/transactions/transfer", () => {
                 amount: 1,
                 currency: "CAD"
             };
-            const createCredit = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/transfer", "POST", credit);
-            chai.assert.equal(createCredit.statusCode, 422, `body=${JSON.stringify(createCredit.body)}`);
-            chai.assert.include(createCredit.body.message, "requestBody.id does not meet maximum length of 64");
+            const createTransfer = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/transfer", "POST", credit);
+            chai.assert.equal(createTransfer.statusCode, 422, `body=${JSON.stringify(createTransfer.body)}`);
+            chai.assert.include(createTransfer.body.message, "requestBody.id does not meet maximum length of 64");
         });
     });
 });

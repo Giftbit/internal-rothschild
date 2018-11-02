@@ -400,9 +400,9 @@ describe("/v2/issuances", () => {
                 name: "name",
                 count: 1
             };
-            const createIssuance2 = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${program.id}/issuances`, "POST", issuance);
-            chai.assert.equal(createIssuance2.statusCode, 422);
-            chai.assert.include(createIssuance2.body.message, "requestBody.id does not meet maximum length of 58");
+            const createIssuance = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${program.id}/issuances`, "POST", issuance);
+            chai.assert.equal(createIssuance.statusCode, 422);
+            chai.assert.include(createIssuance.body.message, "requestBody.id does not meet maximum length of 58");
         });
     });
 
