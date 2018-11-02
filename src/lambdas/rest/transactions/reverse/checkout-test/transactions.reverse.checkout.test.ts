@@ -14,7 +14,9 @@ import {
 import {CheckoutRequest, ReverseRequest} from "../../../../../model/TransactionRequest";
 import {after} from "mocha";
 import {
-    setStubsForStripeTests, stubCheckoutStripeCharge, stubStripeRefund,
+    setStubsForStripeTests,
+    stubCheckoutStripeCharge,
+    stubStripeRefund,
     unsetStubsForStripeTests
 } from "../../../../../utils/testUtils/stripeTestUtils";
 import chaiExclude = require("chai-exclude");
@@ -90,12 +92,17 @@ describe("/v2/transactions/reverse - checkout", () => {
         const [charge1] = stubCheckoutStripeCharge(checkout, 3, 99);
         stubStripeRefund(charge0);
         stubStripeRefund(charge1);
+        const simulate = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+            ...checkout,
+            simulate: true
+        });
         const postCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
         chai.assert.equal(postCheckout.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
         chai.assert.equal((postCheckout.body.steps[0] as InternalTransactionStep).balanceChange, -1, `body=${JSON.stringify(postCheckout.body)}`);
         chai.assert.equal((postCheckout.body.steps[1] as LightrailTransactionStep).balanceChange, -100, `body=${JSON.stringify(postCheckout.body)}`);
         chai.assert.equal((postCheckout.body.steps[2] as StripeTransactionStep).amount, -50, `body=${JSON.stringify(postCheckout.body)}`);
         chai.assert.equal((postCheckout.body.steps[3] as StripeTransactionStep).amount, -99, `body=${JSON.stringify(postCheckout.body)}`);
+        chai.assert.deepEqualExcluding(simulate.body, postCheckout.body, ["steps"]);
 
         // lookup chain
         const getChain1 = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions/${checkout.id}/chain`, "GET");

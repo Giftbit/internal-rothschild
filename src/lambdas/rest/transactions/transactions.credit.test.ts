@@ -7,6 +7,7 @@ import {Transaction} from "../../../model/Transaction";
 import * as currencies from "../currencies";
 import {installRestRoutes} from "../installRestRoutes";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
+import {CreditRequest} from "../../../model/TransactionRequest";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -615,5 +616,47 @@ describe("/v2/transactions/credit", () => {
             currency: "USD"
         });
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    describe("max id length checks", () => {
+        const value: Partial<Value> = {
+            id: generateId(64),
+            currency: "CAD",
+            balance: 50,
+        };
+
+        before(async function () {
+            const createValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(createValue.statusCode, 201, JSON.stringify(createValue));
+        });
+
+        it("can create credit with maximum id length", async () => {
+            const credit: Partial<CreditRequest> = {
+                id: generateId(64),
+                destination: {
+                    rail: "lightrail",
+                    valueId: value.id
+                },
+                amount: 1,
+                currency: "CAD"
+            };
+            const createCredit = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", credit);
+            chai.assert.equal(createCredit.statusCode, 201, `body=${JSON.stringify(createCredit.body)}`);
+        });
+
+        it("cannot create debit with id exceeding max length of 64 - returns 422", async () => {
+            const credit: Partial<CreditRequest> = {
+                id: generateId(65),
+                destination: {
+                    rail: "lightrail",
+                    valueId: value.id
+                },
+                amount: 1,
+                currency: "CAD"
+            };
+            const createCredit = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/credit", "POST", credit);
+            chai.assert.equal(createCredit.statusCode, 422, `body=${JSON.stringify(createCredit.body)}`);
+            chai.assert.include(createCredit.body.message, "requestBody.id does not meet maximum length of 64");
+        });
     });
 });

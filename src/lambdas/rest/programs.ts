@@ -12,8 +12,8 @@ import {
     nowInDbPrecision
 } from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
-import log = require("loglevel");
 import {checkRulesSyntax} from "./values";
+import log = require("loglevel");
 
 export function installProgramsRest(router: cassava.Router): void {
     router.route("/v2/programs")
@@ -457,7 +457,7 @@ const programSchema: jsonschema.Schema = {
     properties: {
         id: {
             type: "string",
-            maxLength: 32,
+            maxLength: 64,
             minLength: 1
         },
         name: {

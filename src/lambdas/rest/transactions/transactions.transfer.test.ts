@@ -8,7 +8,10 @@ import {Currency} from "../../../model/Currency";
 import {installRestRoutes} from "../installRestRoutes";
 import {
     setStubsForStripeTests,
-    stripeTestConfig, stubNoStripeCharge, stubTransferStripeCharge, stubTransferStripeError,
+    stripeTestConfig,
+    stubNoStripeCharge,
+    stubTransferStripeCharge,
+    stubTransferStripeError,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../../utils/testUtils/stripeTestUtils";
@@ -16,8 +19,8 @@ import {createCurrency} from "../currencies";
 import {StripeRestError} from "../../../utils/stripeUtils/StripeRestError";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {stripeApiVersion} from "../../../utils/stripeUtils/StripeConfig";
-import chaiExclude = require("chai-exclude");
 import {TransferRequest} from "../../../model/TransactionRequest";
+import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
@@ -1374,6 +1377,63 @@ describe("/v2/transactions/transfer", () => {
                 chai.assert.isNotNull((postTransferResp.body as any).messageCode, `body=${JSON.stringify(postTransferResp.body)}`);
                 chai.assert.equal((postTransferResp.body as any).messageCode, "StripeAmountTooSmall", `body=${JSON.stringify(postTransferResp.body)}`);
             });
+        });
+    });
+
+    describe("max id length checks", () => {
+        const source: Partial<Value> = {
+            id: generateId(64),
+            currency: "CAD",
+            balance: 1,
+        };
+        const destination: Partial<Value> = {
+            id: generateId(64),
+            currency: "CAD",
+            balance: 0,
+        };
+
+        before(async function () {
+            const createSourceValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", source);
+            chai.assert.equal(createSourceValue.statusCode, 201, JSON.stringify(createSourceValue));
+            const createDestinationValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", destination);
+            chai.assert.equal(createDestinationValue.statusCode, 201, JSON.stringify(createDestinationValue));
+        });
+
+        it("can create transfer with maximum id length", async () => {
+            const transfer: Partial<TransferRequest> = {
+                id: generateId(64),
+                source: {
+                    rail: "lightrail",
+                    valueId: source.id
+                },
+                destination: {
+                    rail: "lightrail",
+                    valueId: destination.id
+                },
+                amount: 1,
+                currency: "CAD"
+            };
+            const createTransfer = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", transfer);
+            chai.assert.equal(createTransfer.statusCode, 201, `body=${JSON.stringify(createTransfer.body)}`);
+        });
+
+        it("cannot create debit with id exceeding max length of 64 - returns 422", async () => {
+            const credit: Partial<TransferRequest> = {
+                id: generateId(65),
+                source: {
+                    rail: "lightrail",
+                    valueId: source.id
+                },
+                destination: {
+                    rail: "lightrail",
+                    valueId: destination.id
+                },
+                amount: 1,
+                currency: "CAD"
+            };
+            const createCredit = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/transfer", "POST", credit);
+            chai.assert.equal(createCredit.statusCode, 422, `body=${JSON.stringify(createCredit.body)}`);
+            chai.assert.include(createCredit.body.message, "requestBody.id does not meet maximum length of 64");
         });
     });
 });

@@ -44,6 +44,10 @@ describe("/v2/transactions/reverse - initialBalance", () => {
         const reverse: Partial<ReverseRequest> = {
             id: generateId()
         };
+        const simulate = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${initialBalanceTransactionId}/reverse`, "POST", {
+            ...reverse,
+            simulate: true
+        });
         const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${initialBalanceTransactionId}/reverse`, "POST", reverse);
         chai.assert.equal(postReverse.statusCode, 201);
         chai.assert.deepEqualExcluding(postReverse.body, {
@@ -72,6 +76,7 @@ describe("/v2/transactions/reverse - initialBalance", () => {
             "metadata": null,
             "createdBy": "default-test-user-TEST"
         }, ["createdDate"]);
+        chai.assert.deepEqual(simulate.body, postReverse.body);
 
         const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(getValue.statusCode, 200);

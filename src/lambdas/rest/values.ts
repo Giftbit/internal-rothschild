@@ -23,9 +23,9 @@ import {GenerateCodeParameters} from "../../model/GenerateCodeParameters";
 import {getTransactions} from "./transactions/transactions";
 import {Currency, formatAmountForCurrencyDisplay} from "../../model/Currency";
 import {getCurrency} from "./currencies";
+import {getRuleFromCache} from "./transactions/getRuleFromCache";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
-import {getRuleFromCache} from "./transactions/getRuleFromCache";
 
 export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
@@ -695,7 +695,7 @@ const valueSchema: jsonschema.Schema = {
     properties: {
         id: {
             type: "string",
-            maxLength: 32,
+            maxLength: 64,
             minLength: 1
         },
         currency: {
@@ -705,7 +705,7 @@ const valueSchema: jsonschema.Schema = {
         },
         programId: {
             type: "string",
-            maxLength: 32,
+            maxLength: 64,
             minLength: 1
         },
         balance: {
@@ -745,7 +745,7 @@ const valueSchema: jsonschema.Schema = {
         contactId: {
             type: ["string", "null"],
             minLength: 1,
-            maxLength: 32
+            maxLength: 64
         },
         active: {
             type: "boolean"

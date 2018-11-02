@@ -13,8 +13,8 @@ import {
     stubCheckoutStripeCharge,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
-import chaiExclude = require("chai-exclude");
 import {CheckoutRequest, InternalTransactionParty} from "../../../../model/TransactionRequest";
+import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
@@ -405,6 +405,45 @@ describe("/v2/transactions/checkout - mixed sources", () => {
                 usesRemainingChange: null
             }
         );
-
     });
+
+    it("can checkout with all source types and max id length", async () => {
+        const giftCard: Partial<Value> = {
+            id: generateId(64),
+            currency: "CAD",
+            balance: 1
+        };
+        const createGiftCardResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", giftCard);
+        chai.assert.equal(createGiftCardResp.statusCode, 201, `body=${JSON.stringify(createGiftCardResp.body)}`);
+
+        const request: CheckoutRequest = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "stripe",
+                    source: "tok_visa"
+                },
+                {
+                    rail: "internal",
+                    balance: 1,
+                    internalId: generateId(64),
+                },
+                {
+                    rail: "lightrail",
+                    valueId: giftCard.id
+                }
+            ],
+            lineItems: [
+                {
+                    unitPrice: 52,
+                }
+            ],
+            currency: "CAD"
+        };
+
+        stubCheckoutStripeCharge(request, 0, 1);
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+        chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
+        chai.assert.equal(postCheckoutResp.body.id, request.id);
+    }).timeout(5000);
 });

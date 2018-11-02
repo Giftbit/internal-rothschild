@@ -231,8 +231,8 @@ export async function testAuthedCsvRequest<T>(router: cassava.Router, url: strin
     };
 }
 
-export function generateId(): string {
-    return uuid.v4().substring(0, 20);
+export function generateId(length?: number): string {
+    return (uuid.v4() + "PADPADPADPADPADPADPADPADPADPADPADPADPAD").substring(0, length != null ? length : 20);
 }
 
 export async function setCodeCryptographySecrets() {

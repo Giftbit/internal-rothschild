@@ -305,19 +305,6 @@ describe("/v2/issuances", () => {
         chai.assert.include(createIssuance.body.message, "Value can't have both a balance and balanceRule.");
     });
 
-    it(`422 on issuance with id over 26 characters`, async () => {
-        let issuance: Partial<Issuance> = {
-            id: "123456789012345678901234567",
-            name: "name",
-            count: 1,
-            balance: 1
-        };
-
-        chai.assert.equal(issuance.id.length, 27);
-        const createIssuance = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${generateId()}/issuances`, "POST", issuance);
-        chai.assert.equal(createIssuance.statusCode, 422, JSON.stringify(createIssuance.body));
-    });
-
     it(`404 on invalid programId`, async () => {
         let issuance: Partial<Issuance> = {
             id: generateId(),
@@ -374,6 +361,48 @@ describe("/v2/issuances", () => {
             chai.assert.equal(list.statusCode, 200);
             chai.assert.equal(list.body.length, 1);
             chai.assert.deepEqual(list.body[0], issuanceProgramA.body, `expected: ${JSON.stringify(list.body[0])} to equal ${JSON.stringify(issuanceProgramA.body)}.`);
+        });
+    });
+
+    describe("max id length checks", () => {
+        const program: Partial<Program> = {
+            id: generateId(64),
+            currency: "USD",
+            name: "programo"
+        };
+        before(async function () {
+            const createProgram = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
+            chai.assert.equal(createProgram.statusCode, 201);
+            chai.assert.equal(createProgram.body.id, program.id);
+            chai.assert.equal(createProgram.body.id.length, 64);
+        });
+
+        it("can create issuance with max id length", async () => {
+            const issuance: Partial<Issuance> = {
+                id: generateId(58), // 6 characters left for padding on values
+                name: "name",
+                count: 1
+            };
+            const createIssuance = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", issuance);
+            chai.assert.equal(createIssuance.statusCode, 201);
+            chai.assert.equal(createIssuance.body.id, issuance.id);
+            chai.assert.equal(createIssuance.body.id.length, 58);
+
+            const values = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?issuanceId=${issuance.id}`, "GET");
+            chai.assert.equal(values.statusCode, 200);
+            chai.assert.equal(values.body.length, 1);
+            chai.assert.equal(values.body[0].id, issuance.id + "-0");
+        });
+
+        it("cannot create issuance with id exceeding max length - 422s", async () => {
+            const issuance: Partial<Issuance> = {
+                id: generateId(59),
+                name: "name",
+                count: 1
+            };
+            const createIssuance2 = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${program.id}/issuances`, "POST", issuance);
+            chai.assert.equal(createIssuance2.statusCode, 422);
+            chai.assert.include(createIssuance2.body.message, "requestBody.id does not meet maximum length of 58");
         });
     });
 

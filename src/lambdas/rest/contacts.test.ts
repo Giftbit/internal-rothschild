@@ -795,4 +795,25 @@ describe("/v2/contacts", () => {
         chai.assert.equal(resp.body.length, 4);
         chai.assert.sameOrderedMembers(resp.body.map(tx => tx.id), idAndDates.reverse().map(tx => tx.id) /* reversed since createdDate desc */);
     });
+
+    it("can create contact with maximum id length", async () => {
+        const contact: Partial<Contact> = {
+            id: generateId(64)
+        };
+        chai.assert.equal(contact.id.length, 64);
+
+        const createContact = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts`, "POST", contact);
+        chai.assert.equal(createContact.statusCode, 201);
+        chai.assert.equal(createContact.body.id, contact.id);
+    });
+
+    it("cannot create contact with id exceeding max length of 64 - returns 422", async () => {
+        const contact: Partial<Contact> = {
+            id: generateId(65)
+        };
+        chai.assert.equal(contact.id.length, 65);
+
+        const createContact = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts`, "POST", contact);
+        chai.assert.equal(createContact.statusCode, 422);
+    });
 });

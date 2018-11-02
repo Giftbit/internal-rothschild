@@ -582,4 +582,27 @@ describe("/v2/transactions/checkout - basics", () => {
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, "statusCode");
     });
+
+    it("cannot create checkout with id over max length - 422s", async () => {
+        const request = {
+            id: generateId(65),
+            sources: [
+                {
+                    rail: "internal",
+                    balance: 1,
+                    internalId: generateId(65)
+
+                }
+            ],
+            lineItems: [
+                {
+                    unitPrice: 50
+                }
+            ],
+            currency: "CAD"
+        };
+        const postCheckoutResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/checkout", "POST", request);
+        chai.assert.equal(postCheckoutResp.statusCode, 422, `body=${JSON.stringify(postCheckoutResp.body)}`);
+        chai.assert.include(postCheckoutResp.body.message, "requestBody.id does not meet maximum length of 64");
+    });
 });
