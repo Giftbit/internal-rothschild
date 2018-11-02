@@ -464,6 +464,7 @@ describe("/v2/transactions/debit", () => {
             totals: {
                 remainder: 0
             },
+            simulated: true,
             steps: [
                 {
                     rail: "lightrail",

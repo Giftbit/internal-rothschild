@@ -93,7 +93,7 @@ describe("/v2/transactions/reverse - credit", () => {
                 "createdBy": "default-test-user-TEST"
             }, ["createdDate"]
         );
-        chai.assert.deepEqual(simulate.body, postReverse.body);
+        chai.assert.deepEqualExcluding(simulate.body, postReverse.body, "simulated");
 
         // check value is same as before
         const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");

@@ -391,6 +391,7 @@ describe("/v2/transactions/credit", () => {
             transactionType: "credit",
             currency: "CAD",
             totals: null,
+            simulated: true,
             steps: [
                 {
                     rail: "lightrail",

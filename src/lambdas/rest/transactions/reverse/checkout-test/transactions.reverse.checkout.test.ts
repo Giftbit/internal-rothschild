@@ -102,7 +102,7 @@ describe("/v2/transactions/reverse - checkout", () => {
         chai.assert.equal((postCheckout.body.steps[1] as LightrailTransactionStep).balanceChange, -100, `body=${JSON.stringify(postCheckout.body)}`);
         chai.assert.equal((postCheckout.body.steps[2] as StripeTransactionStep).amount, -50, `body=${JSON.stringify(postCheckout.body)}`);
         chai.assert.equal((postCheckout.body.steps[3] as StripeTransactionStep).amount, -99, `body=${JSON.stringify(postCheckout.body)}`);
-        chai.assert.deepEqualExcluding(simulate.body, postCheckout.body, ["steps"]);
+        chai.assert.deepEqualExcluding(simulate.body, postCheckout.body, ["steps", "simulated"]);
 
         // lookup chain
         const getChain1 = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions/${checkout.id}/chain`, "GET");

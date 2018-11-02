@@ -76,7 +76,7 @@ describe("/v2/transactions/reverse - initialBalance", () => {
             "metadata": null,
             "createdBy": "default-test-user-TEST"
         }, ["createdDate"]);
-        chai.assert.deepEqual(simulate.body, postReverse.body);
+        chai.assert.deepEqualExcluding(simulate.body, postReverse.body, "simulated");
 
         const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(getValue.statusCode, 200);

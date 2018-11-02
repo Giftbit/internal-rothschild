@@ -33,3 +33,9 @@ ALTER TABLE rothschild.`StripeTransactionSteps`
   MODIFY COLUMN transactionId VARCHAR(64) NOT NULL,
   MODIFY COLUMN id VARCHAR(96) NOT NULL;
 
+ALTER TABLE rothschild.`ValueTags`
+  MODIFY COLUMN valueId VARCHAR(64) NOT NULL;
+
+ALTER TABLE rothschild.`ProgramTags`
+  MODIFY COLUMN programId VARCHAR(64) NOT NULL;
+

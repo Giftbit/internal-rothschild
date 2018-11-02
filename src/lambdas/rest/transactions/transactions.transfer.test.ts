@@ -612,7 +612,7 @@ describe("/v2/transactions/transfer", () => {
             createdBy: defaultTestUser.auth.teamMemberId
         };
         chai.assert.equal(postTransferResp.statusCode, 200, `body=${JSON.stringify(postTransferResp.body)}`);
-        chai.assert.deepEqualExcluding(postTransferResp.body, validObject, ["steps", "createdDate"]);
+        chai.assert.deepEqualExcluding(postTransferResp.body, validObject, ["steps", "createdDate", "simulated"]);
         chai.assert.lengthOf(postTransferResp.body.steps, 2);
 
         const sourceStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCad1.id) as LightrailTransactionStep;
