@@ -428,7 +428,9 @@ const internalPartySchema: jsonschema.Schema = {
             enum: ["internal"]
         },
         internalId: {
-            type: "string"
+            type: "string",
+            minLength: 1,
+            maxLength: 64
         },
         balance: {
             type: "integer",
@@ -452,7 +454,7 @@ const creditSchema: jsonschema.Schema = {
         id: {
             type: "string",
             minLength: 1,
-            maxLength: 32
+            maxLength: 64
         },
         destination: lightrailUniquePartySchema,
         amount: {
@@ -496,7 +498,7 @@ const debitSchema: jsonschema.Schema = {
         id: {
             type: "string",
             minLength: 1,
-            maxLength: 32
+            maxLength: 64
         },
         source: lightrailUniquePartySchema,
         amount: {
@@ -543,7 +545,7 @@ const transferSchema: jsonschema.Schema = {
         id: {
             type: "string",
             minLength: 1,
-            maxLength: 32
+            maxLength: 64
         },
         source: {
             oneOf: [
@@ -583,7 +585,7 @@ const checkoutSchema: jsonschema.Schema = {
         id: {
             type: "string",
             minLength: 1,
-            maxLength: 32
+            maxLength: 64
         },
         lineItems: {
             type: "array",
@@ -666,7 +668,7 @@ const reverseSchema: jsonschema.Schema = {
         id: {
             type: "string",
             minLength: 1,
-            maxLength: 32
+            maxLength: 64
         },
         simulate: {
             type: "boolean"

@@ -265,7 +265,7 @@ const contactSchema: jsonschema.Schema = {
     properties: {
         id: {
             type: "string",
-            maxLength: 32,
+            maxLength: 64,
             minLength: 1
         },
         firstName: {

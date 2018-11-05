@@ -86,6 +86,7 @@ describe("/v2/transactions/checkout - simulation tests", () => {
             "id": request.id,
             "transactionType": "checkout",
             "currency": "CAD",
+            "simulated": true,
             "totals": {
                 "subtotal": 38048,
                 "tax": 2852,

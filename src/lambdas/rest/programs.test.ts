@@ -6,13 +6,13 @@ import {Program} from "../../model/Program";
 import {installRestRoutes} from "./installRestRoutes";
 import {createCurrency} from "./currencies";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
-import chaiExclude = require("chai-exclude");
 import {CheckoutRequest, CreditRequest, DebitRequest} from "../../model/TransactionRequest";
 import {
     setStubsForStripeTests,
     stubCheckoutStripeCharge,
     unsetStubsForStripeTests
 } from "../../utils/testUtils/stripeTestUtils";
+import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
@@ -664,5 +664,31 @@ describe("/v2/programs", () => {
                 transactionCount: 4
             }
         });
+    });
+
+    it("can create program with maximum id length", async () => {
+        const program: Partial<Program> = {
+            id: generateId(64),
+            currency: "USD",
+            name: "name"
+        };
+        chai.assert.equal(program.id.length, 64);
+
+        const createProgram = await testUtils.testAuthedRequest<Program>(router, `/v2/programs`, "POST", program);
+        chai.assert.equal(createProgram.statusCode, 201);
+        chai.assert.equal(createProgram.body.id, program.id);
+    });
+
+    it("cannot create program with id exceeding max length of 64 - returns 422", async () => {
+        const program: Partial<Program> = {
+            id: generateId(65),
+            currency: "USD",
+            name: "name"
+        };
+        chai.assert.equal(program.id.length, 65);
+
+        const createProgram = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs`, "POST", program);
+        chai.assert.equal(createProgram.statusCode, 422);
+        chai.assert.include(createProgram.body.message, "requestBody.id does not meet maximum length of 64");
     });
 });
