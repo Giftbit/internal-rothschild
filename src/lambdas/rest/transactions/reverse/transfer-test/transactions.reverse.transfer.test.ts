@@ -132,6 +132,7 @@ describe("/v2/transactions/reverse - transfer", () => {
             }, ["createdDate"]
         );
         chai.assert.deepEqualExcluding(simulate.body, postReverse.body, "simulated");
+        chai.assert.isTrue(simulate.body.simulated);
 
         // check value is same as before
         const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value2.id}`, "GET");
