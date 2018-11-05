@@ -1,5 +1,16 @@
 {
     "rules": {
+        "ban": [
+            true,
+            {
+                "name": ["it", "only"],
+                "message": "This is ok for development but should not be committed."
+            },
+            {
+                "name": ["describe", "only"],
+                "message": "This is ok for development but should not be committed."
+            }
+        ],
         "class-name": true,
         "comment-format": [
             true,
@@ -13,6 +24,7 @@
         "no-duplicate-variable": true,
         "no-eval": true,
         "no-internal-module": true,
+        "no-string-throw": true,
         "no-trailing-whitespace": true,
         "no-unsafe-finally": true,
         "no-var-keyword": true,

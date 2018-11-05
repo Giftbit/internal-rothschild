@@ -9,10 +9,11 @@ import {getRuleFromCache} from "../getRuleFromCache";
 import {createCurrency} from "../../currencies";
 import {Transaction} from "../../../../model/Transaction";
 import chaiExclude = require("chai-exclude");
+import {CheckoutRequest} from "../../../../model/TransactionRequest";
 
 chai.use(chaiExclude);
 
-describe("/v2/transactions/checkout - balanceRule and redemption rule tests", () => {
+describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
 
     const router = new cassava.Router();
 
@@ -29,7 +30,7 @@ describe("/v2/transactions/checkout - balanceRule and redemption rule tests", ()
         });
     });
 
-    it("test balanceRule evaluateToNumber", async () => {
+    it("balanceRule evaluates to a number", async () => {
         const promotion: Partial<Value> = {
             id: "test balanceRule",
             currency: "CAD",
@@ -63,7 +64,7 @@ describe("/v2/transactions/checkout - balanceRule and redemption rule tests", ()
         const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", promotion);
         chai.assert.equal(resp.statusCode, 201, `body=${JSON.stringify(resp.body)}`);
 
-        let checkoutRequest: any = {
+        const checkoutRequest: CheckoutRequest = {
             id: generateId(),
             allowRemainder: true,
             sources: [
@@ -187,7 +188,7 @@ describe("/v2/transactions/checkout - balanceRule and redemption rule tests", ()
         const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", promotion);
         chai.assert.equal(resp.statusCode, 201, `body=${JSON.stringify(resp.body)}`);
 
-        let checkoutRequest: any = {
+        const checkoutRequest: CheckoutRequest = {
             id: generateId(),
             allowRemainder: true,
             sources: [
@@ -289,7 +290,7 @@ describe("/v2/transactions/checkout - balanceRule and redemption rule tests", ()
             },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "createdBy"]);
+        }, ["createdDate"]);
     });
 
     it("basic 10% off everything, and 20% off product promotion. ensure promotions don't stack and 20% is used.", async () => {
@@ -329,7 +330,7 @@ describe("/v2/transactions/checkout - balanceRule and redemption rule tests", ()
         const respProductPromo = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", productPromotion);
         chai.assert.equal(respProductPromo.statusCode, 201, `body=${JSON.stringify(respProductPromo.body)}`);
 
-        let checkoutRequest: any = {
+        const checkoutRequest: CheckoutRequest = {
             id: generateId(),
             allowRemainder: true,
             sources: [
@@ -451,7 +452,7 @@ describe("/v2/transactions/checkout - balanceRule and redemption rule tests", ()
             },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "createdBy"]);
+        }, ["createdDate"]);
     });
 
     it("basic 10% off everything, 20% off product promotion, and remainder on gift card. ensure promotions don't stack and 20% is used.", async () => {
@@ -500,7 +501,7 @@ describe("/v2/transactions/checkout - balanceRule and redemption rule tests", ()
         const createGiftCard1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", giftCard1);
         chai.assert.equal(createGiftCard1.statusCode, 201, `body=${JSON.stringify(createGiftCard1.body)}`);
 
-        let checkoutRequest: any = {
+        const checkoutRequest: CheckoutRequest = {
             id: generateId(),
             sources: [
                 {
@@ -652,7 +653,7 @@ describe("/v2/transactions/checkout - balanceRule and redemption rule tests", ()
             },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "createdBy"]);
+        }, ["createdDate"]);
     });
 
     it("basic 32% off select item, single use. test it can't be transacted against again.", async () => {
@@ -675,7 +676,7 @@ describe("/v2/transactions/checkout - balanceRule and redemption rule tests", ()
         const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", promotion);
         chai.assert.equal(resp.statusCode, 201, `body=${JSON.stringify(resp.body)}`);
 
-        let checkoutRequest: any = {
+        const checkoutRequest: CheckoutRequest = {
             id: generateId(),
             allowRemainder: true,
             sources: [
@@ -776,7 +777,7 @@ describe("/v2/transactions/checkout - balanceRule and redemption rule tests", ()
             },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "createdBy"]);
+        }, ["createdDate"]);
 
         const lookupAfterCheckout = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${promotion.id}`, "GET", promotion);
         chai.assert.equal(lookupAfterCheckout.statusCode, 200, `body=${JSON.stringify(lookupAfterCheckout.body)}`);
@@ -848,7 +849,7 @@ describe("/v2/transactions/checkout - balanceRule and redemption rule tests", ()
             },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "createdBy"]);
+        }, ["createdDate"]);
     });
 
     it("stacking promotions: basic 10% off subtotal, 20% off remainder. ensure promotion that operates on remainder is used first", async () => {
@@ -883,7 +884,7 @@ describe("/v2/transactions/checkout - balanceRule and redemption rule tests", ()
         const createPromo20PercentOffRemainder = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", promotion20PercentOffRemainder);
         chai.assert.equal(createPromo20PercentOffRemainder.statusCode, 201, `body=${JSON.stringify(createPromo20PercentOffRemainder.body)}`);
 
-        let checkoutRequest: any = {
+        const checkoutRequest: CheckoutRequest = {
             id: generateId(),
             allowRemainder: true,
             sources: [
@@ -981,6 +982,139 @@ describe("/v2/transactions/checkout - balanceRule and redemption rule tests", ()
             },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "createdBy"]);
+        }, ["createdDate"]);
+    });
+
+    it("rules can use transaction metadata", async () => {
+        // promotion off remainder should be applied first.
+        const value1: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balanceRule: {
+                rule: "currentLineItem.lineTotal.subtotal*0.1",
+                explanation: "10% off everything"
+            },
+            redemptionRule: {
+                rule: "metadata.isNewClient == true",
+                explanation: "new clients only"
+            },
+            discount: true,
+            pretax: true,
+            usesRemaining: 1
+        };
+        const value1Res = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
+        chai.assert.equal(value1Res.statusCode, 201, `body=${JSON.stringify(value1Res.body)}`);
+
+        const value2: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balanceRule: {
+                rule: "currentLineItem.lineTotal.remainder*0.2",
+                explanation: "20% off everything"
+            },
+            redemptionRule: {
+                rule: "metadata.isGoldClient == true",
+                explanation: "gold level clients only"
+            },
+            pretax: true,
+            discount: true,
+            usesRemaining: 1
+        };
+        const value2res = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value2);
+        chai.assert.equal(value2res.statusCode, 201, `body=${JSON.stringify(value2res.body)}`);
+
+        const checkoutRequest: CheckoutRequest = {
+            id: generateId(),
+            allowRemainder: true,
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: value1.id
+                },
+                {
+                    rail: "lightrail",
+                    valueId: value2.id
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "p1",
+                    unitPrice: 3999,
+                    taxRate: 0.10
+                }
+            ],
+            currency: "CAD",
+            metadata: {
+                isNewClient: true,
+                isGoldClient: false
+            }
+        };
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
+        chai.assert.deepEqualExcluding(postCheckoutResp.body, {
+            "id": checkoutRequest.id,
+            "transactionType": "checkout",
+            "currency": "CAD",
+            "tax": {"roundingMode": "HALF_EVEN"},
+            "totals": {
+                "subtotal": 3999,
+                "tax": 360,
+                "discount": 400,
+                "payable": 3959,
+                "remainder": 3959,
+                "discountLightrail": 400,
+                "paidLightrail": 0,
+                "paidStripe": 0,
+                "paidInternal": 0
+            },
+            "lineItems": [
+                {
+                    "type": "product",
+                    "productId": "p1",
+                    "unitPrice": 3999,
+                    "taxRate": 0.1,
+                    "quantity": 1,
+                    "lineTotal": {
+                        "subtotal": 3999,
+                        "taxable": 3599,
+                        "tax": 360,
+                        "discount": 400,
+                        "remainder": 3959,
+                        "payable": 3959
+                    }
+                }
+            ],
+            "steps": [
+                {
+                    "balanceAfter": null,
+                    "balanceBefore": null,
+                    "balanceChange": -400,
+                    "code": null,
+                    "contactId": null,
+                    "rail": "lightrail",
+                    "usesRemainingAfter": 0,
+                    "usesRemainingBefore": 1,
+                    "usesRemainingChange": -1,
+                    "valueId": value1.id
+                }
+            ],
+            "paymentSources": [
+                {
+                    "rail": "lightrail",
+                    "valueId": value1.id
+                },
+                {
+                    "rail": "lightrail",
+                    "valueId": value2.id
+                }
+            ],
+            "metadata": {
+                "isGoldClient": false,
+                "isNewClient": true
+            },
+            "createdBy": defaultTestUser.auth.teamMemberId,
+            "createdDate": null
+        }, ["createdDate"]);
     });
 });

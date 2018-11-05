@@ -89,7 +89,12 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
         const item = transactionPlan.lineItems[index];
         if (item.lineTotal.remainder > 0) {
             if (value.redemptionRule) {
-                if (!new RuleContext(transactionPlan.totals, transactionPlan.lineItems, item).evaluateRedemptionRule(value.redemptionRule)) {
+                if (!new RuleContext({
+                    totals: transactionPlan.totals,
+                    lineItems: transactionPlan.lineItems,
+                    currentLineItem: item,
+                    metadata: transactionPlan.metadata
+                }).evaluateRedemptionRule(value.redemptionRule)) {
                     log.info(`Value ${value.id} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
                     continue;
                 }
@@ -98,7 +103,12 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
             log.info(`Value ${value.id} CAN be applied to ${JSON.stringify(item)}.`);
             let amount: number;
             if (value.balanceRule) {
-                let valueFromRule = new RuleContext(transactionPlan.totals, transactionPlan.lineItems, item).evaluateBalanceRule(value.balanceRule);
+                const valueFromRule = new RuleContext({
+                    totals: transactionPlan.totals,
+                    lineItems: transactionPlan.lineItems,
+                    currentLineItem: item,
+                    metadata: transactionPlan.metadata
+                }).evaluateBalanceRule(value.balanceRule);
                 amount = Math.min(item.lineTotal.remainder, bankersRounding(valueFromRule, 0) | 0);
                 step.amount -= amount;
             } else {

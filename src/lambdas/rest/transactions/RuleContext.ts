@@ -3,15 +3,24 @@ import {TransactionTotals} from "../../../model/Transaction";
 import {Rule} from "../../../model/Value";
 import {getRuleFromCache} from "./getRuleFromCache";
 
+export interface RuleContextParams {
+    totals: TransactionTotals;
+    lineItems: LineItemResponse[];
+    currentLineItem: LineItemResponse;
+    metadata: object;
+}
+
 export class RuleContext {
     currentLineItem: LineItemResponse;
     totals: TransactionTotals;
     lineItems: LineItemResponse[];
+    metadata: object;
 
-    constructor(totals: TransactionTotals, lineItems: LineItemResponse[], currentLineItem: LineItemResponse) {
-        this.currentLineItem = currentLineItem;
-        this.totals = totals;
-        this.lineItems = lineItems;
+    constructor(params: RuleContextParams) {
+        this.currentLineItem = params.currentLineItem;
+        this.totals = params.totals;
+        this.lineItems = params.lineItems;
+        this.metadata = params.metadata;
     }
 
     evaluateBalanceRule(rule: Rule): number {

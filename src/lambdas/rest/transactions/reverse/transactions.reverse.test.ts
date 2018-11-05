@@ -6,6 +6,7 @@ import {Value} from "../../../../model/Value";
 import {generateId} from "../../../../utils/testUtils";
 import * as testUtils from "../../../../utils/testUtils/index";
 import {Transaction} from "../../../../model/Transaction";
+import {DebitRequest, ReverseRequest} from "../../../../model/TransactionRequest";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -98,5 +99,44 @@ describe("/v2/transactions/reverse", () => {
         chai.assert.equal(postReverse1.body.message, `A Lightrail transaction with transactionId '${getInitialBalanceTransaction.body[0].id}' already exists.`);
     });
 
-    // todo - add simulate coverage.
+    describe("max id length checks", () => {
+        const value: Partial<Value> = {
+            id: generateId(64),
+            currency: "USD",
+            balance: 1,
+        };
+        const debit: Partial<DebitRequest> = {
+            id: generateId(64),
+            source: {
+                rail: "lightrail",
+                valueId: value.id
+            },
+            amount: 1,
+            currency: "USD"
+        };
+
+        before(async function () {
+            const createSourceValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(createSourceValue.statusCode, 201, JSON.stringify(createSourceValue));
+            const createDebit = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", debit);
+            chai.assert.equal(createDebit.statusCode, 201, `body=${JSON.stringify(createDebit.body)}`);
+        });
+
+        it("cannot create reverse with id exceeding max length of 64 - returns 422", async () => {
+            const reverse: Partial<ReverseRequest> = {
+                id: generateId(65)
+            };
+            const createReverse = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/transactions/${debit.id}/reverse`, "POST", reverse);
+            chai.assert.equal(createReverse.statusCode, 422, `body=${JSON.stringify(createReverse.body)}`);
+            chai.assert.include(createReverse.body.message, "requestBody.id does not meet maximum length of 64");
+        });
+
+        it("can create reverse with maximum id length", async () => {
+            const reverse: Partial<ReverseRequest> = {
+                id: generateId(64)
+            };
+            const createReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${debit.id}/reverse`, "POST", reverse);
+            chai.assert.equal(createReverse.statusCode, 201, `body=${JSON.stringify(createReverse.body)}`);
+        });
+    });
 });

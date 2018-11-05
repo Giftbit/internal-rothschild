@@ -8,7 +8,9 @@ import {Value} from "../../../../../model/Value";
 import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../../../model/Transaction";
 import {CreditRequest, DebitRequest, ReverseRequest, TransferRequest} from "../../../../../model/TransactionRequest";
 import {
-    setStubsForStripeTests, stubStripeRefund, stubTransferStripeCharge,
+    setStubsForStripeTests,
+    stubStripeRefund,
+    stubTransferStripeCharge,
     unsetStubsForStripeTests
 } from "../../../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
@@ -82,6 +84,10 @@ describe("/v2/transactions/reverse - transfer", () => {
         const reverse: Partial<ReverseRequest> = {
             id: generateId()
         };
+        const simulate = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transfer.id}/reverse`, "POST", {
+            ...reverse,
+            simulate: true
+        });
         const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transfer.id}/reverse`, "POST", reverse);
         chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postTransfer.body)}`);
         chai.assert.deepEqualExcluding(postReverse.body as any, {
@@ -125,6 +131,8 @@ describe("/v2/transactions/reverse - transfer", () => {
                 "createdBy": "default-test-user-TEST"
             }, ["createdDate"]
         );
+        chai.assert.deepEqualExcluding(simulate.body, postReverse.body, "simulated");
+        chai.assert.isTrue(simulate.body.simulated);
 
         // check value is same as before
         const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value2.id}`, "GET");

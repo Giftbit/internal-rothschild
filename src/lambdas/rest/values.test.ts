@@ -1478,4 +1478,26 @@ describe("/v2/values/", () => {
         chai.assert.equal(resp.body.length, 4);
         chai.assert.sameOrderedMembers(resp.body.map(tx => tx.id), idAndDates.reverse().map(tx => tx.id) /* reversed since createdDate desc */);
     });
+
+    it("can create value with maximum id length", async () => {
+        const value: Partial<Value> = {
+            id: generateId(64),
+            currency: "USD",
+        };
+        const createRes = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createRes.statusCode, 201, `body=${JSON.stringify(createRes.body)}`);
+        chai.assert.equal(createRes.body.id, value.id);
+    });
+
+    it("cannot create value with id exceeding max length of 64 - returns 422", async () => {
+        const value: Partial<Value> = {
+            id: generateId(65),
+            currency: "USD"
+        };
+        chai.assert.equal(value.id.length, 65);
+
+        const createValue = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/values`, "POST", value);
+        chai.assert.equal(createValue.statusCode, 422);
+        chai.assert.include(createValue.body.message, "requestBody.id does not meet maximum length of 64");
+    });
 });
