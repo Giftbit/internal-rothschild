@@ -15,14 +15,14 @@ export async function initializeCodeCryptographySecrets(secrets: Promise<CodeCry
  */
 export function encryptCode(code: string): string {
     if (!codeCryptographySecrets) {
-        throw "Code cryptography secrets have not been initialized.";
+        throw new Error("Code cryptography secrets have not been initialized.");
     }
     return cryptojs.AES.encrypt(addCodebasePepperToCode(code), codeCryptographySecrets.encryptionSecret).toString();
 }
 
 export function decryptCode(codeEncrypted: string): string {
     if (!codeCryptographySecrets) {
-        throw "Code cryptography secrets have not been initialized.";
+        throw new Error("Code cryptography secrets have not been initialized.");
     }
     const bytes = cryptojs.AES.decrypt(codeEncrypted.toString(), codeCryptographySecrets.encryptionSecret);
     const decryptedCodeWithCodebasePepper = bytes.toString(cryptojs.enc.Utf8);
@@ -31,7 +31,7 @@ export function decryptCode(codeEncrypted: string): string {
 
 export function computeCodeLookupHash(code: string, badge: AuthorizationBadge): string {
     if (!codeCryptographySecrets) {
-        throw "Code cryptography secrets have not been initialized.";
+        throw new Error("Code cryptography secrets have not been initialized.");
     }
     return cryptojs.SHA512(code + badge.userId + codeCryptographySecrets.lookupHashSecret).toString();
 }

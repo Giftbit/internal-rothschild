@@ -24,6 +24,7 @@
         "no-duplicate-variable": true,
         "no-eval": true,
         "no-internal-module": true,
+        "no-string-throw": true,
         "no-trailing-whitespace": true,
         "no-unsafe-finally": true,
         "no-var-keyword": true,
