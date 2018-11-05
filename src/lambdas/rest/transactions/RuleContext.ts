@@ -21,8 +21,6 @@ export class RuleContext {
         this.totals = params.totals;
         this.lineItems = params.lineItems;
         this.metadata = params.metadata;
-
-        console.log("rule metadata=", params.metadata);
     }
 
     evaluateBalanceRule(rule: Rule): number {
