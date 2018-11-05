@@ -21,7 +21,8 @@ ALTER TABLE rothschild.`Transactions`
 
 ALTER TABLE rothschild.`InternalTransactionSteps`
   MODIFY COLUMN transactionId VARCHAR(64) NOT NULL,
-  MODIFY COLUMN id VARCHAR(96) NOT NULL;
+  MODIFY COLUMN id VARCHAR(96) NOT NULL,
+  DROP FOREIGN KEY fk_InternalTransactionSteps_Transactions;
 
 ALTER TABLE rothschild.`LightrailTransactionSteps`
   MODIFY COLUMN valueId VARCHAR(64) NOT NULL,
@@ -39,3 +40,11 @@ ALTER TABLE rothschild.`ValueTags`
 ALTER TABLE rothschild.`ProgramTags`
   MODIFY COLUMN programId VARCHAR(64) NOT NULL;
 
+ALTER TABLE rothschild.`InternalTransactionSteps`
+  DROP INDEX is_InternalTransactionSteps_transactionId;
+
+ALTER TABLE rothschild.`InternalTransactionSteps`
+  ADD INDEX ix_InternalTransactionSteps_transactionId (userId, transactionId);
+
+ALTER TABLE rothschild.`InternalTransactionSteps`
+  ADD CONSTRAINT fk_InternalTransactionSteps_Transactions FOREIGN KEY (userId, transactionId) REFERENCES rothschild.Transactions (userId, id);
