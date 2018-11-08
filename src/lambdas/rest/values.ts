@@ -63,7 +63,11 @@ export function installValuesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId", "teamMemberId");
-            auth.requireScopes("lightrailV2:values:create");
+            if (auth.hasScope("lightrailV2:values:create:self") && evt.body && auth.valueId === evt.body.id) {
+                // Badge is signed specifically to create this Value.
+            } else {
+                auth.requireScopes("lightrailV2:values:create");
+            }
             evt.validateBody(valueSchema);
 
             let program: Program = null;
@@ -95,7 +99,11 @@ export function installValuesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
-            auth.requireScopes("lightrailV2:values:read");
+            if (auth.hasScope("lightrailV2:values:read:self") && auth.valueId === evt.pathParameters.id) {
+                // Badge is signed specifically to read this Value.
+            } else {
+                auth.requireScopes("lightrailV2:values:read");
+            }
 
             const showCode: boolean = (evt.queryStringParameters.showCode === "true");
             const value = await getValue(auth, evt.pathParameters.id, showCode);
@@ -115,7 +123,11 @@ export function installValuesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
-            auth.requireScopes("lightrailV2:values:update");
+            if (auth.hasScope("lightrailV2:values:update:self") && auth.valueId === evt.pathParameters.id) {
+                // Badge is signed specifically to patch this Value.
+            } else {
+                auth.requireScopes("lightrailV2:values:update");
+            }
             evt.validateBody(valueUpdateSchema);
 
             if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
@@ -144,7 +156,11 @@ export function installValuesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
-            auth.requireScopes("lightrailV2:values:delete");
+            if (auth.hasScope("lightrailV2:values:delete:self") && auth.valueId === evt.pathParameters.id) {
+                // Badge is signed specifically to delete this Value.
+            } else {
+                auth.requireScopes("lightrailV2:values:delete");
+            }
             return {
                 body: await deleteValue(auth, evt.pathParameters.id)
             };
