@@ -199,7 +199,7 @@ export function installValuesRest(router: cassava.Router): void {
                 isGenericCode = false;
             }
 
-            const dbCode = new DbCode(code, auth);
+            const dbCode = await DbCode.getDbCode(code, auth);
             let partialValue: Partial<DbValue> = {
                 codeLastFour: dbCode.lastFour,
                 codeEncrypted: dbCode.codeEncrypted,
@@ -241,7 +241,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                 code: {
                     type: "string",
                     columnName: "codeHashed",
-                    valueMap: value => computeCodeLookupHash(value, auth),
+                    valueMap: v => computeCodeLookupHash(v, auth),  // TODO ummm?
                     operators: ["eq", "in"]
                 },
                 currency: {
@@ -289,10 +289,10 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
         },
         pagination
     );
+
+    const values = await Promise.all(paginatedRes.body.map(v => DbValue.toValue(v, showCode)));
     return {
-        values: paginatedRes.body.map(function (v) {
-            return DbValue.toValue(v, showCode);
-        }),
+        values: values,
         pagination: paginatedRes.pagination
     };
 }
@@ -308,7 +308,7 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     value.startDate = value.startDate ? dateInDbPrecision(new Date(value.startDate)) : null;
     value.endDate = value.endDate ? dateInDbPrecision(new Date(value.endDate)) : null;
 
-    const dbValue = Value.toDbValue(auth, value);
+    const dbValue = await Value.toDbValue(auth, value);
     log.info(`Creating Value ${Value.toStringSanitized(value)}.`);
 
     try {
@@ -404,7 +404,7 @@ export async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, i
 export async function getValueByCode(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string, showCode: boolean = false): Promise<Value> {
     auth.requireIds("userId");
 
-    const codeHashed = computeCodeLookupHash(code, auth);
+    const codeHashed = await computeCodeLookupHash(code, auth);
     log.debug("getValueByCode codeHashed=", codeHashed);
 
     const knex = await getKnexRead();
@@ -441,7 +441,7 @@ async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
         if (selectValueRes.length > 1) {
             throw new Error(`Illegal SELECT query.  Returned ${selectValueRes.length} values.`);
         }
-        const existingValue = DbValue.toValue(selectValueRes[0]);
+        const existingValue = await DbValue.toValue(selectValueRes[0]);
         const updatedValue = {
             ...existingValue,
             ...valueUpdates

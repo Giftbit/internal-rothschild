@@ -763,7 +763,7 @@ describe("/v2/values/", () => {
             });
         chai.assert.isNotNull(res[0].codeEncrypted);
         chai.assert.isNotNull(res[0].codeHashed);
-        chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(publicCode.code, testUtils.defaultTestUser.auth));
+        chai.assert.equal(res[0].codeHashed, await computeCodeLookupHash(publicCode.code, testUtils.defaultTestUser.auth));
         chai.assert.equal(res[0].codeLastFour, "BLIC");
 
         const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
@@ -805,7 +805,7 @@ describe("/v2/values/", () => {
             });
         chai.assert.isNotNull(res[0].codeEncrypted);
         chai.assert.isNotNull(res[0].codeHashed);
-        chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(publicCode.code, testUtils.defaultTestUser.auth));
+        chai.assert.equal(res[0].codeHashed, await computeCodeLookupHash(publicCode.code, testUtils.defaultTestUser.auth));
         chai.assert.equal(res[0].codeLastFour, "A");
 
         const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
@@ -879,7 +879,7 @@ describe("/v2/values/", () => {
             });
         chai.assert.isNotNull(res[0].codeEncrypted);
         chai.assert.isNotNull(res[0].codeHashed);
-        chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(value.code, testUtils.defaultTestUser.auth));
+        chai.assert.equal(res[0].codeHashed, await computeCodeLookupHash(value.code, testUtils.defaultTestUser.auth));
 
         const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
         let codeInListShowCodeFalse: Value = list.body.find(it => it.id === value.id);
@@ -918,7 +918,7 @@ describe("/v2/values/", () => {
             });
         chai.assert.isNotNull(res[0].codeEncrypted);
         chai.assert.isNotNull(res[0].codeHashed);
-        chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(value.code, testUtils.defaultTestUser.auth));
+        chai.assert.equal(res[0].codeHashed, await computeCodeLookupHash(value.code, testUtils.defaultTestUser.auth));
 
         const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
         let codeInListShowCodeFalse: Value = list.body.find(it => it.id === value.id);
@@ -957,7 +957,7 @@ describe("/v2/values/", () => {
             });
         chai.assert.isNotNull(res[0].codeEncrypted);
         chai.assert.isNotNull(res[0].codeHashed);
-        chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(value.code, testUtils.defaultTestUser.auth));
+        chai.assert.equal(res[0].codeHashed, await computeCodeLookupHash(value.code, testUtils.defaultTestUser.auth));
 
         const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
         let codeInListShowCodeFalse: Value = list.body.find(it => it.id === value.id);
@@ -998,7 +998,7 @@ describe("/v2/values/", () => {
             });
         chai.assert.isNotNull(res[0].codeEncrypted);
         chai.assert.isNotNull(res[0].codeHashed);
-        chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(secureCode.code, testUtils.defaultTestUser.auth));
+        chai.assert.equal(res[0].codeHashed, await computeCodeLookupHash(secureCode.code, testUtils.defaultTestUser.auth));
         chai.assert.equal(res[0].codeLastFour, "CURE");
 
         const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
@@ -1045,9 +1045,9 @@ describe("/v2/values/", () => {
                 });
             chai.assert.isNotNull(res[0].codeEncrypted);
             chai.assert.isNotNull(res[0].codeHashed);
-            chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(code, testUtils.defaultTestUser.auth));
+            chai.assert.equal(res[0].codeHashed, await computeCodeLookupHash(code, testUtils.defaultTestUser.auth));
             chai.assert.equal(res[0].codeLastFour, getCodeLastFourNoPrefix(code));
-            chai.assert.equal(decryptCode(res[0].codeEncrypted), code);
+            chai.assert.equal(await decryptCode(res[0].codeEncrypted), code);
 
             const changeCodeSecure = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}/changeCode`, "POST", {code: code});
             chai.assert.equal(changeCodeSecure.statusCode, 200, `body=${JSON.stringify(changeCodeSecure.body)}`);
@@ -1063,9 +1063,9 @@ describe("/v2/values/", () => {
                 });
             chai.assert.isNotNull(res[0].codeEncrypted);
             chai.assert.isNotNull(res[0].codeHashed);
-            chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(code, testUtils.defaultTestUser.auth));
+            chai.assert.equal(res[0].codeHashed, await computeCodeLookupHash(code, testUtils.defaultTestUser.auth));
             chai.assert.equal(res[0].codeLastFour, getCodeLastFourNoPrefix(code));
-            chai.assert.equal(decryptCode(res[0].codeEncrypted), code);
+            chai.assert.equal(await decryptCode(res[0].codeEncrypted), code);
         }
     });
 
@@ -1126,9 +1126,9 @@ describe("/v2/values/", () => {
                 });
             chai.assert.isNotNull(res[0].codeEncrypted);
             chai.assert.isNotNull(res[0].codeHashed);
-            chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(firstGeneratedCode, testUtils.defaultTestUser.auth));
+            chai.assert.equal(res[0].codeHashed, await computeCodeLookupHash(firstGeneratedCode, testUtils.defaultTestUser.auth));
             chai.assert.equal(res[0].codeLastFour, getCodeLastFourNoPrefix(firstGeneratedCode));
-            chai.assert.equal(decryptCode(res[0].codeEncrypted), firstGeneratedCode);
+            chai.assert.equal(await decryptCode(res[0].codeEncrypted), firstGeneratedCode);
             chai.assert.notEqual(res[0].codeEncrypted, firstGeneratedCode);
             chai.assert.notEqual(res[0].codeHashed, firstGeneratedCode);
         });
@@ -1161,9 +1161,9 @@ describe("/v2/values/", () => {
                 });
             chai.assert.isNotNull(res[0].codeEncrypted);
             chai.assert.isNotNull(res[0].codeHashed);
-            chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(secondGeneratedCode, testUtils.defaultTestUser.auth));
+            chai.assert.equal(res[0].codeHashed, await computeCodeLookupHash(secondGeneratedCode, testUtils.defaultTestUser.auth));
             chai.assert.equal(res[0].codeLastFour, getCodeLastFourNoPrefix(secondGeneratedCode));
-            chai.assert.equal(decryptCode(res[0].codeEncrypted), secondGeneratedCode);
+            chai.assert.equal(await decryptCode(res[0].codeEncrypted), secondGeneratedCode);
             chai.assert.notEqual(res[0].codeEncrypted, secondGeneratedCode);
             chai.assert.notEqual(res[0].codeHashed, secondGeneratedCode);
             chai.assert.notEqual(firstGeneratedCode, secondGeneratedCode);
@@ -1215,9 +1215,9 @@ describe("/v2/values/", () => {
                 });
             chai.assert.isNotNull(res[0].codeEncrypted);
             chai.assert.isNotNull(res[0].codeHashed);
-            chai.assert.equal(res[0].codeHashed, computeCodeLookupHash(firstGeneratedCode, testUtils.defaultTestUser.auth));
+            chai.assert.equal(res[0].codeHashed, await computeCodeLookupHash(firstGeneratedCode, testUtils.defaultTestUser.auth));
             chai.assert.equal(res[0].codeLastFour, getCodeLastFourNoPrefix(firstGeneratedCode));
-            chai.assert.equal(decryptCode(res[0].codeEncrypted), firstGeneratedCode);
+            chai.assert.equal(await decryptCode(res[0].codeEncrypted), firstGeneratedCode);
             chai.assert.notEqual(res[0].codeEncrypted, firstGeneratedCode);
             chai.assert.notEqual(res[0].codeHashed, firstGeneratedCode);
         });
@@ -1464,7 +1464,7 @@ describe("/v2/values/", () => {
                     userId: testUtils.defaultTestUser.userId,
                     id: idAndDate.id,
                 })
-                .update(Value.toDbValue(testUtils.defaultTestUser.auth, {
+                .update(await Value.toDbValue(testUtils.defaultTestUser.auth, {
                     ...response.body,
                     createdDate: idAndDate.createdDate,
                     updatedDate: idAndDate.createdDate

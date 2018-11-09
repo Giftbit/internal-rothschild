@@ -1,19 +1,18 @@
 import * as crypto from "crypto";
 
-let intercomSecrets: IntercomSecrets;
+let intercomSecrets: Promise<IntercomSecrets>;
 
 export async function initializeIntercomSecrets(secrets: Promise<IntercomSecrets>): Promise<void> {
-    intercomSecrets = await secrets;
+    intercomSecrets = secrets;
 }
 
-export function hashUserId(userId: string): string {
+export async function hashIntercomUserId(userId: string): Promise<string> {
     if (!intercomSecrets) {
-        throw "Intercom secrets have not been initialized.";
+        throw new Error("Intercom secrets have not been initialized.");
     }
-
-   return crypto.createHmac("sha256", intercomSecrets.secretKey)
-       .update(userId)
-       .digest("hex");
+    return crypto.createHmac("sha256", (await intercomSecrets).secretKey)
+        .update(userId)
+        .digest("hex");
 }
 
 export interface IntercomSecrets {

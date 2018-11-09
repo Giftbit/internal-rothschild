@@ -74,7 +74,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             steps: [
                 {
                     rail: "lightrail",
-                    value: DbValue.toValue(value),
+                    value: await DbValue.toValue(value),
                     amount: -3500,    // more than is in the value
                     uses: null
                 }
@@ -148,7 +148,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             steps: [
                 {
                     rail: "lightrail",
-                    value: DbValue.toValue(value),
+                    value: await DbValue.toValue(value),
                     amount: -1200,
                     uses: -1
                 }
