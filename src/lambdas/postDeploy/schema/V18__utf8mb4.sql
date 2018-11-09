@@ -4,10 +4,13 @@ ALTER TABLE rothschild.`Contacts`
   MODIFY COLUMN metadata TEXT CHARACTER SET utf8mb4;
 
 ALTER TABLE rothschild.`Currencies`
-  MODIFY COLUMN symbol VARCHAR(16) CHARACTER SET utf8mb4 NOT NULL,
-  MODIFY COLUMN name VARCHAR(255) CHARACTER SET utf8mb4 NOT NULL;
+  MODIFY COLUMN name VARCHAR(255) CHARACTER SET utf8mb4 NOT NULL,
+  MODIFY COLUMN symbol VARCHAR(16) CHARACTER SET utf8mb4 NOT NULL;
 
 ALTER TABLE rothschild.`Issuances`
+  MODIFY COLUMN balanceRule TEXT CHARACTER SET utf8mb4,
+  MODIFY COLUMN redemptionRule TEXT CHARACTER SET utf8mb4,
+  MODIFY COLUMN name TEXT CHARACTER SET utf8mb4 NOT NULL,
   MODIFY COLUMN metadata TEXT CHARACTER SET utf8mb4;
 
 ALTER TABLE rothschild.`LightrailTransactionSteps`
@@ -15,7 +18,13 @@ ALTER TABLE rothschild.`LightrailTransactionSteps`
 
 ALTER TABLE rothschild.`Programs`
   MODIFY COLUMN name TEXT CHARACTER SET utf8mb4 NOT NULL,
+  MODIFY COLUMN generateCode TEXT CHARACTER SET utf8mb4,
+  MODIFY COLUMN balanceRule TEXT CHARACTER SET utf8mb4,
+  MODIFY COLUMN redemptionRule TEXT CHARACTER SET utf8mb4,
   MODIFY COLUMN metadata TEXT CHARACTER SET utf8mb4;
+
+ALTER TABLE rothschild.`StripeTransactionSteps`
+  MODIFY COLUMN charge MEDIUMTEXT CHARACTER SET utf8mb4 NOT NULL;
 
 ALTER TABLE rothschild.`Transactions`
   MODIFY COLUMN lineItems MEDIUMTEXT CHARACTER SET utf8mb4,
@@ -25,4 +34,6 @@ ALTER TABLE rothschild.`Transactions`
 
 ALTER TABLE rothschild.`Values`
   MODIFY COLUMN codeLastFour VARCHAR(255) CHARACTER SET utf8mb4,
+  MODIFY COLUMN balanceRule TEXT CHARACTER SET utf8mb4,
+  MODIFY COLUMN redemptionRule TEXT CHARACTER SET utf8mb4,
   MODIFY COLUMN metadata TEXT CHARACTER SET utf8mb4;
