@@ -218,11 +218,22 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 
     const knex = await getKnexRead();
 
+    let query = knex("Values")
+        .where({
+            userId: auth.userId
+        });
+
+    // Manually handle code, code.eq and code.in because computeCodeLookupHash must be done async.
+    if (filterParams.code) {
+        query = query.where({codeHashed: await computeCodeLookupHash(filterParams.code, auth)});
+    } else if (filterParams["code.eq"]) {
+        query = query.where({codeHashed: await computeCodeLookupHash(filterParams["code.eq"], auth)});
+    } else if (filterParams["code.in"]) {
+        query = query.whereIn("codeHashed", await Promise.all(filterParams["code.in"].split(",").map(v => computeCodeLookupHash(v, auth))));
+    }
+
     const paginatedRes = await filterAndPaginateQuery<DbValue>(
-        knex("Values")
-            .where({
-                userId: auth.userId
-            }),
+        query,
         filterParams,
         {
             properties: {
@@ -236,12 +247,6 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                 },
                 issuanceId: {
                     type: "string",
-                    operators: ["eq", "in"]
-                },
-                code: {
-                    type: "string",
-                    columnName: "codeHashed",
-                    valueMap: v => computeCodeLookupHash(v, auth),  // TODO ummm?
                     operators: ["eq", "in"]
                 },
                 currency: {

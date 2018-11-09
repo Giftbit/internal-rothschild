@@ -43,14 +43,9 @@ export type FilterQueryOperator = "lt" | "lte" | "gt" | "gte" | "eq" | "ne" | "i
  * @returns The filtered SQL query.
  */
 export function filterQuery(query: knex.QueryBuilder, filterParams: { [key: string]: string }, options: FilterQueryOptions): knex.QueryBuilder {
-    for (let filterKey of Object.keys(filterParams)) {
-        const filterValue = filterParams[filterKey];
-        let op: string = "eq";
-        if (filterKey.indexOf(".") !== -1) {
-            const keyAndOp = filterKey.split(".", 2);
-            filterKey = keyAndOp[0];
-            op = keyAndOp[1];
-        }
+    for (const queryKey of Object.keys(filterParams)) {
+        const {filterKey, op} = splitFilterKeyAndOp(queryKey);
+        const filterValue = filterParams[queryKey];
 
         if (!options.properties.hasOwnProperty(filterKey)) {
             // Not a filterable property.
@@ -73,6 +68,16 @@ export function filterQuery(query: knex.QueryBuilder, filterParams: { [key: stri
     }
 
     return query;
+}
+
+function splitFilterKeyAndOp(filterKey: string): { filterKey: string, op: string } {
+    let op: string = "eq";
+    if (filterKey.indexOf(".") !== -1) {
+        const keyAndOp = filterKey.split(".", 2);
+        filterKey = keyAndOp[0];
+        op = keyAndOp[1];
+    }
+    return {filterKey, op};
 }
 
 function filterQueryPropertyAllowsOperator(prop: FilterQueryProperty, op: string): op is FilterQueryOperator {
