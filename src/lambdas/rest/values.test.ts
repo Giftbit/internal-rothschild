@@ -244,13 +244,15 @@ describe("/v2/values/", () => {
     it("can change the metadata", async () => {
         const resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "PATCH", {
             metadata: {
-                special: "snowflake"
+                special: "snowflake",
+                emoji: "❄"
             }
         });
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
 
         value1.metadata = {
-            special: "snowflake"
+            special: "snowflake",
+            emoji: "❄"
         };
         chai.assert.deepEqualExcluding(resp.body, value1, ["updatedDate"]);
     });
@@ -848,8 +850,8 @@ describe("/v2/values/", () => {
         chai.assert.equal(value1Res.statusCode, 422, `body=${JSON.stringify(value1Res.body)}`);
     });
 
-    it.skip("can create a value with 🚀 emoji generic code", async () => {
-        let value = {
+    it("can create a value with 🚀 emoji generic code", async () => {
+        const value: Partial<Value> = {
             id: generateId(),
             currency: "USD",
             code: "🚀",
@@ -928,7 +930,7 @@ describe("/v2/values/", () => {
         chai.assert.equal(codeInListShowCodeTrue.code, "芷若⳥ⳢⳫⳂⳀ");
     });
 
-    it.skip("can create a value with emoji secure code", async () => {
+    it("can create a value with emoji secure code", async () => {
         let value = {
             id: generateId(),
             currency: "USD",
@@ -938,11 +940,11 @@ describe("/v2/values/", () => {
 
         const post = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(post.statusCode, 201, `body=${JSON.stringify(post.body)}`);
-        chai.assert.equal(post.body.code, "...😴🙌😇🚀");
+        chai.assert.equal(post.body.code, "…😴🙌😇🚀");
 
         const get = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(get.statusCode, 200, `body=${JSON.stringify(get.body)}`);
-        chai.assert.equal(get.body.code, "...😴🙌😇🚀");
+        chai.assert.equal(get.body.code, "…😴🙌😇🚀");
 
         const showCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}?showCode=true`, "GET");
         chai.assert.equal(showCode.statusCode, 200, `body=${JSON.stringify(showCode.body)}`);
@@ -961,7 +963,7 @@ describe("/v2/values/", () => {
 
         const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
         let codeInListShowCodeFalse: Value = list.body.find(it => it.id === value.id);
-        chai.assert.equal(codeInListShowCodeFalse.code, "...😴🙌😇🚀");
+        chai.assert.equal(codeInListShowCodeFalse.code, "…😴🙌😇🚀");
         const listShowCode = await testUtils.testAuthedRequest<any>(router, `/v2/values?showCode=true`, "GET");
         let codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === value.id);
         chai.assert.equal(codeInListShowCodeTrue.code, "👮😭💀😒😴🙌😇🚀");
@@ -1184,7 +1186,7 @@ describe("/v2/values/", () => {
             chai.assert.equal(resp.body[0].metadata.toString(), "{\"allyourbase\":\"arebelongtous\"}");
         });
 
-        it.skip("can generate a code using an emoji charset", async () => {
+        it("can generate a code using an emoji charset", async () => {
             let value = {
                 id: generateId(),
                 currency: "USD",
@@ -1197,14 +1199,12 @@ describe("/v2/values/", () => {
 
             const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
             chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
-            const lastFour = create.body.code.substring(1);
-            chai.assert.equal(create.body.code, "...😴🙌😇🚀");
-            chai.assert.equal(lastFour.length, 4);
+            chai.assert.lengthOf(create.body.code, 9, "length of 9 = length of 1 (for …) plus 2 for each emoji (because JS is awful)");
 
             const showCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}?showCode=true`, "GET");
             chai.assert.equal(showCode.statusCode, 200, `body=${JSON.stringify(showCode.body)}`);
             firstGeneratedCode = showCode.body.code;
-            chai.assert.equal(firstGeneratedCode.length, 20);
+            chai.assert.equal(firstGeneratedCode.length, 32, "length of 32 because 16 glyphs at 2 for each emoji (because, again, JS is awful)");
 
             const knex = await getKnexRead();
             let res: DbValue[] = await knex("Values")
@@ -1235,7 +1235,7 @@ describe("/v2/values/", () => {
 
             const create = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
             chai.assert.equal(create.statusCode, 422, `body=${JSON.stringify(create.body)}`);
-            chai.assert.include(create.body.message, "cannot contain a space", `body=${JSON.stringify(create.body)}`);
+            chai.assert.include(create.body.message, "cannot contain whitespace", `body=${JSON.stringify(create.body)}`);
         });
 
         it("can generate a code and get it in the response with showCode=true", async () => {

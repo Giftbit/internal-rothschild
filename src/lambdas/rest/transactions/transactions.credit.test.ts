@@ -126,7 +126,7 @@ describe("/v2/transactions/credit", () => {
             id: generateId(),
             currency: "CAD",
             balance: 0,
-            code: "SUPER-SECRET"
+            code: "SUPER-SECRET⭐"
         };
         const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueSecretCode);
         chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
@@ -152,7 +152,7 @@ describe("/v2/transactions/credit", () => {
                 {
                     rail: "lightrail",
                     valueId: valueSecretCode.id,
-                    code: "…CRET",
+                    code: "…RET⭐",
                     contactId: null,
                     balanceBefore: 0,
                     balanceAfter: 1000,

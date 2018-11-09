@@ -29,7 +29,7 @@ describe("/v2/currencies", () => {
     const funbux: Currency = {
         code: "FUNBUX",
         name: "Fun bux",
-        symbol: "F$",
+        symbol: "⭐",
         decimalPlaces: 0
     };
 
