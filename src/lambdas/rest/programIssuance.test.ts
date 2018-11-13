@@ -99,6 +99,7 @@ describe("/v2/issuances", () => {
             const listValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?limit=1000&issuanceId=${issuance.id}`, "GET");
             chai.assert.equal(listValues.statusCode, 200, `body=${JSON.stringify(listValues.body)}`);
             chai.assert.equal(listValues.body.length, issuance.count);
+            chai.assert.isTrue(listValues.body[0].active);
 
             switch (count) {
                 case 1:
@@ -543,5 +544,201 @@ describe("/v2/issuances", () => {
         const createIssuance = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${minInitialBalanceProgram.id}/issuances`, "POST", issuance);
         chai.assert.equal(createIssuance.statusCode, 409, JSON.stringify(createIssuance.body));
         chai.assert.equal(createIssuance.body.message, "Value's balance 0 is less than minInitialBalance 1.", JSON.stringify(createIssuance.body));
+    });
+
+    describe.only("value active status scenarios", () => {
+        describe("program with undefined active, defaults to active=true", () => {
+            const program: Partial<Program> = {
+                id: generateId(),
+                name: "program-active-undefined",
+                currency: "USD"
+            };
+
+            before(async () => {
+                const createProgram = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
+                chai.assert.equal(createProgram.statusCode, 201, JSON.stringify(createProgram.body));
+                chai.assert.isTrue(createProgram.body.active); // undefined defaults to true
+            });
+
+            it("can create issuance with undefined active, defaults to program's active=true", async () => {
+                const issuance: Partial<Issuance> = {
+                    id: generateId(),
+                    count: 1,
+                    name: "issuance"
+                };
+                const createIssuance = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", issuance);
+                chai.assert.equal(createIssuance.statusCode, 201);
+                chai.assert.isTrue(createIssuance.body.active);
+
+                const getValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?issuanceId=${issuance.id}`, "GET");
+                chai.assert.equal(getValues.statusCode, 200);
+                chai.assert.isTrue(createIssuance.body.active);
+                chai.assert.isTrue(getValues.body[0].active);
+            });
+
+            it("can create issuance with active=true", async () => {
+                const issuance: Partial<Issuance> = {
+                    id: generateId(),
+                    count: 1,
+                    name: "issuance",
+                    active: true,
+                };
+                const createIssuance = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", issuance);
+                chai.assert.equal(createIssuance.statusCode, 201);
+                chai.assert.isTrue(createIssuance.body.active);
+
+                const getValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?issuanceId=${issuance.id}`, "GET");
+                chai.assert.equal(getValues.statusCode, 200);
+                chai.assert.isTrue(createIssuance.body.active);
+                chai.assert.isTrue(getValues.body[0].active);
+            });
+
+            it("can create issuance with active=false", async () => {
+                const issuance: Partial<Issuance> = {
+                    id: generateId(),
+                    count: 1,
+                    name: "issuance",
+                    active: false
+                };
+                const createIssuance = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", issuance);
+                chai.assert.equal(createIssuance.statusCode, 201);
+                chai.assert.isFalse(createIssuance.body.active);
+
+                const getValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?issuanceId=${issuance.id}`, "GET");
+                chai.assert.equal(getValues.statusCode, 200);
+                chai.assert.isFalse(createIssuance.body.active);
+                chai.assert.isFalse(getValues.body[0].active);
+            });
+        });
+
+        describe("program with active=true", () => {
+            const program: Partial<Program> = {
+                id: generateId(),
+                name: "program-active-true",
+                currency: "USD",
+                active: true
+            };
+
+            before(async () => {
+                const createProgram = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
+                chai.assert.equal(createProgram.statusCode, 201, JSON.stringify(createProgram.body));
+                chai.assert.isTrue(createProgram.body.active);
+            });
+
+            it("can create issuance with undefined active, defaults to program's active=true", async () => {
+                const issuance: Partial<Issuance> = {
+                    id: generateId(),
+                    count: 1,
+                    name: "issuance"
+                };
+                const createIssuance = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", issuance);
+                chai.assert.equal(createIssuance.statusCode, 201);
+                chai.assert.isTrue(createIssuance.body.active);
+
+                const getValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?issuanceId=${issuance.id}`, "GET");
+                chai.assert.equal(getValues.statusCode, 200);
+                chai.assert.isTrue(createIssuance.body.active);
+                chai.assert.isTrue(getValues.body[0].active);
+            });
+
+            it("can create issuance with active=true", async () => {
+                const issuance: Partial<Issuance> = {
+                    id: generateId(),
+                    count: 1,
+                    name: "issuance",
+                    active: true,
+                };
+                const createIssuance = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", issuance);
+                chai.assert.equal(createIssuance.statusCode, 201);
+                chai.assert.isTrue(createIssuance.body.active);
+
+                const getValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?issuanceId=${issuance.id}`, "GET");
+                chai.assert.equal(getValues.statusCode, 200);
+                chai.assert.isTrue(createIssuance.body.active);
+                chai.assert.isTrue(getValues.body[0].active);
+            });
+
+            it("can create issuance with active=false", async () => {
+                const issuance: Partial<Issuance> = {
+                    id: generateId(),
+                    count: 1,
+                    name: "issuance",
+                    active: false
+                };
+                const createIssuance = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", issuance);
+                chai.assert.equal(createIssuance.statusCode, 201);
+                chai.assert.isFalse(createIssuance.body.active);
+
+                const getValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?issuanceId=${issuance.id}`, "GET");
+                chai.assert.equal(getValues.statusCode, 200);
+                chai.assert.isFalse(createIssuance.body.active);
+                chai.assert.isFalse(getValues.body[0].active);
+            });
+        });
+
+        describe("program with active=false", () => {
+            const program: Partial<Program> = {
+                id: generateId(),
+                name: "program-active-false",
+                currency: "USD",
+                active: false
+            };
+
+            before(async () => {
+                const createProgram = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
+                chai.assert.equal(createProgram.statusCode, 201, JSON.stringify(createProgram.body));
+                chai.assert.isFalse(createProgram.body.active);
+            });
+
+            it("can create issuance with undefined active, defaults to program's active=false", async () => {
+                const issuance: Partial<Issuance> = {
+                    id: generateId(),
+                    count: 1,
+                    name: "issuance"
+                };
+                const createIssuance = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", issuance);
+                chai.assert.equal(createIssuance.statusCode, 201);
+                chai.assert.isFalse(createIssuance.body.active);
+
+                const getValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?issuanceId=${issuance.id}`, "GET");
+                chai.assert.equal(getValues.statusCode, 200);
+                chai.assert.isFalse(createIssuance.body.active);
+                chai.assert.isFalse(getValues.body[0].active);
+            });
+
+            it("can create issuance with active=true", async () => {
+                const issuance: Partial<Issuance> = {
+                    id: generateId(),
+                    count: 1,
+                    name: "issuance",
+                    active: true,
+                };
+                const createIssuance = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", issuance);
+                chai.assert.equal(createIssuance.statusCode, 201);
+                chai.assert.isTrue(createIssuance.body.active);
+
+                const getValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?issuanceId=${issuance.id}`, "GET");
+                chai.assert.equal(getValues.statusCode, 200);
+                chai.assert.isTrue(createIssuance.body.active);
+                chai.assert.isTrue(getValues.body[0].active);
+            });
+
+            it("can create issuance with active=false", async () => {
+                const issuance: Partial<Issuance> = {
+                    id: generateId(),
+                    count: 1,
+                    name: "issuance",
+                    active: false
+                };
+                const createIssuance = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", issuance);
+                chai.assert.equal(createIssuance.statusCode, 201);
+                chai.assert.isFalse(createIssuance.body.active);
+
+                const getValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?issuanceId=${issuance.id}`, "GET");
+                chai.assert.equal(getValues.statusCode, 200);
+                chai.assert.isFalse(createIssuance.body.active);
+                chai.assert.isFalse(getValues.body[0].active);
+            });
+        });
     });
 });
