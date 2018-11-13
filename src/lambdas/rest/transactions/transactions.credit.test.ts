@@ -419,6 +419,19 @@ describe("/v2/transactions/credit", () => {
         chai.assert.equal(getValueResp.body.balance, 1000, "value did not actually change");
     });
 
+    it("can't create a transaction of ID with non-ascii characters", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
+            id: generateId() + "🐝",
+            destination: {
+                rail: "lightrail",
+                valueId: value1.id
+            },
+            amount: 1,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
     it("409s crediting with the wrong currency", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
             id: "credit-3",

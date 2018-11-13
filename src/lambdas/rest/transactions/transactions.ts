@@ -454,7 +454,8 @@ const creditSchema: jsonschema.Schema = {
         id: {
             type: "string",
             minLength: 1,
-            maxLength: 64
+            maxLength: 64,
+            pattern: "^[ -~]*$"
         },
         destination: lightrailUniquePartySchema,
         amount: {
@@ -498,7 +499,8 @@ const debitSchema: jsonschema.Schema = {
         id: {
             type: "string",
             minLength: 1,
-            maxLength: 64
+            maxLength: 64,
+            pattern: "^[ -~]*$"
         },
         source: lightrailUniquePartySchema,
         amount: {
@@ -545,7 +547,8 @@ const transferSchema: jsonschema.Schema = {
         id: {
             type: "string",
             minLength: 1,
-            maxLength: 64
+            maxLength: 64,
+            pattern: "^[ -~]*$"
         },
         source: {
             oneOf: [
@@ -585,7 +588,8 @@ const checkoutSchema: jsonschema.Schema = {
         id: {
             type: "string",
             minLength: 1,
-            maxLength: 64
+            maxLength: 64,
+            pattern: "^[ -~]*$"
         },
         lineItems: {
             type: "array",
@@ -668,7 +672,8 @@ const reverseSchema: jsonschema.Schema = {
         id: {
             type: "string",
             minLength: 1,
-            maxLength: 64
+            maxLength: 64,
+            pattern: "^[ -~]*$"
         },
         simulate: {
             type: "boolean"

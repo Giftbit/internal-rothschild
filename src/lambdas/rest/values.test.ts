@@ -56,7 +56,7 @@ describe("/v2/values/", () => {
     };
 
     it("cannot create a value with missing currency", async () => {
-        let valueWithMissingCurrency: Partial<Value> = {
+        const valueWithMissingCurrency: Partial<Value> = {
             id: "1",
             currency: "IDK",
             balance: 0
@@ -64,7 +64,17 @@ describe("/v2/values/", () => {
 
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", valueWithMissingCurrency);
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.equal(resp.body.messageCode, "CurrencyNotFound");
+    });
+
+    it("cannot create a value with non-ascii characters in the ID", async () => {
+        const value: Partial<Value> = {
+            id: generateId() + "‎🐻",
+            currency: "USD",
+            balance: 0
+        };
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 
     it("cannot update valueId", async () => {
@@ -106,7 +116,7 @@ describe("/v2/values/", () => {
             currency: "USD",
             balanceRule: {
                 rule: "500",
-                explanation: "$5 the hard way"
+                explanation: "$5 the hard way 😍"
             },
             redemptionRule: {
                 rule: "1 == 1",
@@ -140,7 +150,7 @@ describe("/v2/values/", () => {
         const updateValueRequest: Partial<Value> = {
             balanceRule: {
                 rule: "600",
-                explanation: "$6 the hard way"
+                explanation: "$6 the hard way 😍"
             },
             redemptionRule: {
                 rule: "2 == 2",
@@ -402,7 +412,10 @@ describe("/v2/values/", () => {
         let value: Partial<Value> = {
             id: generateId(),
             balance: 50,
-            balanceRule: {rule: "500", explanation: "$5 the hard way"},
+            balanceRule: {
+                rule: "500",
+                explanation: "$5 the hard way"
+            },
             currency: "USD"
         };
         const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);

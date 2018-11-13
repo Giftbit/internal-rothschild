@@ -717,7 +717,8 @@ const valueSchema: jsonschema.Schema = {
         id: {
             type: "string",
             maxLength: 64,
-            minLength: 1
+            minLength: 1,
+            pattern: "^[ -~]*$"
         },
         currency: {
             type: "string",
