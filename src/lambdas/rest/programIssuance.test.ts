@@ -546,7 +546,7 @@ describe("/v2/issuances", () => {
         chai.assert.equal(createIssuance.body.message, "Value's balance 0 is less than minInitialBalance 1.", JSON.stringify(createIssuance.body));
     });
 
-    describe.only("value active status scenarios", () => {
+    describe("value active status scenarios", () => {
         describe("program with undefined active, defaults to active=true", () => {
             const program: Partial<Program> = {
                 id: generateId(),
