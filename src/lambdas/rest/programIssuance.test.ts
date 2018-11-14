@@ -85,6 +85,7 @@ describe("/v2/issuances", () => {
                 redemptionRule: null,
                 balanceRule: null,
                 usesRemaining: null,
+                active: true,
                 startDate: null,
                 endDate: null,
                 metadata: {},
