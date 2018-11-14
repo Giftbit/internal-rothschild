@@ -29,7 +29,7 @@ describe("/v2/currencies", () => {
     const funbux: Currency = {
         code: "FUNBUX",
         name: "Fun bux",
-        symbol: "F$",
+        symbol: "⭐",
         decimalPlaces: 0
     };
 
@@ -55,6 +55,16 @@ describe("/v2/currencies", () => {
         const resp = await testUtils.testAuthedCsvRequest<Currency>(router, "/v2/currencies", "GET");
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.deepEqual(resp.body, [funbux]);
+    });
+
+    it("can't create a currency with non-ascii characters in the code", async () => {
+        const resp = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", {
+            code: "🐱",
+            name: "Kitties",
+            symbol: "K",
+            decimalPlaces: 0
+        });
+        chai.assert.equal(resp.statusCode, 422);
     });
 
     it("requires a code to create a currency", async () => {

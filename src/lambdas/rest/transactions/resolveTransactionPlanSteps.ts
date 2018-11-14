@@ -95,9 +95,10 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     const valueIds = options.parties.filter(p => p.rail === "lightrail" && p.valueId)
         .map(p => (p as LightrailTransactionParty).valueId);
 
-    const hashedCodes = options.parties.filter(p => p.rail === "lightrail" && p.code)
+    const hashedCodesPromises = options.parties.filter(p => p.rail === "lightrail" && p.code)
         .map(p => (p as LightrailTransactionParty).code)
         .map(code => computeCodeLookupHash(code, auth));
+    const hashedCodes = await Promise.all(hashedCodesPromises);
 
     const contactIds = options.parties.filter(p => p.rail === "lightrail" && p.contactId)
         .map(p => (p as LightrailTransactionParty).contactId);
@@ -143,7 +144,7 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     }
 
     const dbValues: DbValue[] = await query;
-    const values = dbValues.map(value => DbValue.toValue(value));
+    const values = await Promise.all(dbValues.map(value => DbValue.toValue(value)));
 
     if (options.nonTransactableHandling === "error") {
         // Throw an error if we have any Values that *would* have been filtered out

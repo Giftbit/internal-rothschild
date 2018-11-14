@@ -10,6 +10,7 @@ export interface Issuance {
     redemptionRule: Rule | null;
     balanceRule: Rule | null;
     usesRemaining: number | null;
+    active: boolean;
     startDate: Date | null;
     endDate: Date | null;
     metadata: object | null;
@@ -29,6 +30,7 @@ export namespace Issuance {
             balanceRule: JSON.stringify(v.balanceRule),
             redemptionRule: JSON.stringify(v.redemptionRule),
             usesRemaining: v.usesRemaining,
+            active: v.active,
             startDate: v.startDate,
             endDate: v.endDate,
             metadata: JSON.stringify(v.metadata),
@@ -50,6 +52,7 @@ export interface DbIssuance {
     balanceRule: string;
     redemptionRule: string;
     usesRemaining: number | null;
+    active: boolean;
     startDate: Date | null;
     endDate: Date | null;
     metadata: string;
@@ -69,6 +72,7 @@ export namespace DbIssuance {
             redemptionRule: JSON.parse(v.redemptionRule),
             balanceRule: JSON.parse(v.balanceRule),
             usesRemaining: v.usesRemaining,
+            active: v.active,
             startDate: v.startDate,
             endDate: v.endDate,
             metadata: JSON.parse(v.metadata),

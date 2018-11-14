@@ -126,7 +126,7 @@ describe("/v2/transactions/credit", () => {
             id: generateId(),
             currency: "CAD",
             balance: 0,
-            code: "SUPER-SECRET"
+            code: "SUPER-SECRET⭐"
         };
         const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueSecretCode);
         chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
@@ -152,7 +152,7 @@ describe("/v2/transactions/credit", () => {
                 {
                     rail: "lightrail",
                     valueId: valueSecretCode.id,
-                    code: "…CRET",
+                    code: "…RET⭐",
                     contactId: null,
                     balanceBefore: 0,
                     balanceAfter: 1000,
@@ -417,6 +417,19 @@ describe("/v2/transactions/credit", () => {
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
         chai.assert.equal(getValueResp.body.balance, 1000, "value did not actually change");
+    });
+
+    it("can't create a transaction of ID with non-ascii characters", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
+            id: generateId() + "🐝",
+            destination: {
+                rail: "lightrail",
+                valueId: value1.id
+            },
+            amount: 1,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 
     it("409s crediting with the wrong currency", async () => {

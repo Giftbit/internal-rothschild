@@ -36,10 +36,10 @@ export interface Rule {
 }
 
 export namespace Value {
-    export function toDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Value): DbValue {
+    export async function toDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, v: Value): Promise<DbValue> {
         let dbCode: DbCode = null;
         if (v.code) {
-            dbCode = new DbCode(v.code, auth);
+            dbCode = await DbCode.getDbCode(v.code, auth);
         }
         return {
             userId: auth.userId,
@@ -133,7 +133,7 @@ export interface DbValue {
 }
 
 export namespace DbValue {
-    export function toValue(v: DbValue, showCode: boolean = false): Value {
+    export async function toValue(v: DbValue, showCode: boolean = false): Promise<Value> {
         return {
             id: v.id,
             currency: v.currency,
@@ -142,7 +142,7 @@ export namespace DbValue {
             programId: v.programId,
             issuanceId: v.issuanceId,
             contactId: v.contactId,
-            code: dbValueCodeToValueCode(v, showCode),
+            code: await dbValueCodeToValueCode(v, showCode),
             isGenericCode: v.isGenericCode,
             pretax: v.pretax,
             active: v.active,
@@ -163,7 +163,7 @@ export namespace DbValue {
     }
 }
 
-function dbValueCodeToValueCode(v: DbValue, showCode: boolean): string {
+async function dbValueCodeToValueCode(v: DbValue, showCode: boolean): Promise<string> {
     if (v.codeLastFour) {
         if (v.isGenericCode || showCode) {
             return decryptCode(v.codeEncrypted);

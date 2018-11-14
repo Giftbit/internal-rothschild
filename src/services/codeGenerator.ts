@@ -3,8 +3,9 @@ import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 
-const ALPHANUMBERIC_CHARSET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const ALPHANUMBERIC_CHARSET = Array.from("ABCDEFGHJKLMNPQRSTUVWXYZ23456789");
 const DEFAULT_LENGTH = 16;
+const WHITESPACE_MATCHER = /\s/;
 
 /**
  * @param {GenerateCodeParameters} params
@@ -19,29 +20,26 @@ const DEFAULT_LENGTH = 16;
  * @returns {string}
  */
 export function generateCode(params: GenerateCodeParameters): string {
-    let options = {
-        length: params.length ? params.length : DEFAULT_LENGTH,
-        charset: params.charset ? params.charset : ALPHANUMBERIC_CHARSET
-    };
+    const length = params.length ? params.length : DEFAULT_LENGTH;
+    const charset = params.charset ? Array.from(params.charset) : ALPHANUMBERIC_CHARSET;
 
-    if (containsDuplicates(options.charset)) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested charset ${options.charset} contains duplicates.`, "InvalidGenerateCodeParameters");
+    if (containsDuplicates(charset)) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested charset ${charset.join("")} contains duplicates.`, "InvalidGenerateCodeParameters");
     }
-    if (options.charset.length < 5) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested charset ${options.charset} doesn't meet minimum charset size requirement of 5.`, "InvalidGenerateCodeParameters");
+    if (charset.length < 5) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested charset ${charset.join("")} doesn't meet minimum charset size requirement of 5.`, "InvalidGenerateCodeParameters");
     }
-    if (options.charset.indexOf(" ") !== -1) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested charset ${options.charset} cannot contain a space.`, "InvalidGenerateCodeParameters");
+    if (charset.find(c => WHITESPACE_MATCHER.test(c))) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested charset ${charset.join("")} cannot contain whitespace.`, "InvalidGenerateCodeParameters");
     }
-    if (options.length < 6) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested code length ${options.length} doesn't meet minimum requirement of 6.`, "InvalidGenerateCodeParameters");
+    if (length < 6) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested code length ${length} doesn't meet minimum requirement of 6.`, "InvalidGenerateCodeParameters");
     }
 
-    return (params.prefix ? params.prefix : "") + generateRandomString(options.length, options.charset) + (params.suffix ? params.suffix : "");
+    return (params.prefix ? params.prefix : "") + generateRandomString(length, charset) + (params.suffix ? params.suffix : "");
 }
 
-// todo - this will need to be updated when supporting generating strings from emoji charsets.
-function generateRandomString(length: number, charset: string) {
+function generateRandomString(length: number, charset: string[]) {
     const randomBytes = crypto.randomBytes(length);
     let randomString: string = "";
     for (let i = 0; i < length; i++) {
@@ -50,10 +48,10 @@ function generateRandomString(length: number, charset: string) {
     return randomString;
 }
 
-export function containsDuplicates(str: string) {
+export function containsDuplicates(str: string[]) {
     const hash = new Map();
 
-    for (let char of str) {
+    for (const char of str) {
         if (hash.get(char) === undefined) {
             hash.set(char, true);
         } else {

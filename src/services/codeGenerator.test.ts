@@ -97,7 +97,7 @@ describe("code generator tests", () => {
         const charset = "A BCDE";
         chai.assert.throws(() => {
             generateCode({charset: charset});
-        }, `Requested charset ${charset} cannot contain a space.`);
+        }, `Requested charset ${charset} cannot contain whitespace.`);
     });
 
     it("minimum length is 6", async () => {

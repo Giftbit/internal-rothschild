@@ -32,7 +32,7 @@ export function installContactsRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId", "teamMemberId");
-            if (auth.hasScope("lightrailV2:contacts:create:self") && auth.contactId === evt.body.id) {
+            if (auth.hasScope("lightrailV2:contacts:create:self") && evt.body && auth.contactId === evt.body.id) {
                 // Badge is signed specifically to create this Contact.
             } else {
                 auth.requireScopes("lightrailV2:contacts:create");
@@ -266,7 +266,8 @@ const contactSchema: jsonschema.Schema = {
         id: {
             type: "string",
             maxLength: 64,
-            minLength: 1
+            minLength: 1,
+            pattern: "^[ -~]*$"
         },
         firstName: {
             type: ["string", "null"],

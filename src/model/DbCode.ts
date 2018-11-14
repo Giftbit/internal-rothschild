@@ -1,15 +1,19 @@
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
 import {computeCodeLookupHash, encryptCode} from "../utils/codeCryptoUtils";
 
-export class DbCode {
+export interface DbCode {
     codeEncrypted: string;
     codeHashed: string;
     lastFour: string;
+}
 
-    constructor(plaintextCode: string, auth: AuthorizationBadge) {
-        this.codeEncrypted = encryptCode(plaintextCode);
-        this.codeHashed = computeCodeLookupHash(plaintextCode, auth);
-        this.lastFour = getCodeLastFourNoPrefix(plaintextCode);
+export namespace DbCode {
+    export async function getDbCode(plaintextCode: string, auth: AuthorizationBadge): Promise<DbCode> {
+        return {
+            codeEncrypted: await encryptCode(plaintextCode),
+            codeHashed: await computeCodeLookupHash(plaintextCode, auth),
+            lastFour: await getCodeLastFourNoPrefix(plaintextCode)
+        };
     }
 }
 

@@ -55,6 +55,7 @@ export function installIssuancesRest(router: cassava.Router): void {
                         redemptionRule: null,
                         balanceRule: null,
                         usesRemaining: null,
+                        active: null,
                         startDate: null,
                         endDate: null,
                         metadata: null
@@ -148,13 +149,12 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
     // this is important for issuance display and history since these properties can be updated on the program.
     issuance = {
         ...issuance,
-        ...pick<Partial<Issuance>>(program, "startDate", "endDate", "balanceRule", "redemptionRule"),
+        ...pick<Partial<Issuance>>(program, "startDate", "endDate", "balanceRule", "redemptionRule", "active"),
         ...pickNotNull(issuance)
     };
     issuance.metadata = {...(program && program.metadata ? program.metadata : {}), ...issuance.metadata};
 
     checkIssuanceConstraints(issuance, program, codeParameters);
-
     try {
         const dbIssuance: DbIssuance = Issuance.toDbIssuance(auth, issuance);
         const knex = await getKnexWrite();
@@ -172,6 +172,7 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
                     redemptionRule: issuance.redemptionRule ? issuance.redemptionRule : null,
                     balanceRule: issuance.balanceRule ? issuance.balanceRule : null,
                     usesRemaining: issuance.usesRemaining ? issuance.usesRemaining : null,
+                    active: issuance.active,
                     startDate: issuance.startDate ? issuance.startDate : null,
                     endDate: issuance.endDate ? issuance.endDate : null,
                     metadata: issuance.metadata
@@ -241,7 +242,8 @@ const issuanceSchema: jsonschema.Schema = {
         id: {
             type: "string",
             maxLength: 58, /* Values created are based off this id. Leaves room for suffixing the Values index. ie `${id}-${index}` */
-            minLength: 1
+            minLength: 1,
+            pattern: "^[ -~]*$"
         },
         name: {
             type: "string",
@@ -260,6 +262,9 @@ const issuanceSchema: jsonschema.Schema = {
         usesRemaining: {
             type: ["integer", "null"],
             minimum: 0
+        },
+        active: {
+            type: "boolean"
         },
         code: {
             type: ["string", "null"],
