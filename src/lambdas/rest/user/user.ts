@@ -1,6 +1,6 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {hashUserId} from "../../../utils/intercomUtils";
+import {hashIntercomUserId} from "../../../utils/intercomUtils";
 
 export function installUserRest(router: cassava.Router): void {
     router.route("/v2/user/intercom")
@@ -16,7 +16,7 @@ export function installUserRest(router: cassava.Router): void {
 
             return {
                 body: {
-                    userHash: hashUserId(teamMemberId),
+                    userHash: await hashIntercomUserId(teamMemberId),
                     teamMemberId
                 }
             };

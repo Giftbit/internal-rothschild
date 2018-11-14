@@ -218,6 +218,16 @@ describe("/v2/programs", () => {
         chai.assert.equal(getResp.statusCode, 404);
     });
 
+    it("can't create a program with non-ascii characters in the ID", async () => {
+        const request: Partial<Program> = {
+            id: generateId() + "🐶",
+            name: generateId(),
+            currency: "USD"
+        };
+        const res = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", request);
+        chai.assert.equal(res.statusCode, 422);
+    });
+
     it("can't create a program with minInitialBalance > maxInitialBalance", async () => {
         const request: Partial<Program> = {
             id: generateId(),

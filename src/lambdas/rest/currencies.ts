@@ -198,7 +198,8 @@ const currencySchema: jsonschema.Schema = {
         code: {
             type: "string",
             maxLength: 16,
-            minLength: 1
+            minLength: 1,
+            pattern: "^[ -~]*$"
         },
         name: {
             type: "string",

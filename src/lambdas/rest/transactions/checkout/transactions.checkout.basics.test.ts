@@ -50,7 +50,7 @@ describe("/v2/transactions/checkout - basics", () => {
             lineItems: [
                 {
                     type: "product",
-                    productId: "xyz-123",
+                    productId: "happiness-😃",
                     unitPrice: 50
                 }
             ],
@@ -76,7 +76,7 @@ describe("/v2/transactions/checkout - basics", () => {
             lineItems: [
                 {
                     type: "product",
-                    productId: "xyz-123",
+                    productId: "happiness-😃",   // turns out you can buy it after all
                     unitPrice: 50,
                     quantity: 1,
                     lineTotal: {
@@ -139,7 +139,7 @@ describe("/v2/transactions/checkout - basics", () => {
                 "id": "checkout-1",
                 "transactionType": "checkout",
                 "currency": "CAD",
-                "lineItems": "[{\"type\":\"product\",\"productId\":\"xyz-123\",\"unitPrice\":50,\"quantity\":1,\"lineTotal\":{\"subtotal\":50,\"taxable\":50,\"tax\":0,\"discount\":0,\"remainder\":0,\"payable\":50}}]",
+                "lineItems": "[{\"type\":\"product\",\"productId\":\"happiness-😃\",\"unitPrice\":50,\"quantity\":1,\"lineTotal\":{\"subtotal\":50,\"taxable\":50,\"tax\":0,\"discount\":0,\"remainder\":0,\"payable\":50}}]",
                 "paymentSources": "[{\"rail\":\"lightrail\",\"valueId\":\"basic-checkout-vs\"}]",
                 "metadata": "null",
                 "tax": "{\"roundingMode\":\"HALF_EVEN\"}",

@@ -63,7 +63,11 @@ export function installValuesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId", "teamMemberId");
-            auth.requireScopes("lightrailV2:values:create");
+            if (auth.hasScope("lightrailV2:values:create:self") && evt.body && auth.valueId === evt.body.id) {
+                // Badge is signed specifically to create this Value.
+            } else {
+                auth.requireScopes("lightrailV2:values:create");
+            }
             evt.validateBody(valueSchema);
 
             let program: Program = null;
@@ -95,7 +99,11 @@ export function installValuesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
-            auth.requireScopes("lightrailV2:values:read");
+            if (auth.hasScope("lightrailV2:values:read:self") && auth.valueId === evt.pathParameters.id) {
+                // Badge is signed specifically to read this Value.
+            } else {
+                auth.requireScopes("lightrailV2:values:read");
+            }
 
             const showCode: boolean = (evt.queryStringParameters.showCode === "true");
             const value = await getValue(auth, evt.pathParameters.id, showCode);
@@ -115,7 +123,11 @@ export function installValuesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
-            auth.requireScopes("lightrailV2:values:update");
+            if (auth.hasScope("lightrailV2:values:update:self") && auth.valueId === evt.pathParameters.id) {
+                // Badge is signed specifically to patch this Value.
+            } else {
+                auth.requireScopes("lightrailV2:values:update");
+            }
             evt.validateBody(valueUpdateSchema);
 
             if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
@@ -144,7 +156,11 @@ export function installValuesRest(router: cassava.Router): void {
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
             auth.requireIds("userId");
-            auth.requireScopes("lightrailV2:values:delete");
+            if (auth.hasScope("lightrailV2:values:delete:self") && auth.valueId === evt.pathParameters.id) {
+                // Badge is signed specifically to delete this Value.
+            } else {
+                auth.requireScopes("lightrailV2:values:delete");
+            }
             return {
                 body: await deleteValue(auth, evt.pathParameters.id)
             };
@@ -183,7 +199,7 @@ export function installValuesRest(router: cassava.Router): void {
                 isGenericCode = false;
             }
 
-            const dbCode = new DbCode(code, auth);
+            const dbCode = await DbCode.getDbCode(code, auth);
             let partialValue: Partial<DbValue> = {
                 codeLastFour: dbCode.lastFour,
                 codeEncrypted: dbCode.codeEncrypted,
@@ -202,11 +218,22 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 
     const knex = await getKnexRead();
 
+    let query = knex("Values")
+        .where({
+            userId: auth.userId
+        });
+
+    // Manually handle code, code.eq and code.in because computeCodeLookupHash must be done async.
+    if (filterParams.code) {
+        query = query.where({codeHashed: await computeCodeLookupHash(filterParams.code, auth)});
+    } else if (filterParams["code.eq"]) {
+        query = query.where({codeHashed: await computeCodeLookupHash(filterParams["code.eq"], auth)});
+    } else if (filterParams["code.in"]) {
+        query = query.whereIn("codeHashed", await Promise.all(filterParams["code.in"].split(",").map(v => computeCodeLookupHash(v, auth))));
+    }
+
     const paginatedRes = await filterAndPaginateQuery<DbValue>(
-        knex("Values")
-            .where({
-                userId: auth.userId
-            }),
+        query,
         filterParams,
         {
             properties: {
@@ -220,12 +247,6 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                 },
                 issuanceId: {
                     type: "string",
-                    operators: ["eq", "in"]
-                },
-                code: {
-                    type: "string",
-                    columnName: "codeHashed",
-                    valueMap: value => computeCodeLookupHash(value, auth),
                     operators: ["eq", "in"]
                 },
                 currency: {
@@ -273,10 +294,10 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
         },
         pagination
     );
+
+    const values = await Promise.all(paginatedRes.body.map(v => DbValue.toValue(v, showCode)));
     return {
-        values: paginatedRes.body.map(function (v) {
-            return DbValue.toValue(v, showCode);
-        }),
+        values: values,
         pagination: paginatedRes.pagination
     };
 }
@@ -292,7 +313,7 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     value.startDate = value.startDate ? dateInDbPrecision(new Date(value.startDate)) : null;
     value.endDate = value.endDate ? dateInDbPrecision(new Date(value.endDate)) : null;
 
-    const dbValue = Value.toDbValue(auth, value);
+    const dbValue = await Value.toDbValue(auth, value);
     log.info(`Creating Value ${Value.toStringSanitized(value)}.`);
 
     try {
@@ -388,7 +409,7 @@ export async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, i
 export async function getValueByCode(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string, showCode: boolean = false): Promise<Value> {
     auth.requireIds("userId");
 
-    const codeHashed = computeCodeLookupHash(code, auth);
+    const codeHashed = await computeCodeLookupHash(code, auth);
     log.debug("getValueByCode codeHashed=", codeHashed);
 
     const knex = await getKnexRead();
@@ -425,7 +446,7 @@ async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
         if (selectValueRes.length > 1) {
             throw new Error(`Illegal SELECT query.  Returned ${selectValueRes.length} values.`);
         }
-        const existingValue = DbValue.toValue(selectValueRes[0]);
+        const existingValue = await DbValue.toValue(selectValueRes[0]);
         const updatedValue = {
             ...existingValue,
             ...valueUpdates
@@ -696,7 +717,8 @@ const valueSchema: jsonschema.Schema = {
         id: {
             type: "string",
             maxLength: 64,
-            minLength: 1
+            minLength: 1,
+            pattern: "^[ -~]*$"
         },
         currency: {
             type: "string",

@@ -126,7 +126,7 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         updatedContactIdDate: now,
         createdBy: auth.teamMemberId
     };
-    const dbNewAttachedValue: DbValue = Value.toDbValue(auth, newAttachedValue);
+    const dbNewAttachedValue: DbValue = await Value.toDbValue(auth, newAttachedValue);
 
     const attachTransaction: Transaction = {
         id: newAttachedValue.id,

@@ -87,6 +87,16 @@ describe("/v2/contacts", () => {
         chai.assert.equal(resp.statusCode, 422);
     });
 
+    it("can't create a contact with non-ascii characters in the ID", async () => {
+        const resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {
+            id: generateId() + "🐭",
+            firstName: "First",
+            lastName: "Last",
+            email: "email@example.com"
+        });
+        chai.assert.equal(resp.statusCode, 422);
+    });
+
     it("requires a string id to create a contact", async () => {
         const resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {
             ...contact1,

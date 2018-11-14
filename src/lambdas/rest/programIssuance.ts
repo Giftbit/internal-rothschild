@@ -242,7 +242,8 @@ const issuanceSchema: jsonschema.Schema = {
         id: {
             type: "string",
             maxLength: 58, /* Values created are based off this id. Leaves room for suffixing the Values index. ie `${id}-${index}` */
-            minLength: 1
+            minLength: 1,
+            pattern: "^[ -~]*$"
         },
         name: {
             type: "string",
