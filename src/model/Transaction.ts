@@ -15,6 +15,8 @@ export interface Transaction {
     lineItems: LineItem[] | null;
     paymentSources: TransactionParty[] | null;
     simulated?: true;
+    pending?: boolean;
+    pendingVoidDate?: Date;
     createdDate: Date;
     createdBy: string;
     metadata: object | null;
@@ -44,12 +46,13 @@ export interface DbTransaction {
     rootTransactionId: string | null;
     nextTransactionId: string | null;
     tax: string | null;
+    pendingVoidDate: Date | null;
 }
 
 export namespace Transaction {
     export function toDbTransaction
     (auth: giftbitRoutes.jwtauth.AuthorizationBadge, t: Transaction): DbTransaction {
-        let dbT: DbTransaction = {
+        return {
             userId: auth.userId,
             id: t.id,
             transactionType: t.transactionType,
@@ -70,10 +73,10 @@ export namespace Transaction {
             rootTransactionId: null, // set during insert
             nextTransactionId: null,
             tax: JSON.stringify(t.tax),
+            pendingVoidDate: t.pendingVoidDate,
             createdDate: t.createdDate,
             createdBy: t.createdBy,
         };
-        return dbT;
     }
 }
 
@@ -102,6 +105,8 @@ export namespace DbTransaction {
                 steps: dbSteps.filter(s => s.transactionId === dbT.id).map(DbTransactionStep.toTransactionStep),
                 metadata: JSON.parse(dbT.metadata),
                 tax: JSON.parse(dbT.tax),
+                pending: !!dbT.pendingVoidDate,
+                pendingVoidDate: dbT.pendingVoidDate,
                 createdDate: dbT.createdDate,
                 createdBy: dbT.createdBy
             };

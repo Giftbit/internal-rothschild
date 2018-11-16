@@ -30,6 +30,7 @@ export interface DebitRequest {
     currency: string;
     simulate?: boolean;
     allowRemainder?: boolean;
+    pending?: boolean | string;
     metadata?: object;
 }
 

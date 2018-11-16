@@ -30,9 +30,10 @@ export interface TransactionPlan {
     lineItems: LineItemResponse[] | null;
     paymentSources: TransactionParty[] | null;
     steps: TransactionPlanStep[];
+    tax: TaxRequestProperties;
+    pendingVoidDate?: Date;
     createdDate: Date;
     metadata: object | null;
-    tax: TaxRequestProperties;
     rootTransactionId?: string;
     previousTransactionId?: string;
 }
@@ -202,6 +203,8 @@ export namespace TransactionPlan {
             lineItems: plan.lineItems,
             steps: plan.steps.map(step => transactionPlanStepToTransactionStep(step)),
             paymentSources: plan.paymentSources && getSanitizedPaymentSources(plan),
+            pending: !!plan.pendingVoidDate,
+            pendingVoidDate: plan.pendingVoidDate,
             metadata: plan.metadata || null,
             createdBy: auth.teamMemberId
         };

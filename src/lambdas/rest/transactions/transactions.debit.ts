@@ -1,7 +1,8 @@
+import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import * as pendingTransactionUtils from "./pendingTransactionUtils";
 import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
-import * as cassava from "cassava";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {DebitRequest} from "../../../model/TransactionRequest";
 
@@ -29,6 +30,7 @@ export async function createDebitTransactionPlan(auth: giftbitRoutes.jwtauth.Aut
         throw new giftbitRoutes.GiftbitRestError(409, "Insufficient uses for the transaction.", "InsufficientUses");
     }
 
+    const now = nowInDbPrecision();
     const amount = req.amount != null ? Math.min(req.amount, step.value.balance) : null;
     const uses = req.uses != null ? Math.min(req.uses, step.value.usesRemaining) : null;
 
@@ -46,6 +48,7 @@ export async function createDebitTransactionPlan(auth: giftbitRoutes.jwtauth.Aut
             remainder: (req.amount || 0) - (amount || 0)
         },
         tax: null,
+        pendingVoidDate: pendingTransactionUtils.getPendingVoidDate(req, now),
         lineItems: null,
         paymentSources: null
     };

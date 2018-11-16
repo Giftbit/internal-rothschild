@@ -1,6 +1,7 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
+import * as pendingTransactionUtils from "./pendingTransactionUtils";
 import {resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
 import {
     CheckoutRequest,
@@ -524,6 +525,10 @@ const debitSchema: jsonschema.Schema = {
         },
         metadata: {
             type: ["object", "null"]
+        },
+        pending: {
+            type: ["boolean", "string"],
+            format: pendingTransactionUtils.durationPatternString
         }
     },
     anyOf: [
@@ -555,8 +560,7 @@ const transferSchema: jsonschema.Schema = {
                 lightrailPartySchema,
                 stripePartySchema
             ]
-        }
-        ,
+        },
         destination: lightrailUniquePartySchema,
         amount: {
             type: "integer",
