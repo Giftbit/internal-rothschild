@@ -1097,5 +1097,89 @@ describe("/v2/transactions/debit", () => {
             const pendingDebitRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", pendingDebitTx);
             chai.assert.equal(pendingDebitRes.statusCode, 422, `body=${JSON.stringify(pendingDebitRes.body)}`);
         });
+
+        it("can't capture or void an already captured transaction", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "CAD",
+                balance: 50,
+            };
+            const valueRes = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(valueRes.statusCode, 201, `body=${JSON.stringify(valueRes.body)}`);
+
+            const pendingDebitTx: DebitRequest = {
+                id: generateId(),
+                amount: 10,
+                currency: "CAD",
+                source: {
+                    rail: "lightrail",
+                    valueId: value.id
+                },
+                pending: true
+            };
+            const pendingDebitRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", pendingDebitTx);
+            chai.assert.equal(pendingDebitRes.statusCode, 201, `body=${JSON.stringify(pendingDebitRes.body)}`);
+            chai.assert.isTrue(pendingDebitRes.body.pending);
+
+            const captureRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingDebitTx.id}/capture`, "POST", {
+                id: generateId()
+            });
+            chai.assert.equal(captureRes.statusCode, 201, `body=${JSON.stringify(captureRes.body)}`);
+            chai.assert.isNotTrue(captureRes.body.pending);
+
+            const failCaptureRes = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${pendingDebitTx.id}/capture`, "POST", {
+                id: generateId()
+            });
+            chai.assert.equal(failCaptureRes.statusCode, 409, `body=${JSON.stringify(failCaptureRes.body)}`);
+            chai.assert.equal(failCaptureRes.body.messageCode, "TransactionNotCapturable");
+
+            const failVoidRes = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${pendingDebitTx.id}/void`, "POST", {
+                id: generateId()
+            });
+            chai.assert.equal(failVoidRes.statusCode, 409, `body=${JSON.stringify(failVoidRes.body)}`);
+            chai.assert.equal(failVoidRes.body.messageCode, "TransactionNotVoidable");
+        });
+
+        it("can't capture or void an already voided transaction", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "CAD",
+                balance: 50,
+            };
+            const valueRes = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(valueRes.statusCode, 201, `body=${JSON.stringify(valueRes.body)}`);
+
+            const pendingDebitTx: DebitRequest = {
+                id: generateId(),
+                amount: 10,
+                currency: "CAD",
+                source: {
+                    rail: "lightrail",
+                    valueId: value.id
+                },
+                pending: true
+            };
+            const pendingDebitRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", pendingDebitTx);
+            chai.assert.equal(pendingDebitRes.statusCode, 201, `body=${JSON.stringify(pendingDebitRes.body)}`);
+            chai.assert.isTrue(pendingDebitRes.body.pending);
+
+            const voidRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingDebitTx.id}/void`, "POST", {
+                id: generateId()
+            });
+            chai.assert.equal(voidRes.statusCode, 201, `body=${JSON.stringify(voidRes.body)}`);
+            chai.assert.isNotTrue(voidRes.body.pending);
+
+            const failCaptureRes = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${pendingDebitTx.id}/capture`, "POST", {
+                id: generateId()
+            });
+            chai.assert.equal(failCaptureRes.statusCode, 409, `body=${JSON.stringify(failCaptureRes.body)}`);
+            chai.assert.equal(failCaptureRes.body.messageCode, "TransactionNotCapturable");
+
+            const failVoidRes = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${pendingDebitTx.id}/void`, "POST", {
+                id: generateId()
+            });
+            chai.assert.equal(failVoidRes.statusCode, 409, `body=${JSON.stringify(failVoidRes.body)}`);
+            chai.assert.equal(failVoidRes.body.messageCode, "TransactionNotVoidable");
+        });
     });
 });

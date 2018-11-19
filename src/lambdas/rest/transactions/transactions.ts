@@ -21,6 +21,8 @@ import {createCreditTransactionPlan} from "./transactions.credit";
 import {createDebitTransactionPlan} from "./transactions.debit";
 import {createReverseTransactionPlan} from "./reverse/transactions.reverse";
 import getPaginationParams = Pagination.getPaginationParams;
+import {createCaptureTransactionPlan} from "./transactions.capture";
+import {createVoidTransactionPlan} from "./transactions.void";
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions")
@@ -124,7 +126,33 @@ export function installTransactionsRest(router: cassava.Router): void {
             evt.validateBody(reverseSchema);
             return {
                 statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
-                body: await createReverse(auth, {...evt.body}, evt.pathParameters.id)
+                body: await createReverse(auth, evt.body, evt.pathParameters.id)
+            };
+        });
+
+    router.route("/v2/transactions/{id}/capture")
+        .method("POST")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("userId", "teamMemberId");
+            auth.requireScopes("lightrailV2:transactions:capture");
+            evt.validateBody(captureSchema);
+            return {
+                statusCode: cassava.httpStatusCode.success.CREATED,
+                body: await createCapture(auth, evt.body, evt.pathParameters.id)
+            };
+        });
+
+    router.route("/v2/transactions/{id}/void")
+        .method("POST")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("userId", "teamMemberId");
+            auth.requireScopes("lightrailV2:transactions:void");
+            evt.validateBody(voidSchema);
+            return {
+                statusCode: cassava.httpStatusCode.success.CREATED,
+                body: await createVoid(auth, evt.body, evt.pathParameters.id)
             };
         });
 
@@ -295,6 +323,32 @@ async function createReverse(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req
         },
         async () => {
             return await createReverseTransactionPlan(auth, req, transactionIdToReverse);
+        }
+    );
+}
+
+async function createCapture(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: ReverseRequest, transactionIdToCapture: string): Promise<Transaction> {
+    return executeTransactionPlanner(
+        auth,
+        {
+            simulate: req.simulate,
+            allowRemainder: false
+        },
+        async () => {
+            return await createCaptureTransactionPlan(auth, req, transactionIdToCapture);
+        }
+    );
+}
+
+async function createVoid(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: ReverseRequest, transactionIdToVoid: string): Promise<Transaction> {
+    return executeTransactionPlanner(
+        auth,
+        {
+            simulate: req.simulate,
+            allowRemainder: false
+        },
+        async () => {
+            return await createVoidTransactionPlan(auth, req, transactionIdToVoid);
         }
     );
 }
@@ -681,6 +735,51 @@ const reverseSchema: jsonschema.Schema = {
         },
         simulate: {
             type: "boolean"
+        },
+        metadata: {
+            type: ["object", "null"]
+        }
+    },
+    required: ["id"]
+};
+
+const captureSchema: jsonschema.Schema = {
+    title: "capture",
+    type: "object",
+    additionalProperties: false,
+    properties: {
+        id: {
+            type: "string",
+            minLength: 1,
+            maxLength: 64,
+            pattern: "^[ -~]*$"
+        },
+        simulate: {
+            type: "boolean"
+        },
+        metadata: {
+            type: ["object", "null"]
+        }
+    },
+    required: ["id"]
+};
+
+const voidSchema: jsonschema.Schema = {
+    title: "void",
+    type: "object",
+    additionalProperties: false,
+    properties: {
+        id: {
+            type: "string",
+            minLength: 1,
+            maxLength: 64,
+            pattern: "^[ -~]*$"
+        },
+        simulate: {
+            type: "boolean"
+        },
+        metadata: {
+            type: ["object", "null"]
         }
     },
     required: ["id"]

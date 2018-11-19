@@ -37,6 +37,13 @@ export interface DebitRequest {
 export interface ReverseRequest {
     id: string;
     simulate?: boolean;
+    metadata?: object;
+}
+
+export interface CaptureRequest {
+    id: string;
+    simulate?: boolean;
+    metadata?: object;
 }
 
 export type TransferRequest = CreditRequest & DebitRequest;

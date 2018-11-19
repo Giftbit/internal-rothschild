@@ -1,9 +1,12 @@
+import * as cassava from "cassava";
+import * as stripe from "stripe";
 import {ReverseRequest} from "../../../../model/TransactionRequest";
 import {
     InternalTransactionPlanStep,
     LightrailTransactionPlanStep,
     StripeTransactionPlanStep,
-    TransactionPlan
+    TransactionPlan,
+    TransactionPlanStep
 } from "../TransactionPlan";
 import {
     DbTransaction,
@@ -16,8 +19,6 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
 import {getDbTransaction} from "../transactions";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
-import * as cassava from "cassava";
-import * as stripe from "stripe";
 import {Value} from "../../../../model/Value";
 import {getValues} from "../../values";
 import log = require("loglevel");
@@ -30,28 +31,33 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
         log.info(`Transaction ${JSON.stringify(dbTransactionToReverse)} was not last in chain and cannot be reversed.`);
         throw new GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Cannot reverse Transaction that is not last in the Transaction Chain. See documentation for more information on the Transaction Chain.`, "TransactionNotReversible");
     }
-    const transactionToReverse: Transaction = (await DbTransaction.toTransactions([dbTransactionToReverse], auth.userId))[0];
-
-    if (transactionToReverse.transactionType === "reverse") {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Cannot reverse a reverse transaction.`);
+    if (dbTransactionToReverse.pendingVoidDate) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot reverse a pending transaction.`, "TransactionPending");
+    }
+    if (dbTransactionToReverse.transactionType === "reverse") {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot reverse a reverse transaction.`);
     }
 
-    const plan: TransactionPlan = {
+    const transactionToReverse: Transaction = (await DbTransaction.toTransactions([dbTransactionToReverse], auth.userId))[0];
+
+    return {
         id: req.id,
         transactionType: "reverse",
         currency: transactionToReverse.currency,
-        steps: [],
-        totals: transactionToReverse.totals ? invertNumbers(transactionToReverse.totals) : null,
+        steps: await getReverseTransactionPlanSteps(auth, req.id, transactionToReverse),
+        totals: transactionToReverse.totals && invertTransactionTotals(transactionToReverse.totals),
         createdDate: nowInDbPrecision(),
-        metadata: transactionToReverse.metadata,
+        metadata: req.metadata,
         tax: transactionToReverse.tax ? transactionToReverse.tax : null,
         lineItems: null,
         paymentSources: null,
         rootTransactionId: transactionToReverse.id,
         previousTransactionId: transactionToReverse.id
     };
+}
 
-    const valueIdsArrayString: string = transactionToReverse.steps.filter(step => step.rail === "lightrail").map(lrStep => (lrStep as LightrailTransactionStep).valueId).join(",");
+export async function getReverseTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, planId: string, tx: Transaction): Promise<TransactionPlanStep[]> {
+    const valueIdsArrayString: string = tx.steps.filter(step => step.rail === "lightrail").map(lrStep => (lrStep as LightrailTransactionStep).valueId).join(",");
     const lrValues: Value[] = (await getValues(auth, {"id.in": valueIdsArrayString}, {
         limit: valueIdsArrayString.length,
         maxLimit: 1000,
@@ -60,20 +66,18 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
         after: null,
         last: false
     })).values;
-    plan.steps = transactionToReverse.steps.map(step => {
+    return tx.steps.map(step => {
         switch (step.rail) {
             case "lightrail":
                 return getReverseForLightrailTransactionStep(auth, step, lrValues.find(v => v.id === step.valueId));
             case "stripe":
-                return getReverseForStripeTransactionStep(auth, step, plan.id + step.chargeId, `Being refunded as part of reverse transaction ${plan.id}.`);
+                return getReverseForStripeTransactionStep(auth, step, planId + step.chargeId, `Being refunded as part of reverse transaction ${planId}.`);
             case "internal":
                 return getReverseForInternalTransactionStep(auth, step);
             default:
-                throw Error(`Unexpected step rail type found in transaction for reverse. ${transactionToReverse}.`);
+                throw Error(`Unexpected step rail type found in transaction for reverse. ${JSON.stringify(tx)}.`);
         }
     });
-    log.info("Reverse plan: " + JSON.stringify(plan, null, 4));
-    return plan;
 }
 
 function getReverseForLightrailTransactionStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: LightrailTransactionStep, value: Value): LightrailTransactionPlanStep {
@@ -110,13 +114,13 @@ function getReverseForInternalTransactionStep(auth: giftbitRoutes.jwtauth.Author
     };
 }
 
-function invertNumbers<T extends object>(t: T): T {
+export function invertTransactionTotals<T extends object>(t: T): T {
     const res: T = Object.assign({}, t);
     for (const key in res) {
         if (typeof res[key] === "number") {
             res[key] = -res[key] as any;
         } else if (res[key] && typeof res[key] === "object") {
-            res[key] = invertNumbers(res[key] as any) as any;
+            res[key] = invertTransactionTotals(res[key] as any) as any;
         }
     }
     return res;

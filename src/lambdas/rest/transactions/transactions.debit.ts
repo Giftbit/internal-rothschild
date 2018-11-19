@@ -42,7 +42,7 @@ export async function createDebitTransactionPlan(auth: giftbitRoutes.jwtauth.Aut
         transactionType: "debit",
         currency: req.currency,
         steps: [step],
-        createdDate: nowInDbPrecision(),
+        createdDate: now,
         metadata: req.metadata,
         totals: {
             remainder: (req.amount || 0) - (amount || 0)

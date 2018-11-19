@@ -106,7 +106,7 @@ export namespace DbTransaction {
                 metadata: JSON.parse(dbT.metadata),
                 tax: JSON.parse(dbT.tax),
                 pending: !!dbT.pendingVoidDate,
-                pendingVoidDate: dbT.pendingVoidDate,
+                pendingVoidDate: dbT.pendingVoidDate || undefined,
                 createdDate: dbT.createdDate,
                 createdBy: dbT.createdBy
             };
@@ -163,7 +163,9 @@ export type TransactionType =
     | "transfer"
     | "pending_capture"
     | "pending_void"
-    | "reverse";
+    | "reverse"
+    | "capture"
+    | "void";
 
 export type TransactionStep = LightrailTransactionStep | StripeTransactionStep | InternalTransactionStep;
 

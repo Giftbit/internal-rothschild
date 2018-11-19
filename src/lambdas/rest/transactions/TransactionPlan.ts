@@ -204,7 +204,7 @@ export namespace TransactionPlan {
             steps: plan.steps.map(step => transactionPlanStepToTransactionStep(step)),
             paymentSources: plan.paymentSources && getSanitizedPaymentSources(plan),
             pending: !!plan.pendingVoidDate,
-            pendingVoidDate: plan.pendingVoidDate,
+            pendingVoidDate: plan.pendingVoidDate || undefined,
             metadata: plan.metadata || null,
             createdBy: auth.teamMemberId
         };

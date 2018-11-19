@@ -57,8 +57,11 @@ describe("/v2/transactions/reverse - debit", () => {
         chai.assert.equal((postDebit.body.steps[0] as LightrailTransactionStep).balanceAfter, 25);
 
         // create reverse
-        const reverse: Partial<ReverseRequest> = {
-            id: generateId()
+        const reverse: ReverseRequest = {
+            id: generateId(),
+            metadata: {
+                "oh_look_a_cat": "🐈"
+            }
         };
         const simulate = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${debit.id}/reverse`, "POST", {
             ...reverse,
@@ -91,7 +94,9 @@ describe("/v2/transactions/reverse - debit", () => {
                     }
                 ],
                 "paymentSources": null,
-                "metadata": null,
+                "metadata": {
+                    "oh_look_a_cat": "🐈"
+                },
                 "createdBy": "default-test-user-TEST"
             }, ["createdDate"]
         );
