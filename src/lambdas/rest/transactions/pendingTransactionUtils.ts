@@ -5,13 +5,12 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 export const durationPatternString = isoDuration.pattern.toString();
 
 const defaultDuration = isoDuration.parse("P1W");
-const defaultMinDurationString = "P1D";
-const defaultMaxDurationString = "P1M";
+const minDuration = isoDuration.parse("P1D");
+const maxDuration = isoDuration.parse("P1M");
+const maxDurationStripe = isoDuration.parse("P1W");
 
 export interface GetPendingVoidDateOptions {
-    defaultDuration?: string;
-    minDuration?: string;
-    maxDuration?: string;
+    hasStripe?: boolean;
 }
 
 export function getPendingVoidDate(req: { pending?: boolean | string | null }, now: Date, options?: GetPendingVoidDateOptions): Date | null {
@@ -19,21 +18,22 @@ export function getPendingVoidDate(req: { pending?: boolean | string | null }, n
         return null;
     }
     if (req.pending === true) {
-        const duration = (options && options.defaultDuration && isoDuration.parse(options.defaultDuration)) || defaultDuration;
-        return isoDuration.end(duration, now);
+        return isoDuration.end(defaultDuration, now);
     }
 
     const pendingVoidDate = isoDuration.end(isoDuration.parse(req.pending), now);
-    const minDurationString = (options && options.minDuration) || defaultMinDurationString;
-    const maxDurationString = (options && options.maxDuration) || defaultMaxDurationString;
-    const minPendingVoidDate = isoDuration.end(isoDuration.parse(minDurationString), now);
-    const maxPendingVoidDate = isoDuration.end(isoDuration.parse(maxDurationString), now);
 
-    if (pendingVoidDate < minPendingVoidDate) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `The pending duration is less than the minimum duration of '${minDurationString}'.`);
+    if (pendingVoidDate < isoDuration.end(minDuration, now)) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `The pending duration is less than the minimum duration of 1 day.`);
     }
-    if (pendingVoidDate > maxPendingVoidDate) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `The pending duration is greater than the maximum duration of '${maxDurationString}'.`);
+
+    if (pendingVoidDate > isoDuration.end(maxDuration, now)) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `The pending duration is greater than the maximum duration of 1 month.`);
     }
+
+    if (options && options.hasStripe && pendingVoidDate > isoDuration.end(maxDurationStripe, now)) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `The pending duration is greater than the maximum duration of 1 week (when using Stripe).`);
+    }
+
     return pendingVoidDate;
 }

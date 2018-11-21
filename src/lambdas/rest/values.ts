@@ -345,6 +345,7 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 totals_marketplace_sellerNet: null,
                 lineItems: null,
                 paymentSources: null,
+                pendingVoidDate: null,
                 metadata: null,
                 rootTransactionId: transactionId,
                 nextTransactionId: null,

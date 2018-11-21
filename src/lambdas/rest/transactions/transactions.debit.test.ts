@@ -923,6 +923,7 @@ describe("/v2/transactions/debit", () => {
             const pendingDebitRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", pendingDebitTx);
             chai.assert.equal(pendingDebitRes.statusCode, 201, `body=${JSON.stringify(pendingDebitRes.body)}`);
             chai.assert.isTrue(pendingDebitRes.body.pending);
+            chai.assert.isNotNull(pendingDebitRes.body.pendingVoidDate);
 
             const getPendingDebitRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingDebitTx.id}`, "GET");
             chai.assert.equal(getPendingDebitRes.statusCode, 200, `body=${JSON.stringify(getPendingDebitRes.body)}`);
@@ -967,6 +968,7 @@ describe("/v2/transactions/debit", () => {
             const pendingDebitRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", pendingDebitTx);
             chai.assert.equal(pendingDebitRes.statusCode, 201, `body=${JSON.stringify(pendingDebitRes.body)}`);
             chai.assert.isTrue(pendingDebitRes.body.pending);
+            chai.assert.isNotNull(pendingDebitRes.body.pendingVoidDate);
 
             const getPendingDebitRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingDebitTx.id}`, "GET");
             chai.assert.equal(getPendingDebitRes.statusCode, 200, `body=${JSON.stringify(getPendingDebitRes.body)}`);
@@ -1013,6 +1015,7 @@ describe("/v2/transactions/debit", () => {
             chai.assert.equal(pendingDebitRes.statusCode, 200, `body=${JSON.stringify(pendingDebitRes.body)}`);
             chai.assert.isTrue(pendingDebitRes.body.pending);
             chai.assert.isTrue(pendingDebitRes.body.simulated);
+            chai.assert.isNotNull(pendingDebitRes.body.pendingVoidDate);
 
             const getPendingDebitRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingDebitTx.id}`, "GET");
             chai.assert.equal(getPendingDebitRes.statusCode, 404, `body=${JSON.stringify(getPendingDebitRes.body)}`);

@@ -9,6 +9,7 @@ import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import {getKnexRead} from "../../../../utils/dbUtils/connection";
 import chaiExclude = require("chai-exclude");
+import {CheckoutRequest} from "../../../../model/TransactionRequest";
 
 chai.use(chaiExclude);
 
@@ -39,7 +40,7 @@ describe("/v2/transactions/checkout - basics", () => {
         const postValueStoreResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", giftCard);
         chai.assert.equal(postValueStoreResp.statusCode, 201, `body=${JSON.stringify(postValueStoreResp.body)}`);
 
-        const request = {
+        const request: CheckoutRequest = {
             id: "checkout-1",
             sources: [
                 {
@@ -115,7 +116,7 @@ describe("/v2/transactions/checkout - basics", () => {
             },
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "createdBy"]);
+        }, ["createdDate"]);
 
         const getValueStoreResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
         chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(getValueStoreResp.body)}`);
@@ -179,7 +180,7 @@ describe("/v2/transactions/checkout - basics", () => {
         const createPromotionResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", promotion);
         chai.assert.equal(createPromotionResp.statusCode, 201, `body=${JSON.stringify(createPromotionResp.body)}`);
 
-        const request = {
+        const request: CheckoutRequest = {
             id: "checkout-2",
             sources: [
                 {
@@ -275,7 +276,7 @@ describe("/v2/transactions/checkout - basics", () => {
             },
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "createdBy"]);
+        }, ["createdDate"]);
 
         const getPromotionVS = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${promotion.id}`, "GET");
         chai.assert.equal(getPromotionVS.statusCode, 200, `body=${JSON.stringify(getPromotionVS.body)}`);
@@ -319,7 +320,7 @@ describe("/v2/transactions/checkout - basics", () => {
         const createPromotion2Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", postTaxPromotion);
         chai.assert.equal(createPromotion2Resp.statusCode, 201, `body=${JSON.stringify(createPromotion2Resp.body)}`);
 
-        const request = {
+        const request: CheckoutRequest = {
             id: "checkout-3",
             sources: [
                 {
@@ -459,7 +460,7 @@ describe("/v2/transactions/checkout - basics", () => {
             },
             "createdDate": null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "createdBy"]);
+        }, ["createdDate"]);
 
         const getPreTaxPromo = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${preTaxPromotion.id}`, "GET");
         chai.assert.equal(getPreTaxPromo.statusCode, 200, `body=${JSON.stringify(getPreTaxPromo.body)}`);
@@ -488,7 +489,7 @@ describe("/v2/transactions/checkout - basics", () => {
         const postValueStoreResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", giftCard);
         chai.assert.equal(postValueStoreResp.statusCode, 201, `body=${JSON.stringify(postValueStoreResp.body)}`);
 
-        const request = {
+        const request: CheckoutRequest = {
             id: generateId(),
             sources: [
                 {
@@ -572,7 +573,7 @@ describe("/v2/transactions/checkout - basics", () => {
             },
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "createdBy"]);
+        }, ["createdDate"]);
 
         const getValueStoreResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
         chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(getValueStoreResp.body)}`);
@@ -584,7 +585,7 @@ describe("/v2/transactions/checkout - basics", () => {
     });
 
     it("cannot create checkout with id over max length - 422s", async () => {
-        const request = {
+        const request: CheckoutRequest = {
             id: generateId(65),
             sources: [
                 {

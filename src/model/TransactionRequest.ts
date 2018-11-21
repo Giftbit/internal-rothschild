@@ -9,6 +9,7 @@ export interface CheckoutRequest {
     simulate?: boolean;
     allowRemainder?: boolean;
     tax?: TaxRequestProperties;
+    pending?: boolean | string;
     metadata?: object;
 }
 

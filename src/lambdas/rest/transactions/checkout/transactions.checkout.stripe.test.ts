@@ -16,9 +16,13 @@ import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {after} from "mocha";
 import {
     setStubsForStripeTests,
-    stripeTestConfig, stubCheckoutStripeCharge, stubNoStripeCharge,
+    stripeTestConfig,
+    stubCheckoutStripeCharge,
+    stubCheckoutStripeError,
+    stubNoStripeCharge,
+    stubStripeRefund,
     testStripeLive,
-    unsetStubsForStripeTests, getStripeChargeStub, stubStripeRefund, stubCheckoutStripeError
+    unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
 import {StripeRestError} from "../../../../utils/stripeUtils/StripeRestError";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";

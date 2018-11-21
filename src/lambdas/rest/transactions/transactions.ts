@@ -577,12 +577,12 @@ const debitSchema: jsonschema.Schema = {
         allowRemainder: {
             type: "boolean"
         },
-        metadata: {
-            type: ["object", "null"]
-        },
         pending: {
             type: ["boolean", "string"],
             format: pendingTransactionUtils.durationPatternString
+        },
+        metadata: {
+            type: ["object", "null"]
         }
     },
     anyOf: [
@@ -704,9 +704,6 @@ const checkoutSchema: jsonschema.Schema = {
         allowRemainder: {
             type: "boolean"
         },
-        metadata: {
-            type: ["object", "null"]
-        },
         tax: {
             title: "Tax Properties",
             type: ["object", "null"],
@@ -717,6 +714,13 @@ const checkoutSchema: jsonschema.Schema = {
                     enum: ["HALF_EVEN", "HALF_UP"]
                 }
             }
+        },
+        pending: {
+            type: ["boolean", "string"],
+            format: pendingTransactionUtils.durationPatternString
+        },
+        metadata: {
+            type: ["object", "null"]
         }
     },
     required: ["id", "lineItems", "currency", "sources"]
