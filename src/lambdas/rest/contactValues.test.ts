@@ -4,14 +4,14 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {Contact} from "../../model/Contact";
 import {installRestRoutes} from "./installRestRoutes";
 import * as testUtils from "../../utils/testUtils";
-import {defaultTestUser, setCodeCryptographySecrets} from "../../utils/testUtils";
+import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../utils/testUtils";
 import {createContact} from "./contacts";
 import {Currency} from "../../model/Currency";
 import {createCurrency} from "./currencies";
 import {Value} from "../../model/Value";
 import {Transaction} from "../../model/Transaction";
 
-describe("/v2/contacts/values", () => {
+describe.only("/v2/contacts/values", () => {
 
     const router = new cassava.Router();
 
@@ -443,43 +443,107 @@ describe("/v2/contacts/values", () => {
         value7.contactId = contact2.id;
     });
 
-    let value8: Value;
+    describe('attach value various edge case state tests', function () {
+        for (const isGenericCode of [true, false]) {
+            it(`cannot attach a frozen isGeneric=${isGenericCode} Value`, async () => {
+                const value: Partial<Value> = {
+                    id: generateId(),
+                    currency: currency.code,
+                    isGenericCode: isGenericCode
+                };
+                const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+                chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
 
-    it("cannot attach a frozen Value", async () => {
-        const createValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
-            id: "gonna-freeze-this",
-            currency: currency.code
-        });
-        chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
-        value8 = createValueResp.body;
+                const update: Partial<Value> = {
+                    frozen: true
+                };
+                const patchUpdate = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", update);
+                chai.assert.equal(patchUpdate.statusCode, 200, `body=${JSON.stringify(patchUpdate.body)}`);
 
-        const freezeResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value8.id}`, "PATCH", {
-            frozen: true
-        });
-        chai.assert.equal(freezeResp.statusCode, 200, `body=${JSON.stringify(freezeResp.body)}`);
+                const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value.id});
+                chai.assert.equal(attach.statusCode, 409, `body=${JSON.stringify(attach.body)}`);
+                chai.assert.equal(attach.body.messageCode, "ValueFrozen");
+            });
 
-        const attachResp = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value8.id});
-        chai.assert.equal(attachResp.statusCode, 409, `body=${JSON.stringify(attachResp.body)}`);
-        chai.assert.equal(attachResp.body.messageCode, "ValueFrozen");
-    });
+            it(`cannot attach a canceled isGeneric=${isGenericCode} Value`, async () => {
+                const value: Partial<Value> = {
+                    id: generateId(),
+                    currency: currency.code,
+                    isGenericCode: isGenericCode
+                };
+                const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+                chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
 
-    let value9: Value;
+                const update: Partial<Value> = {
+                    canceled: true
+                };
+                const patchUpdate = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", update);
+                chai.assert.equal(patchUpdate.statusCode, 200, `body=${JSON.stringify(patchUpdate.body)}`);
 
-    it("cannot attach a canceled Value", async () => {
-        const createValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
-            id: "gonna-cancel-this",
-            currency: currency.code
-        });
-        chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
-        value9 = createValueResp.body;
+                const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value.id});
+                chai.assert.equal(attach.statusCode, 409, `body=${JSON.stringify(attach.body)}`);
+                chai.assert.equal(attach.body.messageCode, "ValueCanceled");
+            });
 
-        const cancelResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value9.id}`, "PATCH", {
-            canceled: true
-        });
-        chai.assert.equal(cancelResp.statusCode, 200, `body=${JSON.stringify(cancelResp.body)}`);
+            it(`can attach if currentDate < startDate isGeneric=${isGenericCode} Value`, async () => {
+                const value: Partial<Value> = {
+                    id: generateId(),
+                    currency: currency.code,
+                    isGenericCode: isGenericCode,
+                    startDate: new Date("2077-01-01")
+                };
+                const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+                chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
 
-        const attachResp = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value9.id});
-        chai.assert.equal(attachResp.statusCode, 409, `body=${JSON.stringify(attachResp.body)}`);
-        chai.assert.equal(attachResp.body.messageCode, "ValueCanceled");
+                const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value.id});
+                chai.assert.equal(attach.statusCode, 200, `body=${JSON.stringify(attach.body)}`);
+            });
+
+            it(`cannot attach if currentDate > endDate isGeneric=${isGenericCode} Value`, async () => {
+                const value: Partial<Value> = {
+                    id: generateId(),
+                    currency: currency.code,
+                    isGenericCode: isGenericCode,
+                    endDate: new Date("2011-01-01")
+                };
+                const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+                chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+                // probably need to create the Value and then manually update DB for endDate to be in the past.
+
+                const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value.id});
+                chai.assert.equal(attach.statusCode, 409, `body=${JSON.stringify(attach.body)}`);
+                chai.assert.equal(attach.body.messageCode, "ValueExpired");
+            });
+
+            it(`can attach if active=false isGeneric=${isGenericCode} Value`, async () => {
+                const value: Partial<Value> = {
+                    id: generateId(),
+                    currency: currency.code,
+                    isGenericCode: isGenericCode,
+                    active: false
+                };
+                const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+                chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+                const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value.id});
+                chai.assert.equal(attach.statusCode, 200, `body=${JSON.stringify(attach.body)}`);
+            });
+
+            it(`cannot attach if usesRemaining=0 isGeneric=${isGenericCode} Value`, async () => {
+                const value: Partial<Value> = {
+                    id: generateId(),
+                    currency: currency.code,
+                    isGenericCode: isGenericCode,
+                    usesRemaining: 0
+                };
+                const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+                chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+                const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value.id});
+                chai.assert.equal(attach.statusCode, 409, `body=${JSON.stringify(attach.body)}`);
+                chai.assert.equal(attach.body.messageCode, "InsufficientUsesRemaining");
+            });
+        }
     });
 });

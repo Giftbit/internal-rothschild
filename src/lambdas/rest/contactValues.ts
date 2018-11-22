@@ -97,6 +97,12 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     if (value.canceled) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value cannot be attached because it is canceled.`, "ValueCanceled");
     }
+    if (value.endDate != null && value.endDate < new Date()) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value cannot be attached because it is expired.`, "ValueExpired");
+    }
+    if (value.usesRemaining === 0) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value cannot be attached because it has no uses remaining.`, "InsufficientUsesRemaining");
+    }
 
     if (value.isGenericCode) {
         return attachGenericValue(auth, contact.id, value);
@@ -106,10 +112,6 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 }
 
 async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, originalValue: Value): Promise<Value> {
-    if (originalValue.usesRemaining === 0) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${originalValue.id}' cannot be attached because it has a generic code and has 0 usesRemaining.`, "InsufficientUsesRemaining");
-    }
-
     const now = nowInDbPrecision();
     const newAttachedValue: Value = {
         ...originalValue,
