@@ -3,6 +3,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {stripeApiVersion} from "./StripeConfig";
 import log = require("loglevel");
 import Stripe = require("stripe");
+import {charges} from "stripe";
 
 export async function createCharge(params: Stripe.charges.IChargeCreationOptions, lightrailStripeSecretKey: string, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<Stripe.charges.ICharge> {
     const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
@@ -58,12 +59,12 @@ export async function createRefund(params: Stripe.refunds.IRefundCreationOptions
     }
 }
 
-export async function createCapture(chargeId: string, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<Stripe.charges.ICharge> {
+export async function createCapture(chargeId: string, options: Stripe.charges.IChargeCaptureOptions, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<Stripe.charges.ICharge> {
     const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
     lightrailStripe.setApiVersion(stripeApiVersion);
     log.info("Creating capture for Stripe charge", chargeId);
     try {
-        const capturedCharge = await lightrailStripe.charges.capture(chargeId, {
+        const capturedCharge = await lightrailStripe.charges.capture(chargeId, options, {
             stripe_account: merchantStripeAccountId
         });
         log.info("Created Stripe capture for charge", chargeId, capturedCharge);

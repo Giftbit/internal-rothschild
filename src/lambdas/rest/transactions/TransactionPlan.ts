@@ -70,7 +70,12 @@ export interface StripeRefundTransactionPlanStep {
     rail: "stripe";
     type: "refund";
     idempotentStepId: string;
+
+    /**
+     * The ID of the charge to refund.
+     */
     chargeId: string;
+
     amount: number;
     refundResult?: stripe.refunds.IRefund;
     reason: string;
@@ -80,8 +85,27 @@ export interface StripeCaptureTransactionPlanStep {
     rail: "stripe";
     type: "capture";
     idempotentStepId: string;
+
+    /**
+     * The ID of the charge to capture.
+     */
     chargeId: string;
-    amount: 0;
+
+    /**
+     * The amount of the original pending charge.
+     */
+    pendingAmount: number;
+
+    /**
+     * The *adjustment* on how much was captured.  0 is capturing the full amount
+     * and thus this number is always <= 0.
+     */
+    amount: number;
+
+    /**
+     * Result of capturing the charge in Stripe is only set if the plan is executed.
+     */
+    captureResult?: stripe.charges.ICharge;
 }
 
 export type StripeTransactionPlanStep =
@@ -152,7 +176,14 @@ export namespace StripeTransactionPlanStep {
                     charge: JSON.stringify(step.refundResult)
                 };
             case "capture": // Capture steps aren't persisted to the DB.
-                return null;
+                return {
+                    userId: auth.userId,
+                    id: step.idempotentStepId,
+                    transactionId: plan.id,
+                    chargeId: step.captureResult.id,
+                    amount: step.amount,
+                    charge: JSON.stringify(step.captureResult)
+                };
             default:
                 throw new Error(`Unexpected stripe step. This should not happen. Step: ${JSON.stringify(step)}.`);
         }
@@ -170,7 +201,7 @@ export namespace StripeTransactionPlanStep {
                 if (step.chargeResult) {
                     stripeTransactionStep.chargeId = step.chargeResult.id;
                     stripeTransactionStep.charge = step.chargeResult;
-                    stripeTransactionStep.amount = -step.chargeResult.amount /* Note, chargeResult.amount is positive in Stripe but Lightrail treats debits as negative amounts on Steps. */;
+                    stripeTransactionStep.amount = -step.chargeResult.amount; // chargeResult.amount is positive in Stripe but Lightrail treats debits as negative amounts on Steps.
                 }
                 break;
             case "refund":
@@ -180,8 +211,13 @@ export namespace StripeTransactionPlanStep {
                     stripeTransactionStep.amount = step.refundResult.amount;
                 }
                 break;
-            case "capture": // Capture steps aren't persisted to the DB or returned.
-                return null;
+            case "capture":
+                if (step.captureResult) {
+                    stripeTransactionStep.chargeId = step.captureResult.id;
+                    stripeTransactionStep.charge = step.captureResult;
+                    stripeTransactionStep.amount = step.amount;
+                }
+                break;
             default:
                 throw new Error(`Unexpected stripe step. This should not happen. Step: ${JSON.stringify(step)}.`);
         }

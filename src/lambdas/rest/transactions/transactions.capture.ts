@@ -50,6 +50,7 @@ function getCaptureTransactionPlanSteps(captureTransactionId: string, transactio
                         type: "capture",
                         idempotentStepId: `${captureTransactionId}-${stepIx}`,
                         chargeId: step.chargeId,
+                        pendingAmount: step.amount,
                         amount: 0
                     };
                     return stripeCapturePlanStep;

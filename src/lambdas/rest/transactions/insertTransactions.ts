@@ -111,8 +111,7 @@ async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.Authoriza
 
 export async function insertStripeTransactionSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan): Promise<void> {
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe")
-        .map(step => StripeTransactionPlanStep.toStripeDbTransactionStep(step as StripeTransactionPlanStep, plan, auth))
-        .filter(step => !!step);
+        .map(step => StripeTransactionPlanStep.toStripeDbTransactionStep(step as StripeTransactionPlanStep, plan, auth));
     await trx.into("StripeTransactionSteps")
         .insert(stripeSteps);
 }

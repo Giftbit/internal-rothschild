@@ -27,12 +27,26 @@ export async function chargeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizatio
                     amount: step.amount,
                     charge: step.chargeId,
                     metadata: {
-                        reason: "not specified"
+                        reason: step.reason || "not specified"
                     }
                 };
                 step.refundResult = await createRefund(stripeRefundParams, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id);
+
+                if (step.reason) {
+                    const updateChargeParams: Stripe.charges.IChargeUpdateOptions = {
+                        description: step.reason
+                    };
+                    await updateCharge(step.chargeId, updateChargeParams, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id);
+                    log.info(`Updated Stripe charge ${step.chargeId} with reason.`);
+                }
             } else if (step.type === "capture") {
-                await createCapture(step.chargeId, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id);
+                if (step.amount > 0) {
+                    throw new Error(`StripeTransactionPlanStep capture amount ${step.amount} is > 0. The number represents the delta from the original charge and must be <= 0 as we cannot capture additional value.`);
+                }
+                const captureParams: Stripe.charges.IChargeCaptureOptions = {
+                    amount: step.amount ? step.pendingAmount + step.amount : undefined
+                };
+                step.captureResult = await createCapture(step.chargeId, captureParams, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id);
             } else {
                 throw new Error(`Unexpected stripe step. This should not happen. Step: ${JSON.stringify(step)}.`);
             }

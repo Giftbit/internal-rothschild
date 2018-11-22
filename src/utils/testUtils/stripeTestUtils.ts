@@ -17,6 +17,7 @@ const sinonSandbox = sinon.createSandbox();
 let stripeChargeStub: sinon.SinonStub = null;
 let stripeCaptureStub: sinon.SinonStub = null;
 let stripeRefundStub: sinon.SinonStub = null;
+let stripeUpdateChargeStub: sinon.SinonStub = null;
 
 /**
  * Config from stripe test account//pass: integrationtesting+merchant@giftbit.com // x39Rlf4TH3pzn29hsb#
@@ -241,6 +242,7 @@ export function getStripeCaptureStub(options: GetStripeCaptureStubOptions): sino
 
     return stub.withArgs(
         sinon.match.same(options.stripeChargeId),
+        sinon.match.any,
         sinon.match(stripeStubbedConfig.secretKey),
         sinon.match(stripeStubbedConfig.stripeUserId)
     );
@@ -258,6 +260,22 @@ export function getStripeRefundStub(options: GetStripeRefundStubOptions): sinon.
     return stub.withArgs(
         sinon.match.has("amount", options.amount)
             .and(sinon.match.has("charge", options.stripeChargeId)),
+        sinon.match(stripeStubbedConfig.secretKey),
+        sinon.match(stripeStubbedConfig.stripeUserId)
+    );
+}
+
+export interface GetStripeUpdateChargeStubOptions {
+    stripeChargeId: string;
+}
+
+export function getStripeUpdateChargeStub(options: GetStripeUpdateChargeStubOptions): sinon.SinonStub {
+    log.debug("stubbing stripe update charge", options);
+    const stub = stripeUpdateChargeStub || (stripeUpdateChargeStub = sinonSandbox.stub(stripeTransactions, "updateCharge").callThrough());
+
+    return stub.withArgs(
+        sinon.match.same(options.stripeChargeId),
+        sinon.match.any,
         sinon.match(stripeStubbedConfig.secretKey),
         sinon.match(stripeStubbedConfig.stripeUserId)
     );
@@ -378,7 +396,7 @@ export function stubTransferStripeError(request: TransferRequest, error: StripeR
         .rejects(error);
 }
 
-export function stubStripeCapture(charge: stripe.charges.ICharge): [stripe.charges.ICharge, sinon.SinonStub] {
+export function stubStripeCapture(charge: stripe.charges.ICharge, amountCaptured?: number): [stripe.charges.ICharge, sinon.SinonStub] {
     if (testStripeLive()) {
         return [null, null];
     }
@@ -387,6 +405,15 @@ export function stubStripeCapture(charge: stripe.charges.ICharge): [stripe.charg
         ...charge,
         captured: true
     };
+    if (amountCaptured) {
+        if (amountCaptured > response.amount) {
+            throw new Error("Can't capture more than the amount of the original charge.");
+        }
+        if (amountCaptured <= 0) {
+            throw new Error("Can't capture <= 0.");
+        }
+        response.amount = amountCaptured;
+    }
 
     const stub = getStripeCaptureStub(
         {
@@ -417,6 +444,40 @@ export function stubStripeRefund(charge: stripe.charges.ICharge, additionalPrope
         .resolves(response);
 
     return [response, stub];
+}
+
+/**
+ * If `updates` is defined then the updated charge is returned when the stub is created.  If not defined then
+ * the updated charge is generated on the fly and can't be returned here.
+ */
+export function stubStripeUpdateCharge(charge: stripe.charges.ICharge, updates?: stripe.charges.IChargeUpdateOptions): [stripe.charges.ICharge | null, sinon.SinonStub] {
+    if (testStripeLive()) {
+        return [null, null];
+    }
+
+    if (updates) {
+        const result = {
+            ...charge,
+            ...updates
+        };
+
+        const stub = getStripeUpdateChargeStub(
+            {
+                stripeChargeId: charge.id
+            })
+            .resolves(result);
+        return [null, stub];
+    } else {
+        const stub = getStripeUpdateChargeStub(
+            {
+                stripeChargeId: charge.id
+            })
+            .callsFake((chargeId, params) => Promise.resolve({
+                ...charge,
+                ...params
+            }));
+        return [null, stub];
+    }
 }
 
 /**

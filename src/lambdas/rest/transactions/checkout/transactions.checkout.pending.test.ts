@@ -5,16 +5,17 @@ import * as valueStores from "../../values";
 import * as testUtils from "../../../../utils/testUtils";
 import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
-import {Transaction} from "../../../../model/Transaction";
+import {StripeTransactionStep, Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import chaiExclude = require("chai-exclude");
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import {
     setStubsForStripeTests,
-    stubCheckoutStripeCharge, stubStripeCapture, stubStripeRefund,
+    stubCheckoutStripeCharge, stubStripeCapture, stubStripeRefund, stubStripeUpdateCharge,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
+import * as Stripe from "stripe";
 
 chai.use(chaiExclude);
 
@@ -289,7 +290,8 @@ describe.only("/v2/transactions/checkout - pending", () => {
                 {
                     type: "product",
                     productId: "🚗",
-                    unitPrice: 15000
+                    unitPrice: 14286,
+                    taxRate: 0.05
                 }
             ],
             currency: "CAD",
@@ -303,28 +305,29 @@ describe.only("/v2/transactions/checkout - pending", () => {
             transactionType: "checkout",
             currency: "CAD",
             totals: {
-                subtotal: 50,
-                tax: 0,
+                subtotal: 14286,
+                tax: 714,
                 discount: 0,
                 discountLightrail: 0,
-                payable: 50,
+                payable: 15000,
                 paidInternal: 0,
-                paidLightrail: 50,
-                paidStripe: 0,
+                paidLightrail: 1000,
+                paidStripe: 14000,
                 remainder: 0,
             },
             lineItems: [
                 {
                     type: "product",
                     productId: "🚗",
-                    unitPrice: 15000,
+                    unitPrice: 14286,
+                    taxRate: 0.05,
                     quantity: 1,
                     lineTotal: {
-                        subtotal: 50,
-                        taxable: 50,
-                        tax: 0,
+                        subtotal: 14286,
+                        taxable: 14286,
+                        tax: 714,
                         discount: 0,
-                        payable: 50,
+                        payable: 15000,
                         remainder: 0
                     }
                 }
@@ -344,7 +347,9 @@ describe.only("/v2/transactions/checkout - pending", () => {
                 },
                 {
                     rail: "stripe",
-                    amount: 14000
+                    amount: -14000,
+                    chargeId: pendingStripeCharge.id,
+                    charge: pendingStripeCharge
                 }
             ],
             paymentSources: [
@@ -367,6 +372,7 @@ describe.only("/v2/transactions/checkout - pending", () => {
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate", "pendingVoidDate"]);
         chai.assert.isNotNull(pendingTxRes.body.pendingVoidDate);
+        chai.assert.isFalse(((pendingTxRes.body.steps[1] as StripeTransactionStep).charge as Stripe.charges.ICharge).captured);
 
         const getPendingTxRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingTx.id}`, "GET");
         chai.assert.equal(getPendingTxRes.statusCode, 200, `body=${JSON.stringify(getPendingTxRes.body)}`);
@@ -376,6 +382,7 @@ describe.only("/v2/transactions/checkout - pending", () => {
         chai.assert.equal(valuePendingRes.body.balance, 0);
 
         stubStripeRefund(pendingStripeCharge);
+        stubStripeUpdateCharge(pendingStripeCharge);
         const voidRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingTx.id}/void`, "POST", {
             id: generateId()
         });
@@ -415,7 +422,8 @@ describe.only("/v2/transactions/checkout - pending", () => {
                 {
                     type: "product",
                     productId: "🚗",
-                    unitPrice: 15000
+                    unitPrice: 14286,
+                    taxRate: 0.05
                 }
             ],
             currency: "CAD",
@@ -429,28 +437,29 @@ describe.only("/v2/transactions/checkout - pending", () => {
             transactionType: "checkout",
             currency: "CAD",
             totals: {
-                subtotal: 50,
-                tax: 0,
+                subtotal: 14286,
+                tax: 714,
                 discount: 0,
                 discountLightrail: 0,
-                payable: 50,
+                payable: 15000,
                 paidInternal: 0,
-                paidLightrail: 50,
-                paidStripe: 0,
+                paidLightrail: 1000,
+                paidStripe: 14000,
                 remainder: 0,
             },
             lineItems: [
                 {
                     type: "product",
                     productId: "🚗",
-                    unitPrice: 15000,
+                    unitPrice: 14286,
+                    taxRate: 0.05,
                     quantity: 1,
                     lineTotal: {
-                        subtotal: 50,
-                        taxable: 50,
-                        tax: 0,
+                        subtotal: 14286,
+                        taxable: 14286,
+                        tax: 714,
                         discount: 0,
-                        payable: 50,
+                        payable: 15000,
                         remainder: 0
                     }
                 }
@@ -470,7 +479,9 @@ describe.only("/v2/transactions/checkout - pending", () => {
                 },
                 {
                     rail: "stripe",
-                    amount: 14000
+                    amount: -14000,
+                    chargeId: pendingStripeCharge.id,
+                    charge: pendingStripeCharge
                 }
             ],
             paymentSources: [
@@ -493,6 +504,7 @@ describe.only("/v2/transactions/checkout - pending", () => {
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate", "pendingVoidDate"]);
         chai.assert.isNotNull(pendingTxRes.body.pendingVoidDate);
+        chai.assert.isFalse(((pendingTxRes.body.steps[1] as StripeTransactionStep).charge as Stripe.charges.ICharge).captured);
 
         const getPendingTxRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingTx.id}`, "GET");
         chai.assert.equal(getPendingTxRes.statusCode, 200, `body=${JSON.stringify(getPendingTxRes.body)}`);

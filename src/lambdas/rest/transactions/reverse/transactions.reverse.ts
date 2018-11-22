@@ -37,6 +37,9 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
     if (dbTransactionToReverse.transactionType === "reverse") {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot reverse a reverse transaction.`);
     }
+    if (dbTransactionToReverse.transactionType === "void") {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot reverse a void transaction.`);
+    }
 
     const transactionToReverse: Transaction = (await DbTransaction.toTransactions([dbTransactionToReverse], auth.userId))[0];
 
@@ -92,14 +95,14 @@ function getReverseForLightrailTransactionStep(auth: giftbitRoutes.jwtauth.Autho
     };
 }
 
-function getReverseForStripeTransactionStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: StripeTransactionStep, idempotentStepId: string, refundMetadataReason: string): StripeTransactionPlanStep {
+function getReverseForStripeTransactionStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: StripeTransactionStep, idempotentStepId: string, refundReason: string): StripeTransactionPlanStep {
     return {
         rail: "stripe",
         type: "refund",
         idempotentStepId: idempotentStepId,
         chargeId: step.chargeId,
         amount: -step.amount,
-        reason: refundMetadataReason
+        reason: refundReason
     };
 }
 
