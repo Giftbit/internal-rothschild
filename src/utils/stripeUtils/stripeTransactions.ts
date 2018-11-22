@@ -1,27 +1,23 @@
-import {StripeUpdateChargeParams} from "./StripeUpdateChargeParams";
 import {StripeRestError} from "./StripeRestError";
-import {StripeCreateChargeParams} from "./StripeCreateChargeParams";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {stripeApiVersion} from "./StripeConfig";
-import {StripeCreateRefundParams} from "./StripeCreateRefundParams";
 import log = require("loglevel");
 import Stripe = require("stripe");
-import IRefund = Stripe.refunds.IRefund;
-import ICharge = Stripe.charges.ICharge;
 
-export async function createCharge(params: StripeCreateChargeParams, lightrailStripeSecretKey: string, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<ICharge> {
+export async function createCharge(params: Stripe.charges.IChargeCreationOptions, lightrailStripeSecretKey: string, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<Stripe.charges.ICharge> {
     const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
     lightrailStripe.setApiVersion(stripeApiVersion);
-    log.info(`Creating Stripe charge ${JSON.stringify(params)}.`);
+    log.info("Creating Stripe charge", params);
 
-    let charge: ICharge;
     try {
-        charge = await lightrailStripe.charges.create(params, {
+        const charge = await lightrailStripe.charges.create(params, {
             stripe_account: merchantStripeAccountId,
             idempotency_key: stepIdempotencyKey
         });
+        log.info(`Created Stripe charge '${charge.id}'`);
+        return charge;
     } catch (err) {
-        log.warn(`Error charging Stripe: ${err}`);
+        log.warn("Error charging Stripe:", err);
 
         switch (err.type) { // todo improve handling: most stripe errors come with a 'code' or 'decline_code' attribute that we can use to handle more cases more gracefully
             case "StripeIdempotencyError":
@@ -43,48 +39,58 @@ export async function createCharge(params: StripeCreateChargeParams, lightrailSt
                 throw new Error(`An unexpected error occurred while attempting to charge card. error ${err}`);
         }
     }
-    log.info(`Created Stripe charge '${charge.id}'`);
-    return charge;
 }
 
-export async function createRefund(params: StripeCreateRefundParams, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<IRefund> {
+export async function createRefund(params: Stripe.refunds.IRefundCreationOptionsWithCharge, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<Stripe.refunds.IRefund> {
     const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
     lightrailStripe.setApiVersion(stripeApiVersion);
-    log.info(`Creating refund for Stripe charge ${params.chargeId}.`);
-    const refund = await lightrailStripe.refunds.create({
-        charge: params.chargeId,
-        metadata: {reason: params.reason || "not specified"} /* Doesn't show up in charge in stripe. Need to update charge so that it's obvious as to why it was refunded. */
-    }, {
-        stripe_account: merchantStripeAccountId
-    });
+    log.info("Creating refund for Stripe charge", params.charge);
     try {
-        await updateCharge(params.chargeId, {
-            description: params.reason
-        }, lightrailStripeSecretKey, merchantStripeAccountId);
+        const refund = await lightrailStripe.refunds.create(params, {
+            stripe_account: merchantStripeAccountId
+        });
+        log.info("Created Stripe refund for charge", params.charge, refund);
+        return refund;
     } catch (err) {
+        log.warn("Err refunding Stripe:", err);
         giftbitRoutes.sentry.sendErrorNotification(err);
         throw err;
     }
-    log.info(`Created Stripe refund for charge ${params.chargeId}: ${JSON.stringify(refund)}`);
-    return refund;
 }
 
-export async function updateCharge(chargeId: string, params: StripeUpdateChargeParams, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<any> {
+export async function createCapture(chargeId: string, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<Stripe.charges.ICharge> {
     const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
     lightrailStripe.setApiVersion(stripeApiVersion);
-    log.info(`Updating Stripe charge ${JSON.stringify(params)}.`);
-    let chargeUpdate;
+    log.info("Creating capture for Stripe charge", chargeId);
     try {
-        chargeUpdate = await lightrailStripe.charges.update(
+        const capturedCharge = await lightrailStripe.charges.capture(chargeId, {
+            stripe_account: merchantStripeAccountId
+        });
+        log.info("Created Stripe capture for charge", chargeId, capturedCharge);
+        return capturedCharge;
+    } catch (err) {
+        log.warn("Error capturing Stripe charge:", err);
+        giftbitRoutes.sentry.sendErrorNotification(err);
+        throw err;
+    }
+}
+
+export async function updateCharge(chargeId: string, params: Stripe.charges.IChargeUpdateOptions, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<any> {
+    const lightrailStripe = require("stripe")(lightrailStripeSecretKey);
+    lightrailStripe.setApiVersion(stripeApiVersion);
+    log.info("Updating Stripe charge", params);
+    try {
+        const chargeUpdate = await lightrailStripe.charges.update(
             chargeId,
             params, {
                 stripe_account: merchantStripeAccountId,
             }
-        );  // todo make this a DTO.
+        );
+        log.info("Updated Stripe charge", chargeUpdate);
+        return chargeUpdate;
     } catch (err) {
+        log.warn("Error updating Stripe charge:", err);
         giftbitRoutes.sentry.sendErrorNotification(err);
         throw err;
     }
-    log.info(`Updated Stripe charge ${JSON.stringify(chargeUpdate)}.`);
-    return chargeUpdate;
 }

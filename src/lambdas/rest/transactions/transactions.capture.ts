@@ -1,11 +1,13 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import * as log from "loglevel";
+import * as Stripe from "stripe";
 import {CaptureRequest} from "../../../model/TransactionRequest";
-import {TransactionPlan} from "./TransactionPlan";
+import {StripeCaptureTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "./TransactionPlan";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {getDbTransaction} from "./transactions";
 import {GiftbitRestError} from "giftbit-cassava-routes";
+import {DbTransaction, Transaction} from "../../../model/Transaction";
 
 export async function createCaptureTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CaptureRequest, transactionIdToCapture: string): Promise<TransactionPlan> {
     const dbTransactionToCapture = await getDbTransaction(auth, transactionIdToCapture);
@@ -18,14 +20,14 @@ export async function createCaptureTransactionPlan(auth: giftbitRoutes.jwtauth.A
         throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot capture Transaction that is not last in the Transaction Chain. See documentation for more information on the Transaction Chain.`, "TransactionNotCapturable");
     }
 
-    // TODO Stripe steps will make this more complicated
+    const transactionToCapture: Transaction = (await DbTransaction.toTransactions([dbTransactionToCapture], auth.userId))[0];
 
     const now = nowInDbPrecision();
     return {
         id: req.id,
         transactionType: "capture",
-        currency: dbTransactionToCapture.currency,
-        steps: [],
+        currency: transactionToCapture.currency,
+        steps: getCaptureTransactionPlanSteps(req.id, transactionToCapture),
         createdDate: now,
         metadata: req.metadata,
         totals: null,
@@ -33,7 +35,27 @@ export async function createCaptureTransactionPlan(auth: giftbitRoutes.jwtauth.A
         pendingVoidDate: null,
         lineItems: null,
         paymentSources: null,
-        rootTransactionId: dbTransactionToCapture.id,
-        previousTransactionId: dbTransactionToCapture.id
+        rootTransactionId: transactionToCapture.id,
+        previousTransactionId: transactionToCapture.id
     };
+}
+
+function getCaptureTransactionPlanSteps(captureTransactionId: string, transactionToCapture: Transaction): TransactionPlanStep[] {
+    return transactionToCapture.steps
+        .map((step, stepIx) => {
+            if (step.rail === "stripe") {
+                if (step.charge.object === "charge" && !(step.charge as Stripe.charges.ICharge).captured) {
+                    const stripeCapturePlanStep: StripeCaptureTransactionPlanStep = {
+                        rail: "stripe",
+                        type: "capture",
+                        idempotentStepId: `${captureTransactionId}-${stepIx}`,
+                        chargeId: step.chargeId,
+                        amount: 0
+                    };
+                    return stripeCapturePlanStep;
+                }
+            }
+            return null;
+        })
+        .filter(planStep => !!planStep);
 }

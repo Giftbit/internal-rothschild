@@ -9,7 +9,11 @@ import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import chaiExclude = require("chai-exclude");
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
-import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../utils/testUtils/stripeTestUtils";
+import {
+    setStubsForStripeTests,
+    stubCheckoutStripeCharge, stubStripeCapture, stubStripeRefund,
+    unsetStubsForStripeTests
+} from "../../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
 
 chai.use(chaiExclude);
@@ -291,6 +295,7 @@ describe.only("/v2/transactions/checkout - pending", () => {
             currency: "CAD",
             pending: true
         };
+        const [pendingStripeCharge] = stubCheckoutStripeCharge(pendingTx, 1, 14000);
         const pendingTxRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", pendingTx);
         chai.assert.equal(pendingTxRes.statusCode, 201, `body=${JSON.stringify(pendingTxRes.body)}`);
         chai.assert.deepEqualExcluding(pendingTxRes.body, {
@@ -339,7 +344,7 @@ describe.only("/v2/transactions/checkout - pending", () => {
                 },
                 {
                     rail: "stripe",
-                    amount: 5000
+                    amount: 14000
                 }
             ],
             paymentSources: [
@@ -370,6 +375,7 @@ describe.only("/v2/transactions/checkout - pending", () => {
         const valuePendingRes = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(valuePendingRes.body.balance, 0);
 
+        stubStripeRefund(pendingStripeCharge);
         const voidRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingTx.id}/void`, "POST", {
             id: generateId()
         });
@@ -415,6 +421,7 @@ describe.only("/v2/transactions/checkout - pending", () => {
             currency: "CAD",
             pending: true
         };
+        const [pendingStripeCharge] = stubCheckoutStripeCharge(pendingTx, 1, 14000);
         const pendingTxRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", pendingTx);
         chai.assert.equal(pendingTxRes.statusCode, 201, `body=${JSON.stringify(pendingTxRes.body)}`);
         chai.assert.deepEqualExcluding(pendingTxRes.body, {
@@ -463,7 +470,7 @@ describe.only("/v2/transactions/checkout - pending", () => {
                 },
                 {
                     rail: "stripe",
-                    amount: 5000
+                    amount: 14000
                 }
             ],
             paymentSources: [
@@ -494,6 +501,7 @@ describe.only("/v2/transactions/checkout - pending", () => {
         const valuePendingRes = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(valuePendingRes.body.balance, 0);
 
+        stubStripeCapture(pendingStripeCharge);
         const captureRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingTx.id}/capture`, "POST", {
             id: generateId()
         });

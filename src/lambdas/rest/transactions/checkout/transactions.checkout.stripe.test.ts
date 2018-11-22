@@ -721,10 +721,6 @@ describe("split tender checkout with Stripe", () => {
         }
     });
 
-    it.skip("creates a charge auth in Stripe when 'pending: true'");
-
-    it.skip("captures Lightrail and Stripe charges together");
-
     describe("rollback", () => {
         it("passes on the Stripe error", async () => {
             const request = {

@@ -11,9 +11,11 @@ import {
     TransferRequest
 } from "../../model/TransactionRequest";
 import {StripeRestError} from "../stripeUtils/StripeRestError";
+import log = require("loglevel");
 
 const sinonSandbox = sinon.createSandbox();
 let stripeChargeStub: sinon.SinonStub = null;
+let stripeCaptureStub: sinon.SinonStub = null;
 let stripeRefundStub: sinon.SinonStub = null;
 
 /**
@@ -39,7 +41,7 @@ export function setStubsForStripeTests() {
         assumeToken: "this-is-an-assume-token"
     };
 
-    let stubFetchFromS3ByEnvVar = sinonSandbox.stub(giftbitRoutes.secureConfig, "fetchFromS3ByEnvVar");
+    const stubFetchFromS3ByEnvVar = sinonSandbox.stub(giftbitRoutes.secureConfig, "fetchFromS3ByEnvVar");
     stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH").resolves(testAssumeToken);
     stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE").resolves({
         email: "test@test.com",
@@ -51,7 +53,7 @@ export function setStubsForStripeTests() {
         live: {}
     });
 
-    let stubKvsGet = sinonSandbox.stub(kvsAccess, "kvsGet");
+    const stubKvsGet = sinonSandbox.stub(kvsAccess, "kvsGet");
     stubKvsGet.withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string).resolves({
         token_type: "bearer",
         stripe_user_id: testStripeLive() ? stripeTestConfig.stripeUserId : stripeStubbedConfig.stripeUserId,
@@ -72,6 +74,7 @@ export interface GenerateStripeChargeResponseOptions {
     transactionId: string;
     amount: number;
     currency: string;
+    pending: boolean;
     sources?: TransactionParty[];
     metadata?: object;
     additionalProperties?: Partial<stripe.charges.ICharge>;
@@ -87,7 +90,7 @@ export function generateStripeChargeResponse(options: GenerateStripeChargeRespon
         "application": "ca_D5LfFkNWh8XbFWxIcEx6N9FXaNmfJ9Fr",
         "application_fee": null,
         "balance_transaction": "txn_" + getRandomChars(24),
-        "captured": true,
+        "captured": !options.pending,
         "created": Math.floor(Date.now() / 1000),
         "currency": options.currency.toLowerCase(),
         "customer": null,
@@ -194,12 +197,14 @@ export interface GetStripeChargeStubOptions {
     transactionId: string;
     amount?: number;
     currency?: string;
+    capture?: boolean;
     source?: string;
     customer?: string;
 }
 
 export function getStripeChargeStub(options: GetStripeChargeStubOptions): sinon.SinonStub {
-    let stub = stripeChargeStub || (stripeChargeStub = sinonSandbox.stub(stripeTransactions, "createCharge").callThrough());
+    log.debug("stubbing stripe charge", options);
+    const stub = stripeChargeStub || (stripeChargeStub = sinonSandbox.stub(stripeTransactions, "createCharge").callThrough());
 
     let param0Matcher = sinon.match.hasNested("metadata.lightrailTransactionId", options.transactionId);
     if (options.amount) {
@@ -207,6 +212,9 @@ export function getStripeChargeStub(options: GetStripeChargeStubOptions): sinon.
     }
     if (options.currency) {
         param0Matcher = param0Matcher.and(sinon.match.has("currency", options.currency));
+    }
+    if (options.capture === true || options.capture === false) {
+        param0Matcher = param0Matcher.and(sinon.match.has("capture", options.capture));
     }
     if (options.source) {
         param0Matcher = param0Matcher.and(sinon.match.has("source", options.source));
@@ -223,36 +231,53 @@ export function getStripeChargeStub(options: GetStripeChargeStubOptions): sinon.
     );
 }
 
+export interface GetStripeCaptureStubOptions {
+    stripeChargeId: string;
+}
+
+export function getStripeCaptureStub(options: GetStripeCaptureStubOptions): sinon.SinonStub {
+    log.debug("stubbing stripe capture", options);
+    const stub = stripeCaptureStub || (stripeCaptureStub = sinonSandbox.stub(stripeTransactions, "createCapture").callThrough());
+
+    return stub.withArgs(
+        sinon.match.same(options.stripeChargeId),
+        sinon.match(stripeStubbedConfig.secretKey),
+        sinon.match(stripeStubbedConfig.stripeUserId)
+    );
+}
+
 export interface GetStripeRefundStubOptions {
     amount: number;
     stripeChargeId: string;
 }
 
 export function getStripeRefundStub(options: GetStripeRefundStubOptions): sinon.SinonStub {
-    let stub = stripeRefundStub || (stripeRefundStub = sinonSandbox.stub(stripeTransactions, "createRefund").callThrough());
+    log.debug("stubbing stripe refund", options);
+    const stub = stripeRefundStub || (stripeRefundStub = sinonSandbox.stub(stripeTransactions, "createRefund").callThrough());
 
     return stub.withArgs(
         sinon.match.has("amount", options.amount)
-            .and(sinon.match.has("chargeId", options.stripeChargeId)),
+            .and(sinon.match.has("charge", options.stripeChargeId)),
         sinon.match(stripeStubbedConfig.secretKey),
         sinon.match(stripeStubbedConfig.stripeUserId)
     );
 }
 
-export function stubCheckoutStripeCharge(request: CheckoutRequest, stripeStepIx: number, amount: number, additionalProperties?: Partial<stripe.charges.ICharge>): [stripe.charges.ICharge, sinon.SinonStub] {
+export function stubCheckoutStripeCharge(request: CheckoutRequest, stripeSourceIx: number, amount: number, additionalProperties?: Partial<stripe.charges.ICharge>): [stripe.charges.ICharge, sinon.SinonStub] {
     if (testStripeLive()) {
         return [null, null];
     }
 
-    if (request.sources[stripeStepIx].rail !== "stripe") {
-        throw new Error(`Checkout request source ${stripeStepIx} is not a stripe source.`);
+    if (request.sources[stripeSourceIx].rail !== "stripe") {
+        throw new Error(`Checkout request source ${stripeSourceIx} is not a stripe source.`);
     }
-    const stripeSource = request.sources[stripeStepIx] as StripeTransactionParty;
+    const stripeSource = request.sources[stripeSourceIx] as StripeTransactionParty;
 
     const response = generateStripeChargeResponse({
             transactionId: request.id,
             amount: amount,
             currency: request.currency,
+            pending: !!request.pending,
             sources: request.sources,
             metadata: request.metadata,
             additionalProperties
@@ -264,6 +289,7 @@ export function stubCheckoutStripeCharge(request: CheckoutRequest, stripeStepIx:
             transactionId: request.id,
             amount: amount,
             currency: request.currency,
+            capture: !request.pending,
             source: stripeSource.source,
             customer: stripeSource.customer
         })
@@ -290,6 +316,7 @@ export function stubTransferStripeCharge(request: TransferRequest, additionalPro
             transactionId: request.id,
             amount: amount,
             currency: request.currency,
+            pending: !!request.pending,
             sources: [request.destination],
             metadata: request.metadata,
             additionalProperties
@@ -301,6 +328,7 @@ export function stubTransferStripeCharge(request: TransferRequest, additionalPro
             transactionId: request.id,
             amount: amount,
             currency: request.currency,
+            capture: !request.pending,
             source: request.source.source,
             customer: request.source.customer
         })
@@ -309,20 +337,21 @@ export function stubTransferStripeCharge(request: TransferRequest, additionalPro
     return [response, stub];
 }
 
-export function stubCheckoutStripeError(request: CheckoutRequest, stripeStepIx: number, error: StripeRestError): void {
+export function stubCheckoutStripeError(request: CheckoutRequest, stripeSourceIx: number, error: StripeRestError): void {
     if (testStripeLive()) {
         return;
     }
 
-    if (request.sources[stripeStepIx].rail !== "stripe") {
-        throw new Error(`Checkout request source ${stripeStepIx} is not a stripe source.`);
+    if (request.sources[stripeSourceIx].rail !== "stripe") {
+        throw new Error(`Checkout request source ${stripeSourceIx} is not a stripe source.`);
     }
-    const stripeSource = request.sources[stripeStepIx] as StripeTransactionParty;
+    const stripeSource = request.sources[stripeSourceIx] as StripeTransactionParty;
 
     getStripeChargeStub(
         {
             transactionId: request.id,
             currency: request.currency,
+            capture: !request.pending,
             source: stripeSource.source,
             customer: stripeSource.customer
         })
@@ -342,10 +371,30 @@ export function stubTransferStripeError(request: TransferRequest, error: StripeR
         {
             transactionId: request.id,
             currency: request.currency,
+            capture: !request.pending,
             source: request.source.source,
             customer: request.source.customer
         })
         .rejects(error);
+}
+
+export function stubStripeCapture(charge: stripe.charges.ICharge): [stripe.charges.ICharge, sinon.SinonStub] {
+    if (testStripeLive()) {
+        return [null, null];
+    }
+
+    const response: stripe.charges.ICharge = {
+        ...charge,
+        captured: true
+    };
+
+    const stub = getStripeCaptureStub(
+        {
+            stripeChargeId: charge.id
+        })
+        .resolves(response);
+
+    return [response, stub];
 }
 
 export function stubStripeRefund(charge: stripe.charges.ICharge, additionalProperties?: Partial<stripe.refunds.IRefund>): [stripe.refunds.IRefund, sinon.SinonStub] {
