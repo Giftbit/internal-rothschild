@@ -118,6 +118,7 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 
         // Constructing the ID this way prevents the same contactId attaching
         // the Value twice and thus should not be changed.
+        // Note: Nov 22, 2018. This may not be ideal. The base64 includes character "/" which is undesirable for an id which may be used in urls.
         id: crypto.createHash("sha1").update(originalValue.id + "/" + contactId).digest("base64"),
         code: null,
         isGenericCode: false,
