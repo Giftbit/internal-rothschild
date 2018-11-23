@@ -11,7 +11,7 @@ import chaiExclude = require("chai-exclude");
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import {
     setStubsForStripeTests,
-    stubCheckoutStripeCharge, stubStripeCapture, stubStripeRefund, stubStripeUpdateCharge,
+    stubCheckoutStripeCharge, stubStripeCapture, stubStripeRefund, stubStripeUpdateCharge, testStripeLive,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
@@ -333,24 +333,7 @@ describe.only("/v2/transactions/checkout - pending", () => {
                 }
             ],
             steps: [
-                {
-                    rail: "lightrail",
-                    valueId: value.id,
-                    code: null,
-                    contactId: null,
-                    balanceBefore: 1000,
-                    balanceAfter: 0,
-                    balanceChange: -1000,
-                    usesRemainingBefore: null,
-                    usesRemainingAfter: null,
-                    usesRemainingChange: null
-                },
-                {
-                    rail: "stripe",
-                    amount: -14000,
-                    chargeId: pendingStripeCharge.id,
-                    charge: pendingStripeCharge
-                }
+                // only asserted when not live
             ],
             paymentSources: [
                 {
@@ -370,8 +353,33 @@ describe.only("/v2/transactions/checkout - pending", () => {
             },
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "pendingVoidDate"]);
+        }, ["createdDate", "pendingVoidDate", "steps"]);
+        if (!testStripeLive()) {
+            chai.assert.deepEqual(pendingTxRes.body.steps, [
+                {
+                    rail: "lightrail",
+                    valueId: value.id,
+                    code: null,
+                    contactId: null,
+                    balanceBefore: 1000,
+                    balanceAfter: 0,
+                    balanceChange: -1000,
+                    usesRemainingBefore: null,
+                    usesRemainingAfter: null,
+                    usesRemainingChange: null
+                },
+                {
+                    rail: "stripe",
+                    amount: -14000,
+                    chargeId: pendingStripeCharge.id,
+                    charge: pendingStripeCharge
+                }
+            ]);
+        }
         chai.assert.isNotNull(pendingTxRes.body.pendingVoidDate);
+        chai.assert.equal((pendingTxRes.body.steps[1] as StripeTransactionStep).amount, -14000);
+        chai.assert.isString((pendingTxRes.body.steps[1] as StripeTransactionStep).chargeId);
+        chai.assert.isObject((pendingTxRes.body.steps[1] as StripeTransactionStep).charge);
         chai.assert.isFalse(((pendingTxRes.body.steps[1] as StripeTransactionStep).charge as Stripe.charges.ICharge).captured);
 
         const getPendingTxRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingTx.id}`, "GET");
@@ -465,24 +473,7 @@ describe.only("/v2/transactions/checkout - pending", () => {
                 }
             ],
             steps: [
-                {
-                    rail: "lightrail",
-                    valueId: value.id,
-                    code: null,
-                    contactId: null,
-                    balanceBefore: 1000,
-                    balanceAfter: 0,
-                    balanceChange: -1000,
-                    usesRemainingBefore: null,
-                    usesRemainingAfter: null,
-                    usesRemainingChange: null
-                },
-                {
-                    rail: "stripe",
-                    amount: -14000,
-                    chargeId: pendingStripeCharge.id,
-                    charge: pendingStripeCharge
-                }
+                // only asserted when not live
             ],
             paymentSources: [
                 {
@@ -502,8 +493,33 @@ describe.only("/v2/transactions/checkout - pending", () => {
             },
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "pendingVoidDate"]);
+        }, ["createdDate", "pendingVoidDate", "steps"]);
+        if (!testStripeLive()) {
+            chai.assert.deepEqual(pendingTxRes.body.steps, [
+                {
+                    rail: "lightrail",
+                    valueId: value.id,
+                    code: null,
+                    contactId: null,
+                    balanceBefore: 1000,
+                    balanceAfter: 0,
+                    balanceChange: -1000,
+                    usesRemainingBefore: null,
+                    usesRemainingAfter: null,
+                    usesRemainingChange: null
+                },
+                {
+                    rail: "stripe",
+                    amount: -14000,
+                    chargeId: pendingStripeCharge.id,
+                    charge: pendingStripeCharge
+                }
+            ]);
+        }
         chai.assert.isNotNull(pendingTxRes.body.pendingVoidDate);
+        chai.assert.equal((pendingTxRes.body.steps[1] as StripeTransactionStep).amount, -14000);
+        chai.assert.isString((pendingTxRes.body.steps[1] as StripeTransactionStep).chargeId);
+        chai.assert.isObject((pendingTxRes.body.steps[1] as StripeTransactionStep).charge);
         chai.assert.isFalse(((pendingTxRes.body.steps[1] as StripeTransactionStep).charge as Stripe.charges.ICharge).captured);
 
         const getPendingTxRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingTx.id}`, "GET");
