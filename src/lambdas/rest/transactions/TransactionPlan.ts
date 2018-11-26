@@ -77,6 +77,10 @@ export interface StripeRefundTransactionPlanStep {
     chargeId: string;
 
     amount: number;
+
+    /**
+     * Result of creating the refund.  Only set if the plan is executed.
+     */
     refundResult?: stripe.refunds.IRefund;
     reason: string;
 }
@@ -97,8 +101,9 @@ export interface StripeCaptureTransactionPlanStep {
     pendingAmount: number;
 
     /**
-     * The *adjustment* on how much was captured.  0 is capturing the full amount
-     * and thus this number is always <= 0.
+     * The *adjustment* on how much was captured.  0 is capturing the full amount.
+     * A number > 0 reduces the amount captured from the original charge.
+     * Can't be < 0 because you can't capture more than the original charge.
      */
     amount: number;
 

@@ -6,7 +6,7 @@ export const durationPatternString = isoDuration.pattern.toString();
 
 const defaultDuration = isoDuration.parse("P1W");
 const minDuration = isoDuration.parse("P1D");
-const maxDuration = isoDuration.parse("P1M");
+const maxDuration = isoDuration.parse("P1Y");
 const maxDurationStripe = isoDuration.parse("P1W");
 
 export interface GetPendingVoidDateOptions {

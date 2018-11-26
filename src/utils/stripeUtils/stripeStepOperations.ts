@@ -40,11 +40,11 @@ export async function chargeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizatio
                     log.info(`Updated Stripe charge ${step.chargeId} with reason.`);
                 }
             } else if (step.type === "capture") {
-                if (step.amount > 0) {
-                    throw new Error(`StripeTransactionPlanStep capture amount ${step.amount} is > 0. The number represents the delta from the original charge and must be <= 0 as we cannot capture additional value.`);
+                if (step.amount < 0) {
+                    throw new Error(`StripeTransactionPlanStep capture amount ${step.amount} is < 0. The number represents the delta from the original charge and must be >= 0 as we cannot capture additional value.`);
                 }
                 const captureParams: Stripe.charges.IChargeCaptureOptions = {
-                    amount: step.amount ? step.pendingAmount + step.amount : undefined
+                    amount: step.amount ? step.pendingAmount - step.amount : undefined
                 };
                 step.captureResult = await createCapture(step.chargeId, captureParams, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id);
             } else {
