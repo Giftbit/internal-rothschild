@@ -110,9 +110,7 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     const knex = await getKnexRead();
     const now = nowInDbPrecision();
     let query = knex("Values")
-        .where({
-            userId: auth.userId
-        })
+        .where("Values.userId", "=", auth.userId)
         .where(q => {
             if (valueIds.length) {
                 q = q.whereIn("id", valueIds);
@@ -121,7 +119,12 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 q = q.orWhereIn("codeHashed", hashedCodes);
             }
             if (contactIds.length) {
-                q = q.orWhereIn("contactId", contactIds);
+                q = q.orWhereIn("contactId", contactIds)
+                    .join("ContactValues", {
+                        "Values.id": "ContactValues.valueId",
+                        "Values.userId": "ContactValues.userId"
+                    })
+                    .where("ContactValues.contactId", "in", contactIds)
             }
             return q;
         });

@@ -1,14 +1,16 @@
 import * as cassava from "cassava";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import {GiftbitRestError} from "giftbit-cassava-routes";
 import {getValue, getValueByCode, getValues, injectValueStats} from "./values";
 import {csvSerializer} from "../../serializers";
 import {Pagination} from "../../model/Pagination";
 import {DbValue, Value} from "../../model/Value";
-import {getContact} from "./contacts";
-import {getKnexWrite} from "../../utils/dbUtils/connection";
+import {getContact, getContacts} from "./contacts";
+import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
 import {DbTransaction, LightrailDbTransactionStep, Transaction} from "../../model/Transaction";
+import {DbContactValue} from "../../model/DbContactValue";
 import log = require("loglevel");
 
 export function installContactValuesRest(router: cassava.Router): void {
@@ -41,6 +43,28 @@ export function installContactValuesRest(router: cassava.Router): void {
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.values
+            };
+        });
+
+    router.route("/v2/values/{id}/contacts")
+        .method("GET")
+        .serializers({
+            "application/json": cassava.serializers.jsonSerializer,
+            "text/csv": csvSerializer
+        })
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:contacts:list");
+
+            const res = await getContacts(auth, {
+                ...evt.queryStringParameters,
+                valueId: evt.pathParameters.id
+            }, Pagination.getPaginationParams(evt));
+
+            return {
+                headers: Pagination.toHeaders(evt, res.pagination),
+                body: res.contacts
             };
         });
 
@@ -81,13 +105,15 @@ export function installContactValuesRest(router: cassava.Router): void {
                 ]
             });
 
+            const attachNewValue: boolean = evt.queryStringParameters.attachNewValue === "true";
+
             return {
-                body: await attachValue(auth, evt.pathParameters.id, evt.body, allowOverwrite)
+                body: await attachValue(auth, evt.pathParameters.id, evt.body, allowOverwrite, attachNewValue)
             };
         });
 }
 
-export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, valueIdentifier: { valueId?: string, code?: string }, allowOverwrite: boolean): Promise<Value> {
+export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, valueIdentifier: { valueId?: string, code?: string }, allowOverwrite: boolean, genericAttachNewValue?: boolean): Promise<Value> {
     const contact = await getContact(auth, contactId);
     const value = await getValueByIdentifier(auth, valueIdentifier);
 
@@ -105,21 +131,62 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     }
 
     if (value.isGenericCode) {
-        return attachGenericValue(auth, contact.id, value);
+        /* Need to make sure hasn't already been attached. There is a very remote edge case here if someone happened
+         * to call attach concurrently once with attachNewValue=true and another time without. */
+        if (await hasAttachedValue(auth, contactId, value.id)) {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${value.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
+        }
+
+        if (genericAttachNewValue) {
+            return await attachGenericValueAsNewValue(auth, contact.id, value);
+        } else {
+            await attachGenericValue(auth, contact.id, value);
+            return value;
+        }
     } else {
         return attachUniqueValue(auth, contact.id, value, allowOverwrite);
     }
 }
 
-async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, originalValue: Value): Promise<Value> {
+async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, value: Value): Promise<DbContactValue> {
+    const dbContactValue: DbContactValue = {
+        userId: auth.userId,
+        valueId: value.id,
+        contactId: contactId,
+        createdDate: nowInDbPrecision(),
+    };
+
+    const knex = await getKnexWrite();
+    await knex.transaction(async trx => {
+        try {
+            await trx("ContactValues")
+                .insert(dbContactValue);
+        } catch (err) {
+            log.debug(err);
+            const constraint = getSqlErrorConstraintName(err);
+            if (constraint === "PRIMARY") {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${value.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
+            }
+            if (constraint === "fk_ContactValues_Contacts") {
+                throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${contactId}' not found.`, "ContactNotFound");
+            }
+            if (constraint === "fk_ContactValues_Values") {
+                throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${value.id}' not found.`, "ValueNotFound");
+            }
+            throw err;
+        }
+    });
+    return dbContactValue;
+}
+
+/**
+ * Legacy functionality. This makes a new Value and attaches it to the Contact. Yervana is using this.
+ */
+async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, originalValue: Value): Promise<Value> {
     const now = nowInDbPrecision();
     const newAttachedValue: Value = {
         ...originalValue,
-
-        // Constructing the ID this way prevents the same contactId attaching
-        // the Value twice and thus should not be changed.
-        // Note: Nov 22, 2018. This may not be ideal. The base64 includes character "/" which is undesirable for an id which may be used in urls.
-        id: crypto.createHash("sha1").update(originalValue.id + "/" + contactId).digest("base64"),
+        id: getIdForNewAttachedValue({contactId: contactId, valueId: originalValue.id}),
         code: null,
         isGenericCode: false,
         contactId: contactId,
@@ -218,6 +285,16 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     return DbValue.toValue(dbNewAttachedValue);
 }
 
+/**
+ * Legacy function for the id of the newly created Value that results from attachNewValue.
+ */
+function getIdForNewAttachedValue(params: { contactId: string, valueId: string }): string {
+    // Constructing the ID this way prevents the same contactId attaching
+    // the Value twice and thus should not be changed.
+    // Note: Nov 22, 2018. This may not be ideal. The base64 includes character "/" which is undesirable for an id which may be used in urls.
+    return crypto.createHash("sha1").update(params.valueId + "/" + params.contactId).digest("base64");
+}
+
 async function attachUniqueValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, value: Value, allowOverwrite: boolean): Promise<Value> {
     try {
         const now = nowInDbPrecision();
@@ -273,4 +350,52 @@ function getValueByIdentifier(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id
         }
     }
     throw new Error("Neither valueId nor code specified");
+}
+
+async function hasAttachedValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, valueId: string): Promise<Boolean> {
+    let existingAttachedValue: Value;
+    try {
+        existingAttachedValue = await getValue(auth, getIdForNewAttachedValue({
+            contactId: contactId,
+            valueId: valueId
+        }));
+    } catch (e) {
+        if (e instanceof GiftbitRestError && e.statusCode === 404) {
+            // this means they haven't already attached it.
+        } else {
+            throw e;
+        }
+    }
+
+    let existingContactValue: DbContactValue;
+    try {
+        existingContactValue = await getContactValue(auth, valueId, contactId);
+    } catch (e) {
+        if (e instanceof GiftbitRestError && e.statusCode === 404) {
+            // this means they haven't already attached it.
+        } else {
+            throw e;
+        }
+    }
+    const returnValue = !!(existingAttachedValue || existingContactValue);
+    return returnValue;
+}
+
+
+export async function getContactValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueId: string, contactId: string): Promise<DbContactValue> {
+    const knex = await getKnexRead();
+    const res: DbContactValue[] = await knex("ContactValues")
+        .select()
+        .where({
+            userId: auth.userId,
+            contactId: contactId,
+            valueId: valueId,
+        });
+    if (res.length === 0) {
+        throw new giftbitRoutes.GiftbitRestError(404, `ContactValue with contactId '${contactId}' and valueId '${valueId}' not found.`, "ContactValueNotFound");
+    }
+    if (res.length > 1) {
+        throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
+    }
+    return res[0];
 }

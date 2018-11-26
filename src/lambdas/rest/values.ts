@@ -219,9 +219,22 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     const knex = await getKnexRead();
 
     let query = knex("Values")
-        .where({
-            userId: auth.userId
+        .select("Values.*")
+        .where("Values.userId", "=", auth.userId);
+    const contactId = filterParams["contactId"];
+    if (contactId) {
+        query.leftJoin("ContactValues", {
+            "Values.id": "ContactValues.valueId",
+            "Values.userId": "ContactValues.userId"
         });
+        query.andWhere(contactClause => {
+                contactClause.where("Values.contactId", "=", contactId);
+                contactClause.orWhere("ContactValues.contactId", "=", contactId);
+                return contactClause;
+            }
+        );
+        delete filterParams["contactId"]; // remove it!
+    }
 
     // Manually handle code, code.eq and code.in because computeCodeLookupHash must be done async.
     if (filterParams.code) {
@@ -253,10 +266,10 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                     type: "string",
                     operators: ["eq", "in"]
                 },
-                contactId: {
-                    type: "string",
-                    operators: ["eq", "in"]
-                },
+                // contactId: {
+                //     type: "string",
+                //     operators: ["eq", "in"]
+                // },
                 balance: {
                     type: "number"
                 },
@@ -290,7 +303,8 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                 updatedDate: {
                     type: "Date"
                 }
-            }
+            },
+            tableName: "Values"
         },
         pagination
     );
