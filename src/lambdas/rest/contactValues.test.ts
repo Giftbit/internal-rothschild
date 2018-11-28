@@ -496,7 +496,6 @@ describe("/v2/contacts/values", () => {
             valueId: value.id,
             attachGenericAsNewValue: true
         });
-        console.log(JSON.stringify(attach));
         chai.assert.equal(attach.statusCode, 200);
         chai.assert.notEqual(value.id, attach.body.id);
     });
