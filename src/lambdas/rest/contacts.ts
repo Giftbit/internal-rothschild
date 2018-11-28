@@ -141,10 +141,10 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             "Contacts.userId": "Values.userId"
         });
 
-        query.andWhere(valueClause => {
-            valueClause.where("ContactValues.valueId", "=", valueId);
-            valueClause.orWhere("Values.id", "=", valueId);
-            return valueClause;
+        query.andWhere(q => {
+            q.where("ContactValues.valueId", "=", valueId);
+            q.orWhere("Values.id", "=", valueId);
+            return q;
         });
         delete filterParams["valueId"];
 

@@ -15,6 +15,7 @@ import {DbValue, Value} from "../../../model/Value";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {computeCodeLookupHash} from "../../../utils/codeCryptoUtils";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
+import * as knex from "knex";
 
 /**
  * Options to resolving transaction parties.
@@ -109,25 +110,28 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 
     const knex = await getKnexRead();
     const now = nowInDbPrecision();
-    let query = knex("Values")
-        .where("Values.userId", "=", auth.userId)
-        .where(q => {
-            if (valueIds.length) {
-                q = q.whereIn("id", valueIds);
-            }
-            if (hashedCodes.length) {
-                q = q.orWhereIn("codeHashed", hashedCodes);
-            }
-            if (contactIds.length) {
-                q = q.orWhereIn("contactId", contactIds)
-                    .join("ContactValues", {
-                        "Values.id": "ContactValues.valueId",
-                        "Values.userId": "ContactValues.userId"
-                    })
-                    .where("ContactValues.contactId", "in", contactIds)
-            }
-            return q;
-        });
+    let query: knex.QueryBuilder = knex("Values")
+        .select("Values.*")
+        .where("Values.userId", "=", auth.userId);
+    if (contactIds.length) {
+        query.leftJoin("ContactValues", {
+            "Values.id": "ContactValues.valueId",
+            "Values.userId": "ContactValues.userId"
+        }).groupBy("Values.id");
+    }
+    query = query.where(q => {
+        if (valueIds.length) {
+            q = q.whereIn("Values.id", valueIds);
+        }
+        if (hashedCodes.length) {
+            q = q.orWhereIn("codeHashed", hashedCodes);
+        }
+        if (contactIds.length) {
+            q = q.orWhereIn("Values.contactId", contactIds)
+                .orWhereIn("ContactValues.contactId", contactIds)
+        }
+        return q;
+    });
     if (options.nonTransactableHandling === "exclude") {
         query = query
             .where({
@@ -146,7 +150,14 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         query = query.where(q => q.whereNull("balance").orWhere("balance", ">", 0));
     }
 
+    console.log(query.toSQL().sql);
     const dbValues: DbValue[] = await query;
+    console.log(JSON.stringify(dbValues.map(v => {
+        return {
+            id: v.id,
+            contactId: v.contactId
+        }
+    }), null, 4));
     const values = await Promise.all(dbValues.map(value => DbValue.toValue(value)));
 
     if (options.nonTransactableHandling === "error") {
