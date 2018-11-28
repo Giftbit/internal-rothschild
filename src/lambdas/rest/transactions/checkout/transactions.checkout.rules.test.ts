@@ -8,8 +8,8 @@ import {Value} from "../../../../model/Value";
 import {getRuleFromCache} from "../getRuleFromCache";
 import {createCurrency} from "../../currencies";
 import {Transaction} from "../../../../model/Transaction";
-import chaiExclude = require("chai-exclude");
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
+import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
@@ -1115,6 +1115,248 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
             },
             "createdBy": defaultTestUser.auth.teamMemberId,
             "createdDate": null
+        }, ["createdDate"]);
+    });
+
+    it("can do a credit via currentStep.amount", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balanceRule: {
+                rule: "800 + currentStep.amount",
+                explanation: "$8 credit"
+            },
+            discount: true,
+            pretax: true,
+            usesRemaining: 1
+        };
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+        const checkoutRequest: CheckoutRequest = {
+            id: generateId(),
+            allowRemainder: true,
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: value.id
+                }
+            ],
+            lineItems: [
+                {
+                    unitPrice: 200,
+                },
+                {
+                    unitPrice: 600,
+                },
+                {
+                    unitPrice: 100
+                }
+            ],
+            currency: "CAD",
+        };
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
+        chai.assert.deepEqualExcluding(postCheckoutResp.body, {
+            "id": checkoutRequest.id,
+            "transactionType": "checkout",
+            "currency": "CAD",
+            "createdDate": null,
+            "tax": {
+                "roundingMode": "HALF_EVEN"
+            },
+            "totals": {
+                "subtotal": 900,
+                "tax": 0,
+                "discount": 800,
+                "payable": 100,
+                "remainder": 100,
+                "discountLightrail": 800,
+                "paidLightrail": 0,
+                "paidStripe": 0,
+                "paidInternal": 0
+            },
+            "lineItems": [
+                {
+                    "unitPrice": 600,
+                    "quantity": 1,
+                    "lineTotal": {
+                        "subtotal": 600,
+                        "taxable": 0,
+                        "tax": 0,
+                        "discount": 600,
+                        "remainder": 0,
+                        "payable": 0
+                    }
+                },
+                {
+                    "unitPrice": 200,
+                    "quantity": 1,
+                    "lineTotal": {
+                        "subtotal": 200,
+                        "taxable": 0,
+                        "tax": 0,
+                        "discount": 200,
+                        "remainder": 0,
+                        "payable": 0
+                    }
+                },
+                {
+                    "unitPrice": 100,
+                    "quantity": 1,
+                    "lineTotal": {
+                        "subtotal": 100,
+                        "taxable": 100,
+                        "tax": 0,
+                        "discount": 0,
+                        "remainder": 100,
+                        "payable": 100
+                    }
+                }
+            ],
+            "steps": [
+                {
+                    "rail": "lightrail",
+                    "valueId": value.id,
+                    "contactId": null,
+                    "code": null,
+                    "balanceBefore": null,
+                    "balanceAfter": null,
+                    "balanceChange": -800,
+                    "usesRemainingBefore": 1,
+                    "usesRemainingAfter": 0,
+                    "usesRemainingChange": -1
+                }
+            ],
+            "paymentSources": [
+                {
+                    "rail": "lightrail",
+                    "valueId": value.id
+                }
+            ],
+            "metadata": null,
+            "createdBy": "default-test-user-TEST"
+        }, ["createdDate"]);
+    });
+
+    it("can do a credit via creditFunction balanceRule", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balanceRule: {
+                rule: "credit(700)",
+                explanation: "$7 credit"
+            },
+            discount: true,
+            pretax: true,
+            usesRemaining: 1
+        };
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+        const checkoutRequest: CheckoutRequest = {
+            id: generateId(),
+            allowRemainder: true,
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: value.id
+                }
+            ],
+            lineItems: [
+                {
+                    unitPrice: 200,
+                },
+                {
+                    unitPrice: 600,
+                },
+                {
+                    unitPrice: 100
+                }
+            ],
+            currency: "CAD",
+        };
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
+        chai.assert.deepEqualExcluding(postCheckoutResp.body, {
+            "id": checkoutRequest.id,
+            "transactionType": "checkout",
+            "currency": "CAD",
+            "createdDate": null,
+            "tax": {
+                "roundingMode": "HALF_EVEN"
+            },
+            "totals": {
+                "subtotal": 900,
+                "tax": 0,
+                "discount": 700,
+                "payable": 200,
+                "remainder": 200,
+                "discountLightrail": 700,
+                "paidLightrail": 0,
+                "paidStripe": 0,
+                "paidInternal": 0
+            },
+            "lineItems": [
+                {
+                    "unitPrice": 600,
+                    "quantity": 1,
+                    "lineTotal": {
+                        "subtotal": 600,
+                        "taxable": 0,
+                        "tax": 0,
+                        "discount": 600,
+                        "remainder": 0,
+                        "payable": 0
+                    }
+                },
+                {
+                    "unitPrice": 200,
+                    "quantity": 1,
+                    "lineTotal": {
+                        "subtotal": 200,
+                        "taxable": 100,
+                        "tax": 0,
+                        "discount": 100,
+                        "remainder": 100,
+                        "payable": 100
+                    }
+                },
+                {
+                    "unitPrice": 100,
+                    "quantity": 1,
+                    "lineTotal": {
+                        "subtotal": 100,
+                        "taxable": 100,
+                        "tax": 0,
+                        "discount": 0,
+                        "remainder": 100,
+                        "payable": 100
+                    }
+                }
+            ],
+            "steps": [
+                {
+                    "rail": "lightrail",
+                    "valueId": value.id,
+                    "contactId": null,
+                    "code": null,
+                    "balanceBefore": null,
+                    "balanceAfter": null,
+                    "balanceChange": -700,
+                    "usesRemainingBefore": 1,
+                    "usesRemainingAfter": 0,
+                    "usesRemainingChange": -1
+                }
+            ],
+            "paymentSources": [
+                {
+                    "rail": "lightrail",
+                    "valueId": value.id
+                }
+            ],
+            "metadata": null,
+            "createdBy": "default-test-user-TEST"
         }, ["createdDate"]);
     });
 });

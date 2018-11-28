@@ -93,7 +93,8 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
                     totals: transactionPlan.totals,
                     lineItems: transactionPlan.lineItems,
                     currentLineItem: item,
-                    metadata: transactionPlan.metadata
+                    metadata: transactionPlan.metadata,
+                    currentLightrailTransactionStep: step
                 }).evaluateRedemptionRule(value.redemptionRule)) {
                     log.info(`Value ${value.id} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
                     continue;
@@ -107,7 +108,8 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
                     totals: transactionPlan.totals,
                     lineItems: transactionPlan.lineItems,
                     currentLineItem: item,
-                    metadata: transactionPlan.metadata
+                    metadata: transactionPlan.metadata,
+                    currentLightrailTransactionStep: step
                 }).evaluateBalanceRule(value.balanceRule);
                 amount = Math.min(item.lineTotal.remainder, bankersRounding(valueFromRule, 0) | 0);
                 step.amount -= amount;
