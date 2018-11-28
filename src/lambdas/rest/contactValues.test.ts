@@ -497,21 +497,4 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(attachResp.statusCode, 409, `body=${JSON.stringify(attachResp.body)}`);
         chai.assert.equal(attachResp.body.messageCode, "ValueCanceled");
     });
-
-    it("can attach a value with attachGenericAsNewValue=true flag", async () => {
-        let value: Partial<Value> = {
-            id: generateId(),
-            currency: currency.code,
-            isGenericCode: true
-        };
-        const createValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
-        chai.assert.equal(createValue.statusCode, 201);
-
-        const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
-            valueId: value.id,
-            attachGenericAsNewValue: true
-        });
-        chai.assert.equal(attach.statusCode, 200);
-        chai.assert.notEqual(value.id, attach.body.id);
-    });
 });
