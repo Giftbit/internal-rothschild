@@ -47,6 +47,12 @@ export interface CaptureRequest {
     metadata?: object;
 }
 
+export interface VoidRequest {
+    id: string;
+    simulate?: boolean;
+    metadata?: object;
+}
+
 export type TransferRequest = CreditRequest & DebitRequest;
 
 export type TransactionParty = LightrailTransactionParty | StripeTransactionParty | InternalTransactionParty;

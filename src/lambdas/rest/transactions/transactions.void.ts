@@ -1,7 +1,7 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import * as log from "loglevel";
-import {CaptureRequest} from "../../../model/TransactionRequest";
+import {VoidRequest} from "../../../model/TransactionRequest";
 import {TransactionPlan} from "./TransactionPlan";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {getDbTransaction} from "./transactions";
@@ -9,8 +9,12 @@ import {GiftbitRestError} from "giftbit-cassava-routes";
 import {getReverseTransactionPlanSteps, invertTransactionTotals} from "./reverse/transactions.reverse";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 
-export async function createVoidTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CaptureRequest, transactionIdToVoid: string): Promise<TransactionPlan> {
+export async function createVoidTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: VoidRequest, transactionIdToVoid: string): Promise<TransactionPlan> {
     const dbTransactionToVoid = await getDbTransaction(auth, transactionIdToVoid);
+    return createVoidTransactionPlanForDbTransaction(auth, req, dbTransactionToVoid);
+}
+
+export async function createVoidTransactionPlanForDbTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: VoidRequest, dbTransactionToVoid: DbTransaction): Promise<TransactionPlan> {
     if (!dbTransactionToVoid.pendingVoidDate) {
         log.info(`Transaction ${JSON.stringify(dbTransactionToVoid)} is not pending and cannot be voided.`);
         throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot void Transaction that is not pending.`, "TransactionNotVoidable");

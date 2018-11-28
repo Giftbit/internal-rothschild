@@ -4,11 +4,13 @@ import * as jsonschema from "jsonschema";
 import * as pendingTransactionUtils from "./pendingTransactionUtils";
 import {resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
 import {
+    CaptureRequest,
     CheckoutRequest,
     CreditRequest,
     DebitRequest,
     ReverseRequest,
-    TransferRequest
+    TransferRequest,
+    VoidRequest
 } from "../../../model/TransactionRequest";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {executeTransactionPlanner} from "./executeTransactionPlan";
@@ -327,7 +329,7 @@ async function createReverse(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req
     );
 }
 
-async function createCapture(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: ReverseRequest, transactionIdToCapture: string): Promise<Transaction> {
+async function createCapture(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CaptureRequest, transactionIdToCapture: string): Promise<Transaction> {
     return executeTransactionPlanner(
         auth,
         {
@@ -340,7 +342,7 @@ async function createCapture(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req
     );
 }
 
-async function createVoid(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: ReverseRequest, transactionIdToVoid: string): Promise<Transaction> {
+async function createVoid(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: VoidRequest, transactionIdToVoid: string): Promise<Transaction> {
     return executeTransactionPlanner(
         auth,
         {
