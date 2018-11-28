@@ -4,7 +4,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {Contact} from "../../model/Contact";
 import {installRestRoutes} from "./installRestRoutes";
 import * as testUtils from "../../utils/testUtils";
-import {defaultTestUser, setCodeCryptographySecrets} from "../../utils/testUtils";
+import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../utils/testUtils";
 import {createContact} from "./contacts";
 import {Currency} from "../../model/Currency";
 import {createCurrency} from "./currencies";
@@ -481,5 +481,23 @@ describe("/v2/contacts/values", () => {
         const attachResp = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value9.id});
         chai.assert.equal(attachResp.statusCode, 409, `body=${JSON.stringify(attachResp.body)}`);
         chai.assert.equal(attachResp.body.messageCode, "ValueCanceled");
+    });
+
+    it("can attach a value with attachGenericAsNewValue=true flag", async () => {
+        let value: Partial<Value> = {
+            id: generateId(),
+            currency: currency.code,
+            isGenericCode: true
+        };
+        const createValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+        chai.assert.equal(createValue.statusCode, 201);
+
+        const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+            valueId: value.id,
+            attachGenericAsNewValue: true
+        });
+        console.log(JSON.stringify(attach));
+        chai.assert.equal(attach.statusCode, 200);
+        chai.assert.notEqual(value.id, attach.body.id);
     });
 });
