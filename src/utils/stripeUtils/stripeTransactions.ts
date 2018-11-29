@@ -3,7 +3,6 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {stripeApiVersion} from "./StripeConfig";
 import log = require("loglevel");
 import Stripe = require("stripe");
-import {charges} from "stripe";
 
 export async function createCharge(params: Stripe.charges.IChargeCreationOptions, lightrailStripeSecretKey: string, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<Stripe.charges.ICharge> {
     const lightrailStripe = require("stripe")(lightrailStripeSecretKey);

@@ -11,7 +11,7 @@ import {Transaction} from "../../model/Transaction";
 import {DebitRequest} from "../../model/TransactionRequest";
 import {voidExpiredPending} from "./voidExpiredPending";
 
-describe.only("voidExpiredPending()", () => {
+describe("voidExpiredPending()", () => {
 
     // Using the router here creates a cross dependency between this test and the rest code.
     // On the other hand it's the easiest way to ensure we're setting up the state correctly.
@@ -125,7 +125,7 @@ describe.only("voidExpiredPending()", () => {
         // All that setup for this.
         await voidExpiredPending(
             {
-                getRemainingTimeInMillis: () => 60000
+                getRemainingTimeInMillis: () => 5 * 60 * 1000
             } as any
         );
 

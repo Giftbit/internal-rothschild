@@ -900,7 +900,7 @@ describe("/v2/transactions/debit", () => {
         });
     });
 
-    describe.only("pending transactions", () => {
+    describe("pending transactions", () => {
         it("can create and void a pending transaction", async () => {
             const value: Partial<Value> = {
                 id: generateId(),

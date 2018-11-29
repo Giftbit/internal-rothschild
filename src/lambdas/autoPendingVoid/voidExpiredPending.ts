@@ -25,8 +25,8 @@ export async function voidExpiredPending(ctx: awslambda.Context): Promise<void> 
         await voidPendingTransaction(transactions[txIx]);
     }
 
-    if (transactions.length === limit) {
-        log.info("Received max transactions to void with time remaining, fetching more.");
+    if (transactions.length === limit && ctx.getRemainingTimeInMillis() > 30000) {
+        log.info("Voided max transaction at once with time remaining.  Fetching more.");
         return voidExpiredPending(ctx);
     }
     return;

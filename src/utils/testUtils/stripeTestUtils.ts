@@ -22,7 +22,7 @@ let stripeUpdateChargeStub: sinon.SinonStub = null;
 /**
  * Config from stripe test account//pass: integrationtesting+merchant@giftbit.com // x39Rlf4TH3pzn29hsb#
  */
-export const stripeTestConfig = {
+export const stripeLiveConfig = {
     secretKey: "sk_test_Fwb3uGyZsIb9eJ5ZQchNH5Em",
     stripeUserId: "acct_1BOVE6CM9MOvFvZK",
     customer: {
@@ -48,7 +48,7 @@ export function setStubsForStripeTests() {
         email: "test@test.com",
         test: {
             clientId: "test-client-id",
-            secretKey: testStripeLive() ? stripeTestConfig.secretKey : stripeStubbedConfig.secretKey,
+            secretKey: testStripeLive() ? stripeLiveConfig.secretKey : stripeStubbedConfig.secretKey,
             publishableKey: "test-pk",
         },
         live: {}
@@ -57,7 +57,7 @@ export function setStubsForStripeTests() {
     const stubKvsGet = sinonSandbox.stub(kvsAccess, "kvsGet");
     stubKvsGet.withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string).resolves({
         token_type: "bearer",
-        stripe_user_id: testStripeLive() ? stripeTestConfig.stripeUserId : stripeStubbedConfig.stripeUserId,
+        stripe_user_id: testStripeLive() ? stripeLiveConfig.stripeUserId : stripeStubbedConfig.stripeUserId,
     });
 }
 
