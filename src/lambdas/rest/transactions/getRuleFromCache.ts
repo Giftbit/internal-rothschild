@@ -12,13 +12,6 @@ export function getRuleFromCache(expression: string): Rule {
         });
     }
 
-    // this probably isn't where this should go but it's a start as a common location that rules go through.
-    // code needs to be extracted / made more resuable but this gives the idea
-    expression = expression.replace(/credit\([0-9]*\)/g, (value): string => {
-        const creditAmount = value.substring(value.indexOf("(") + 1, value.indexOf(")"));
-        return `${creditAmount} + currentStep.amount`;
-    });
-
     let rule = cache.get(expression);
     if (rule === undefined) {
         rule = new Rule(expression || "");

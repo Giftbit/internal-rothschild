@@ -7,7 +7,7 @@ import {
 } from "../TransactionPlan";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import {Value} from "../../../../model/Value";
-import {RuleContext} from "../RuleContext";
+import {RuleContext} from "../rules/RuleContext";
 import {CheckoutTransactionPlan} from "./CheckoutTransactionPlan";
 import {bankersRounding} from "../../../../utils/moneyUtils";
 import log = require("loglevel");
@@ -94,7 +94,10 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
                     lineItems: transactionPlan.lineItems,
                     currentLineItem: item,
                     metadata: transactionPlan.metadata,
-                    currentLightrailTransactionStep: step
+                    value: {
+                        amountPaidSoFar: step.amount,
+                        metadata: step.value.metadata
+                    }
                 }).evaluateRedemptionRule(value.redemptionRule)) {
                     log.info(`Value ${value.id} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
                     continue;
@@ -109,7 +112,10 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
                     lineItems: transactionPlan.lineItems,
                     currentLineItem: item,
                     metadata: transactionPlan.metadata,
-                    currentLightrailTransactionStep: step
+                    value: {
+                        amountPaidSoFar: step.amount,
+                        metadata: step.value.metadata
+                    }
                 }).evaluateBalanceRule(value.balanceRule);
                 amount = Math.min(item.lineTotal.remainder, bankersRounding(valueFromRule, 0) | 0);
                 step.amount -= amount;
