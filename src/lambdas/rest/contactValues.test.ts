@@ -4,7 +4,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {Contact} from "../../model/Contact";
 import {installRestRoutes} from "./installRestRoutes";
 import * as testUtils from "../../utils/testUtils";
-import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../utils/testUtils";
+import {defaultTestUser, setCodeCryptographySecrets} from "../../utils/testUtils";
 import {createContact} from "./contacts";
 import {Currency} from "../../model/Currency";
 import {createCurrency} from "./currencies";
