@@ -131,7 +131,10 @@ describe("/v2/transactions/reverse - attach", () => {
         chai.assert.equal(postContact.statusCode, 201);
 
         // create attach
-        const postAttach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: genericValue.id});
+        const postAttach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+            valueId: genericValue.id,
+            attachGenericAsNewValue: true
+        });
         chai.assert.equal(postAttach.statusCode, 200, `body=${JSON.stringify(postAttach.body)}`);
         chai.assert.equal(postAttach.body.contactId, contact.id);
         chai.assert.equal(postAttach.body.usesRemaining, 1);
