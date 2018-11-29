@@ -78,7 +78,10 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
 
         // Should return a new Value.
-        const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: createValueResp.body.id});
+        const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+            valueId: createValueResp.body.id,
+            attachGenericAsNewValue: true
+        });
         chai.assert.equal(attachResp.statusCode, 200, `body=${JSON.stringify(attachResp.body)}`);
         chai.assert.equal(attachResp.body.currency, createValueResp.body.currency);
         chai.assert.deepEqual(attachResp.body.balanceRule, createValueResp.body.balanceRule);
@@ -153,7 +156,10 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
 
         // Should return a new Value.
-        const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: value3Code});
+        const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+            code: value3Code,
+            attachGenericAsNewValue: true
+        });
         chai.assert.equal(attachResp.statusCode, 200, `body=${JSON.stringify(attachResp.body)}`);
         chai.assert.equal(attachResp.body.currency, createValueResp.body.currency);
         chai.assert.deepEqual(attachResp.body.balanceRule, createValueResp.body.balanceRule);
@@ -229,7 +235,10 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
 
         // Should return a new Value.
-        const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: value4Code});
+        const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+            code: value4Code,
+            attachGenericAsNewValue: true
+        });
         chai.assert.equal(attachResp.statusCode, 200, `body=${JSON.stringify(attachResp.body)}`);
         chai.assert.equal(attachResp.body.currency, createValueResp.body.currency);
         chai.assert.deepEqual(attachResp.body.balance, createValueResp.body.balance);
@@ -292,7 +301,10 @@ describe("/v2/contacts/values", () => {
     });
 
     it("a Contact cannot claim a generic-code Value twice", async () => {
-        const resp = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: value3Code});
+        const resp = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+            code: value3Code,
+            attachGenericAsNewValue: true
+        });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.messageCode, "ValueAlreadyAttached");
     });
@@ -312,7 +324,10 @@ describe("/v2/contacts/values", () => {
         });
         chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
 
-        const attachResp = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: code});
+        const attachResp = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+            code: code,
+            attachGenericAsNewValue: true
+        });
         chai.assert.equal(attachResp.statusCode, 409, `body=${JSON.stringify(attachResp.body)}`);
         chai.assert.equal(attachResp.body.messageCode, "InsufficientUsesRemaining");
     });
