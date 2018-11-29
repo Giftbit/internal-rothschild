@@ -52,11 +52,11 @@ export async function chargeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizatio
             }
         }
     } catch (err) {
-        if ((err as StripeRestError).additionalParams && (err as StripeRestError).additionalParams.stripeError) {
+        if ((err as StripeRestError).isStripeRestError) {
             // Error was returned from Stripe. Passing original error along so that details of Stripe failure can be returned.
             throw err;
         } else {
-            throw new TransactionPlanError(`Transaction execution canceled because there was a problem calling Stripe: ${err}`, {
+            throw new TransactionPlanError(`Transaction execution canceled because there was a problem calling Stripe: ${err.message}`, {
                 isReplanable: false
             });
         }
