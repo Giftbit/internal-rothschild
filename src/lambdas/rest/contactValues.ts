@@ -83,23 +83,25 @@ export function installContactValuesRest(router: cassava.Router): void {
 
             evt.validateBody({
                 type: "object",
+                additionalProperties: false,
+                properties: {
+                    code: {
+                        type: "string"
+                    },
+                    valueId: {
+                        type: "string"
+                    },
+                    attachGenericAsNewValue: {
+                        type: "boolean"
+                    }
+                },
                 oneOf: [
                     {
                         title: "attach by `valueId`",
-                        properties: {
-                            valueId: {
-                                type: "string"
-                            }
-                        },
                         required: ["valueId"]
                     },
                     {
                         title: "attach by `code`",
-                        properties: {
-                            code: {
-                                type: "string"
-                            }
-                        },
                         required: ["code"]
                     }
                 ]
