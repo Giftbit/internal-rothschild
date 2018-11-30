@@ -221,7 +221,8 @@ describe("/v2/transactions/reverse - transfer", () => {
                             "reason": null,
                             "source_transfer_reversal": null,
                             "receipt_number": null,
-                            "status": "succeeded"
+                            "status": "succeeded",
+                            "transfer_reversal": null
                         },
                         "amount": 75
                     }
