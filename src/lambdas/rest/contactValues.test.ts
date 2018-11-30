@@ -275,8 +275,6 @@ describe("/v2/contacts/values", () => {
                 const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
                 chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
 
-                // probably need to create the Value and then manually update DB for endDate to be in the past.
-
                 const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value.id});
                 chai.assert.equal(attach.statusCode, 409, `body=${JSON.stringify(attach.body)}`);
                 chai.assert.equal(attach.body.messageCode, "ValueExpired");
