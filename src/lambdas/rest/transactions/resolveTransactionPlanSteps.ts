@@ -114,10 +114,12 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         .select("Values.*")
         .where("Values.userId", "=", auth.userId);
     if (contactIds.length) {
-        query.leftJoin("ContactValues", {
-            "Values.id": "ContactValues.valueId",
-            "Values.userId": "ContactValues.userId"
-        }).groupBy("Values.id"); // Without groupBy, will return duplicate generic code if two contactId's are supplied as sources and both contact's have attached the generic code.
+        query.leftJoin(knex.raw("(SELECT * FROM ContactValues WHERE userId = ? AND contactId in (?)) as ContactValuesTemp", [auth.userId, contactIds]), {
+            "Values.id": "ContactValuesTemp.valueId",
+            "Values.userId": "ContactValuesTemp.userId"
+        }); // This is needed so that if a generic code is transacted against directly via code/valueId, a ContactValue that it is attached to is not joined to.
+        query.groupBy("Values.id"); // Without groupBy, will return duplicate generic code if two contactId's are supplied as sources and both contact's have attached the generic code.
+        query.select(knex.raw("IFNULL(ContactValuesTemp.contactId, Values.contactId) as contactId"));
     }
     query = query.where(q => {
         if (valueIds.length) {
@@ -128,7 +130,7 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         }
         if (contactIds.length) {
             q = q.orWhereIn("Values.contactId", contactIds)
-                .orWhereIn("ContactValues.contactId", contactIds)
+                .orWhereIn("ContactValuesTemp.contactId", contactIds)
         }
         return q;
     });

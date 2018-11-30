@@ -11,7 +11,7 @@ import {ResolveTransactionPartiesOptions, resolveTransactionPlanSteps} from "./r
 import {LightrailTransactionPlanStep} from "./TransactionPlan";
 import {AttachedContactValueScenario, setupAttachedContactValueScenario} from "../contactValues.test";
 
-describe.only("resolveTransactionPlanSteps", () => {
+describe("resolveTransactionPlanSteps", () => {
 
     const router = new cassava.Router();
 
