@@ -104,15 +104,16 @@ describe("/v2/transactions/checkout - basics", () => {
                     usesRemainingChange: null
                 }
             ],
-            "paymentSources": [
+            paymentSources: [
                 {
-                    "rail": "lightrail",
-                    "valueId": "basic-checkout-vs"
+                    rail: "lightrail",
+                    valueId: "basic-checkout-vs"
                 }
             ],
+            pending: false,
             metadata: null,
             tax: {
-                "roundingMode": "HALF_EVEN"
+                roundingMode: "HALF_EVEN"
             },
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
@@ -142,6 +143,7 @@ describe("/v2/transactions/checkout - basics", () => {
                 "currency": "CAD",
                 "lineItems": "[{\"type\":\"product\",\"productId\":\"happiness-😃\",\"unitPrice\":50,\"quantity\":1,\"lineTotal\":{\"subtotal\":50,\"taxable\":50,\"tax\":0,\"discount\":0,\"remainder\":0,\"payable\":50}}]",
                 "paymentSources": "[{\"rail\":\"lightrail\",\"valueId\":\"basic-checkout-vs\"}]",
+                "pendingVoidDate": null,
                 "metadata": "null",
                 "tax": "{\"roundingMode\":\"HALF_EVEN\"}",
                 "createdBy": "default-test-user-TEST",
@@ -270,6 +272,7 @@ describe("/v2/transactions/checkout - basics", () => {
                     "valueId": "vs-checkout2-promotion"
                 }
             ],
+            pending: false,
             metadata: null,
             tax: {
                 "roundingMode": "HALF_EVEN"
@@ -454,6 +457,7 @@ describe("/v2/transactions/checkout - basics", () => {
                     "valueId": "vs-checkout3-promotion2"
                 }
             ],
+            pending: false,
             "metadata": null,
             tax: {
                 "roundingMode": "HALF_EVEN"
@@ -567,6 +571,7 @@ describe("/v2/transactions/checkout - basics", () => {
                     valueId: giftCard.id
                 }
             ],
+            pending: false,
             metadata: null,
             tax: {
                 "roundingMode": "HALF_EVEN"

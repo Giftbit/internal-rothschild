@@ -86,10 +86,11 @@ describe("/v2/transactions/reverse - attach", () => {
                         "balanceChange": -100,
                         "usesRemainingBefore": null,
                         "usesRemainingAfter": null,
-                        "usesRemainingChange": 0
+                        "usesRemainingChange": null
                     }
                 ],
                 "paymentSources": null,
+                "pending": false,
                 "metadata": null,
                 "createdBy": "default-test-user-TEST"
             } as Transaction, ["createdDate"]
@@ -178,6 +179,7 @@ describe("/v2/transactions/reverse - attach", () => {
                     }
                 ],
                 "paymentSources": null,
+                "pending": false,
                 "metadata": null,
                 "createdBy": "default-test-user-TEST"
             } as Transaction, ["createdDate"]

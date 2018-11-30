@@ -305,7 +305,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: CreateValueParameters, trx: Knex.Transaction): Promise<Value> {
     auth.requireIds("userId", "teamMemberId");
     let value: Value = initializeValue(auth, params.partialValue, params.program, params.generateCodeParameters);
-    log.info(`Create Value requested for user: ${auth.userId}. Value ${Value.toStringSanitized(value)}.`);
+    log.info(`Create Value requested for user: ${auth.userId}. Value`, Value.toStringSanitized(value));
 
     log.info(`Checking properties for ${value.id}.`);
     checkValueProperties(value, params.program);
@@ -314,7 +314,6 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     value.endDate = value.endDate ? dateInDbPrecision(new Date(value.endDate)) : null;
 
     const dbValue = await Value.toDbValue(auth, value);
-    log.info(`Creating Value ${Value.toStringSanitized(value)}.`);
 
     try {
         await trx.into("Values")

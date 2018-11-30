@@ -63,8 +63,10 @@ export function setStubsForStripeTests() {
 
 export function unsetStubsForStripeTests() {
     sinonSandbox.restore();
+    stripeCaptureStub = null;
     stripeChargeStub = null;
     stripeRefundStub = null;
+    stripeUpdateChargeStub = null;
 }
 
 export function testStripeLive(): boolean {
@@ -189,6 +191,7 @@ export function generateStripeRefundResponse(options: GenerateStripeRefundRespon
         "reason": null,
         "receipt_number": null,
         "source_transfer_reversal": null,
+        "transfer_reversal": null,
         "status": "succeeded",
         ...options.additionalProperties
     } as any;
@@ -214,8 +217,11 @@ export function getStripeChargeStub(options: GetStripeChargeStubOptions): sinon.
     if (options.currency) {
         param0Matcher = param0Matcher.and(sinon.match.has("currency", options.currency));
     }
-    if (options.capture === true || options.capture === false) {
-        param0Matcher = param0Matcher.and(sinon.match.has("capture", options.capture));
+    if (options.capture === true) {
+        param0Matcher = param0Matcher.and(sinon.match(value => value.capture === true || value.capture == null));
+    }
+    if (options.capture === false) {
+        param0Matcher = param0Matcher.and(sinon.match.has("capture", false));
     }
     if (options.source) {
         param0Matcher = param0Matcher.and(sinon.match.has("source", options.source));
@@ -443,6 +449,9 @@ export function stubStripeRefund(charge: stripe.charges.ICharge, additionalPrope
         })
         .resolves(response);
 
+    // It's going to update as part of refund so stub them both.
+    stubStripeUpdateCharge(charge);
+
     return [response, stub];
 }
 
@@ -459,14 +468,14 @@ export function stubStripeUpdateCharge(charge: stripe.charges.ICharge, updates?:
         const result = {
             ...charge,
             ...updates
-        };
+        } as stripe.charges.ICharge;
 
         const stub = getStripeUpdateChargeStub(
             {
                 stripeChargeId: charge.id
             })
             .resolves(result);
-        return [null, stub];
+        return [result, stub];
     } else {
         const stub = getStripeUpdateChargeStub(
             {

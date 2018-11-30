@@ -871,9 +871,11 @@ describe("split tender checkout with Stripe", () => {
                     "source": "tok_visa"
                 });
                 chai.assert.deepEqual(stripeRefundStub.getCall(0).args[0], {
-                    "amount": 400,
-                    "chargeId": exampleStripeCharge.id,
-                    "reason": "Refunded due to error on the Lightrail side"
+                    amount: 400,
+                    charge: exampleStripeCharge.id,
+                    metadata: {
+                        reason: "Refunded due to error on the Lightrail side."
+                    }
                 });
             }
         }).timeout(10000);

@@ -6,9 +6,10 @@ import {Value} from "../../../model/Value";
 import {Transaction} from "../../../model/Transaction";
 import * as currencies from "../currencies";
 import {installRestRoutes} from "../installRestRoutes";
-import {getKnexRead} from "../../../utils/dbUtils/connection";
+import {getKnexRead, getKnexWrite} from "../../../utils/dbUtils/connection";
 import {DebitRequest} from "../../../model/TransactionRequest";
 import chaiExclude = require("chai-exclude");
+import {nowInDbPrecision} from "../../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
@@ -76,6 +77,7 @@ describe("/v2/transactions/debit", () => {
             ],
             lineItems: null,
             paymentSources: null,
+            pending: false,
             metadata: null,
             tax: null,
             createdDate: null,
@@ -106,6 +108,7 @@ describe("/v2/transactions/debit", () => {
                 "currency": "CAD",
                 "lineItems": "null",
                 "paymentSources": "null",
+                "pendingVoidDate": null,
                 "metadata": "null",
                 "tax": "null",
                 "createdBy": defaultTestUser.auth.teamMemberId,
@@ -168,6 +171,7 @@ describe("/v2/transactions/debit", () => {
             ],
             lineItems: null,
             paymentSources: null,
+            pending: false,
             metadata: null,
             tax: null,
             createdDate: null,
@@ -228,6 +232,7 @@ describe("/v2/transactions/debit", () => {
             ],
             lineItems: null,
             paymentSources: null,
+            pending: false,
             metadata: null,
             tax: null,
             createdDate: null,
@@ -292,6 +297,7 @@ describe("/v2/transactions/debit", () => {
             ],
             lineItems: null,
             paymentSources: null,
+            pending: false,
             metadata: null,
             tax: null,
             createdDate: null,
@@ -355,6 +361,7 @@ describe("/v2/transactions/debit", () => {
             ],
             lineItems: null,
             paymentSources: null,
+            pending: false,
             metadata: null,
             tax: null,
             createdDate: null,
@@ -416,6 +423,7 @@ describe("/v2/transactions/debit", () => {
             ],
             lineItems: null,
             paymentSources: null,
+            pending: false,
             metadata: null,
             tax: null,
             createdDate: null,
@@ -481,6 +489,7 @@ describe("/v2/transactions/debit", () => {
             ],
             lineItems: null,
             paymentSources: null,
+            pending: false,
             metadata: null,
             tax: null,
             createdDate: null,
@@ -527,6 +536,7 @@ describe("/v2/transactions/debit", () => {
             ],
             lineItems: null,
             paymentSources: null,
+            pending: false,
             metadata: null,
             tax: null,
             createdDate: null,
@@ -583,6 +593,7 @@ describe("/v2/transactions/debit", () => {
             ],
             lineItems: null,
             paymentSources: null,
+            pending: false,
             metadata: null,
             tax: null,
             createdDate: null,
@@ -1183,6 +1194,43 @@ describe("/v2/transactions/debit", () => {
             });
             chai.assert.equal(failVoidRes.statusCode, 409, `body=${JSON.stringify(failVoidRes.body)}`);
             chai.assert.equal(failVoidRes.body.messageCode, "TransactionNotVoidable");
+        });
+
+        it("can't capture a transaction whose pendingVoidDate has passed", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "CAD",
+                balance: 50,
+            };
+            const valueRes = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(valueRes.statusCode, 201, `body=${JSON.stringify(valueRes.body)}`);
+
+            const pendingDebitTx: DebitRequest = {
+                id: generateId(),
+                amount: 10,
+                currency: "CAD",
+                source: {
+                    rail: "lightrail",
+                    valueId: value.id
+                },
+                pending: true
+            };
+            const pendingDebitRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", pendingDebitTx);
+            chai.assert.equal(pendingDebitRes.statusCode, 201, `body=${JSON.stringify(pendingDebitRes.body)}`);
+            chai.assert.isTrue(pendingDebitRes.body.pending);
+
+            const passedPendingVoidDate = nowInDbPrecision();
+            passedPendingVoidDate.setDate(passedPendingVoidDate.getDate() - 1);
+            const knex = await getKnexWrite();
+            await knex("Transactions")
+                .where({id: pendingDebitTx.id})
+                .update({pendingVoidDate: passedPendingVoidDate});
+
+            const failCaptureRes = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${pendingDebitTx.id}/capture`, "POST", {
+                id: generateId()
+            });
+            chai.assert.equal(failCaptureRes.statusCode, 409, `body=${JSON.stringify(failCaptureRes.body)}`);
+            chai.assert.equal(failCaptureRes.body.messageCode, "TransactionNotCapturable");
         });
     });
 });

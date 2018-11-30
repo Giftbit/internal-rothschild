@@ -120,7 +120,7 @@ export async function rollbackStripeChargeSteps(lightrailStripeSecretKey: string
                 }
             };
             const refund = await createRefund(refundParams, lightrailStripeSecretKey, merchantStripeAccountId);
-            log.info(`Refunded Stripe charge ${step.chargeResult.id}. Refund: ${JSON.stringify(refund)}.`);
+            log.info(`Refunded Stripe charge ${step.chargeResult.id}. Refund:`, refund);
 
             const updateChargeParams: Stripe.charges.IChargeUpdateOptions = {
                 description: reason
@@ -131,7 +131,7 @@ export async function rollbackStripeChargeSteps(lightrailStripeSecretKey: string
             refunded.push(refund);
         } catch (err) {
             giftbitRoutes.sentry.sendErrorNotification(err);
-            log.error(`Exception occurred during refund while rolling back charge ${JSON.stringify(step)}`);
+            log.error("Exception occurred during refund while rolling back charge", step);
             errorOccurredDuringRollback = true;
         }
     }

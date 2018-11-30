@@ -36,7 +36,7 @@ export async function createCharge(params: Stripe.charges.IChargeCreationOptions
                 throw new StripeRestError(429, `Service was rate limited by dependent service.`, "DependentServiceRateLimited", err); // technically this is up to us to handle once we're past mvp stage: since we are sending the requests, we should take responsibility for spacing & retrying
 
             default:
-                throw new Error(`An unexpected error occurred while attempting to charge card. error ${err}`);
+                throw err;
         }
     }
 }
@@ -58,7 +58,7 @@ export async function createRefund(params: Stripe.refunds.IRefundCreationOptions
             // Refunds are sorted most recent first, so we only need one.
             const refunds = await lightrailStripe.charges.listRefunds(params.charge, {limit: 1});
             if (refunds.data.length === 0) {
-                throw new Error(`Attempting to refund charge '${params.charge}' resulted in 'charge_already_refunded' but getting refunds returned nothing.`);
+                throw new Error(`Attempting to refund charge '${params.charge}' resulted in 'charge_already_refunded' but listing refunds returned nothing.`);
             } else {
                 return refunds.data[0];
             }

@@ -70,7 +70,7 @@ describe("/v2/transactions/reverse", () => {
         chai.assert.equal(postReverseOfInitialBalanceTx.statusCode, 201);
 
         const postReverseOfReverseTx = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${postReverseOfInitialBalanceTx.body.id}/reverse`, "POST", {id: generateId()});
-        chai.assert.equal(postReverseOfReverseTx.statusCode, 422);
+        chai.assert.equal(postReverseOfReverseTx.statusCode, 409);
     });
 
     it("can't reverse a transaction that doesn't exist", async () => {

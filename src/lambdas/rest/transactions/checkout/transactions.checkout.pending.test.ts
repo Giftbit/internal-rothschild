@@ -446,7 +446,6 @@ describe("/v2/transactions/checkout - pending", () => {
         chai.assert.equal(valuePendingRes.body.balance, 0);
 
         const [stripeRefund] = stubStripeRefund(pendingStripeCharge);
-        stubStripeUpdateCharge(pendingStripeCharge);
         const voidTx: VoidRequest = {
             id: generateId()
         };
@@ -657,7 +656,7 @@ describe("/v2/transactions/checkout - pending", () => {
             createdDate: null,
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate", "steps"]);
-        if (testStripeLive()) {
+        if (!testStripeLive()) {
             chai.assert.deepEqual(captureRes.body.steps, [
                 {
                     rail: "stripe",
@@ -723,7 +722,6 @@ describe("/v2/transactions/checkout - pending", () => {
         } else {
             // This is what effectively happens.  This mock kinda defeats the purpose of the test though.
             [refund] = stubStripeRefund(pendingStripeCharge);
-            stubStripeUpdateCharge(pendingStripeCharge);
         }
 
         const voidRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingTx.id}/void`, "POST", {

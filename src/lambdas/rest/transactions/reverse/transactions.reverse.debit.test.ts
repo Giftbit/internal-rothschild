@@ -90,17 +90,18 @@ describe("/v2/transactions/reverse - debit", () => {
                         "balanceChange": 75,
                         "usesRemainingBefore": null,
                         "usesRemainingAfter": null,
-                        "usesRemainingChange": 0
+                        "usesRemainingChange": null
                     }
                 ],
                 "paymentSources": null,
+                "pending": false,
                 "metadata": {
                     "oh_look_a_cat": "🐈"
                 },
                 "createdBy": "default-test-user-TEST"
             }, ["createdDate"]
         );
-        chai.assert.deepEqualExcluding(simulate.body, postReverse.body, "simulated");
+        chai.assert.deepEqualExcluding(simulate.body, postReverse.body, ["simulated", "createdDate"]);
         chai.assert.isTrue(simulate.body.simulated);
 
         // check value is same as before
@@ -162,13 +163,14 @@ describe("/v2/transactions/reverse - debit", () => {
                         "code": null,
                         "balanceBefore": null,
                         "balanceAfter": null,
-                        "balanceChange": 0,
+                        "balanceChange": null,
                         "usesRemainingBefore": 2,
                         "usesRemainingAfter": 5,
                         "usesRemainingChange": 3
                     }
                 ],
                 "paymentSources": null,
+                "pending": false,
                 "metadata": null,
                 "createdBy": "default-test-user-TEST"
             }, ["createdDate"]
