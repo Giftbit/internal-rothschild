@@ -17,7 +17,7 @@ import {
 } from "./transactions/resolveTransactionPlanSteps";
 import {LightrailTransactionPlanStep} from "./transactions/TransactionPlan";
 
-describe("/v2/contacts/values", () => {
+describe.only("/v2/contacts/values", () => {
 
     const router = new cassava.Router();
 
@@ -405,13 +405,13 @@ describe("/v2/contacts/values", () => {
         const valuesAttachedToContactB: Value[] = [];
 
         const uniqueValueWithContact: Partial<Value> = {
-            id: generateId(5) + "UWC",
+            id: generateId(5) + "unique-belongsToA",
             currency: currency.code,
             contactId: contactA.id
         };
 
         const uniqueValue: Partial<Value> = {
-            id: generateId(),
+            id: generateId(5) + "-unique-attachToA",
             currency: currency.code,
         };
 
@@ -514,10 +514,9 @@ describe("/v2/contacts/values", () => {
             chai.assert.sameDeepMembers(listValuesByContact.body, valuesAttachedToContactB);
         });
 
-        it.skip('can list contacts who have attached genVal1', async () => {
-            // todo = Listing contacts assoiciated with a value doesn't work with legacy attach functionality. They are on a new Value!
+        it('can list contacts who have attached genVal1 but returns none since genericValue1 was attached as new Values', async () => {
             const contactListValues = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?valueId=${genVal1.id}`, "GET");
-            chai.assert.sameDeepMembers(contactListValues.body, contacts);
+            chai.assert.isEmpty(contactListValues.body);
         });
 
         it('can list contacts who have attached genVal2', async () => {
@@ -533,7 +532,45 @@ describe("/v2/contacts/values", () => {
             includeZeroUsesRemaining: true,
             includeZeroBalance: true
         };
-        it.only('can get lightrail transaction plan steps associated with contactA', async () => {
+
+        it('can get lightrail transaction plan steps associated with contactA', async () => {
+            const contactAsTransactionSource: ResolveTransactionPartiesOptions = {
+                ...txPartiesTemplate,
+                parties: [
+                    {
+                        rail: "lightrail",
+                        contactId: contactA.id
+                    }
+                ],
+                currency: currency.code,
+                transactionId: "1",
+                nonTransactableHandling: "include",
+                includeZeroUsesRemaining: true,
+                includeZeroBalance: true
+            };
+            const contactLightrailValues = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, contactAsTransactionSource);
+            chai.assert.sameMembers(contactLightrailValues.map(v => (v as LightrailTransactionPlanStep).value.id), valuesAttachedToContactA.map(v => v.id));
+        });
+        it('can get lightrail transaction plan steps associated with contactB', async () => {
+            const contactAsTransactionSource: ResolveTransactionPartiesOptions = {
+                ...txPartiesTemplate,
+                parties: [
+                    {
+                        rail: "lightrail",
+                        contactId: contactB.id
+                    }
+                ],
+                currency: currency.code,
+                transactionId: "1",
+                nonTransactableHandling: "include",
+                includeZeroUsesRemaining: true,
+                includeZeroBalance: true
+            };
+            const contactLightrailValues = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, contactAsTransactionSource);
+            chai.assert.sameMembers(contactLightrailValues.map(v => (v as LightrailTransactionPlanStep).value.id), valuesAttachedToContactB.map(v => v.id));
+        });
+
+        it('can get lightrail transaction plan steps associated with contactA and contactB. Doesnt duplicate shared generic Values.', async () => {
             const contactAsTransactionSource: ResolveTransactionPartiesOptions = {
                 ...txPartiesTemplate,
                 parties: [
@@ -553,45 +590,11 @@ describe("/v2/contacts/values", () => {
                 includeZeroBalance: true
             };
             const contactLightrailValues = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, contactAsTransactionSource);
-            // todo - figure out what is happening here. Why is this returning a value owned solely by B? When I run the same query in MySQL I get the correct results.
-            /*
-                The query:
-                select `Values`.* from `Values`
-                left join `ContactValues` on `Values`.`id` = `ContactValues`.`valueId` and `Values`.`userId` = `ContactValues`.`userId`
-                where `Values`.`userId` = ? and (`Values`.`contactId` in (?, ?) or `ContactValues`.`contactId` in (?, ?)) group by `Values`.`id`
 
-                somehow a unique value attached to contactB is being returned.
-             */
-            console.log(JSON.stringify(contactLightrailValues.map(v => {
-                v = v as LightrailTransactionPlanStep;
-                return {id: v.value.id, contactId: v.value.contactId};
-            }), null, 4));
-            chai.assert.sameMembers(contactLightrailValues.map(v => (v as LightrailTransactionPlanStep).value.id), valuesAttachedToContactA.map(v => v.id));
+            const distinctValues = [...valuesAttachedToContactA, ...valuesAttachedToContactB.filter(v => v.id != genVal2.id)];
+            chai.assert.sameMembers(contactLightrailValues.map(v => (v as LightrailTransactionPlanStep).value.id), distinctValues.map(v => v.id));
         });
-        it.only('can get lightrail transaction plan steps associated with contactB', async () => {
-            const contactAsTransactionSource: ResolveTransactionPartiesOptions = {
-                ...txPartiesTemplate,
-                parties: [
-                    {
-                        rail: "lightrail",
-                        contactId: contactB.id
-                    }
-                ],
-                currency: currency.code,
-                transactionId: "1",
-                nonTransactableHandling: "include",
-                includeZeroUsesRemaining: true,
-                includeZeroBalance: true
-            };
-            const contactLightrailValues = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, contactAsTransactionSource);
-            console.log(JSON.stringify(contactLightrailValues.map(v => {
-                v = v as LightrailTransactionPlanStep;
-                return {id: v.value.id, contactId: v.value.contactId};
-            }), null, 4));
-            chai.assert.sameMembers(contactLightrailValues.map(v => (v as LightrailTransactionPlanStep).value.id), valuesAttachedToContactB.map(v => v.id));
-        });
-    })
-    ;
+    });
 
     it("can't attach generic value using both attach methods (attachNewValue=true first)", async () => {
         const value: Partial<Value> = {

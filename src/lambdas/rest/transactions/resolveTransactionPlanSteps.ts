@@ -117,7 +117,7 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         query.leftJoin("ContactValues", {
             "Values.id": "ContactValues.valueId",
             "Values.userId": "ContactValues.userId"
-        }).groupBy("Values.id");
+        }).groupBy("Values.id"); // Without groupBy, will return duplicate generic code if two contactId's are supplied as sources and both contact's have attached the generic code.
     }
     query = query.where(q => {
         if (valueIds.length) {
@@ -150,14 +150,7 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         query = query.where(q => q.whereNull("balance").orWhere("balance", ">", 0));
     }
 
-    console.log(query.toSQL().sql);
     const dbValues: DbValue[] = await query;
-    console.log(JSON.stringify(dbValues.map(v => {
-        return {
-            id: v.id,
-            contactId: v.contactId
-        }
-    }), null, 4));
     const values = await Promise.all(dbValues.map(value => DbValue.toValue(value)));
 
     if (options.nonTransactableHandling === "error") {
