@@ -69,7 +69,7 @@ export async function createRefund(params: Stripe.refunds.IRefundCreationOptions
     }
 }
 
-export async function createCapture(chargeId: string, options: Stripe.charges.IChargeCaptureOptions, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<Stripe.charges.ICharge> {
+export async function captureCharge(chargeId: string, options: Stripe.charges.IChargeCaptureOptions, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<Stripe.charges.ICharge> {
     const lightrailStripe = new Stripe(lightrailStripeSecretKey);
     lightrailStripe.setApiVersion(stripeApiVersion);
     log.info("Creating capture for Stripe charge", chargeId);
@@ -81,6 +81,14 @@ export async function createCapture(chargeId: string, options: Stripe.charges.IC
         return capturedCharge;
     } catch (err) {
         log.warn("Error capturing Stripe charge:", err);
+
+        if ((err as Stripe.IStripeError).code === "charge_already_captured") {
+            return await lightrailStripe.charges.retrieve(chargeId);
+        }
+        if ((err as Stripe.IStripeError).code === "charge_already_refunded") {
+            // TODO
+        }
+
         giftbitRoutes.sentry.sendErrorNotification(err);
         throw err;
     }

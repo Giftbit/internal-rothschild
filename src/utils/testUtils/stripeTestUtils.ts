@@ -238,7 +238,7 @@ export interface GetStripeCaptureStubOptions {
 
 export function getStripeCaptureStub(options: GetStripeCaptureStubOptions): sinon.SinonStub {
     log.debug("stubbing stripe capture", options);
-    const stub = stripeCaptureStub || (stripeCaptureStub = sinonSandbox.stub(stripeTransactions, "createCapture").callThrough());
+    const stub = stripeCaptureStub || (stripeCaptureStub = sinonSandbox.stub(stripeTransactions, "captureCharge").callThrough());
 
     return stub.withArgs(
         sinon.match.same(options.stripeChargeId),

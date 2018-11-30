@@ -6,7 +6,7 @@ import {
 } from "../../lambdas/rest/transactions/TransactionPlan";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
-import {createCapture, createCharge, createRefund, updateCharge} from "./stripeTransactions";
+import {captureCharge, createCharge, createRefund, updateCharge} from "./stripeTransactions";
 import {LightrailAndMerchantStripeConfig} from "./StripeConfig";
 import {PaymentSourceForStripeMetadata, StripeSourceForStripeMetadata} from "./PaymentSourceForStripeMetadata";
 import {StripeRestError} from "./StripeRestError";
@@ -46,7 +46,7 @@ export async function chargeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizatio
                 const captureParams: Stripe.charges.IChargeCaptureOptions = {
                     amount: step.amount ? step.pendingAmount - step.amount : undefined
                 };
-                step.captureResult = await createCapture(step.chargeId, captureParams, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id);
+                step.captureResult = await captureCharge(step.chargeId, captureParams, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id);
             } else {
                 throw new Error(`Unexpected stripe step. This should not happen. Step: ${JSON.stringify(step)}.`);
             }

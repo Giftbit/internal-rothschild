@@ -31,7 +31,7 @@ export async function createCaptureTransactionPlan(auth: giftbitRoutes.jwtauth.A
         createdDate: now,
         metadata: req.metadata,
         totals: null,
-        tax: null,
+        tax: transactionToCapture.tax ? transactionToCapture.tax : null,
         pendingVoidDate: null,
         lineItems: null,
         paymentSources: null,
