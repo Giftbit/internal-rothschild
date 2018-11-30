@@ -117,9 +117,9 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         query.leftJoin(knex.raw("(SELECT * FROM ContactValues WHERE userId = ? AND contactId in (?)) as ContactValuesTemp", [auth.userId, contactIds]), {
             "Values.id": "ContactValuesTemp.valueId",
             "Values.userId": "ContactValuesTemp.userId"
-        }); // This is needed so that if a generic code is transacted against directly via code/valueId, a ContactValue that it is attached to is not joined to.
+        }); // The temporary table only joins to ContactValues that have a contactId in contactIds. If a generic code is transacted against directly via code/valueId, a ContactValue that it is attached to is not joined to.
         query.groupBy("Values.id"); // Without groupBy, will return duplicate generic code if two contactId's are supplied as sources and both contact's have attached the generic code.
-        query.select(knex.raw("IFNULL(ContactValuesTemp.contactId, Values.contactId) as contactId"));
+        query.select(knex.raw("IFNULL(ContactValuesTemp.contactId, Values.contactId) as contactId")); // If step was looked up via ContactId then need to sure the contactId persists to the Step for tracking purposes.
     }
     query = query.where(q => {
         if (valueIds.length) {

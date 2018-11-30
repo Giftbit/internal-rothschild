@@ -146,7 +146,6 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             q.orWhere("Values.id", "=", valueId);
             return q;
         });
-        delete filterParams["valueId"];
 
         query.groupBy("Contacts.id");
     }

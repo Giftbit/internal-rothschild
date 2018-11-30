@@ -227,13 +227,12 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
             "Values.id": "ContactValues.valueId",
             "Values.userId": "ContactValues.userId"
         });
-        query.andWhere(contactClause => {
-                contactClause.where("Values.contactId", "=", contactId);
-                contactClause.orWhere("ContactValues.contactId", "=", contactId);
-                return contactClause;
+        query.andWhere(q => {
+                q.where("Values.contactId", "=", contactId);
+                q.orWhere("ContactValues.contactId", "=", contactId);
+                return q;
             }
         );
-        delete filterParams["contactId"]; // remove it!
     }
 
     // Manually handle code, code.eq and code.in because computeCodeLookupHash must be done async.
@@ -266,10 +265,6 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                     type: "string",
                     operators: ["eq", "in"]
                 },
-                // contactId: {
-                //     type: "string",
-                //     operators: ["eq", "in"]
-                // },
                 balance: {
                     type: "number"
                 },

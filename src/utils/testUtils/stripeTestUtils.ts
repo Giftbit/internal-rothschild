@@ -185,6 +185,7 @@ export function generateStripeRefundResponse(options: GenerateStripeRefundRespon
         "reason": null,
         "receipt_number": null,
         "source_transfer_reversal": null,
+        "transfer_reversal": null,
         "status": "succeeded",
         ...options.additionalProperties
     } as any;
