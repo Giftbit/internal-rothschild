@@ -107,17 +107,15 @@ export function installContactValuesRest(router: cassava.Router): void {
                 ]
             });
 
-            const attachNewValue: boolean = evt.queryStringParameters.attachNewValue === "true";
-
             return {
-                body: await attachValue(auth, evt.pathParameters.id, evt.body, allowOverwrite, attachNewValue)
+                body: await attachValue(auth, evt.pathParameters.id, evt.body, allowOverwrite)
             };
         });
 }
 
-export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, valueIdentifier: { valueId?: string, code?: string }, allowOverwrite: boolean, genericAttachNewValue?: boolean): Promise<Value> {
+export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, request: { valueId?: string, code?: string, attachGenericAsNewValue?: boolean }, allowOverwrite: boolean): Promise<Value> {
     const contact = await getContact(auth, contactId);
-    const value = await getValueByIdentifier(auth, valueIdentifier);
+    const value = await getValueByIdentifier(auth, request);
 
     if (value.frozen) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value cannot be attached because it is frozen.`, "ValueFrozen");
@@ -139,7 +137,7 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${value.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
         }
 
-        if (genericAttachNewValue) {
+        if (request.attachGenericAsNewValue) {
             return await attachGenericValueAsNewValue(auth, contact.id, value);
         } else {
             await attachGenericValue(auth, contact.id, value);

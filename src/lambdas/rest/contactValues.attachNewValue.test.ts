@@ -53,7 +53,10 @@ describe.only("/v2/contacts/values - attachNewValue=true", () => {
         chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
 
         // Should return a new Value.
-        const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach?attachNewValue=true`, "POST", {valueId: createValueResp.body.id});
+        const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+            valueId: createValueResp.body.id,
+            attachGenericAsNewValue: true
+        });
         chai.assert.equal(attachResp.statusCode, 200, `body=${JSON.stringify(attachResp.body)}`);
         chai.assert.equal(attachResp.body.currency, createValueResp.body.currency);
         chai.assert.deepEqual(attachResp.body.balanceRule, createValueResp.body.balanceRule);
@@ -126,7 +129,10 @@ describe.only("/v2/contacts/values - attachNewValue=true", () => {
         chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
 
         // Should return a new Value.
-        const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach?attachNewValue=true`, "POST", {code: value.code});
+        const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+            code: value.code,
+            attachGenericAsNewValue: true
+        });
         chai.assert.equal(attachResp.statusCode, 200, `body=${JSON.stringify(attachResp.body)}`);
         chai.assert.equal(attachResp.body.currency, createValueResp.body.currency);
         chai.assert.deepEqual(attachResp.body.balanceRule, createValueResp.body.balanceRule);
@@ -200,7 +206,10 @@ describe.only("/v2/contacts/values - attachNewValue=true", () => {
         chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
 
         // Should return a new Value.
-        const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach?attachNewValue=true`, "POST", {code: value.code});
+        const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+            code: value.code,
+            attachGenericAsNewValue: true
+        });
         chai.assert.equal(attachResp.statusCode, 200, `body=${JSON.stringify(attachResp.body)}`);
         chai.assert.equal(attachResp.body.currency, createValueResp.body.currency);
         chai.assert.deepEqual(attachResp.body.balance, createValueResp.body.balance);
@@ -274,10 +283,16 @@ describe.only("/v2/contacts/values - attachNewValue=true", () => {
         const createValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
 
-        const attachResp1 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach?attachNewValue=true`, "POST", {code: value.code});
+        const attachResp1 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+            code: value.code,
+            attachGenericAsNewValue: true
+        });
         chai.assert.equal(attachResp1.statusCode, 200, `body=${JSON.stringify(attachResp1.body)}`);
 
-        const attachResp2 = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach?attachNewValue=true`, "POST", {code: value.code});
+        const attachResp2 = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+            code: value.code,
+            attachGenericAsNewValue: true
+        });
         chai.assert.equal(attachResp2.statusCode, 409, `body=${JSON.stringify(attachResp2.body)}`);
         chai.assert.equal(attachResp2.body.messageCode, "ValueAlreadyAttached");
     });

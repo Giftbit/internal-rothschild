@@ -9,7 +9,6 @@ import {createContact} from "./contacts";
 import {Currency} from "../../model/Currency";
 import {createCurrency} from "./currencies";
 import {Value} from "../../model/Value";
-import {Transaction} from "../../model/Transaction";
 import {getContactValue} from "./contactValues";
 import {
     ResolveTransactionPartiesOptions,
@@ -64,77 +63,6 @@ describe.only("/v2/contacts/values", () => {
         chai.assert.equal(resp2.body.updatedContactIdDate, resp2.body.updatedDate);
     });
 
-    it.skip("can attach a generic-code Value by valueId", async () => {
-        const value: Partial<Value> = {
-            id: "add-generic-by-id",
-            currency: currency.code,
-            balanceRule: {
-                rule: "500",
-                explanation: "$5 done the hard way"
-            },
-            code: generateFullcode(),
-            isGenericCode: true
-        };
-        const createValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
-        chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
-
-        // Should return a new Value.
-        const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach?genericAttachV1=true`, "POST", {valueId: createValueResp.body.id});
-        chai.assert.equal(attachResp.statusCode, 200, `body=${JSON.stringify(attachResp.body)}`);
-        chai.assert.equal(attachResp.body.currency, createValueResp.body.currency);
-        chai.assert.deepEqual(attachResp.body.balanceRule, createValueResp.body.balanceRule);
-        chai.assert.equal(attachResp.body.contactId, contact.id);
-        chai.assert.equal(attachResp.body.usesRemaining, 1);
-        chai.assert.equal(attachResp.body.code, null);
-        chai.assert.equal(attachResp.body.isGenericCode, false);
-        chai.assert.notEqual(attachResp.body.id, createValueResp.body.id);
-        chai.assert.isNotNull(attachResp.body.updatedContactIdDate);
-        chai.assert.equal(attachResp.body.updatedContactIdDate, attachResp.body.updatedDate);
-        chai.assert.equal(attachResp.body.createdBy, testUtils.defaultTestUser.auth.teamMemberId);
-
-        // Should be a transaction for the attach.
-        const getTxResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${attachResp.body.id}`, "GET");
-        chai.assert.equal(getTxResp.statusCode, 200, `there should be a transaction for the attach body=${JSON.stringify(attachResp.body)}`);
-        chai.assert.deepEqual(getTxResp.body, {
-            id: attachResp.body.id,
-            transactionType: "attach",
-            currency: attachResp.body.currency,
-            steps: [
-                {
-                    rail: "lightrail",
-                    valueId: createValueResp.body.id,
-                    contactId: null,
-                    code: null,
-                    balanceBefore: null,
-                    balanceAfter: null,
-                    balanceChange: 0,
-                    usesRemainingBefore: null,
-                    usesRemainingAfter: null,
-                    usesRemainingChange: null
-                },
-                {
-                    rail: "lightrail",
-                    valueId: attachResp.body.id,
-                    contactId: attachResp.body.contactId,
-                    code: null,
-                    balanceBefore: null,
-                    balanceAfter: null,
-                    balanceChange: 0,
-                    usesRemainingBefore: 0,
-                    usesRemainingAfter: 1,
-                    usesRemainingChange: 1
-                }
-            ],
-            totals: null,
-            lineItems: null,
-            paymentSources: null,
-            createdDate: attachResp.body.createdDate,
-            createdBy: attachResp.body.createdBy,
-            metadata: null,
-            tax: null
-        });
-    });
-
     describe("can attach a generic-code Value by code", async () => {
         const value: Partial<Value> = {
             id: generateId(),
@@ -160,7 +88,6 @@ describe.only("/v2/contacts/values", () => {
         // Value is now attached to Contact
         const listValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${contact.id}/values`, "GET");
         chai.assert.equal(listValues.statusCode, 200);
-        // todo - expected to fail until .../contacts/{id}/values is created
         chai.assert.deepEqual(listValues.body.find(v => v.id === createValueResp.body.id), createValueResp.body);
 
         // Attempting to attach again results in a 409
@@ -469,7 +396,10 @@ describe.only("/v2/contacts/values", () => {
             valuesAttachedToContactA.push(attachUniqueValue.body);
 
             // attach genericVal1 to ContactA as new Value
-            const attachNew_genVal1_contactA = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactA.id}/values/attach?attachNewValue=true`, "POST", {valueId: genVal1.id});
+            const attachNew_genVal1_contactA = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactA.id}/values/attach`, "POST", {
+                valueId: genVal1.id,
+                attachGenericAsNewValue: true
+            });
             chai.assert.equal(attachNew_genVal1_contactA.statusCode, 200);
             valuesAttachedToContactA.push(attachNew_genVal1_contactA.body /* new value from attach */);
 
@@ -484,7 +414,10 @@ describe.only("/v2/contacts/values", () => {
             valuesAttachedToContactA.push(createGenVal3.body /* original value attached */);
 
             /** ContactB Attached Values **/
-            const attachNew_genVal1_contactB = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactB.id}/values/attach?attachNewValue=true`, "POST", {valueId: genVal1.id});
+            const attachNew_genVal1_contactB = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactB.id}/values/attach`, "POST", {
+                valueId: genVal1.id,
+                attachGenericAsNewValue: true
+            });
             chai.assert.equal(attachNew_genVal1_contactB.statusCode, 200);
             valuesAttachedToContactB.push(attachNew_genVal1_contactB.body /* new value from attach */);
 
@@ -551,6 +484,7 @@ describe.only("/v2/contacts/values", () => {
             const contactLightrailValues = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, contactAsTransactionSource);
             chai.assert.sameMembers(contactLightrailValues.map(v => (v as LightrailTransactionPlanStep).value.id), valuesAttachedToContactA.map(v => v.id));
         });
+
         it('can get lightrail transaction plan steps associated with contactB', async () => {
             const contactAsTransactionSource: ResolveTransactionPartiesOptions = {
                 ...txPartiesTemplate,
@@ -606,7 +540,10 @@ describe.only("/v2/contacts/values", () => {
         chai.assert.equal(createValue.statusCode, 201);
 
         // first, attachNewValue=true attach method succeeds
-        const attachNew = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach?attachNewValue=true`, "POST", {valueId: value.id});
+        const attachNew = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+            valueId: value.id,
+            attachGenericAsNewValue: true
+        });
         chai.assert.equal(attachNew.statusCode, 200);
 
         // second, attach without attachNewValue=true fails
@@ -631,7 +568,10 @@ describe.only("/v2/contacts/values", () => {
         chai.assert.isNotNull(contactValue);
 
         // second, attach without attachNewValue=true fails
-        const attachNew = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach?attachNewValue=true`, "POST", {valueId: value.id});
+        const attachNew = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+            valueId: value.id,
+            attachGenericAsNewValue: true
+        });
         chai.assert.equal(attachNew.statusCode, 409);
         chai.assert.equal(attachNew.body.messageCode, "ValueAlreadyAttached");
     });
