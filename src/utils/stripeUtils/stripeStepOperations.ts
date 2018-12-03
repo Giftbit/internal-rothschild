@@ -2,13 +2,11 @@ import {
     StripeChargeTransactionPlanStep,
     StripeTransactionPlanStep,
     TransactionPlan,
-    TransactionPlanStep
 } from "../../lambdas/rest/transactions/TransactionPlan";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
 import {captureCharge, createCharge, createRefund, updateCharge} from "./stripeTransactions";
 import {LightrailAndMerchantStripeConfig} from "./StripeConfig";
-import {PaymentSourceForStripeMetadata, StripeSourceForStripeMetadata} from "./PaymentSourceForStripeMetadata";
 import {StripeRestError} from "./StripeRestError";
 import {TransactionPlanError} from "../../lambdas/rest/transactions/TransactionPlanError";
 import {AdditionalStripeChargeParams} from "../../model/TransactionRequest";
@@ -70,10 +68,7 @@ function stripeTransactionPlanStepToStripeChargeRequest(auth: giftbitRoutes.jwta
         metadata: {
             ...plan.metadata,
             lightrailTransactionId: plan.id,
-            lightrailTransactionSources: JSON.stringify(
-                plan.steps.filter(src => !isCurrentStripeStep(src, step))
-                    .map(src => condensePaymentSourceForStripeMetadata(src))
-            ),
+            lightrailTransactionSources: getLightrailTransactionSourcesSummary(step, plan),
             lightrailUserId: auth.userId
         }
     };
@@ -103,7 +98,7 @@ function stripeTransactionPlanStepToStripeChargeRequest(auth: giftbitRoutes.jwta
         }
     }
 
-    log.debug("Created stepForStripe: \n" + JSON.stringify(stripeChargeParams, null, 4));
+    log.debug("Created stepForStripe:", stripeChargeParams);
     return stripeChargeParams;
 }
 
@@ -150,32 +145,33 @@ function getRefundChargeId(refund: Stripe.refunds.IRefund): string {
     return refund.charge.id;
 }
 
-function condensePaymentSourceForStripeMetadata(step: TransactionPlanStep): PaymentSourceForStripeMetadata {
-    switch (step.rail) {
-        case "lightrail":
-            return {
-                rail: "lightrail",
-                valueId: step.value.id
-            };
-        case "internal":
-            return {
-                rail: "internal",
-                internalId: step.internalId
-            };
-        case "stripe":
-            let stripeStep = {rail: "stripe"};
-            if (step.type === "charge") {
-                if (step.source) {
-                    (stripeStep as any).source = step.source;
+function getLightrailTransactionSourcesSummary(currentStep: StripeChargeTransactionPlanStep, plan: TransactionPlan): string {
+    let summary = JSON.stringify(
+        plan.steps.filter(step => !(step.rail === "stripe" && step.idempotentStepId === currentStep.idempotentStepId))
+            .map(step => {
+                switch (step.rail) {
+                    case "lightrail":
+                        return {
+                            rail: "lightrail",
+                            valueId: step.value.id
+                        };
+                    case "internal":
+                        return {
+                            rail: "internal",
+                            internalId: step.internalId
+                        };
+                    case "stripe":
+                        return {
+                            rail: "stripe",
+                            source: (step.type === "charge" && step.source) || undefined,
+                            customer: (step.type === "charge" && step.customer) || undefined,
+                        };
                 }
-                if (step.customer) {
-                    (stripeStep as any).customer = step.customer;
-                }
-                return stripeStep as StripeSourceForStripeMetadata;
-            }
+            })
+    );
+    if (summary.length >= 500) {
+        // Stripe allows a max length of 499 characters for any one metadata field.
+        summary = summary.substr(0, 496) + "...";
     }
-}
-
-function isCurrentStripeStep(step: TransactionPlanStep, currentStep: StripeTransactionPlanStep): boolean {
-    return step.rail === "stripe" && step.idempotentStepId === currentStep.idempotentStepId;
+    return summary;
 }

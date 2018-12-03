@@ -1310,7 +1310,7 @@ describe("/v2/transactions/transfer", () => {
         describe("respects Stripe minimum of $0.50", () => {
             it("fails the transfer by default", async () => {
                 const request: TransferRequest = {
-                    id: "TR-insuff-stripe-amount",
+                    id: generateId(),
                     currency: "CAD",
                     amount: 25,
                     source: {
@@ -1347,7 +1347,7 @@ describe("/v2/transactions/transfer", () => {
                             "access-control-expose-headers": "Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required",
                             "access-control-max-age": "300",
                             "cache-control": "no-cache, no-store",
-                            "idempotency-key": "TR-insuff-stripe-amount-src",
+                            "idempotency-key": request.id + "-0",
                             "original-request": "req_EOTu9MIhTiAogt",
                             "request-id": "req_8nO7UdD8hP3DAv",
                             "stripe-account": "acct_1CfBBRG3cz9DRdBt",
@@ -1369,7 +1369,7 @@ describe("/v2/transactions/transfer", () => {
                         "access-control-expose-headers": "Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required",
                         "access-control-max-age": "300",
                         "cache-control": "no-cache, no-store",
-                        "idempotency-key": "TR-insuff-stripe-amount-src",
+                        "idempotency-key": request.id + "-0",
                         "original-request": "req_EOTu9MIhTiAogt",
                         "request-id": "req_8nO7UdD8hP3DAv",
                         "stripe-account": "acct_1CfBBRG3cz9DRdBt",
