@@ -273,7 +273,6 @@ async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.Authoriz
             await trx("Values")
                 .insert(dbNewAttachedValue);
         } catch (err) {
-            log.debug(err);
             const constraint = getSqlErrorConstraintName(err);
             if (constraint === "PRIMARY") {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${originalValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
@@ -281,6 +280,7 @@ async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.Authoriz
             if (constraint === "fk_Values_Contacts") {
                 throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${contactId}' not found.`, "ContactNotFound");
             }
+            log.error(`An unexpected error occurred while attempting to insert new attach value ${JSON.stringify(newAttachedValue)}. err: ${err}.`);
             throw err;
         }
 
@@ -338,11 +338,11 @@ async function attachUniqueValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
             ...updateValues
         };
     } catch (err) {
-        log.debug(err);
         const constraint = getSqlErrorConstraintName(err);
         if (constraint === "fk_Values_Contacts") {
             throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${contactId}' not found.`, "ContactNotFound");
         }
+        log.error(`An unexpected error occurred while attempting to attach contactId: ${contactId} to value: ${JSON.stringify(value)}.`);
         throw err;
     }
 }
