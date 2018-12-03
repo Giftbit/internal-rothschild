@@ -11,6 +11,8 @@ import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
 import {DbTransaction, LightrailDbTransactionStep, Transaction} from "../../model/Transaction";
 import {DbContactValue} from "../../model/DbContactValue";
+import {AttachValueParameters} from "../../model/internal/AttachValueParameters";
+import {ValueIdentifier} from "../../model/internal/ValueIdentifier";
 import log = require("loglevel");
 
 export function installContactValuesRest(router: cassava.Router): void {
@@ -108,14 +110,22 @@ export function installContactValuesRest(router: cassava.Router): void {
             });
 
             return {
-                body: await attachValue(auth, evt.pathParameters.id, evt.body, allowOverwrite)
+                body: await attachValue(auth, {
+                    contactId: evt.pathParameters.id,
+                    valueIdentifier: evt.body.code ? {code: evt.body.code, valueId: undefined} : {
+                        code: undefined,
+                        valueId: evt.body.valueId
+                    },
+                    attachGenericAsNewValue: evt.body.attachGenericAsNewValue,
+                    allowOverwrite: allowOverwrite
+                })
             };
         });
 }
 
-export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, request: { valueId?: string, code?: string, attachGenericAsNewValue?: boolean }, allowOverwrite: boolean): Promise<Value> {
-    const contact = await getContact(auth, contactId);
-    const value = await getValueByIdentifier(auth, request);
+export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: AttachValueParameters): Promise<Value> {
+    const contact = await getContact(auth, params.contactId);
+    const value = await getValueByIdentifier(auth, params.valueIdentifier);
 
     if (value.frozen) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value cannot be attached because it is frozen.`, "ValueFrozen");
@@ -133,18 +143,18 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     if (value.isGenericCode) {
         /* Need to make sure hasn't already been attached. There is a very remote edge case here if someone happened
          * to call attach concurrently once with attachNewValue=true and another time without. */
-        if (await hasAttachedValue(auth, contactId, value.id)) {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${value.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
+        if (await hasAttachedValue(auth, params.contactId, value.id)) {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${value.id}' has already been attached to the Contact '${params.contactId}'.`, "ValueAlreadyAttached");
         }
 
-        if (request.attachGenericAsNewValue) {
+        if (params.attachGenericAsNewValue) {
             return await attachGenericValueAsNewValue(auth, contact.id, value);
         } else {
             await attachGenericValue(auth, contact.id, value);
             return value;
         }
     } else {
-        return attachUniqueValue(auth, contact.id, value, allowOverwrite);
+        return attachUniqueValue(auth, contact.id, value, params.allowOverwrite);
     }
 }
 
@@ -162,7 +172,6 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             await trx("ContactValues")
                 .insert(dbContactValue);
         } catch (err) {
-            log.debug(err);
             const constraint = getSqlErrorConstraintName(err);
             if (constraint === "PRIMARY") {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${value.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
@@ -173,6 +182,7 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             if (constraint === "fk_ContactValues_Values") {
                 throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${value.id}' not found.`, "ValueNotFound");
             }
+            log.error(`An error occurred while attempting to insert ContactValue ${JSON.stringify(dbContactValue)}. err: ${err}.`);
             throw err;
         }
     });
@@ -337,12 +347,12 @@ async function attachUniqueValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
     }
 }
 
-function getValueByIdentifier(auth: giftbitRoutes.jwtauth.AuthorizationBadge, identifier: { valueId?: string, code?: string }): Promise<Value> {
+function getValueByIdentifier(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueIdentifier: ValueIdentifier): Promise<Value> {
     try {
-        if (identifier.valueId) {
-            return getValue(auth, identifier.valueId);
-        } else if (identifier.code) {
-            return getValueByCode(auth, identifier.code);
+        if (valueIdentifier.valueId) {
+            return getValue(auth, valueIdentifier.valueId);
+        } else if (valueIdentifier.code) {
+            return getValueByCode(auth, valueIdentifier.code);
         }
     } catch (err) {
         if ((err as giftbitRoutes.GiftbitRestError).isRestError && (err as giftbitRoutes.GiftbitRestError).statusCode === 404) {
@@ -352,7 +362,7 @@ function getValueByIdentifier(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id
     throw new Error("Neither valueId nor code specified");
 }
 
-async function hasAttachedValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, valueId: string): Promise<Boolean> {
+async function hasAttachedValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, valueId: string): Promise<boolean> {
     let existingAttachedValue: Value;
     try {
         existingAttachedValue = await getValue(auth, getIdForNewAttachedValue({
@@ -366,6 +376,9 @@ async function hasAttachedValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
             throw e;
         }
     }
+    if (existingAttachedValue) {
+        return true;
+    }
 
     let existingContactValue: DbContactValue;
     try {
@@ -377,8 +390,10 @@ async function hasAttachedValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
             throw e;
         }
     }
-    const returnValue = !!(existingAttachedValue || existingContactValue);
-    return returnValue;
+    if (existingContactValue) {
+        return true;
+    }
+    return false;
 }
 
 

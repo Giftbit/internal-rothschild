@@ -9,7 +9,7 @@ import * as chai from "chai";
 import {Value} from "../../model/Value";
 import {Transaction} from "../../model/Transaction";
 
-describe("/v2/contacts/values - attachNewValue=true", () => {
+describe.only("/v2/contacts/values - attachNewValue=true", () => {
 
     const router = new cassava.Router();
 
@@ -20,10 +20,6 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
         name: "US Dollars"
     };
 
-    const contactPartial: Partial<Contact> = {
-        id: generateId(),
-        firstName: "a"
-    };
     let contact: Contact;
 
     before(async function () {
@@ -33,6 +29,10 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
         await setCodeCryptographySecrets();
         await createCurrency(testUtils.defaultTestUser.auth, currency);
 
+        const contactPartial: Partial<Contact> = {
+            id: generateId(),
+            firstName: "a"
+        };
         const createContactA = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contactPartial);
         chai.assert.equal(createContactA.statusCode, 201);
         contact = createContactA.body;

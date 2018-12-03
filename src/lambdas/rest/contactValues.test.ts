@@ -11,7 +11,7 @@ import {createCurrency} from "./currencies";
 import {Value} from "../../model/Value";
 import {getContactValue} from "./contactValues";
 
-describe("/v2/contacts/values", () => {
+describe.only("/v2/contacts/values", () => {
 
     const router = new cassava.Router();
 
