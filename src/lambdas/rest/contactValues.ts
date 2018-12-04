@@ -1,7 +1,6 @@
 import * as cassava from "cassava";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {GiftbitRestError} from "giftbit-cassava-routes";
 import {getValue, getValueByCode, getValues, injectValueStats} from "./values";
 import {csvSerializer} from "../../serializers";
 import {Pagination} from "../../model/Pagination";
@@ -141,12 +140,6 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     }
 
     if (value.isGenericCode) {
-        /* Need to make sure hasn't already been attached. There is a very remote edge case here if someone happened
-         * to call attach concurrently once with attachNewValue=true and another time without. */
-        if (await hasAttachedValue(auth, params.contactId, value.id)) {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${value.id}' has already been attached to the Contact '${params.contactId}'.`, "ValueAlreadyAttached");
-        }
-
         if (params.attachGenericAsNewValue) {
             return await attachGenericValueAsNewValue(auth, contact.id, value);
         } else {
@@ -361,41 +354,6 @@ function getValueByIdentifier(auth: giftbitRoutes.jwtauth.AuthorizationBadge, va
     }
     throw new Error("Neither valueId nor code specified");
 }
-
-async function hasAttachedValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, valueId: string): Promise<boolean> {
-    let existingAttachedValue: Value;
-    try {
-        existingAttachedValue = await getValue(auth, getIdForNewAttachedValue({
-            contactId: contactId,
-            valueId: valueId
-        }));
-    } catch (e) {
-        if (e instanceof GiftbitRestError && e.statusCode === 404) {
-            // this means they haven't already attached it.
-        } else {
-            throw e;
-        }
-    }
-    if (existingAttachedValue) {
-        return true;
-    }
-
-    let existingContactValue: DbContactValue;
-    try {
-        existingContactValue = await getContactValue(auth, valueId, contactId);
-    } catch (e) {
-        if (e instanceof GiftbitRestError && e.statusCode === 404) {
-            // this means they haven't already attached it.
-        } else {
-            throw e;
-        }
-    }
-    if (existingContactValue) {
-        return true;
-    }
-    return false;
-}
-
 
 export async function getContactValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueId: string, contactId: string): Promise<DbContactValue> {
     const knex = await getKnexRead();

@@ -9,7 +9,7 @@ import * as chai from "chai";
 import {Value} from "../../model/Value";
 import {Transaction} from "../../model/Transaction";
 
-describe.only("/v2/contacts/values - attachNewValue=true", () => {
+describe("/v2/contacts/values - attachNewValue=true", () => {
 
     const router = new cassava.Router();
 

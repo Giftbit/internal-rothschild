@@ -9,9 +9,8 @@ import {createContact} from "./contacts";
 import {Currency} from "../../model/Currency";
 import {createCurrency} from "./currencies";
 import {Value} from "../../model/Value";
-import {getContactValue} from "./contactValues";
 
-describe.only("/v2/contacts/values", () => {
+describe("/v2/contacts/values", () => {
 
     const router = new cassava.Router();
 
@@ -347,52 +346,6 @@ describe.only("/v2/contacts/values", () => {
             const contactListValues = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?valueId=${data.genVal2.id}`, "GET");
             chai.assert.sameDeepMembers(contactListValues.body, data.contacts);
         });
-    });
-
-    it("can't attach generic value using both attach methods (attachNewValue=true first)", async () => {
-        const value: Partial<Value> = {
-            id: generateId(),
-            currency: currency.code,
-            isGenericCode: true
-        };
-        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
-        chai.assert.equal(createValue.statusCode, 201);
-
-        // first, attachNewValue=true attach method succeeds
-        const attachNew = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
-            valueId: value.id,
-            attachGenericAsNewValue: true
-        });
-        chai.assert.equal(attachNew.statusCode, 200);
-
-        // second, attach without attachNewValue=true fails
-        const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value.id});
-        chai.assert.equal(attach.statusCode, 409);
-        chai.assert.equal(attach.body.messageCode, "ValueAlreadyAttached");
-    });
-
-    it("can't attach generic value using both attach methods (attachNewValue=true second)", async () => {
-        const value: Partial<Value> = {
-            id: generateId(),
-            currency: currency.code,
-            isGenericCode: true
-        };
-        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
-        chai.assert.equal(createValue.statusCode, 201);
-
-        // first, attach
-        const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value.id});
-        chai.assert.equal(attach.statusCode, 200);
-        const contactValue = await getContactValue(testUtils.defaultTestUser.auth, value.id, contact.id);
-        chai.assert.isNotNull(contactValue);
-
-        // second, attach without attachNewValue=true fails
-        const attachNew = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
-            valueId: value.id,
-            attachGenericAsNewValue: true
-        });
-        chai.assert.equal(attachNew.statusCode, 409);
-        chai.assert.equal(attachNew.body.messageCode, "ValueAlreadyAttached");
     });
 });
 
