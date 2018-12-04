@@ -1118,12 +1118,12 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
         }, ["createdDate"]);
     });
 
-    it.only("can discount an amount off cart using value.amountPaidSoFar", async () => {
+    it("can discount an amount off cart using value.balanceChange", async () => {
         const value: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
             balanceRule: {
-                rule: "800 + value.amountPaidSoFar",
+                rule: "800 + value.balanceChange",
                 explanation: "$8 credit"
             },
             discount: true,

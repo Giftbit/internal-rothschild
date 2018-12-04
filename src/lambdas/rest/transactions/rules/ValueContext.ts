@@ -1,4 +1,4 @@
 export interface ValueContext {
-    amountPaidSoFar: number;
+    balanceChange: number;
     metadata: object | null;
 }

@@ -95,7 +95,7 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
                     currentLineItem: item,
                     metadata: transactionPlan.metadata,
                     value: {
-                        amountPaidSoFar: step.amount,
+                        balanceChange: step.amount,
                         metadata: step.value.metadata
                     }
                 }).evaluateRedemptionRule(value.redemptionRule)) {
@@ -113,7 +113,7 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
                     currentLineItem: item,
                     metadata: transactionPlan.metadata,
                     value: {
-                        amountPaidSoFar: step.amount,
+                        balanceChange: step.amount,
                         metadata: step.value.metadata
                     }
                 }).evaluateBalanceRule(value.balanceRule);

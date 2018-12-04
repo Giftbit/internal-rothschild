@@ -3,7 +3,6 @@ import {TransactionTotals} from "../../../../model/Transaction";
 import {Rule} from "../../../../model/Value";
 import {getRuleFromCache} from "../getRuleFromCache";
 import {RuleFunction} from "giftbit-ruleslib/distjs/functions/RuleFunction";
-import {Amount} from "./customfunctions/Amount";
 import {ValueContext} from "./ValueContext";
 
 export interface RuleContextParams {
@@ -16,7 +15,7 @@ export interface RuleContextParams {
 
 export class RuleContext {
     static readonly customFunctions: { [name: string]: RuleFunction } = {
-        amount: new Amount()
+        // amount: new Amount()
     };
 
     currentLineItem: LineItemResponse;
