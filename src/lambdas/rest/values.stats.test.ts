@@ -189,6 +189,7 @@ describe("/v2/values/ - secret stats capability", () => {
     });
 
     it("/value/{id}/stats - generic code performance stats", async () => {
+        const fullcode = "SUMMER2022";
         const value: Partial<Value> = {
             id: generateId(),
             currency: "USD",
@@ -196,11 +197,21 @@ describe("/v2/values/ - secret stats capability", () => {
                 rule: "500",
                 explanation: "$5 off every item"
             },
+            code: fullcode,
             isGenericCode: true
         };
         const createValue = await testUtils.testAuthedRequest<Value>(router, "/2/values", "POST", value);
         chai.assert.equal(createValue.statusCode, 201);
 
-        
+        const checkoutExamples: { subtotal: number, sources: string[] }[] = [{
+            subtotal: 1,
+            sources: ["tok_visa", fullcode]
+        }];
+
+        for (const checkout of checkoutExamples) {
+
+        }
+
+
     });
 });
