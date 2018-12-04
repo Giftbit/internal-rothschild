@@ -621,50 +621,50 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
 
     const now = nowInDbPrecision();
     const knex = await getKnexRead();
-    const valueStatsRes: { sumBalance: number, count: number, canceled: boolean, expired: boolean }[] = await knex("Values")
-        .where({
-            "userId": auth.userId,
-            "programId": programId,
-            "active": true
-        })
-        .select("canceled")
-        .select(knex.raw("endDate IS NOT NULL AND endDate < ? AS expired", [now]))
-        .sum({sumBalance: "balance"})
-        .count({count: "*"})
-        .groupBy("canceled", "expired");
-    for (const valueStatsResLine of valueStatsRes) {
-        if (valueStatsResLine.canceled) {
-            // Includes canceled AND expired.
-            stats.canceled.balance += +valueStatsResLine.sumBalance;  // for some reason SUM() comes back as a string
-            stats.canceled.count += valueStatsResLine.count;
-        } else if (valueStatsResLine.expired) {
-            stats.expired.balance += +valueStatsResLine.sumBalance;
-            stats.expired.count += valueStatsResLine.count;
-        } else {
-            stats.outstanding.balance += +valueStatsResLine.sumBalance;
-            stats.outstanding.count += valueStatsResLine.count;
-        }
-    }
+    // const valueStatsRes: { sumBalance: number, count: number, canceled: boolean, expired: boolean }[] = await knex("Values")
+    //     .where({
+    //         "userId": auth.userId,
+    //         "programId": programId,
+    //         "active": true
+    //     })
+    //     .select("canceled")
+    //     .select(knex.raw("endDate IS NOT NULL AND endDate < ? AS expired", [now]))
+    //     .sum({sumBalance: "balance"})
+    //     .count({count: "*"})
+    //     .groupBy("canceled", "expired");
+    // for (const valueStatsResLine of valueStatsRes) {
+    //     if (valueStatsResLine.canceled) {
+    //         // Includes canceled AND expired.
+    //         stats.canceled.balance += +valueStatsResLine.sumBalance;  // for some reason SUM() comes back as a string
+    //         stats.canceled.count += valueStatsResLine.count;
+    //     } else if (valueStatsResLine.expired) {
+    //         stats.expired.balance += +valueStatsResLine.sumBalance;
+    //         stats.expired.count += valueStatsResLine.count;
+    //     } else {
+    //         stats.outstanding.balance += +valueStatsResLine.sumBalance;
+    //         stats.outstanding.count += valueStatsResLine.count;
+    //     }
+    // }
 
     log.info(`injectProgramStats got value stats ${Date.now() - startTime}ms`);
 
-    const redeemedStatsRes: { balance: number, transactionCount: number, valueCount: number }[] = await knex("Values")
-        .where({
-            "Values.userId": auth.userId,
-            "Values.programId": programId,
-            "Values.active": true
-        })
-        .join("LightrailTransactionSteps", {
-            "LightrailTransactionSteps.userId": "Values.userId",
-            "LightrailTransactionSteps.valueId": "Values.id"
-        })
-        .where("LightrailTransactionSteps.balanceChange", "<", 0)
-        .sum({balance: "LightrailTransactionSteps.balanceChange"})
-        .countDistinct({transactionCount: "LightrailTransactionSteps.transactionId"})
-        .countDistinct({valueCount: "Values.id"});
-    stats.redeemed.count = redeemedStatsRes[0].valueCount;
-    stats.redeemed.balance = -redeemedStatsRes[0].balance;
-    stats.redeemed.transactionCount = redeemedStatsRes[0].transactionCount;
+    // const redeemedStatsRes: { balance: number, transactionCount: number, valueCount: number }[] = await knex("Values")
+    //     .where({
+    //         "Values.userId": auth.userId,
+    //         "Values.programId": programId,
+    //         "Values.active": true
+    //     })
+    //     .join("LightrailTransactionSteps", {
+    //         "LightrailTransactionSteps.userId": "Values.userId",
+    //         "LightrailTransactionSteps.valueId": "Values.id"
+    //     })
+    //     .where("LightrailTransactionSteps.balanceChange", "<", 0)
+    //     .sum({balance: "LightrailTransactionSteps.balanceChange"})
+    //     .countDistinct({transactionCount: "LightrailTransactionSteps.transactionId"})
+    //     .countDistinct({valueCount: "Values.id"});
+    // stats.redeemed.count = redeemedStatsRes[0].valueCount;
+    // stats.redeemed.balance = -redeemedStatsRes[0].balance;
+    // stats.redeemed.transactionCount = redeemedStatsRes[0].transactionCount;
 
     log.info(`injectProgramStats got redeemed stats ${Date.now() - startTime}ms`);
 
@@ -674,7 +674,7 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
             knex("Values")
                 .where({
                     "Values.userId": auth.userId,
-                    "Values.programId": programId,
+                    "Values.id": valueId,
                     "Values.active": true
                 })
                 .join("LightrailTransactionSteps", {
@@ -738,6 +738,14 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
 
     log.info(`injectProgramStats got overspend stats and done ${Date.now() - startTime}ms`);
 
+    const attachedStats = await knex("ContactValues")
+        .where({
+            "userId": auth.userId,
+            "valueId": valueId
+        })
+        .count("*");
+
+    console.log(JSON.stringify(attachedStats));
     return stats;
 }
 

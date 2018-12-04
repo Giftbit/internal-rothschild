@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as testUtils from "../../utils/testUtils";
-import {setCodeCryptographySecrets} from "../../utils/testUtils";
+import {generateId, setCodeCryptographySecrets} from "../../utils/testUtils";
 import {installRestRoutes} from "./installRestRoutes";
 import {createCurrency} from "./currencies";
 import {Value} from "../../model/Value";
@@ -186,5 +186,21 @@ describe("/v2/values/ - secret stats capability", () => {
                 initialUsesRemaining: 1
             });
         });
+    });
+
+    it("/value/{id}/stats - generic code performance stats", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balanceRule: {
+                rule: "500",
+                explanation: "$5 off every item"
+            },
+            isGenericCode: true
+        };
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/2/values", "POST", value);
+        chai.assert.equal(createValue.statusCode, 201);
+
+        
     });
 });
