@@ -2,7 +2,6 @@ import {LineItemResponse} from "../../../../model/LineItem";
 import {TransactionTotals} from "../../../../model/Transaction";
 import {Rule} from "../../../../model/Value";
 import {getRuleFromCache} from "../getRuleFromCache";
-import {RuleFunction} from "giftbit-ruleslib/distjs/functions/RuleFunction";
 import {ValueContext} from "./ValueContext";
 
 export interface RuleContextParams {
@@ -14,10 +13,6 @@ export interface RuleContextParams {
 }
 
 export class RuleContext {
-    static readonly customFunctions: { [name: string]: RuleFunction } = {
-        // amount: new Amount()
-    };
-
     currentLineItem: LineItemResponse;
     totals: TransactionTotals;
     lineItems: LineItemResponse[];
@@ -33,10 +28,10 @@ export class RuleContext {
     }
 
     evaluateBalanceRule(rule: Rule): number {
-        return getRuleFromCache(rule.rule).evaluateToNumber(this, RuleContext.customFunctions);
+        return getRuleFromCache(rule.rule).evaluateToNumber(this);
     }
 
     evaluateRedemptionRule(rule: Rule): boolean {
-        return getRuleFromCache(rule.rule).evaluateToBoolean(this, RuleContext.customFunctions);
+        return getRuleFromCache(rule.rule).evaluateToBoolean(this);
     }
 }
