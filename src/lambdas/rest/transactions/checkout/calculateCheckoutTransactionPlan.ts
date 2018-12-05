@@ -10,6 +10,7 @@ import {Value} from "../../../../model/Value";
 import {RuleContext} from "../rules/RuleContext";
 import {CheckoutTransactionPlan} from "./CheckoutTransactionPlan";
 import {bankersRounding} from "../../../../utils/moneyUtils";
+import {LineItemResponse} from "../../../../model/LineItem";
 import log = require("loglevel");
 
 /**
@@ -89,16 +90,7 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
         const item = transactionPlan.lineItems[index];
         if (item.lineTotal.remainder > 0) {
             if (value.redemptionRule) {
-                if (!new RuleContext({
-                    totals: transactionPlan.totals,
-                    lineItems: transactionPlan.lineItems,
-                    currentLineItem: item,
-                    metadata: transactionPlan.metadata,
-                    value: {
-                        balanceChange: step.amount,
-                        metadata: step.value.metadata
-                    }
-                }).evaluateRedemptionRule(value.redemptionRule)) {
+                if (!getRuleContext(transactionPlan, value, step, item).evaluateRedemptionRule(value.redemptionRule)) {
                     log.info(`Value ${value.id} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
                     continue;
                 }
@@ -107,16 +99,7 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
             log.info(`Value ${value.id} CAN be applied to ${JSON.stringify(item)}.`);
             let amount: number;
             if (value.balanceRule) {
-                const valueFromRule = new RuleContext({
-                    totals: transactionPlan.totals,
-                    lineItems: transactionPlan.lineItems,
-                    currentLineItem: item,
-                    metadata: transactionPlan.metadata,
-                    value: {
-                        balanceChange: step.amount,
-                        metadata: step.value.metadata
-                    }
-                }).evaluateBalanceRule(value.balanceRule);
+                const valueFromRule = getRuleContext(transactionPlan, value, step, item).evaluateBalanceRule(value.balanceRule);
                 amount = Math.min(item.lineTotal.remainder, bankersRounding(valueFromRule, 0) | 0);
                 step.amount -= amount;
             } else {
@@ -169,4 +152,17 @@ function calculateAmountForInternalTransactionStep(step: InternalTransactionPlan
 
 function getAvailableBalance(balance: number, negativeStepAmount: number): number {
     return balance + negativeStepAmount;
+}
+
+function getRuleContext(transactionPlan: TransactionPlan, value: Value, step: LightrailTransactionPlanStep, item: LineItemResponse): RuleContext {
+    return new RuleContext({
+        totals: transactionPlan.totals,
+        lineItems: transactionPlan.lineItems,
+        currentLineItem: item,
+        metadata: transactionPlan.metadata,
+        value: {
+            balanceChange: step.amount,
+            metadata: step.value.metadata
+        }
+    })
 }
