@@ -291,7 +291,9 @@ async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.Authoriz
 function getIdForNewAttachedValue(params: { contactId: string, valueId: string }): string {
     // Constructing the ID this way prevents the same contactId attaching
     // the Value twice and thus should not be changed.
-    // Note: Nov 22, 2018. This may not be ideal. The base64 includes character "/" which is undesirable for an id which may be used in urls.
+    // Note, a problem was found that the base64 character set includes slashes which is not ideal of IDs.
+    // This function needs to remain as is for idempotency reasons but a slightly different
+    // implementation should be used when implementing new features.
     return crypto.createHash("sha1").update(params.valueId + "/" + params.contactId).digest("base64");
 }
 
