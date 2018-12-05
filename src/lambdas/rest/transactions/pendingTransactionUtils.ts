@@ -5,8 +5,8 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 export const durationPatternString = isoDuration.pattern.toString();
 
 const defaultDuration = isoDuration.parse("P1W");
-const minDuration = isoDuration.parse("P1D");
-const maxDuration = isoDuration.parse("P1Y");
+const minDuration = isoDuration.parse("PT1H");
+const maxDuration = isoDuration.parse("P3M");
 const maxDurationStripe = isoDuration.parse("P1W");
 
 export interface GetPendingVoidDateOptions {
@@ -24,15 +24,15 @@ export function getPendingVoidDate(req: { pending?: boolean | string | null }, n
     const pendingVoidDate = isoDuration.end(isoDuration.parse(req.pending), now);
 
     if (pendingVoidDate < isoDuration.end(minDuration, now)) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `The pending duration is less than the minimum duration of 1 day.`);
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `The pending duration is less than the minimum duration of 1 hour.`, "PendingDurationTooSmall");
     }
 
     if (pendingVoidDate > isoDuration.end(maxDuration, now)) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `The pending duration is greater than the maximum duration of 1 month.`);
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `The pending duration is greater than the maximum duration of 3 months.`, "PendingDurationTooLarge");
     }
 
     if (options && options.hasStripe && pendingVoidDate > isoDuration.end(maxDurationStripe, now)) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `The pending duration is greater than the maximum duration of 1 week (when using Stripe).`);
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "The pending duration is greater than the maximum duration of 1 week (when using Stripe).", "PendingDurationTooLarge");
     }
 
     return pendingVoidDate;
