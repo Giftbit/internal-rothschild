@@ -52,7 +52,7 @@ export async function createRefund(params: Stripe.refunds.IRefundCreationOptions
         log.info("Created Stripe refund for charge", params.charge, refund);
         return refund;
     } catch (err) {
-        log.warn("Err refunding Stripe:", err);
+        log.warn("Error refunding Stripe:", err);
 
         if ((err as Stripe.IStripeError).code === "charge_already_refunded") {
             // Refunds are sorted most recent first, so we only need one.
@@ -86,7 +86,7 @@ export async function captureCharge(chargeId: string, options: Stripe.charges.IC
             return await lightrailStripe.charges.retrieve(chargeId);
         }
         if ((err as Stripe.IStripeError).code === "charge_already_refunded") {
-            // TODO
+            throw new StripeRestError(409, `Stripe charge '${chargeId}' cannot be captured because it was refunded.`, "StripeChargeAlreadyRefunded", err);
         }
 
         giftbitRoutes.sentry.sendErrorNotification(err);

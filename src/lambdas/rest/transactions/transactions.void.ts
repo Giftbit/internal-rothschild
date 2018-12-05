@@ -15,12 +15,12 @@ export async function createVoidTransactionPlan(auth: giftbitRoutes.jwtauth.Auth
 }
 
 export async function createVoidTransactionPlanForDbTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: VoidRequest, dbTransactionToVoid: DbTransaction): Promise<TransactionPlan> {
+    log.info(`Creating void transaction plan for user: ${auth.userId} and void request:`, req);
+
     if (!dbTransactionToVoid.pendingVoidDate) {
-        log.info(`Transaction ${JSON.stringify(dbTransactionToVoid)} is not pending and cannot be voided.`);
         throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot void Transaction that is not pending.`, "TransactionNotPending");
     }
     if (dbTransactionToVoid.nextTransactionId) {
-        log.info(`Transaction ${JSON.stringify(dbTransactionToVoid)} was not last in chain and cannot be voided.`);
         throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot void Transaction that is not last in the Transaction Chain. See documentation for more information on the Transaction Chain.`, "TransactionNotVoidable");
     }
 

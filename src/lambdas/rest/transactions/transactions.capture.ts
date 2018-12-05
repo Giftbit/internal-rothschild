@@ -10,18 +10,17 @@ import {GiftbitRestError} from "giftbit-cassava-routes";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 
 export async function createCaptureTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CaptureRequest, transactionIdToCapture: string): Promise<TransactionPlan> {
+    log.info(`Creating capture transaction plan for user: ${auth.userId} and capture request:`, req);
+
     const dbTransactionToCapture = await getDbTransaction(auth, transactionIdToCapture);
     const now = nowInDbPrecision();
     if (!dbTransactionToCapture.pendingVoidDate) {
-        log.info(`Transaction ${JSON.stringify(dbTransactionToCapture)} is not pending and cannot be captured.`);
         throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot capture Transaction that is not pending.`, "TransactionNotPending");
     }
     if (dbTransactionToCapture.nextTransactionId) {
-        log.info(`Transaction ${JSON.stringify(dbTransactionToCapture)} is not last in chain and cannot be captured.`);
         throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot capture Transaction that is not last in the Transaction Chain. See documentation for more information on the Transaction Chain.`, "TransactionNotCapturable");
     }
     if (dbTransactionToCapture.pendingVoidDate < now) {
-        log.info(`Transaction ${JSON.stringify(dbTransactionToCapture)} has pendingVoidDate that has passed and will be automatically voided.`);
         throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot capture Transaction that passed the pendingVoidDate.  It is in the process of being automatically voided.`, "TransactionNotCapturable");
     }
 

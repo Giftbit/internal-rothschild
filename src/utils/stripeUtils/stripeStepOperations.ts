@@ -4,7 +4,6 @@ import {
     TransactionPlan,
 } from "../../lambdas/rest/transactions/TransactionPlan";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {GiftbitRestError} from "giftbit-cassava-routes";
 import {captureCharge, createCharge, createRefund, updateCharge} from "./stripeTransactions";
 import {LightrailAndMerchantStripeConfig} from "./StripeConfig";
 import {StripeRestError} from "./StripeRestError";
@@ -13,7 +12,7 @@ import {AdditionalStripeChargeParams} from "../../model/TransactionRequest";
 import * as Stripe from "stripe";
 import log = require("loglevel");
 
-export async function chargeStripeSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, stripeConfig: LightrailAndMerchantStripeConfig, plan: TransactionPlan): Promise<void> {
+export async function executeStripeSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, stripeConfig: LightrailAndMerchantStripeConfig, plan: TransactionPlan): Promise<void> {
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
     try {
         for (const step of stripeSteps) {
@@ -53,11 +52,11 @@ export async function chargeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizatio
         if ((err as StripeRestError).isStripeRestError) {
             // Error was returned from Stripe. Passing original error along so that details of Stripe failure can be returned.
             throw err;
-        } else {
-            throw new TransactionPlanError(`Transaction execution canceled because there was a problem calling Stripe: ${err.message}`, {
-                isReplanable: false
-            });
         }
+
+        throw new TransactionPlanError(`Transaction execution canceled because there was a problem calling Stripe: ${err.message}`, {
+            isReplanable: false
+        });
     }
 }
 
@@ -133,7 +132,7 @@ export async function rollbackStripeChargeSteps(lightrailStripeSecretKey: string
     if (errorOccurredDuringRollback) {
         const chargeIds = steps.map(step => step.chargeResult.id);
         const refundedChargeIds = refunded.map(getRefundChargeId);
-        throw new GiftbitRestError(424, `Exception occurred during refund while rolling back charges. Charges that were attempted to be rolled back: ${chargeIds.toString()}. Could not refund: ${chargeIds.filter(chargeId => !refundedChargeIds.find(id => chargeId === id)).toString()}.`);
+        throw new giftbitRoutes.GiftbitRestError(424, `Exception occurred during refund while rolling back charges. Charges that were attempted to be rolled back: ${chargeIds.toString()}. Could not refund: ${chargeIds.filter(chargeId => !refundedChargeIds.find(id => chargeId === id)).toString()}.`);
     }
     return refunded;
 }

@@ -17,7 +17,7 @@ import {
     insertStripeTransactionSteps,
     insertTransaction
 } from "./insertTransactions";
-import {chargeStripeSteps, rollbackStripeChargeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
+import {executeStripeSteps, rollbackStripeChargeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
 import {StripeRestError} from "../../../utils/stripeUtils/StripeRestError";
 import log = require("loglevel");
 
@@ -76,7 +76,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         try {
             if (stripeSteps.length > 0) {
                 stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
-                await chargeStripeSteps(auth, stripeConfig, plan);
+                await executeStripeSteps(auth, stripeConfig, plan);
             }
             await insertStripeTransactionSteps(auth, trx, plan);
             await insertLightrailTransactionSteps(auth, trx, plan);

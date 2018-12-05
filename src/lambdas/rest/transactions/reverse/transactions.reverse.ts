@@ -24,11 +24,10 @@ import {getValues} from "../../values";
 import log = require("loglevel");
 
 export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: ReverseRequest, transactionIdToReverse: string): Promise<TransactionPlan> {
-    log.info(`Creating reverse transaction plan for user: ${auth.userId} and reverse request: ${JSON.stringify(req)}.`);
+    log.info(`Creating reverse transaction plan for user: ${auth.userId} and reverse request:`, req);
 
     const dbTransactionToReverse = await getDbTransaction(auth, transactionIdToReverse);
     if (dbTransactionToReverse.nextTransactionId) {
-        log.info(`Transaction ${JSON.stringify(dbTransactionToReverse)} was not last in chain and cannot be reversed.`);
         throw new GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Cannot reverse Transaction that is not last in the Transaction Chain. See documentation for more information on the Transaction Chain.`, "TransactionNotLast");
     }
     if (dbTransactionToReverse.pendingVoidDate) {
