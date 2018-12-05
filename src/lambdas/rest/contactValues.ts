@@ -135,9 +135,6 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     if (value.endDate != null && value.endDate < new Date()) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value cannot be attached because it is expired.`, "ValueExpired");
     }
-    if (value.usesRemaining === 0) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value cannot be attached because it has no uses remaining.`, "InsufficientUsesRemaining");
-    }
 
     if (value.isGenericCode) {
         if (params.attachGenericAsNewValue) {
