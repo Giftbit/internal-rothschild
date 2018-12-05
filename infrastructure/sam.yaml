@@ -520,10 +520,10 @@ Resources:
             Schedule: rate(4 minutes)
             Input: !Sub "{\"resource\":\"/{proxy+}\",\"path\":\"/v2/healthCheck\",\"httpMethod\":\"GET\",\"headers\":null,\"queryStringParameters\":null,\"pathParameters\":null,\"stageVariables\":null,\"context\":{\"accountId\":\"12345678912\",\"resourceId\":null,\"stage\":\"Prod\",\"requestId\":null,\"identity\":null,\"resourcePath\":\"/{proxy+}\",\"httpMethod\":\"GET\",\"apiId\":null},\"body\":null,\"isBase64Encoded\":false}"
 
-  AutoPendingVoidFunction:
+  AutomaticVoidFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ../dist/autoPendingVoid/autoPendingVoid.zip
+      CodeUri: ../dist/automaticVoid/automaticVoid.zip
       Handler: index.handler
       Runtime: nodejs8.10
       MemorySize: 256
@@ -578,7 +578,7 @@ Resources:
                   "kms:EncryptionContext:aws:s3:arn":
                     !Sub "arn:aws:s3:::${SecureConfigBucket}/*"
       Tags:
-        ShortName: AutoPendingVoidFunction
+        ShortName: AutomaticVoidFunction
         Service: Rothschild
       Events:
         CheckVoidSchedule:
