@@ -527,7 +527,7 @@ Resources:
       Handler: index.handler
       Runtime: nodejs8.10
       MemorySize: 256
-      Timeout: 900 # seconds, 900 max
+      Timeout: 600 # same as schedule rate
       Environment:
         Variables:
           DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address

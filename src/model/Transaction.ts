@@ -161,8 +161,6 @@ export type TransactionType =
     | "debit"
     | "checkout"
     | "transfer"
-    | "pending_capture"
-    | "pending_void"
     | "reverse"
     | "capture"
     | "void";

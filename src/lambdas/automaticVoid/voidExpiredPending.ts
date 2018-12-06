@@ -3,7 +3,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {DbTransaction} from "../../model/Transaction";
 import {getKnexRead} from "../../utils/dbUtils/connection";
 import {nowInDbPrecision} from "../../utils/dbUtils";
-import {executeTransactionPlanner} from "../rest/transactions/executeTransactionPlan";
+import {executeTransactionPlan} from "../rest/transactions/executeTransactionPlan";
 import {
     createVoidTransactionPlanForDbTransaction
 } from "../rest/transactions/transactions.void";
@@ -16,16 +16,21 @@ export async function voidExpiredPending(ctx: awslambda.Context): Promise<void> 
     log.info(`Received ${transactions.length} pending transactions to void (max ${limit}).`);   // FUTURE metrics
 
     for (let txIx = 0; txIx < transactions.length; txIx++) {
-        if (ctx.getRemainingTimeInMillis() < 15000) {
+        if (ctx.getRemainingTimeInMillis() < 15 * 1000) {
             // FUTURE metrics
             log.warn(`Bailing on voiding transactions with ${transactions.length} of ${transactions.length} left to void and ${ctx.getRemainingTimeInMillis()}ms remaining.  We might be falling behind!`);
             break;
         }
 
-        await voidPendingTransaction(transactions[txIx]);
+        try {
+            await voidPendingTransaction(transactions[txIx]);
+        } catch (err) {
+            log.error(`Unable to void Transaction '${transactions[txIx]}.id':`, err);
+            giftbitRoutes.sentry.sendErrorNotification(err);
+        }
     }
 
-    if (transactions.length === limit && ctx.getRemainingTimeInMillis() > 30000) {
+    if (transactions.length === limit && ctx.getRemainingTimeInMillis() > 30 * 1000) {
         log.info(`Voided max (${transactions.length}) transaction at once with time remaining.  Fetching more.`);
         return voidExpiredPending(ctx);
     }
@@ -58,20 +63,15 @@ async function voidPendingTransaction(dbTransaction: DbTransaction): Promise<voi
         "lightrailV2:transactions:void"
     ];
 
-    await executeTransactionPlanner(
+    await executeTransactionPlan(
         auth,
-        {
-            simulate: false,
-            allowRemainder: false
-        },
-        async () => {
-            return await createVoidTransactionPlanForDbTransaction(
-                auth,
-                {
-                    id: "automatic-void-" + uuid.v4()   // This operation is naturally idempotent so this ID doesn't matter much.
-                },
-                dbTransaction
-            );
-        }
+        await createVoidTransactionPlanForDbTransaction(
+            auth,
+            {
+                // This operation is naturally idempotent because of the transaction chain; so this ID doesn't matter much.
+                id: "automatic-void-" + uuid.v4()
+            },
+            dbTransaction
+        )
     );
 }
