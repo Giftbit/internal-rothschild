@@ -1145,13 +1145,13 @@ describe("/v2/transactions/debit", () => {
                 id: generateId()
             });
             chai.assert.equal(failCaptureRes.statusCode, 409, `body=${JSON.stringify(failCaptureRes.body)}`);
-            chai.assert.equal(failCaptureRes.body.messageCode, "TransactionNotCapturable");
+            chai.assert.equal(failCaptureRes.body.messageCode, "TransactionCaptured");
 
             const failVoidRes = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${pendingDebitTx.id}/void`, "POST", {
                 id: generateId()
             });
             chai.assert.equal(failVoidRes.statusCode, 409, `body=${JSON.stringify(failVoidRes.body)}`);
-            chai.assert.equal(failVoidRes.body.messageCode, "TransactionNotVoidable");
+            chai.assert.equal(failVoidRes.body.messageCode, "TransactionCaptured");
         });
 
         it("can't capture or void an already voided transaction", async () => {
@@ -1187,13 +1187,13 @@ describe("/v2/transactions/debit", () => {
                 id: generateId()
             });
             chai.assert.equal(failCaptureRes.statusCode, 409, `body=${JSON.stringify(failCaptureRes.body)}`);
-            chai.assert.equal(failCaptureRes.body.messageCode, "TransactionNotCapturable");
+            chai.assert.equal(failCaptureRes.body.messageCode, "TransactionVoided");
 
             const failVoidRes = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${pendingDebitTx.id}/void`, "POST", {
                 id: generateId()
             });
             chai.assert.equal(failVoidRes.statusCode, 409, `body=${JSON.stringify(failVoidRes.body)}`);
-            chai.assert.equal(failVoidRes.body.messageCode, "TransactionNotVoidable");
+            chai.assert.equal(failVoidRes.body.messageCode, "TransactionVoided");
         });
 
         it("can't capture a transaction whose pendingVoidDate has passed", async () => {
@@ -1230,7 +1230,7 @@ describe("/v2/transactions/debit", () => {
                 id: generateId()
             });
             chai.assert.equal(failCaptureRes.statusCode, 409, `body=${JSON.stringify(failCaptureRes.body)}`);
-            chai.assert.equal(failCaptureRes.body.messageCode, "TransactionNotCapturable");
+            chai.assert.equal(failCaptureRes.body.messageCode, "TransactionVoiding");
         });
     });
 });

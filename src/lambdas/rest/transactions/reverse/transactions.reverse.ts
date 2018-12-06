@@ -27,9 +27,6 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
     log.info(`Creating reverse transaction plan for user: ${auth.userId} and reverse request:`, req);
 
     const dbTransactionToReverse = await getDbTransaction(auth, transactionIdToReverse);
-    if (dbTransactionToReverse.nextTransactionId) {
-        throw new GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Cannot reverse Transaction that is not last in the Transaction Chain. See documentation for more information on the Transaction Chain.`, "TransactionNotLast");
-    }
     if (dbTransactionToReverse.pendingVoidDate) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot reverse a pending transaction.`, "TransactionPending");
     }
@@ -38,6 +35,19 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
     }
     if (dbTransactionToReverse.transactionType === "void") {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot reverse a void transaction.`, "TransactionNotReversible");
+    }
+    if (dbTransactionToReverse.nextTransactionId) {
+        let nextTransaction: DbTransaction;
+        try {
+            nextTransaction = await getDbTransaction(auth, dbTransactionToReverse.nextTransactionId);
+        } catch (err) {
+            throw new Error(`Transaction '${dbTransactionToReverse.id}' has nextTransactionId '${dbTransactionToReverse.nextTransactionId}' that could not be retrieved for error messaging. ${err}`);
+        }
+
+        if (nextTransaction.transactionType === "reverse") {
+            throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Transaction has already been reversed in Transaction '${dbTransactionToReverse.nextTransactionId}'.`, "TransactionReversed");
+        }
+        throw new Error(`Transaction '${dbTransactionToReverse.id}' has nextTransactionId '${dbTransactionToReverse.nextTransactionId}' with unexpected transactionType '${nextTransaction.transactionType}'.`);
     }
 
     const transactionToReverse: Transaction = (await DbTransaction.toTransactions([dbTransactionToReverse], auth.userId))[0];

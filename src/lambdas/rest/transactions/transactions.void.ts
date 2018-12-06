@@ -18,10 +18,23 @@ export async function createVoidTransactionPlanForDbTransaction(auth: giftbitRou
     log.info(`Creating void transaction plan for user: ${auth.userId} and void request:`, req);
 
     if (!dbTransactionToVoid.pendingVoidDate) {
-        throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot void Transaction that is not pending.`, "TransactionNotPending");
+        throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot void a Transaction that is not pending.`, "TransactionNotPending");
     }
     if (dbTransactionToVoid.nextTransactionId) {
-        throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot void Transaction that is not last in the Transaction Chain. See documentation for more information on the Transaction Chain.`, "TransactionNotVoidable");
+        let nextTransaction: DbTransaction;
+        try {
+            nextTransaction = await getDbTransaction(auth, dbTransactionToVoid.nextTransactionId);
+        } catch (err) {
+            throw new Error(`Transaction '${dbTransactionToVoid.id}' has nextTransactionId '${dbTransactionToVoid.nextTransactionId}' that could not be retrieved for error messaging. ${err}`);
+        }
+
+        if (nextTransaction.transactionType === "capture") {
+            throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Transaction has already been captured in Transaction '${dbTransactionToVoid.nextTransactionId}'.`, "TransactionCaptured");
+        }
+        if (nextTransaction.transactionType === "void") {
+            throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Transaction has already been voided in Transaction '${dbTransactionToVoid.nextTransactionId}'.`, "TransactionVoided");
+        }
+        throw new Error(`Transaction '${dbTransactionToVoid.id}' has nextTransactionId '${dbTransactionToVoid.nextTransactionId}' with unexpected transactionType '${nextTransaction.transactionType}'.`);
     }
 
     const transactionToVoid: Transaction = (await DbTransaction.toTransactions([dbTransactionToVoid], auth.userId))[0];

@@ -48,7 +48,7 @@ describe("/v2/transactions/reverse", () => {
         chai.assert.equal(postReverse1.statusCode, 201);
 
         const postReverse2 = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${getInitialBalanceTransaction.body[0].id}/reverse`, "POST", {id: generateId()});
-        chai.assert.equal(postReverse2.statusCode, 422);
+        chai.assert.equal(postReverse2.statusCode, 409);
     });
 
     it("can't reverse a reverse", async () => {

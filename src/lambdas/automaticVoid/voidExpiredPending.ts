@@ -18,7 +18,7 @@ export async function voidExpiredPending(ctx: awslambda.Context): Promise<void> 
     for (let txIx = 0; txIx < transactions.length; txIx++) {
         if (ctx.getRemainingTimeInMillis() < 15000) {
             // FUTURE metrics
-            log.warn(`Bailing on voiding transactions with ${transactions.length} left to void and ${ctx.getRemainingTimeInMillis()}ms remaining.  We might be falling behind!`);
+            log.warn(`Bailing on voiding transactions with ${transactions.length} of ${transactions.length} left to void and ${ctx.getRemainingTimeInMillis()}ms remaining.  We might be falling behind!`);
             break;
         }
 
@@ -26,9 +26,11 @@ export async function voidExpiredPending(ctx: awslambda.Context): Promise<void> 
     }
 
     if (transactions.length === limit && ctx.getRemainingTimeInMillis() > 30000) {
-        log.info("Voided max transaction at once with time remaining.  Fetching more.");
+        log.info(`Voided max (${transactions.length}) transaction at once with time remaining.  Fetching more.`);
         return voidExpiredPending(ctx);
     }
+
+    log.info(`Voided ${transactions.length} transactions.`);
     return;
 }
 
