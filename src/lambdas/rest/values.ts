@@ -679,6 +679,19 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
 
     log.info(`injectProgramStats got redeemed stats ${Date.now() - startTime}ms`);
 
+    const checkout = await knex("Transactions")
+        .join("LightrailTransactionSteps", {
+            "Transactions.userId": "LightrailTransactionSteps.userId",
+            "Transactions.id": "LightrailTransactionSteps.transactionId"
+        })
+        .where({
+            "Transactions.userId": auth.userId,
+            "LightrailTransactionSteps.valueId": valueId
+        })
+        .sum({paidLightrail: "Transactions.totals_paidLightrail"})
+        .groupBy("Transactions.pending")
+
+
     const overspendStatsRes: { lrBalance: number, iBalance: number, sBalance: number, remainder: number, transactionCount: number }[] = await knex
         .from(knex.raw("? as Txs", [
             // Get unique Transaction IDs related to the Program

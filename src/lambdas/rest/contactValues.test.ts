@@ -10,6 +10,7 @@ import {Currency} from "../../model/Currency";
 import {createCurrency} from "./currencies";
 import {Value} from "../../model/Value";
 import {getContactValue} from "./contactValues";
+import {Transaction} from "../../model/Transaction";
 
 describe("/v2/contacts/values", () => {
 
@@ -56,10 +57,7 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(resp2.body.contactId, contact.id);
         chai.assert.isNotNull(resp2.body.updatedContactIdDate);
         chai.assert.equal(resp2.body.updatedContactIdDate, resp2.body.updatedDate);
-        value1 = resp2.body;
     });
-
-    let value2: Value;
 
     it("can attach a generic-code Value by valueId", async () => {
         const code = "GETONUP";
