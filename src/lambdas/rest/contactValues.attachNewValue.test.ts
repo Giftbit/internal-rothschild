@@ -20,10 +20,6 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
         name: "US Dollars"
     };
 
-    const contactPartial: Partial<Contact> = {
-        id: generateId(),
-        firstName: "a"
-    };
     let contact: Contact;
 
     before(async function () {
@@ -33,6 +29,10 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
         await setCodeCryptographySecrets();
         await createCurrency(testUtils.defaultTestUser.auth, currency);
 
+        const contactPartial: Partial<Contact> = {
+            id: generateId(),
+            firstName: "a"
+        };
         const createContactA = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contactPartial);
         chai.assert.equal(createContactA.statusCode, 201);
         contact = createContactA.body;
@@ -105,6 +105,7 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
             totals: null,
             lineItems: null,
             paymentSources: null,
+            pending: false,
             createdDate: attachResp.body.createdDate,
             createdBy: attachResp.body.createdBy,
             metadata: null,
@@ -185,6 +186,7 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
             totals: null,
             lineItems: null,
             paymentSources: null,
+            pending: false,
             createdDate: attachResp.body.createdDate,
             createdBy: attachResp.body.createdBy,
             metadata: null,
@@ -263,6 +265,7 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
             totals: null,
             lineItems: null,
             paymentSources: null,
+            pending: false,
             createdDate: attachResp.body.createdDate,
             createdBy: attachResp.body.createdBy,
             metadata: null,
