@@ -1155,9 +1155,9 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
             ],
             currency: "CAD",
         };
-        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-        chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
-        chai.assert.deepEqualExcluding(postCheckoutResp.body, {
+        const createCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        chai.assert.equal(createCheckout.statusCode, 201, `body=${JSON.stringify(createCheckout.body)}`);
+        chai.assert.deepEqualExcluding(createCheckout.body, {
             "id": checkoutRequest.id,
             "transactionType": "checkout",
             "currency": "CAD",
@@ -1228,6 +1228,85 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                     "usesRemainingChange": -1
                 }
             ],
+            "paymentSources": [
+                {
+                    "rail": "lightrail",
+                    "valueId": value.id
+                }
+            ],
+            "metadata": null,
+            "createdBy": "default-test-user-TEST"
+        }, ["createdDate"]);
+    });
+
+    it.only("can't use balanceRule that increases the cost of the item", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balanceRule: {
+                rule: "-100",
+                explanation: "increase cost of item by $1"
+            },
+            discount: true,
+            pretax: true,
+            usesRemaining: 1
+        };
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+        const checkoutRequest: CheckoutRequest = {
+            id: generateId(),
+            allowRemainder: true,
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: value.id
+                }
+            ],
+            lineItems: [
+                {
+                    unitPrice: 200,
+                }
+            ],
+            currency: "CAD",
+        };
+        const createCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        chai.assert.equal(createCheckout.statusCode, 201, `body=${JSON.stringify(createCheckout.body)}`);
+        console.log(JSON.stringify(createCheckout, null, 4));
+        chai.assert.deepEqualExcluding(createCheckout.body, {
+            "id": checkoutRequest.id,
+            "transactionType": "checkout",
+            "currency": "CAD",
+            "createdDate": null,
+            "tax": {
+                "roundingMode": "HALF_EVEN"
+            },
+            "totals": {
+                "subtotal": 200,
+                "tax": 0,
+                "discount": 0,
+                "payable": 200,
+                "remainder": 200,
+                "discountLightrail": 0,
+                "paidLightrail": 0,
+                "paidStripe": 0,
+                "paidInternal": 0
+            },
+            "lineItems": [
+                {
+                    "unitPrice": 200,
+                    "quantity": 1,
+                    "lineTotal": {
+                        "subtotal": 200,
+                        "taxable": 200,
+                        "tax": 0,
+                        "discount": 0,
+                        "remainder": 200,
+                        "payable": 200
+                    }
+                }
+            ],
+            "steps": [],
             "paymentSources": [
                 {
                     "rail": "lightrail",
