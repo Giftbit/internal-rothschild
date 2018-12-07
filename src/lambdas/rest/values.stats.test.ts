@@ -1,12 +1,13 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as testUtils from "../../utils/testUtils";
-import {generateId, setCodeCryptographySecrets} from "../../utils/testUtils";
+import {generateId, setCodeCryptographySecrets, testAuthedRequest} from "../../utils/testUtils";
 import {installRestRoutes} from "./installRestRoutes";
 import {createCurrency} from "./currencies";
 import {Value} from "../../model/Value";
 import {Transaction} from "../../model/Transaction";
 import {Contact} from "../../model/Contact";
+import {CheckoutRequest, TransactionParty} from "../../model/TransactionRequest";
 
 describe("/v2/values/ - secret stats capability", () => {
 
@@ -188,7 +189,7 @@ describe("/v2/values/ - secret stats capability", () => {
         });
     });
 
-    it("/value/{id}/stats - generic code performance stats", async () => {
+    it.only("/value/{id}/stats - generic code performance stats", async () => {
         const fullcode = "SUMMER2022";
         const value: Partial<Value> = {
             id: generateId(),
@@ -200,17 +201,82 @@ describe("/v2/values/ - secret stats capability", () => {
             code: fullcode,
             isGenericCode: true
         };
-        const createValue = await testUtils.testAuthedRequest<Value>(router, "/2/values", "POST", value);
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(createValue.statusCode, 201);
 
-        const checkoutExamples: { subtotal: number, sources: string[] }[] = [{
-            subtotal: 1,
-            sources: ["tok_visa", fullcode]
-        }];
+        // create contact A and attach
+        const contactA: Partial<Contact> = {
+            id: generateId(),
+            firstName: "A"
+        };
+        const createContactA = await testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contactA);
+        chai.assert.equal(createContactA.statusCode, 201);
+        const attachContactA = await testAuthedRequest<Value>(router, `/v2/contacts/${contactA.id}/values/attach`, "POST", {code: fullcode});
+        chai.assert.equal(attachContactA.statusCode, 200);
 
-        for (const checkout of checkoutExamples) {
+        // create contact B and attach
+        const contactB: Partial<Contact> = {
+            id: generateId(),
+            firstName: "B"
+        };
+        const createContactB = await testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contactB);
+        chai.assert.equal(createContactB.statusCode, 201);
+        const attachContactB = await testAuthedRequest<Value>(router, `/v2/contacts/${contactB.id}/values/attach`, "POST", {code: fullcode});
+        chai.assert.equal(attachContactB.statusCode, 200);
 
+        // create checkouts
+        const checkoutExamples: { subtotal: number, sources: string[] }[] = [
+            {
+                subtotal: 1,
+                sources: ["tok_visa", fullcode]
+            },
+            {
+                subtotal: 2,
+                sources: ["tok_visa"]
+            },
+            {
+                subtotal: 3,
+                sources: [contactA.id]
+            },
+            {
+                subtotal: 4,
+                sources: ["tok_visa", fullcode, contactB.id]
+            }
+        ];
+
+        for (const checkoutExample of checkoutExamples) {
+            let sources: TransactionParty[] = [];
+            for (const source of checkoutExample.sources) {
+                if (source === "tok_visa") {
+                    sources.push({rail: "stripe", source: "tok_visa"});
+                } else if (source === fullcode) {
+                    sources.push({rail: "lightrail", code: fullcode});
+                } else if (source === contactA.id) {
+                    sources.push({rail: "lightrail", contactId: contactA.id});
+                } else if (source === contactB.id) {
+                    sources.push({rail: "lightrail", contactId: contactB.id});
+                } else {
+                    chai.assert.fail("Invalid test data. Something unexpected happened.")
+                }
+            }
+
+            const request: CheckoutRequest = {
+                id: generateId(),
+                currency: "USD",
+                lineItems: [
+                    {
+                        unitPrice: checkoutExample.subtotal
+                    }
+                ],
+                sources: sources
+            };
+            console.log("request: " + JSON.stringify(request));
+            const createCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+            chai.assert.equal(createCheckout.statusCode, 201);
         }
+
+        const stats = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.id}/stats`, "GET");
+        console.log("STATS:\n" + JSON.stringify(stats.body, null, 4));
 
 
     });

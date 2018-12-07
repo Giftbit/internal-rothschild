@@ -166,6 +166,17 @@ export function installValuesRest(router: cassava.Router): void {
             };
         });
 
+    router.route("/v2/values/{id}/stats")
+        .method("GET")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:programs:read");
+            return {
+                body: await getValuePerformance(auth, evt.pathParameters.id)
+            };
+        });
+
     router.route("/v2/values/{id}/transactions")
         .method("GET")
         .handler(async evt => {
@@ -743,7 +754,9 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
             "userId": auth.userId,
             "valueId": valueId
         })
-        .count("*");
+        .count({count: "*"});
+    console.log("ATTACHED STATS: " + JSON.stringify(attachedStats));
+    stats.attachedContacts.count = attachedStats[0].count;
 
     console.log(JSON.stringify(attachedStats));
     return stats;
