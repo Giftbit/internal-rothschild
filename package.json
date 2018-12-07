@@ -57,6 +57,7 @@
     "giftbit-lambda-metricslib": "git+ssh://git@github.com/Giftbit/giftbit-lambda-metricslib.git#semver:^3.0.0",
     "giftbit-ruleslib": "git+ssh://git@github.com/Giftbit/giftbit-ruleslib.git#semver:^4.0.2",
     "import-glob-loader": "^1.1.0",
+    "iso8601-duration": "^1.1.6",
     "json-loader": "^0.5.7",
     "knex": "^0.15.2",
     "loglevel": "^1.6.1",

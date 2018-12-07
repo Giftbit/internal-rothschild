@@ -110,17 +110,15 @@ async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.Authoriza
 }
 
 export async function insertStripeTransactionSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan): Promise<void> {
-    const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
-    for (let step of stripeSteps) {
-        await trx.into("StripeTransactionSteps")
-            .insert(StripeTransactionPlanStep.toStripeDbTransactionStep(step, plan, auth));
-    }
+    const stripeSteps = plan.steps.filter(step => step.rail === "stripe")
+        .map(step => StripeTransactionPlanStep.toStripeDbTransactionStep(step as StripeTransactionPlanStep, plan, auth));
+    await trx.into("StripeTransactionSteps")
+        .insert(stripeSteps);
 }
 
 export async function insertInternalTransactionSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan): Promise<void> {
-    const internalSteps = plan.steps.filter(step => step.rail === "internal") as InternalTransactionPlanStep[];
-    for (let step of internalSteps) {
-        await trx.into("InternalTransactionSteps")
-            .insert(InternalTransactionPlanStep.toInternalDbTransactionStep(step, plan, auth));
-    }
+    const internalSteps = plan.steps.filter(step => step.rail === "internal")
+        .map(step => InternalTransactionPlanStep.toInternalDbTransactionStep(step as InternalTransactionPlanStep, plan, auth));
+    await trx.into("InternalTransactionSteps")
+        .insert(internalSteps);
 }

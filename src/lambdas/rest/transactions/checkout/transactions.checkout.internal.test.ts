@@ -139,6 +139,7 @@ describe("/v2/transactions/checkout - internal sources", () => {
                     "internalId": request.sources[0].internalId
                 }
             ],
+            pending: false,
             "metadata": null,
             tax: {
                 "roundingMode": "HALF_EVEN"
@@ -282,6 +283,7 @@ describe("/v2/transactions/checkout - internal sources", () => {
                     "internalId": request.sources[1].internalId
                 }
             ],
+            pending: false,
             "metadata": null,
             tax: {
                 "roundingMode": "HALF_EVEN"
@@ -398,6 +400,7 @@ describe("/v2/transactions/checkout - internal sources", () => {
                     "pretax": true
                 }
             ],
+            pending: false,
             "metadata": null,
             tax: {
                 "roundingMode": "HALF_EVEN"
@@ -510,6 +513,7 @@ describe("/v2/transactions/checkout - internal sources", () => {
                     "beforeLightrail": true
                 }
             ],
+            pending: false,
             "metadata": null,
             tax: {
                 "roundingMode": "HALF_EVEN"

@@ -101,6 +101,7 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
             ],
             steps: [],
             paymentSources: [],
+            pending: false,
             metadata: null,
             tax: {
                 roundingMode: "HALF_UP"
@@ -187,6 +188,7 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
             ],
             steps: [],
             paymentSources: [],
+            pending: false,
             metadata: null,
             tax: {
                 roundingMode: "HALF_EVEN"
@@ -270,6 +272,7 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
             ],
             steps: [],
             paymentSources: [],
+            pending: false,
             metadata: null,
             tax: {
                 roundingMode: "HALF_EVEN"
