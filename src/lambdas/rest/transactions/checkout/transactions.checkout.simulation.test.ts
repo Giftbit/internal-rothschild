@@ -166,6 +166,7 @@ describe("/v2/transactions/checkout - simulation tests", () => {
                     "valueId": preTaxPromotion.id
                 }
             ],
+            "pending": false,
             "metadata": null,
             tax: {
                 "roundingMode": "HALF_EVEN"

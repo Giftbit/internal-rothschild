@@ -9,6 +9,7 @@ export interface CheckoutRequest {
     simulate?: boolean;
     allowRemainder?: boolean;
     tax?: TaxRequestProperties;
+    pending?: boolean | string;
     metadata?: object;
 }
 
@@ -30,12 +31,26 @@ export interface DebitRequest {
     currency: string;
     simulate?: boolean;
     allowRemainder?: boolean;
+    pending?: boolean | string;
     metadata?: object;
 }
 
 export interface ReverseRequest {
     id: string;
     simulate?: boolean;
+    metadata?: object;
+}
+
+export interface CaptureRequest {
+    id: string;
+    simulate?: boolean;
+    metadata?: object;
+}
+
+export interface VoidRequest {
+    id: string;
+    simulate?: boolean;
+    metadata?: object;
 }
 
 export type TransferRequest = CreditRequest & DebitRequest;

@@ -8,7 +8,7 @@ import {Currency} from "../../../model/Currency";
 import {installRestRoutes} from "../installRestRoutes";
 import {
     setStubsForStripeTests,
-    stripeTestConfig,
+    stripeLiveConfig,
     stubNoStripeCharge,
     stubTransferStripeCharge,
     stubTransferStripeError,
@@ -111,6 +111,7 @@ describe("/v2/transactions/transfer", () => {
             lineItems: null,
             steps: null,
             paymentSources: null,
+            pending: false,
             metadata: null,
             tax: null,
             createdDate: null,
@@ -174,6 +175,7 @@ describe("/v2/transactions/transfer", () => {
                 "currency": "CAD",
                 "lineItems": "null",
                 "paymentSources": "null",
+                "pendingVoidDate": null,
                 "metadata": "null",
                 "tax": "null",
                 "createdBy": "default-test-user-TEST",
@@ -237,6 +239,7 @@ describe("/v2/transactions/transfer", () => {
             lineItems: null,
             steps: null,
             paymentSources: null,
+            pending: false,
             metadata: null,
             tax: null,
             createdDate: null,
@@ -329,6 +332,7 @@ describe("/v2/transactions/transfer", () => {
             lineItems: null,
             steps: null,
             paymentSources: null,
+            pending: false,
             metadata: null,
             tax: null,
             createdDate: null,
@@ -422,6 +426,7 @@ describe("/v2/transactions/transfer", () => {
             lineItems: null,
             steps: null,
             paymentSources: null,
+            pending: false,
             metadata: null,
             tax: null,
             createdDate: null,
@@ -515,6 +520,7 @@ describe("/v2/transactions/transfer", () => {
             lineItems: null,
             steps: null,
             paymentSources: null,
+            pending: false,
             metadata: null,
             tax: null,
             createdDate: null,
@@ -606,6 +612,7 @@ describe("/v2/transactions/transfer", () => {
             lineItems: null,
             steps: null,
             paymentSources: null,
+            pending: false,
             metadata: null,
             tax: null,
             createdDate: null,
@@ -678,6 +685,7 @@ describe("/v2/transactions/transfer", () => {
             lineItems: null,
             steps: null,
             paymentSources: null,
+            pending: false,
             metadata: null,
             tax: null,
             createdDate: null,
@@ -1084,6 +1092,7 @@ describe("/v2/transactions/transfer", () => {
                 lineItems: null,
                 steps: null,
                 paymentSources: null,
+                pending: false,
                 metadata: null,
                 tax: null,
                 createdDate: null,
@@ -1135,11 +1144,11 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.deepEqual(destStepFromGet, destStep);
 
             if (testStripeLive()) {
-                const lightrailStripe = require("stripe")(stripeTestConfig.secretKey);
+                const lightrailStripe = require("stripe")(stripeLiveConfig.secretKey);
                 lightrailStripe.setApiVersion(stripeApiVersion);
                 const stripeChargeId = (postTransferResp.body.steps.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
                 const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                    stripe_account: stripeTestConfig.stripeUserId
+                    stripe_account: stripeLiveConfig.stripeUserId
                 });
                 chai.assert.deepEqual(stripeCharge, sourceStep.charge);
             }
@@ -1195,6 +1204,7 @@ describe("/v2/transactions/transfer", () => {
                 lineItems: null,
                 steps: null,
                 paymentSources: null,
+                pending: false,
                 metadata: null,
                 tax: null,
                 createdDate: null,
@@ -1246,11 +1256,11 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.deepEqual(destStepFromGet, destStep);
 
             if (testStripeLive()) {
-                const lightrailStripe = require("stripe")(stripeTestConfig.secretKey);
+                const lightrailStripe = require("stripe")(stripeLiveConfig.secretKey);
                 lightrailStripe.setApiVersion(stripeApiVersion);
                 const stripeChargeId = (postTransferResp.body.steps.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
                 const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                    stripe_account: stripeTestConfig.stripeUserId
+                    stripe_account: stripeLiveConfig.stripeUserId
                 });
                 chai.assert.deepEqual(stripeCharge, sourceStep.charge);
             }
@@ -1300,7 +1310,7 @@ describe("/v2/transactions/transfer", () => {
         describe("respects Stripe minimum of $0.50", () => {
             it("fails the transfer by default", async () => {
                 const request: TransferRequest = {
-                    id: "TR-insuff-stripe-amount",
+                    id: generateId(),
                     currency: "CAD",
                     amount: 25,
                     source: {
@@ -1337,7 +1347,7 @@ describe("/v2/transactions/transfer", () => {
                             "access-control-expose-headers": "Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required",
                             "access-control-max-age": "300",
                             "cache-control": "no-cache, no-store",
-                            "idempotency-key": "TR-insuff-stripe-amount-src",
+                            "idempotency-key": request.id + "-0",
                             "original-request": "req_EOTu9MIhTiAogt",
                             "request-id": "req_8nO7UdD8hP3DAv",
                             "stripe-account": "acct_1CfBBRG3cz9DRdBt",
@@ -1359,7 +1369,7 @@ describe("/v2/transactions/transfer", () => {
                         "access-control-expose-headers": "Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required",
                         "access-control-max-age": "300",
                         "cache-control": "no-cache, no-store",
-                        "idempotency-key": "TR-insuff-stripe-amount-src",
+                        "idempotency-key": request.id + "-0",
                         "original-request": "req_EOTu9MIhTiAogt",
                         "request-id": "req_8nO7UdD8hP3DAv",
                         "stripe-account": "acct_1CfBBRG3cz9DRdBt",

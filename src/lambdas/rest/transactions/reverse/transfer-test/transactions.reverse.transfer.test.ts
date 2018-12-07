@@ -111,7 +111,7 @@ describe("/v2/transactions/reverse - transfer", () => {
                         "balanceChange": 75,
                         "usesRemainingBefore": null,
                         "usesRemainingAfter": null,
-                        "usesRemainingChange": 0
+                        "usesRemainingChange": null
                     },
                     {
                         "rail": "lightrail",
@@ -123,10 +123,11 @@ describe("/v2/transactions/reverse - transfer", () => {
                         "balanceChange": -75,
                         "usesRemainingBefore": null,
                         "usesRemainingAfter": null,
-                        "usesRemainingChange": 0
+                        "usesRemainingChange": null
                     }
                 ],
                 "paymentSources": null,
+                "pending": false,
                 "metadata": null,
                 "createdBy": "default-test-user-TEST"
             }, ["createdDate"]
@@ -165,10 +166,6 @@ describe("/v2/transactions/reverse - transfer", () => {
             currency: "USD"
         };
         const [charge] = stubTransferStripeCharge(transfer);
-        stubStripeRefund(charge, {
-            metadata: {reason: "not specified"},
-            source_transfer_reversal: null
-        } as any);  //  source_transfer_reversal is in the docs, but not d.ts and it's mysterious
         const postTransfer = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", transfer);
         chai.assert.equal(postTransfer.statusCode, 201, `body=${JSON.stringify(postTransfer.body)}`);
         chai.assert.equal((postTransfer.body.steps[0] as StripeTransactionStep).amount, -75);
@@ -178,6 +175,12 @@ describe("/v2/transactions/reverse - transfer", () => {
         const reverse: Partial<ReverseRequest> = {
             id: generateId()
         };
+        stubStripeRefund(charge, {
+            metadata: {
+                reason: `Being refunded as part of reverse transaction ${reverse.id}.`
+            },
+            source_transfer_reversal: null
+        } as any);  //  source_transfer_reversal is in the docs, but not d.ts and it's mysterious
         const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transfer.id}/reverse`, "POST", reverse);
         chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postTransfer.body)}`);
         const stripeStep: StripeTransactionStep = postReverse.body.steps[1] as StripeTransactionStep;
@@ -202,7 +205,7 @@ describe("/v2/transactions/reverse - transfer", () => {
                         "balanceChange": -75,
                         "usesRemainingBefore": null,
                         "usesRemainingAfter": null,
-                        "usesRemainingChange": 0
+                        "usesRemainingChange": null
                     },
                     {
                         "rail": "stripe",
@@ -216,7 +219,7 @@ describe("/v2/transactions/reverse - transfer", () => {
                             "created": stripeStep.charge.created,
                             "currency": "usd",
                             "metadata": {
-                                "reason": "not specified"
+                                "reason": `Being refunded as part of reverse transaction ${reverse.id}.`
                             },
                             "reason": null,
                             "source_transfer_reversal": null,
@@ -228,6 +231,7 @@ describe("/v2/transactions/reverse - transfer", () => {
                     }
                 ],
                 "paymentSources": null,
+                pending: false,
                 "metadata": null,
                 "createdBy": "default-test-user-TEST"
             }, ["createdDate"]

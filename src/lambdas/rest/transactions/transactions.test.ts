@@ -311,6 +311,7 @@ describe("/v2/transactions", () => {
                         "valueId": "vs-gc-2"
                     }
                 ],
+                pending: false,
                 metadata: null,
                 tax: {
                     "roundingMode": "HALF_EVEN"
