@@ -1239,7 +1239,7 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
         }, ["createdDate"]);
     });
 
-    it.only("can't use balanceRule that increases the cost of the item", async () => {
+    it("can't use balanceRule that increases the cost of the item", async () => {
         const value: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
@@ -1272,7 +1272,6 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
         };
         const createCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
         chai.assert.equal(createCheckout.statusCode, 201, `body=${JSON.stringify(createCheckout.body)}`);
-        console.log(JSON.stringify(createCheckout, null, 4));
         chai.assert.deepEqualExcluding(createCheckout.body, {
             "id": checkoutRequest.id,
             "transactionType": "checkout",

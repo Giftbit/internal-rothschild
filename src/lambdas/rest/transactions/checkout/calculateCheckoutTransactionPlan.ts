@@ -99,8 +99,9 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
             log.info(`Value ${value.id} CAN be applied to ${JSON.stringify(item)}.`);
             let amount: number;
             if (value.balanceRule) {
-                const valueFromRule = getRuleContext(transactionPlan, value, step, item).evaluateBalanceRule(value.balanceRule);
-                amount = Math.min(item.lineTotal.remainder, Math.max(bankersRounding(valueFromRule, 0), 0) | 0);
+                const amountFromRule = Math.max(getRuleContext(transactionPlan, value, step, item).evaluateBalanceRule(value.balanceRule), 0 /* amount from rule must be >= 0*/);
+                const roundedAmountFromRule = bankersRounding(amountFromRule, 0);
+                amount = Math.min(item.lineTotal.remainder, roundedAmountFromRule);
                 step.amount -= amount;
             } else {
                 amount = Math.min(item.lineTotal.remainder, getAvailableBalance(value.balance, step.amount));
