@@ -985,7 +985,7 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
         }, ["createdDate"]);
     });
 
-    it.only("rules can use transaction metadata", async () => {
+    it("rules can use transaction metadata", async () => {
         // promotion off remainder should be applied first.
         const value1: Partial<Value> = {
             id: generateId(),
