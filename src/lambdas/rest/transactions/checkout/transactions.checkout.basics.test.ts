@@ -10,7 +10,6 @@ import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import {Contact} from "../../../../model/Contact";
 import {installRestRoutes} from "../../installRestRoutes";
 import chaiExclude = require("chai-exclude");
-import {CheckoutRequest} from "../../../../model/TransactionRequest";
 
 chai.use(chaiExclude);
 
@@ -744,6 +743,7 @@ describe("/v2/transactions/checkout - basics", () => {
                             "contactId": contact.id
                         }
                     ],
+                    "pending": false,
                     "metadata": null,
                     "createdBy": "default-test-user-TEST"
                 }, ["createdDate"]);
