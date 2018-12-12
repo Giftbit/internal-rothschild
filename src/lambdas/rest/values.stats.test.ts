@@ -7,7 +7,18 @@ import {createCurrency} from "./currencies";
 import {Value} from "../../model/Value";
 import {Transaction} from "../../model/Transaction";
 import {Contact} from "../../model/Contact";
-import {CheckoutRequest, TransactionParty} from "../../model/TransactionRequest";
+import {
+    CheckoutRequest,
+    CreditRequest,
+    DebitRequest,
+    LightrailTransactionParty,
+    StripeTransactionParty,
+    TransferRequest
+} from "../../model/TransactionRequest";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
+import {after} from "mocha";
+
+require("dotenv").config();
 
 describe("/v2/values/ - secret stats capability", () => {
 
@@ -24,6 +35,11 @@ describe("/v2/values/ - secret stats capability", () => {
             symbol: "$",
             decimalPlaces: 2
         });
+        setStubsForStripeTests();
+    });
+
+    after(async function () {
+        unsetStubsForStripeTests();
     });
 
     describe("getting a single Value", () => {
@@ -192,14 +208,15 @@ describe("/v2/values/ - secret stats capability", () => {
     it.only("/value/{id}/stats - generic code performance stats", async () => {
         const fullcode = "SUMMER2022";
         const value: Partial<Value> = {
-            id: generateId(),
+            id: fullcode + "-id",
             currency: "USD",
             balanceRule: {
-                rule: "500",
-                explanation: "$5 off every item"
+                rule: "50",
+                explanation: "$0.50 off every item"
             },
             code: fullcode,
-            isGenericCode: true
+            isGenericCode: true,
+            discount: true
         };
         const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(createValue.statusCode, 201);
@@ -224,60 +241,247 @@ describe("/v2/values/ - secret stats capability", () => {
         const attachContactB = await testAuthedRequest<Value>(router, `/v2/contacts/${contactB.id}/values/attach`, "POST", {code: fullcode});
         chai.assert.equal(attachContactB.statusCode, 200);
 
-        // create checkouts
-        const checkoutExamples: { subtotal: number, sources: string[] }[] = [
+        // create another Value to be used as another payment source
+        const giftCard: Partial<Value> = {
+            id: "gc-id",
+            currency: "USD",
+            code: "GC123",
+            balance: 500
+        };
+        const createGiftCard = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", giftCard);
+        chai.assert.equal(createGiftCard.statusCode, 201);
+
+        const creditCardSource: StripeTransactionParty = {
+            rail: "stripe",
+            source: "tok_visa"
+        };
+        const genericCodeSrc: LightrailTransactionParty = {
+            rail: "lightrail",
+            code: fullcode
+        };
+        const giftCardSrc: LightrailTransactionParty = {
+            rail: "lightrail",
+            code: giftCard.code
+        };
+
+        const transactionRequests: TransactionRequestData[] = [
             {
-                subtotal: 1,
-                sources: ["tok_visa", fullcode]
+                type: "checkout",
+                request: {
+                    id: generateId(),
+                    lineItems: [{unitPrice: 101}],
+                    sources: [genericCodeSrc],
+                    currency: "USD",
+                    allowRemainder: true
+                }
+            }, {
+                type: "checkout",
+                request: {
+                    id: generateId(),
+                    lineItems: [{unitPrice: 102}],
+                    sources: [genericCodeSrc, creditCardSource],
+                    currency: "USD"
+                },
+            }, {
+                type: "checkout",
+                request: {
+                    id: generateId(),
+                    lineItems: [{unitPrice: 103}],
+                    sources: [genericCodeSrc],
+                    currency: "USD",
+                    allowRemainder: true
+                }
+            }, {
+                type: "checkout",
+                request: {
+                    id: generateId(),
+                    lineItems: [{unitPrice: 104}],
+                    sources: [genericCodeSrc, creditCardSource],
+                    currency: "USD",
+                    pending: true,
+                },
+                voided: true
+            }, {
+                type: "checkout",
+                request: {
+                    id: generateId(),
+                    lineItems: [{unitPrice: 105}],
+                    sources: [genericCodeSrc, creditCardSource],
+                    currency: "USD",
+                    pending: true,
+                },
+                captured: true
+            }, {
+                type: "checkout",
+                request: {
+                    id: generateId(),
+                    lineItems: [{unitPrice: 106}],
+                    sources: [genericCodeSrc, creditCardSource],
+                    currency: "USD",
+                },
+                reversed: true
             },
             {
-                subtotal: 2,
-                sources: ["tok_visa"]
-            },
-            {
-                subtotal: 3,
-                sources: [contactA.id]
-            },
-            {
-                subtotal: 4,
-                sources: ["tok_visa", fullcode, contactB.id]
+                type: "checkout",
+                request: {
+                    id: generateId(),
+                    lineItems: [{unitPrice: 106}],
+                    sources: [genericCodeSrc, giftCardSrc],
+                    currency: "USD",
+                }
             }
         ];
 
-        for (const checkoutExample of checkoutExamples) {
-            let sources: TransactionParty[] = [];
-            for (const source of checkoutExample.sources) {
-                if (source === "tok_visa") {
-                    sources.push({rail: "stripe", source: "tok_visa"});
-                } else if (source === fullcode) {
-                    sources.push({rail: "lightrail", code: fullcode});
-                } else if (source === contactA.id) {
-                    sources.push({rail: "lightrail", contactId: contactA.id});
-                } else if (source === contactB.id) {
-                    sources.push({rail: "lightrail", contactId: contactB.id});
-                } else {
-                    chai.assert.fail("Invalid test data. Something unexpected happened.")
-                }
-            }
-
-            const request: CheckoutRequest = {
-                id: generateId(),
-                currency: "USD",
-                lineItems: [
-                    {
-                        unitPrice: checkoutExample.subtotal
-                    }
-                ],
-                sources: sources
-            };
-            console.log("request: " + JSON.stringify(request));
-            const createCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
-            chai.assert.equal(createCheckout.statusCode, 201);
-        }
+        await createTransactionData(transactionRequests);
 
         const stats = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.id}/stats`, "GET");
         console.log("STATS:\n" + JSON.stringify(stats.body, null, 4));
 
 
-    });
+    }).timeout(10000);
+
+    it("/value/{id}/stats - unique code performance stats", async () => {
+        const value: Partial<Value> = {
+            id: "uniqueCode-id",
+            currency: "USD",
+            balance: 500,
+        };
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValue.statusCode, 201);
+
+        // create contact A and attach
+        const contactA: Partial<Contact> = {
+            id: generateId(),
+            firstName: "A"
+        };
+        const createContactA = await testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contactA);
+        chai.assert.equal(createContactA.statusCode, 201);
+        const attachContactA = await testAuthedRequest<Value>(router, `/v2/contacts/${contactA.id}/values/attach`, "POST", {valueId: value.id});
+        chai.assert.equal(attachContactA.statusCode, 200);
+
+        const ccSrc: StripeTransactionParty = {
+            rail: "stripe",
+            source: "tok_visa"
+        };
+        const valueSrc: LightrailTransactionParty = {
+            rail: "lightrail",
+            valueId: value.id
+        };
+
+        const transactionRequests: TransactionRequestData[] = [
+            {
+                type: "checkout",
+                request: {
+                    id: generateId(),
+                    lineItems: [{unitPrice: 100}],
+                    sources: [valueSrc],
+                    currency: "USD"
+                }
+            }, {
+                type: "debit",
+                request: {
+                    id: generateId(),
+                    source: valueSrc,
+                    currency: "USD",
+                    amount: 50
+                },
+            }, {
+                type: "debit",
+                request: {
+                    id: generateId(),
+                    source: valueSrc,
+                    currency: "USD",
+                    amount: 66,
+                    pending: true
+                },
+                voided: true
+            }, {
+                type: "checkout",
+                request: {
+                    id: generateId(),
+                    lineItems: [{unitPrice: 1000}],
+                    sources: [valueSrc, ccSrc],
+                    currency: "USD"
+                }
+            }, {
+                type: "credit",
+                request: {
+                    id: generateId(),
+                    destination: valueSrc,
+                    currency: "USD",
+                    amount: 600
+                }
+            }, {
+                type: "checkout",
+                request: {
+                    id: generateId(),
+                    lineItems: [{unitPrice: 105}],
+                    sources: [valueSrc, ccSrc],
+                    currency: "USD",
+                    pending: true,
+                },
+                captured: true
+            }, {
+                type: "transfer",
+                request: {
+                    id: generateId(),
+                    source: ccSrc,
+                    destination: valueSrc,
+                    amount: 77,
+                    currency: "USD",
+                }
+            }, {
+                type: "debit",
+                request: {
+                    id: generateId(),
+                    currency: "USD",
+                    source: valueSrc,
+                    amount: 50
+                }
+            }
+        ];
+
+        await createTransactionData(transactionRequests);
+
+        const stats = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.id}/stats`, "GET");
+        console.log("STATS:\n" + JSON.stringify(stats.body, null, 4));
+
+
+    }).timeout(10000);
+
+
+    async function createTransactionData(transactionRequests: TransactionRequestData[]): Promise<void> {
+        for (const transactionRequest of transactionRequests) {
+            console.log("creating request: " + JSON.stringify(transactionRequest));
+            // if (request.sources.find(source => source.rail === "stripe")) {
+            //     stubCheckoutStripeCharge(request, 0, request.subtotal - 50 /* balanceRule worth 1 cent */);
+            // }
+            const postTransaction = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transactionRequest.type}`, "POST", transactionRequest.request);
+            console.log(JSON.stringify(postTransaction));
+            chai.assert.equal(postTransaction.statusCode, 201);
+            console.log("created checkout totals: " + JSON.stringify(postTransaction.body.totals, null, 4));
+
+            if (transactionRequest.captured) {
+                const postCapture = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transactionRequest.request.id}/capture`, "POST", {id: transactionRequest.request.id + "-capture"});
+                console.log(JSON.stringify(postCapture));
+                chai.assert.equal(postCapture.statusCode, 201);
+            } else if (transactionRequest.voided) {
+                const postVoid = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transactionRequest.request.id}/void`, "POST", {id: transactionRequest.request.id + "-void"});
+                chai.assert.equal(postVoid.statusCode, 201);
+            } else if (transactionRequest.reversed) {
+                const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transactionRequest.request.id}/reverse`, "POST", {id: transactionRequest.request.id + "-reverse"});
+                chai.assert.equal(postReverse.statusCode, 201);
+            }
+        }
+    }
 });
+
+
+interface TransactionRequestData {
+    type: string,
+    request: CheckoutRequest | DebitRequest | CreditRequest | TransferRequest,
+    captured?: boolean,
+    voided?: boolean,
+    reversed?: boolean
+}
+

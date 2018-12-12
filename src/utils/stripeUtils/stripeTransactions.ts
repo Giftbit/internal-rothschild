@@ -5,6 +5,7 @@ import log = require("loglevel");
 import Stripe = require("stripe");
 
 export async function createCharge(params: Stripe.charges.IChargeCreationOptions, lightrailStripeSecretKey: string, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<Stripe.charges.ICharge> {
+    console.log("creating charge. stripe key" + lightrailStripeSecretKey);
     const lightrailStripe = new Stripe(lightrailStripeSecretKey);
     lightrailStripe.setApiVersion(stripeApiVersion);
     log.info("Creating Stripe charge", params);
@@ -15,9 +16,11 @@ export async function createCharge(params: Stripe.charges.IChargeCreationOptions
             idempotency_key: stepIdempotencyKey
         });
         log.info(`Created Stripe charge '${charge.id}'`);
+        console.log(`Created Stripe charge '${charge.id}'`);
         return charge;
     } catch (err) {
         log.warn("Error charging Stripe:", err);
+        console.log("Error charging Stripe:", err);
 
         switch (err.type) {
             case "StripeIdempotencyError":

@@ -603,162 +603,88 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
 
     const startTime = Date.now();
     const stats = {
-        // outstanding: { // doesn't seem relevant
-        //     balance: 0,
-        //     count: 0
-        // },
-        // canceled: { // doesn't seem relevant
-        //     balance: 0,
-        //     count: 0
-        // },
-        // expired: { // doesn't seem relevant
-        //     balance: 0,
-        //     count: 0
-        // },
-        // redeemed: { // doesn't seem relevant
-        //     balance: 0,
-        //     count: 0,
-        //     transactionCount: 0
-        // },
+        initialBalance: {
+            balanceChange: 0,
+            count: 0
+        },
+        credit: {
+            balanceChange: 0,
+            count: 0
+        },
+        debit: {
+            balanceChange: 0,
+            count: 0
+        },
+        transfer: {
+            balanceChange: 0,
+            count: 0
+        },
         checkout: {
-            lightrailSpend: 0,
-            overspend: 0,
-            transactionCount: 0
+            balanceChange: 0,
+            count: 0,
+            paidLightrail: 0,
+            discountLightrail: 0,
+            overSpend: 0 // stripe + internal + remainder
         },
         attachedContacts: {
             count: 0
         }
     };
 
-    const now = nowInDbPrecision();
     const knex = await getKnexRead();
-    // const valueStatsRes: { sumBalance: number, count: number, canceled: boolean, expired: boolean }[] = await knex("Values")
-    //     .where({
-    //         "userId": auth.userId,
-    //         "programId": programId,
-    //         "active": true
-    //     })
-    //     .select("canceled")
-    //     .select(knex.raw("endDate IS NOT NULL AND endDate < ? AS expired", [now]))
-    //     .sum({sumBalance: "balance"})
-    //     .count({count: "*"})
-    //     .groupBy("canceled", "expired");
-    // for (const valueStatsResLine of valueStatsRes) {
-    //     if (valueStatsResLine.canceled) {
-    //         // Includes canceled AND expired.
-    //         stats.canceled.balance += +valueStatsResLine.sumBalance;  // for some reason SUM() comes back as a string
-    //         stats.canceled.count += valueStatsResLine.count;
-    //     } else if (valueStatsResLine.expired) {
-    //         stats.expired.balance += +valueStatsResLine.sumBalance;
-    //         stats.expired.count += valueStatsResLine.count;
-    //     } else {
-    //         stats.outstanding.balance += +valueStatsResLine.sumBalance;
-    //         stats.outstanding.count += valueStatsResLine.count;
-    //     }
-    // }
-
-    log.info(`injectProgramStats got value stats ${Date.now() - startTime}ms`);
-
-    // const redeemedStatsRes: { balance: number, transactionCount: number, valueCount: number }[] = await knex("Values")
-    //     .where({
-    //         "Values.userId": auth.userId,
-    //         "Values.programId": programId,
-    //         "Values.active": true
-    //     })
-    //     .join("LightrailTransactionSteps", {
-    //         "LightrailTransactionSteps.userId": "Values.userId",
-    //         "LightrailTransactionSteps.valueId": "Values.id"
-    //     })
-    //     .where("LightrailTransactionSteps.balanceChange", "<", 0)
-    //     .sum({balance: "LightrailTransactionSteps.balanceChange"})
-    //     .countDistinct({transactionCount: "LightrailTransactionSteps.transactionId"})
-    //     .countDistinct({valueCount: "Values.id"});
-    // stats.redeemed.count = redeemedStatsRes[0].valueCount;
-    // stats.redeemed.balance = -redeemedStatsRes[0].balance;
-    // stats.redeemed.transactionCount = redeemedStatsRes[0].transactionCount;
-
-    log.info(`injectProgramStats got redeemed stats ${Date.now() - startTime}ms`);
-
-    const checkout = await knex("Transactions")
-        .join("LightrailTransactionSteps", {
-            "Transactions.userId": "LightrailTransactionSteps.userId",
-            "Transactions.id": "LightrailTransactionSteps.transactionId"
+    let query = knex("LightrailTransactionSteps as LTS")
+        .join("Transactions as T_ROOT", {
+            "T_ROOT.userId": "LTS.userId",
+            "T_ROOT.id": "LTS.transactionId"
+        })
+        .leftJoin("Transactions as T_LAST", function () {
+            this.on("T_ROOT.id", "=", "T_LAST.rootTransactionId")
+                .andOn("T_ROOT.userId", "=", "T_LAST.userId")
+                .andOn("T_LAST.id", "!=", "T_LAST.rootTransactionId")
+                .andOnNull("T_LAST.nextTransactionId")
         })
         .where({
-            "Transactions.userId": auth.userId,
-            "LightrailTransactionSteps.valueId": valueId
+            "LTS.userId": auth.userId,
+            "LTS.valueId": valueId,
         })
-        .sum({paidLightrail: "Transactions.totals_paidLightrail"})
-        .groupBy("Transactions.pending")
+        .whereIn("T_ROOT.transactionType", ["initialBalance", "checkout", "debit", "credit", "transfer"])
+        .count({transactionCount: "*"})
+        .sum({balanceChange: "LTS.balanceChange"})
+        .sum({discountLightrail: "T_ROOT.totals_discountLightrail"})
+        .sum({paidLightrail: "T_ROOT.totals_paidLightrail"})
+        .sum({paidStripe: "T_ROOT.totals_paidStripe"})
+        .sum({paidInternal: "T_ROOT.totals_paidInternal"})
+        .sum({remainder: "T_ROOT.totals_remainder"})
+        .select({rootTransactionType: "T_ROOT.transactionType"})
+        .select({lastTransactionType: "T_LAST.transactionType"})
+        .groupBy("T_LAST.transactionType")
+        .groupBy("T_ROOT.transactionType");
+    console.log(query.toString());
+    const checkoutStats = await query;
+    console.log("checkoutStats: " + JSON.stringify(checkoutStats, null, 4));
 
-
-    const overspendStatsRes: { lrBalance: number, iBalance: number, sBalance: number, remainder: number, transactionCount: number }[] = await knex
-        .from(knex.raw("? as Txs", [
-            // Get unique Transaction IDs related to the Program
-            knex("Values")
-                .where({
-                    "Values.userId": auth.userId,
-                    "Values.id": valueId,
-                    "Values.active": true
-                })
-                .join("LightrailTransactionSteps", {
-                    "LightrailTransactionSteps.userId": "Values.userId",
-                    "LightrailTransactionSteps.valueId": "Values.id"
-                })
-                .join("Transactions", {
-                    "Transactions.userId": "LightrailTransactionSteps.userId",
-                    "Transactions.id": "LightrailTransactionSteps.transactionId"
-                })
-                .where({"Transactions.transactionType": "checkout"})
-                .distinct("Transactions.id", "Transactions.totals_remainder")
-        ]))
-        .leftJoin(
-            // For each Transaction, sum LightrailTransactionSteps.balanceChange
-            knex.raw(
-                "? as LightrailBalances on LightrailBalances.transactionId = Txs.id",
-                [
-                    knex("LightrailTransactionSteps")
-                        .where({userId: auth.userId})
-                        .groupBy("transactionId")
-                        .sum("balanceChange as balanceChange")
-                        .select("transactionId")
-                ]
-            )
-        )
-        .leftJoin(
-            // For each Transaction, sum InternalTransactionSteps.balanceChange
-            knex.raw(
-                "? as InternalBalances on InternalBalances.transactionId = Txs.id",
-                [
-                    knex("InternalTransactionSteps")
-                        .where({userId: auth.userId})
-                        .groupBy("transactionId")
-                        .sum("balanceChange as balanceChange")
-                        .select("transactionId")
-                ]
-            )
-        )
-        .leftJoin(
-            // For each Transaction, sum StripeTransactionSteps.amount
-            knex.raw(
-                "? as StripeAmounts on StripeAmounts.transactionId = Txs.id",
-                [
-                    knex("StripeTransactionSteps")
-                        .where({userId: auth.userId})
-                        .groupBy("transactionId")
-                        .sum("amount as amount")
-                        .select("transactionId")
-                ]
-            )
-        )
-        .countDistinct({transactionCount: "Txs.id"})
-        .sum({remainder: "Txs.totals_remainder"})
-        .sum({lrBalance: "LightrailBalances.balanceChange"})
-        .sum({iBalance: "InternalBalances.balanceChange"})
-        .sum({sBalance: "StripeAmounts.amount"});
-    stats.checkout.transactionCount = overspendStatsRes[0].transactionCount;
-    stats.checkout.lightrailSpend = -overspendStatsRes[0].lrBalance;
-    stats.checkout.overspend = -overspendStatsRes[0].iBalance - overspendStatsRes[0].sBalance + +overspendStatsRes[0].remainder;
+    for (const row of checkoutStats) {
+        if (row.rootTransactionType === "initialBalance" && (row.lastTransactionType === null || row.lastTransactionType === "capture")) {
+            stats.initialBalance.balanceChange += +row.balanceChange;
+            stats.initialBalance.count += row.transactionCount;
+        } else if (row.rootTransactionType === "credit" && (row.lastTransactionType === null || row.lastTransactionType === "capture")) {
+            stats.credit.balanceChange += +row.balanceChange;
+            stats.credit.count += row.transactionCount;
+        } else if (row.rootTransactionType === "debit" && (row.lastTransactionType === null || row.lastTransactionType === "capture")) {
+            stats.debit.balanceChange += +row.balanceChange;
+            stats.debit.count += row.transactionCount;
+        } else if (row.rootTransactionType === "transfer" && (row.lastTransactionType === null || row.lastTransactionType === "capture")) {
+            stats.transfer.balanceChange += +row.balanceChange;
+            stats.transfer.count += row.transactionCount;
+        } else if (row.rootTransactionType === "checkout" && (row.lastTransactionType === null || row.lastTransactionType === "capture")) {
+            stats.checkout.balanceChange += +row.balanceChange;
+            stats.checkout.paidLightrail += +row.paidLightrail;
+            stats.checkout.discountLightrail += +row.discountLightrail;
+            stats.checkout.count += row.transactionCount;
+            stats.checkout.overSpend += +row.paidStripe + +row.paidInternal + +row.remainder
+        }
+    }
+    console.log("v2stats:\n\n" + JSON.stringify(stats, null, 4));
 
     log.info(`injectProgramStats got overspend stats and done ${Date.now() - startTime}ms`);
 
