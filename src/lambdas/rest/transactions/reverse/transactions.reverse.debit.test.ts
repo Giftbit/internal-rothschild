@@ -135,16 +135,16 @@ describe("/v2/transactions/reverse - debit", () => {
             currency: "USD",
             uses: 3
         };
-        const postCredit = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", debit);
-        chai.assert.equal(postCredit.statusCode, 201, `body=${JSON.stringify(postCredit.body)}`);
-        chai.assert.equal((postCredit.body.steps[0] as LightrailTransactionStep).usesRemainingAfter, 2);
+        const postDebit = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", debit);
+        chai.assert.equal(postDebit.statusCode, 201, `body=${JSON.stringify(postDebit.body)}`);
+        chai.assert.equal((postDebit.body.steps[0] as LightrailTransactionStep).usesRemainingAfter, 2);
 
         // create reverse
         const reverse: Partial<ReverseRequest> = {
             id: generateId()
         };
         const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${debit.id}/reverse`, "POST", reverse);
-        chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postCredit.body)}`);
+        chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postDebit.body)}`);
         chai.assert.deepEqualExcluding(postReverse.body, {
                 "id": reverse.id,
                 "transactionType": "reverse",
@@ -177,6 +177,39 @@ describe("/v2/transactions/reverse - debit", () => {
         );
 
         // check value is same as before
+        const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
+        chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate");
+    });
+
+    it("can reverse a debit with remainder", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 50
+        };
+        const postValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+        chai.assert.equal(postValue.statusCode, 201);
+
+        const debit: DebitRequest = {
+            id: generateId(),
+            source: {
+                rail: "lightrail",
+                valueId: value.id
+            },
+            currency: "USD",
+            amount: 100,
+            allowRemainder: true
+        };
+        const postDebit = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", debit);
+        chai.assert.equal(postDebit.statusCode, 201, `body=${JSON.stringify(postDebit.body)}`);
+        chai.assert.equal(postDebit.body.totals.remainder, 50);
+
+        const reverse: Partial<ReverseRequest> = {
+            id: generateId()
+        };
+        const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${debit.id}/reverse`, "POST", reverse);
+        chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postReverse.body)}`);
+
         const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate");
     });

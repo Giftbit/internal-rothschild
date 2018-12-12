@@ -321,7 +321,7 @@ async function createReverse(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req
         auth,
         {
             simulate: req.simulate,
-            allowRemainder: false
+            allowRemainder: true
         },
         async () => {
             return await createReverseTransactionPlan(auth, req, transactionIdToReverse);
@@ -347,7 +347,7 @@ async function createVoid(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: V
         auth,
         {
             simulate: req.simulate,
-            allowRemainder: false
+            allowRemainder: true
         },
         async () => {
             return await createVoidTransactionPlan(auth, req, transactionIdToVoid);
