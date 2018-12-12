@@ -6,7 +6,7 @@ import {installRestRoutes} from "../../installRestRoutes";
 import {createCurrency} from "../../currencies";
 import {Value} from "../../../../model/Value";
 import {LightrailTransactionStep, Transaction} from "../../../../model/Transaction";
-import {DebitRequest, ReverseRequest} from "../../../../model/TransactionRequest";
+import {CaptureRequest, DebitRequest, ReverseRequest} from "../../../../model/TransactionRequest";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -212,5 +212,48 @@ describe("/v2/transactions/reverse - debit", () => {
 
         const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate");
+    });
+
+    it("can reverse a pending captured debit", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 50
+        };
+        const postValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+        chai.assert.equal(postValue.statusCode, 201);
+
+        const debitTx: DebitRequest = {
+            id: generateId(),
+            source: {
+                rail: "lightrail",
+                valueId: value.id
+            },
+            currency: "USD",
+            amount: 20,
+            pending: true
+        };
+        const debitRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", debitTx);
+        chai.assert.equal(debitRes.statusCode, 201, `body=${JSON.stringify(debitRes.body)}`);
+
+        const captureTx: CaptureRequest = {
+            id: generateId()
+        };
+        const captureRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${debitTx.id}/capture`, "POST", captureTx);
+        chai.assert.equal(captureRes.statusCode, 201);
+
+        const reverseTx: Partial<ReverseRequest> = {
+            id: generateId()
+        };
+        const failedReverseRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${debitTx.id}/reverse`, "POST", reverseTx);
+        chai.assert.equal(failedReverseRes.statusCode, 409, `body=${JSON.stringify(failedReverseRes.body)}`);
+        const reverseRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${captureTx.id}/reverse`, "POST", reverseTx);
+        chai.assert.equal(reverseRes.statusCode, 201, `body=${JSON.stringify(reverseRes.body)}`);
+
+        const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
+        chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate");
+
+        const chainRes = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions/${reverseTx.id}/chain`, "GET");
+        chai.assert.sameDeepMembers(chainRes.body, [debitRes.body, captureRes.body, reverseRes.body]);
     });
 });
