@@ -1066,6 +1066,81 @@ describe("/v2/transactions/debit", () => {
             chai.assert.equal(valuePendingRes.body.balance, 40);
         });
 
+        it("can create and void a pending debit with remainder", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "CAD",
+                balance: 50,
+            };
+            const valueRes = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(valueRes.statusCode, 201, `body=${JSON.stringify(valueRes.body)}`);
+
+            const pendingDebitTx: DebitRequest = {
+                id: generateId(),
+                amount: 100,
+                currency: "CAD",
+                source: {
+                    rail: "lightrail",
+                    valueId: value.id
+                },
+                allowRemainder: true,
+                pending: true
+            };
+            const pendingDebitRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", pendingDebitTx);
+            chai.assert.equal(pendingDebitRes.statusCode, 201, `body=${JSON.stringify(pendingDebitRes.body)}`);
+            chai.assert.equal(pendingDebitRes.body.totals.remainder, 50);
+            chai.assert.isTrue(pendingDebitRes.body.pending);
+            chai.assert.isNotNull(pendingDebitRes.body.pendingVoidDate);
+
+            const valuePendingRes = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
+            chai.assert.equal(valuePendingRes.body.balance, 0);
+
+            const voidRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingDebitTx.id}/void`, "POST", {
+                id: generateId()
+            });
+            chai.assert.equal(voidRes.statusCode, 201, `body=${JSON.stringify(voidRes.body)}`);
+            chai.assert.isNotTrue(voidRes.body.pending);
+
+            const valueVoidRes = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
+            chai.assert.equal(valueVoidRes.body.balance, 50);
+        });
+
+        it("can create and capture a debit with remainder", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "CAD",
+                balance: 50,
+            };
+            const valueRes = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(valueRes.statusCode, 201, `body=${JSON.stringify(valueRes.body)}`);
+
+            const pendingDebitTx: DebitRequest = {
+                id: generateId(),
+                amount: 100,
+                currency: "CAD",
+                source: {
+                    rail: "lightrail",
+                    valueId: value.id
+                },
+                allowRemainder: true,
+                pending: true
+            };
+            const pendingDebitRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", pendingDebitTx);
+            chai.assert.equal(pendingDebitRes.statusCode, 201, `body=${JSON.stringify(pendingDebitRes.body)}`);
+            chai.assert.equal(pendingDebitRes.body.totals.remainder, 50);
+            chai.assert.isTrue(pendingDebitRes.body.pending);
+            chai.assert.isNotNull(pendingDebitRes.body.pendingVoidDate);
+
+            const valuePendingRes = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
+            chai.assert.equal(valuePendingRes.body.balance, 0);
+
+            const captureRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingDebitTx.id}/capture`, "POST", {
+                id: generateId()
+            });
+            chai.assert.equal(captureRes.statusCode, 201, `body=${JSON.stringify(captureRes.body)}`);
+            chai.assert.isNotTrue(captureRes.body.pending);
+        });
+
         it("can't set pending to a negative duration", async () => {
             const value: Partial<Value> = {
                 id: generateId(),
