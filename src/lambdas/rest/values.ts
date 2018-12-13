@@ -673,7 +673,7 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
         .count({count: "*"});
     stats.attachedContacts.count = attachedStats[0].count;
 
-    log.info(`Calculating value stats and done ${Date.now() - startTime}ms`);
+    log.info(`Calculating value stats finished and took ${Date.now() - startTime}ms`);
     return stats;
 }
 
