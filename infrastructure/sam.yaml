@@ -520,6 +520,73 @@ Resources:
             Schedule: rate(4 minutes)
             Input: !Sub "{\"resource\":\"/{proxy+}\",\"path\":\"/v2/healthCheck\",\"httpMethod\":\"GET\",\"headers\":null,\"queryStringParameters\":null,\"pathParameters\":null,\"stageVariables\":null,\"context\":{\"accountId\":\"12345678912\",\"resourceId\":null,\"stage\":\"Prod\",\"requestId\":null,\"identity\":null,\"resourcePath\":\"/{proxy+}\",\"httpMethod\":\"GET\",\"apiId\":null},\"body\":null,\"isBase64Encoded\":false}"
 
+  AutomaticVoidFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../dist/automaticVoid/automaticVoid.zip
+      Handler: index.handler
+      Runtime: nodejs8.10
+      MemorySize: 256
+      Timeout: 600 # same as schedule rate
+      Environment:
+        Variables:
+          DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
+          DB_READ_ENDPOINT: !GetAtt DbCluster.ReadEndpoint.Address
+          DB_PORT: !GetAtt DbCluster.Endpoint.Port
+          DB_USERNAME: "master"
+          DB_PASSWORD_PARAMETER: !GetAtt DbCredentials.PasswordParameter
+          SECURE_CONFIG_BUCKET: !Ref SecureConfigBucket
+          SECURE_CONFIG_KEY_SENTRY: sentry_lambda_services.json
+      VpcConfig:
+        SecurityGroupIds:
+          - !GetAtt LambdaSecurityGroup.GroupId
+        SubnetIds:
+          - !Ref SubnetPrivateA
+          - !Ref SubnetPrivateB
+          - !Ref SubnetPrivateC
+      Policies:
+        - AWSLambdaVPCAccessExecutionRole
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+                - ssm:GetParameters
+              Resource:
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DbCredentials.PasswordParameter}"
+            - Effect: Allow
+              Action:
+                - kms:Decrypt
+                - kms:DescribeKey
+              Resource:
+                - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource:
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
+            - Effect: Allow
+              Action:
+                - kms:Decrypt
+                - kms:DescribeKey
+              Resource:
+                - !Ref SecureConfigKmsArn
+              Condition:
+                StringLike:
+                  "kms:ViaService":
+                    !Sub "s3.${AWS::Region}.amazonaws.com"
+                  "kms:EncryptionContext:aws:s3:arn":
+                    !Sub "arn:aws:s3:::${SecureConfigBucket}/*"
+      Tags:
+        ShortName: AutomaticVoidFunction
+        Service: Rothschild
+      Events:
+        CheckVoidSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: rate(10 minutes)
+            Input: !Sub ""
+
   PostDeployFunction:
     Type: AWS::Serverless::Function
     DependsOn:

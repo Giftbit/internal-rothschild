@@ -143,7 +143,7 @@ async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, prog
 async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, issuance: Issuance, codeParameters: CodeParameters): Promise<Issuance> {
     auth.requireIds("userId", "teamMemberId");
     let program: Program = await getProgram(auth, issuance.programId);
-    log.info(`Creating issuance for userId: ${auth.userId}. Issuance: ${JSON.stringify(issuance)}`);
+    log.info(`Creating issuance for userId: ${auth.userId}. Issuance:`, issuance);
 
     // copy over properties from program that may be null.
     // this is important for issuance display and history since these properties can be updated on the program.
@@ -185,7 +185,7 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
                 }, trx);
             }
         });
-        log.info("Finished creating issuance: " + JSON.stringify(issuance));
+        log.info("Finished creating issuance: ", issuance);
         return DbIssuance.toIssuance(dbIssuance);
     } catch (err) {
         log.debug(err);

@@ -389,6 +389,7 @@ describe("/v2/values/", () => {
                 "currency": "USD",
                 "lineItems": null,
                 "paymentSources": null,
+                "pendingVoidDate": null,
                 "metadata": null,
                 "tax": null,
                 "createdBy": testUtils.defaultTestUser.teamMemberId,
