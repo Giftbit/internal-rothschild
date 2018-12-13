@@ -235,6 +235,7 @@ describe("/v2/transactions/reverse - debit", () => {
         };
         const debitRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", debitTx);
         chai.assert.equal(debitRes.statusCode, 201, `body=${JSON.stringify(debitRes.body)}`);
+        chai.assert.equal((debitRes.body.steps[0] as LightrailTransactionStep).balanceChange, -20);
 
         const captureTx: CaptureRequest = {
             id: generateId()
@@ -249,6 +250,7 @@ describe("/v2/transactions/reverse - debit", () => {
         chai.assert.equal(failedReverseRes.statusCode, 409, `body=${JSON.stringify(failedReverseRes.body)}`);
         const reverseRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${captureTx.id}/reverse`, "POST", reverseTx);
         chai.assert.equal(reverseRes.statusCode, 201, `body=${JSON.stringify(reverseRes.body)}`);
+        chai.assert.equal((reverseRes.body.steps[0] as LightrailTransactionStep).balanceChange, 20);
 
         const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate");
