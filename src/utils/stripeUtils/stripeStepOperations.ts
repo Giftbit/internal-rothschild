@@ -54,7 +54,6 @@ export async function executeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
             throw err;
         }
 
-        console.log("EXCEPTION HERE" + JSON.stringify(plan, null, 4));
         throw new TransactionPlanError(`Transaction execution canceled because there was a problem calling Stripe: ${err.message}`, {
             isReplanable: false
         });
