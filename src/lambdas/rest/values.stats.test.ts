@@ -15,7 +15,13 @@ import {
     StripeTransactionParty,
     TransferRequest
 } from "../../model/TransactionRequest";
-import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
+import {
+    setStubsForStripeTests,
+    stubCheckoutStripeCharge,
+    stubStripeCapture,
+    stubStripeRefund,
+    unsetStubsForStripeTests
+} from "../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
 
 require("dotenv").config();
@@ -205,7 +211,7 @@ describe("/v2/values/ - secret stats capability", () => {
         });
     });
 
-    it.only("/value/{id}/stats - generic code performance stats", async () => {
+    it("/value/{id}/stats - generic code performance stats", async () => {
         const fullcode = "SUMMER2022";
         const value: Partial<Value> = {
             id: fullcode + "-id",
@@ -269,7 +275,7 @@ describe("/v2/values/ - secret stats capability", () => {
                 type: "checkout",
                 request: {
                     id: generateId(),
-                    lineItems: [{unitPrice: 101}],
+                    lineItems: [{unitPrice: 101}], // discountLightrail: 50, remainder: 51
                     sources: [genericCodeSrc],
                     currency: "USD",
                     allowRemainder: true
@@ -278,19 +284,22 @@ describe("/v2/values/ - secret stats capability", () => {
                 type: "checkout",
                 request: {
                     id: generateId(),
-                    lineItems: [{unitPrice: 102}],
+                    lineItems: [{unitPrice: 102}], // discountLightrail: 50, paidStripe: 52
                     sources: [genericCodeSrc, creditCardSource],
                     currency: "USD"
                 },
+                stripeStubAmount: 52
             }, {
                 type: "checkout",
                 request: {
                     id: generateId(),
                     lineItems: [{unitPrice: 103}],
-                    sources: [genericCodeSrc],
+                    sources: [genericCodeSrc, creditCardSource],
                     currency: "USD",
-                    allowRemainder: true
-                }
+                    pending: true,
+                },
+                voided: true, // no change
+                stripeStubAmount: 53
             }, {
                 type: "checkout",
                 request: {
@@ -300,7 +309,8 @@ describe("/v2/values/ - secret stats capability", () => {
                     currency: "USD",
                     pending: true,
                 },
-                voided: true
+                captured: true, // discountLightrail: 50, paidStripe: 54
+                stripeStubAmount: 54
             }, {
                 type: "checkout",
                 request: {
@@ -308,39 +318,52 @@ describe("/v2/values/ - secret stats capability", () => {
                     lineItems: [{unitPrice: 105}],
                     sources: [genericCodeSrc, creditCardSource],
                     currency: "USD",
-                    pending: true,
                 },
-                captured: true
+                reversed: true, // no change
+                stripeStubAmount: 55
             }, {
                 type: "checkout",
                 request: {
                     id: generateId(),
                     lineItems: [{unitPrice: 106}],
-                    sources: [genericCodeSrc, creditCardSource],
+                    sources: [genericCodeSrc, giftCardSrc], // discountLightrail: 50, paidLightrail: 56
                     currency: "USD",
-                },
-                reversed: true
-            },
-            {
+                }
+            }, {
                 type: "checkout",
                 request: {
                     id: generateId(),
-                    lineItems: [{unitPrice: 106}],
-                    sources: [genericCodeSrc, giftCardSrc],
+                    lineItems: [{unitPrice: 107}],
+                    sources: [genericCodeSrc, creditCardSource],
                     currency: "USD",
-                }
+                    pending: true,
+                },
+                captured: true,
+                reversed: true, // no change
+                stripeStubAmount: 57
             }
         ];
 
         await createTransactionData(transactionRequests);
 
         const stats = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.id}/stats`, "GET");
-        console.log("STATS:\n" + JSON.stringify(stats.body, null, 4));
-
-
+        chai.assert.deepEqual(stats.body, {
+            "redeemed": {
+                "balance": 200,
+                "transactionCount": 4
+            },
+            "checkout": {
+                "lightrailSpend": 256,
+                "overspend": 157,
+                "transactionCount": 4
+            },
+            "attachedContacts": {
+                "count": 2
+            }
+        });
     }).timeout(10000);
 
-    it("/value/{id}/stats - unique code performance stats", async () => {
+    it.only("/value/{id}/stats - unique code performance stats", async () => {
         const value: Partial<Value> = {
             id: "uniqueCode-id",
             currency: "USD",
@@ -373,7 +396,7 @@ describe("/v2/values/ - secret stats capability", () => {
                 type: "checkout",
                 request: {
                     id: generateId(),
-                    lineItems: [{unitPrice: 100}],
+                    lineItems: [{unitPrice: 100}], // paidLightrail: 100, balance 400 after
                     sources: [valueSrc],
                     currency: "USD"
                 }
@@ -383,7 +406,7 @@ describe("/v2/values/ - secret stats capability", () => {
                     id: generateId(),
                     source: valueSrc,
                     currency: "USD",
-                    amount: 50
+                    amount: 50 // balance 350 after
                 },
             }, {
                 type: "debit",
@@ -394,22 +417,23 @@ describe("/v2/values/ - secret stats capability", () => {
                     amount: 66,
                     pending: true
                 },
-                voided: true
+                voided: true // balance 350 after
             }, {
                 type: "checkout",
                 request: {
                     id: generateId(),
                     lineItems: [{unitPrice: 1000}],
                     sources: [valueSrc, ccSrc],
-                    currency: "USD"
-                }
+                    currency: "USD" // paidLightrail: 350. balance 0 after. 650 paidStripe
+                },
+                stripeStubAmount: 650
             }, {
                 type: "credit",
                 request: {
                     id: generateId(),
                     destination: valueSrc,
                     currency: "USD",
-                    amount: 600
+                    amount: 600 // balance 600 after
                 }
             }, {
                 type: "checkout",
@@ -420,16 +444,7 @@ describe("/v2/values/ - secret stats capability", () => {
                     currency: "USD",
                     pending: true,
                 },
-                captured: true
-            }, {
-                type: "transfer",
-                request: {
-                    id: generateId(),
-                    source: ccSrc,
-                    destination: valueSrc,
-                    amount: 77,
-                    currency: "USD",
-                }
+                captured: true // paidLightrail: 105, balance 495 after.
             }, {
                 type: "debit",
                 request: {
@@ -437,39 +452,82 @@ describe("/v2/values/ - secret stats capability", () => {
                     currency: "USD",
                     source: valueSrc,
                     amount: 50
+                },
+                reversed: true // no change
+            }, {
+                type: "checkout",
+                request: {
+                    id: generateId(),
+                    lineItems: [{unitPrice: 105}],
+                    sources: [valueSrc, ccSrc],
+                    currency: "USD",
+                    pending: true,
+                },
+                captured: true,
+                reversed: true // no change
+            }, {
+                type: "checkout",
+                request: {
+                    id: generateId(),
+                    lineItems: [{unitPrice: 800}],
+                    sources: [valueSrc],
+                    currency: "USD",
+                    allowRemainder: true // paidLightrail: 495, remainder: 198. balance after 0.
                 }
-            }
+            },
         ];
 
         await createTransactionData(transactionRequests);
 
         const stats = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.id}/stats`, "GET");
-        console.log("STATS:\n" + JSON.stringify(stats.body, null, 4));
-
-
+        chai.assert.deepEqual(stats.body, {
+            "redeemed": {
+                "balance": 100 + 50 + 350 + 105 + 495,
+                "transactionCount": 5
+            },
+            "checkout": {
+                "lightrailSpend": 100 + 350 + 105 + 495,
+                "overspend": 650 + 305,
+                "transactionCount": 4
+            },
+            "attachedContacts": {
+                "count": 0 // note this doesn't count the contactId on the Value as an attached contact.
+            }
+        });
     }).timeout(10000);
 
 
     async function createTransactionData(transactionRequests: TransactionRequestData[]): Promise<void> {
         for (const transactionRequest of transactionRequests) {
-            console.log("creating request: " + JSON.stringify(transactionRequest));
-            // if (request.sources.find(source => source.rail === "stripe")) {
-            //     stubCheckoutStripeCharge(request, 0, request.subtotal - 50 /* balanceRule worth 1 cent */);
-            // }
+            let charge;
+            if (transactionRequest.stripeStubAmount) {
+                [charge] = stubCheckoutStripeCharge(transactionRequest.request as CheckoutRequest, (transactionRequest.request as CheckoutRequest).sources.findIndex(src => src.rail === "stripe"), transactionRequest.stripeStubAmount);
+            }
             const postTransaction = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transactionRequest.type}`, "POST", transactionRequest.request);
-            console.log(JSON.stringify(postTransaction));
             chai.assert.equal(postTransaction.statusCode, 201);
-            console.log("created checkout totals: " + JSON.stringify(postTransaction.body.totals, null, 4));
 
+            let capture: Transaction;
             if (transactionRequest.captured) {
+                if (charge) {
+                    stubStripeCapture(charge);
+                }
                 const postCapture = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transactionRequest.request.id}/capture`, "POST", {id: transactionRequest.request.id + "-capture"});
-                console.log(JSON.stringify(postCapture));
                 chai.assert.equal(postCapture.statusCode, 201);
+                capture = postCapture.body;
             } else if (transactionRequest.voided) {
+                if (charge) {
+                    stubStripeRefund(charge);
+                }
                 const postVoid = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transactionRequest.request.id}/void`, "POST", {id: transactionRequest.request.id + "-void"});
                 chai.assert.equal(postVoid.statusCode, 201);
-            } else if (transactionRequest.reversed) {
-                const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transactionRequest.request.id}/reverse`, "POST", {id: transactionRequest.request.id + "-reverse"});
+            }
+
+            if (transactionRequest.reversed) {
+                if (charge) {
+                    stubStripeRefund(charge);
+                }
+                const transactionIdToReverse = capture ? capture.id : transactionRequest.request.id;
+                const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transactionIdToReverse}/reverse`, "POST", {id: transactionRequest.request.id + "-reverse"});
                 chai.assert.equal(postReverse.statusCode, 201);
             }
         }
@@ -478,10 +536,11 @@ describe("/v2/values/ - secret stats capability", () => {
 
 
 interface TransactionRequestData {
-    type: string,
-    request: CheckoutRequest | DebitRequest | CreditRequest | TransferRequest,
-    captured?: boolean,
-    voided?: boolean,
-    reversed?: boolean
+    type: string;
+    request: CheckoutRequest | DebitRequest | CreditRequest | TransferRequest;
+    captured?: boolean;
+    voided?: boolean;
+    reversed?: boolean;
+    stripeStubAmount?: number;
 }
 

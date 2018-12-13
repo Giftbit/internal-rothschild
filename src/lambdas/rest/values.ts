@@ -618,6 +618,11 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
     };
 
     const knex = await getKnexRead();
+    /**
+     * Note, this query joins from root Transactions involving the valueId to the last Transaction in the chain.
+     * This will need to be updated once partial capture becomes a thing since joining to the last Transaction in the chain
+     * will no longer give a complete picture regarding what happened.
+     */
     let query = knex("LightrailTransactionSteps as LTS")
         .where({
             "LTS.userId": auth.userId,
@@ -652,6 +657,7 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
             stats.redeemed.balance += -row.balanceChange;
             stats.redeemed.transactionCount += row.transactionCount;
         } else if (row.rootTransactionType === "checkout" && (row.lastTransactionType === null || row.lastTransactionType === "capture")) {
+            stats.redeemed.transactionCount += row.transactionCount;
             stats.redeemed.balance += -row.balanceChange;
             stats.checkout.lightrailSpend += +row.paidLightrail + +row.discountLightrail;
             stats.checkout.transactionCount += row.transactionCount;
