@@ -86,10 +86,11 @@ describe("/v2/transactions/reverse - attach", () => {
                         "balanceChange": -100,
                         "usesRemainingBefore": null,
                         "usesRemainingAfter": null,
-                        "usesRemainingChange": 0
+                        "usesRemainingChange": null
                     }
                 ],
                 "paymentSources": null,
+                "pending": false,
                 "metadata": null,
                 "createdBy": "default-test-user-TEST"
             } as Transaction, ["createdDate"]
@@ -131,7 +132,10 @@ describe("/v2/transactions/reverse - attach", () => {
         chai.assert.equal(postContact.statusCode, 201);
 
         // create attach
-        const postAttach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: genericValue.id});
+        const postAttach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+            valueId: genericValue.id,
+            attachGenericAsNewValue: true
+        });
         chai.assert.equal(postAttach.statusCode, 200, `body=${JSON.stringify(postAttach.body)}`);
         chai.assert.equal(postAttach.body.contactId, contact.id);
         chai.assert.equal(postAttach.body.usesRemaining, 1);
@@ -178,6 +182,7 @@ describe("/v2/transactions/reverse - attach", () => {
                     }
                 ],
                 "paymentSources": null,
+                "pending": false,
                 "metadata": null,
                 "createdBy": "default-test-user-TEST"
             } as Transaction, ["createdDate"]

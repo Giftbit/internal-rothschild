@@ -189,6 +189,7 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             ],
             "steps": null,
             "paymentSources": null,
+            pending: false,
             "metadata": null,
             tax: {
                 "roundingMode": "HALF_EVEN"
@@ -369,6 +370,7 @@ describe("/v2/transactions/checkout - mixed sources", () => {
                     code: valueGenericCode.code
                 }
             ],
+            pending: false,
             "metadata": null,
             tax: {
                 "roundingMode": "HALF_EVEN"

@@ -160,6 +160,7 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                     "valueId": promotion.id
                 }
             ],
+            pending: false,
             "metadata": null,
             tax: {
                 "roundingMode": "HALF_EVEN"
@@ -284,6 +285,7 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                     "valueId": promotion.id
                 }
             ],
+            pending: false,
             "metadata": null,
             tax: {
                 "roundingMode": "HALF_EVEN"
@@ -446,6 +448,7 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                     "valueId": productPromotion.id
                 }
             ],
+            pending: false,
             "metadata": null,
             tax: {
                 "roundingMode": "HALF_EVEN"
@@ -647,6 +650,7 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                     "valueId": giftCard1.id
                 }
             ],
+            pending: false,
             "metadata": null,
             tax: {
                 "roundingMode": "HALF_EVEN"
@@ -771,6 +775,7 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                     "valueId": promotion.id
                 }
             ],
+            pending: false,
             "metadata": null,
             tax: {
                 "roundingMode": "HALF_EVEN"
@@ -843,6 +848,7 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                     "valueId": promotion.id
                 }
             ],
+            pending: false,
             "metadata": null,
             tax: {
                 "roundingMode": "HALF_EVEN"
@@ -976,6 +982,7 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                     "valueId": promotion20PercentOffRemainder.id
                 }
             ],
+            "pending": false,
             "metadata": null,
             tax: {
                 "roundingMode": "HALF_EVEN"
@@ -1109,6 +1116,7 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                     "valueId": value2.id
                 }
             ],
+            "pending": false,
             "metadata": {
                 "isGoldClient": false,
                 "isNewClient": true

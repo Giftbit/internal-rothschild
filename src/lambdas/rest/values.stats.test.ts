@@ -1,8 +1,8 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as testUtils from "../../utils/testUtils";
-import {installRestRoutes} from "./installRestRoutes";
 import {setCodeCryptographySecrets} from "../../utils/testUtils";
+import {installRestRoutes} from "./installRestRoutes";
 import {createCurrency} from "./currencies";
 import {Value} from "../../model/Value";
 import {Transaction} from "../../model/Transaction";
@@ -131,7 +131,8 @@ describe("/v2/values/ - secret stats capability", () => {
             chai.assert.equal(createContactResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
 
             const claimValueResp = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
-                code: value.code
+                code: value.code,
+                attachGenericAsNewValue: true
             });
             chai.assert.equal(createContactResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
 
