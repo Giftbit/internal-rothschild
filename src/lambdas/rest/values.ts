@@ -624,7 +624,7 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
             count: 0,
             paidLightrail: 0,
             discountLightrail: 0,
-            overSpend: 0 // stripe + internal + remainder
+            overspend: 0 // stripe + internal + remainder
         },
         attachedContacts: {
             count: 0
@@ -681,12 +681,9 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
             stats.checkout.paidLightrail += +row.paidLightrail;
             stats.checkout.discountLightrail += +row.discountLightrail;
             stats.checkout.count += row.transactionCount;
-            stats.checkout.overSpend += +row.paidStripe + +row.paidInternal + +row.remainder
+            stats.checkout.overspend += +row.paidStripe + +row.paidInternal + +row.remainder
         }
     }
-    console.log("v2stats:\n\n" + JSON.stringify(stats, null, 4));
-
-    log.info(`injectProgramStats got overspend stats and done ${Date.now() - startTime}ms`);
 
     const attachedStats = await knex("ContactValues")
         .where({
@@ -694,10 +691,9 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
             "valueId": valueId
         })
         .count({count: "*"});
-    console.log("ATTACHED STATS: " + JSON.stringify(attachedStats));
     stats.attachedContacts.count = attachedStats[0].count;
 
-    console.log(JSON.stringify(attachedStats));
+    log.info(`Calculating value stats and done ${Date.now() - startTime}ms`);
     return stats;
 }
 
