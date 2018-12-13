@@ -269,24 +269,30 @@ async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
     });
 }
 
-
 async function deleteProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<{ success: true }> {
     auth.requireIds("userId");
 
-    const knex = await getKnexWrite();
-    const res = await knex("Programs")
-        .where({
-            userId: auth.userId,
-            id: id
-        })
-        .delete();
-    if (res[0] === 0) {
-        throw new cassava.RestError(404);
+    try {
+        const knex = await getKnexWrite();
+        const res = await knex("Programs")
+            .where({
+                userId: auth.userId,
+                id: id
+            })
+            .delete();
+        if (res[0] === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (res[0] > 1) {
+            throw new Error(`Illegal DELETE query.  Deleted ${res.length} values.`);
+        }
+        return {success: true};
+    } catch (err) {
+        if (err.code === "ER_ROW_IS_REFERENCED_2") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Program '${id}' is in use.`, "ProgramInUse");
+        }
+        throw err;
     }
-    if (res[0] > 1) {
-        throw new Error(`Illegal DELETE query.  Deleted ${res.length} values.`);
-    }
-    return {success: true};
 }
 
 function checkProgramProperties(program: Program): void {

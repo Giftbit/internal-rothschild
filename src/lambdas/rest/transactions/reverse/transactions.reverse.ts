@@ -17,7 +17,7 @@ import {
 } from "../../../../model/Transaction";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
-import {getDbTransaction} from "../transactions";
+import {getDbTransaction, getTransaction} from "../transactions";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
 import {Value} from "../../../../model/Value";
 import {getValues} from "../../values";
@@ -26,31 +26,37 @@ import log = require("loglevel");
 export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: ReverseRequest, transactionIdToReverse: string): Promise<TransactionPlan> {
     log.info(`Creating reverse transaction plan for user: ${auth.userId} and reverse request:`, req);
 
-    const dbTransactionToReverse = await getDbTransaction(auth, transactionIdToReverse);
-    if (dbTransactionToReverse.pendingVoidDate) {
+    const lastDbTransaction = await getDbTransaction(auth, transactionIdToReverse);
+    if (lastDbTransaction.pendingVoidDate) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot reverse a pending transaction.`, "TransactionPending");
     }
-    if (dbTransactionToReverse.transactionType === "reverse") {
+    if (lastDbTransaction.transactionType === "reverse") {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot reverse a reverse transaction.`, "TransactionNotReversible");
     }
-    if (dbTransactionToReverse.transactionType === "void") {
+    if (lastDbTransaction.transactionType === "void") {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot reverse a void transaction.`, "TransactionNotReversible");
     }
-    if (dbTransactionToReverse.nextTransactionId) {
+    if (lastDbTransaction.nextTransactionId) {
         let nextTransaction: DbTransaction;
         try {
-            nextTransaction = await getDbTransaction(auth, dbTransactionToReverse.nextTransactionId);
+            nextTransaction = await getDbTransaction(auth, lastDbTransaction.nextTransactionId);
         } catch (err) {
-            throw new Error(`Transaction '${dbTransactionToReverse.id}' has nextTransactionId '${dbTransactionToReverse.nextTransactionId}' that could not be retrieved for error messaging. ${err}`);
+            throw new Error(`Transaction '${lastDbTransaction.id}' has nextTransactionId '${lastDbTransaction.nextTransactionId}' that could not be retrieved for error messaging. ${err}`);
         }
 
         if (nextTransaction.transactionType === "reverse") {
-            throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Transaction has already been reversed in Transaction '${dbTransactionToReverse.nextTransactionId}'.`, "TransactionReversed");
+            throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Transaction has already been reversed in Transaction '${lastDbTransaction.nextTransactionId}'.`, "TransactionReversed");
         }
-        throw new Error(`Transaction '${dbTransactionToReverse.id}' has nextTransactionId '${dbTransactionToReverse.nextTransactionId}' with unexpected transactionType '${nextTransaction.transactionType}'.`);
+        throw new Error(`Transaction '${lastDbTransaction.id}' has nextTransactionId '${lastDbTransaction.nextTransactionId}' with unexpected transactionType '${nextTransaction.transactionType}'.`);
     }
 
-    const transactionToReverse: Transaction = (await DbTransaction.toTransactions([dbTransactionToReverse], auth.userId))[0];
+    // If this Transaction is a capture then we want to reverse the pending
+    // transaction before it.  When we support partial refunds and partial
+    // captures this will need to go through the whole chain.
+    const transactionToReverse: Transaction =
+        lastDbTransaction.transactionType === "capture"
+            ? await getTransaction(auth, lastDbTransaction.rootTransactionId)
+            : (await DbTransaction.toTransactions([lastDbTransaction], auth.userId))[0];
 
     return {
         id: req.id,
@@ -64,7 +70,7 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
         lineItems: null,
         paymentSources: null,
         rootTransactionId: transactionToReverse.id,
-        previousTransactionId: transactionToReverse.id
+        previousTransactionId: lastDbTransaction.id
     };
 }
 
