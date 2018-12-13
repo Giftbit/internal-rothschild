@@ -5,8 +5,10 @@ import {TransactionTotals, TransactionType} from "../../../../model/Transaction"
 import {bankersRounding, roundTax} from "../../../../utils/moneyUtils";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
 import {TaxRequestProperties} from "../../../../model/TaxProperties";
+import {getPendingVoidDate} from "../pendingTransactionUtils";
 
 export class CheckoutTransactionPlan implements TransactionPlan {
+
     id: string;
     transactionType: TransactionType;
     currency: string;
@@ -14,11 +16,12 @@ export class CheckoutTransactionPlan implements TransactionPlan {
     lineItems: LineItemResponse[] | null;
     paymentSources: TransactionParty[] | null;
     steps: TransactionPlanStep[];
+    tax: TaxRequestProperties;
+    pendingVoidDate?: Date;
     createdDate: Date;
     metadata: object | null;
-    tax: TaxRequestProperties;
 
-    constructor(checkout: CheckoutRequest, steps: TransactionPlanStep[]) {
+    constructor(checkout: CheckoutRequest, steps: TransactionPlanStep[], now: Date) {
         let lineItemResponses: LineItemResponse[] = [];
         for (let lineItem of checkout.lineItems) {
             lineItem.quantity = lineItem.quantity ? lineItem.quantity : 1;
@@ -41,10 +44,13 @@ export class CheckoutTransactionPlan implements TransactionPlan {
         this.currency = checkout.currency;
         this.lineItems = lineItemResponses.sort((a, b) => b.lineTotal.subtotal - a.lineTotal.subtotal);
         this.steps = steps;
-        this.metadata = checkout.metadata;
         this.paymentSources = checkout.sources; // TODO if secure code, only return last four
-        this.createdDate = nowInDbPrecision();
         this.tax = checkout.tax;
+        this.pendingVoidDate = getPendingVoidDate(checkout, now, {
+            hasStripe: !!this.steps.find(step => step.rail === "stripe")
+        });
+        this.createdDate = now;
+        this.metadata = checkout.metadata;
         this.calculateTotalsFromLineItemsAndSteps();
     }
 

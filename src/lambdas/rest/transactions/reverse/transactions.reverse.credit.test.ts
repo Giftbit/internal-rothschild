@@ -85,10 +85,11 @@ describe("/v2/transactions/reverse - credit", () => {
                         "balanceChange": -50,
                         "usesRemainingBefore": null,
                         "usesRemainingAfter": null,
-                        "usesRemainingChange": 0
+                        "usesRemainingChange": null
                     }
                 ],
                 "paymentSources": null,
+                "pending": false,
                 "metadata": null,
                 "createdBy": "default-test-user-TEST"
             }, ["createdDate"]
@@ -160,6 +161,7 @@ describe("/v2/transactions/reverse - credit", () => {
                     }
                 ],
                 "paymentSources": null,
+                "pending": false,
                 "metadata": null,
                 "createdBy": "default-test-user-TEST"
             }, ["createdDate"]

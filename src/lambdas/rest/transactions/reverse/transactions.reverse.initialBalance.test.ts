@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as testUtils from "../../../../utils/testUtils/index";
-import {generateId} from "../../../../utils/testUtils/index";
+import {generateId} from "../../../../utils/testUtils";
 import {installRestRoutes} from "../../installRestRoutes";
 import {createCurrency} from "../../currencies";
 import {Value} from "../../../../model/Value";
@@ -69,10 +69,11 @@ describe("/v2/transactions/reverse - initialBalance", () => {
                     "balanceChange": -100,
                     "usesRemainingBefore": null,
                     "usesRemainingAfter": null,
-                    "usesRemainingChange": 0
+                    "usesRemainingChange": null
                 }
             ],
             "paymentSources": null,
+            "pending": false,
             "metadata": null,
             "createdBy": "default-test-user-TEST"
         }, ["createdDate"]);
@@ -123,13 +124,14 @@ describe("/v2/transactions/reverse - initialBalance", () => {
                     "code": null,
                     "balanceBefore": null,
                     "balanceAfter": null,
-                    "balanceChange": 0,
+                    "balanceChange": null,
                     "usesRemainingBefore": 1,
                     "usesRemainingAfter": 0,
                     "usesRemainingChange": -1
                 }
             ],
             "paymentSources": null,
+            "pending": false,
             "metadata": null,
             "createdBy": "default-test-user-TEST"
         }, ["createdDate"]);

@@ -1,14 +1,14 @@
 import * as cassava from "cassava";
+import * as Stripe from "stripe";
 
 export class StripeRestError extends cassava.RestError {
-    constructor(statusCode?: number, message?: string, messageCode?: string, stripeError?: object) {
-        let additionalProps: any = {};
-        if (messageCode) {
-            additionalProps.messageCode = messageCode;
-        }
-        if (stripeError) {
-            additionalProps.stripeError = stripeError;
-        }
-        super(statusCode, message, additionalProps);
+
+    readonly isStripeRestError = true;
+
+    constructor(statusCode: number, message: string, messageCode: string, public stripeError: Stripe.IStripeError) {
+        super(statusCode, message, {
+            messageCode,
+            stripeError
+        });
     }
 }

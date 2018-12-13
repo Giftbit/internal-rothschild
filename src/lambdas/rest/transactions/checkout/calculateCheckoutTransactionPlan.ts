@@ -7,15 +7,16 @@ import {
 } from "../TransactionPlan";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import {Value} from "../../../../model/Value";
-import {RuleContext} from "../RuleContext";
+import {RuleContext} from "../rules/RuleContext";
 import {CheckoutTransactionPlan} from "./CheckoutTransactionPlan";
 import {bankersRounding} from "../../../../utils/moneyUtils";
+import {LineItemResponse} from "../../../../model/LineItem";
 import log = require("loglevel");
 
 /**
  * Build a TransactionPlan for checkout.  This mutates the steps by setting the amount.
  */
-export function calculateCheckoutTransactionPlan(checkout: CheckoutRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[]): TransactionPlan {
+export function calculateCheckoutTransactionPlan(checkout: CheckoutRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[], now: Date): TransactionPlan {
     // Reset step amounts in case they were set in a previous call to this function.
     for (const step of preTaxSteps) {
         step.amount = 0;
@@ -30,7 +31,7 @@ export function calculateCheckoutTransactionPlan(checkout: CheckoutRequest, preT
         }
     }
 
-    let transactionPlan = new CheckoutTransactionPlan(checkout, preTaxSteps.concat(postTaxSteps));
+    let transactionPlan = new CheckoutTransactionPlan(checkout, preTaxSteps.concat(postTaxSteps), now);
     log.info(`Build checkout transaction plan: ${JSON.stringify(transactionPlan)}`);
     calculateAmountsForTransactionSteps(preTaxSteps, transactionPlan);
     transactionPlan.calculateTaxAndSetOnLineItems();
@@ -89,12 +90,7 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
         const item = transactionPlan.lineItems[index];
         if (item.lineTotal.remainder > 0) {
             if (value.redemptionRule) {
-                if (!new RuleContext({
-                    totals: transactionPlan.totals,
-                    lineItems: transactionPlan.lineItems,
-                    currentLineItem: item,
-                    metadata: transactionPlan.metadata
-                }).evaluateRedemptionRule(value.redemptionRule)) {
+                if (!getRuleContext(transactionPlan, value, step, item).evaluateRedemptionRule(value.redemptionRule)) {
                     log.info(`Value ${value.id} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
                     continue;
                 }
@@ -103,13 +99,9 @@ function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPl
             log.info(`Value ${value.id} CAN be applied to ${JSON.stringify(item)}.`);
             let amount: number;
             if (value.balanceRule) {
-                const valueFromRule = new RuleContext({
-                    totals: transactionPlan.totals,
-                    lineItems: transactionPlan.lineItems,
-                    currentLineItem: item,
-                    metadata: transactionPlan.metadata
-                }).evaluateBalanceRule(value.balanceRule);
-                amount = Math.min(item.lineTotal.remainder, bankersRounding(valueFromRule, 0) | 0);
+                const amountFromRule = Math.max(getRuleContext(transactionPlan, value, step, item).evaluateBalanceRule(value.balanceRule), 0 /* amount from rule must be >= 0*/);
+                const roundedAmountFromRule = bankersRounding(amountFromRule, 0);
+                amount = Math.min(item.lineTotal.remainder, roundedAmountFromRule);
                 step.amount -= amount;
             } else {
                 amount = Math.min(item.lineTotal.remainder, getAvailableBalance(value.balance, step.amount));
@@ -161,4 +153,17 @@ function calculateAmountForInternalTransactionStep(step: InternalTransactionPlan
 
 function getAvailableBalance(balance: number, negativeStepAmount: number): number {
     return balance + negativeStepAmount;
+}
+
+function getRuleContext(transactionPlan: TransactionPlan, value: Value, step: LightrailTransactionPlanStep, item: LineItemResponse): RuleContext {
+    return new RuleContext({
+        totals: transactionPlan.totals,
+        lineItems: transactionPlan.lineItems,
+        currentLineItem: item,
+        metadata: transactionPlan.metadata,
+        value: {
+            balanceChange: step.amount,
+            metadata: step.value.metadata
+        }
+    })
 }

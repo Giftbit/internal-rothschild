@@ -30,9 +30,10 @@ export interface TransactionPlan {
     lineItems: LineItemResponse[] | null;
     paymentSources: TransactionParty[] | null;
     steps: TransactionPlanStep[];
+    tax: TaxRequestProperties;
+    pendingVoidDate?: Date;
     createdDate: Date;
     metadata: object | null;
-    tax: TaxRequestProperties;
     rootTransactionId?: string;
     previousTransactionId?: string;
 }
@@ -69,13 +70,53 @@ export interface StripeRefundTransactionPlanStep {
     rail: "stripe";
     type: "refund";
     idempotentStepId: string;
+
+    /**
+     * The ID of the charge to refund.
+     */
     chargeId: string;
+
     amount: number;
+
+    /**
+     * Result of creating the refund.  Only set if the plan is executed.
+     */
     refundResult?: stripe.refunds.IRefund;
     reason: string;
 }
 
-export type StripeTransactionPlanStep = StripeChargeTransactionPlanStep | StripeRefundTransactionPlanStep;
+export interface StripeCaptureTransactionPlanStep {
+    rail: "stripe";
+    type: "capture";
+    idempotentStepId: string;
+
+    /**
+     * The ID of the charge to capture.
+     */
+    chargeId: string;
+
+    /**
+     * The amount of the original pending charge.
+     */
+    pendingAmount: number;
+
+    /**
+     * The *adjustment* on how much was captured.  0 is capturing the full amount.
+     * A number > 0 reduces the amount captured from the original charge.
+     * Can't be < 0 because you can't capture more than the original charge.
+     */
+    amount: number;
+
+    /**
+     * Result of capturing the charge in Stripe is only set if the plan is executed.
+     */
+    captureResult?: stripe.charges.ICharge;
+}
+
+export type StripeTransactionPlanStep =
+    StripeChargeTransactionPlanStep
+    | StripeRefundTransactionPlanStep
+    | StripeCaptureTransactionPlanStep;
 
 export interface InternalTransactionPlanStep {
     rail: "internal";
@@ -120,48 +161,70 @@ export namespace LightrailTransactionPlanStep {
 
 export namespace StripeTransactionPlanStep {
     export function toStripeDbTransactionStep(step: StripeTransactionPlanStep, plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge): StripeDbTransactionStep {
-        if (step.type === "charge") {
-            return {
-                userId: auth.userId,
-                id: step.idempotentStepId,
-                transactionId: plan.id,
-                chargeId: step.chargeResult.id,
-                amount: -step.chargeResult.amount /* Note, chargeResult.amount is positive in Stripe but Lightrail treats debits as negative amounts on Steps. */,
-                charge: JSON.stringify(step.chargeResult)
-            };
-        } else {
-            return {
-                userId: auth.userId,
-                id: step.idempotentStepId,
-                transactionId: plan.id,
-                chargeId: step.chargeId,
-                amount: step.refundResult.amount,
-                charge: JSON.stringify(step.refundResult)
-            };
+        switch (step.type) {
+            case "charge":
+                return {
+                    userId: auth.userId,
+                    id: step.idempotentStepId,
+                    transactionId: plan.id,
+                    chargeId: step.chargeResult.id,
+                    amount: -step.chargeResult.amount /* Note, chargeResult.amount is positive in Stripe but Lightrail treats debits as negative amounts on Steps. */,
+                    charge: JSON.stringify(step.chargeResult)
+                };
+            case "refund":
+                return {
+                    userId: auth.userId,
+                    id: step.idempotentStepId,
+                    transactionId: plan.id,
+                    chargeId: step.chargeId,
+                    amount: step.refundResult.amount,
+                    charge: JSON.stringify(step.refundResult)
+                };
+            case "capture": // Capture steps aren't persisted to the DB.
+                return {
+                    userId: auth.userId,
+                    id: step.idempotentStepId,
+                    transactionId: plan.id,
+                    chargeId: step.captureResult.id,
+                    amount: step.amount,
+                    charge: JSON.stringify(step.captureResult)
+                };
+            default:
+                throw new Error(`Unexpected stripe step. This should not happen. Step: ${JSON.stringify(step)}.`);
         }
     }
 
     export function toStripeTransactionStep(step: StripeTransactionPlanStep): StripeTransactionStep {
-        let stripeTransactionStep: StripeTransactionStep = {
+        const stripeTransactionStep: StripeTransactionStep = {
             rail: "stripe",
             chargeId: null,
             charge: null,
             amount: step.amount
         };
-        if (step.type === "charge") {
-            if (step.chargeResult) {
-                stripeTransactionStep.chargeId = step.chargeResult.id;
-                stripeTransactionStep.charge = step.chargeResult;
-                stripeTransactionStep.amount = -step.chargeResult.amount /* Note, chargeResult.amount is positive in Stripe but Lightrail treats debits as negative amounts on Steps. */;
-            }
-        } else if (step.type === "refund") {
-            if (step.refundResult) {
-                stripeTransactionStep.chargeId = step.chargeId;
-                stripeTransactionStep.charge = step.refundResult;
-                stripeTransactionStep.amount = step.refundResult.amount;
-            }
-        } else {
-            throw new Error(`Unexpected stripe step. This should not happen. Step: ${JSON.stringify(step)}.`);
+        switch (step.type) {
+            case "charge":
+                if (step.chargeResult) {
+                    stripeTransactionStep.chargeId = step.chargeResult.id;
+                    stripeTransactionStep.charge = step.chargeResult;
+                    stripeTransactionStep.amount = -step.chargeResult.amount; // chargeResult.amount is positive in Stripe but Lightrail treats debits as negative amounts on Steps.
+                }
+                break;
+            case "refund":
+                if (step.refundResult) {
+                    stripeTransactionStep.chargeId = step.chargeId;
+                    stripeTransactionStep.charge = step.refundResult;
+                    stripeTransactionStep.amount = step.refundResult.amount;
+                }
+                break;
+            case "capture":
+                if (step.captureResult) {
+                    stripeTransactionStep.chargeId = step.captureResult.id;
+                    stripeTransactionStep.charge = step.captureResult;
+                    stripeTransactionStep.amount = step.amount;
+                }
+                break;
+            default:
+                throw new Error(`Unexpected stripe step. This should not happen. Step: ${JSON.stringify(step)}.`);
         }
         return stripeTransactionStep;
     }
@@ -202,6 +265,8 @@ export namespace TransactionPlan {
             lineItems: plan.lineItems,
             steps: plan.steps.map(step => transactionPlanStepToTransactionStep(step)),
             paymentSources: plan.paymentSources && getSanitizedPaymentSources(plan),
+            pending: !!plan.pendingVoidDate,
+            pendingVoidDate: plan.pendingVoidDate || undefined,
             metadata: plan.metadata || null,
             createdBy: auth.teamMemberId
         };

@@ -1,29 +1,30 @@
 import {calculateCheckoutTransactionPlan} from "./calculateCheckoutTransactionPlan";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "../TransactionPlan";
+import {nowInDbPrecision} from "../../../../utils/dbUtils";
 import log = require("loglevel");
 
 export function optimizeCheckout(checkout: CheckoutRequest, steps: TransactionPlanStep[]): TransactionPlan {
     log.info(`optimizing checkout transaction`);
 
+    const now = nowInDbPrecision();
     const unsortedPretaxSteps = steps.filter(step => (step.rail === "internal" && step.pretax) || (step.rail === "lightrail" && step.value.pretax));
     const unsortedPostTaxSteps = steps.filter(step => unsortedPretaxSteps.indexOf(step) === -1);
-
     const sortedPretaxSteps = [];
     const sortedPostTaxSteps = [];
 
-    optimizeSteps(true, unsortedPretaxSteps, checkout, sortedPretaxSteps, sortedPostTaxSteps);
-    optimizeSteps(false, unsortedPostTaxSteps, checkout, sortedPretaxSteps, sortedPostTaxSteps);
+    optimizeSteps(true, unsortedPretaxSteps, checkout, sortedPretaxSteps, sortedPostTaxSteps, now);
+    optimizeSteps(false, unsortedPostTaxSteps, checkout, sortedPretaxSteps, sortedPostTaxSteps, now);
 
     log.info(`optimized checkout transaction\nsortedPretaxSteps: ${JSON.stringify(sortedPretaxSteps)}\nsortedPostTaxSteps: ${JSON.stringify(sortedPostTaxSteps)}`);
 
-    return calculateCheckoutTransactionPlan(checkout, sortedPretaxSteps, sortedPostTaxSteps);
+    return calculateCheckoutTransactionPlan(checkout, sortedPretaxSteps, sortedPostTaxSteps, now);
 }
 
 /**
  * Sort the given unsorted steps and append them to pretax or postTax steps.
  */
-function optimizeSteps(pretax: boolean, unsortedSteps: TransactionPlanStep[], checkout: CheckoutRequest, sortedPretaxSteps: TransactionPlanStep[], sortedPostTaxSteps: TransactionPlanStep[]): void {
+function optimizeSteps(pretax: boolean, unsortedSteps: TransactionPlanStep[], checkout: CheckoutRequest, sortedPretaxSteps: TransactionPlanStep[], sortedPostTaxSteps: TransactionPlanStep[], now: Date): void {
     log.info(`optimizing ${unsortedSteps.length} ${pretax ? "pretax" : "postTax"} steps`);
 
     const splitUnsortedSteps = splitNonLightrailSteps(unsortedSteps);
@@ -45,7 +46,7 @@ function optimizeSteps(pretax: boolean, unsortedSteps: TransactionPlanStep[], ch
                 const step = lightrailStepBucket[stepIx];
                 const newPlanPretaxSteps = pretax ? [...sortedPretaxSteps, step] : sortedPretaxSteps;
                 const newPlanPostTaxSteps = pretax ? sortedPostTaxSteps : [...sortedPostTaxSteps, step];
-                const newPlan = calculateCheckoutTransactionPlan(checkout, newPlanPretaxSteps, newPlanPostTaxSteps);
+                const newPlan = calculateCheckoutTransactionPlan(checkout, newPlanPretaxSteps, newPlanPostTaxSteps, now);
 
                 log.info(`step ${step.value.id} has payable ${newPlan.totals.payable}`);
                 if (!bestPlan || (newPlan.totals.payable < bestPlan.totals.payable)) {
