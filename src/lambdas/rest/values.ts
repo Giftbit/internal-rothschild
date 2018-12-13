@@ -603,28 +603,14 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
 
     const startTime = Date.now();
     const stats = {
-        initialBalance: {
-            balanceChange: 0,
-            count: 0
-        },
-        credit: {
-            balanceChange: 0,
-            count: 0
-        },
-        debit: {
-            balanceChange: 0,
-            count: 0
-        },
-        transfer: {
-            balanceChange: 0,
-            count: 0
+        redeemed: {
+            balance: 0,
+            transactionCount: 0
         },
         checkout: {
-            balanceChange: 0,
-            count: 0,
-            paidLightrail: 0,
-            discountLightrail: 0,
-            overspend: 0 // stripe + internal + remainder
+            lightrailSpend: 0,
+            overspend: 0, // paidStripe + paidInternal + remainder
+            transactionCount: 0
         },
         attachedContacts: {
             count: 0
@@ -633,21 +619,21 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
 
     const knex = await getKnexRead();
     let query = knex("LightrailTransactionSteps as LTS")
+        .where({
+            "LTS.userId": auth.userId,
+            "LTS.valueId": valueId,
+        })
         .join("Transactions as T_ROOT", {
             "T_ROOT.userId": "LTS.userId",
             "T_ROOT.id": "LTS.transactionId"
         })
+        .whereIn("T_ROOT.transactionType", ["checkout", "debit"])
         .leftJoin("Transactions as T_LAST", function () {
             this.on("T_ROOT.id", "=", "T_LAST.rootTransactionId")
                 .andOn("T_ROOT.userId", "=", "T_LAST.userId")
                 .andOn("T_LAST.id", "!=", "T_LAST.rootTransactionId")
                 .andOnNull("T_LAST.nextTransactionId")
         })
-        .where({
-            "LTS.userId": auth.userId,
-            "LTS.valueId": valueId,
-        })
-        .whereIn("T_ROOT.transactionType", ["initialBalance", "checkout", "debit", "credit", "transfer"])
         .count({transactionCount: "*"})
         .sum({balanceChange: "LTS.balanceChange"})
         .sum({discountLightrail: "T_ROOT.totals_discountLightrail"})
@@ -659,28 +645,16 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
         .select({lastTransactionType: "T_LAST.transactionType"})
         .groupBy("T_LAST.transactionType")
         .groupBy("T_ROOT.transactionType");
-    console.log(query.toString());
     const checkoutStats = await query;
-    console.log("checkoutStats: " + JSON.stringify(checkoutStats, null, 4));
 
     for (const row of checkoutStats) {
-        if (row.rootTransactionType === "initialBalance" && (row.lastTransactionType === null || row.lastTransactionType === "capture")) {
-            stats.initialBalance.balanceChange += +row.balanceChange;
-            stats.initialBalance.count += row.transactionCount;
-        } else if (row.rootTransactionType === "credit" && (row.lastTransactionType === null || row.lastTransactionType === "capture")) {
-            stats.credit.balanceChange += +row.balanceChange;
-            stats.credit.count += row.transactionCount;
-        } else if (row.rootTransactionType === "debit" && (row.lastTransactionType === null || row.lastTransactionType === "capture")) {
-            stats.debit.balanceChange += +row.balanceChange;
-            stats.debit.count += row.transactionCount;
-        } else if (row.rootTransactionType === "transfer" && (row.lastTransactionType === null || row.lastTransactionType === "capture")) {
-            stats.transfer.balanceChange += +row.balanceChange;
-            stats.transfer.count += row.transactionCount;
+        if (row.rootTransactionType === "debit" && (row.lastTransactionType === null || row.lastTransactionType === "capture")) {
+            stats.redeemed.balance += -row.balanceChange;
+            stats.redeemed.transactionCount += row.transactionCount;
         } else if (row.rootTransactionType === "checkout" && (row.lastTransactionType === null || row.lastTransactionType === "capture")) {
-            stats.checkout.balanceChange += +row.balanceChange;
-            stats.checkout.paidLightrail += +row.paidLightrail;
-            stats.checkout.discountLightrail += +row.discountLightrail;
-            stats.checkout.count += row.transactionCount;
+            stats.redeemed.balance += -row.balanceChange;
+            stats.checkout.lightrailSpend += +row.paidLightrail + +row.discountLightrail;
+            stats.checkout.transactionCount += row.transactionCount;
             stats.checkout.overspend += +row.paidStripe + +row.paidInternal + +row.remainder
         }
     }
