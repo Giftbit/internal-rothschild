@@ -633,8 +633,8 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
             "T_ROOT.id": "LTS.transactionId"
         })
         .whereIn("T_ROOT.transactionType", ["checkout", "debit"])
-        .leftJoin("Transactions as T_LAST", function () {
-            this.on("T_ROOT.id", "=", "T_LAST.rootTransactionId")
+        .leftJoin("Transactions as T_LAST", query => {
+            query.on("T_ROOT.id", "=", "T_LAST.rootTransactionId")
                 .andOn("T_ROOT.userId", "=", "T_LAST.userId")
                 .andOn("T_LAST.id", "!=", "T_LAST.rootTransactionId")
                 .andOnNull("T_LAST.nextTransactionId")
@@ -650,9 +650,20 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
         .select({lastTransactionType: "T_LAST.transactionType"})
         .groupBy("T_LAST.transactionType")
         .groupBy("T_ROOT.transactionType");
-    const checkoutStats = await query;
 
-    for (const row of checkoutStats) {
+    const results: {
+        transactionCount: number;
+        balanceChange: string; // For some reason sums come back as strings.
+        discountLightrail: string;
+        paidLightrail: string;
+        paidStripe: string;
+        paidInternal: string;
+        remainder: string;
+        rootTransactionType: string; // The transactionType of the root transaction. Restricted to checkout and debit.
+        lastTransactionType: string; // A join is done from the root transaction to the last transaction in the chain. This is the transactionType of the last transaction in the chain.
+    }[] = await query;
+
+    for (const row of results) {
         if (row.rootTransactionType === "debit" && (row.lastTransactionType === null || row.lastTransactionType === "capture")) {
             stats.redeemed.balance += -row.balanceChange;
             stats.redeemed.transactionCount += row.transactionCount;
@@ -672,6 +683,10 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
         })
         .count({count: "*"});
     stats.attachedContacts.count = attachedStats[0].count;
+
+    if ((await getValue(auth, valueId)).contactId) {
+        stats.attachedContacts.count += 1;
+    }
 
     log.info(`Calculating value stats finished and took ${Date.now() - startTime}ms`);
     return stats;

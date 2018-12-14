@@ -372,6 +372,16 @@ describe("/v2/values/ - secret stats capability", () => {
         const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(createValue.statusCode, 201);
 
+        // create contact A and attach
+        const contactA: Partial<Contact> = {
+            id: generateId(),
+            firstName: "A"
+        };
+        const createContactA = await testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contactA);
+        chai.assert.equal(createContactA.statusCode, 201);
+        const attachContactA = await testAuthedRequest<Value>(router, `/v2/contacts/${contactA.id}/values/attach`, "POST", {valueId: value.id});
+        chai.assert.equal(attachContactA.statusCode, 200);
+
         const ccSrc: StripeTransactionParty = {
             rail: "stripe",
             source: "tok_visa"
@@ -481,7 +491,7 @@ describe("/v2/values/ - secret stats capability", () => {
                 "transactionCount": 4
             },
             "attachedContacts": {
-                "count": 0 // note this doesn't count the contactId on the Value as an attached contact.
+                "count": 1
             }
         });
     }).timeout(10000);
