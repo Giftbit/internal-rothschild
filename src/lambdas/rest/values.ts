@@ -648,7 +648,7 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
         .sum({paidInternal: "T_ROOT.totals_paidInternal"})
         .sum({remainder: "T_ROOT.totals_remainder"})
         .select({rootTransactionType: "T_ROOT.transactionType"})
-        .select({lastTransactionType: "T_LAST.transactionType"})
+        .select({finalTransactionType: "T_LAST.transactionType"})
         .groupBy("T_LAST.transactionType")
         .groupBy("T_ROOT.transactionType");
 
@@ -661,14 +661,16 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
         paidInternal: string;
         remainder: string;
         rootTransactionType: string; // The transactionType of the root transaction. Restricted to checkout and debit.
-        lastTransactionType: string; // A join is done from the root transaction to the last transaction in the chain. This is the transactionType of the last transaction in the chain.
+        finalTransactionType: string; // A join is done from the root transaction to the last transaction in the chain.
+                                      // This is the transactionType of the last transaction in the chain.
+                                      // If null, this means the root transaction is the only transaction in the chain.
     }[] = await query;
 
     for (const row of results) {
-        if (row.rootTransactionType === "debit" && (row.lastTransactionType === null || row.lastTransactionType === "capture")) {
+        if (row.rootTransactionType === "debit" && (row.finalTransactionType === null || row.finalTransactionType === "capture")) {
             stats.redeemed.balance += -row.balanceChange;
             stats.redeemed.transactionCount += row.transactionCount;
-        } else if (row.rootTransactionType === "checkout" && (row.lastTransactionType === null || row.lastTransactionType === "capture")) {
+        } else if (row.rootTransactionType === "checkout" && (row.finalTransactionType === null || row.finalTransactionType === "capture")) {
             stats.redeemed.transactionCount += row.transactionCount;
             stats.redeemed.balance += -row.balanceChange;
             stats.checkout.lightrailSpend += +row.paidLightrail + +row.discountLightrail;
