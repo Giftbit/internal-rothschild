@@ -600,6 +600,7 @@ export async function injectValueStats(auth: giftbitRoutes.jwtauth.Authorization
  */
 export async function getValuePerformance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueId: string): Promise<any> {
     auth.requireIds("userId");
+    const value = await getValue(auth, valueId); // checks that the value exists. throws a 404 otherwise.
 
     const startTime = Date.now();
     const stats = {
@@ -684,7 +685,7 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
         .count({count: "*"});
     stats.attachedContacts.count = attachedStats[0].count;
 
-    if ((await getValue(auth, valueId)).contactId) {
+    if (value.contactId) {
         stats.attachedContacts.count += 1;
     }
 

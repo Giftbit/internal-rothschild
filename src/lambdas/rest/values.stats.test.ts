@@ -346,8 +346,8 @@ describe("/v2/values/ - secret stats capability", () => {
 
         await createTransactionData(transactionRequests);
 
-        const stats = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.id}/stats`, "GET");
-        chai.assert.deepEqual(stats.body, {
+        const getStats = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.id}/stats`, "GET");
+        chai.assert.deepEqual(getStats.body, {
             "redeemed": {
                 "balance": 200,
                 "transactionCount": 4
@@ -495,6 +495,41 @@ describe("/v2/values/ - secret stats capability", () => {
             }
         });
     }).timeout(10000);
+
+    it("/value/{id}/stats - can get stats for code without any transactions or attached contacts", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balanceRule: {
+                rule: "1",
+                explanation: "$0.01 off everything!"
+            }
+        };
+
+        const postValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(postValue.statusCode, 201);
+
+        const getStats = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.id}/stats`, "GET");
+        chai.assert.deepEqual(getStats.body, {
+            "redeemed": {
+                "balance": 0,
+                "transactionCount": 0
+            },
+            "checkout": {
+                "lightrailSpend": 0,
+                "overspend": 0,
+                "transactionCount": 0
+            },
+            "attachedContacts": {
+                "count": 0
+            }
+        });
+    });
+
+    it("can't get stats for Value that doesn't exist - 404s", async () => {
+        const getStats = await testUtils.testAuthedRequest<any>(router, `/v2/values/${generateId()}/stats`, "GET");
+        chai.assert.equal(getStats.statusCode, 404);
+    });
 
 
     async function createTransactionData(transactionRequests: TransactionRequestData[]): Promise<void> {
