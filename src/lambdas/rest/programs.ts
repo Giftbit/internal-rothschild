@@ -374,7 +374,15 @@ export async function getProgramStats(auth: giftbitRoutes.jwtauth.AuthorizationB
             "LightrailTransactionSteps.userId": "Values.userId",
             "LightrailTransactionSteps.valueId": "Values.id"
         })
-        .where("LightrailTransactionSteps.balanceChange", "<", 0)
+        .join("Transactions", {
+            "Transactions.userId": "LightrailTransactionSteps.userId",
+            "Transactions.id": "LightrailTransactionSteps.transactionId"
+        })
+        .join("Transactions as TransactionRoots", {
+            "TransactionRoots.userId": "Transactions.userId",
+            "TransactionRoots.id": "Transactions.rootTransactionId"
+        })
+        .whereIn("TransactionRoots.transactionType", ["checkout", "debit"])
         .sum({balance: "LightrailTransactionSteps.balanceChange"})
         .countDistinct({transactionCount: "LightrailTransactionSteps.transactionId"})
         .countDistinct({valueCount: "Values.id"});
@@ -386,7 +394,7 @@ export async function getProgramStats(auth: giftbitRoutes.jwtauth.AuthorizationB
 
     const overspendStatsRes: { lrBalance: number, iBalance: number, sBalance: number, remainder: number, transactionCount: number }[] = await knex
         .from(knex.raw("? as Txs", [
-            // Get unique Transaction IDs related to the Program
+            // Get unique Transaction IDs of Transactions with a root checkout Transaction and steps with Values in this Program
             knex("Values")
                 .where({
                     "Values.userId": auth.userId,
@@ -401,11 +409,15 @@ export async function getProgramStats(auth: giftbitRoutes.jwtauth.AuthorizationB
                     "Transactions.userId": "LightrailTransactionSteps.userId",
                     "Transactions.id": "LightrailTransactionSteps.transactionId"
                 })
-                .where({"Transactions.transactionType": "checkout"})
+                .join("Transactions as TransactionRoots", {
+                    "TransactionRoots.userId": "Transactions.userId",
+                    "TransactionRoots.id": "Transactions.rootTransactionId"
+                })
+                .where({"TransactionRoots.transactionType": "checkout"})
                 .distinct("Transactions.id", "Transactions.totals_remainder")
         ]))
         .leftJoin(
-            // For each Transaction, sum LightrailTransactionSteps.balanceChange
+            // For each Transaction: sum LightrailTransactionSteps.balanceChange
             knex.raw(
                 "? as LightrailBalances on LightrailBalances.transactionId = Txs.id",
                 [
@@ -418,7 +430,7 @@ export async function getProgramStats(auth: giftbitRoutes.jwtauth.AuthorizationB
             )
         )
         .leftJoin(
-            // For each Transaction, sum InternalTransactionSteps.balanceChange
+            // For each Transaction: sum InternalTransactionSteps.balanceChange
             knex.raw(
                 "? as InternalBalances on InternalBalances.transactionId = Txs.id",
                 [
@@ -431,7 +443,7 @@ export async function getProgramStats(auth: giftbitRoutes.jwtauth.AuthorizationB
             )
         )
         .leftJoin(
-            // For each Transaction, sum StripeTransactionSteps.amount
+            // For each Transaction: sum StripeTransactionSteps.amount
             knex.raw(
                 "? as StripeAmounts on StripeAmounts.transactionId = Txs.id",
                 [
