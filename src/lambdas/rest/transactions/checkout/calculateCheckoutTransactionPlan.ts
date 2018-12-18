@@ -133,8 +133,7 @@ function calculateAmountForStripeTransactionStep(step: StripeChargeTransactionPl
                 amount = step.maxAmount;
                 item.lineTotal.remainder -= difference;
             }
-        }
-        else {  // charge full remainder for each line item to Stripe
+        } else {  // charge full remainder for each line item to Stripe
             amount += item.lineTotal.remainder;
             item.lineTotal.remainder = 0;
         }
@@ -165,5 +164,5 @@ function getRuleContext(transactionPlan: TransactionPlan, value: Value, step: Li
             balanceChange: step.amount,
             metadata: step.value.metadata
         }
-    })
+    });
 }

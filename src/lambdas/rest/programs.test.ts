@@ -6,16 +6,18 @@ import {Program} from "../../model/Program";
 import {installRestRoutes} from "./installRestRoutes";
 import {createCurrency} from "./currencies";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
-import {CheckoutRequest, CreditRequest, DebitRequest, LightrailTransactionParty} from "../../model/TransactionRequest";
+import {CheckoutRequest} from "../../model/TransactionRequest";
 import {
     setStubsForStripeTests,
     stubCheckoutStripeCharge,
+    stubStripeCapture,
+    stubStripeRefund,
     unsetStubsForStripeTests
 } from "../../utils/testUtils/stripeTestUtils";
-import chaiExclude = require("chai-exclude");
 import {Value} from "../../model/Value";
-import {Part} from "aws-sdk/clients/s3";
 import {Transaction} from "../../model/Transaction";
+import {ProgramStats} from "../../model/ProgramStats";
+import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
@@ -414,11 +416,11 @@ describe("/v2/programs", () => {
         chai.assert.isNumber(patchResp.body.column);
     });
 
-    describe.only("stats", () => {
+    describe("stats", () => {
         interface Scenario {
             description: string;
             setup: (programId: string) => Promise<void>;
-            result: any;
+            result: Partial<ProgramStats>;
         }
 
         const scenarios: Scenario[] = [
@@ -810,8 +812,8 @@ describe("/v2/programs", () => {
                     },
                     redeemed: {
                         balance: 0,
-                        count: 0,
-                        transactionCount: 0
+                        count: 1,
+                        transactionCount: 1
                     },
                     checkout: {
                         lightrailSpend: 0,
@@ -856,8 +858,8 @@ describe("/v2/programs", () => {
                     },
                     redeemed: {
                         balance: 0,
-                        count: 0,
-                        transactionCount: 0
+                        count: 1,
+                        transactionCount: 1
                     },
                     checkout: {
                         lightrailSpend: 0,
@@ -913,6 +915,63 @@ describe("/v2/programs", () => {
                     },
                     checkout: {
                         lightrailSpend: 1,
+                        overspend: 0,
+                        transactionCount: 1
+                    }
+                }
+            },
+            {
+                description: "checkout lightrail balanceRule",
+                setup: async (programId: string) => {
+                    const value = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                        id: generateId(),
+                        balanceRule: {
+                            explanation: "100% off",
+                            rule: "currentLineItem.lineTotal.remainder"
+                        },
+                        programId
+                    });
+                    chai.assert.deepEqual(value.statusCode, 201, JSON.stringify(value.body));
+                    const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                        id: generateId(),
+                        lineItems: [
+                            {
+                                type: "product",
+                                productId: "log",
+                                quantity: 1,
+                                unitPrice: 3
+                            }
+                        ],
+                        currency: "USD",
+                        sources: [
+                            {
+                                rail: "lightrail",
+                                valueId: value.body.id
+                            }
+                        ]
+                    });
+                    chai.assert.deepEqual(checkout.statusCode, 201, JSON.stringify(checkout.body));
+                },
+                result: {
+                    outstanding: {
+                        balance: 0,
+                        count: 1
+                    },
+                    expired: {
+                        balance: 0,
+                        count: 0
+                    },
+                    canceled: {
+                        balance: 0,
+                        count: 0
+                    },
+                    redeemed: {
+                        balance: 3,
+                        count: 1,
+                        transactionCount: 1
+                    },
+                    checkout: {
+                        lightrailSpend: 3,
                         overspend: 0,
                         transactionCount: 1
                     }
@@ -1073,8 +1132,8 @@ describe("/v2/programs", () => {
                     },
                     checkout: {
                         lightrailSpend: 0,
-                        overspend: 6,
-                        transactionCount: 1
+                        overspend: 0,
+                        transactionCount: 0
                     }
                 }
             },
@@ -1117,7 +1176,7 @@ describe("/v2/programs", () => {
                             }
                         ]
                     };
-                    stubCheckoutStripeCharge(checkoutRequest, 0, 6);
+                    stubCheckoutStripeCharge(checkoutRequest, 2, 6);
                     const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
                 },
                 result: {
@@ -1176,8 +1235,9 @@ describe("/v2/programs", () => {
                         ],
                         pending: true
                     };
-                    stubCheckoutStripeCharge(checkoutRequest, 0, 6);
+                    const [charge] = stubCheckoutStripeCharge(checkoutRequest, 1, 10);
                     const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+                    stubStripeCapture(charge);
                     await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.body.id}/capture`, "POST", {id: generateId()});
                 },
                 result: {
@@ -1236,8 +1296,9 @@ describe("/v2/programs", () => {
                         ],
                         pending: true
                     };
-                    stubCheckoutStripeCharge(checkoutRequest, 0, 6);
+                    const [charge] = stubCheckoutStripeCharge(checkoutRequest, 1, 10);
                     const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+                    stubStripeRefund(charge);
                     await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.body.id}/void`, "POST", {id: generateId()});
                 },
                 result: {
@@ -1255,26 +1316,85 @@ describe("/v2/programs", () => {
                     },
                     redeemed: {
                         balance: 0,
-                        count: 0,
-                        transactionCount: 0
+                        count: 1,
+                        transactionCount: 1
                     },
                     checkout: {
                         lightrailSpend: 0,
                         overspend: 0,
-                        transactionCount: 0
+                        transactionCount: 1
+                    }
+                }
+            },
+            {
+                description: "checkout reverse",
+                setup: async (programId: string) => {
+                    const value = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                        id: generateId(),
+                        balance: 4,
+                        programId
+                    });
+                    const checkoutRequest: CheckoutRequest = {
+                        id: generateId(),
+                        lineItems: [
+                            {
+                                type: "product",
+                                productId: "plumbus",
+                                quantity: 1,
+                                unitPrice: 14
+                            }
+                        ],
+                        currency: "USD",
+                        sources: [
+                            {
+                                rail: "lightrail",
+                                valueId: value.body.id
+                            },
+                            {
+                                rail: "stripe",
+                                source: "tok_visa"
+                            }
+                        ]
+                    };
+                    const [charge] = stubCheckoutStripeCharge(checkoutRequest, 1, 10);
+                    const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+                    stubStripeRefund(charge);
+                    await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.body.id}/reverse`, "POST", {id: generateId()});
+                },
+                result: {
+                    outstanding: {
+                        balance: 4,
+                        count: 1
+                    },
+                    expired: {
+                        balance: 0,
+                        count: 0
+                    },
+                    canceled: {
+                        balance: 0,
+                        count: 0
+                    },
+                    redeemed: {
+                        balance: 0,
+                        count: 1,
+                        transactionCount: 1
+                    },
+                    checkout: {
+                        lightrailSpend: 0,
+                        overspend: 0,
+                        transactionCount: 1
                     }
                 }
             },
         ];
 
         function buildScenarioTest(scenario: Scenario): void {
-            it("processes " + scenario.description, async () => {
+            it(scenario.description, async () => {
                 const programId = generateId();
                 const progResp = await testUtils.testAuthedRequest<any>(router, "/v2/programs", "POST", {
                     id: programId,
                     name: generateId(),
-                    currency: "USD",
-                    minInitialBalance: 1
+                    currency: "USD"
                 });
                 chai.assert.equal(progResp.statusCode, 201, JSON.stringify(progResp.body));
 

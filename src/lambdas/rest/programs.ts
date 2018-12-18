@@ -13,6 +13,7 @@ import {
 } from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {checkRulesSyntax} from "./values";
+import {ProgramStats} from "../../model/ProgramStats";
 import log = require("loglevel");
 
 export function installProgramsRest(router: cassava.Router): void {
@@ -306,11 +307,11 @@ function checkProgramProperties(program: Program): void {
 /**
  * This is currently a secret operation only the web app knows about.
  */
-export async function getProgramStats(auth: giftbitRoutes.jwtauth.AuthorizationBadge, programId: string): Promise<any> {
+export async function getProgramStats(auth: giftbitRoutes.jwtauth.AuthorizationBadge, programId: string): Promise<ProgramStats> {
     auth.requireIds("userId");
 
     const startTime = Date.now();
-    const stats = {
+    const stats: ProgramStats = {
         outstanding: {
             balance: 0,
             count: 0
@@ -343,6 +344,10 @@ export async function getProgramStats(auth: giftbitRoutes.jwtauth.AuthorizationB
             "programId": programId,
             "active": true
         })
+        .where(query =>
+            query.where("balance", ">", 0)
+                .orWhereNull("balance")
+        )
         .select("canceled")
         .select(knex.raw("endDate IS NOT NULL AND endDate < ? AS expired", [now]))
         .sum({sumBalance: "balance"})
@@ -364,7 +369,11 @@ export async function getProgramStats(auth: giftbitRoutes.jwtauth.AuthorizationB
 
     log.info(`injectProgramStats got value stats ${Date.now() - startTime}ms`);
 
-    const redeemedStatsRes: { balance: number, transactionCount: number, valueCount: number }[] = await knex("Values")
+    const redeemedStatsRes: {
+        balance: number,
+        transactionCount: number,
+        valueCount: number
+    }[] = await knex("Values")
         .where({
             "Values.userId": auth.userId,
             "Values.programId": programId,
@@ -384,15 +393,22 @@ export async function getProgramStats(auth: giftbitRoutes.jwtauth.AuthorizationB
         })
         .whereIn("TransactionRoots.transactionType", ["checkout", "debit"])
         .sum({balance: "LightrailTransactionSteps.balanceChange"})
-        .countDistinct({transactionCount: "LightrailTransactionSteps.transactionId"})
+        .countDistinct({transactionCount: "TransactionRoots.id"})
         .countDistinct({valueCount: "Values.id"});
+
     stats.redeemed.count = redeemedStatsRes[0].valueCount;
     stats.redeemed.balance = -redeemedStatsRes[0].balance;
     stats.redeemed.transactionCount = redeemedStatsRes[0].transactionCount;
 
     log.info(`injectProgramStats got redeemed stats ${Date.now() - startTime}ms`);
 
-    const overspendStatsRes: { lrBalance: number, iBalance: number, sBalance: number, remainder: number, transactionCount: number }[] = await knex
+    const overspendStatsRes: {
+        lrBalance: number,
+        iBalance: number,
+        sBalance: number,
+        remainder: number,
+        transactionCount: number
+    }[] = await knex
         .from(knex.raw("? as Txs", [
             // Get unique Transaction IDs of Transactions with a root checkout Transaction and steps with Values in this Program
             knex("Values")
@@ -414,6 +430,7 @@ export async function getProgramStats(auth: giftbitRoutes.jwtauth.AuthorizationB
                     "TransactionRoots.id": "Transactions.rootTransactionId"
                 })
                 .where({"TransactionRoots.transactionType": "checkout"})
+                .select("Transactions.rootTransactionId")
                 .distinct("Transactions.id", "Transactions.totals_remainder")
         ]))
         .leftJoin(
@@ -455,7 +472,7 @@ export async function getProgramStats(auth: giftbitRoutes.jwtauth.AuthorizationB
                 ]
             )
         )
-        .countDistinct({transactionCount: "Txs.id"})
+        .countDistinct({transactionCount: "Txs.rootTransactionId"})
         .sum({remainder: "Txs.totals_remainder"})
         .sum({lrBalance: "LightrailBalances.balanceChange"})
         .sum({iBalance: "InternalBalances.balanceChange"})
