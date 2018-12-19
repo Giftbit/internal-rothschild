@@ -6,12 +6,17 @@ import {Program} from "../../model/Program";
 import {installRestRoutes} from "./installRestRoutes";
 import {createCurrency} from "./currencies";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
-import {CheckoutRequest, CreditRequest, DebitRequest} from "../../model/TransactionRequest";
+import {CheckoutRequest} from "../../model/TransactionRequest";
 import {
     setStubsForStripeTests,
     stubCheckoutStripeCharge,
+    stubStripeCapture,
+    stubStripeRefund,
     unsetStubsForStripeTests
 } from "../../utils/testUtils/stripeTestUtils";
+import {Value} from "../../model/Value";
+import {Transaction} from "../../model/Transaction";
+import {ProgramStats} from "../../model/ProgramStats";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -411,270 +416,1046 @@ describe("/v2/programs", () => {
         chai.assert.isNumber(patchResp.body.column);
     });
 
-    it("fetches program stats", async () => {
-        const program: Partial<Program> = {
-            id: generateId(),
-            name: generateId(),
-            currency: "USD",
-            minInitialBalance: 1
-        };
-        const progResp = await testUtils.testAuthedRequest<any>(router, "/v2/programs", "POST", program);
-        chai.assert.equal(progResp.statusCode, 201, JSON.stringify(progResp.body));
-
-        const values = {
-            unused: {
-                id: generateId(),
-                programId: program.id,
-                balance: 2
-            },
-            creditAndDebit: {
-                id: generateId(),
-                programId: program.id,
-                balance: 10
-            },
-            debit: {
-                id: generateId(),
-                programId: program.id,
-                balance: 10
-            },
-            checkout: {
-                id: generateId(),
-                programId: program.id,
-                balance: 2
-            },
-            checkoutShared: {
-                id: generateId(),
-                programId: program.id,
-                balance: 3
-            },
-            checkoutWithInternal: {
-                id: generateId(),
-                programId: program.id,
-                balance: 3
-            },
-            checkoutStripeBalance1: {
-                id: generateId(),
-                programId: program.id,
-                balance: 5
-            },
-            checkoutStripeBalance2: {
-                id: generateId(),
-                programId: program.id,
-                balance: 5
-            },
-            expired: {
-                id: generateId(),
-                programId: program.id,
-                balance: 100,
-                endDate: new Date("2011-11-11")
-            },
-            canceled: {
-                id: generateId(),
-                programId: program.id,
-                balance: 10000,
-                canceled: true
-            },
-            canceledExpired: {
-                id: generateId(),
-                programId: program.id,
-                balance: 30000,
-                canceled: true,
-                endDate: new Date("2011-11-11")
-            }
-        };
-        for (const key in values) {
-            const value = values[key];
-            const valueResp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", {
-                ...value,
-                canceled: undefined
-            });
-            chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
-
-            if (value.canceled) {
-                const patchResp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.id}`, "PATCH", {
-                    canceled: true
-                });
-                chai.assert.equal(patchResp.statusCode, 200, JSON.stringify(patchResp.body));
-            }
+    describe("stats", () => {
+        interface Scenario {
+            description: string;
+            setup: (programId: string) => Promise<void>;
+            result: Partial<ProgramStats>;
         }
 
-        const credits: Partial<CreditRequest>[] = [
+        const scenarios: Scenario[] = [
             {
-                id: generateId(),
-                destination: {
-                    rail: "lightrail",
-                    valueId: values.creditAndDebit.id
+                description: "unused",
+                setup: async (programId: string) => {
+                    const value = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                        id: generateId(),
+                        balance: 2,
+                        programId
+                    });
+                    chai.assert.deepEqual(value.statusCode, 201);
                 },
-                amount: 15,
-                currency: "USD"
-            }
-        ];
-        for (const credit of credits) {
-            const creditResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", credit);
-            chai.assert.equal(creditResp.statusCode, 201, JSON.stringify(creditResp.body));
-        }
-
-        const debits: Partial<DebitRequest>[] = [
-            {
-                id: generateId(),
-                source: {
-                    rail: "lightrail",
-                    valueId: values.creditAndDebit.id
-                },
-                amount: 5,
-                currency: "USD"
-            },
-            {
-                id: generateId(),
-                source: {
-                    rail: "lightrail",
-                    valueId: values.creditAndDebit.id
-                },
-                amount: 5,
-                currency: "USD"
-            },
-            {
-                id: generateId(),
-                source: {
-                    rail: "lightrail",
-                    valueId: values.debit.id
-                },
-                amount: 2,
-                currency: "USD"
-            }
-        ];
-        for (const debit of debits) {
-            const debitResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/debit", "POST", debit);
-            chai.assert.equal(debitResp.statusCode, 201, JSON.stringify(debitResp.body));
-        }
-
-        const checkouts: CheckoutRequest[] = [
-            {
-                id: generateId(),
-                lineItems: [
-                    {
-                        type: "product",
-                        productId: "dead-parrot",
-                        quantity: 1,
-                        unitPrice: 1
-                    }
-                ],
-                currency: "USD",
-                sources: [
-                    {
-                        rail: "lightrail",
-                        valueId: values.checkout.id
-                    }
-                ]
-            },
-            {
-                id: generateId(),
-                lineItems: [
-                    {
-                        type: "product",
-                        productId: "bachelor-chow",
-                        quantity: 1,
-                        unitPrice: 6
-                    }
-                ],
-                currency: "USD",
-                sources: [
-                    {
-                        rail: "lightrail",
-                        valueId: values.checkout.id
+                result: {
+                    outstanding: {
+                        balance: 2,
+                        count: 1
                     },
-                    {
-                        rail: "lightrail",
-                        valueId: values.checkoutShared.id
+                    expired: {
+                        balance: 0,
+                        count: 0
+                    },
+                    canceled: {
+                        balance: 0,
+                        count: 0
+                    },
+                    redeemed: {
+                        balance: 0,
+                        count: 0,
+                        transactionCount: 0
+                    },
+                    checkout: {
+                        lightrailSpend: 0,
+                        overspend: 0,
+                        transactionCount: 0
                     }
-                ],
-                allowRemainder: true
+                }
             },
             {
-                id: generateId(),
-                lineItems: [
-                    {
-                        type: "product",
-                        productId: "squishee",
-                        quantity: 1,
-                        unitPrice: 6
-                    }
-                ],
-                currency: "USD",
-                sources: [
-                    {
-                        rail: "lightrail",
-                        valueId: values.checkoutWithInternal.id
+                description: "canceled",
+                setup: async (programId: string) => {
+                    const value = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                        id: generateId(),
+                        balance: 100,
+                        programId
+                    });
+                    await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.body.id}`, "PATCH", {
+                        canceled: true
+                    });
+                },
+                result: {
+                    outstanding: {
+                        balance: 0,
+                        count: 0
                     },
-                    {
-                        rail: "internal",
-                        internalId: generateId(),
+                    expired: {
+                        balance: 0,
+                        count: 0
+                    },
+                    canceled: {
+                        balance: 100,
+                        count: 1
+                    },
+                    redeemed: {
+                        balance: 0,
+                        count: 0,
+                        transactionCount: 0
+                    },
+                    checkout: {
+                        lightrailSpend: 0,
+                        overspend: 0,
+                        transactionCount: 0
+                    }
+                }
+            },
+            {
+                description: "expired",
+                setup: async (programId: string) => {
+                    await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                        id: generateId(),
+                        balance: 300,
+                        programId,
+                        endDate: new Date("2011-11-11")
+                    });
+                },
+                result: {
+                    outstanding: {
+                        balance: 0,
+                        count: 0
+                    },
+                    expired: {
+                        balance: 300,
+                        count: 1
+                    },
+                    canceled: {
+                        balance: 0,
+                        count: 0
+                    },
+                    redeemed: {
+                        balance: 0,
+                        count: 0,
+                        transactionCount: 0
+                    },
+                    checkout: {
+                        lightrailSpend: 0,
+                        overspend: 0,
+                        transactionCount: 0
+                    }
+                }
+            },
+            {
+                description: "canceled and expired",
+                setup: async (programId: string) => {
+                    const value = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                        id: generateId(),
+                        balance: 700,
+                        programId,
+                        endDate: new Date("2011-11-11")
+                    });
+                    await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.body.id}`, "PATCH", {
+                        canceled: true
+                    });
+                },
+                result: {
+                    outstanding: {
+                        balance: 0,
+                        count: 0
+                    },
+                    expired: {
+                        balance: 0,
+                        count: 0
+                    },
+                    canceled: {
+                        balance: 700,
+                        count: 1
+                    },
+                    redeemed: {
+                        balance: 0,
+                        count: 0,
+                        transactionCount: 0
+                    },
+                    checkout: {
+                        lightrailSpend: 0,
+                        overspend: 0,
+                        transactionCount: 0
+                    }
+                }
+            },
+            {
+                description: "credit and debit",
+                setup: async (programId: string) => {
+                    const value = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                        id: generateId(),
+                        balance: 10,
+                        programId
+                    });
+                    await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", {
+                        id: generateId(),
+                        destination: {
+                            rail: "lightrail",
+                            valueId: value.body.id
+                        },
+                        amount: 15,
+                        currency: "USD"
+                    });
+                    await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
+                        id: generateId(),
+                        source: {
+                            rail: "lightrail",
+                            valueId: value.body.id
+                        },
+                        amount: 5,
+                        currency: "USD"
+                    });
+                },
+                result: {
+                    outstanding: {
+                        balance: 20,
+                        count: 1
+                    },
+                    expired: {
+                        balance: 0,
+                        count: 0
+                    },
+                    canceled: {
+                        balance: 0,
+                        count: 0
+                    },
+                    redeemed: {
+                        balance: 5,
+                        count: 1,
+                        transactionCount: 1
+                    },
+                    checkout: {
+                        lightrailSpend: 0,
+                        overspend: 0,
+                        transactionCount: 0
+                    }
+                }
+            },
+            {
+                description: "debit then cancel",
+                setup: async (programId: string) => {
+                    const value = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                        id: generateId(),
+                        balance: 13,
+                        programId
+                    });
+                    await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
+                        id: generateId(),
+                        source: {
+                            rail: "lightrail",
+                            valueId: value.body.id
+                        },
+                        amount: 6,
+                        currency: "USD"
+                    });
+                    await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.body.id}`, "PATCH", {
+                        canceled: true
+                    });
+                },
+                result: {
+                    outstanding: {
+                        balance: 0,
+                        count: 0
+                    },
+                    expired: {
+                        balance: 0,
+                        count: 0
+                    },
+                    canceled: {
+                        balance: 7,
+                        count: 1
+                    },
+                    redeemed: {
+                        balance: 6,
+                        count: 1,
+                        transactionCount: 1
+                    },
+                    checkout: {
+                        lightrailSpend: 0,
+                        overspend: 0,
+                        transactionCount: 0
+                    }
+                }
+            },
+            {
+                description: "debit x 3",
+                setup: async (programId: string) => {
+                    const value = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                        id: generateId(),
+                        balance: 20,
+                        programId
+                    });
+                    await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
+                        id: generateId(),
+                        source: {
+                            rail: "lightrail",
+                            valueId: value.body.id
+                        },
+                        amount: 1,
+                        currency: "USD"
+                    });
+                    await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
+                        id: generateId(),
+                        source: {
+                            rail: "lightrail",
+                            valueId: value.body.id
+                        },
+                        amount: 3,
+                        currency: "USD"
+                    });
+                    await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
+                        id: generateId(),
+                        source: {
+                            rail: "lightrail",
+                            valueId: value.body.id
+                        },
+                        amount: 5,
+                        currency: "USD"
+                    });
+                },
+                result: {
+                    outstanding: {
+                        balance: 11,
+                        count: 1
+                    },
+                    expired: {
+                        balance: 0,
+                        count: 0
+                    },
+                    canceled: {
+                        balance: 0,
+                        count: 0
+                    },
+                    redeemed: {
+                        balance: 9,
+                        count: 1,
+                        transactionCount: 3
+                    },
+                    checkout: {
+                        lightrailSpend: 0,
+                        overspend: 0,
+                        transactionCount: 0
+                    }
+                }
+            },
+            {
+                description: "debit pending capture",
+                setup: async (programId: string) => {
+                    const value = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                        id: generateId(),
+                        balance: 10,
+                        programId
+                    });
+                    const debit = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
+                        id: generateId(),
+                        source: {
+                            rail: "lightrail",
+                            valueId: value.body.id
+                        },
+                        amount: 4,
+                        currency: "USD",
+                        pending: true
+                    });
+                    await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${debit.body.id}/capture`, "POST", {
+                        id: generateId()
+                    });
+                },
+                result: {
+                    outstanding: {
+                        balance: 6,
+                        count: 1
+                    },
+                    expired: {
+                        balance: 0,
+                        count: 0
+                    },
+                    canceled: {
+                        balance: 0,
+                        count: 0
+                    },
+                    redeemed: {
                         balance: 4,
-                        beforeLightrail: true
+                        count: 1,
+                        transactionCount: 1
+                    },
+                    checkout: {
+                        lightrailSpend: 0,
+                        overspend: 0,
+                        transactionCount: 0
                     }
-                ]
+                }
             },
             {
-                id: generateId(),
-                lineItems: [
-                    {
-                        type: "product",
-                        productId: "squishee",
-                        quantity: 1,
-                        unitPrice: 65
-                    }
-                ],
-                currency: "USD",
-                sources: [
-                    {
-                        rail: "lightrail",
-                        valueId: values.checkoutStripeBalance1.id
+                description: "debit pending void",
+                setup: async (programId: string) => {
+                    const value = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                        id: generateId(),
+                        balance: 10,
+                        programId
+                    });
+                    const debit = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
+                        id: generateId(),
+                        source: {
+                            rail: "lightrail",
+                            valueId: value.body.id
+                        },
+                        amount: 4,
+                        currency: "USD",
+                        pending: true
+                    });
+                    await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${debit.body.id}/void`, "POST", {
+                        id: generateId()
+                    });
+                },
+                result: {
+                    outstanding: {
+                        balance: 10,
+                        count: 1
                     },
-                    {
-                        rail: "lightrail",
-                        valueId: values.checkoutStripeBalance2.id
+                    expired: {
+                        balance: 0,
+                        count: 0
                     },
-                    {
-                        rail: "stripe",
-                        source: "tok_visa"
+                    canceled: {
+                        balance: 0,
+                        count: 0
+                    },
+                    redeemed: {
+                        balance: 0,
+                        count: 1,
+                        transactionCount: 1
+                    },
+                    checkout: {
+                        lightrailSpend: 0,
+                        overspend: 0,
+                        transactionCount: 0
                     }
-                ]
-            }
+                }
+            },
+            {
+                description: "debit reverse",
+                setup: async (programId: string) => {
+                    const value = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                        id: generateId(),
+                        balance: 10,
+                        programId
+                    });
+                    const debit = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
+                        id: generateId(),
+                        source: {
+                            rail: "lightrail",
+                            valueId: value.body.id
+                        },
+                        amount: 4,
+                        currency: "USD"
+                    });
+                    await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${debit.body.id}/reverse`, "POST", {
+                        id: generateId()
+                    });
+                },
+                result: {
+                    outstanding: {
+                        balance: 10,
+                        count: 1
+                    },
+                    expired: {
+                        balance: 0,
+                        count: 0
+                    },
+                    canceled: {
+                        balance: 0,
+                        count: 0
+                    },
+                    redeemed: {
+                        balance: 0,
+                        count: 1,
+                        transactionCount: 1
+                    },
+                    checkout: {
+                        lightrailSpend: 0,
+                        overspend: 0,
+                        transactionCount: 0
+                    }
+                }
+            },
+            {
+                description: "checkout lightrail",
+                setup: async (programId: string) => {
+                    const value = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                        id: generateId(),
+                        balance: 4,
+                        programId
+                    });
+                    const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                        id: generateId(),
+                        lineItems: [
+                            {
+                                type: "product",
+                                productId: "dead-parrot",
+                                quantity: 1,
+                                unitPrice: 1
+                            }
+                        ],
+                        currency: "USD",
+                        sources: [
+                            {
+                                rail: "lightrail",
+                                valueId: value.body.id
+                            }
+                        ]
+                    });
+                },
+                result: {
+                    outstanding: {
+                        balance: 3,
+                        count: 1
+                    },
+                    expired: {
+                        balance: 0,
+                        count: 0
+                    },
+                    canceled: {
+                        balance: 0,
+                        count: 0
+                    },
+                    redeemed: {
+                        balance: 1,
+                        count: 1,
+                        transactionCount: 1
+                    },
+                    checkout: {
+                        lightrailSpend: 1,
+                        overspend: 0,
+                        transactionCount: 1
+                    }
+                }
+            },
+            {
+                description: "checkout lightrail balanceRule",
+                setup: async (programId: string) => {
+                    const value = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                        id: generateId(),
+                        balanceRule: {
+                            explanation: "100% off",
+                            rule: "currentLineItem.lineTotal.remainder"
+                        },
+                        programId
+                    });
+                    chai.assert.deepEqual(value.statusCode, 201, JSON.stringify(value.body));
+                    const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                        id: generateId(),
+                        lineItems: [
+                            {
+                                type: "product",
+                                productId: "log",
+                                quantity: 1,
+                                unitPrice: 3
+                            }
+                        ],
+                        currency: "USD",
+                        sources: [
+                            {
+                                rail: "lightrail",
+                                valueId: value.body.id
+                            }
+                        ]
+                    });
+                    chai.assert.deepEqual(checkout.statusCode, 201, JSON.stringify(checkout.body));
+                },
+                result: {
+                    outstanding: {
+                        balance: 0,
+                        count: 1
+                    },
+                    expired: {
+                        balance: 0,
+                        count: 0
+                    },
+                    canceled: {
+                        balance: 0,
+                        count: 0
+                    },
+                    redeemed: {
+                        balance: 3,
+                        count: 1,
+                        transactionCount: 1
+                    },
+                    checkout: {
+                        lightrailSpend: 3,
+                        overspend: 0,
+                        transactionCount: 1
+                    }
+                }
+            },
+            {
+                description: "checkout lightrail + internal",
+                setup: async (programId: string) => {
+                    const value1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                        id: generateId(),
+                        balance: 20,
+                        programId
+                    });
+                    const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                        id: generateId(),
+                        lineItems: [
+                            {
+                                type: "product",
+                                productId: "duff-beer",
+                                quantity: 1,
+                                unitPrice: 10
+                            }
+                        ],
+                        currency: "USD",
+                        sources: [
+                            {
+                                rail: "lightrail",
+                                valueId: value1.body.id
+                            },
+                            {
+                                rail: "internal",
+                                internalId: generateId(),
+                                balance: 4,
+                                beforeLightrail: true
+                            }
+                        ]
+                    });
+                },
+                result: {
+                    outstanding: {
+                        balance: 14,
+                        count: 1
+                    },
+                    expired: {
+                        balance: 0,
+                        count: 0
+                    },
+                    canceled: {
+                        balance: 0,
+                        count: 0
+                    },
+                    redeemed: {
+                        balance: 6,
+                        count: 1,
+                        transactionCount: 1
+                    },
+                    checkout: {
+                        lightrailSpend: 6,
+                        overspend: 4,
+                        transactionCount: 1
+                    }
+                }
+            },
+            {
+                description: "checkout lightrail + remainder",
+                setup: async (programId: string) => {
+                    const value1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                        id: generateId(),
+                        balance: 4,
+                        programId
+                    });
+                    const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                        id: generateId(),
+                        lineItems: [
+                            {
+                                type: "product",
+                                productId: "everlasting-gobstopper",
+                                quantity: 1,
+                                unitPrice: 15
+                            }
+                        ],
+                        currency: "USD",
+                        sources: [
+                            {
+                                rail: "lightrail",
+                                valueId: value1.body.id
+                            }
+                        ],
+                        allowRemainder: true
+                    });
+                },
+                result: {
+                    outstanding: {
+                        balance: 0,
+                        count: 0
+                    },
+                    expired: {
+                        balance: 0,
+                        count: 0
+                    },
+                    canceled: {
+                        balance: 0,
+                        count: 0
+                    },
+                    redeemed: {
+                        balance: 4,
+                        count: 1,
+                        transactionCount: 1
+                    },
+                    checkout: {
+                        lightrailSpend: 4,
+                        overspend: 11,
+                        transactionCount: 1
+                    }
+                }
+            },
+            {
+                description: "checkout stripe",
+                setup: async (programId: string) => {
+                    const checkoutRequest: CheckoutRequest = {
+                        id: generateId(),
+                        lineItems: [
+                            {
+                                type: "product",
+                                productId: "bachelor-chow",
+                                quantity: 1,
+                                unitPrice: 6
+                            }
+                        ],
+                        currency: "USD",
+                        sources: [
+                            {
+                                rail: "stripe",
+                                source: "tok_visa"
+                            }
+                        ]
+                    };
+                    stubCheckoutStripeCharge(checkoutRequest, 0, 6);
+                    const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+                },
+                result: {
+                    outstanding: {
+                        balance: 0,
+                        count: 0
+                    },
+                    expired: {
+                        balance: 0,
+                        count: 0
+                    },
+                    canceled: {
+                        balance: 0,
+                        count: 0
+                    },
+                    redeemed: {
+                        balance: 0,
+                        count: 0,
+                        transactionCount: 0
+                    },
+                    checkout: {
+                        lightrailSpend: 0,
+                        overspend: 0,
+                        transactionCount: 0
+                    }
+                }
+            },
+            {
+                description: "checkout 2x lightrail + stripe",
+                setup: async (programId: string) => {
+                    const value1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                        id: generateId(),
+                        balance: 4,
+                        programId
+                    });
+                    const value2 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                        id: generateId(),
+                        balance: 4,
+                        programId
+                    });
+                    const checkoutRequest: CheckoutRequest = {
+                        id: generateId(),
+                        lineItems: [
+                            {
+                                type: "product",
+                                productId: "squishee",
+                                quantity: 1,
+                                unitPrice: 14
+                            }
+                        ],
+                        currency: "USD",
+                        sources: [
+                            {
+                                rail: "lightrail",
+                                valueId: value1.body.id
+                            },
+                            {
+                                rail: "lightrail",
+                                valueId: value2.body.id
+                            },
+                            {
+                                rail: "stripe",
+                                source: "tok_visa"
+                            }
+                        ]
+                    };
+                    stubCheckoutStripeCharge(checkoutRequest, 2, 6);
+                    const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+                },
+                result: {
+                    outstanding: {
+                        balance: 0,
+                        count: 0
+                    },
+                    expired: {
+                        balance: 0,
+                        count: 0
+                    },
+                    canceled: {
+                        balance: 0,
+                        count: 0
+                    },
+                    redeemed: {
+                        balance: 8,
+                        count: 2,
+                        transactionCount: 1
+                    },
+                    checkout: {
+                        lightrailSpend: 8,
+                        overspend: 6,
+                        transactionCount: 1
+                    }
+                }
+            },
+            {
+                description: "checkout pending capture",
+                setup: async (programId: string) => {
+                    const value = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                        id: generateId(),
+                        balance: 4,
+                        programId
+                    });
+                    const checkoutRequest: CheckoutRequest = {
+                        id: generateId(),
+                        lineItems: [
+                            {
+                                type: "product",
+                                productId: "plumbus",
+                                quantity: 1,
+                                unitPrice: 14
+                            }
+                        ],
+                        currency: "USD",
+                        sources: [
+                            {
+                                rail: "lightrail",
+                                valueId: value.body.id
+                            },
+                            {
+                                rail: "stripe",
+                                source: "tok_visa"
+                            }
+                        ],
+                        pending: true
+                    };
+                    const [charge] = stubCheckoutStripeCharge(checkoutRequest, 1, 10);
+                    const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+                    stubStripeCapture(charge);
+                    await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.body.id}/capture`, "POST", {id: generateId()});
+                },
+                result: {
+                    outstanding: {
+                        balance: 0,
+                        count: 0
+                    },
+                    expired: {
+                        balance: 0,
+                        count: 0
+                    },
+                    canceled: {
+                        balance: 0,
+                        count: 0
+                    },
+                    redeemed: {
+                        balance: 4,
+                        count: 1,
+                        transactionCount: 1
+                    },
+                    checkout: {
+                        lightrailSpend: 4,
+                        overspend: 10,
+                        transactionCount: 1
+                    }
+                }
+            },
+            {
+                description: "checkout pending void",
+                setup: async (programId: string) => {
+                    const value = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                        id: generateId(),
+                        balance: 4,
+                        programId
+                    });
+                    const checkoutRequest: CheckoutRequest = {
+                        id: generateId(),
+                        lineItems: [
+                            {
+                                type: "product",
+                                productId: "plumbus",
+                                quantity: 1,
+                                unitPrice: 14
+                            }
+                        ],
+                        currency: "USD",
+                        sources: [
+                            {
+                                rail: "lightrail",
+                                valueId: value.body.id
+                            },
+                            {
+                                rail: "stripe",
+                                source: "tok_visa"
+                            }
+                        ],
+                        pending: true
+                    };
+                    const [charge] = stubCheckoutStripeCharge(checkoutRequest, 1, 10);
+                    const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+                    stubStripeRefund(charge);
+                    await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.body.id}/void`, "POST", {id: generateId()});
+                },
+                result: {
+                    outstanding: {
+                        balance: 4,
+                        count: 1
+                    },
+                    expired: {
+                        balance: 0,
+                        count: 0
+                    },
+                    canceled: {
+                        balance: 0,
+                        count: 0
+                    },
+                    redeemed: {
+                        balance: 0,
+                        count: 1,
+                        transactionCount: 1
+                    },
+                    checkout: {
+                        lightrailSpend: 0,
+                        overspend: 0,
+                        transactionCount: 1
+                    }
+                }
+            },
+            {
+                description: "checkout reverse",
+                setup: async (programId: string) => {
+                    const value = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                        id: generateId(),
+                        balance: 4,
+                        programId
+                    });
+                    const checkoutRequest: CheckoutRequest = {
+                        id: generateId(),
+                        lineItems: [
+                            {
+                                type: "product",
+                                productId: "plumbus",
+                                quantity: 1,
+                                unitPrice: 14
+                            }
+                        ],
+                        currency: "USD",
+                        sources: [
+                            {
+                                rail: "lightrail",
+                                valueId: value.body.id
+                            },
+                            {
+                                rail: "stripe",
+                                source: "tok_visa"
+                            }
+                        ]
+                    };
+                    const [charge] = stubCheckoutStripeCharge(checkoutRequest, 1, 10);
+                    const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+                    stubStripeRefund(charge);
+                    await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.body.id}/reverse`, "POST", {id: generateId()});
+                },
+                result: {
+                    outstanding: {
+                        balance: 4,
+                        count: 1
+                    },
+                    expired: {
+                        balance: 0,
+                        count: 0
+                    },
+                    canceled: {
+                        balance: 0,
+                        count: 0
+                    },
+                    redeemed: {
+                        balance: 0,
+                        count: 1,
+                        transactionCount: 1
+                    },
+                    checkout: {
+                        lightrailSpend: 0,
+                        overspend: 0,
+                        transactionCount: 1
+                    }
+                }
+            },
         ];
-        stubCheckoutStripeCharge(checkouts[3], 2, 55);
-        for (const checkout of checkouts) {
-            const checkoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkout);
-            chai.assert.equal(checkoutResp.statusCode, 201, JSON.stringify(checkoutResp.body));
+
+        function buildScenarioTest(scenario: Scenario): void {
+            it(scenario.description, async () => {
+                const programId = generateId();
+                const progResp = await testUtils.testAuthedRequest<any>(router, "/v2/programs", "POST", {
+                    id: programId,
+                    name: generateId(),
+                    currency: "USD"
+                });
+                chai.assert.equal(progResp.statusCode, 201, JSON.stringify(progResp.body));
+
+                await scenario.setup(programId);
+
+                const statsResp = await testUtils.testAuthedRequest<any>(router, `/v2/programs/${programId}/stats`, "GET");
+                chai.assert.equal(statsResp.statusCode, 200, JSON.stringify(statsResp.body));
+                chai.assert.deepEqual(statsResp.body, scenario.result);
+            });
         }
 
-        const statsResp = await testUtils.testAuthedRequest<any>(router, `/v2/programs/${program.id}/stats`, "GET");
-        chai.assert.equal(statsResp.statusCode, 200, JSON.stringify(statsResp.body));
+        // Run each scenario individually.
+        scenarios.forEach(buildScenarioTest);
 
-        chai.assert.deepEqual(statsResp.body, {
-            outstanding: {
-                balance: 26,
-                count: 8
+        // Run all the scenarios together for one result.
+        buildScenarioTest({
+            description: "all together",
+            setup: async (programId: string) => {
+                for (const scenario of scenarios) {
+                    await scenario.setup(programId);
+                }
             },
-            expired: {
-                balance: 100,
-                count: 1
-            },
-            canceled: {
-                balance: 40000,
-                count: 2
-            },
-            redeemed: {
-                balance: 29,
-                count: 7,
-                transactionCount: 7
-            },
-            checkout: {
-                lightrailSpend: 17,
-                overspend: 61,
-                transactionCount: 4
-            }
+            result: scenarios.reduce(
+                (result, scenario) => {
+                    const r: any = {};
+                    for (const key1 in scenario.result) {
+                        r[key1] = {};
+                        for (const key2 in scenario.result[key1]) {
+                            r[key1][key2] = result[key1][key2] + scenario.result[key1][key2];
+                        }
+                    }
+                    return r;
+                },
+                {
+                    outstanding: {
+                        balance: 0,
+                        count: 0
+                    },
+                    expired: {
+                        balance: 0,
+                        count: 0
+                    },
+                    canceled: {
+                        balance: 0,
+                        count: 0
+                    },
+                    redeemed: {
+                        balance: 0,
+                        count: 0,
+                        transactionCount: 0
+                    },
+                    checkout: {
+                        lightrailSpend: 0,
+                        overspend: 0,
+                        transactionCount: 0
+                    }
+                }
+            )
         });
     });
+
 
     it("can create program with maximum id length", async () => {
         const program: Partial<Program> = {

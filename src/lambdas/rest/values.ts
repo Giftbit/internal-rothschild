@@ -14,7 +14,7 @@ import {
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {DbTransaction, LightrailDbTransactionStep} from "../../model/Transaction";
 import {DbCode} from "../../model/DbCode";
-import {generateCode} from "../../services/codeGenerator";
+import {generateCode} from "../../utils/codeGenerator";
 import {computeCodeLookupHash} from "../../utils/codeCryptoUtils";
 import {getProgram} from "./programs";
 import {Program} from "../../model/Program";
