@@ -1406,7 +1406,10 @@ describe("/v2/programs", () => {
             });
         }
 
+        // Run each scenario individually.
         scenarios.forEach(buildScenarioTest);
+
+        // Run all the scenarios together for one result.
         buildScenarioTest({
             description: "all together",
             setup: async (programId: string) => {
