@@ -189,6 +189,7 @@ export async function deleteCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBa
         if (err.code === "ER_ROW_IS_REFERENCED_2") {
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${code}' is in use.`, "CurrencyInUse");
         }
+        throw err;
     }
 }
 
