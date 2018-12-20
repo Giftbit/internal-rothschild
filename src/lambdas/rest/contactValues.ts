@@ -62,10 +62,12 @@ export function installContactValuesRest(router: cassava.Router): void {
                 additionalProperties: false,
                 properties: {
                     code: {
-                        type: "string"
+                        type: "string",
+                        minLength: 1
                     },
                     valueId: {
-                        type: "string"
+                        type: "string",
+                        minLength: 1
                     },
                     attachGenericAsNewValue: {
                         type: "boolean"
