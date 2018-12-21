@@ -4,9 +4,7 @@ import {DbTransaction} from "../../model/Transaction";
 import {getKnexRead} from "../../utils/dbUtils/connection";
 import {nowInDbPrecision} from "../../utils/dbUtils";
 import {executeTransactionPlan} from "../rest/transactions/executeTransactionPlan";
-import {
-    createVoidTransactionPlanForDbTransaction
-} from "../rest/transactions/transactions.void";
+import {createVoidTransactionPlanForDbTransaction} from "../rest/transactions/transactions.void";
 import log = require("loglevel");
 import uuid = require("uuid");
 
@@ -25,13 +23,13 @@ export async function voidExpiredPending(ctx: awslambda.Context): Promise<void> 
         try {
             await voidPendingTransaction(transactions[txIx]);
         } catch (err) {
-            log.error(`Unable to void Transaction '${transactions[txIx]}.id':`, err);
+            log.error(`Unable to void Transaction '${transactions[txIx].id}':`, err);
             giftbitRoutes.sentry.sendErrorNotification(err);
         }
     }
 
     if (transactions.length === limit && ctx.getRemainingTimeInMillis() > 30 * 1000) {
-        log.info(`Voided max (${transactions.length}) transaction at once with time remaining.  Fetching more.`);
+        log.info(`Voided max (${transactions.length}) transactions at once with time remaining.  Fetching more.`);
         return voidExpiredPending(ctx);
     }
 

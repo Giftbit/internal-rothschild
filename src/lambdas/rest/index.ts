@@ -3,8 +3,8 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as logPrefix from "loglevel-plugin-prefix";
 import {installRestRoutes} from "./installRestRoutes";
 import {CodeCryptographySecrets, initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils"; // Prefix log messages with the level.
-import log = require("loglevel");
 import {initializeIntercomSecrets, IntercomSecrets} from "../../utils/intercomUtils";
+import log = require("loglevel");
 
 // Prefix log messages with the level.
 logPrefix.reg(log);
