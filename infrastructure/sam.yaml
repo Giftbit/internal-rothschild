@@ -536,6 +536,7 @@ Resources:
           DB_USERNAME: "master"
           DB_PASSWORD_PARAMETER: !GetAtt DbCredentials.PasswordParameter
           SECURE_CONFIG_BUCKET: !Ref SecureConfigBucket
+          SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY: code_cryptography_secrets.json
           SECURE_CONFIG_KEY_SENTRY: sentry_lambda_services.json
       VpcConfig:
         SecurityGroupIds:
@@ -565,6 +566,7 @@ Resources:
                 - s3:GetObject
               Resource:
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/code_cryptography_secrets.json"
             - Effect: Allow
               Action:
                 - kms:Decrypt
