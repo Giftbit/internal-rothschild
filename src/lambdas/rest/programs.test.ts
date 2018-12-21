@@ -1456,7 +1456,6 @@ describe("/v2/programs", () => {
         });
     });
 
-
     it("can create program with maximum id length", async () => {
         const program: Partial<Program> = {
             id: generateId(64),
@@ -1482,4 +1481,38 @@ describe("/v2/programs", () => {
         chai.assert.equal(createProgram.statusCode, 422);
         chai.assert.include(createProgram.body.message, "requestBody.id does not meet maximum length of 64");
     });
+
+    it("can't delete a program that doesn't exist - returns 404", async () => {
+        const deleteResp = await testUtils.testAuthedRequest(router, `/v2/programs/${programRequest.id}`, "DELETE");
+        chai.assert.equal(deleteResp.statusCode, 404);
+    });
+
+    it("can create a value from a program with a balanceRule", async () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            name: "10% off a ride",
+            currency: "USD",
+            pretax: true,
+            discount: true,
+            fixedInitialUsesRemaining: [
+                1
+            ],
+            balanceRule: {
+                rule: "currentLineItem.lineTotal.subtotal * 0.10",
+                explanation: "10% off a ride"
+            }
+        };
+        const createProgram = await testUtils.testAuthedRequest<Value>(router, "/v2/programs", "POST", program);
+        chai.assert.equal(createProgram.statusCode, 201);
+
+        const value: Partial<Value> = {
+            id: generateId(),
+            programId: program.id,
+            usesRemaining: 1
+        };
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValue.statusCode, 201);
+        chai.assert.deepEqual(createValue.body.balanceRule, program.balanceRule);
+        chai.assert.isNull(createValue.body.balance);
+    })
 });

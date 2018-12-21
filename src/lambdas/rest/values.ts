@@ -581,7 +581,7 @@ function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partial
     let value: Value = pickOrDefault(partialValue, {
         id: null,
         currency: program ? program.currency : null,
-        balance: partialValue.balanceRule == null ? 0 : null,
+        balance: partialValue.balanceRule || program.balanceRule ? null : 0,
         usesRemaining: null,
         programId: program ? program.id : null,
         issuanceId: null,
@@ -622,7 +622,7 @@ function checkValueProperties(value: Value, program: Program = null): void {
         checkProgramConstraints(value, program);
     }
 
-    if (value.balance && value.balanceRule) {
+    if (value.balance != null && value.balanceRule) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a balance and balanceRule.`);
     }
     if (value.discountSellerLiability !== null && !value.discount) {

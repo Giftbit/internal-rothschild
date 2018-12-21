@@ -275,17 +275,17 @@ async function deleteProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
 
     try {
         const knex = await getKnexWrite();
-        const res = await knex("Programs")
+        const res: number = await knex("Programs")
             .where({
                 userId: auth.userId,
                 id: id
             })
             .delete();
-        if (res[0] === 0) {
+        if (res === 0) {
             throw new cassava.RestError(404);
         }
-        if (res[0] > 1) {
-            throw new Error(`Illegal DELETE query.  Deleted ${res.length} values.`);
+        if (res > 1) {
+            throw new Error(`Illegal DELETE query.  Deleted ${res} values.`);
         }
         return {success: true};
     } catch (err) {

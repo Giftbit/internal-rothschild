@@ -1,12 +1,12 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as testUtils from "../../../../utils/testUtils";
-import {defaultTestUser} from "../../../../utils/testUtils";
+import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
 import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
-import chaiExclude = require("chai-exclude");
 import {installRestRoutes} from "../../installRestRoutes";
+import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
@@ -185,5 +185,39 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout-4", "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, "statusCode");
+    });
+
+    it("can checkout with a percent off discount with a capped maximum value", async () => {
+        const maxDiscount = 200;
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            usesRemaining: 1,
+            balanceRule: {
+                rule: `min(currentLineItem.lineTotal.subtotal * 0.10, ${maxDiscount} + value.balanceChange)`,
+                explanation: "10% off a ride"
+            },
+            pretax: true,
+            discount: true,
+        };
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValue.statusCode, 201);
+        chai.assert.deepEqual(createValue.body.balanceRule, value.balanceRule);
+
+        const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+            id: generateId(),
+            currency: "CAD",
+            sources: [{
+                rail: "lightrail",
+                valueId: value.id
+            }],
+            lineItems: [
+                {unitPrice: 1000},
+                {unitPrice: 12000}
+            ],
+            allowRemainder: true
+        });
+        chai.assert.equal(checkout.statusCode, 201);
+        chai.assert.equal(checkout.body.totals.discountLightrail, maxDiscount);
     });
 });
