@@ -2,6 +2,7 @@ import * as awslambda from "aws-lambda";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as logPrefix from "loglevel-plugin-prefix";
 import {voidExpiredPending} from "./voidExpiredPending";
+import {CodeCryptographySecrets, initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils";
 import log = require("loglevel");
 
 // Prefix log messages with the level.
@@ -15,7 +16,13 @@ logPrefix.apply(log, {
 // Set the log level when running in Lambda.
 log.setLevel(log.levels.INFO);
 
-async function handleScheduleEvent(evt: any, ctx: awslambda.Context): Promise<any> {
+// We never show the code but generic codes get decrypted automatically
+// when we fetch the Value.
+initializeCodeCryptographySecrets(
+    giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<CodeCryptographySecrets>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY")
+);
+
+async function handleScheduleEvent(evt: awslambda.ScheduledEvent, ctx: awslambda.Context): Promise<any> {
     return voidExpiredPending(ctx);
 }
 

@@ -1,6 +1,5 @@
 import * as cryptojs from "crypto-js";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
-import * as giftbitRoutes from "giftbit-cassava-routes";
 
 const CODEBASE_ENCRYPTION_PEPPER = "5aa348b6ff321a5b6b7701b7da0cc2dc";
 
