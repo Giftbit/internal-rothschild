@@ -1514,5 +1514,52 @@ describe("/v2/programs", () => {
         chai.assert.equal(createValue.statusCode, 201);
         chai.assert.deepEqual(createValue.body.balanceRule, program.balanceRule);
         chai.assert.isNull(createValue.body.balance);
-    })
+    });
+
+    describe("filter by name", () => {
+        let programA: Program, programB: Program, programC: Program;
+        before(async () => {
+            const createA = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
+                id: generateId(),
+                name: "a",
+                currency: "USD"
+            });
+            chai.assert.equal(createA.statusCode, 201);
+            programA = createA.body;
+
+            const createB = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
+                id: generateId(),
+                name: "b",
+                currency: "USD"
+            });
+            chai.assert.equal(createB.statusCode, 201);
+            programB = createB.body;
+
+            const createC = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
+                id: generateId(),
+                name: "c",
+                currency: "USD"
+            });
+            chai.assert.equal(createC.statusCode, 201);
+            programC = createC.body;
+        });
+
+        it("filter by name with no operator", async () => {
+            const get = await testUtils.testAuthedRequest<Program[]>(router, "/v2/programs?name=a", "GET");
+            chai.assert.equal(get.statusCode, 200);
+            chai.assert.deepEqual(get.body[0], programA);
+        });
+
+        it("filter by name with eq operator", async () => {
+            const get = await testUtils.testAuthedRequest<Program[]>(router, "/v2/programs?name.eq=a", "GET");
+            chai.assert.equal(get.statusCode, 200);
+            chai.assert.deepEqual(get.body[0], programA);
+        });
+
+        it("filter by name with in operator", async () => {
+            const get = await testUtils.testAuthedRequest<Program[]>(router, "/v2/programs?name.in=a,b", "GET");
+            chai.assert.equal(get.statusCode, 200);
+            chai.assert.sameDeepMembers(get.body, [programA, programB]);
+        });
+    });
 });

@@ -159,6 +159,10 @@ async function getPrograms(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filte
                     type: "string",
                     operators: ["eq", "in"]
                 },
+                "name": {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
                 "startDate": {
                     type: "Date",
                     operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
