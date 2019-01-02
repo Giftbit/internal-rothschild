@@ -1098,7 +1098,7 @@ describe("/v2/programs", () => {
                                 type: "product",
                                 productId: "bachelor-chow",
                                 quantity: 1,
-                                unitPrice: 6
+                                unitPrice: 50
                             }
                         ],
                         currency: "USD",
@@ -1109,7 +1109,7 @@ describe("/v2/programs", () => {
                             }
                         ]
                     };
-                    stubCheckoutStripeCharge(checkoutRequest, 0, 6);
+                    stubCheckoutStripeCharge(checkoutRequest, 0, 50);
                     const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
                 },
                 result: {
@@ -1176,7 +1176,7 @@ describe("/v2/programs", () => {
                             }
                         ]
                     };
-                    stubCheckoutStripeCharge(checkoutRequest, 2, 6);
+                    stubCheckoutStripeCharge(checkoutRequest, 2, 50);
                     const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
                 },
                 result: {
@@ -1235,7 +1235,7 @@ describe("/v2/programs", () => {
                         ],
                         pending: true
                     };
-                    const [charge] = stubCheckoutStripeCharge(checkoutRequest, 1, 10);
+                    const [charge] = stubCheckoutStripeCharge(checkoutRequest, 1, 50);
                     const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
                     stubStripeCapture(charge);
                     await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.body.id}/capture`, "POST", {id: generateId()});
@@ -1296,7 +1296,7 @@ describe("/v2/programs", () => {
                         ],
                         pending: true
                     };
-                    const [charge] = stubCheckoutStripeCharge(checkoutRequest, 1, 10);
+                    const [charge] = stubCheckoutStripeCharge(checkoutRequest, 1, 50);
                     const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
                     stubStripeRefund(charge);
                     await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.body.id}/void`, "POST", {id: generateId()});
@@ -1356,7 +1356,7 @@ describe("/v2/programs", () => {
                             }
                         ]
                     };
-                    const [charge] = stubCheckoutStripeCharge(checkoutRequest, 1, 10);
+                    const [charge] = stubCheckoutStripeCharge(checkoutRequest, 1, 50);
                     const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
                     stubStripeRefund(charge);
                     await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.body.id}/reverse`, "POST", {id: generateId()});
