@@ -1243,7 +1243,6 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                     "valueId": value.id
                 }
             ],
-            "pending": false,
             "metadata": null,
             "createdBy": "default-test-user-TEST"
         }, ["createdDate"]);
@@ -1323,7 +1322,6 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                     "valueId": value.id
                 }
             ],
-            "pending": false,
             "metadata": null,
             "createdBy": "default-test-user-TEST"
         }, ["createdDate"]);
@@ -1403,7 +1401,6 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                     "valueId": value.id
                 }
             ],
-            "pending": false,
             "metadata": null,
             "createdBy": "default-test-user-TEST"
         }, ["createdDate"]);

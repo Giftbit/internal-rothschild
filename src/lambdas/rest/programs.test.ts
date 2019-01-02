@@ -1157,7 +1157,7 @@ describe("/v2/programs", () => {
                                 type: "product",
                                 productId: "squishee",
                                 quantity: 1,
-                                unitPrice: 14
+                                unitPrice: 58
                             }
                         ],
                         currency: "USD",
@@ -1199,7 +1199,7 @@ describe("/v2/programs", () => {
                     },
                     checkout: {
                         lightrailSpend: 8,
-                        overspend: 6,
+                        overspend: 50,
                         transactionCount: 1
                     }
                 }
@@ -1219,7 +1219,7 @@ describe("/v2/programs", () => {
                                 type: "product",
                                 productId: "plumbus",
                                 quantity: 1,
-                                unitPrice: 14
+                                unitPrice: 54
                             }
                         ],
                         currency: "USD",
@@ -1260,7 +1260,7 @@ describe("/v2/programs", () => {
                     },
                     checkout: {
                         lightrailSpend: 4,
-                        overspend: 10,
+                        overspend: 50,
                         transactionCount: 1
                     }
                 }
@@ -1280,7 +1280,7 @@ describe("/v2/programs", () => {
                                 type: "product",
                                 productId: "plumbus",
                                 quantity: 1,
-                                unitPrice: 14
+                                unitPrice: 54
                             }
                         ],
                         currency: "USD",
@@ -1341,7 +1341,7 @@ describe("/v2/programs", () => {
                                 type: "product",
                                 productId: "plumbus",
                                 quantity: 1,
-                                unitPrice: 14
+                                unitPrice: 54
                             }
                         ],
                         currency: "USD",
@@ -1403,7 +1403,7 @@ describe("/v2/programs", () => {
                 const statsResp = await testUtils.testAuthedRequest<any>(router, `/v2/programs/${programId}/stats`, "GET");
                 chai.assert.equal(statsResp.statusCode, 200, JSON.stringify(statsResp.body));
                 chai.assert.deepEqual(statsResp.body, scenario.result);
-            });
+            }).timeout(10000);
         }
 
         // Run each scenario individually.
