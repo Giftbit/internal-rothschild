@@ -1624,4 +1624,28 @@ describe("/v2/programs", () => {
         chai.assert.equal(create.statusCode, 422);
         chai.assert.equal(create.body.message, "Program cannot have fixedInitialBalances defined when also defining minInitialBalance or maxInitialBalance");
     });
+
+    it("can't create a program with discountSellerLiability if it's not a discount", async () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            name: "name " + generateId(5),
+            currency: "USD",
+            discountSellerLiability: 0.20
+        };
+        const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", program);
+        chai.assert.equal(create.statusCode, 422);
+        chai.assert.equal(create.body.message, "Program can't have discountSellerLiability if it is not a discount.");
+    });
+
+    it("can create a program with discountSellerLiability if it's a discount", async () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            name: "name " + generateId(5),
+            currency: "USD",
+            discountSellerLiability: 0.20,
+            discount: true
+        };
+        const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", program);
+        chai.assert.equal(create.statusCode, 201);
+    });
 });

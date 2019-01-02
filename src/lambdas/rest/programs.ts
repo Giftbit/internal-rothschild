@@ -313,6 +313,10 @@ function checkProgramProperties(program: Program): void {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Program cannot have fixedInitialBalances defined when also defining minInitialBalance or maxInitialBalance");
     }
 
+    if (program.discountSellerLiability !== null && !program.discount) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Program can't have discountSellerLiability if it is not a discount.`);
+    }
+
     checkRulesSyntax(program, "Program");
 }
 
