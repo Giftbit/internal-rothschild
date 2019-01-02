@@ -1,15 +1,15 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import * as transactions from "../transactions";
-import * as valueStores from "../../values";
 import * as testUtils from "../../../../utils/testUtils";
-import {defaultTestUser, generateId} from "../../../../utils/testUtils";
+import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
-import {Transaction} from "../../../../model/Transaction";
+import {LightrailTransactionStep, Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import {getKnexRead} from "../../../../utils/dbUtils/connection";
-import chaiExclude = require("chai-exclude");
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
+import {Contact} from "../../../../model/Contact";
+import {installRestRoutes} from "../../installRestRoutes";
+import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
@@ -20,8 +20,8 @@ describe("/v2/transactions/checkout - basics", () => {
     before(async function () {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
-        transactions.installTransactionsRest(router);
-        valueStores.installValuesRest(router);
+        installRestRoutes(router);
+        await setCodeCryptographySecrets();
         await createCurrency(testUtils.defaultTestUser.auth, {
             code: "CAD",
             name: "Canadian Tire Money",
@@ -611,4 +611,224 @@ describe("/v2/transactions/checkout - basics", () => {
         chai.assert.equal(postCheckoutResp.statusCode, 422, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.include(postCheckoutResp.body.message, "requestBody.id does not meet maximum length of 64");
     });
+
+    describe("checkout generic value", () => {
+        let contact: Contact;
+        let genericValue: Value;
+        let accountCredit: Value;
+
+        before(async () => {
+            const contactRequest: Partial<Contact> = {
+                id: generateId(),
+                firstName: "Hayley"
+            };
+            const createContact = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contactRequest);
+            chai.assert.equal(createContact.statusCode, 201);
+            contact = createContact.body;
+
+            const genericValueRequest: Partial<Value> = {
+                id: generateId(),
+                currency: "CAD",
+                isGenericCode: true,
+                balanceRule: {
+                    rule: "currentLineItem.lineTotal.subtotal * 0.50",
+                    explanation: "50% off each item"
+                },
+                discount: true,
+                pretax: true,
+                usesRemaining: 100,
+                code: "WINTERISCOMING19"
+            };
+            const createGenericValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValueRequest);
+            chai.assert.equal(createGenericValue.statusCode, 201);
+            genericValue = createGenericValue.body;
+
+            const accountCreditRequest: Partial<Value> = {
+                id: generateId(),
+                balance: 80,
+                currency: "CAD",
+                contactId: contact.id
+            };
+            const createAccountCredit = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", accountCreditRequest);
+            chai.assert.equal(createAccountCredit.statusCode, 201);
+            accountCredit = createAccountCredit.body;
+
+            const attachValue = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: genericValue.code});
+            chai.assert.equal(attachValue.statusCode, 200);
+        });
+
+        it("can checkout with a attached generic value", async () => {
+            const checkout: CheckoutRequest = {
+                id: generateId(),
+                sources: [
+                    {
+                        rail: "lightrail",
+                        contactId: contact.id
+                    }
+                ],
+                lineItems: [
+                    {
+                        unitPrice: 150,
+                        taxRate: 0.05
+                    }
+                ],
+                currency: "CAD"
+            };
+            const createCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
+            chai.assert.equal(createCheckout.statusCode, 201);
+            chai.assert.deepEqualExcluding(createCheckout.body,
+                {
+                    "id": checkout.id,
+                    "transactionType": "checkout",
+                    "currency": "CAD",
+                    "createdDate": null,
+                    "tax": {
+                        "roundingMode": "HALF_EVEN"
+                    },
+                    "totals": {
+                        "subtotal": 150,
+                        "tax": 4,
+                        "discount": 75,
+                        "payable": 79,
+                        "remainder": 0,
+                        "discountLightrail": 75,
+                        "paidLightrail": 79,
+                        "paidStripe": 0,
+                        "paidInternal": 0
+                    },
+                    "lineItems": [
+                        {
+                            "unitPrice": 150,
+                            "quantity": 1,
+                            "taxRate": 0.05,
+                            "lineTotal": {
+                                "subtotal": 150,
+                                "taxable": 75,
+                                "tax": 4,
+                                "discount": 75,
+                                "remainder": 0,
+                                "payable": 79
+                            }
+                        }
+                    ],
+                    "steps": [
+                        {
+                            "rail": "lightrail",
+                            "valueId": genericValue.id,
+                            "contactId": contact.id,
+                            "code": genericValue.code,
+                            "balanceBefore": null,
+                            "balanceAfter": null,
+                            "balanceChange": -75,
+                            "usesRemainingBefore": 100,
+                            "usesRemainingAfter": 99,
+                            "usesRemainingChange": -1
+                        },
+                        {
+                            "rail": "lightrail",
+                            "valueId": accountCredit.id,
+                            "contactId": contact.id,
+                            "code": null,
+                            "balanceBefore": 80,
+                            "balanceAfter": 1,
+                            "balanceChange": -79,
+                            "usesRemainingBefore": null,
+                            "usesRemainingAfter": null,
+                            "usesRemainingChange": null
+                        }
+                    ],
+                    "paymentSources": [
+                        {
+                            "rail": "lightrail",
+                            "contactId": contact.id
+                        }
+                    ],
+                    "pending": false,
+                    "metadata": null,
+                    "createdBy": "default-test-user-TEST"
+                }, ["createdDate"]);
+            chai.assert.equal((createCheckout.body.steps[0] as LightrailTransactionStep).contactId, contact.id, "The contactId is not directly on the Value, but attached to the Value via ContactValues. It's important for tracking reasons that the contactId is persisted onto the transaction step.")
+
+            const listTransactionsAssociatedWithContact = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?contactId=${contact.id}`, "GET");
+            chai.assert.equal(listTransactionsAssociatedWithContact.body.length, 1, "Should only return 1 transaction. Transaction shouldn't be duplicated in response.");
+            chai.assert.deepEqual(listTransactionsAssociatedWithContact.body[0], createCheckout.body);
+        });
+
+        it("can checkout directly against generic code", async () => {
+            const checkout: CheckoutRequest = {
+                id: generateId(),
+                allowRemainder: true,
+                sources: [
+                    {
+                        rail: "lightrail",
+                        code: genericValue.code
+                    }
+                ],
+                lineItems: [
+                    {
+                        unitPrice: 150,
+                        taxRate: 0.05
+                    }
+                ],
+                currency: "CAD"
+            };
+            const createCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
+            chai.assert.equal(createCheckout.statusCode, 201);
+            chai.assert.deepEqual(createCheckout.body.steps,
+                [{
+                    "rail": "lightrail",
+                    "valueId": genericValue.id,
+                    "contactId": null,
+                    "code": genericValue.code,
+                    "balanceBefore": null,
+                    "balanceAfter": null,
+                    "balanceChange": -75,
+                    "usesRemainingBefore": 99,
+                    "usesRemainingAfter": 98,
+                    "usesRemainingChange": -1
+                }]);
+            chai.assert.isNull((createCheckout.body.steps[0] as LightrailTransactionStep).contactId, "The contactId should be null since contactId was not passed in as a source. This is even though the Value has been attached to a Contact.")
+        });
+
+        it("can checkout directly against generic code in a checkout request that includes a contactId not attached to the generic code", async () => {
+            const checkout: CheckoutRequest = {
+                id: generateId(),
+                allowRemainder: true,
+                sources: [
+                    {
+                        rail: "lightrail",
+                        code: genericValue.code
+                    },
+                    {
+                        rail: "lightrail",
+                        contactId: "not an actual contact id"
+                    }
+                ],
+                lineItems: [
+                    {
+                        unitPrice: 150,
+                        taxRate: 0.05
+                    }
+                ],
+                currency: "CAD"
+            };
+            const createCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
+            chai.assert.equal(createCheckout.statusCode, 201);
+            chai.assert.deepEqual(createCheckout.body.steps,
+                [{
+                    "rail": "lightrail",
+                    "valueId": genericValue.id,
+                    "contactId": null,
+                    "code": genericValue.code,
+                    "balanceBefore": null,
+                    "balanceAfter": null,
+                    "balanceChange": -75,
+                    "usesRemainingBefore": 98,
+                    "usesRemainingAfter": 97,
+                    "usesRemainingChange": -1
+                }]);
+            chai.assert.isNull((createCheckout.body.steps[0] as LightrailTransactionStep).contactId, "The contactId should be null since contactId was not passed in as a source. This is even though the Value has been attached to a Contact.")
+        });
+    });
+
 });

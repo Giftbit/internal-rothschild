@@ -7,6 +7,7 @@ import {pick, pickOrDefault} from "../../utils/pick";
 import {csvSerializer} from "../../serializers";
 import {filterAndPaginateQuery, nowInDbPrecision} from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
+import * as knex from "knex";
 
 export function installContactsRest(router: cassava.Router): void {
     router.route("/v2/contacts")
@@ -122,11 +123,34 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 
     const knex = await getKnexRead();
 
+    let query: knex.QueryBuilder = knex("Contacts")
+        .select("Contacts.*")
+        .where("Contacts.userId", "=", auth.userId);
+    const valueId = filterParams["valueId"];
+    if (valueId) {
+
+        // join ContactValues
+        query.leftJoin("ContactValues", {
+            "Contacts.id": "ContactValues.contactId",
+            "Contacts.userId": "ContactValues.userId"
+        });
+
+        // also join Values
+        query.leftJoin("Values", {
+            "Contacts.id": "Values.contactId",
+            "Contacts.userId": "Values.userId"
+        });
+
+        query.andWhere(q => {
+            q.where("ContactValues.valueId", "=", valueId);
+            q.orWhere("Values.id", "=", valueId);
+            return q;
+        });
+
+        query.groupBy("Contacts.id");
+    }
     const res = await filterAndPaginateQuery<DbContact>(
-        knex("Contacts")
-            .where({
-                userId: auth.userId
-            }),
+        query,
         filterParams,
         {
             properties: {
@@ -147,7 +171,8 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                     type: "Date",
                     operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 },
-            }
+            },
+            tableName: "Contacts"
         },
         pagination
     );
