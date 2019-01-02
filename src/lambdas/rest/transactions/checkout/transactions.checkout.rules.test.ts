@@ -1242,6 +1242,7 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                     "valueId": value.id
                 }
             ],
+            "pending": false,
             "metadata": null,
             "createdBy": "default-test-user-TEST"
         }, ["createdDate"]);
@@ -1320,12 +1321,13 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                     "valueId": value.id
                 }
             ],
+            "pending": false,
             "metadata": null,
             "createdBy": "default-test-user-TEST"
         }, ["createdDate"]);
     });
 
-    it("can use balanceRule that does not evauluate to a number but defaults to 0", async () => {
+    it("can use balanceRule that does not evaluate to a number but defaults to 0", async () => {
         const value: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
@@ -1398,6 +1400,7 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                     "valueId": value.id
                 }
             ],
+            "pending": false,
             "metadata": null,
             "createdBy": "default-test-user-TEST"
         }, ["createdDate"]);
