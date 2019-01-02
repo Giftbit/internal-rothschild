@@ -1236,6 +1236,7 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                     "usesRemainingChange": -1
                 }
             ],
+            "pending": false,
             "paymentSources": [
                 {
                     "rail": "lightrail",
@@ -1315,6 +1316,7 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                 }
             ],
             "steps": [],
+            "pending": false,
             "paymentSources": [
                 {
                     "rail": "lightrail",
@@ -1394,6 +1396,7 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                 }
             ],
             "steps": [],
+            "pending": false,
             "paymentSources": [
                 {
                     "rail": "lightrail",
