@@ -1089,7 +1089,7 @@ describe("/v2/programs", () => {
                 }
             },
             {
-                description: "checkout stripe",
+                description: "checkout stripe - no value used, so doesn't count towards program stats",
                 setup: async (programId: string) => {
                     const checkoutRequest: CheckoutRequest = {
                         id: generateId(),
