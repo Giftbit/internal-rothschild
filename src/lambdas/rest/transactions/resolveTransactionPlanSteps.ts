@@ -15,6 +15,7 @@ import {DbValue, Value} from "../../../model/Value";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {computeCodeLookupHash} from "../../../utils/codeCryptoUtils";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
+import * as knex from "knex";
 
 /**
  * Options to resolving transaction parties.
@@ -109,22 +110,30 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 
     const knex = await getKnexRead();
     const now = nowInDbPrecision();
-    let query = knex("Values")
-        .where({
-            userId: auth.userId
-        })
-        .where(q => {
-            if (valueIds.length) {
-                q = q.whereIn("id", valueIds);
-            }
-            if (hashedCodes.length) {
-                q = q.orWhereIn("codeHashed", hashedCodes);
-            }
-            if (contactIds.length) {
-                q = q.orWhereIn("contactId", contactIds);
-            }
-            return q;
-        });
+    let query: knex.QueryBuilder = knex("Values")
+        .select("Values.*")
+        .where("Values.userId", "=", auth.userId);
+    if (contactIds.length) {
+        query = query.leftJoin(knex.raw("(SELECT * FROM ContactValues WHERE userId = ? AND contactId in (?)) as ContactValuesTemp", [auth.userId, contactIds]), {
+            "Values.id": "ContactValuesTemp.valueId",
+            "Values.userId": "ContactValuesTemp.userId"
+        }); // The temporary table only joins to ContactValues that have a contactId in contactIds. If a generic code is transacted against directly via code/valueId, a ContactValue that it is attached to is not joined to.
+        query = query.groupBy("Values.id"); // Without groupBy, will return duplicate generic code if two contactId's are supplied as sources and both contact's have attached the generic code.
+        query = query.select(knex.raw("IFNULL(ContactValuesTemp.contactId, Values.contactId) as contactId")); // If step was looked up via ContactId then need to sure the contactId persists to the Step for tracking purposes.
+    }
+    query = query.where(q => {
+        if (valueIds.length) {
+            q = q.whereIn("Values.id", valueIds);
+        }
+        if (hashedCodes.length) {
+            q = q.orWhereIn("codeHashed", hashedCodes);
+        }
+        if (contactIds.length) {
+            q = q.orWhereIn("Values.contactId", contactIds)
+                .orWhereIn("ContactValuesTemp.contactId", contactIds)
+        }
+        return q;
+    });
     if (options.nonTransactableHandling === "exclude") {
         query = query
             .where({
