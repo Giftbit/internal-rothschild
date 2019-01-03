@@ -235,6 +235,10 @@ export function generateId(length?: number): string {
     return (uuid.v4() + uuid.v4()).substring(0, length != null ? length : 20);
 }
 
+export function generateFullcode(length?: number) {
+    return (uuid.v4() + uuid.v4()).replace("-", "").toUpperCase().substring(0, length != null ? length : 10);
+}
+
 export async function setCodeCryptographySecrets() {
     return await initializeCodeCryptographySecrets(Promise.resolve({
         encryptionSecret: "ca7589aef4ffed15783341414fe2f4a5edf9ddad75cf2e96ed2a16aee88673ea",

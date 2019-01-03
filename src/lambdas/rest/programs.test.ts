@@ -1089,7 +1089,7 @@ describe("/v2/programs", () => {
                 }
             },
             {
-                description: "checkout stripe",
+                description: "checkout stripe - no value used, so doesn't count towards program stats",
                 setup: async (programId: string) => {
                     const checkoutRequest: CheckoutRequest = {
                         id: generateId(),
@@ -1098,7 +1098,7 @@ describe("/v2/programs", () => {
                                 type: "product",
                                 productId: "bachelor-chow",
                                 quantity: 1,
-                                unitPrice: 6
+                                unitPrice: 50
                             }
                         ],
                         currency: "USD",
@@ -1109,7 +1109,7 @@ describe("/v2/programs", () => {
                             }
                         ]
                     };
-                    stubCheckoutStripeCharge(checkoutRequest, 0, 6);
+                    stubCheckoutStripeCharge(checkoutRequest, 0, 50);
                     const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
                 },
                 result: {
@@ -1157,7 +1157,7 @@ describe("/v2/programs", () => {
                                 type: "product",
                                 productId: "squishee",
                                 quantity: 1,
-                                unitPrice: 14
+                                unitPrice: 58
                             }
                         ],
                         currency: "USD",
@@ -1176,7 +1176,7 @@ describe("/v2/programs", () => {
                             }
                         ]
                     };
-                    stubCheckoutStripeCharge(checkoutRequest, 2, 6);
+                    stubCheckoutStripeCharge(checkoutRequest, 2, 50);
                     const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
                 },
                 result: {
@@ -1199,7 +1199,7 @@ describe("/v2/programs", () => {
                     },
                     checkout: {
                         lightrailSpend: 8,
-                        overspend: 6,
+                        overspend: 50,
                         transactionCount: 1
                     }
                 }
@@ -1219,7 +1219,7 @@ describe("/v2/programs", () => {
                                 type: "product",
                                 productId: "plumbus",
                                 quantity: 1,
-                                unitPrice: 14
+                                unitPrice: 54
                             }
                         ],
                         currency: "USD",
@@ -1235,7 +1235,7 @@ describe("/v2/programs", () => {
                         ],
                         pending: true
                     };
-                    const [charge] = stubCheckoutStripeCharge(checkoutRequest, 1, 10);
+                    const [charge] = stubCheckoutStripeCharge(checkoutRequest, 1, 50);
                     const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
                     stubStripeCapture(charge);
                     await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.body.id}/capture`, "POST", {id: generateId()});
@@ -1260,7 +1260,7 @@ describe("/v2/programs", () => {
                     },
                     checkout: {
                         lightrailSpend: 4,
-                        overspend: 10,
+                        overspend: 50,
                         transactionCount: 1
                     }
                 }
@@ -1280,7 +1280,7 @@ describe("/v2/programs", () => {
                                 type: "product",
                                 productId: "plumbus",
                                 quantity: 1,
-                                unitPrice: 14
+                                unitPrice: 54
                             }
                         ],
                         currency: "USD",
@@ -1296,7 +1296,7 @@ describe("/v2/programs", () => {
                         ],
                         pending: true
                     };
-                    const [charge] = stubCheckoutStripeCharge(checkoutRequest, 1, 10);
+                    const [charge] = stubCheckoutStripeCharge(checkoutRequest, 1, 50);
                     const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
                     stubStripeRefund(charge);
                     await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.body.id}/void`, "POST", {id: generateId()});
@@ -1341,7 +1341,7 @@ describe("/v2/programs", () => {
                                 type: "product",
                                 productId: "plumbus",
                                 quantity: 1,
-                                unitPrice: 14
+                                unitPrice: 54
                             }
                         ],
                         currency: "USD",
@@ -1356,7 +1356,7 @@ describe("/v2/programs", () => {
                             }
                         ]
                     };
-                    const [charge] = stubCheckoutStripeCharge(checkoutRequest, 1, 10);
+                    const [charge] = stubCheckoutStripeCharge(checkoutRequest, 1, 50);
                     const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
                     stubStripeRefund(charge);
                     await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.body.id}/reverse`, "POST", {id: generateId()});
@@ -1403,7 +1403,7 @@ describe("/v2/programs", () => {
                 const statsResp = await testUtils.testAuthedRequest<any>(router, `/v2/programs/${programId}/stats`, "GET");
                 chai.assert.equal(statsResp.statusCode, 200, JSON.stringify(statsResp.body));
                 chai.assert.deepEqual(statsResp.body, scenario.result);
-            });
+            }).timeout(10000);
         }
 
         // Run each scenario individually.

@@ -166,6 +166,17 @@ export function installValuesRest(router: cassava.Router): void {
             };
         });
 
+    router.route("/v2/values/{id}/stats")
+        .method("GET")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:programs:read");
+            return {
+                body: await getValuePerformance(auth, evt.pathParameters.id)
+            };
+        });
+
     router.route("/v2/values/{id}/transactions")
         .method("GET")
         .handler(async evt => {
@@ -219,9 +230,21 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     const knex = await getKnexRead();
 
     let query = knex("Values")
-        .where({
-            userId: auth.userId
+        .select("Values.*")
+        .where("Values.userId", "=", auth.userId);
+    const contactId = filterParams["contactId"];
+    if (contactId) {
+        query.leftJoin("ContactValues", {
+            "Values.id": "ContactValues.valueId",
+            "Values.userId": "ContactValues.userId"
         });
+        query.andWhere(q => {
+                q.where("Values.contactId", "=", contactId);
+                q.orWhere("ContactValues.contactId", "=", contactId);
+                return q;
+            }
+        );
+    }
 
     // Manually handle code, code.eq and code.in because computeCodeLookupHash must be done async.
     if (filterParams.code) {
@@ -250,10 +273,6 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                     operators: ["eq", "in"]
                 },
                 currency: {
-                    type: "string",
-                    operators: ["eq", "in"]
-                },
-                contactId: {
                     type: "string",
                     operators: ["eq", "in"]
                 },
@@ -290,7 +309,8 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                 updatedDate: {
                     type: "Date"
                 }
-            }
+            },
+            tableName: "Values"
         },
         pagination
     );
@@ -573,6 +593,106 @@ export async function injectValueStats(auth: giftbitRoutes.jwtauth.Authorization
         value.stats.initialBalance = row.balanceChange;
         value.stats.initialUsesRemaining = row.usesRemainingChange;
     }
+}
+
+/**
+ * This is currently a secret operation only the web app knows about.
+ */
+export async function getValuePerformance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueId: string): Promise<any> {
+    auth.requireIds("userId");
+    const value = await getValue(auth, valueId); // checks that the value exists. throws a 404 otherwise.
+
+    const startTime = Date.now();
+    const stats = {
+        redeemed: {
+            balance: 0,
+            transactionCount: 0
+        },
+        checkout: {
+            lightrailSpend: 0,
+            overspend: 0, // paidStripe + paidInternal + remainder
+            transactionCount: 0
+        },
+        attachedContacts: {
+            count: 0
+        }
+    };
+
+    const knex = await getKnexRead();
+    /**
+     * Note, this query joins from root Transactions involving the valueId to the last Transaction in the chain.
+     * This will need to be updated once partial capture becomes a thing since joining to the last Transaction in the chain
+     * will no longer give a complete picture regarding what happened.
+     */
+    let query = knex("LightrailTransactionSteps as LTS")
+        .where({
+            "LTS.userId": auth.userId,
+            "LTS.valueId": valueId,
+        })
+        .join("Transactions as T_ROOT", {
+            "T_ROOT.userId": "LTS.userId",
+            "T_ROOT.id": "LTS.transactionId"
+        })
+        .whereIn("T_ROOT.transactionType", ["checkout", "debit"])
+        .leftJoin("Transactions as T_LAST", query => {
+            query.on("T_ROOT.id", "=", "T_LAST.rootTransactionId")
+                .andOn("T_ROOT.userId", "=", "T_LAST.userId")
+                .andOn("T_LAST.id", "!=", "T_LAST.rootTransactionId")
+                .andOnNull("T_LAST.nextTransactionId")
+        })
+        .count({transactionCount: "*"})
+        .sum({balanceChange: "LTS.balanceChange"})
+        .sum({discountLightrail: "T_ROOT.totals_discountLightrail"})
+        .sum({paidLightrail: "T_ROOT.totals_paidLightrail"})
+        .sum({paidStripe: "T_ROOT.totals_paidStripe"})
+        .sum({paidInternal: "T_ROOT.totals_paidInternal"})
+        .sum({remainder: "T_ROOT.totals_remainder"})
+        .select({rootTransactionType: "T_ROOT.transactionType"})
+        .select({finalTransactionType: "T_LAST.transactionType"})
+        .groupBy("T_LAST.transactionType")
+        .groupBy("T_ROOT.transactionType");
+
+    const results: {
+        transactionCount: number;
+        balanceChange: string; // For some reason sums come back as strings.
+        discountLightrail: string;
+        paidLightrail: string;
+        paidStripe: string;
+        paidInternal: string;
+        remainder: string;
+        rootTransactionType: string; // The transactionType of the root transaction. Restricted to checkout and debit.
+        finalTransactionType: string; // A join is done from the root transaction to the last transaction in the chain.
+                                      // This is the transactionType of the last transaction in the chain.
+                                      // If null, this means the root transaction is the only transaction in the chain.
+    }[] = await query;
+
+    for (const row of results) {
+        if (row.rootTransactionType === "debit" && (row.finalTransactionType === null || row.finalTransactionType === "capture")) {
+            stats.redeemed.balance += -row.balanceChange;
+            stats.redeemed.transactionCount += row.transactionCount;
+        } else if (row.rootTransactionType === "checkout" && (row.finalTransactionType === null || row.finalTransactionType === "capture")) {
+            stats.redeemed.transactionCount += row.transactionCount;
+            stats.redeemed.balance += -row.balanceChange;
+            stats.checkout.lightrailSpend += +row.paidLightrail + +row.discountLightrail;
+            stats.checkout.transactionCount += row.transactionCount;
+            stats.checkout.overspend += +row.paidStripe + +row.paidInternal + +row.remainder
+        }
+    }
+
+    const attachedStats = await knex("ContactValues")
+        .where({
+            "userId": auth.userId,
+            "valueId": valueId
+        })
+        .count({count: "*"});
+    stats.attachedContacts.count = attachedStats[0].count;
+
+    if (value.contactId) {
+        stats.attachedContacts.count += 1;
+    }
+
+    log.info(`Calculating value stats finished and took ${Date.now() - startTime}ms`);
+    return stats;
 }
 
 function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partialValue: Partial<Value>, program: Program = null, generateCodeParameters: GenerateCodeParameters = null): Value {
