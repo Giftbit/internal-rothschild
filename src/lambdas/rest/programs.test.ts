@@ -1562,4 +1562,90 @@ describe("/v2/programs", () => {
             chai.assert.sameDeepMembers(get.body, [programA, programB]);
         });
     });
+
+    it("can't create a program with a balanceRule and fixedInitialBalances", async () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            name: "name " + generateId(5),
+            currency: "USD",
+            balanceRule: {
+                rule: "500",
+                explanation: "$5 off everything!"
+            },
+            fixedInitialBalances: [1]
+        };
+        const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", program);
+        chai.assert.equal(create.statusCode, 422);
+        chai.assert.equal(create.body.message, "Program cannot have a balanceRule when also defining minInitialBalance, maxInitialBalance or fixedInitialBalances.");
+    });
+
+    it("can't create a program with a balanceRule and minInitialBalance", async () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            name: "name " + generateId(5),
+            currency: "USD",
+            balanceRule: {
+                rule: "500",
+                explanation: "$5 off everything!"
+            },
+            minInitialBalance: 0
+        };
+        const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", program);
+        chai.assert.equal(create.statusCode, 422);
+        chai.assert.equal(create.body.message, "Program cannot have a balanceRule when also defining minInitialBalance, maxInitialBalance or fixedInitialBalances.");
+    });
+
+    it("can't create a program with a balanceRule and maxInitialBalance", async () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            name: "name " + generateId(5),
+            currency: "USD",
+            balanceRule: {
+                rule: "500",
+                explanation: "$5 off everything!"
+            },
+            maxInitialBalance: 0
+        };
+        const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", program);
+        chai.assert.equal(create.statusCode, 422);
+        chai.assert.equal(create.body.message, "Program cannot have a balanceRule when also defining minInitialBalance, maxInitialBalance or fixedInitialBalances.");
+    });
+
+    it("can't create a program with fixedInitialBalances and min/maxInitialBalance", async () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            name: "name " + generateId(5),
+            currency: "USD",
+            fixedInitialBalances: [200],
+            minInitialBalance: 0,
+            maxInitialBalance: 100
+        };
+        const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", program);
+        chai.assert.equal(create.statusCode, 422);
+        chai.assert.equal(create.body.message, "Program cannot have fixedInitialBalances defined when also defining minInitialBalance or maxInitialBalance");
+    });
+
+    it("can't create a program with discountSellerLiability if it's not a discount", async () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            name: "name " + generateId(5),
+            currency: "USD",
+            discountSellerLiability: 0.20
+        };
+        const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", program);
+        chai.assert.equal(create.statusCode, 422);
+        chai.assert.equal(create.body.message, "Program can't have discountSellerLiability if it is not a discount.");
+    });
+
+    it("can create a program with discountSellerLiability if it's a discount", async () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            name: "name " + generateId(5),
+            currency: "USD",
+            discountSellerLiability: 0.20,
+            discount: true
+        };
+        const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", program);
+        chai.assert.equal(create.statusCode, 201);
+    });
 });
