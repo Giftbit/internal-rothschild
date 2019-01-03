@@ -159,6 +159,10 @@ async function getPrograms(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filte
                     type: "string",
                     operators: ["eq", "in"]
                 },
+                "name": {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
                 "startDate": {
                     type: "Date",
                     operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
@@ -275,17 +279,17 @@ async function deleteProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
 
     try {
         const knex = await getKnexWrite();
-        const res = await knex("Programs")
+        const res: number = await knex("Programs")
             .where({
                 userId: auth.userId,
                 id: id
             })
             .delete();
-        if (res[0] === 0) {
+        if (res === 0) {
             throw new cassava.RestError(404);
         }
-        if (res[0] > 1) {
-            throw new Error(`Illegal DELETE query.  Deleted ${res.length} values.`);
+        if (res > 1) {
+            throw new Error(`Illegal DELETE query.  Deleted ${res} values.`);
         }
         return {success: true};
     } catch (err) {
@@ -299,6 +303,18 @@ async function deleteProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
 function checkProgramProperties(program: Program): void {
     if (program.minInitialBalance != null && program.maxInitialBalance != null && program.minInitialBalance > program.maxInitialBalance) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Program's minInitialBalance cannot exceed maxInitialBalance.");
+    }
+
+    if (program.balanceRule && (program.minInitialBalance != null || program.maxInitialBalance != null || program.fixedInitialBalances)) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Program cannot have a balanceRule when also defining minInitialBalance, maxInitialBalance or fixedInitialBalances.");
+    }
+
+    if ((program.minInitialBalance != null || program.maxInitialBalance != null) && program.fixedInitialBalances) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Program cannot have fixedInitialBalances defined when also defining minInitialBalance or maxInitialBalance");
+    }
+
+    if (program.discountSellerLiability !== null && !program.discount) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Program can't have discountSellerLiability if it is not a discount.`);
     }
 
     checkRulesSyntax(program, "Program");
