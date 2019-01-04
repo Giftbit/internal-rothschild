@@ -23,6 +23,10 @@ router.route(new cassava.routes.LoggingRoute({
     logFunction: log.info
 }));
 
+router.route(new giftbitRoutes.MetricsRoute({
+    logFunction: log.info
+}));
+
 router.route(new giftbitRoutes.HealthCheckRoute("/v2/healthCheck"));
 
 router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute({
