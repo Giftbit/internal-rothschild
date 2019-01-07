@@ -19,6 +19,7 @@ import {
 } from "./insertTransactions";
 import {executeStripeSteps, rollbackStripeChargeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
 import {StripeRestError} from "../../../utils/stripeUtils/StripeRestError";
+import {MetricsLogger} from "../../../utils/metricsLogger";
 import log = require("loglevel");
 
 export interface ExecuteTransactionPlannerOptions {
@@ -122,5 +123,6 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         }
     });
 
+    MetricsLogger.transaction(plan, auth);
     return TransactionPlan.toTransaction(auth, plan);
 }

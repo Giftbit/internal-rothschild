@@ -1,6 +1,5 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {TransactionType} from "../model/Transaction";
-import {StripeTransactionPlanStep} from "../lambdas/rest/transactions/TransactionPlan";
+import {StripeTransactionPlanStep, TransactionPlan} from "../lambdas/rest/transactions/TransactionPlan";
 import * as Stripe from "stripe";
 import log = require("loglevel");
 
@@ -9,9 +8,16 @@ export namespace MetricsLogger {
         logMetric(1, metricsType.histogram, `rothschild.values.attach.${attachType}`, {}, auth);
     }
 
-    export function transaction(value: number, transactionType: TransactionType, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
-        logMetric(value, metricsType.histogram, `rothschild.transactions`, {}, auth);
-        logMetric(value, metricsType.histogram, `rothschild.transactions.${transactionType}`, {}, auth);
+    export function transaction(plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
+        logMetric(1, metricsType.histogram, `rothschild.transactions`, {type: plan.transactionType}, auth);
+    }
+
+    export function stripeCall(step: StripeTransactionPlanStep, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
+        logMetric(step.amount, metricsType.histogram, `rothschild.transactions.stripe.calls`, {type: step.type}, auth);
+    }
+
+    export function stripeError(error: Stripe.IStripeError, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
+        logMetric(1, metricsType.histogram, `rothschild.transactions.stripe.errors`, {stripeErrorCode: error.code}, auth);
     }
 }
 

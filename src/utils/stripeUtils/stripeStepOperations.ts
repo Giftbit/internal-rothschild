@@ -10,12 +10,14 @@ import {StripeRestError} from "./StripeRestError";
 import {TransactionPlanError} from "../../lambdas/rest/transactions/TransactionPlanError";
 import {AdditionalStripeChargeParams} from "../../model/TransactionRequest";
 import * as Stripe from "stripe";
+import {MetricsLogger} from "../metricsLogger";
 import log = require("loglevel");
 
 export async function executeStripeSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, stripeConfig: LightrailAndMerchantStripeConfig, plan: TransactionPlan): Promise<void> {
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe") as StripeTransactionPlanStep[];
     try {
         for (const step of stripeSteps) {
+            MetricsLogger.stripeCall(step, auth);
             if (step.type === "charge") {
                 const stripeChargeParams = stripeTransactionPlanStepToStripeChargeRequest(auth, step, plan);
                 step.chargeResult = await createCharge(stripeChargeParams, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, step.idempotentStepId);
@@ -50,6 +52,7 @@ export async function executeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
         }
     } catch (err) {
         if ((err as StripeRestError).isStripeRestError) {
+            MetricsLogger.stripeError(err, auth);
             // Error was returned from Stripe. Passing original error along so that details of Stripe failure can be returned.
             throw err;
         }
