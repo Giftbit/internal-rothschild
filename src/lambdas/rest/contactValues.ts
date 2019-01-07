@@ -12,8 +12,8 @@ import {DbTransaction, LightrailDbTransactionStep, Transaction} from "../../mode
 import {DbContactValue} from "../../model/DbContactValue";
 import {AttachValueParameters} from "../../model/internal/AttachValueParameters";
 import {ValueIdentifier} from "../../model/internal/ValueIdentifier";
+import {MetricsLogger, valueAttachmentTypes} from "../../utils/metricsLogger";
 import log = require("loglevel");
-import {logMetric} from "../../utils/metricsLogger";
 
 export function installContactValuesRest(router: cassava.Router): void {
     router.route("/v2/contacts/{id}/values")
@@ -142,15 +142,15 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 
     if (value.isGenericCode) {
         if (params.attachGenericAsNewValue) {
-            logMetric(1, "histogram", "rothschild.values.attach.genericAsNewValue", {}, auth);
+            MetricsLogger.valueAttachment(valueAttachmentTypes.genericAsNew, auth);
             return await attachGenericValueAsNewValue(auth, contact.id, value);
         } else {
-            logMetric(1, "histogram", "rothschild.values.attach.generic", {}, auth);
+            MetricsLogger.valueAttachment(valueAttachmentTypes.generic, auth);
             await attachGenericValue(auth, contact.id, value);
             return value;
         }
     } else {
-        logMetric(1, "histogram", "rothschild.values.attach.unique", {}, auth);
+        MetricsLogger.valueAttachment(valueAttachmentTypes.unique, auth);
         return attachUniqueValue(auth, contact.id, value, params.allowOverwrite);
     }
 }
