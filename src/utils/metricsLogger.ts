@@ -38,7 +38,9 @@ function logMetric(value: number, metricType: metricsType, metricName: string, t
         `${metricName}|` +
         `${tagString}` +
         `#userId:${auth.userId},` +
-        `#teamMemberId:${auth.teamMemberId}`);
+        `#teamMemberId:${auth.teamMemberId},` +
+        `#liveMode:${!auth.isTestUser()}`
+    );
 }
 
 /**
