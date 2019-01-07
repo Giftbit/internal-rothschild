@@ -24,6 +24,7 @@ import {getTransactions} from "./transactions/transactions";
 import {Currency, formatAmountForCurrencyDisplay} from "../../model/Currency";
 import {getCurrency} from "./currencies";
 import {getRuleFromCache} from "./transactions/getRuleFromCache";
+import {logMetric} from "../../utils/metricsLogger";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -387,6 +388,11 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             await trx.into("Transactions").insert(initialBalanceTransaction);
             await trx.into("LightrailTransactionSteps").insert(initialBalanceTransactionStep);
         }
+
+        if (value.contactId) {
+            logMetric(1, "histogram", "rothschild.values.attach.createdWithContact", {}, auth);
+        }
+
         return DbValue.toValue(dbValue, params.showCode);
     } catch (err) {
         log.debug(err);

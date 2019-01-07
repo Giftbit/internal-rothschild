@@ -13,6 +13,7 @@ import {DbContactValue} from "../../model/DbContactValue";
 import {AttachValueParameters} from "../../model/internal/AttachValueParameters";
 import {ValueIdentifier} from "../../model/internal/ValueIdentifier";
 import log = require("loglevel");
+import {logMetric} from "../../utils/metricsLogger";
 
 export function installContactValuesRest(router: cassava.Router): void {
     router.route("/v2/contacts/{id}/values")
@@ -138,14 +139,18 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value cannot be attached because it is expired.`, "ValueExpired");
     }
 
+
     if (value.isGenericCode) {
         if (params.attachGenericAsNewValue) {
+            logMetric(1, "histogram", "rothschild.values.attach.genericAsNewValue", {}, auth);
             return await attachGenericValueAsNewValue(auth, contact.id, value);
         } else {
+            logMetric(1, "histogram", "rothschild.values.attach.generic", {}, auth);
             await attachGenericValue(auth, contact.id, value);
             return value;
         }
     } else {
+        logMetric(1, "histogram", "rothschild.values.attach.unique", {}, auth);
         return attachUniqueValue(auth, contact.id, value, params.allowOverwrite);
     }
 }
