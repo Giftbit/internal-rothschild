@@ -271,6 +271,12 @@ Resources:
       ServiceToken: !GetAtt CredentialGenFunction.Arn
       KmsKeyId: !Ref DbEncryptionKeyId
       SsmPrefix: !Sub "${AWS::StackName}"
+  DbReadUserCredentials:
+    Type: Custom::DbCredentials
+    Properties:
+      ServiceToken: !GetAtt CredentialGenFunction.Arn
+      KmsKeyId: !Ref DbEncryptionKeyId
+      SsmPrefix: !Sub "${AWS::StackName}-readonly"
 
   # Database instance
   DbSubnetGroup:
@@ -638,3 +644,4 @@ Resources:
       ServiceToken: !GetAtt PostDeployFunction.Arn
       # This parameter isn't used, but changing it forces this function to run every time, which we want.
       BuildDate: !Ref BuildDate
+      ReadOnlyUserPassword: !GetAtt DbReadUserCredentials.Password

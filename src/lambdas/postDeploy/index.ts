@@ -19,15 +19,17 @@ const flywayVersion = "5.0.7";
  * Handles a CloudFormationEvent and upgrades the database.
  */
 export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context): Promise<any> {
-    log.info("event", JSON.stringify(evt, null, 2));
 
     if (evt.RequestType === "Delete") {
         log.info("This action cannot be rolled back.  Calling success without doing anything.");
         return sendCloudFormationResponse(evt, ctx, true, {});
     }
+    if (!evt.ResourceProperties.ReadOnlyUserPassword) {
+        throw new Error("ResourceProperties.ReadOnlyUserPassword is undefined");
+    }
 
     try {
-        const res = await migrateDatabase(ctx);
+        const res = await migrateDatabase(ctx, evt.ResourceProperties.ReadOnlyUserPassword);
         return sendCloudFormationResponse(evt, ctx, true, res);
     } catch (err) {
         log.error(JSON.stringify(err, null, 2));
@@ -35,7 +37,7 @@ export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, 
     }
 }
 
-async function migrateDatabase(ctx: awslambda.Context): Promise<any> {
+async function migrateDatabase(ctx: awslambda.Context, readonlyUserPassword: string): Promise<any> {
     log.info("downloading flyway", flywayVersion);
     await spawn("curl", ["-o", `/tmp/flyway-commandline-${flywayVersion}.tar.gz`, `https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/${flywayVersion}/flyway-commandline-${flywayVersion}.tar.gz`]);
 
@@ -56,7 +58,8 @@ async function migrateDatabase(ctx: awslambda.Context): Promise<any> {
                 FLYWAY_DRIVER: "com.mysql.jdbc.Driver",
                 FLYWAY_URL: `jdbc:mysql://${process.env["DB_ENDPOINT"]}:${process.env["DB_PORT"]}/`,
                 FLYWAY_LOCATIONS: `filesystem:${path.resolve(".", "schema")}`,
-                FLYWAY_SCHEMAS: "rothschild"
+                FLYWAY_SCHEMAS: "rothschild",
+                FLYWAY_PLACEHOLDERS_READONLYUSERPASSWORD: readonlyUserPassword // Flyway makes this accessible via ${readonlyuserpassword} in mysql files.
             }
         });
     } catch (err) {
