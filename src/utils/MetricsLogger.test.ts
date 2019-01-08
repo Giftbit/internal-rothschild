@@ -1,6 +1,6 @@
 import {MetricsLogger, valueAttachmentTypes} from "./metricsLogger";
 import * as testUtils from "./testUtils";
-import {defaultTestUser} from "./testUtils";
+import {defaultTestUser, generateId} from "./testUtils";
 import * as cassava from "cassava";
 import {installRestRoutes} from "../lambdas/rest/installRestRoutes";
 import sinon from "sinon";
@@ -8,6 +8,9 @@ import * as chai from "chai";
 import {Value} from "../model/Value";
 import {createCurrency} from "../lambdas/rest/currencies";
 import {Contact} from "../model/Contact";
+import {Transaction, TransactionType} from "../model/Transaction";
+import {TransactionPlan} from "../lambdas/rest/transactions/TransactionPlan";
+import {CheckoutRequest} from "../model/TransactionRequest";
 import log = require("loglevel");
 
 describe("MetricsLogger", () => {
@@ -113,6 +116,90 @@ describe("MetricsLogger", () => {
                     attachGenericAsNewValue: true
                 });
                 sinon.assert.calledWith(spy, sinon.match(getValueAttachmentLog(valueAttachmentTypes.genericAsNew)));
+            });
+        });
+    });
+
+    describe("Transactions metrics", () => {
+
+        function getTransactionLog(transactionType: TransactionType): RegExp {
+            return new RegExp("MONITORING\\|\\d{10}\\|1\\|histogram\\|rothschild\\.transactions\\|#type:" + transactionType + ",#userId:default-test-user-TEST,#teamMemberId:default-test-user-TEST,#liveMode:false");
+        }
+
+        it("generates correct log statement - called directly", () => {
+            const spy = sandbox.spy(log, "info");
+
+            function getTransactionPlan(type: TransactionType): TransactionPlan {
+                return {
+                    id: generateId(),
+                    transactionType: type,
+                    currency: "USD",
+                    totals: null,
+                    lineItems: null,
+                    paymentSources: null,
+                    steps: null,
+                    tax: null,
+                    createdDate: new Date(),
+                    metadata: null
+                };
+            }
+
+            MetricsLogger.transaction(getTransactionPlan("checkout"), defaultTestUser.auth);
+            chai.assert.match(spy.args[0][0], getTransactionLog("checkout"));
+
+            MetricsLogger.transaction(getTransactionPlan("credit"), defaultTestUser.auth);
+            chai.assert.match(spy.args[1][0], getTransactionLog("credit"));
+
+            MetricsLogger.transaction(getTransactionPlan("debit"), defaultTestUser.auth);
+            chai.assert.match(spy.args[2][0], getTransactionLog("debit"));
+
+            MetricsLogger.transaction(getTransactionPlan("transfer"), defaultTestUser.auth);
+            chai.assert.match(spy.args[3][0], getTransactionLog("transfer"));
+
+            MetricsLogger.transaction(getTransactionPlan("initialBalance"), defaultTestUser.auth);
+            chai.assert.match(spy.args[4][0], getTransactionLog("initialBalance"));
+
+            MetricsLogger.transaction(getTransactionPlan("reverse"), defaultTestUser.auth);
+            chai.assert.match(spy.args[5][0], getTransactionLog("reverse"));
+
+            MetricsLogger.transaction(getTransactionPlan("capture"), defaultTestUser.auth);
+            chai.assert.match(spy.args[6][0], getTransactionLog("capture"));
+
+            MetricsLogger.transaction(getTransactionPlan("void"), defaultTestUser.auth);
+            chai.assert.match(spy.args[7][0], getTransactionLog("void"));
+
+            MetricsLogger.transaction(getTransactionPlan("attach"), defaultTestUser.auth);
+            chai.assert.match(spy.args[8][0], getTransactionLog("attach"));
+        });
+
+        describe("integration tests", () => {
+            it("generates correct log for checkout transaction", async () => {
+                const spy = sandbox.spy(log, "info");
+                await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                    id: "3",
+                    currency: "USD",
+                    balance: 100000
+                });
+                const request: CheckoutRequest = {
+                    id: generateId(),
+                    sources: [
+                        {
+                            rail: "lightrail",
+                            valueId: "3"
+                        }
+                    ],
+                    lineItems: [
+                        {
+                            type: "product",
+                            productId: "xyz-123",
+                            unitPrice: 123
+                        }
+                    ],
+                    currency: "USD"
+                };
+
+                await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+                sinon.assert.calledWith(spy, sinon.match(getTransactionLog("checkout")));
             });
         });
     });
