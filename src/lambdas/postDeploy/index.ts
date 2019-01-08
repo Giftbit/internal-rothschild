@@ -59,7 +59,7 @@ async function migrateDatabase(ctx: awslambda.Context, readonlyUserPassword: str
                 FLYWAY_URL: `jdbc:mysql://${process.env["DB_ENDPOINT"]}:${process.env["DB_PORT"]}/`,
                 FLYWAY_LOCATIONS: `filesystem:${path.resolve(".", "schema")}`,
                 FLYWAY_SCHEMAS: "rothschild",
-                FLYWAY_PLACEHOLDERS_READONLYUSERPASSWORD: readonlyUserPassword
+                FLYWAY_PLACEHOLDERS_READONLYUSERPASSWORD: readonlyUserPassword // Flyway makes this accessible via ${readonlyuserpassword} in mysql files.
             }
         });
     } catch (err) {
