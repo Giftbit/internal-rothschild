@@ -52,7 +52,7 @@ export async function executeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
         }
     } catch (err) {
         if ((err as StripeRestError).isStripeRestError) {
-            MetricsLogger.stripeError(err, auth);
+            MetricsLogger.stripeError((err as StripeRestError).stripeError, auth);
             // Error was returned from Stripe. Passing original error along so that details of Stripe failure can be returned.
             throw err;
         }

@@ -17,7 +17,7 @@ export namespace MetricsLogger {
     }
 
     export function stripeError(error: Stripe.IStripeError, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
-        logMetric(1, metricsType.histogram, `rothschild.transactions.stripe.errors`, {stripeErrorCode: error.code}, auth);
+        logMetric(1, metricsType.histogram, `rothschild.transactions.stripe.errors`, {stripeErrorType: error.type}, auth);
     }
 }
 
