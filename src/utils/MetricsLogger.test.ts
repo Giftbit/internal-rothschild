@@ -9,9 +9,22 @@ import {Value} from "../model/Value";
 import {createCurrency} from "../lambdas/rest/currencies";
 import {Contact} from "../model/Contact";
 import {Transaction, TransactionType} from "../model/Transaction";
-import {TransactionPlan} from "../lambdas/rest/transactions/TransactionPlan";
+import {StripeTransactionPlanStep, TransactionPlan} from "../lambdas/rest/transactions/TransactionPlan";
 import {CheckoutRequest} from "../model/TransactionRequest";
+import {
+    setStubsForStripeTests,
+    stubCheckoutStripeCharge,
+    stubCheckoutStripeError,
+    stubStripeCapture,
+    stubStripeRefund,
+    unsetStubsForStripeTests
+} from "./testUtils/stripeTestUtils";
+import {after} from "mocha";
+import {StripeRestError} from "./stripeUtils/StripeRestError";
 import log = require("loglevel");
+
+require("dotenv").config();
+
 
 describe("MetricsLogger", () => {
 
@@ -200,6 +213,109 @@ describe("MetricsLogger", () => {
 
                 await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
                 sinon.assert.calledWith(spy, sinon.match(getTransactionLog("checkout")));
+            });
+        });
+    });
+
+    describe("Stripe metrics", () => {
+        function getStripeCallLog(stepAmount: number, stripeCallType: string): RegExp {
+            return new RegExp("MONITORING\\|\\d{10}\\|" + stepAmount + "\\|histogram\\|rothschild\\.transactions\\.stripe\\.calls\\|#type:" + stripeCallType + ",#userId:default-test-user-TEST,#teamMemberId:default-test-user-TEST,#liveMode:false");
+        }
+
+        function getStripeErrorLog(stripeErrorType: string): RegExp {
+            return new RegExp("MONITORING\\|\\d{10}\\|1\\|histogram\\|rothschild\\.transactions\\.stripe\\.errors\\|#stripeErrorType:" + stripeErrorType + ",#userId:default-test-user-TEST,#teamMemberId:default-test-user-TEST,#liveMode:false");
+        }
+
+        describe("direct calls", () => {
+            it("generates correct log statement - called directly - stripe call", () => {
+                const spy = sandbox.spy(log, "info");
+                const stripeStep = {
+                    rail: "stripe",
+                    type: "charge",
+                    idempotentStepId: "",
+                    maxAmount: null,
+                    amount: 0
+                };
+
+                MetricsLogger.stripeCall(stripeStep as StripeTransactionPlanStep, defaultTestUser.auth);
+                chai.assert.match(spy.args[0][0], getStripeCallLog(stripeStep.amount, "charge"));
+            });
+
+            it("generates correct log statement - called directly - error", () => {
+                const spy = sandbox.spy(log, "info");
+
+                MetricsLogger.stripeError({type: "card_error"}, defaultTestUser.auth);
+                chai.assert.match(spy.args[0][0], getStripeErrorLog("card_error"));
+            });
+        });
+
+        describe("integration tests", () => {
+            before(async function () {
+                setStubsForStripeTests();
+            });
+
+            after(() => {
+                unsetStubsForStripeTests();
+            });
+
+            const amount = 5000;
+            const checkoutRequest: CheckoutRequest = {
+                id: generateId(),
+                sources: [
+                    {
+                        rail: "stripe",
+                        source: "tok_visa"
+                    }
+                ],
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "xyz-123",
+                        unitPrice: amount
+                    }
+                ],
+                currency: "USD"
+            };
+
+            it("generates correct log statement for Stripe charge & refund", async () => {
+                const spy = sandbox.spy(log, "info");
+
+                const [stripeResponse] = stubCheckoutStripeCharge(checkoutRequest, 0, 5000);
+
+                await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+                sinon.assert.calledWith(spy, sinon.match(getStripeCallLog(-amount, "charge")));
+
+                stubStripeRefund(stripeResponse);
+                await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkoutRequest.id}/reverse`, "POST", {id: `reverse-${checkoutRequest.id}`});
+
+                sinon.assert.calledWith(spy, sinon.match(getStripeCallLog(amount, "refund")));
+            });
+
+            it("generates correct log statement for Stripe capture", async () => {
+                const spy = sandbox.spy(log, "info");
+                const pendingCheckoutRequest: CheckoutRequest = {...checkoutRequest, id: generateId(), pending: true};
+
+                const [stripePending] = stubCheckoutStripeCharge(pendingCheckoutRequest, 0, 5000);
+                await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/checkout`, "POST", pendingCheckoutRequest);
+
+                stubStripeCapture(stripePending);
+                await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingCheckoutRequest.id}/capture`, "POST", {id: `capture-${pendingCheckoutRequest.id}`});
+
+                sinon.assert.calledWith(spy, sinon.match(getStripeCallLog(0, "capture")));
+            });
+
+            it("generates correct log statement for Stripe error", async () => {
+                const spy = sandbox.spy(log, "info");
+                const errorCheckoutReq: CheckoutRequest = {
+                    ...checkoutRequest,
+                    id: generateId(),
+                    sources: [{rail: "stripe", source: "tok_chargeDeclined"}]
+                };
+
+                stubCheckoutStripeError(errorCheckoutReq, 0, new StripeRestError(400, "", "", {type: "StripeCardError"}));
+                await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", errorCheckoutReq);
+
+                sinon.assert.calledWith(spy, sinon.match(getStripeErrorLog("StripeCardError")));
             });
         });
     });
