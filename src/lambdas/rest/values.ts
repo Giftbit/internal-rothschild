@@ -233,7 +233,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     let query = knex("Values")
         .select("Values.*")
         .where("Values.userId", "=", auth.userId);
-    const contactId = filterParams["contactId"];
+    const contactId = filterParams["contactId"] || filterParams["contactId.eq"];
     if (contactId) {
         query.leftJoin("ContactValues", {
             "Values.id": "ContactValues.valueId",

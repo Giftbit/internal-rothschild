@@ -312,6 +312,9 @@ describe("/v2/contacts/values", () => {
 
             const listValuesByContact = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?contactId=${data.contactA.id}`, "GET");
             chai.assert.sameDeepMembers(listValuesByContact.body, data.valuesAttachedToContactA);
+
+            const listValuesByContactUsingDotEq = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?contactId.eq=${data.contactA.id}`, "GET");
+            chai.assert.sameDeepMembers(listValuesByContactUsingDotEq.body, data.valuesAttachedToContactA);
         });
 
         it('can list values attached to contactB', async () => {
