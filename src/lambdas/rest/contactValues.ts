@@ -139,7 +139,6 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value cannot be attached because it is expired.`, "ValueExpired");
     }
 
-
     if (value.isGenericCode) {
         if (params.attachGenericAsNewValue) {
             MetricsLogger.valueAttachment(valueAttachmentTypes.genericAsNew, auth);
