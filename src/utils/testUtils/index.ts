@@ -104,6 +104,11 @@ export async function resetDb(): Promise<void> {
     try {
         const [schemaRes] = await connection.query("SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?", ["rothschild"]);
         if (schemaRes.length > 0) {
+            try {
+                await connection.query("DROP USER readonly");
+            } catch (err) {
+                // Can error because the user didn't exist. There isn't a great way to do `DROP USER IF EXISTS readonly` in mysql 5.6.
+            }
             await connection.query("DROP DATABASE rothschild");
         }
 
