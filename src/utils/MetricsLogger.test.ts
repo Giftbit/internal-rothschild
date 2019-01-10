@@ -1,4 +1,4 @@
-import {MetricsLogger, valueAttachmentTypes} from "./metricsLogger";
+import {MetricsLogger, ValueAttachmentTypes} from "./metricsLogger";
 import * as testUtils from "./testUtils";
 import {defaultTestUser, generateId} from "./testUtils";
 import * as cassava from "cassava";
@@ -60,28 +60,28 @@ describe("MetricsLogger", () => {
 
     describe("valueAttachment", () => {
 
-        function getValueAttachmentLog(attachType: valueAttachmentTypes): RegExp {
+        function getValueAttachmentLogMatcher(attachType: ValueAttachmentTypes): RegExp {
             return new RegExp("MONITORING\\|\\d{10}\\|1\\|histogram\\|rothschild\\.values\\.attach\\." + attachType + "\\|#userId:default-test-user-TEST,#teamMemberId:default-test-user-TEST,#liveMode:false");
         }
 
         it("generates correct log statement when called directly", () => {
             const spy = sandbox.spy(log, "info");
 
-            MetricsLogger.valueAttachment(valueAttachmentTypes.onCreate, defaultTestUser.auth);
-            chai.assert.match(spy.args[0][0], getValueAttachmentLog(valueAttachmentTypes.onCreate));
+            MetricsLogger.valueAttachment(ValueAttachmentTypes.OnCreate, defaultTestUser.auth);
+            chai.assert.match(spy.args[0][0], getValueAttachmentLogMatcher(ValueAttachmentTypes.OnCreate));
 
-            MetricsLogger.valueAttachment(valueAttachmentTypes.unique, defaultTestUser.auth);
-            chai.assert.match(spy.args[1][0], getValueAttachmentLog(valueAttachmentTypes.unique));
+            MetricsLogger.valueAttachment(ValueAttachmentTypes.Unique, defaultTestUser.auth);
+            chai.assert.match(spy.args[1][0], getValueAttachmentLogMatcher(ValueAttachmentTypes.Unique));
 
-            MetricsLogger.valueAttachment(valueAttachmentTypes.generic, defaultTestUser.auth);
-            chai.assert.match(spy.args[2][0], getValueAttachmentLog(valueAttachmentTypes.generic));
+            MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, defaultTestUser.auth);
+            chai.assert.match(spy.args[2][0], getValueAttachmentLogMatcher(ValueAttachmentTypes.Generic));
 
-            MetricsLogger.valueAttachment(valueAttachmentTypes.genericAsNew, defaultTestUser.auth);
-            chai.assert.match(spy.args[3][0], getValueAttachmentLog(valueAttachmentTypes.genericAsNew));
+            MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, defaultTestUser.auth);
+            chai.assert.match(spy.args[3][0], getValueAttachmentLogMatcher(ValueAttachmentTypes.GenericAsNew));
         });
 
         describe("integration tests", () => {
-            it("'onCreate' generates correct log statement", async () => {
+            it("'OnCreate' generates correct log statement", async () => {
                 const spy = sandbox.spy(log, "info");
                 await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
                     id: "1",
@@ -89,10 +89,10 @@ describe("MetricsLogger", () => {
                     balance: 0,
                     contactId: "12345"
                 });
-                sinon.assert.calledWith(spy, sinon.match(getValueAttachmentLog(valueAttachmentTypes.onCreate)));
+                sinon.assert.calledWith(spy, sinon.match(getValueAttachmentLogMatcher(ValueAttachmentTypes.OnCreate)));
             });
 
-            it("'unique' generates correct log statement", async () => {
+            it("'Unique' generates correct log statement", async () => {
                 const spy = sandbox.spy(log, "info");
                 await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
                     id: "1",
@@ -101,10 +101,10 @@ describe("MetricsLogger", () => {
                 });
                 await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactPartial.id}/values/attach`, "POST", {valueId: "1"});
 
-                sinon.assert.calledWith(spy, sinon.match(getValueAttachmentLog(valueAttachmentTypes.unique)));
+                sinon.assert.calledWith(spy, sinon.match(getValueAttachmentLogMatcher(ValueAttachmentTypes.Unique)));
             });
 
-            it("'generic' generates correct log statement", async () => {
+            it("'Generic' generates correct log statement", async () => {
                 const spy = sandbox.spy(log, "info");
                 await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
                     id: "2",
@@ -113,10 +113,10 @@ describe("MetricsLogger", () => {
                     isGenericCode: true
                 });
                 await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactPartial.id}/values/attach`, "POST", {valueId: "2"});
-                sinon.assert.calledWith(spy, sinon.match(getValueAttachmentLog(valueAttachmentTypes.generic)));
+                sinon.assert.calledWith(spy, sinon.match(getValueAttachmentLogMatcher(ValueAttachmentTypes.Generic)));
             });
 
-            it("'genericAsNew' generates correct log statement", async () => {
+            it("'GenericAsNew' generates correct log statement", async () => {
                 const spy = sandbox.spy(log, "info");
                 await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
                     id: "2",
@@ -128,14 +128,14 @@ describe("MetricsLogger", () => {
                     valueId: "2",
                     attachGenericAsNewValue: true
                 });
-                sinon.assert.calledWith(spy, sinon.match(getValueAttachmentLog(valueAttachmentTypes.genericAsNew)));
+                sinon.assert.calledWith(spy, sinon.match(getValueAttachmentLogMatcher(ValueAttachmentTypes.GenericAsNew)));
             });
         });
     });
 
     describe("Transactions metrics", () => {
 
-        function getTransactionLog(transactionType: TransactionType): RegExp {
+        function getTransactionLogMatcher(transactionType: TransactionType): RegExp {
             return new RegExp("MONITORING\\|\\d{10}\\|1\\|histogram\\|rothschild\\.transactions\\|#type:" + transactionType + ",#userId:default-test-user-TEST,#teamMemberId:default-test-user-TEST,#liveMode:false");
         }
 
@@ -158,31 +158,31 @@ describe("MetricsLogger", () => {
             }
 
             MetricsLogger.transaction(getTransactionPlan("checkout"), defaultTestUser.auth);
-            chai.assert.match(spy.args[0][0], getTransactionLog("checkout"));
+            chai.assert.match(spy.args[0][0], getTransactionLogMatcher("checkout"));
 
             MetricsLogger.transaction(getTransactionPlan("credit"), defaultTestUser.auth);
-            chai.assert.match(spy.args[1][0], getTransactionLog("credit"));
+            chai.assert.match(spy.args[1][0], getTransactionLogMatcher("credit"));
 
             MetricsLogger.transaction(getTransactionPlan("debit"), defaultTestUser.auth);
-            chai.assert.match(spy.args[2][0], getTransactionLog("debit"));
+            chai.assert.match(spy.args[2][0], getTransactionLogMatcher("debit"));
 
             MetricsLogger.transaction(getTransactionPlan("transfer"), defaultTestUser.auth);
-            chai.assert.match(spy.args[3][0], getTransactionLog("transfer"));
+            chai.assert.match(spy.args[3][0], getTransactionLogMatcher("transfer"));
 
             MetricsLogger.transaction(getTransactionPlan("initialBalance"), defaultTestUser.auth);
-            chai.assert.match(spy.args[4][0], getTransactionLog("initialBalance"));
+            chai.assert.match(spy.args[4][0], getTransactionLogMatcher("initialBalance"));
 
             MetricsLogger.transaction(getTransactionPlan("reverse"), defaultTestUser.auth);
-            chai.assert.match(spy.args[5][0], getTransactionLog("reverse"));
+            chai.assert.match(spy.args[5][0], getTransactionLogMatcher("reverse"));
 
             MetricsLogger.transaction(getTransactionPlan("capture"), defaultTestUser.auth);
-            chai.assert.match(spy.args[6][0], getTransactionLog("capture"));
+            chai.assert.match(spy.args[6][0], getTransactionLogMatcher("capture"));
 
             MetricsLogger.transaction(getTransactionPlan("void"), defaultTestUser.auth);
-            chai.assert.match(spy.args[7][0], getTransactionLog("void"));
+            chai.assert.match(spy.args[7][0], getTransactionLogMatcher("void"));
 
             MetricsLogger.transaction(getTransactionPlan("attach"), defaultTestUser.auth);
-            chai.assert.match(spy.args[8][0], getTransactionLog("attach"));
+            chai.assert.match(spy.args[8][0], getTransactionLogMatcher("attach"));
         });
 
         describe("integration tests", () => {
@@ -212,17 +212,17 @@ describe("MetricsLogger", () => {
                 };
 
                 await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
-                sinon.assert.calledWith(spy, sinon.match(getTransactionLog("checkout")));
+                sinon.assert.calledWith(spy, sinon.match(getTransactionLogMatcher("checkout")));
             });
         });
     });
 
     describe("Stripe metrics", () => {
-        function getStripeCallLog(stepAmount: number, stripeCallType: string): RegExp {
+        function getStripeCallLogMatcher(stepAmount: number, stripeCallType: string): RegExp {
             return new RegExp("MONITORING\\|\\d{10}\\|" + stepAmount + "\\|histogram\\|rothschild\\.transactions\\.stripe\\.calls\\|#type:" + stripeCallType + ",#userId:default-test-user-TEST,#teamMemberId:default-test-user-TEST,#liveMode:false");
         }
 
-        function getStripeErrorLog(stripeErrorType: string): RegExp {
+        function getStripeErrorLogMatcher(stripeErrorType: string): RegExp {
             return new RegExp("MONITORING\\|\\d{10}\\|1\\|histogram\\|rothschild\\.transactions\\.stripe\\.errors\\|#stripeErrorType:" + stripeErrorType + ",#userId:default-test-user-TEST,#teamMemberId:default-test-user-TEST,#liveMode:false");
         }
 
@@ -238,14 +238,14 @@ describe("MetricsLogger", () => {
                 };
 
                 MetricsLogger.stripeCall(stripeStep as StripeTransactionPlanStep, defaultTestUser.auth);
-                chai.assert.match(spy.args[0][0], getStripeCallLog(stripeStep.amount, "charge"));
+                chai.assert.match(spy.args[0][0], getStripeCallLogMatcher(stripeStep.amount, "charge"));
             });
 
             it("generates correct log statement - called directly - error", () => {
                 const spy = sandbox.spy(log, "info");
 
                 MetricsLogger.stripeError({type: "card_error"}, defaultTestUser.auth);
-                chai.assert.match(spy.args[0][0], getStripeErrorLog("card_error"));
+                chai.assert.match(spy.args[0][0], getStripeErrorLogMatcher("card_error"));
             });
         });
 
@@ -283,12 +283,12 @@ describe("MetricsLogger", () => {
                 const [stripeResponse] = stubCheckoutStripeCharge(checkoutRequest, 0, 5000);
 
                 await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-                sinon.assert.calledWith(spy, sinon.match(getStripeCallLog(-amount, "charge")));
+                sinon.assert.calledWith(spy, sinon.match(getStripeCallLogMatcher(-amount, "charge")));
 
                 stubStripeRefund(stripeResponse);
                 await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkoutRequest.id}/reverse`, "POST", {id: `reverse-${checkoutRequest.id}`});
 
-                sinon.assert.calledWith(spy, sinon.match(getStripeCallLog(amount, "refund")));
+                sinon.assert.calledWith(spy, sinon.match(getStripeCallLogMatcher(amount, "refund")));
             });
 
             it("generates correct log statement for Stripe capture", async () => {
@@ -301,7 +301,7 @@ describe("MetricsLogger", () => {
                 stubStripeCapture(stripePending);
                 await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingCheckoutRequest.id}/capture`, "POST", {id: `capture-${pendingCheckoutRequest.id}`});
 
-                sinon.assert.calledWith(spy, sinon.match(getStripeCallLog(0, "capture")));
+                sinon.assert.calledWith(spy, sinon.match(getStripeCallLogMatcher(0, "capture")));
             });
 
             it("generates correct log statement for Stripe error", async () => {
@@ -315,7 +315,7 @@ describe("MetricsLogger", () => {
                 stubCheckoutStripeError(errorCheckoutReq, 0, new StripeRestError(400, "", "", {type: "StripeCardError"}));
                 await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", errorCheckoutReq);
 
-                sinon.assert.calledWith(spy, sinon.match(getStripeErrorLog("StripeCardError")));
+                sinon.assert.calledWith(spy, sinon.match(getStripeErrorLogMatcher("StripeCardError")));
             });
         });
     });

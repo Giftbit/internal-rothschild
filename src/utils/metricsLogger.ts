@@ -4,28 +4,28 @@ import * as Stripe from "stripe";
 import log = require("loglevel");
 
 export namespace MetricsLogger {
-    export function valueAttachment(attachType: valueAttachmentTypes, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
-        logMetric(1, metricsType.histogram, `rothschild.values.attach.${attachType}`, {}, auth);
+    export function valueAttachment(attachType: ValueAttachmentTypes, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
+        logMetric(1, MetricsType.Histogram, `rothschild.values.attach.${attachType}`, {}, auth);
     }
 
     export function transaction(plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
-        logMetric(1, metricsType.histogram, `rothschild.transactions`, {type: plan.transactionType}, auth);
+        logMetric(1, MetricsType.Histogram, `rothschild.transactions`, {type: plan.transactionType}, auth);
     }
 
     export function stripeCall(step: StripeTransactionPlanStep, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
-        logMetric(step.amount, metricsType.histogram, `rothschild.transactions.stripe.calls`, {type: step.type}, auth);
+        logMetric(step.amount, MetricsType.Histogram, `rothschild.transactions.stripe.calls`, {type: step.type}, auth);
     }
 
     export function stripeError(error: Stripe.IStripeError, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
-        logMetric(1, metricsType.histogram, `rothschild.transactions.stripe.errors`, {stripeErrorType: error.type}, auth);
+        logMetric(1, MetricsType.Histogram, `rothschild.transactions.stripe.errors`, {stripeErrorType: error.type}, auth);
     }
 }
 
-export enum valueAttachmentTypes {
-    onCreate = "onCreate",
-    generic = "generic",
-    genericAsNew = "genericAsNew",
-    unique = "unique"
+export enum ValueAttachmentTypes {
+    OnCreate = "onCreate",
+    Generic = "generic",
+    GenericAsNew = "genericAsNew",
+    Unique = "unique"
 }
 
 /**
@@ -33,7 +33,7 @@ export enum valueAttachmentTypes {
  * Log message follows format `MONITORING|<unix_epoch_timestamp_in_seconds>|<value>|<metric_type>|<metric_name>|#<tag_key>:<tag_value>`
  * The tag function_name:<name_of_the_function> is added automatically
  */
-function logMetric(value: number, metricType: metricsType, metricName: string, tags: {} | { [key: string]: string }, auth: giftbitRoutes.jwtauth.AuthorizationBadge): void {
+function logMetric(value: number, metricType: MetricsType, metricName: string, tags: {} | { [key: string]: string }, auth: giftbitRoutes.jwtauth.AuthorizationBadge): void {
     let tagString: string = "";
     Object.keys(tags).forEach(key => tagString += `#${key}:${tags[key]},`);
 
@@ -52,9 +52,9 @@ function logMetric(value: number, metricType: metricsType, metricName: string, t
 /**
  * Legal types of metrics: https://docs.datadoghq.com/integrations/amazon_lambda/#using-cloudwatch-logs
  */
-enum metricsType {
-    histogram = "histogram",
-    count = "count",
-    gauge = "gauge",
-    check = "check"
+enum MetricsType {
+    Histogram = "histogram",
+    Count = "count",
+    Gauge = "gauge",
+    Check = "check"
 }
