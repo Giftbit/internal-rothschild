@@ -1660,6 +1660,7 @@ describe("/v2/programs", () => {
         chai.assert.equal(create.statusCode, 422);
     });
 
+    let programForPatch: Program;
     it("can create a program with distinct fixedInitialUsesRemaining", async () => {
         const program: Partial<Program> = {
             id: generateId(),
@@ -1667,8 +1668,18 @@ describe("/v2/programs", () => {
             currency: "USD",
             fixedInitialUsesRemaining: [1, 2, 3]
         };
-        const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", program);
+        const create = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
         chai.assert.equal(create.statusCode, 201);
+        programForPatch = create.body;
+    });
+
+    it("can't patch a program with duplicated fixedInitialUsesRemaining", async () => {
+        chai.assert.isNotNull(programForPatch);
+
+        const patch = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${programForPatch.id}`, "PATCH", {
+            fixedInitialUsesRemaining: [1, 1, 2]
+        });
+        chai.assert.equal(patch.statusCode, 422);
     });
 
     it("can't create a program with duplicate fixedInitialBalances", async () => {
@@ -1682,14 +1693,23 @@ describe("/v2/programs", () => {
         chai.assert.equal(create.statusCode, 422);
     });
 
-    it("can create a program with destinct fixedInitialBalances", async () => {
+    it("can create a program with distinct fixedInitialBalances", async () => {
         const program: Partial<Program> = {
             id: generateId(),
             name: "name " + generateId(5),
             currency: "USD",
             fixedInitialBalances: [1, 2, 3]
         };
-        const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", program);
-        chai.assert.equal(create.statusCode, 422);
+        const create = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
+        chai.assert.equal(create.statusCode, 201);
+    });
+
+    it("can't patch a program with duplicated fixedInitialBalances", async () => {
+        chai.assert.isNotNull(programForPatch);
+
+        const patch = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${programForPatch.id}`, "PATCH", {
+            fixedInitialBalances: [1, 1, 2]
+        });
+        chai.assert.equal(patch.statusCode, 422);
     });
 });
