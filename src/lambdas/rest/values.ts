@@ -395,8 +395,8 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with id '${value.id}' already exists.`, "ValueIdExists");
         }
         if (constraint === "uq_Values_codeHashed") {
-            if (params.generateCodeParameters && retryCount < 2 /* Will retry twice. */) {
-                log.info(`Retrying creating the Value because there was a code uniqueness constraint failure for a generated code. Retry number: ${retryCount}. ValueId: ${params.partialValue.id}.`)
+            if (params.generateCodeParameters && retryCount < 2 /* Retrying twice is an arbitrary number. This may need to be increased if we're still seeing regular failures. Unless users are using their own character set there are around 1 billion possible codes. It seems unlikely for 3+ retry failures even if users have millions of codes. */) {
+                log.info(`Retrying creating the Value because there was a code uniqueness constraint failure for a generated code. Retry number: ${retryCount}. ValueId: ${params.partialValue.id}.`);
                 return createValue(auth, params, trx, retryCount + 1);
             } else {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with the given code already exists.`, "ValueCodeExists");
