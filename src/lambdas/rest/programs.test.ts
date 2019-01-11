@@ -1648,4 +1648,48 @@ describe("/v2/programs", () => {
         const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", program);
         chai.assert.equal(create.statusCode, 201);
     });
+
+    it("can't create a program with duplicate fixedInitialUsesRemaining", async () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            name: "name " + generateId(5),
+            currency: "USD",
+            fixedInitialUsesRemaining: [1, 1, 2]
+        };
+        const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", program);
+        chai.assert.equal(create.statusCode, 422);
+    });
+
+    it("can create a program with distinct fixedInitialUsesRemaining", async () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            name: "name " + generateId(5),
+            currency: "USD",
+            fixedInitialUsesRemaining: [1, 2, 3]
+        };
+        const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", program);
+        chai.assert.equal(create.statusCode, 201);
+    });
+
+    it("can't create a program with duplicate fixedInitialBalances", async () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            name: "name " + generateId(5),
+            currency: "USD",
+            fixedInitialBalances: [1, 1, 2]
+        };
+        const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", program);
+        chai.assert.equal(create.statusCode, 422);
+    });
+
+    it("can create a program with destinct fixedInitialBalances", async () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            name: "name " + generateId(5),
+            currency: "USD",
+            fixedInitialBalances: [1, 2, 3]
+        };
+        const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", program);
+        chai.assert.equal(create.statusCode, 422);
+    });
 });
