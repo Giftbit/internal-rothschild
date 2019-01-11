@@ -322,7 +322,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     };
 }
 
-export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: CreateValueParameters, trx: Knex.Transaction, retries: number = 0): Promise<Value> {
+export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: CreateValueParameters, trx: Knex.Transaction, retryCount: number = 0): Promise<Value> {
     auth.requireIds("userId", "teamMemberId");
     let value: Value = initializeValue(auth, params.partialValue, params.program, params.generateCodeParameters);
     log.info(`Create Value requested for user: ${auth.userId}. Value`, Value.toStringSanitized(value));
@@ -333,7 +333,6 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     value.startDate = value.startDate ? dateInDbPrecision(new Date(value.startDate)) : null;
     value.endDate = value.endDate ? dateInDbPrecision(new Date(value.endDate)) : null;
 
-    console.log("inserting value: " + JSON.stringify(value));
     const dbValue = await Value.toDbValue(auth, value);
 
     try {
@@ -396,9 +395,9 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with id '${value.id}' already exists.`, "ValueIdExists");
         }
         if (constraint === "uq_Values_codeHashed") {
-            if (retries < 3) {
-                console.log("RETRYING");
-                return createValue(auth, params, trx, retries + 1);
+            if (params.generateCodeParameters && retryCount < 2 /* Will retry twice. */) {
+                log.info(`Retrying creating the Value because there was a code uniqueness constraint failure for a generated code. Retry number: ${retryCount}. ValueId: ${params.partialValue.id}.`)
+                return createValue(auth, params, trx, retryCount + 1);
             } else {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with the given code already exists.`, "ValueCodeExists");
             }

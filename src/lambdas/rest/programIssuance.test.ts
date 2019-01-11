@@ -10,6 +10,8 @@ import {initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils";
 import {Issuance} from "../../model/Issuance";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
 import {Transaction} from "../../model/Transaction";
+import * as sinon from "sinon";
+import * as codeGenerator from "../../utils/codeGenerator";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -17,6 +19,7 @@ chai.use(chaiExclude);
 describe("/v2/issuances", () => {
 
     const router = new cassava.Router();
+    const sinonSandbox = sinon.createSandbox();
 
     const program: Partial<Program> = {
         id: generateId(),
@@ -60,6 +63,10 @@ describe("/v2/issuances", () => {
 
         const createProgramWithRulesAndDates = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", programWithRulesAndDates);
         chai.assert.equal(createProgramWithRulesAndDates.statusCode, 201, JSON.stringify(createProgramWithRulesAndDates.body));
+    });
+
+    after(async () => {
+        sinonSandbox.restore();
     });
 
     it(`basic issuances with varying counts. POST, GET and LIST`, async () => {
@@ -744,19 +751,34 @@ describe("/v2/issuances", () => {
     });
 
     it.only("can create issuance from small code alphabet. duplicate code errors are retried", async () => {
+        const generateCodeArgs = {
+            length: 6,
+            charset: "abcde"
+        };
+
+        const code1 = "aaaaa";
+        const code2 = "bbbbb";
+        const generateCodeStub = sinonSandbox.stub(codeGenerator, "generateCode");
+        generateCodeStub.withArgs(generateCodeArgs)
+            .onCall(0).returns(code1)  // Value1 will be created with code1
+            .onCall(1).returns(code1)  // Value2 will fail creation
+            .onCall(2).returns(code1)  // Value2, retry 1 fails
+            .onCall(3).returns(code2); // value2, retry 2 succeeds
+
         const issuance: Partial<Issuance> = {
             id: generateId(),
-            count: 10000,
+            count: 2,
             name: "issuance"
         };
         const createIssuance = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", {
             ...issuance,
-            generateCode: {
-                length: 6,
-                charset: "abcde"
-            }
+            generateCode: generateCodeArgs
         });
-        console.log(JSON.stringify(createIssuance));
         chai.assert.equal(createIssuance.statusCode, 201);
-    }).timeout(15000);
+        const values = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?issuanceId=${issuance.id}&showCode=true`, "GET");
+        chai.assert.equal(values.statusCode, 200);
+        chai.assert.equal(generateCodeStub.callCount, 4);
+        chai.assert.sameDeepMembers(values.body.map(v => v.code), [code1, code2]);
+        generateCodeStub.restore()
+    });
 });
