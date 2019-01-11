@@ -750,7 +750,7 @@ describe("/v2/issuances", () => {
         });
     });
 
-    it.only("can create issuance from small code alphabet. duplicate code errors are retried", async () => {
+    it("can create issuance from small code alphabet. duplicate code errors are retried", async () => {
         const generateCodeArgs = {
             length: 6,
             charset: "abcde"
