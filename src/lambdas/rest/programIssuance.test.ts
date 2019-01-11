@@ -742,4 +742,21 @@ describe("/v2/issuances", () => {
             });
         });
     });
+
+    it.only("can create issuance from small code alphabet. duplicate code errors are retried", async () => {
+        const issuance: Partial<Issuance> = {
+            id: generateId(),
+            count: 10000,
+            name: "issuance"
+        };
+        const createIssuance = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", {
+            ...issuance,
+            generateCode: {
+                length: 6,
+                charset: "abcde"
+            }
+        });
+        console.log(JSON.stringify(createIssuance));
+        chai.assert.equal(createIssuance.statusCode, 201);
+    }).timeout(15000);
 });

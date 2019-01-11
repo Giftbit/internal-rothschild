@@ -322,7 +322,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     };
 }
 
-export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: CreateValueParameters, trx: Knex.Transaction): Promise<Value> {
+export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: CreateValueParameters, trx: Knex.Transaction, retries: number = 0): Promise<Value> {
     auth.requireIds("userId", "teamMemberId");
     let value: Value = initializeValue(auth, params.partialValue, params.program, params.generateCodeParameters);
     log.info(`Create Value requested for user: ${auth.userId}. Value`, Value.toStringSanitized(value));
@@ -333,6 +333,7 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     value.startDate = value.startDate ? dateInDbPrecision(new Date(value.startDate)) : null;
     value.endDate = value.endDate ? dateInDbPrecision(new Date(value.endDate)) : null;
 
+    console.log("inserting value: " + JSON.stringify(value));
     const dbValue = await Value.toDbValue(auth, value);
 
     try {
@@ -395,7 +396,12 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with id '${value.id}' already exists.`, "ValueIdExists");
         }
         if (constraint === "uq_Values_codeHashed") {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with the given code already exists.`, "ValueCodeExists");
+            if (retries < 3) {
+                console.log("RETRYING");
+                return createValue(auth, params, trx, retries + 1);
+            } else {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with the given code already exists.`, "ValueCodeExists");
+            }
         }
         if (constraint === "fk_Values_Currencies") {
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${value.currency}' does not exist. See the documentation on creating currencies.`, "CurrencyNotFound");
