@@ -207,6 +207,24 @@ describe("/v2/programs", () => {
         chai.assert.deepEqual(update3.body.balanceRule, request3.balanceRule);
     });
 
+    it("can update startDate and endDate", async () => {
+        const prog: Partial<Program> = {
+            id: generateId(),
+            currency: "USD",
+            name: "some program name"
+        };
+        const createProgram = await testUtils.testAuthedRequest<Program>(router, `/v2/programs`, "POST", prog);
+        chai.assert.equal(createProgram.statusCode, 201);
+
+        const update = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${prog.id}`, "PATCH", {
+            startDate: "2020-01-01T00:00:00.000Z",
+            endDate: "2030-01-01T00:00:00.000Z",
+        });
+        chai.assert.equal(update.statusCode, 200);
+        chai.assert.equal(update.body.startDate as any, "2020-01-01T00:00:00.000Z");
+        chai.assert.equal(update.body.endDate as any, "2030-01-01T00:00:00.000Z");
+    });
+
     it("can't update a program id", async () => {
         let request = {
             id: generateId()

@@ -234,6 +234,13 @@ export async function getProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
 async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, programUpdates: Partial<Program>): Promise<Program> {
     auth.requireIds("userId");
 
+    if (programUpdates.startDate) {
+        programUpdates.startDate = dateInDbPrecision(new Date(programUpdates.startDate));
+    }
+    if (programUpdates.endDate) {
+        programUpdates.endDate = dateInDbPrecision(new Date(programUpdates.endDate));
+    }
+
     const knex = await getKnexWrite();
     return await knex.transaction(async trx => {
         // Get the master version of the Program and lock it.
