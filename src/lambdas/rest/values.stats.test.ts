@@ -361,7 +361,7 @@ describe("/v2/values/ - secret stats capability", () => {
                 "count": 2
             }
         });
-    }).timeout(10000);
+    }).timeout(15000);
 
     it("/value/{id}/stats - unique code performance stats", async () => {
         const value: Partial<Value> = {
