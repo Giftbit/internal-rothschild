@@ -332,6 +332,10 @@ function checkProgramProperties(program: Program): void {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Program can't have discountSellerLiability if it is not a discount.`);
     }
 
+    if (program.endDate && program.startDate > program.endDate) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Property startDate cannot exceed endDate.");
+    }
+
     checkRulesSyntax(program, "Program");
 }
 

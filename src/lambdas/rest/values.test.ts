@@ -432,10 +432,10 @@ describe("/v2/values/", () => {
         const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(createValue.statusCode, 201);
 
-        const updateValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "PATCH", {
+        const updateValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", {
             startDate: new Date("2030-01-01T00:00:00.000Z")
         });
-        chai.assert.equal(updateValue.statusCode, 201);
+        chai.assert.equal(updateValue.statusCode, 200);
         chai.assert.equal(updateValue.body.startDate as any, "2030-01-01T00:00:00.000Z");
         chai.assert.isNull(updateValue.body.endDate);
     });

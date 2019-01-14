@@ -207,6 +207,18 @@ describe("/v2/programs", () => {
         chai.assert.deepEqual(update3.body.balanceRule, request3.balanceRule);
     });
 
+    it("can't create a program with startDate > endDate", async () => {
+        const prog: Partial<Program> = {
+            id: generateId(),
+            currency: "USD",
+            name: "some program name",
+            startDate: new Date("2025-01-01"),
+            endDate: new Date("2024-01-01")
+        };
+        const createProgram = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", prog);
+        chai.assert.equal(createProgram.statusCode, 422);
+    });
+
     it("can update startDate and endDate", async () => {
         const prog: Partial<Program> = {
             id: generateId(),
@@ -223,6 +235,13 @@ describe("/v2/programs", () => {
         chai.assert.equal(update.statusCode, 200);
         chai.assert.equal(update.body.startDate as any, "2020-01-01T00:00:00.000Z");
         chai.assert.equal(update.body.endDate as any, "2030-01-01T00:00:00.000Z");
+
+        // can't update where startDate exceeds endDate
+        const update2 = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${prog.id}`, "PATCH", {
+            startDate: "2040-01-01T00:00:00.000Z",
+            endDate: "2030-01-01T00:00:00.000Z",
+        });
+        chai.assert.equal(update2.statusCode, 422);
     });
 
     it("can't update a program id", async () => {
