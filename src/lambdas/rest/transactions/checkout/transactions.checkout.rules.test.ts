@@ -1405,4 +1405,31 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
             "createdBy": "default-test-user-TEST"
         }, ["createdDate"]);
     });
+
+    it("can checkout with a balanceRule that evaluates to a string -> NaN -> 0", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balanceRule: {
+                rule: "'string'",
+                explanation: "evaluates to a string"
+            }
+        };
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValue.statusCode, 201);
+
+        const checkout: CheckoutRequest = {
+            id: generateId(),
+            currency: "CAD",
+            sources: [
+                {rail: "lightrail", valueId: value.id}
+            ],
+            lineItems: [{unitPrice: 1}],
+            allowRemainder: true
+        };
+        const createCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
+        chai.assert.equal(createCheckout.statusCode, 201);
+        chai.assert.equal(createCheckout.body.totals.remainder, 1);
+        chai.assert.equal(createCheckout.body.totals.paidLightrail, 0);
+    });
 });
