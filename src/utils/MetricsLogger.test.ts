@@ -6,7 +6,6 @@ import {installRestRoutes} from "../lambdas/rest/installRestRoutes";
 import sinon from "sinon";
 import * as chai from "chai";
 import {Value} from "../model/Value";
-import {createCurrency} from "../lambdas/rest/currencies";
 import {Contact} from "../model/Contact";
 import {Transaction, TransactionType} from "../model/Transaction";
 import {StripeTransactionPlanStep, TransactionPlan} from "../lambdas/rest/transactions/TransactionPlan";
@@ -21,6 +20,7 @@ import {
 } from "./testUtils/stripeTestUtils";
 import {after} from "mocha";
 import {StripeRestError} from "./stripeUtils/StripeRestError";
+import {Currency} from "../model/Currency";
 import log = require("loglevel");
 
 require("dotenv").config();
@@ -32,7 +32,7 @@ describe("MetricsLogger", () => {
 
     const router = new cassava.Router();
     const contactPartial: Partial<Contact> = {
-        id: "12345",
+        id: generateId(),
     };
 
     before(async function () {
@@ -40,13 +40,16 @@ describe("MetricsLogger", () => {
         router.route(testUtils.authRoute);
         installRestRoutes(router);
 
-        const currency = await createCurrency(testUtils.defaultTestUser.auth, {
+        const currencyResp = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", {
             code: "USD",
             name: "The Big Bucks",
             symbol: "$",
             decimalPlaces: 2
         });
-        await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contactPartial);
+        chai.assert.equal(currencyResp.statusCode, 201, `body=${JSON.stringify(currencyResp.body)}`);
+
+        const contactResp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contactPartial);
+        chai.assert.equal(contactResp.statusCode, 201, `body=${JSON.stringify(contactResp.body)}`);
     });
 
     beforeEach(function () {
@@ -56,7 +59,6 @@ describe("MetricsLogger", () => {
     afterEach(() => {
         sandbox.restore();
     });
-
 
     describe("valueAttachment", () => {
 
@@ -83,51 +85,71 @@ describe("MetricsLogger", () => {
         describe("integration tests", () => {
             it("'OnCreate' generates correct log statement", async () => {
                 const spy = sandbox.spy(log, "info");
-                await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
-                    id: "1",
+                const value: Partial<Value> = {
+                    id: generateId(),
                     currency: "USD",
                     balance: 0,
-                    contactId: "12345"
-                });
+                    contactId: contactPartial.id
+                };
+                const createValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+                chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
+
                 sinon.assert.calledWith(spy, sinon.match(getValueAttachmentLogMatcher(ValueAttachmentTypes.OnCreate)));
             });
 
             it("'Unique' generates correct log statement", async () => {
                 const spy = sandbox.spy(log, "info");
-                await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
-                    id: "1",
+
+                const value: Partial<Value> = {
+                    id: generateId(),
                     currency: "USD",
                     balance: 0,
-                });
-                await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactPartial.id}/values/attach`, "POST", {valueId: "1"});
+                    contactId: contactPartial.id
+                };
+                const createValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+                chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
+
+                const attachValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactPartial.id}/values/attach`, "POST", {valueId: value.id});
+                chai.assert.equal(attachValueResp.statusCode, 200, `body=${JSON.stringify(attachValueResp.body)}`);
 
                 sinon.assert.calledWith(spy, sinon.match(getValueAttachmentLogMatcher(ValueAttachmentTypes.Unique)));
             });
 
             it("'Generic' generates correct log statement", async () => {
                 const spy = sandbox.spy(log, "info");
-                await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
-                    id: "2",
+                const value: Partial<Value> = {
+                    id: generateId(),
                     currency: "USD",
                     balance: 0,
                     isGenericCode: true
-                });
-                await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactPartial.id}/values/attach`, "POST", {valueId: "2"});
+                };
+                const createValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+                chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
+
+                const attachValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactPartial.id}/values/attach`, "POST", {valueId: value.id});
+                chai.assert.equal(attachValueResp.statusCode, 200, `body=${JSON.stringify(attachValueResp.body)}`);
+
                 sinon.assert.calledWith(spy, sinon.match(getValueAttachmentLogMatcher(ValueAttachmentTypes.Generic)));
             });
 
             it("'GenericAsNew' generates correct log statement", async () => {
                 const spy = sandbox.spy(log, "info");
-                await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
-                    id: "2",
+
+                const value: Partial<Value> = {
+                    id: generateId(),
                     currency: "USD",
                     balance: 0,
                     isGenericCode: true
-                });
-                await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactPartial.id}/values/attach`, "POST", {
-                    valueId: "2",
+                };
+                const createValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+                chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
+
+                const attachValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactPartial.id}/values/attach`, "POST", {
+                    valueId: value.id,
                     attachGenericAsNewValue: true
                 });
+                chai.assert.equal(attachValueResp.statusCode, 200, `body=${JSON.stringify(attachValueResp.body)}`);
+
                 sinon.assert.calledWith(spy, sinon.match(getValueAttachmentLogMatcher(ValueAttachmentTypes.GenericAsNew)));
             });
         });
@@ -188,17 +210,20 @@ describe("MetricsLogger", () => {
         describe("integration tests", () => {
             it("generates correct log for checkout transaction", async () => {
                 const spy = sandbox.spy(log, "info");
-                await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
-                    id: "3",
+                const value: Partial<Value> = {
+                    id: generateId(),
                     currency: "USD",
                     balance: 100000
-                });
+                };
+                const createValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+                chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
+
                 const request: CheckoutRequest = {
                     id: generateId(),
                     sources: [
                         {
                             rail: "lightrail",
-                            valueId: "3"
+                            valueId: value.id
                         }
                     ],
                     lineItems: [
@@ -211,7 +236,9 @@ describe("MetricsLogger", () => {
                     currency: "USD"
                 };
 
-                await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+                const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+                chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
+
                 sinon.assert.calledWith(spy, sinon.match(getTransactionLogMatcher("checkout")));
             });
         });
@@ -282,11 +309,13 @@ describe("MetricsLogger", () => {
 
                 const [stripeResponse] = stubCheckoutStripeCharge(checkoutRequest, 0, 5000);
 
-                await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+                const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+                chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
                 sinon.assert.calledWith(spy, sinon.match(getStripeCallLogMatcher(-amount, "charge")));
 
                 stubStripeRefund(stripeResponse);
-                await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkoutRequest.id}/reverse`, "POST", {id: `reverse-${checkoutRequest.id}`});
+                const refundResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkoutRequest.id}/reverse`, "POST", {id: `reverse-${checkoutRequest.id}`});
+                chai.assert.equal(refundResp.statusCode, 201, `body=${JSON.stringify(refundResp.body)}`);
 
                 sinon.assert.calledWith(spy, sinon.match(getStripeCallLogMatcher(amount, "refund")));
             });
@@ -296,10 +325,12 @@ describe("MetricsLogger", () => {
                 const pendingCheckoutRequest: CheckoutRequest = {...checkoutRequest, id: generateId(), pending: true};
 
                 const [stripePending] = stubCheckoutStripeCharge(pendingCheckoutRequest, 0, 5000);
-                await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/checkout`, "POST", pendingCheckoutRequest);
+                const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/checkout`, "POST", pendingCheckoutRequest);
+                chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
 
                 stubStripeCapture(stripePending);
-                await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingCheckoutRequest.id}/capture`, "POST", {id: `capture-${pendingCheckoutRequest.id}`});
+                const captureResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingCheckoutRequest.id}/capture`, "POST", {id: `capture-${pendingCheckoutRequest.id}`});
+                chai.assert.equal(captureResp.statusCode, 201, `body=${JSON.stringify(captureResp.body)}`);
 
                 sinon.assert.calledWith(spy, sinon.match(getStripeCallLogMatcher(0, "capture")));
             });
@@ -312,8 +343,9 @@ describe("MetricsLogger", () => {
                     sources: [{rail: "stripe", source: "tok_chargeDeclined"}]
                 };
 
-                stubCheckoutStripeError(errorCheckoutReq, 0, new StripeRestError(400, "", "", {type: "StripeCardError"}));
-                await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", errorCheckoutReq);
+                stubCheckoutStripeError(errorCheckoutReq, 0, new StripeRestError(422, "", "", {type: "StripeCardError"}));
+                const errorResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", errorCheckoutReq);
+                chai.assert.equal(errorResp.statusCode, 422, `body=${JSON.stringify(errorResp.body)}`);
 
                 sinon.assert.calledWith(spy, sinon.match(getStripeErrorLogMatcher("StripeCardError")));
             });
