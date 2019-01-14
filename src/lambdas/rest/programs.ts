@@ -305,6 +305,14 @@ function checkProgramProperties(program: Program): void {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Program's minInitialBalance cannot exceed maxInitialBalance.");
     }
 
+    if (program.fixedInitialBalances && hasDuplicates(program.fixedInitialBalances)) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Program's fixedInitialBalances contains duplicates.");
+    }
+
+    if (program.fixedInitialUsesRemaining && hasDuplicates(program.fixedInitialUsesRemaining)) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Program's fixedInitialUsesRemaining contains duplicates.");
+    }
+
     if (program.balanceRule && (program.minInitialBalance != null || program.maxInitialBalance != null || program.fixedInitialBalances)) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Program cannot have a balanceRule when also defining minInitialBalance, maxInitialBalance or fixedInitialBalances.");
     }
@@ -318,6 +326,10 @@ function checkProgramProperties(program: Program): void {
     }
 
     checkRulesSyntax(program, "Program");
+}
+
+function hasDuplicates(array) {
+    return (new Set(array)).size !== array.length;
 }
 
 /**
