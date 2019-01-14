@@ -756,7 +756,7 @@ function checkValueProperties(value: Value, program: Program = null): void {
     if (value.contactId && value.isGenericCode) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "A Value with isGenericCode=true cannot have contactId set.");
     }
-    if (value.startDate > value.endDate) {
+    if (value.endDate && value.startDate > value.endDate) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Property startDate cannot exceed endDate.");
     }
     if (!value.currency) {

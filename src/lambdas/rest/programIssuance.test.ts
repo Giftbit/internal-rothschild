@@ -554,6 +554,30 @@ describe("/v2/issuances", () => {
         chai.assert.equal(createIssuance.body.message, "Value's balance 0 is less than minInitialBalance 1.", JSON.stringify(createIssuance.body));
     });
 
+    it("can create Issuance from a program that has a startDate but no endDate", async () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            name: "program-name",
+            currency: "USD",
+            startDate: new Date("2019-01-01")
+        };
+        const createProgram = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs`, "POST", program);
+        chai.assert.equal(createProgram.statusCode, 201, JSON.stringify(createProgram.body));
+
+        let issuance: Partial<Issuance> = {
+            id: generateId(),
+            name: "issuance name",
+            count: 1
+        };
+        const createIssuance = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${program.id}/issuances`, "POST", issuance);
+        chai.assert.equal(createIssuance.statusCode, 201, JSON.stringify(createIssuance.body));
+
+        const getValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?issuanceId=${issuance.id}`, "GET");
+        chai.assert.equal(getValues.statusCode, 200);
+        chai.assert.equal((getValues.body[0]).startDate as any, program.startDate.toISOString());
+        chai.assert.isNull(getValues.body[0].endDate);
+    });
+
     describe("value active status scenarios", () => {
         describe("program with undefined active, defaults to active=true", () => {
             const program: Partial<Program> = {
