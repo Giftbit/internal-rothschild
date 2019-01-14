@@ -322,7 +322,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     };
 }
 
-export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: CreateValueParameters, trx: Knex.Transaction): Promise<Value> {
+export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: CreateValueParameters, trx: Knex.Transaction, retryCount: number = 0): Promise<Value> {
     auth.requireIds("userId", "teamMemberId");
     let value: Value = initializeValue(auth, params.partialValue, params.program, params.generateCodeParameters);
     log.info(`Create Value requested for user: ${auth.userId}. Value`, Value.toStringSanitized(value));
@@ -395,7 +395,12 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with id '${value.id}' already exists.`, "ValueIdExists");
         }
         if (constraint === "uq_Values_codeHashed") {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with the given code already exists.`, "ValueCodeExists");
+            if (params.generateCodeParameters && retryCount < 2 /* Retrying twice is an arbitrary number. This may need to be increased if we're still seeing regular failures. Unless users are using their own character set there are around 1 billion possible codes. It seems unlikely for 3+ retry failures even if users have millions of codes. */) {
+                log.info(`Retrying creating the Value because there was a code uniqueness constraint failure for a generated code. Retry number: ${retryCount}. ValueId: ${params.partialValue.id}.`);
+                return createValue(auth, params, trx, retryCount + 1);
+            } else {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with the given code already exists.`, "ValueCodeExists");
+            }
         }
         if (constraint === "fk_Values_Currencies") {
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${value.currency}' does not exist. See the documentation on creating currencies.`, "CurrencyNotFound");
