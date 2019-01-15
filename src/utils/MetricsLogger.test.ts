@@ -307,7 +307,7 @@ describe("MetricsLogger", () => {
             it("generates correct log statement for Stripe charge & refund", async () => {
                 const spy = sandbox.spy(log, "info");
 
-                const [stripeResponse] = stubCheckoutStripeCharge(checkoutRequest, 0, 5000);
+                const [stripeResponse] = stubCheckoutStripeCharge(checkoutRequest, 0, amount);
 
                 const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
                 chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
@@ -324,7 +324,7 @@ describe("MetricsLogger", () => {
                 const spy = sandbox.spy(log, "info");
                 const pendingCheckoutRequest: CheckoutRequest = {...checkoutRequest, id: generateId(), pending: true};
 
-                const [stripePending] = stubCheckoutStripeCharge(pendingCheckoutRequest, 0, 5000);
+                const [stripePending] = stubCheckoutStripeCharge(pendingCheckoutRequest, 0, amount);
                 const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/checkout`, "POST", pendingCheckoutRequest);
                 chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
 
