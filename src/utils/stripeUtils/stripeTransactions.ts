@@ -112,12 +112,12 @@ export async function updateCharge(chargeId: string, params: Stripe.charges.ICha
     }
 }
 
-function checkForStandardStripeErrors(err) {
+function checkForStandardStripeErrors(err: any): void {
     switch (err.type) {
         case "RateLimitError":
             throw new StripeRestError(429, `Service was rate limited by dependent service.`, "DependentServiceRateLimited", err); // technically this is up to us to handle once we're past mvp stage: since we are sending the requests, we should take responsibility for spacing & retrying
         case "StripePermissionError":
-            throw new StripeRestError(403, "Application access may have been revoked. .", "StripePermissionError", err);
+            throw new StripeRestError(424, "Application access may have been revoked. .", "StripePermissionError", err);
         default:
         // do nothing
     }

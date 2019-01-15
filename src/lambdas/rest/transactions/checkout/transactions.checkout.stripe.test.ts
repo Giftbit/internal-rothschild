@@ -1285,12 +1285,12 @@ describe("split tender checkout with Stripe", () => {
                 },
                 "statusCode": 403
             };
-            const exampleErrorResponse = new StripeRestError(403
+            const exampleErrorResponse = new StripeRestError(424
                 , "Error for tests", null, exampleStripeError);
             stubCheckoutStripeError(request, 0, exampleErrorResponse);
 
             const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
-            chai.assert.equal(checkout.statusCode, 403);
+            chai.assert.equal(checkout.statusCode, 424);
         });
     }
 
