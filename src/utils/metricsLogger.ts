@@ -5,7 +5,7 @@ import log = require("loglevel");
 
 export namespace MetricsLogger {
     export function valueAttachment(attachType: ValueAttachmentTypes, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
-        logMetric(1, MetricsType.Histogram, `rothschild.values.attach.${attachType}`, {}, auth);
+        logMetric(1, MetricsType.Histogram, `rothschild.values.attach`, {type: attachType}, auth);
     }
 
     export function transaction(plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {

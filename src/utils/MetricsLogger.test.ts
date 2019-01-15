@@ -63,7 +63,7 @@ describe("MetricsLogger", () => {
     describe("valueAttachment", () => {
 
         function getValueAttachmentLogMatcher(attachType: ValueAttachmentTypes): RegExp {
-            return new RegExp("MONITORING\\|\\d{10}\\|1\\|histogram\\|rothschild\\.values\\.attach\\." + attachType + "\\|#userId:default-test-user-TEST,#teamMemberId:default-test-user-TEST,#liveMode:false");
+            return new RegExp("MONITORING\\|\\d{10}\\|1\\|histogram\\|rothschild\\.values\\.attach\\|#type:" + attachType + ",#userId:default-test-user-TEST,#teamMemberId:default-test-user-TEST,#liveMode:false");
         }
 
         it("generates correct log statement when called directly", () => {
