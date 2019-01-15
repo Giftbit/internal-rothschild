@@ -409,6 +409,37 @@ describe("/v2/values/", () => {
         );
     });
 
+    it("can create a Value with a startDate and no endDate", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            balance: 5,
+            currency: "USD",
+            startDate: new Date("2030-01-01T00:00:00.000Z")
+        };
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValue.statusCode, 201);
+        chai.assert.equal(createValue.body.startDate as any, "2030-01-01T00:00:00.000Z");
+        chai.assert.isNull(createValue.body.endDate);
+    });
+
+
+    it("can update a Value with a startDate and no endDate", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            balance: 5,
+            currency: "USD",
+        };
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValue.statusCode, 201);
+
+        const updateValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", {
+            startDate: new Date("2030-01-01T00:00:00.000Z")
+        });
+        chai.assert.equal(updateValue.statusCode, 200);
+        chai.assert.equal(updateValue.body.startDate as any, "2030-01-01T00:00:00.000Z");
+        chai.assert.isNull(updateValue.body.endDate);
+    });
+
     it("can't create Value with balance and balanceRule", async () => {
         let value: Partial<Value> = {
             id: generateId(),
