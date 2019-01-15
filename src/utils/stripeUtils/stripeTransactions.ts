@@ -11,7 +11,7 @@ export async function createCharge(params: Stripe.charges.IChargeCreationOptions
 
     try {
         const charge = await lightrailStripe.charges.create(params, {
-            stripe_account: merchantStripeAccountId + "xyz",
+            stripe_account: merchantStripeAccountId,
             idempotency_key: stepIdempotencyKey
         });
         log.info(`Created Stripe charge '${charge.id}'`);
