@@ -1225,7 +1225,6 @@ describe("split tender checkout with Stripe", () => {
 
     if (!testStripeLive()) {
         it("returns 403 on StripePermissionError", async () => {
-
             const request: CheckoutRequest = {
                 id: generateId(),
                 allowRemainder: true,
@@ -1291,6 +1290,46 @@ describe("split tender checkout with Stripe", () => {
 
             const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
             chai.assert.equal(checkout.statusCode, 424);
+        });
+
+        it("returns 429 on Stripe RateLimitError", async () => {
+            const request: CheckoutRequest = {
+                id: generateId(),
+                allowRemainder: true,
+                sources: [
+                    {
+                        rail: "stripe",
+                        source: "tok_visa"
+                    }
+                ],
+                lineItems: [
+                    {
+                        productId: "socks",
+                        unitPrice: 500
+                    }
+                ],
+                currency: "CAD"
+            };
+            // Mocked error since I couldn't produce a real 429 error from stripe. This test doesn't run in live so it doesn't matter.
+            const exampleStripeError = {
+                "type": "RateLimitError",
+                "stack": "Mock",
+                "rawType": "Mock",
+                "message": "Mock - too many requests.",
+                "raw": {
+                    "message": "Mock.",
+                    "type": "invalid_request_error",
+                    "statusCode": 429
+                },
+                "headers": {},
+                "statusCode": 429
+            };
+            const exampleErrorResponse = new StripeRestError(429
+                , "Error for tests", null, exampleStripeError);
+            stubCheckoutStripeError(request, 0, exampleErrorResponse);
+
+            const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+            chai.assert.equal(checkout.statusCode, 429);
         });
     }
 
