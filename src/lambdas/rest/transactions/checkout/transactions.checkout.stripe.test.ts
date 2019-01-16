@@ -1223,6 +1223,116 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.equal(checkout.statusCode, 422);
     });
 
+    if (!testStripeLive()) {
+        it("returns 403 on StripePermissionError", async () => {
+            const request: CheckoutRequest = {
+                id: generateId(),
+                allowRemainder: true,
+                sources: [
+                    {
+                        rail: "stripe",
+                        source: "tok_visa"
+                    }
+                ],
+                lineItems: [
+                    {
+                        productId: "socks",
+                        unitPrice: 500
+                    }
+                ],
+                currency: "CAD"
+            };
+            const exampleStripeError = {
+                "type": "StripePermissionError",
+                "stack": "Error: Only Stripe Connect platforms can work with other accounts. If you specified a client_id parameter, make sure it's correct. If you need to setup a Stripe Connect platform, you can do so at https://dashboard.stripe.com/account/applications/settings.\n    at Constructor._Error (/Users/timothyjordison/Documents/work/repos/lightrail/internal-rothschild/node_modules/stripe/lib/Error.js:12:17)\n    at Constructor (/Users/timothyjordison/Documents/work/repos/lightrail/internal-rothschild/node_modules/stripe/lib/utils.js:134:13)\n    at new Constructor (/Users/timothyjordison/Documents/work/repos/lightrail/internal-rothschild/node_modules/stripe/lib/utils.js:134:13)\n    at IncomingMessage.<anonymous> (/Users/timothyjordison/Documents/work/repos/lightrail/internal-rothschild/node_modules/stripe/lib/StripeResource.js:151:21)\n    at emitNone (events.js:111:20)\n    at IncomingMessage.emit (events.js:208:7)\n    at endReadableNT (_stream_readable.js:1055:12)\n    at _combinedTickCallback (internal/process/next_tick.js:138:11)\n    at process._tickDomainCallback (internal/process/next_tick.js:218:9)",
+                "rawType": "invalid_request_error",
+                "message": "Only Stripe Connect platforms can work with other accounts. If you specified a client_id parameter, make sure it's correct. If you need to setup a Stripe Connect platform, you can do so at https://dashboard.stripe.com/account/applications/settings.",
+                "raw": {
+                    "message": "Only Stripe Connect platforms can work with other accounts. If you specified a client_id parameter, make sure it's correct. If you need to setup a Stripe Connect platform, you can do so at https://dashboard.stripe.com/account/applications/settings.",
+                    "type": "invalid_request_error",
+                    "headers": {
+                        "server": "nginx",
+                        "date": "Mon, 14 Jan 2019 19:45:23 GMT",
+                        "content-type": "application/json",
+                        "content-length": "324",
+                        "connection": "close",
+                        "access-control-allow-credentials": "true",
+                        "access-control-allow-methods": "GET, POST, HEAD, OPTIONS, DELETE",
+                        "access-control-allow-origin": "*",
+                        "access-control-expose-headers": "Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required",
+                        "access-control-max-age": "300",
+                        "cache-control": "no-cache, no-store",
+                        "stripe-version": "2018-05-21",
+                        "strict-transport-security": "max-age=31556926; includeSubDomains; preload"
+                    },
+                    "statusCode": 403
+                },
+                "headers": {
+                    "server": "nginx",
+                    "date": "Mon, 14 Jan 2019 19:45:23 GMT",
+                    "content-type": "application/json",
+                    "content-length": "324",
+                    "connection": "close",
+                    "access-control-allow-credentials": "true",
+                    "access-control-allow-methods": "GET, POST, HEAD, OPTIONS, DELETE",
+                    "access-control-allow-origin": "*",
+                    "access-control-expose-headers": "Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required",
+                    "access-control-max-age": "300",
+                    "cache-control": "no-cache, no-store",
+                    "stripe-version": "2018-05-21",
+                    "strict-transport-security": "max-age=31556926; includeSubDomains; preload"
+                },
+                "statusCode": 403
+            };
+            const exampleErrorResponse = new StripeRestError(424
+                , "Error for tests", null, exampleStripeError);
+            stubCheckoutStripeError(request, 0, exampleErrorResponse);
+
+            const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+            chai.assert.equal(checkout.statusCode, 424);
+        });
+
+        it("returns 429 on Stripe RateLimitError", async () => {
+            const request: CheckoutRequest = {
+                id: generateId(),
+                allowRemainder: true,
+                sources: [
+                    {
+                        rail: "stripe",
+                        source: "tok_visa"
+                    }
+                ],
+                lineItems: [
+                    {
+                        productId: "socks",
+                        unitPrice: 500
+                    }
+                ],
+                currency: "CAD"
+            };
+            // Mocked error since I couldn't produce a real 429 error from stripe. This test doesn't run in live so it doesn't matter.
+            const exampleStripeError = {
+                "type": "RateLimitError",
+                "stack": "Mock",
+                "rawType": "Mock",
+                "message": "Mock - too many requests.",
+                "raw": {
+                    "message": "Mock.",
+                    "type": "invalid_request_error",
+                    "statusCode": 429
+                },
+                "headers": {},
+                "statusCode": 429
+            };
+            const exampleErrorResponse = new StripeRestError(429
+                , "Error for tests", null, exampleStripeError);
+            stubCheckoutStripeError(request, 0, exampleErrorResponse);
+
+            const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+            chai.assert.equal(checkout.statusCode, 429);
+        });
+    }
+
     if (testStripeLive()) {
         describe("stripe customer + source tests", () => {
             it("can charge a customer's default card", async () => {
