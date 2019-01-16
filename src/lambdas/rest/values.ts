@@ -24,6 +24,7 @@ import {getTransactions} from "./transactions/transactions";
 import {Currency, formatAmountForCurrencyDisplay} from "../../model/Currency";
 import {getCurrency} from "./currencies";
 import {getRuleFromCache} from "./transactions/getRuleFromCache";
+import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -387,6 +388,11 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             await trx.into("Transactions").insert(initialBalanceTransaction);
             await trx.into("LightrailTransactionSteps").insert(initialBalanceTransactionStep);
         }
+
+        if (value.contactId) {
+            MetricsLogger.valueAttachment(ValueAttachmentTypes.OnCreate, auth);
+        }
+
         return DbValue.toValue(dbValue, params.showCode);
     } catch (err) {
         log.debug(err);
@@ -643,7 +649,7 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
             query.on("T_ROOT.id", "=", "T_LAST.rootTransactionId")
                 .andOn("T_ROOT.userId", "=", "T_LAST.userId")
                 .andOn("T_LAST.id", "!=", "T_LAST.rootTransactionId")
-                .andOnNull("T_LAST.nextTransactionId")
+                .andOnNull("T_LAST.nextTransactionId");
         })
         .count({transactionCount: "*"})
         .sum({balanceChange: "LTS.balanceChange"})
@@ -680,7 +686,7 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
             stats.redeemed.balance += -row.balanceChange;
             stats.checkout.lightrailSpend += +row.paidLightrail + +row.discountLightrail;
             stats.checkout.transactionCount += row.transactionCount;
-            stats.checkout.overspend += +row.paidStripe + +row.paidInternal + +row.remainder
+            stats.checkout.overspend += +row.paidStripe + +row.paidInternal + +row.remainder;
         }
     }
 

@@ -12,6 +12,7 @@ import {DbTransaction, LightrailDbTransactionStep, Transaction} from "../../mode
 import {DbContactValue} from "../../model/DbContactValue";
 import {AttachValueParameters} from "../../model/internal/AttachValueParameters";
 import {ValueIdentifier} from "../../model/internal/ValueIdentifier";
+import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
 import log = require("loglevel");
 
 export function installContactValuesRest(router: cassava.Router): void {
@@ -140,12 +141,15 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 
     if (value.isGenericCode) {
         if (params.attachGenericAsNewValue) {
+            MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, auth);
             return await attachGenericValueAsNewValue(auth, contact.id, value);
         } else {
+            MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, auth);
             await attachGenericValue(auth, contact.id, value);
             return value;
         }
     } else {
+        MetricsLogger.valueAttachment(ValueAttachmentTypes.Unique, auth);
         return attachUniqueValue(auth, contact.id, value, params.allowOverwrite);
     }
 }
