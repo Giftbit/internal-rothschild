@@ -57,7 +57,7 @@ describe("/v2/contacts/values", () => {
         chai.assert.equal(resp2.body.updatedContactIdDate, resp2.body.updatedDate);
     });
 
-    describe("can attach a generic-code Value by code", async () => {
+    it("can attach a generic-code Value by code", async () => {
         const value: Partial<Value> = {
             id: generateId(),
             currency: currency.code,
@@ -165,7 +165,7 @@ describe("/v2/contacts/values", () => {
         createdBy: defaultTestUser.auth.teamMemberId
     };
 
-    describe('attach behaviour for unique code based on JWT', function () {
+    describe("attach behaviour for unique code based on JWT", function () {
         const value: Partial<Value> = {
             id: generateId(),
             currency: currency.code,
@@ -208,7 +208,7 @@ describe("/v2/contacts/values", () => {
         });
     });
 
-    describe('attach Value in state cases: frozen, cancelled, expired, inactive, usesRemaining=0', function () {
+    describe("attach Value in state cases: frozen, cancelled, expired, inactive, usesRemaining=0", function () {
         for (const isGenericCode of [true, false]) {
             it(`cannot attach a frozen isGeneric=${isGenericCode} Value`, async () => {
                 const value: Partial<Value> = {
@@ -306,7 +306,7 @@ describe("/v2/contacts/values", () => {
             chai.assert.sameDeepMembers(contactListValues.body, data.contacts.filter(contact => contact.id === data.uniqueValueWithContact.contactId));
         });
 
-        it('can list values attached to contactA', async () => {
+        it("can list values attached to contactA", async () => {
             const contactListValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${data.contactA.id}/values`, "GET");
             chai.assert.sameDeepMembers(contactListValues.body, data.valuesAttachedToContactA);
 
@@ -317,7 +317,7 @@ describe("/v2/contacts/values", () => {
             chai.assert.sameDeepMembers(listValuesByContactUsingDotEq.body, data.valuesAttachedToContactA);
         });
 
-        it('can list values attached to contactB', async () => {
+        it("can list values attached to contactB", async () => {
             const contactListValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${data.contactB.id}/values`, "GET");
             chai.assert.sameDeepMembers(contactListValues.body, data.valuesAttachedToContactB);
 
@@ -325,12 +325,12 @@ describe("/v2/contacts/values", () => {
             chai.assert.sameDeepMembers(listValuesByContact.body, data.valuesAttachedToContactB);
         });
 
-        it('can list contacts who have attached genVal1 but returns none since genericValue1 was attached as new Values', async () => {
+        it("can list contacts who have attached genVal1 but returns none since genericValue1 was attached as new Values", async () => {
             const contactListValues = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?valueId=${data.genVal1.id}`, "GET");
             chai.assert.isEmpty(contactListValues.body);
         });
 
-        it('can list contacts who have attached genVal2', async () => {
+        it("can list contacts who have attached genVal2", async () => {
             const contactListValues = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?valueId=${data.genVal2.id}`, "GET");
             chai.assert.sameDeepMembers(contactListValues.body, data.contacts);
         });
