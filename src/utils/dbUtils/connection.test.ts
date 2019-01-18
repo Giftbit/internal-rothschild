@@ -31,6 +31,10 @@ describe("connection", () => {
             chai.assert.throws(() => {
                 knex("Values").insert({a: "a"});
             }, "Attempting to modify database from read-only connection.");
+
+            chai.assert.throws(() => {
+                knex.queryBuilder().insert({a: "a"});
+            }, "Attempting to modify database from read-only connection.");
         });
     });
 });

@@ -57,7 +57,7 @@ describe("resolveTransactionPlanSteps", () => {
             includeZeroBalance: true
         };
 
-        it('can get lightrail transaction plan steps associated with contactA', async () => {
+        it("can get lightrail transaction plan steps associated with contactA", async () => {
             const contactAsTransactionSource: ResolveTransactionPartiesOptions = {
                 ...txPartiesTemplate,
                 parties: [
@@ -76,7 +76,7 @@ describe("resolveTransactionPlanSteps", () => {
             chai.assert.sameMembers(contactLightrailValues.map(v => (v as LightrailTransactionPlanStep).value.id), data.valuesAttachedToContactA.map(v => v.id));
         });
 
-        it('can get lightrail transaction plan steps associated with contactB', async () => {
+        it("can get lightrail transaction plan steps associated with contactB", async () => {
             const contactAsTransactionSource: ResolveTransactionPartiesOptions = {
                 ...txPartiesTemplate,
                 parties: [
@@ -95,7 +95,7 @@ describe("resolveTransactionPlanSteps", () => {
             chai.assert.sameMembers(contactLightrailValues.map(v => (v as LightrailTransactionPlanStep).value.id), data.valuesAttachedToContactB.map(v => v.id));
         });
 
-        it('can get lightrail transaction plan steps associated with contactA and contactB. Doesnt duplicate shared generic Values.', async () => {
+        it("can get lightrail transaction plan steps associated with contactA and contactB. Doesnt duplicate shared generic Values.", async () => {
             const contactAsTransactionSource: ResolveTransactionPartiesOptions = {
                 ...txPartiesTemplate,
                 parties: [
@@ -116,7 +116,7 @@ describe("resolveTransactionPlanSteps", () => {
             };
             const contactLightrailValues = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, contactAsTransactionSource);
 
-            const distinctValues = [...data.valuesAttachedToContactA, ...data.valuesAttachedToContactB.filter(v => v.id != data.genVal2.id)];
+            const distinctValues = [...data.valuesAttachedToContactA, ...data.valuesAttachedToContactB.filter(v => v.id !== data.genVal2.id)];
             chai.assert.sameMembers(contactLightrailValues.map(v => (v as LightrailTransactionPlanStep).value.id), distinctValues.map(v => v.id));
         });
     });

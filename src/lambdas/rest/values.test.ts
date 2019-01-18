@@ -772,9 +772,9 @@ describe("/v2/values/", () => {
                 .orderBy("createdDate", "desc")
                 .orderBy("id", "desc");
 
-            const page1 = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/values?id.in=${ids.join(",")}`, "GET");
+            const page1 = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?id.in=${ids.join(",")}`, "GET");
             chai.assert.equal(page1.statusCode, 200, `body=${JSON.stringify(page1.body)}`);
-            chai.assert.deepEqualExcludingEvery(page1.body, expected, ["userId", "codeHashed", "code", "codeLastFour", "startDate", "endDate", "createdDate", "updatedDate", "updatedContactIdDate", "codeEncrypted", "isGenericCode"]);
+            chai.assert.deepEqualExcludingEvery(page1.body as any, expected, ["userId", "codeHashed", "code", "codeLastFour", "startDate", "endDate", "createdDate", "updatedDate", "updatedContactIdDate", "codeEncrypted", "isGenericCode"]);
             chai.assert.isDefined(page1.headers["Link"]);
         });
     });

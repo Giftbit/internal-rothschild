@@ -184,7 +184,7 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout-4", "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
-        chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, "statusCode");
+        chai.assert.deepEqual(getCheckoutResp.body, postCheckoutResp.body);
     });
 
     it("can checkout with a percent off discount with a capped maximum value", async () => {

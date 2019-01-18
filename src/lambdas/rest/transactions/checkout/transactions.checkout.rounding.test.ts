@@ -112,7 +112,7 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
-        chai.assert.deepEqualExcluding(getCheckoutResp.body, checkoutResponse.body, "statusCode");
+        chai.assert.deepEqual(getCheckoutResp.body, checkoutResponse.body);
     });
 
     it("roundingMode HALF_EVEN breaks ties by rounding to the nearest even number", async () => {
@@ -199,7 +199,7 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
-        chai.assert.deepEqualExcluding(getCheckoutResp.body, checkoutResponse.body, "statusCode");
+        chai.assert.deepEqual(getCheckoutResp.body, checkoutResponse.body);
     });
 
     it("default rounding mode is HALF_EVEN and breaks ties by rounding to the nearest even number", async () => {
@@ -283,7 +283,7 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
-        chai.assert.deepEqualExcluding(getCheckoutResp.body, checkoutResponse.body, "statusCode");
+        chai.assert.deepEqual(getCheckoutResp.body, checkoutResponse.body);
     });
 
     it("unrecognized rounding mode returns 422", async () => {

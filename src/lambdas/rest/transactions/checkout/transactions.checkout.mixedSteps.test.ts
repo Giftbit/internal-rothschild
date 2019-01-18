@@ -4,7 +4,7 @@ import * as transactions from "../transactions";
 import * as valueStores from "../../values";
 import * as testUtils from "../../../../utils/testUtils";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../../utils/testUtils";
-import {LightrailTransactionStep, Transaction} from "../../../../model/Transaction";
+import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import {Value} from "../../../../model/Value";
 import {after} from "mocha";
@@ -243,7 +243,7 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             "balanceAfter": 0,
             "balanceChange": -200
         });
-        chai.assert.deepEqualExcluding(postCheckoutResp.body.steps[5], {
+        chai.assert.deepEqualExcluding(postCheckoutResp.body.steps[5] as StripeTransactionStep, {
             "rail": "stripe",
             "amount": -1360,
             "chargeId": null,
