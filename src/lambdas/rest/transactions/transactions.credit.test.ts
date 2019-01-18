@@ -85,7 +85,7 @@ describe("/v2/transactions/credit", () => {
 
         const getCreditResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit-1", "GET");
         chai.assert.equal(getCreditResp.statusCode, 200, `body=${JSON.stringify(getCreditResp.body)}`);
-        chai.assert.deepEqualExcluding(getCreditResp.body, postCreditResp.body, "statusCode");
+        chai.assert.deepEqual(getCreditResp.body, postCreditResp.body);
 
         // check DbTransaction created by credit
         const knex = await getKnexRead();
@@ -179,7 +179,7 @@ describe("/v2/transactions/credit", () => {
 
         const getCreditResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCreditResp.statusCode, 200, `body=${JSON.stringify(getCreditResp.body)}`);
-        chai.assert.deepEqualExcluding(getCreditResp.body, postCreditResp.body, "statusCode");
+        chai.assert.deepEqual(getCreditResp.body, postCreditResp.body);
     });
 
     it("can credit by generic code", async () => {
@@ -239,7 +239,7 @@ describe("/v2/transactions/credit", () => {
 
         const getCreditResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCreditResp.statusCode, 200, `body=${JSON.stringify(getCreditResp.body)}`);
-        chai.assert.deepEqualExcluding(getCreditResp.body, postCreditResp.body, "statusCode");
+        chai.assert.deepEqual(getCreditResp.body, postCreditResp.body);
     });
 
     it("can credit uses", async () => {
@@ -302,7 +302,7 @@ describe("/v2/transactions/credit", () => {
 
         const getCreditResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCreditResp.statusCode, 200, `body=${JSON.stringify(getCreditResp.body)}`);
-        chai.assert.deepEqualExcluding(getCreditResp.body, postCreditResp.body, "statusCode");
+        chai.assert.deepEqual(getCreditResp.body, postCreditResp.body);
     });
 
     it("can credit balance and uses at the same time", async () => {
@@ -363,7 +363,7 @@ describe("/v2/transactions/credit", () => {
 
         const getCreditResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCreditResp.statusCode, 200, `body=${JSON.stringify(getCreditResp.body)}`);
-        chai.assert.deepEqualExcluding(getCreditResp.body, postCreditResp.body, "statusCode");
+        chai.assert.deepEqual(getCreditResp.body, postCreditResp.body);
     });
 
     it("409s on reusing a transactionId", async () => {

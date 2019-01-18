@@ -130,7 +130,7 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         }
         if (contactIds.length) {
             q = q.orWhereIn("Values.contactId", contactIds)
-                .orWhereIn("ContactValuesTemp.contactId", contactIds)
+                .orWhereIn("ContactValuesTemp.contactId", contactIds);
         }
         return q;
     });

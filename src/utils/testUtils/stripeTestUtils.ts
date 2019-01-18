@@ -43,22 +43,28 @@ export function setStubsForStripeTests() {
     };
 
     const stubFetchFromS3ByEnvVar = sinonSandbox.stub(giftbitRoutes.secureConfig, "fetchFromS3ByEnvVar");
-    stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH").resolves(testAssumeToken);
-    stubFetchFromS3ByEnvVar.withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE").resolves({
-        email: "test@test.com",
-        test: {
-            clientId: "test-client-id",
-            secretKey: testStripeLive() ? stripeLiveConfig.secretKey : stripeStubbedConfig.secretKey,
-            publishableKey: "test-pk",
-        },
-        live: {}
-    });
+    stubFetchFromS3ByEnvVar
+        .withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH")
+        .resolves(testAssumeToken);
+    stubFetchFromS3ByEnvVar
+        .withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE")
+        .resolves({
+            email: "test@test.com",
+            test: {
+                clientId: "test-client-id",
+                secretKey: testStripeLive() ? stripeLiveConfig.secretKey : stripeStubbedConfig.secretKey,
+                publishableKey: "test-pk",
+            },
+            live: {}
+        });
 
     const stubKvsGet = sinonSandbox.stub(kvsAccess, "kvsGet");
-    stubKvsGet.withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string).resolves({
-        token_type: "bearer",
-        stripe_user_id: testStripeLive() ? stripeLiveConfig.stripeUserId : stripeStubbedConfig.stripeUserId,
-    });
+    stubKvsGet
+        .withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string)
+        .resolves({
+            token_type: "bearer",
+            stripe_user_id: testStripeLive() ? stripeLiveConfig.stripeUserId : stripeStubbedConfig.stripeUserId,
+        });
 }
 
 export function unsetStubsForStripeTests() {
