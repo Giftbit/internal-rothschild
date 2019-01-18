@@ -72,7 +72,7 @@ describe("/v2/issuances", () => {
     it(`basic issuances with varying counts. POST, GET and LIST`, async () => {
         const valuesToIssues = [1, 10, 11, 100, 1000];
 
-        let issuances: Issuance[] = [];
+        const issuances: Issuance[] = [];
         for (let count of valuesToIssues) {
             let issuance = {
                 id: generateId(),
@@ -96,7 +96,9 @@ describe("/v2/issuances", () => {
                 startDate: null,
                 endDate: null,
                 metadata: {},
-                createdBy: testUtils.defaultTestUser.auth.teamMemberId
+                createdBy: testUtils.defaultTestUser.auth.teamMemberId,
+                createdDate: null,
+                updatedDate: null
             }, ["createdDate", "updatedDate"]);
             issuances.push(createIssuance.body);
 
@@ -803,6 +805,6 @@ describe("/v2/issuances", () => {
         chai.assert.equal(values.statusCode, 200);
         chai.assert.equal(generateCodeStub.callCount, 4);
         chai.assert.sameDeepMembers(values.body.map(v => v.code), [code1, code2]);
-        generateCodeStub.restore()
+        generateCodeStub.restore();
     });
 });

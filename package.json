@@ -16,7 +16,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Giftbit/sam-scaffold.git"
+    "url": "git+https://github.com/Giftbit/internal-rothschild.git"
   },
   "keywords": [],
   "author": "",
@@ -29,7 +29,7 @@
   "dependencies": {
     "@babel/core": "^7.1.2",
     "@babel/preset-env": "^7.1.0",
-    "@types/aws-lambda": "8.10.14",
+    "@types/aws-lambda": "^8.10.17",
     "@types/chai": "^4.1.7",
     "@types/crypto-js": "^3.1.43",
     "@types/knex": "^0.14.26",
@@ -39,7 +39,7 @@
     "@types/papaparse": "^4.5.4",
     "@types/parse-link-header": "^1.0.0",
     "@types/raven": "^2.5.1",
-    "@types/sinon": "^5.0.5",
+    "@types/sinon": "^7.0.4",
     "@types/stripe": "^6.0.3",
     "@types/superagent": "^3.8.4",
     "@types/uuid": "^3.4.4",
@@ -49,7 +49,6 @@
     "cassava": "^2.4.0",
     "chai": "^4.2.0",
     "chai-exclude": "^1.0.10",
-    "crypto": "^1.0.1",
     "crypto-js": "^3.1.9-1",
     "dotenv": "^6.1.0",
     "dynameh": "^2.10.3",

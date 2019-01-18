@@ -8,8 +8,8 @@ import * as currencies from "../currencies";
 import {installRestRoutes} from "../installRestRoutes";
 import {getKnexRead, getKnexWrite} from "../../../utils/dbUtils/connection";
 import {DebitRequest} from "../../../model/TransactionRequest";
-import chaiExclude = require("chai-exclude");
 import {nowInDbPrecision} from "../../../utils/dbUtils";
+import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
@@ -90,7 +90,7 @@ describe("/v2/transactions/debit", () => {
 
         const getDebitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit-1", "GET");
         chai.assert.equal(getDebitResp.statusCode, 200, `body=${JSON.stringify(getDebitResp.body)}`);
-        chai.assert.deepEqualExcluding(getDebitResp.body, postDebitResp.body, "statusCode");
+        chai.assert.deepEqual(getDebitResp.body, postDebitResp.body);
 
         // check DbTransaction created by debit
         const knex = await getKnexRead();
@@ -184,7 +184,7 @@ describe("/v2/transactions/debit", () => {
 
         const getDebitResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${postDebitResp.body.id}`, "GET");
         chai.assert.equal(getDebitResp.statusCode, 200, `body=${JSON.stringify(getDebitResp.body)}`);
-        chai.assert.deepEqualExcluding(getDebitResp.body, postDebitResp.body, "statusCode");
+        chai.assert.deepEqual(getDebitResp.body, postDebitResp.body);
     });
 
     it("can debit by generic code", async () => {
@@ -245,7 +245,7 @@ describe("/v2/transactions/debit", () => {
 
         const getDebitResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${postDebitResp.body.id}`, "GET");
         chai.assert.equal(getDebitResp.statusCode, 200, `body=${JSON.stringify(getDebitResp.body)}`);
-        chai.assert.deepEqualExcluding(getDebitResp.body, postDebitResp.body, "statusCode");
+        chai.assert.deepEqual(getDebitResp.body, postDebitResp.body);
     });
 
     it("can debit uses", async () => {
@@ -311,7 +311,7 @@ describe("/v2/transactions/debit", () => {
 
         const getDebitResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${postDebitResp.body.id}`, "GET");
         chai.assert.equal(getDebitResp.statusCode, 200, `body=${JSON.stringify(getDebitResp.body)}`);
-        chai.assert.deepEqualExcluding(getDebitResp.body, postDebitResp.body, "statusCode");
+        chai.assert.deepEqual(getDebitResp.body, postDebitResp.body);
     });
 
     it("can debit uses and balance at the same time", async () => {
@@ -374,7 +374,7 @@ describe("/v2/transactions/debit", () => {
 
         const getDebitResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${postDebitResp.body.id}`, "GET");
         chai.assert.equal(getDebitResp.statusCode, 200, `body=${JSON.stringify(getDebitResp.body)}`);
-        chai.assert.deepEqualExcluding(getDebitResp.body, postDebitResp.body, "statusCode");
+        chai.assert.deepEqual(getDebitResp.body, postDebitResp.body);
     });
 
     it("debiting balance does not affect uses by default", async () => {
@@ -436,7 +436,7 @@ describe("/v2/transactions/debit", () => {
 
         const getDebitResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${postDebitResp.body.id}`, "GET");
         chai.assert.equal(getDebitResp.statusCode, 200, `body=${JSON.stringify(getDebitResp.body)}`);
-        chai.assert.deepEqualExcluding(getDebitResp.body, postDebitResp.body, "statusCode");
+        chai.assert.deepEqual(getDebitResp.body, postDebitResp.body);
     });
 
     it("409s on reusing a transactionId", async () => {

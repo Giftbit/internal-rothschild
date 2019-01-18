@@ -125,7 +125,7 @@ describe("/v2/transactions/checkout - basics", () => {
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout-1", "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
-        chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, "statusCode");
+        chai.assert.deepEqual(getCheckoutResp.body, postCheckoutResp.body);
 
         // check DbTransaction created by checkout
         const knex = await getKnexRead();
@@ -291,7 +291,7 @@ describe("/v2/transactions/checkout - basics", () => {
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout-2", "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
-        chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, "statusCode");
+        chai.assert.deepEqual(getCheckoutResp.body, postCheckoutResp.body);
     });
 
     it("process checkout with 3 ValueStores with complicated tax implications", async () => {
@@ -480,7 +480,7 @@ describe("/v2/transactions/checkout - basics", () => {
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout-3", "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
-        chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, "statusCode");
+        chai.assert.deepEqual(getCheckoutResp.body, postCheckoutResp.body);
     });
 
     it("checkout with duplicated values", async () => {
@@ -586,7 +586,7 @@ describe("/v2/transactions/checkout - basics", () => {
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
-        chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, "statusCode");
+        chai.assert.deepEqual(getCheckoutResp.body, postCheckoutResp.body);
     });
 
     it("cannot create checkout with id over max length - 422s", async () => {
@@ -747,7 +747,7 @@ describe("/v2/transactions/checkout - basics", () => {
                     "metadata": null,
                     "createdBy": "default-test-user-TEST"
                 }, ["createdDate"]);
-            chai.assert.equal((createCheckout.body.steps[0] as LightrailTransactionStep).contactId, contact.id, "The contactId is not directly on the Value, but attached to the Value via ContactValues. It's important for tracking reasons that the contactId is persisted onto the transaction step.")
+            chai.assert.equal((createCheckout.body.steps[0] as LightrailTransactionStep).contactId, contact.id, "The contactId is not directly on the Value, but attached to the Value via ContactValues. It's important for tracking reasons that the contactId is persisted onto the transaction step.");
 
             const listTransactionsAssociatedWithContact = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?contactId=${contact.id}`, "GET");
             chai.assert.equal(listTransactionsAssociatedWithContact.body.length, 1, "Should only return 1 transaction. Transaction shouldn't be duplicated in response.");
@@ -787,7 +787,7 @@ describe("/v2/transactions/checkout - basics", () => {
                     "usesRemainingAfter": 98,
                     "usesRemainingChange": -1
                 }]);
-            chai.assert.isNull((createCheckout.body.steps[0] as LightrailTransactionStep).contactId, "The contactId should be null since contactId was not passed in as a source. This is even though the Value has been attached to a Contact.")
+            chai.assert.isNull((createCheckout.body.steps[0] as LightrailTransactionStep).contactId, "The contactId should be null since contactId was not passed in as a source. This is even though the Value has been attached to a Contact.");
         });
 
         it("can checkout directly against generic code in a checkout request that includes a contactId not attached to the generic code", async () => {
@@ -827,7 +827,7 @@ describe("/v2/transactions/checkout - basics", () => {
                     "usesRemainingAfter": 97,
                     "usesRemainingChange": -1
                 }]);
-            chai.assert.isNull((createCheckout.body.steps[0] as LightrailTransactionStep).contactId, "The contactId should be null since contactId was not passed in as a source. This is even though the Value has been attached to a Contact.")
+            chai.assert.isNull((createCheckout.body.steps[0] as LightrailTransactionStep).contactId, "The contactId should be null since contactId was not passed in as a source. This is even though the Value has been attached to a Contact.");
         });
     });
 

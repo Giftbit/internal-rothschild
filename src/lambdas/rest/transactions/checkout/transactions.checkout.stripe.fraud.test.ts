@@ -14,8 +14,8 @@ import {installRestRoutes} from "../../installRestRoutes";
 import {LineItem} from "../../../../model/LineItem";
 import {StripeRestError} from "../../../../utils/stripeUtils/StripeRestError";
 import * as stripe from "stripe";
-import chaiExclude = require("chai-exclude");
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
+import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
@@ -88,7 +88,7 @@ describe("handling fraudulent charges", () => {
 
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.equal(postCheckoutResp.body.id, request.id);
-        chai.assert.deepEqualExcluding(postCheckoutResp.body.steps, [
+        chai.assert.deepEqualExcluding(postCheckoutResp.body.steps as StripeTransactionStep[], [
             {
                 rail: "stripe",
                 chargeId: "",
@@ -100,7 +100,7 @@ describe("handling fraudulent charges", () => {
             rail: "stripe",
             source: "tok_riskLevelElevated",
         }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
-        chai.assert.equal(((postCheckoutResp.body.steps[0] as StripeTransactionStep).charge as stripe.charges.ICharge).outcome.risk_level, "elevated", `outcome=${JSON.stringify(((postCheckoutResp.body.steps[0] as StripeTransactionStep).charge  as stripe.charges.ICharge).outcome, null, 4)}`);
+        chai.assert.equal(((postCheckoutResp.body.steps[0] as StripeTransactionStep).charge as stripe.charges.ICharge).outcome.risk_level, "elevated", `outcome=${JSON.stringify(((postCheckoutResp.body.steps[0] as StripeTransactionStep).charge as stripe.charges.ICharge).outcome, null, 4)}`);
     });
 
     it("fails with a clear error if the charge is blocked by Stripe (fraudulent)", async () => {
