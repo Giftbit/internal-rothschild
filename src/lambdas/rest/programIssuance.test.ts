@@ -83,7 +83,7 @@ describe("/v2/issuances", () => {
 
             const createIssuance = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", issuance);
             chai.assert.equal(createIssuance.statusCode, 201, JSON.stringify(createIssuance.body));
-            chai.assert.deepEqualExcluding(createIssuance.body, {
+            chai.assert.deepEqualExcluding<Issuance>(createIssuance.body, {
                 id: issuance.id,
                 name: issuance.name,
                 programId: program.id,
@@ -96,7 +96,9 @@ describe("/v2/issuances", () => {
                 startDate: null,
                 endDate: null,
                 metadata: {},
-                createdBy: testUtils.defaultTestUser.auth.teamMemberId
+                createdBy: testUtils.defaultTestUser.auth.teamMemberId,
+                createdDate: null,
+                updatedDate: null
             }, ["createdDate", "updatedDate"]);
             issuances.push(createIssuance.body);
 
@@ -803,6 +805,6 @@ describe("/v2/issuances", () => {
         chai.assert.equal(values.statusCode, 200);
         chai.assert.equal(generateCodeStub.callCount, 4);
         chai.assert.sameDeepMembers(values.body.map(v => v.code), [code1, code2]);
-        generateCodeStub.restore()
+        generateCodeStub.restore();
     });
 });

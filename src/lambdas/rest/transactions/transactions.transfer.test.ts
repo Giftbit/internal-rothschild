@@ -157,7 +157,7 @@ describe("/v2/transactions/transfer", () => {
 
         const getTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer-1", "GET");
         chai.assert.equal(getTransferResp.statusCode, 200, `body=${JSON.stringify(getTransferResp.body)}`);
-        chai.assert.deepEqualExcluding(getTransferResp.body, postTransferResp.body, "statusCode");
+        chai.assert.deepEqual(getTransferResp.body, postTransferResp.body);
 
         // check DbTransaction created by transfer
         const knex = await getKnexRead();
@@ -285,7 +285,7 @@ describe("/v2/transactions/transfer", () => {
 
         const getTransferResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${requestFromSecret.id}`, "GET");
         chai.assert.equal(getTransferResp.statusCode, 200, `body=${JSON.stringify(getTransferResp.body)}`);
-        chai.assert.deepEqualExcluding(getTransferResp.body, postTransferResp.body, "statusCode");
+        chai.assert.deepEqual(getTransferResp.body, postTransferResp.body);
     });
 
     it("can transfer from valueId to secure code", async () => {
@@ -378,7 +378,7 @@ describe("/v2/transactions/transfer", () => {
 
         const getTransferResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${requestToSecret.id}`, "GET");
         chai.assert.equal(getTransferResp.statusCode, 200, `body=${JSON.stringify(getTransferResp.body)}`);
-        chai.assert.deepEqualExcluding(getTransferResp.body, postTransferResp.body, "statusCode");
+        chai.assert.deepEqual(getTransferResp.body, postTransferResp.body);
     });
 
     it("can transfer from generic code to valueId", async () => {
@@ -472,7 +472,7 @@ describe("/v2/transactions/transfer", () => {
 
         const getTransferResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${requestFromSecret.id}`, "GET");
         chai.assert.equal(getTransferResp.statusCode, 200, `body=${JSON.stringify(getTransferResp.body)}`);
-        chai.assert.deepEqualExcluding(getTransferResp.body, postTransferResp.body, "statusCode");
+        chai.assert.deepEqual(getTransferResp.body, postTransferResp.body);
     });
 
     it("can transfer from valueId to generic code", async () => {
@@ -566,7 +566,7 @@ describe("/v2/transactions/transfer", () => {
 
         const getTransferResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${requestToSecret.id}`, "GET");
         chai.assert.equal(getTransferResp.statusCode, 200, `body=${JSON.stringify(getTransferResp.body)}`);
-        chai.assert.deepEqualExcluding(getTransferResp.body, postTransferResp.body, "statusCode");
+        chai.assert.deepEqual(getTransferResp.body, postTransferResp.body);
     });
 
     it("409s on reusing an id", async () => {
@@ -731,7 +731,7 @@ describe("/v2/transactions/transfer", () => {
 
         const getTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer-3", "GET");
         chai.assert.equal(getTransferResp.statusCode, 200, `body=${JSON.stringify(getTransferResp.body)}`);
-        chai.assert.deepEqualExcluding(getTransferResp.body, postTransferResp.body, "statusCode");
+        chai.assert.deepEqual(getTransferResp.body, postTransferResp.body);
     });
 
     it("409s transferring between valueIds where the source has insufficient balance", async () => {
@@ -1102,7 +1102,7 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.equal(postTransferResp.body.steps[0].rail, "stripe");
 
             const sourceStep = postTransferResp.body.steps.find((s: StripeTransactionStep) => s.rail === "stripe") as StripeTransactionStep;
-            chai.assert.deepEqualExcluding(sourceStep, {
+            chai.assert.deepEqualExcluding<StripeTransactionStep>(sourceStep, {
                 rail: "stripe",
                 amount: -1000
             }, ["chargeId", "charge"]);
@@ -1135,7 +1135,7 @@ describe("/v2/transactions/transfer", () => {
 
             const getTransferResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
             chai.assert.equal(getTransferResp.statusCode, 200, `body=${JSON.stringify(getTransferResp.body)}`);
-            chai.assert.deepEqualExcluding(getTransferResp.body, postTransferResp.body, ["statusCode", "steps"]);
+            chai.assert.deepEqualExcluding(getTransferResp.body, postTransferResp.body, ["steps"]);
 
             const sourceStepFromGet = getTransferResp.body.steps.find((s: StripeTransactionStep) => s.rail === "stripe");
             chai.assert.deepEqual(sourceStepFromGet, sourceStep);
@@ -1214,7 +1214,7 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.equal(postTransferResp.body.steps[0].rail, "stripe");
 
             const sourceStep = postTransferResp.body.steps.find((s: StripeTransactionStep) => s.rail === "stripe") as StripeTransactionStep;
-            chai.assert.deepEqualExcluding(sourceStep, {
+            chai.assert.deepEqualExcluding<StripeTransactionStep>(sourceStep, {
                 rail: "stripe",
                 amount: -900
             }, ["chargeId", "charge"]);
@@ -1247,7 +1247,7 @@ describe("/v2/transactions/transfer", () => {
 
             const getTransferResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
             chai.assert.equal(getTransferResp.statusCode, 200, `body=${JSON.stringify(getTransferResp.body)}`);
-            chai.assert.deepEqualExcluding(getTransferResp.body, postTransferResp.body, ["statusCode", "steps"]);
+            chai.assert.deepEqualExcluding(getTransferResp.body, postTransferResp.body, ["steps"]);
 
             const sourceStepFromGet = getTransferResp.body.steps.find((s: StripeTransactionStep) => s.rail === "stripe");
             chai.assert.deepEqual(sourceStepFromGet, sourceStep);
