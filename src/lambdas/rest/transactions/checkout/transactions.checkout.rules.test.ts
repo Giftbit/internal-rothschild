@@ -35,7 +35,7 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
             id: "test balanceRule",
             currency: "CAD",
             balanceRule: {
-                rule: "total*0.5",
+                rule: "total*{rates: [0.5]}.rates[0]",
                 explanation: "testing it out!"
             },
             pretax: true,
