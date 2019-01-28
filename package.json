@@ -43,7 +43,7 @@
     "@types/stripe": "^6.19.4",
     "@types/superagent": "^3.8.6",
     "@types/uuid": "^3.4.4",
-    "aws-sdk": "^2.393.0",
+    "aws-sdk": "^2.395.0",
     "babel-loader": "^8.0.5",
     "bankers-rounding": "^0.1.3",
     "cassava": "^2.4.1",

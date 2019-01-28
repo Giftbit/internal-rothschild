@@ -82,16 +82,7 @@ module.exports = function (env) {
                     path: path.join(__dirname, 'dist', fxn),
                     pathPrefix: '',
                     filename: `${fxn}.zip`
-                }),
-
-                // Knex dialects we won't use.
-                new webpack.IgnorePlugin(/mssql/, /\/knex\//),
-                // new webpack.IgnorePlugin(/mysql/, /\/knex\//), // Referenced by mysql2, which we use.
-                new webpack.IgnorePlugin(/oracle/, /\/knex\//),
-                new webpack.IgnorePlugin(/oracledb/, /\/knex\//),
-                new webpack.IgnorePlugin(/postgres/, /\/knex\//),
-                new webpack.IgnorePlugin(/redshift/, /\/knex\//),
-                new webpack.IgnorePlugin(/sqlite3/, /\/knex\//),
+                })
             ],
             target: 'node',
             externals: {
@@ -103,10 +94,15 @@ module.exports = function (env) {
 
                 // Knex drivers we won't use.
                 'mssql': 'mssql',
+                'mssql/lib/base': 'mssql/lib/base',
+                'mssql/package.json': 'mssql/package.json',
                 'mysql': 'mysql',
                 'oracle': 'oracle',
+                'oracledb': 'oracledb',
                 'pg': 'pg',
-                'sqlite3': 'sqlite3'
+                'pg-query-stream': 'pg-query-stream',   // used by pg
+                'sqlite3': 'sqlite3',
+                'tedious': 'tedious',   // used by mssql
             },
             node: {
                 // Allow these globals.
