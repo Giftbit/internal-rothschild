@@ -26,7 +26,6 @@ import {
 } from "../../../../utils/testUtils/stripeTestUtils";
 import {StripeRestError} from "../../../../utils/stripeUtils/StripeRestError";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
-import {IMetadata} from "stripe";
 import log = require("loglevel");
 import chaiExclude = require("chai-exclude");
 import Stripe = require("stripe");
@@ -541,7 +540,7 @@ describe("split tender checkout with Stripe", () => {
                 lightrailUserId: defaultTestUser.userId
             });
         } else {
-            chai.assert.deepEqualExcluding<IMetadata>(stripeStep.charge.metadata, {
+            chai.assert.deepEqualExcluding<Stripe.IMetadata>(stripeStep.charge.metadata, {
                 ...request.metadata,
                 lightrailTransactionSources: "[]",
                 lightrailUserId: defaultTestUser.userId
