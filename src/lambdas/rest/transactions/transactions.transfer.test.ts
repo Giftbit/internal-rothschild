@@ -1102,7 +1102,7 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.equal(postTransferResp.body.steps[0].rail, "stripe");
 
             const sourceStep = postTransferResp.body.steps.find((s: StripeTransactionStep) => s.rail === "stripe") as StripeTransactionStep;
-            chai.assert.deepEqualExcluding(sourceStep as any, {
+            chai.assert.deepEqualExcluding<StripeTransactionStep>(sourceStep, {
                 rail: "stripe",
                 amount: -1000
             }, ["chargeId", "charge"]);
@@ -1214,7 +1214,7 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.equal(postTransferResp.body.steps[0].rail, "stripe");
 
             const sourceStep = postTransferResp.body.steps.find((s: StripeTransactionStep) => s.rail === "stripe") as StripeTransactionStep;
-            chai.assert.deepEqualExcluding(sourceStep as any, {
+            chai.assert.deepEqualExcluding<StripeTransactionStep>(sourceStep, {
                 rail: "stripe",
                 amount: -900
             }, ["chargeId", "charge"]);

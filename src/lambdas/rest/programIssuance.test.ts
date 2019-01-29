@@ -83,7 +83,7 @@ describe("/v2/issuances", () => {
 
             const createIssuance = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", issuance);
             chai.assert.equal(createIssuance.statusCode, 201, JSON.stringify(createIssuance.body));
-            chai.assert.deepEqualExcluding(createIssuance.body, {
+            chai.assert.deepEqualExcluding<Issuance>(createIssuance.body, {
                 id: issuance.id,
                 name: issuance.name,
                 programId: program.id,
