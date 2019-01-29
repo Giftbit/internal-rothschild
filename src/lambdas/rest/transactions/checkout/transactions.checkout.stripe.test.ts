@@ -334,7 +334,7 @@ describe("split tender checkout with Stripe", () => {
                 }
             }
         ], `body.lineItems=${JSON.stringify(postCheckoutResp.body.lineItems)}`);
-        chai.assert.deepEqualExcluding(postCheckoutResp.body.steps as any, [
+        chai.assert.deepEqualExcluding<any>(postCheckoutResp.body.steps, [
             {
                 rail: "lightrail",
                 valueId: value.id,
@@ -540,11 +540,11 @@ describe("split tender checkout with Stripe", () => {
                 lightrailUserId: defaultTestUser.userId
             });
         } else {
-            chai.assert.deepEqualExcluding(stripeStep.charge.metadata as any, {
+            chai.assert.deepEqualExcluding<Stripe.IMetadata>(stripeStep.charge.metadata, {
                 ...request.metadata,
                 lightrailTransactionSources: "[]",
                 lightrailUserId: defaultTestUser.userId
-            }, "lightrailTransactionId");
+            }, ["lightrailTransactionId"]);
         }
 
         if (testStripeLive()) {
@@ -1019,7 +1019,7 @@ describe("split tender checkout with Stripe", () => {
                 }
             }
         ], `body.lineItems=${JSON.stringify(postCheckoutResp.body.lineItems)}`);
-        chai.assert.deepEqualExcluding(postCheckoutResp.body.steps as any, [
+        chai.assert.deepEqualExcluding<any>(postCheckoutResp.body.steps, [
             {
                 rail: "lightrail",
                 valueId: value2.id,
