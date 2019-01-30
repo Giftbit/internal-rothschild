@@ -304,7 +304,8 @@ const contactSchema: jsonschema.Schema = {
         },
         email: {
             type: ["string", "null"],
-            maxLength: 320
+            maxLength: 320,
+            pattern: "^[ -~]*$"
         },
         metadata: {
             type: ["object", "null"]

@@ -190,6 +190,14 @@ describe("/v2/contacts", () => {
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 
+    it("422s on creating a contact with non-ascii characters in email address", async () => {
+        const resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {
+            id: generateId(),
+            email: "－@example.com"
+        });
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
     it("404s on getting invalid id", async () => {
         const resp = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/iamnotavalidcontactid`, "GET");
         chai.assert.equal(resp.statusCode, 404, `body=${JSON.stringify(resp.body)}`);
