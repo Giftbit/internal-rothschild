@@ -1,9 +1,13 @@
-import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "../TransactionPlan";
+import {
+    getDiscountSellerLiability,
+    LightrailTransactionPlanStep,
+    TransactionPlan,
+    TransactionPlanStep
+} from "../TransactionPlan";
 import {CheckoutRequest, TransactionParty} from "../../../../model/TransactionRequest";
 import {LineItemResponse} from "../../../../model/LineItem";
 import {TransactionTotals, TransactionType} from "../../../../model/Transaction";
 import {bankersRounding, roundTax} from "../../../../utils/moneyUtils";
-import {nowInDbPrecision} from "../../../../utils/dbUtils";
 import {TaxRequestProperties} from "../../../../model/TaxProperties";
 import {getPendingVoidDate} from "../pendingTransactionUtils";
 
@@ -81,8 +85,9 @@ export class CheckoutTransactionPlan implements TransactionPlan {
     }
 
     private calculateMarketplaceTotals(): void {
-        if (!this.lineItems || !this.lineItems.find(lineItem => lineItem.marketplaceRate !== undefined)) {
-            // Marketplace totals are only set if an item has a marketplaceRate.
+        if ((!this.lineItems || !this.lineItems.find(lineItem => lineItem.marketplaceRate !== undefined))
+            && !this.steps.find(step => getDiscountSellerLiability(step) !== 0)) {
+            // Marketplace totals are only set if an item has a marketplaceRate or if discountSellerLiability is set on a Value.
             this.totals.marketplace = undefined;
             return;
         }
@@ -96,7 +101,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
 
         let sellerDiscount = 0;
         for (const step of this.steps) {
-            if (step.rail === "lightrail" && (step as LightrailTransactionPlanStep).value.discount && (step as LightrailTransactionPlanStep).value.discountSellerLiability) {
+            if (getDiscountSellerLiability(step) !== 0) {
                 sellerDiscount -= (step as LightrailTransactionPlanStep).amount * (step as LightrailTransactionPlanStep).value.discountSellerLiability;
             }
         }
