@@ -1,11 +1,12 @@
 import * as currencies from "../../currencies";
 import * as testUtils from "../../../../utils/testUtils";
-import {defaultTestUser} from "../../../../utils/testUtils";
+import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import * as cassava from "cassava";
 import {installRestRoutes} from "../../installRestRoutes";
 import {Value} from "../../../../model/Value";
 import * as chai from "chai";
 import {Transaction} from "../../../../model/Transaction";
+import {CheckoutRequest} from "../../../../model/TransactionRequest";
 
 describe("/v2/transactions/checkout - marketplaceRate", () => {
 
@@ -235,5 +236,52 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             sellerDiscount: 250,
             sellerNet: 15750
         });
+    });
+
+    it("discountSellerLiability still works if marketplaceRate is not set in checkout", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            discount: true,
+            discountSellerLiability: 0.4,
+            balance: 500,
+            pretax: true
+        };
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValue.statusCode, 201);
+
+        const checkoutRequest: CheckoutRequest = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: value.id
+                }
+            ],
+            lineItems: [
+                {
+                    unitPrice: 1000,
+                }
+            ],
+            currency: "CAD",
+            allowRemainder: true,
+        };
+        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        chai.assert.deepEqual(checkoutResp.body.totals, {
+            subtotal: 1000,
+            tax: 0,
+            discount: 500,
+            payable: 500,
+            remainder: 500,
+            discountLightrail: 500,
+            paidLightrail: 0,
+            paidStripe: 0,
+            paidInternal: 0,
+            marketplace: {
+                sellerGross: 1000,
+                sellerDiscount: 200,
+                sellerNet: 800
+            }
+        })
     });
 });
