@@ -193,7 +193,7 @@ describe("/v2/contacts", () => {
     it("422s on creating a contact with non-ascii characters in email address", async () => {
         const resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {
             id: generateId(),
-            email: "－@example.com"
+            email: "jon－paul@example.com"   // That's an em dash, not an ascii dash.
         });
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
