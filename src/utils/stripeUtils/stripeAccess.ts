@@ -1,6 +1,8 @@
 // First two functions copied from internal-turnkey
 // Minor modification made to facilitate testing: fetchFromS3ByEnvVar is called directly in getStripeConfig rather than in a promise, so that it can be mocked
 
+// TODO this is a bad idea ^
+
 import log = require("loglevel");
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";

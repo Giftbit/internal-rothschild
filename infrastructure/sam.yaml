@@ -500,10 +500,15 @@ Resources:
         ShortName: StripeEventWebhookFunction
         Service: Rothschild
       Events:
-        RestApi:
+        StripeEventWebhook:
           Type: Api
           Properties:
             Path: /v2/stripeEventWebhook
+            Method: ANY
+        StripeTestEventWebhook:
+          Type: Api
+          Properties:
+            Path: /v2/stripeTestEventWebhook
             Method: ANY
 
   RestFunction:
