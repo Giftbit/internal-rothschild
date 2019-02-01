@@ -29,7 +29,8 @@ module.exports = function (env) {
                                     presets: [['@babel/env', {targets: {node: '8.10'}}]],
                                     plugins: [],
                                     compact: false,
-                                    babelrc: false
+                                    babelrc: false,
+                                    cacheDirectory: true
                                 }
                             }
                         ]
@@ -43,7 +44,8 @@ module.exports = function (env) {
                                     presets: [['@babel/env', {targets: {node: '8.10'}}]],
                                     plugins: [],
                                     compact: false,
-                                    babelrc: false
+                                    babelrc: false,
+                                    cacheDirectory: true
                                 }
                             },
                             'ts-loader',
