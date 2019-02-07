@@ -326,7 +326,6 @@ Resources:
       Description: !Sub "${AWS::StackName} instance parameter group"
       Family: aurora5.6
       Parameters:
-        max_connections: 250  # allowed 1 - 16000
         sql_mode: IGNORE_SPACE,STRICT_TRANS_TABLES
       Tags:
         - Key: Service
@@ -336,7 +335,7 @@ Resources:
     Properties:
       Engine: aurora
       DBClusterIdentifier: !Ref DbCluster
-      DBInstanceClass: !If [HighCapacity, db.t2.medium, db.t2.medium]
+      DBInstanceClass: !If [HighCapacity, db.r4.large, db.t2.medium]
       DBSubnetGroupName: !Ref DbSubnetGroup
       DBParameterGroupName: !Ref DbInstanceParameterGroup
       Tags:
