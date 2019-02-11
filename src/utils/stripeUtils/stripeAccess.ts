@@ -6,18 +6,20 @@ import {StripeAuth} from "./StripeAuth";
 import {httpStatusCode, RestError} from "cassava";
 import * as kvsAccess from "../kvsAccess";
 
-export let stripeConfigPromise: Promise<LightrailAndMerchantStripeConfig>;
+let stripeConfigPromise: Promise<LightrailAndMerchantStripeConfig>;
 
-export function initializeStripeConfigPromise(auth: giftbitRoutes.jwtauth.AuthorizationBadge): void {
-    stripeConfigPromise = setupLightrailAndMerchantStripeConfig(auth);
-}
+export async function getStripeConfig(auth: giftbitRoutes.jwtauth.AuthorizationBadge): Promise<LightrailAndMerchantStripeConfig> {
+    if (!stripeConfigPromise) {
+        if (!merchantStripeConfigPromise) {
+            initializeMerchantStripeConfig(auth);
+        }
+        const merchantStripeConfig = await merchantStripeConfigPromise;
+        const lightrailStripeConfig = await getLightrailStripeConfig(auth.isTestUser());
+        validateStripeConfig(merchantStripeConfig, lightrailStripeConfig);
 
-async function setupLightrailAndMerchantStripeConfig(auth: giftbitRoutes.jwtauth.AuthorizationBadge): Promise<LightrailAndMerchantStripeConfig> {
-    const merchantStripeConfig = await getMerchantStripeConfig(auth);
-    const lightrailStripeConfig = await getLightrailStripeConfig(auth.isTestUser());
-    validateStripeConfig(merchantStripeConfig, lightrailStripeConfig);
-
-    return {merchantStripeConfig, lightrailStripeConfig};
+        stripeConfigPromise = Promise.resolve({merchantStripeConfig, lightrailStripeConfig});
+    }
+    return await stripeConfigPromise;
 }
 
 /**
@@ -32,6 +34,12 @@ async function getLightrailStripeConfig(test: boolean): Promise<StripeModeConfig
         return stripeConfig as any;
     }
     return test ? stripeConfig.test : stripeConfig.live;
+}
+
+let merchantStripeConfigPromise: Promise<StripeAuth>;
+
+function initializeMerchantStripeConfig(auth: giftbitRoutes.jwtauth.AuthorizationBadge): void {
+    merchantStripeConfigPromise = getMerchantStripeConfig(auth);
 }
 
 async function getMerchantStripeConfig(auth: giftbitRoutes.jwtauth.AuthorizationBadge): Promise<StripeAuth> {
