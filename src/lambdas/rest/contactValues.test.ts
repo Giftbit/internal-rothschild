@@ -9,6 +9,9 @@ import {createContact} from "./contacts";
 import {Currency} from "../../model/Currency";
 import {createCurrency} from "./currencies";
 import {Value} from "../../model/Value";
+import chaiExclude = require("chai-exclude");
+
+chai.use(chaiExclude);
 
 describe("/v2/contacts/values", () => {
 
@@ -333,6 +336,75 @@ describe("/v2/contacts/values", () => {
         it("can list contacts who have attached genVal2", async () => {
             const contactListValues = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?valueId=${data.genVal2.id}`, "GET");
             chai.assert.sameDeepMembers(contactListValues.body, data.contacts);
+        });
+    });
+
+    describe.only("detach", () => {
+        it("can detach Value", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: currency.code,
+            };
+            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+            const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value.id});
+            chai.assert.equal(attach.statusCode, 200, `body=${JSON.stringify(attach.body)}`);
+
+            const detach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/detach`, "POST", {valueId: value.id});
+            chai.assert.equal(detach.statusCode, 200, `body=${JSON.stringify(detach.body)}`);
+            chai.assert.deepEqualExcluding(detach.body, createValue.body, ["updatedContactIdDate"]);
+
+            const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
+            chai.assert.equal(getValue.statusCode, 200)
+        });
+
+        it("can detach Generic Value", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: currency.code,
+                isGenericCode: true,
+            };
+            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+            const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value.id});
+            chai.assert.equal(attach.statusCode, 200, `body=${JSON.stringify(attach.body)}`);
+
+            const detach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/detach`, "POST", {valueId: value.id});
+            chai.assert.equal(detach.statusCode, 200, `body=${JSON.stringify(detach.body)}`);
+            chai.assert.deepEqual(detach.body, createValue.body);
+
+            const getContactValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${contact.id}/values`, "GET");
+            chai.assert.equal(getContactValues.statusCode, 200);
+            chai.assert.notInclude(getContactValues.body.map(v => v.id), value.id)
+        });
+
+        it("can't detach a Value that a Contact doesn't have attached - 404", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: currency.code,
+            };
+            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+            const detach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/detach`, "POST", {valueId: value.id});
+            chai.assert.equal(detach.statusCode, 404, `body=${JSON.stringify(detach.body)}`);
+            chai.assert.equal(detach.body.messageCode, "ValueNotAttachedToContact");
+        });
+
+        it("can't detach a Generic Value that a Contact doesn't have attached - 404", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: currency.code,
+                isGenericCode: true
+            };
+            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+            const detach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/detach`, "POST", {valueId: value.id});
+            chai.assert.equal(detach.statusCode, 404, `body=${JSON.stringify(detach.body)}`);
+            chai.assert.equal(detach.body.messageCode, "ValueNotAttachedToContact");
         });
     });
 });
