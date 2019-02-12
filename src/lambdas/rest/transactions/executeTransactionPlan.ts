@@ -9,7 +9,7 @@ import {
 import {Transaction} from "../../../model/Transaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
-import {getStripeConfig} from "../../../utils/stripeUtils/stripeAccess";
+import {initializeStripeConfigPromise, stripeConfigPromise} from "../../../utils/stripeUtils/stripeAccess";
 import {LightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/StripeConfig";
 import {
     insertInternalTransactionSteps,
@@ -76,7 +76,11 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
 
         try {
             if (stripeSteps.length > 0) {
-                stripeConfig = await getStripeConfig(auth);
+                if (!stripeConfigPromise) {
+                    initializeStripeConfigPromise(auth);
+                }
+                stripeConfig = await stripeConfigPromise;
+
                 await executeStripeSteps(auth, stripeConfig, plan);
             }
             await insertStripeTransactionSteps(auth, trx, plan);
