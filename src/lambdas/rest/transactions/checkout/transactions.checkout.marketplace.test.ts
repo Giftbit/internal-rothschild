@@ -282,6 +282,6 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
                 sellerDiscount: 200,
                 sellerNet: 800
             }
-        })
+        });
     });
 });

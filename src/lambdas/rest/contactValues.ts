@@ -180,8 +180,9 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 export async function detachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, valueId: string): Promise<Value> {
     auth.requireIds("userId");
     const value = await getValue(auth, valueId);
+
     if (!value.isGenericCode) {
-        if (value.contactId != contactId) {
+        if (value.contactId !== contactId) {
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.NOT_FOUND, `The Value ${valueId} is not Attached to the Contact ${contactId}.`, "ValueNotAttachedToContact");
         }
         const knex = await getKnexWrite();
@@ -207,6 +208,7 @@ export async function detachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             })
             .delete();
         if (res === 0) {
+            // if this object doesn't exist it implies the Value isn't attached.
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.NOT_FOUND, `The Value ${valueId} is not Attached to the Contact ${contactId}.`, "ValueNotAttachedToContact");
         }
         if (res > 1) {

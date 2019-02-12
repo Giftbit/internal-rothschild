@@ -339,7 +339,7 @@ describe("/v2/contacts/values", () => {
         });
     });
 
-    describe.only("detach", () => {
+    describe("detach", () => {
         it("can detach Value", async () => {
             const value: Partial<Value> = {
                 id: generateId(),
@@ -356,7 +356,7 @@ describe("/v2/contacts/values", () => {
             chai.assert.deepEqualExcluding(detach.body, createValue.body, ["updatedContactIdDate"]);
 
             const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
-            chai.assert.equal(getValue.statusCode, 200)
+            chai.assert.equal(getValue.statusCode, 200);
         });
 
         it("can detach Generic Value", async () => {
@@ -377,7 +377,7 @@ describe("/v2/contacts/values", () => {
 
             const getContactValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${contact.id}/values`, "GET");
             chai.assert.equal(getContactValues.statusCode, 200);
-            chai.assert.notInclude(getContactValues.body.map(v => v.id), value.id)
+            chai.assert.notInclude(getContactValues.body.map(v => v.id), value.id);
         });
 
         it("can't detach a Value that a Contact doesn't have attached - 404", async () => {
