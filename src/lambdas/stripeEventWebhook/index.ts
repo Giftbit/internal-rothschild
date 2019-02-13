@@ -21,6 +21,10 @@ router.route(new cassava.routes.LoggingRoute({
     logFunction: log.info
 }));
 
+router.route(new giftbitRoutes.MetricsRoute({
+    logFunction: log.info
+}));
+
 installStripeEventWebhookRoute(router);
 
 // Export the lambda handler with Sentry error logging supported.
