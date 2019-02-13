@@ -188,7 +188,7 @@ export async function detachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 
     if (!value.isGenericCode) {
         if (value.contactId !== contactId) {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.NOT_FOUND, `The Value ${valueId} is not Attached to the Contact ${contactId}.`, "ValueNotAttachedToContact");
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value ${valueId} is not Attached to the Contact ${contactId}.`, "ValueNotAttached");
         }
 
         const now = nowInDbPrecision();
@@ -209,7 +209,7 @@ export async function detachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 
         if (res === 0) {
             // if this object doesn't exist it implies the Value isn't attached.
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.NOT_FOUND, `The Value ${valueId} is not Attached to the Contact ${contactId}.`, "ValueNotAttachedToContact");
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value ${valueId} is not Attached to the Contact ${contactId}.`, "ValueNotAttached");
         }
         if (res > 1) {
             throw new Error(`Illegal DELETE query.  Deleted ${res} values.`);
