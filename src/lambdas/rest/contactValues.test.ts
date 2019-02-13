@@ -391,7 +391,7 @@ describe("/v2/contacts/values", () => {
 
             const detach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/detach`, "POST", {valueId: value.id});
             chai.assert.equal(detach.statusCode, 409, `body=${JSON.stringify(detach.body)}`);
-            chai.assert.equal(detach.body.messageCode, "ValueNotAttached");
+            chai.assert.equal(detach.body.messageCode, "AttachedValueNotFound");
         });
 
         it("can't detach a Generic Value that a Contact doesn't have attached - 404", async () => {
@@ -405,7 +405,7 @@ describe("/v2/contacts/values", () => {
 
             const detach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/detach`, "POST", {valueId: value.id});
             chai.assert.equal(detach.statusCode, 409, `body=${JSON.stringify(detach.body)}`);
-            chai.assert.equal(detach.body.messageCode, "ValueNotAttached");
+            chai.assert.equal(detach.body.messageCode, "AttachedValueNotFound");
         });
     });
 });
