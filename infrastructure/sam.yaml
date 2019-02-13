@@ -455,6 +455,7 @@ Resources:
           LIGHTRAIL_DOMAIN: !Ref LightrailDomain
           SECURE_CONFIG_BUCKET: !Ref SecureConfigBucket
           SECURE_CONFIG_KEY_SENTRY: sentry_lambda_services.json
+          SECURE_CONFIG_KEY_STRIPE: stripe_connect.json
       VpcConfig:
         SecurityGroupIds:
           - !GetAtt LambdaSecurityGroup.GroupId
@@ -483,6 +484,7 @@ Resources:
                 - s3:GetObject
               Resource:
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/stripe_connect.json"
             - Effect: Allow
               Action:
                 - kms:Decrypt
