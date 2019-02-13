@@ -357,6 +357,7 @@ describe("/v2/contacts/values", () => {
 
             const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
             chai.assert.equal(getValue.statusCode, 200);
+            chai.assert.deepEqualExcluding(createValue.body, getValue.body, ["updatedContactIdDate", "updatedDate"]);
         });
 
         it("can detach Generic Value", async () => {

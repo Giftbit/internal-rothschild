@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {getValue, getValueByCode, getValues, injectValueStats} from "./values";
+import {getValue, getValueByCode, getValues, injectValueStats, updateValue} from "./values";
 import {csvSerializer} from "../../serializers";
 import {Pagination} from "../../model/Pagination";
 import {DbValue, Value} from "../../model/Value";
@@ -185,19 +185,13 @@ export async function detachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         if (value.contactId !== contactId) {
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.NOT_FOUND, `The Value ${valueId} is not Attached to the Contact ${contactId}.`, "ValueNotAttachedToContact");
         }
-        const knex = await getKnexWrite();
-        const res = await knex("Values")
-            .where({
-                userId: auth.userId,
-                id: valueId
-            })
-            .update({contactId: null});
-        if (res === 0) {
-            throw new cassava.RestError(404);
-        }
-        if (res > 1) {
-            throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
-        }
+
+        const now = nowInDbPrecision();
+        return await updateValue(auth, valueId, {
+            contactId: null,
+            updatedDate: now,
+            updatedContactIdDate: now
+        });
     } else {
         const knex = await getKnexWrite();
         const res: number = await knex("ContactValues")
@@ -207,6 +201,7 @@ export async function detachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 valueId: valueId
             })
             .delete();
+
         if (res === 0) {
             // if this object doesn't exist it implies the Value isn't attached.
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.NOT_FOUND, `The Value ${valueId} is not Attached to the Contact ${contactId}.`, "ValueNotAttachedToContact");
@@ -214,11 +209,8 @@ export async function detachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         if (res > 1) {
             throw new Error(`Illegal DELETE query.  Deleted ${res} values.`);
         }
+        return value;
     }
-
-    return {
-        ...await getValue(auth, valueId)
-    };
 }
 
 async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, value: Value): Promise<DbContactValue> {
