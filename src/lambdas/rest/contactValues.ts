@@ -131,6 +131,11 @@ export function installContactValuesRest(router: cassava.Router): void {
             auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:values:detach");
 
+            /* Only supports detach by valueId.
+             * There's complexity around supporting detach by code
+             * for generic codes with attachGenericAsNewValue: true.
+             * If attachGenericAsNewValue is removed, consider supporting
+             * detach by code. */
             evt.validateBody({
                 type: "object",
                 additionalProperties: false,
