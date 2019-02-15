@@ -22,31 +22,32 @@ export async function setupLightrailAndMerchantStripeConfig(auth: giftbitRoutes.
     const assumeToken = (await assumeCheckoutToken).assumeToken;
     log.info("got retrieve stripe auth assume token");
 
+    const lightrailStripeModeConfig = await getLightrailStripeModeConfig(auth.isTestUser());
+
     log.info("fetching merchant stripe auth");
     const merchantStripeConfig: StripeAuth = await kvsAccess.kvsGet(assumeToken, "stripeAuth", authorizeAs);
     log.info("got merchant stripe auth");
-    validateStripeConfig(merchantStripeConfig, await getLightrailStripeConfig(auth.isTestUser()));
+    validateStripeConfig(merchantStripeConfig, lightrailStripeModeConfig);
 
-    return {merchantStripeConfig, lightrailStripeConfig};
+    return {merchantStripeConfig, lightrailStripeConfig: lightrailStripeModeConfig};
 }
 
-let lightrailStripeConfig: StripeModeConfig;
+let lightrailStripeConfig: Promise<StripeConfig>;
+
+export function initializeLightrailStripeConfig(lightrailStripePromise: Promise<StripeConfig>): void {
+    lightrailStripeConfig = lightrailStripePromise;
+}
 
 /**
  * Get Stripe credentials for test or live mode.  Test mode credentials allow
  * dummy credit cards and skip through stripe connect.
  * @param testMode whether to use test account credentials or live credentials
  */
-export async function getLightrailStripeConfig(testMode: boolean): Promise<StripeModeConfig> {
+export async function getLightrailStripeModeConfig(testMode: boolean): Promise<StripeModeConfig> {
     if (!lightrailStripeConfig) {
-        const stripeConfig = await giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE");
-        if (!stripeConfig.live && !stripeConfig.test) {
-            // TEMP this is a short term measure to be able to use new code with old config files
-            return stripeConfig as any;
-        }
-        lightrailStripeConfig = testMode ? stripeConfig.test : stripeConfig.live;
+        throw new Error("lightrailStripeConfig has not been initialized.");
     }
-    return lightrailStripeConfig;
+    return testMode ? (await lightrailStripeConfig).test : (await lightrailStripeConfig).live;
 }
 
 function validateStripeConfig(merchantStripeConfig: StripeAuth, lightrailStripeConfig: StripeModeConfig) {

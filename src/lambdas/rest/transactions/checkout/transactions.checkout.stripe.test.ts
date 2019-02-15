@@ -8,7 +8,6 @@ import * as sinon from "sinon";
 import {Value} from "../../../../model/Value";
 import {StripeTransactionStep, Transaction} from "../../../../model/Transaction";
 import {Currency} from "../../../../model/Currency";
-import * as kvsAccess from "../../../../utils/kvsAccess";
 import {TransactionPlanError} from "../TransactionPlanError";
 import * as insertTransaction from "../insertTransactions";
 import * as testUtils from "../../../../utils/testUtils";
@@ -704,21 +703,6 @@ describe("split tender checkout with Stripe", () => {
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 404, "the transaction was not actually created");
 
-        if (testStripeLive()) {
-            chai.assert.deepEqual(await giftbitRoutes.secureConfig.fetchFromS3ByEnvVar("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE"), {
-                email: "test@test.com",
-                test: {
-                    clientId: "test-client-id",
-                    secretKey: stripeLiveConfig.secretKey,
-                    publishableKey: "test-pk",
-                },
-                live: {},
-            });
-            chai.assert.deepEqual(await kvsAccess.kvsGet("this-is-an-assume-token", "stripeAuth", ""), {
-                token_type: "bearer",
-                stripe_user_id: stripeLiveConfig.stripeUserId,
-            });
-        }
     });
 
     describe("rollback", () => {
