@@ -6,16 +6,20 @@ import {StripeAuth} from "./StripeAuth";
 import {httpStatusCode, RestError} from "cassava";
 import * as kvsAccess from "../kvsAccess";
 
-let assumeCheckoutToken: giftbitRoutes.secureConfig.AssumeScopeToken;
+let assumeCheckoutToken: Promise<giftbitRoutes.secureConfig.AssumeScopeToken>;
+
+export function initializeAssumeCheckoutToken(tokenPromise: Promise<giftbitRoutes.secureConfig.AssumeScopeToken>): void {
+    assumeCheckoutToken = tokenPromise;
+}
 
 export async function setupLightrailAndMerchantStripeConfig(auth: giftbitRoutes.jwtauth.AuthorizationBadge): Promise<LightrailAndMerchantStripeConfig> {
     const authorizeAs = auth.getAuthorizeAsPayload();
 
     if (!assumeCheckoutToken) {
-        log.info("fetching retrieve stripe auth assume token");
-        assumeCheckoutToken = await giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<giftbitRoutes.secureConfig.AssumeScopeToken>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH");
+        throw new Error("AssumeCheckoutToken has not been initialized.");
     }
-    const assumeToken = assumeCheckoutToken.assumeToken;
+    log.info("fetching retrieve stripe auth assume token");
+    const assumeToken = (await assumeCheckoutToken).assumeToken;
     log.info("got retrieve stripe auth assume token");
 
     log.info("fetching merchant stripe auth");

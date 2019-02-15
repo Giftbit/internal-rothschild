@@ -11,6 +11,7 @@ import {
     TransferRequest
 } from "../../model/TransactionRequest";
 import {StripeRestError} from "../stripeUtils/StripeRestError";
+import {initializeAssumeCheckoutToken} from "../stripeUtils/stripeAccess";
 import log = require("loglevel");
 
 const sinonSandbox = sinon.createSandbox();
@@ -42,10 +43,9 @@ export function setStubsForStripeTests() {
         assumeToken: "this-is-an-assume-token"
     };
 
+    initializeAssumeCheckoutToken(Promise.resolve(testAssumeToken));
+
     const stubFetchFromS3ByEnvVar = sinonSandbox.stub(giftbitRoutes.secureConfig, "fetchFromS3ByEnvVar");
-    stubFetchFromS3ByEnvVar
-        .withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH")
-        .resolves(testAssumeToken);
     stubFetchFromS3ByEnvVar
         .withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE")
         .resolves({
