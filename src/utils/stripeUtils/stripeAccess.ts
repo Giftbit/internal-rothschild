@@ -21,11 +21,7 @@ export async function setupLightrailAndMerchantStripeConfig(auth: giftbitRoutes.
     log.info("fetching merchant stripe auth");
     const merchantStripeConfig: StripeAuth = await kvsAccess.kvsGet(assumeToken, "stripeAuth", authorizeAs);
     log.info("got merchant stripe auth");
-
-    if (!lightrailStripeConfig) {
-        lightrailStripeConfig = await getLightrailStripeConfig(auth.isTestUser());
-    }
-    validateStripeConfig(merchantStripeConfig, lightrailStripeConfig);
+    validateStripeConfig(merchantStripeConfig, await getLightrailStripeConfig(auth.isTestUser()));
 
     return {merchantStripeConfig, lightrailStripeConfig};
 }
@@ -35,15 +31,18 @@ let lightrailStripeConfig: StripeModeConfig;
 /**
  * Get Stripe credentials for test or live mode.  Test mode credentials allow
  * dummy credit cards and skip through stripe connect.
- * @param test whether to use test account credentials or live credentials
+ * @param testMode whether to use test account credentials or live credentials
  */
-async function getLightrailStripeConfig(test: boolean): Promise<StripeModeConfig> {
-    const stripeConfig = await giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE");
-    if (!stripeConfig.live && !stripeConfig.test) {
-        // TEMP this is a short term measure to be able to use new code with old config files
-        return stripeConfig as any;
+export async function getLightrailStripeConfig(testMode: boolean): Promise<StripeModeConfig> {
+    if (!lightrailStripeConfig) {
+        const stripeConfig = await giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE");
+        if (!stripeConfig.live && !stripeConfig.test) {
+            // TEMP this is a short term measure to be able to use new code with old config files
+            return stripeConfig as any;
+        }
+        lightrailStripeConfig = testMode ? stripeConfig.test : stripeConfig.live;
     }
-    return test ? stripeConfig.test : stripeConfig.live;
+    return lightrailStripeConfig;
 }
 
 function validateStripeConfig(merchantStripeConfig: StripeAuth, lightrailStripeConfig: StripeModeConfig) {
