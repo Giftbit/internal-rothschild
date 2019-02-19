@@ -2,6 +2,8 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as logPrefix from "loglevel-plugin-prefix";
 import {installStripeEventWebhookRoute} from "./installStripeEventWebhookRoute";
+import {initializeLightrailStripeConfig} from "../../utils/stripeUtils/stripeAccess";
+import {StripeConfig} from "../../utils/stripeUtils/StripeConfig";
 import log = require("loglevel");
 
 // Prefix log messages with the level.
@@ -24,6 +26,10 @@ router.route(new cassava.routes.LoggingRoute({
 router.route(new giftbitRoutes.MetricsRoute({
     logFunction: log.info
 }));
+
+initializeLightrailStripeConfig(
+    giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE")
+);
 
 installStripeEventWebhookRoute(router);
 
