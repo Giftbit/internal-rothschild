@@ -11,6 +11,7 @@ import {
     TransferRequest
 } from "../../model/TransactionRequest";
 import {StripeRestError} from "../stripeUtils/StripeRestError";
+import {initializeAssumeCheckoutToken, initializeLightrailStripeConfig} from "../stripeUtils/stripeAccess";
 import log = require("loglevel");
 
 const sinonSandbox = sinon.createSandbox();
@@ -25,6 +26,7 @@ let stripeUpdateChargeStub: sinon.SinonStub = null;
 export const stripeLiveConfig = {
     secretKey: "sk_test_Fwb3uGyZsIb9eJ5ZQchNH5Em",
     stripeUserId: "acct_1BOVE6CM9MOvFvZK",
+    connectWebhookSigningSecret: "",
     customer: {
         id: "cus_CP4Zd1Dddy4cOH",
         defaultCard: "card_1C0GSUCM9MOvFvZK8VB29qaz",
@@ -42,21 +44,23 @@ export function setStubsForStripeTests() {
         assumeToken: "this-is-an-assume-token"
     };
 
-    const stubFetchFromS3ByEnvVar = sinonSandbox.stub(giftbitRoutes.secureConfig, "fetchFromS3ByEnvVar");
-    stubFetchFromS3ByEnvVar
-        .withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH")
-        .resolves(testAssumeToken);
-    stubFetchFromS3ByEnvVar
-        .withArgs("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE")
-        .resolves({
-            email: "test@test.com",
-            test: {
-                clientId: "test-client-id",
-                secretKey: testStripeLive() ? stripeLiveConfig.secretKey : stripeStubbedConfig.secretKey,
-                publishableKey: "test-pk",
-            },
-            live: {}
-        });
+    initializeAssumeCheckoutToken(Promise.resolve(testAssumeToken));
+
+    initializeLightrailStripeConfig(Promise.resolve({
+        email: "test@test.com",
+        test: {
+            clientId: "test-client-id",
+            secretKey: testStripeLive() ? stripeLiveConfig.secretKey : stripeStubbedConfig.secretKey,
+            publishableKey: "test-pk",
+            connectWebhookSigningSecret: ""
+        },
+        live: {
+            clientId: null,
+            secretKey: testStripeLive() ? stripeLiveConfig.secretKey : stripeStubbedConfig.secretKey,
+            publishableKey: null,
+            connectWebhookSigningSecret: null
+        }
+    }));
 
     const stubKvsGet = sinonSandbox.stub(kvsAccess, "kvsGet");
     stubKvsGet

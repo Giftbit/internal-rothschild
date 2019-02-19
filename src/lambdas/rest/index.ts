@@ -4,6 +4,8 @@ import * as logPrefix from "loglevel-plugin-prefix";
 import {installRestRoutes} from "./installRestRoutes";
 import {CodeCryptographySecrets, initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils"; // Prefix log messages with the level.
 import {initializeIntercomSecrets, IntercomSecrets} from "../../utils/intercomUtils";
+import {initializeAssumeCheckoutToken, initializeLightrailStripeConfig} from "../../utils/stripeUtils/stripeAccess";
+import {StripeConfig} from "../../utils/stripeUtils/StripeConfig";
 import log = require("loglevel");
 
 // Prefix log messages with the level.
@@ -44,6 +46,14 @@ initializeCodeCryptographySecrets(
 
 initializeIntercomSecrets(
     giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<IntercomSecrets>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_INTERCOM_SECRET")
+);
+
+initializeAssumeCheckoutToken(
+    giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<giftbitRoutes.secureConfig.AssumeScopeToken>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH")
+);
+
+initializeLightrailStripeConfig(
+    giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE")
 );
 
 installRestRoutes(router);

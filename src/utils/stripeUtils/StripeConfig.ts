@@ -26,7 +26,7 @@ export interface StripeModeConfig {
 
     // Webhook for events from Connect applications.
     // Available in Developers -> Webhooks
-    connectWebhookSigningSecret;
+    connectWebhookSigningSecret: string;
 }
 
 export interface LightrailAndMerchantStripeConfig {
