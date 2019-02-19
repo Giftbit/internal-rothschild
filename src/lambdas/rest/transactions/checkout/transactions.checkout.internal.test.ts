@@ -6,6 +6,7 @@ import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import {installRestRoutes} from "../../installRestRoutes";
 import {Value} from "../../../../model/Value";
+import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -26,7 +27,7 @@ describe("/v2/transactions/checkout - internal sources", () => {
         });
     });
 
-    it("checkout with single internal source", async () => {
+    it("checkout with a single internal source", async () => {
         const request = {
             id: generateId(),
             sources: [
@@ -524,5 +525,93 @@ describe("/v2/transactions/checkout - internal sources", () => {
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["steps"]);
         chai.assert.includeDeepMembers(getCheckoutResp.body.steps, postCheckoutResp.body.steps);
+    });
+
+    it("processes internal rail before stripe", async () => {
+        const internalId = generateId();
+        const request: CheckoutRequest = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "stripe",
+                    source: "tok_visa"
+                },
+                {
+                    rail: "internal",
+                    internalId,
+                    balance: 200
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "xyz-123",
+                    unitPrice: 634,
+                    taxRate: 0.05
+                }
+            ],
+            currency: "CAD",
+            simulate: true
+        };
+
+        const response = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+        chai.assert.equal(response.statusCode, 200, `body=${JSON.stringify(response.body)}`);
+        chai.assert.deepEqualExcludingEvery(response.body, {
+            id: request.id,
+            transactionType: "checkout",
+            currency: "CAD",
+            steps: [
+                {
+                    rail: "internal",
+                    internalId,
+                    balanceBefore: 200,
+                    balanceAfter: 0,
+                    balanceChange: -200
+                },
+                {
+                    rail: "stripe",
+                    amount: -466,
+                    charge: null,
+                    chargeId: null
+                }
+            ],
+            totals: {
+                discount: 0,
+                discountLightrail: 0,
+                paidInternal: 200,
+                paidLightrail: 0,
+                paidStripe: 466,
+                payable: 666,
+                remainder: 0,
+                subtotal: 634,
+                tax: 32
+            },
+            lineItems: [
+                {
+                    lineTotal: {
+                        discount: 0,
+                        payable: 666,
+                        remainder: 0,
+                        subtotal: 634,
+                        tax: 32,
+                        taxable: 634
+                    },
+                    productId: "xyz-123",
+                    quantity: 1,
+                    taxRate: 0.05,
+                    type: "product",
+                    unitPrice: 634
+                }
+            ],
+            paymentSources: request.sources,
+            simulated: true,
+            pending: false,
+            createdDate: null,
+            createdBy: null,
+            metadata: null,
+            tax: {
+                roundingMode: "HALF_EVEN"
+            }
+        }, ["createdDate", "createdBy"]);
     });
 });

@@ -28,7 +28,7 @@ function optimizeSteps(pretax: boolean, unsortedSteps: TransactionPlanStep[], ch
     log.info(`optimizing ${unsortedSteps.length} ${pretax ? "pretax" : "postTax"} steps`);
 
     const splitUnsortedSteps = splitNonLightrailSteps(unsortedSteps);
-    (pretax ? sortedPretaxSteps : sortedPostTaxSteps).push(...splitUnsortedSteps.stepsBeforeLightrail);
+    (pretax ? sortedPretaxSteps : sortedPostTaxSteps).push(...splitUnsortedSteps.internalBeforeLightrailSteps);
 
     for (const lightrailStepBucket of bucketLightrailSteps(splitUnsortedSteps.lightrailSteps)) {
         log.info(`ordering bucket with ${lightrailStepBucket.length} lightrail steps:`, lightrailStepBucket.map(step => step.value.id));
@@ -60,13 +60,14 @@ function optimizeSteps(pretax: boolean, unsortedSteps: TransactionPlanStep[], ch
         }
     }
 
-    (pretax ? sortedPretaxSteps : sortedPostTaxSteps).push(...splitUnsortedSteps.stepsAfterLightrail);
+    (pretax ? sortedPretaxSteps : sortedPostTaxSteps).push(...splitUnsortedSteps.internalAfterLightrailSteps, ...splitUnsortedSteps.stripeSteps);
 }
 
 function splitNonLightrailSteps(steps: TransactionPlanStep[]) {
     return {
-        stepsBeforeLightrail: steps.filter(step => step.rail === "internal" && step.beforeLightrail),
-        stepsAfterLightrail: steps.filter(step => step.rail !== "lightrail" && !step["beforeLightrail"]),
+        internalBeforeLightrailSteps: steps.filter(step => step.rail === "internal" && step.beforeLightrail),
+        internalAfterLightrailSteps: steps.filter(step => step.rail === "internal" && !step["beforeLightrail"]),
+        stripeSteps: steps.filter(step => step.rail === "stripe"),
         lightrailSteps: steps.filter(step => step.rail === "lightrail") as LightrailTransactionPlanStep[],
     };
 }
