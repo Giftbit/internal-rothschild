@@ -1,7 +1,18 @@
 import * as aws from "aws-sdk";
 import * as awslambda from "aws-lambda";
-import log = require("loglevel");
 import {sendCloudFormationResponse} from "../../sendCloudFormationResponse";
+import log = require("loglevel");
+
+// Wrapping console.log instead of binding (default behaviour for loglevel)
+// Otherwise all log calls are prefixed with the requestId from the first
+// request the lambda received (AWS modifies log calls, loglevel binds to the
+// version of console.log that exists when it is initialized).
+// See https://github.com/pimterry/loglevel/blob/master/lib/loglevel.js
+log.methodFactory = function () {
+    return function () {
+        console.log(...arguments);
+    };
+};
 
 log.setLevel(log.levels.DEBUG);
 
