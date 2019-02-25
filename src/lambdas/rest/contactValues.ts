@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {getValue, getValueByCode, getValues, injectValueStats} from "./values";
+import {getValue, getValueByCode, getValues, injectValueStats, updateValue} from "./values";
 import {csvSerializer} from "../../serializers";
 import {Pagination} from "../../model/Pagination";
 import {DbValue, Value} from "../../model/Value";
@@ -123,6 +123,34 @@ export function installContactValuesRest(router: cassava.Router): void {
                 })
             };
         });
+
+    router.route("/v2/contacts/{id}/values/detach")
+        .method("POST")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("userId", "teamMemberId");
+            auth.requireScopes("lightrailV2:values:detach");
+
+            /* Only supports detach by valueId.
+             * There's complexity around supporting detach by code
+             * for generic codes with attachGenericAsNewValue: true.
+             * If attachGenericAsNewValue is removed, consider supporting
+             * detach by code. */
+            evt.validateBody({
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                    valueId: {
+                        type: "string",
+                        minLength: 1
+                    }
+                }
+            });
+
+            return {
+                body: await detachValue(auth, evt.pathParameters.id, evt.body.valueId)
+            };
+        });
 }
 
 export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: AttachValueParameters): Promise<Value> {
@@ -151,6 +179,42 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     } else {
         MetricsLogger.valueAttachment(ValueAttachmentTypes.Unique, auth);
         return attachUniqueValue(auth, contact.id, value, params.allowOverwrite);
+    }
+}
+
+export async function detachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, valueId: string): Promise<Value> {
+    auth.requireIds("userId");
+    const value = await getValue(auth, valueId);
+
+    if (!value.isGenericCode) {
+        if (value.contactId !== contactId) {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value ${valueId} is not Attached to the Contact ${contactId}.`, "AttachedValueNotFound");
+        }
+
+        const now = nowInDbPrecision();
+        return await updateValue(auth, valueId, {
+            contactId: null,
+            updatedDate: now,
+            updatedContactIdDate: now
+        });
+    } else {
+        const knex = await getKnexWrite();
+        const res: number = await knex("ContactValues")
+            .where({
+                userId: auth.userId,
+                contactId: contactId,
+                valueId: valueId
+            })
+            .delete();
+
+        if (res === 0) {
+            // if this object doesn't exist it implies the Value isn't attached.
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value ${valueId} is not Attached to the Contact ${contactId}.`, "AttachedValueNotFound");
+        }
+        if (res > 1) {
+            throw new Error(`Illegal DELETE query.  Deleted ${res} values.`);
+        }
+        return value;
     }
 }
 
