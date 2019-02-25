@@ -186,6 +186,10 @@ export async function detachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     auth.requireIds("userId");
     const value = await getValue(auth, valueId);
 
+    if (value.frozen) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value cannot be detached because it is frozen.`, "ValueFrozen");
+    }
+
     if (!value.isGenericCode) {
         if (value.contactId !== contactId) {
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value ${valueId} is not Attached to the Contact ${contactId}.`, "AttachedValueNotFound");
