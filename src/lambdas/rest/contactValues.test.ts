@@ -407,6 +407,45 @@ describe("/v2/contacts/values", () => {
             chai.assert.equal(detach.statusCode, 409, `body=${JSON.stringify(detach.body)}`);
             chai.assert.equal(detach.body.messageCode, "AttachedValueNotFound");
         });
+
+        it("can't detach frozen Values", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: currency.code,
+                isGenericCode: true
+            };
+            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+            const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value.id});
+            chai.assert.equal(attach.statusCode, 200, `body=${JSON.stringify(attach.body)}`);
+
+            const freeze = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.id}`, "PATCH", {frozen: true});
+            chai.assert.equal(freeze.statusCode, 200, `body=${JSON.stringify(attach.body)}`);
+
+            const detach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/detach`, "POST", {valueId: value.id});
+            chai.assert.equal(detach.statusCode, 409, `body=${JSON.stringify(detach.body)}`);
+            chai.assert.equal(detach.body.messageCode, "ValueFrozen");
+        });
+
+        it("can detach canceled Values", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: currency.code,
+                isGenericCode: true
+            };
+            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+            const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value.id});
+            chai.assert.equal(attach.statusCode, 200, `body=${JSON.stringify(attach.body)}`);
+
+            const cancel = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.id}`, "PATCH", {canceled: true});
+            chai.assert.equal(cancel.statusCode, 200, `body=${JSON.stringify(attach.body)}`);
+
+            const detach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/detach`, "POST", {valueId: value.id});
+            chai.assert.equal(detach.statusCode, 200, `body=${JSON.stringify(detach.body)}`);
+        });
     });
 });
 
