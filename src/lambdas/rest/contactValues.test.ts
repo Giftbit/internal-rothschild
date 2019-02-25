@@ -381,7 +381,7 @@ describe("/v2/contacts/values", () => {
             chai.assert.notInclude(getContactValues.body.map(v => v.id), value.id);
         });
 
-        it("can't detach a Value that a Contact doesn't have attached - 404", async () => {
+        it("can't detach a Value that a Contact doesn't have attached", async () => {
             const value: Partial<Value> = {
                 id: generateId(),
                 currency: currency.code,
@@ -394,7 +394,7 @@ describe("/v2/contacts/values", () => {
             chai.assert.equal(detach.body.messageCode, "AttachedValueNotFound");
         });
 
-        it("can't detach a Generic Value that a Contact doesn't have attached - 404", async () => {
+        it("can't detach a Generic Value that a Contact doesn't have attached", async () => {
             const value: Partial<Value> = {
                 id: generateId(),
                 currency: currency.code,
