@@ -10,6 +10,14 @@ import {getDbCredentials} from "../../utils/dbUtils/connection";
 import "./schema/*.sql";
 import log = require("loglevel");
 
+// Wrapping console.log instead of binding (default behaviour for loglevel)
+// Otherwise all log calls are prefixed with the requestId from the first
+// request the lambda received (AWS modifies log calls, loglevel binds to the
+// version of console.log that exists when it is initialized).
+// See https://github.com/pimterry/loglevel/blob/master/lib/loglevel.js
+// tslint:disable-next-line:no-console
+log.methodFactory = () => (...args) => console.log(...args);
+
 log.setLevel(log.levels.DEBUG);
 
 // Flyway version to download and use.  Flyway does the migration.
