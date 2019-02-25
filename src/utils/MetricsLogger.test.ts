@@ -343,9 +343,9 @@ describe("MetricsLogger", () => {
                     sources: [{rail: "stripe", source: "tok_chargeDeclined"}]
                 };
 
-                stubCheckoutStripeError(errorCheckoutReq, 0, new StripeRestError(422, "", "", {type: "StripeCardError"}));
+                stubCheckoutStripeError(errorCheckoutReq, 0, new StripeRestError(409, "", "", {type: "StripeCardError"}));
                 const errorResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", errorCheckoutReq);
-                chai.assert.equal(errorResp.statusCode, 422, `body=${JSON.stringify(errorResp.body)}`);
+                chai.assert.equal(errorResp.statusCode, 409, `body=${JSON.stringify(errorResp.body)}`);
 
                 sinon.assert.calledWith(spy, sinon.match(getStripeErrorLogMatcher("StripeCardError")));
             });
