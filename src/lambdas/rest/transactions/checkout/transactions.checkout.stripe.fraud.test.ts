@@ -172,12 +172,12 @@ describe("handling fraudulent charges", () => {
             "requestId": "req_O1p1HdaJnmI9X2",
             "statusCode": 402
         };
-        const exampleErrorResponse = new StripeRestError(422, "Error for tests: card blocked by Stripe for fraud", "StripeCardDeclined", exampleStripeError);
+        const exampleErrorResponse = new StripeRestError(409, "Error for tests: card blocked by Stripe for fraud", "StripeCardDeclined", exampleStripeError);
         stubCheckoutStripeError(request, 0, exampleErrorResponse);
 
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
 
-        chai.assert.equal(postCheckoutResp.statusCode, 422, `resp=${JSON.stringify(postCheckoutResp, null, 4)}`);
+        chai.assert.equal(postCheckoutResp.statusCode, 409, `resp=${JSON.stringify(postCheckoutResp, null, 4)}`);
         chai.assert.equal((postCheckoutResp.body as any).messageCode, "StripeCardDeclined", `resp=${JSON.stringify(postCheckoutResp, null, 4)}`);
     });
 
@@ -250,12 +250,12 @@ describe("handling fraudulent charges", () => {
             "requestId": "req_mKMxsFVOSM9JXx",
             "statusCode": 402
         };
-        const exampleErrorResponse = new StripeRestError(422, "Error for tests: card declined by provider", "StripeCardDeclined", exampleStripeError);
+        const exampleErrorResponse = new StripeRestError(409, "Error for tests: card declined by provider", "StripeCardDeclined", exampleStripeError);
         stubCheckoutStripeError(request, 0, exampleErrorResponse);
 
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
 
-        chai.assert.equal(postCheckoutResp.statusCode, 422, `resp=${JSON.stringify(postCheckoutResp, null, 4)}`);
+        chai.assert.equal(postCheckoutResp.statusCode, 409, `resp=${JSON.stringify(postCheckoutResp, null, 4)}`);
         chai.assert.equal((postCheckoutResp.body as any).messageCode, "StripeCardDeclined", `resp=${JSON.stringify(postCheckoutResp, null, 4)}`);
     });
 });
