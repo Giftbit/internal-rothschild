@@ -8,7 +8,7 @@ import {Currency} from "../../../model/Currency";
 import {installRestRoutes} from "../installRestRoutes";
 import {
     setStubsForStripeTests,
-    stripeLiveConfig,
+    stripeLiveMerchantConfig,
     stubNoStripeCharge,
     stubTransferStripeCharge,
     stubTransferStripeError,
@@ -1144,11 +1144,11 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.deepEqual(destStepFromGet, destStep);
 
             if (testStripeLive()) {
-                const lightrailStripe = require("stripe")(stripeLiveConfig.secretKey);
+                const lightrailStripe = require("stripe")(stripeLiveMerchantConfig.secretKey);
                 lightrailStripe.setApiVersion(stripeApiVersion);
                 const stripeChargeId = (postTransferResp.body.steps.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
                 const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                    stripe_account: stripeLiveConfig.stripeUserId
+                    stripe_account: stripeLiveMerchantConfig.stripeUserId
                 });
                 chai.assert.deepEqual(stripeCharge, sourceStep.charge);
             }
@@ -1256,11 +1256,11 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.deepEqual(destStepFromGet, destStep);
 
             if (testStripeLive()) {
-                const lightrailStripe = require("stripe")(stripeLiveConfig.secretKey);
+                const lightrailStripe = require("stripe")(stripeLiveMerchantConfig.secretKey);
                 lightrailStripe.setApiVersion(stripeApiVersion);
                 const stripeChargeId = (postTransferResp.body.steps.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
                 const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                    stripe_account: stripeLiveConfig.stripeUserId
+                    stripe_account: stripeLiveMerchantConfig.stripeUserId
                 });
                 chai.assert.deepEqual(stripeCharge, sourceStep.charge);
             }
