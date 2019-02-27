@@ -27,7 +27,6 @@ Environment variables are required to run live Stripe tests again. This is becau
 Put the following in `.env`:
 ```
 LIGHTRAIL_STRIPE_TEST_SECRET_KEY=<test mode secret key from Stripe account: integrationtesting+stripedev@giftbit.com>
-LIGHTRAIL_STRIPE_TEST_WEBHOOK_SIGNING_SECRET=<test mode webhook signing secret from Stripe account: integrationtesting+stripedev@giftbit.com>
 ```
 
 Then use `npm run test:stripeLive` to run the live tests.   
@@ -44,7 +43,7 @@ Belongs to integrationtesting+stripedev@giftbit.com
 
 This is a stand-in for the production Lightrail account. The config for this account is stored in S3; this is what will be fetched by calling `giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE")` in dev. 
 
-The secret key and webhook signing secret for this account belong a `.env` file.  
+The secret key for this account belongs in a `.env` file.  
 
 *Merchant account*
 

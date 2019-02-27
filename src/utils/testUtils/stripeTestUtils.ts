@@ -16,11 +16,11 @@ import log = require("loglevel");
 if (testStripeLive()) {
     require("dotenv").config();
 
-    if (!process.env["LIGHTRAIL_STRIPE_TEST_SECRET_KEY"] || !process.env["LIGHTRAIL_STRIPE_TEST_WEBHOOK_SIGNING_SECRET"]) {
+    if (!process.env["LIGHTRAIL_STRIPE_TEST_SECRET_KEY"]) {
         // tslint:disable-next-line:no-console
         console.log("==========\n" +
             "Aborting test run\n" +
-            "Environment variables required to run live Stripe tests: LIGHTRAIL_STRIPE_TEST_SECRET_KEY and LIGHTRAIL_STRIPE_TEST_WEBHOOK_SIGNING_SECRET. See readme.\n" +
+            "Environment variable required to run live Stripe tests: LIGHTRAIL_STRIPE_TEST_SECRET_KEY. See readme.\n" +
             "==========");
         process.exit(1);
     }
@@ -49,7 +49,6 @@ export const stripeLiveMerchantConfig = {
  */
 export const stripeLiveLightrailConfig = {
     secretKey: process.env["LIGHTRAIL_STRIPE_TEST_SECRET_KEY"] || "",
-    webhookSigningSecret: process.env["LIGHTRAIL_STRIPE_TEST_WEBHOOK_SIGNING_SECRET"] || ""
 };
 
 const stripeStubbedConfig = {
