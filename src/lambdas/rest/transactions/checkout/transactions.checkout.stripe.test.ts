@@ -484,6 +484,7 @@ describe("split tender checkout with Stripe", () => {
         }
 
         const lrCheckoutTransaction = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${basicRequest.id}`, "GET");  // created in first split tender test
+        chai.assert.equal(lrCheckoutTransaction.statusCode, 200);
 
         const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
         const stripeChargeId = (lrCheckoutTransaction.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).charge.id;
