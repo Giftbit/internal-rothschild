@@ -24,10 +24,7 @@ Requests to Stripe are mocked when running `npm run test`.
 
 Environment variables are required to run live Stripe tests again. This is because we need to provide our own platform key, which we don't want to commit to the repo, as well as a connected account id (NOT api key), which we can and have committed. 
 
-Put the following in `.env`:
-```
-LIGHTRAIL_STRIPE_TEST_SECRET_KEY=<test mode secret key from Stripe account: integrationtesting+stripedev@giftbit.com>
-```
+See `.env.example` for setup. 
 
 Then use `npm run test:stripeLive` to run the live tests.   
 
@@ -43,7 +40,7 @@ Belongs to integrationtesting+stripedev@giftbit.com
 
 This is a stand-in for the production Lightrail account. The config for this account is stored in S3; this is what will be fetched by calling `giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE")` in dev. 
 
-The secret key for this account belongs in a `.env` file.  
+The secret key for this account belongs in a `.env` file.  See `.env.example`.
 
 *Merchant account*
 

@@ -14,16 +14,7 @@ import {StripeRestError} from "../stripeUtils/StripeRestError";
 import log = require("loglevel");
 
 if (testStripeLive()) {
-    require("dotenv").config();
-
-    if (!process.env["LIGHTRAIL_STRIPE_TEST_SECRET_KEY"]) {
-        // tslint:disable-next-line:no-console
-        console.log("==========\n" +
-            "Aborting test run\n" +
-            "Environment variable required to run live Stripe tests: LIGHTRAIL_STRIPE_TEST_SECRET_KEY. See readme.\n" +
-            "==========");
-        process.exit(1);
-    }
+    require("dotenv-safe").config();
 }
 
 const sinonSandbox = sinon.createSandbox();
