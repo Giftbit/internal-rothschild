@@ -17,4 +17,39 @@ If `/Volumes/credentials/ssh/AWSKey.pem` does not exist:
 ## Testing
 
 ### Stripe tests
-Requests to Stripe are mocked when running `npm run test`. Use `npm run test:stripeLive` to run tests and make live requests to Stripe.  
+
+Requests to Stripe are mocked when running `npm run test`. 
+
+#### Live Stripe tests
+
+Environment variables are required to run live Stripe tests again. This is because we need to provide our own platform key, which we don't want to commit to the repo, as well as a connected account id (NOT api key), which we can and have committed. 
+
+Put the following in `.env`:
+```
+LIGHTRAIL_STRIPE_TEST_SECRET_KEY=<test mode secret key from Stripe account: integrationtesting+stripedev@giftbit.com>
+LIGHTRAIL_STRIPE_TEST_WEBHOOK_SIGNING_SECRET=<test mode webhook signing secret from Stripe account: integrationtesting+stripedev@giftbit.com>
+```
+
+Then use `npm run test:stripeLive` to run the live tests.   
+
+To close the loop on live Stripe testing, check the cloudwatch logs in dev for the [`stripeEventWebhook` lambda](https://us-west-2.console.aws.amazon.com/cloudwatch/home?region=us-west-2#logStream:group=/aws/lambda/dev-Rothschild-StripeEventWebhookFunction-3Q03K92TO7QY;streamFilter=typeLogStreamPrefix) after running the unit tests. Look for successful signature verification and expected logging output. 
+
+##### More details on Stripe setup to avoid future confusion
+
+Two Stripe accounts have been set up to live test our Stripe integration: 
+
+*Platform account*
+
+Belongs to integrationtesting+stripedev@giftbit.com
+
+This is a stand-in for the production Lightrail account. The config for this account is stored in S3; this is what will be fetched by calling `giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE")` in dev. 
+
+The secret key and webhook signing secret for this account belong a `.env` file.  
+
+*Merchant account*
+
+Belongs to integrationtesting+merchant@giftbit.com
+
+This is a stand-in for our customer's account. We place charges etc on their behalf using Stripe Connect. 
+
+The stripeUserId (for the account header) and customer details (for making charges) in src/utils/testUtils/stripeTestUtils.ts are for this account. **Note, we do NOT need an API key for this account.**  We never use a merchant's API key directly, that's what Connect is for.  
