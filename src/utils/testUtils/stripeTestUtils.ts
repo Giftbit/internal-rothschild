@@ -27,7 +27,6 @@ let stripeUpdateChargeStub: sinon.SinonStub = null;
  * Config from stripe test account//pass: integrationtesting+merchant@giftbit.com // x39Rlf4TH3pzn29hsb#
  */
 export const stripeLiveMerchantConfig = {
-    // secretKey: "sk_test_Fwb3uGyZsIb9eJ5ZQchNH5Em",
     stripeUserId: "acct_1BOVE6CM9MOvFvZK",
     customer: {
         id: "cus_CP4Zd1Dddy4cOH",
