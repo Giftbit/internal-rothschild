@@ -13,6 +13,10 @@ import {
 import {StripeRestError} from "../stripeUtils/StripeRestError";
 import log = require("loglevel");
 
+if (testStripeLive()) {
+    require("dotenv").config();
+}
+
 const sinonSandbox = sinon.createSandbox();
 let stripeChargeStub: sinon.SinonStub = null;
 let stripeCaptureStub: sinon.SinonStub = null;
@@ -23,13 +27,21 @@ let stripeUpdateChargeStub: sinon.SinonStub = null;
  * Config from stripe test account//pass: integrationtesting+merchant@giftbit.com // x39Rlf4TH3pzn29hsb#
  */
 export const stripeLiveMerchantConfig = {
-    secretKey: "sk_test_Fwb3uGyZsIb9eJ5ZQchNH5Em",
+    // secretKey: "sk_test_Fwb3uGyZsIb9eJ5ZQchNH5Em",
     stripeUserId: "acct_1BOVE6CM9MOvFvZK",
     customer: {
         id: "cus_CP4Zd1Dddy4cOH",
         defaultCard: "card_1C0GSUCM9MOvFvZK8VB29qaz",
         nonDefaultCard: "card_1C0ZH9CM9MOvFvZKyZZc2X4Z"
     }
+};
+
+/**
+ * We need platform keys too
+ */
+export const stripeLiveLightrailConfig = {
+    secretKey: process.env["LIGHTRAIL_STRIPE_TEST_SECRET_KEY"] || "",
+    webhookSigningSecret: process.env["LIGHTRAIL_STRIPE_TEST_WEBHOOK_SIGNING_SECRET"] || ""
 };
 
 const stripeStubbedConfig = {
@@ -52,7 +64,7 @@ export function setStubsForStripeTests() {
             email: "test@test.com",
             test: {
                 clientId: "test-client-id",
-                secretKey: testStripeLive() ? stripeLiveMerchantConfig.secretKey : stripeStubbedConfig.secretKey,
+                secretKey: testStripeLive() ? stripeLiveLightrailConfig.secretKey : stripeStubbedConfig.secretKey,
                 publishableKey: "test-pk",
             },
             live: {}

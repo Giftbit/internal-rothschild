@@ -10,6 +10,7 @@ import {createCurrency} from "../../currencies";
 import {CaptureRequest, CheckoutRequest, VoidRequest} from "../../../../model/TransactionRequest";
 import {
     setStubsForStripeTests,
+    stripeLiveLightrailConfig,
     stripeLiveMerchantConfig,
     stubCheckoutStripeCharge,
     stubStripeCapture,
@@ -722,7 +723,7 @@ describe("/v2/transactions/checkout - pending", () => {
         let refund: Stripe.refunds.IRefund;
         if (testStripeLive()) {
             // Refund the charge manually first.  Executing the void should pick up this refund.
-            refund = await createRefund({charge: (pendingTxRes.body.steps[1] as StripeTransactionStep).chargeId}, stripeLiveMerchantConfig.secretKey, stripeLiveMerchantConfig.stripeUserId);
+            refund = await createRefund({charge: (pendingTxRes.body.steps[1] as StripeTransactionStep).chargeId}, stripeLiveLightrailConfig.secretKey, stripeLiveMerchantConfig.stripeUserId);
         } else {
             // This is what effectively happens.  This mock kinda defeats the purpose of the test though.
             [refund] = stubStripeRefund(pendingStripeCharge);
@@ -801,7 +802,7 @@ describe("/v2/transactions/checkout - pending", () => {
         let capture: Stripe.charges.ICharge;
         if (testStripeLive()) {
             // Capture the charge manually first.  Executing the capture should pick up this object.
-            capture = await captureCharge((pendingTxRes.body.steps[1] as StripeTransactionStep).chargeId, {}, stripeLiveMerchantConfig.secretKey, stripeLiveMerchantConfig.stripeUserId);
+            capture = await captureCharge((pendingTxRes.body.steps[1] as StripeTransactionStep).chargeId, {}, stripeLiveLightrailConfig.secretKey, stripeLiveMerchantConfig.stripeUserId);
         } else {
             // This is what effectively happens.  This mock kinda defeats the purpose of the test though.
             [capture] = stubStripeCapture(pendingStripeCharge);
