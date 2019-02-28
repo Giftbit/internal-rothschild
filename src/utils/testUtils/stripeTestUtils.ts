@@ -14,7 +14,13 @@ import {StripeRestError} from "../stripeUtils/StripeRestError";
 import log = require("loglevel");
 
 if (testStripeLive()) {
-    require("dotenv-safe").config();
+    try {
+        require("dotenv-safe").config();
+    } catch (e) {
+        // tslint:disable-next-line:no-console
+        console.log(e.toString());
+        process.exit(1);
+    }
 }
 
 const sinonSandbox = sinon.createSandbox();
