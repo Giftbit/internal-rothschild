@@ -30,7 +30,8 @@ let stripeRefundStub: sinon.SinonStub = null;
 let stripeUpdateChargeStub: sinon.SinonStub = null;
 
 /**
- * Config from stripe test account//pass: integrationtesting+merchant@giftbit.com // x39Rlf4TH3pzn29hsb#
+ * See .env.example for Stripe config details
+ * This is "merchant" (connected account) config from stripe test account//pass: integrationtesting+merchant@giftbit.com // x39Rlf4TH3pzn29hsb#
  */
 export const stripeLiveMerchantConfig = {
     stripeUserId: "acct_1BOVE6CM9MOvFvZK",
@@ -42,7 +43,7 @@ export const stripeLiveMerchantConfig = {
 };
 
 /**
- * We need platform keys too
+ * See .env.example for Stripe config details
  */
 export const stripeLiveLightrailConfig = {
     secretKey: process.env["LIGHTRAIL_STRIPE_TEST_SECRET_KEY"] || "",
