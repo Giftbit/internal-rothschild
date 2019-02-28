@@ -12,29 +12,9 @@ export function installStripeEventWebhookRoute(router: cassava.Router): void {
     router.route("/v2/stripeEventWebhook")
         .method("POST")
         .handler(async evt => {
-            const lightrailStripeConfig: StripeModeConfig = await getLightrailStripeModeConfig(false);
-            const stripe = new Stripe(lightrailStripeConfig.secretKey);
-
-            try {
-                log.info("Verifying Stripe signature...");
-                const event = stripe.webhooks.constructEvent(evt.bodyRaw, evt.headersLowerCase["stripe-signature"], lightrailStripeConfig.connectWebhookSigningSecret);
-                log.info("Stripe signature verified");
-
-                // todo handle event
-            } catch (err) {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNAUTHORIZED, "The Stripe signature could not be validated");
-            }
-
-            return {
-                statusCode: 204,
-                body: null
-            };
-        });
-
-    router.route("/v2/stripeTestEventWebhook")
-        .method("POST")
-        .handler(async evt => {
-            const lightrailStripeConfig: StripeModeConfig = await getLightrailStripeModeConfig(true);
+            // todo - configure metrics logging to show test/live mode for these requests. MetricsRoute currently relies on the jwt but that doesn't apply here.
+            const testMode: boolean = !evt.body.livemode;
+            const lightrailStripeConfig: StripeModeConfig = await getLightrailStripeModeConfig(testMode);
             const stripe = new Stripe(lightrailStripeConfig.secretKey);
 
             try {
