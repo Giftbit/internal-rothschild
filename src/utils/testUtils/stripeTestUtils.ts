@@ -69,13 +69,13 @@ export function setStubsForStripeTests() {
             clientId: "test-client-id",
             secretKey: testStripeLive() ? stripeLiveLightrailConfig.secretKey : stripeStubbedConfig.secretKey,
             publishableKey: "test-pk",
-            connectWebhookSigningSecret: ""
+            connectWebhookSigningSecret: "secret"
         },
         live: {
             clientId: null,
             secretKey: testStripeLive() ? stripeLiveLightrailConfig.secretKey : stripeStubbedConfig.secretKey,
             publishableKey: null,
-            connectWebhookSigningSecret: null
+            connectWebhookSigningSecret: "secret"
         }
     }));
 
