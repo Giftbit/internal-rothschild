@@ -69,13 +69,13 @@ export function setStubsForStripeTests() {
             clientId: "test-client-id",
             secretKey: testStripeLive() ? stripeLiveLightrailConfig.secretKey : stripeStubbedConfig.secretKey,
             publishableKey: "test-pk",
-            connectWebhookSigningSecret: ""
+            connectWebhookSigningSecret: "secret"
         },
         live: {
             clientId: null,
             secretKey: testStripeLive() ? stripeLiveLightrailConfig.secretKey : stripeStubbedConfig.secretKey,
             publishableKey: null,
-            connectWebhookSigningSecret: null
+            connectWebhookSigningSecret: "secret"
         }
     }));
 
@@ -215,7 +215,7 @@ export function generateStripeRefundResponse(options: GenerateStripeRefundRespon
         "metadata": {
             "reason": options.reason || "Refunded due to error on the Lightrail side"
         },
-        "reason": null,
+        "reason": options.reason || null,
         "receipt_number": null,
         "source_transfer_reversal": null,
         "transfer_reversal": null,
