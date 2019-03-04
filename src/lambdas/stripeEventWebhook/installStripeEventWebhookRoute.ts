@@ -22,6 +22,7 @@ export function installStripeEventWebhookRoute(router: cassava.Router): void {
                 const event = stripe.webhooks.constructEvent(evt.bodyRaw, evt.headersLowerCase["stripe-signature"], lightrailStripeConfig.connectWebhookSigningSecret);
                 log.info("Stripe signature verified");
 
+                // todo send 2xx immediately if signature verifies - otherwise it may time out, which means failure, which means the webhook could get turned off
                 // todo handle event
             } catch (err) {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNAUTHORIZED, "The Stripe signature could not be validated");
