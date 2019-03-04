@@ -15,7 +15,8 @@ import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {after} from "mocha";
 import {
     setStubsForStripeTests,
-    stripeLiveConfig,
+    stripeLiveLightrailConfig,
+    stripeLiveMerchantConfig,
     stubCheckoutStripeCharge,
     stubCheckoutStripeError,
     stubNoStripeCharge,
@@ -177,7 +178,7 @@ describe("split tender checkout with Stripe", () => {
             sources: [
                 {
                     rail: "stripe",
-                    customer: stripeLiveConfig.customer.id
+                    customer: stripeLiveMerchantConfig.customer.id
                 }
             ],
             lineItems: [
@@ -232,7 +233,7 @@ describe("split tender checkout with Stripe", () => {
         ], ["chargeId", "charge"], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
         chai.assert.deepEqual(postCheckoutResp.body.paymentSources[0], {
             rail: "stripe",
-            customer: stripeLiveConfig.customer.id,
+            customer: stripeLiveMerchantConfig.customer.id,
         }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
 
         if (!testStripeLive()) {
@@ -482,11 +483,12 @@ describe("split tender checkout with Stripe", () => {
         }
 
         const lrCheckoutTransaction = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${basicRequest.id}`, "GET");  // created in first split tender test
+        chai.assert.equal(lrCheckoutTransaction.statusCode, 200);
 
-        const lightrailStripe = require("stripe")(stripeLiveConfig.secretKey);
+        const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
         const stripeChargeId = (lrCheckoutTransaction.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).charge.id;
         const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-            stripe_account: stripeLiveConfig.stripeUserId
+            stripe_account: stripeLiveMerchantConfig.stripeUserId
         });
 
         chai.assert.deepEqual(stripeCharge.metadata, {
@@ -547,10 +549,10 @@ describe("split tender checkout with Stripe", () => {
         }
 
         if (testStripeLive()) {
-            const lightrailStripe = require("stripe")(stripeLiveConfig.secretKey);
+            const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
             const stripeChargeId = (postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId;
             const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                stripe_account: stripeLiveConfig.stripeUserId
+                stripe_account: stripeLiveMerchantConfig.stripeUserId
             });
             chai.assert.deepEqual(stripeCharge.metadata, stripeStep.charge.metadata);
         }
@@ -606,10 +608,10 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.equal((stripeStep.charge as ICharge).transfer_group, "ddd");
 
         if (testStripeLive()) {
-            const lightrailStripe = require("stripe")(stripeLiveConfig.secretKey);
+            const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
             const stripeChargeId = (postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId;
             const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                stripe_account: stripeLiveConfig.stripeUserId
+                stripe_account: stripeLiveMerchantConfig.stripeUserId
             });
             chai.assert.deepEqual(stripeCharge.metadata, stripeStep.charge.metadata);
         }
@@ -702,7 +704,6 @@ describe("split tender checkout with Stripe", () => {
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 404, "the transaction was not actually created");
-
     });
 
     describe("rollback", () => {
@@ -718,9 +719,9 @@ describe("split tender checkout with Stripe", () => {
                     currency: "CAD",
                     source: "tok_visa"
                 };
-                const lightrailStripe = require("stripe")(stripeLiveConfig.secretKey);
+                const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
                 await lightrailStripe.charges.create(stripeChargeRequest, {
-                    stripe_account: stripeLiveConfig.stripeUserId,
+                    stripe_account: stripeLiveMerchantConfig.stripeUserId,
                     idempotency_key: "bad_idempotent_key-0"
                 });
             } else {
@@ -911,10 +912,10 @@ describe("split tender checkout with Stripe", () => {
             chai.assert.equal(postCheckoutResp2.statusCode, 409, `body=${JSON.stringify(postCheckoutResp2.body)}`);
 
             // get the stripe charge and make sure that it hasn't been refunded
-            const lightrailStripe = require("stripe")(stripeLiveConfig.secretKey);
+            const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
             const stripeChargeId = (postCheckoutResp.body.steps.find(steps => steps.rail === "stripe") as StripeTransactionStep).charge.id;
             const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                stripe_account: stripeLiveConfig.stripeUserId
+                stripe_account: stripeLiveMerchantConfig.stripeUserId
             });
             chai.assert.equal(stripeCharge.refunded, false, `stripeCharge first GET: check 'refunded': ${JSON.stringify(stripeCharge)}`);
             chai.assert.equal(stripeCharge.amount_refunded, 0, `stripeCharge first GET: check 'amount_refunded': ${JSON.stringify(stripeCharge)}`);
@@ -925,7 +926,7 @@ describe("split tender checkout with Stripe", () => {
 
             // make sure the original stripe charge still hasn't been affected
             const stripeCharge2 = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                stripe_account: stripeLiveConfig.stripeUserId
+                stripe_account: stripeLiveMerchantConfig.stripeUserId
             });
             chai.assert.equal(stripeCharge2.refunded, 0, `stripeCharge second GET: check 'refunded': ${JSON.stringify(stripeCharge)}`);
             chai.assert.equal(stripeCharge2.amount_refunded, false, `stripeCharge second GET: check 'amount_refunded': ${JSON.stringify(stripeCharge)}`);

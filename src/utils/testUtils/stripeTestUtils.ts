@@ -14,6 +14,16 @@ import {StripeRestError} from "../stripeUtils/StripeRestError";
 import {initializeAssumeCheckoutToken, initializeLightrailStripeConfig} from "../stripeUtils/stripeAccess";
 import log = require("loglevel");
 
+if (testStripeLive()) {
+    try {
+        require("dotenv-safe").config();
+    } catch (e) {
+        // tslint:disable-next-line:no-console
+        console.log(e.toString());
+        process.exit(1);
+    }
+}
+
 const sinonSandbox = sinon.createSandbox();
 let stripeChargeStub: sinon.SinonStub = null;
 let stripeCaptureStub: sinon.SinonStub = null;
@@ -21,10 +31,10 @@ let stripeRefundStub: sinon.SinonStub = null;
 let stripeUpdateChargeStub: sinon.SinonStub = null;
 
 /**
- * Config from stripe test account//pass: integrationtesting+merchant@giftbit.com // x39Rlf4TH3pzn29hsb#
+ * See .env.example for Stripe config details
+ * This is "merchant" (connected account) config from stripe test account//pass: integrationtesting+merchant@giftbit.com // x39Rlf4TH3pzn29hsb#
  */
-export const stripeLiveConfig = {
-    secretKey: "sk_test_Fwb3uGyZsIb9eJ5ZQchNH5Em",
+export const stripeLiveMerchantConfig = {
     stripeUserId: "acct_1BOVE6CM9MOvFvZK",
     connectWebhookSigningSecret: "",
     customer: {
@@ -32,6 +42,13 @@ export const stripeLiveConfig = {
         defaultCard: "card_1C0GSUCM9MOvFvZK8VB29qaz",
         nonDefaultCard: "card_1C0ZH9CM9MOvFvZKyZZc2X4Z"
     }
+};
+
+/**
+ * See .env.example for Stripe config details
+ */
+export const stripeLiveLightrailConfig = {
+    secretKey: process.env["LIGHTRAIL_STRIPE_TEST_SECRET_KEY"] || "",
 };
 
 const stripeStubbedConfig = {
@@ -50,13 +67,13 @@ export function setStubsForStripeTests() {
         email: "test@test.com",
         test: {
             clientId: "test-client-id",
-            secretKey: testStripeLive() ? stripeLiveConfig.secretKey : stripeStubbedConfig.secretKey,
+            secretKey: testStripeLive() ? stripeLiveLightrailConfig.secretKey : stripeStubbedConfig.secretKey,
             publishableKey: "test-pk",
             connectWebhookSigningSecret: ""
         },
         live: {
             clientId: null,
-            secretKey: testStripeLive() ? stripeLiveConfig.secretKey : stripeStubbedConfig.secretKey,
+            secretKey: testStripeLive() ? stripeLiveLightrailConfig.secretKey : stripeStubbedConfig.secretKey,
             publishableKey: null,
             connectWebhookSigningSecret: null
         }
@@ -67,7 +84,7 @@ export function setStubsForStripeTests() {
         .withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string)
         .resolves({
             token_type: "bearer",
-            stripe_user_id: testStripeLive() ? stripeLiveConfig.stripeUserId : stripeStubbedConfig.stripeUserId,
+            stripe_user_id: testStripeLive() ? stripeLiveMerchantConfig.stripeUserId : stripeStubbedConfig.stripeUserId,
         });
 }
 
