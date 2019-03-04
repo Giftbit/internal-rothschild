@@ -1,21 +1,68 @@
 import * as cassava from "cassava";
 import * as cryptojs from "crypto-js";
 import * as testUtils from "../../utils/testUtils";
+import {generateId, testAuthedRequest} from "../../utils/testUtils";
 import {installRestRoutes} from "../rest/installRestRoutes";
 import {installStripeEventWebhookRoute} from "./installStripeEventWebhookRoute";
 import * as chai from "chai";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
 import {getLightrailStripeModeConfig} from "../../utils/stripeUtils/stripeAccess";
+import {StripeTransactionStep, Transaction} from "../../model/Transaction";
+import {Value} from "../../model/Value";
+import {createCurrency} from "../rest/currencies";
+import {Currency} from "../../model/Currency";
+import {stripeApiVersion} from "../../utils/stripeUtils/StripeConfig";
+import {IObject} from "stripe";
+import {CheckoutRequest} from "../../model/TransactionRequest";
+import Stripe = require("stripe");
+import IEvent = Stripe.events.IEvent;
 
 describe("/v2/stripeEventWebhook", () => {
     const restRouter = new cassava.Router();
     const webhookEventRouter = new cassava.Router();
+
+    const currency: Currency = {
+        code: "CAD",
+        name: "Antlers",
+        symbol: "$",
+        decimalPlaces: 2
+    };
+    const value1: Partial<Value> = {
+        id: generateId(),
+        currency: "CAD",
+        balance: 50 // deliberately low so Stripe will always be charged
+    };
+
+    const checkoutReqBase: CheckoutRequest = {
+        id: "",
+        currency: currency.code,
+        lineItems: [{
+            type: "product",
+            productId: "pid",
+            unitPrice: 1000
+        }],
+        sources: [
+            {
+                rail: "lightrail",
+                valueId: value1.id
+            },
+            {
+                rail: "stripe",
+                source: "tok_visa"
+            }
+        ]
+    };
 
     before(async function () {
         await testUtils.resetDb();
         restRouter.route(testUtils.authRoute);
         installRestRoutes(restRouter);
         installStripeEventWebhookRoute(webhookEventRouter);
+
+        await createCurrency(testUtils.defaultTestUser.auth, currency);
+
+        const postValue1Resp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", value1);
+        chai.assert.equal(postValue1Resp.statusCode, 201, `body=${JSON.stringify(postValue1Resp.body)}`);
 
         setStubsForStripeTests();
     });
@@ -25,15 +72,40 @@ describe("/v2/stripeEventWebhook", () => {
     });
 
     it("verifies event signatures", async () => {
-        const webhookResp1 = await makeSignedWebhookRequest(webhookEventRouter, {});
+        const webhookResp0 = await cassava.testing.testRouter(webhookEventRouter, cassava.testing.createTestProxyEvent("/v2/stripeEventWebhook", "POST", {body: JSON.stringify({food: "bard"})}));
+        chai.assert.equal(webhookResp0.statusCode, 401);
+
+        const webhookResp1 = await testSignedWebhookRequest(webhookEventRouter, {});
         chai.assert.equal(webhookResp1.statusCode, 204);
-        const webhookResp2 = await makeSignedWebhookRequest(webhookEventRouter, {foo: "bar"});
+        const webhookResp2 = await testSignedWebhookRequest(webhookEventRouter, {foo: "bar"});
         chai.assert.equal(webhookResp2.statusCode, 204);
-        const webhookResp3 = await makeSignedWebhookRequest(webhookEventRouter, {
+        const webhookResp3 = await testSignedWebhookRequest(webhookEventRouter, {
             foo: "bar",
             baz: [1, null, "2", undefined, {three: 0.4}]
         });
         chai.assert.equal(webhookResp3.statusCode, 204);
+    });
+
+    it("does nothing for vanilla refunds", async () => {
+        const checkout: CheckoutRequest = {
+            ...checkoutReqBase,
+            id: generateId()
+        };
+        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(restRouter, "/v2/transactions/checkout", "POST", checkout);
+        chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
+        chai.assert.isNotNull(checkoutResp.body.steps.find(step => step.rail === "stripe"));
+
+        const stripeStep = <StripeTransactionStep>checkoutResp.body.steps.find(step => step.rail === "stripe");
+
+        const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateWebhookEventMock("charge.refunded", stripeStep.charge));
+        chai.assert.equal(webhookResp.statusCode, 204);
+
+        const fetchValueResp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/values/${value1.id}`, "GET");
+        chai.assert.equal(fetchValueResp.statusCode, 200);
+        chai.assert.equal(fetchValueResp.body.balance, 0);
+
+        const fetchTransactionChainResp = await testAuthedRequest<Transaction[]>(restRouter, `/v2/transactions/${checkout.id}/chain`, "GET");
+        chai.assert.equal(fetchTransactionChainResp.body.length, 1);
     });
 });
 
@@ -43,7 +115,7 @@ describe("/v2/stripeEventWebhook", () => {
  * @param router The webhook event router
  * @param body To test handling Stripe events, use the Event object structure: https://stripe.com/docs/api/events
  */
-async function makeSignedWebhookRequest(router: cassava.Router, body: any) {
+async function testSignedWebhookRequest(router: cassava.Router, body: any) {
     const lightrailStripeConfig = await getLightrailStripeModeConfig(true);
     const t = (Math.floor(Date.now() / 1000));
     const bodyString = JSON.stringify(body);
@@ -55,4 +127,24 @@ async function makeSignedWebhookRequest(router: cassava.Router, body: any) {
         },
         body: bodyString
     }));
+}
+
+/**
+ * Generates a dummy Stripe webhook event
+ * @param eventType Possible Event types: https://stripe.com/docs/api/events/types
+ * @param eventObject Events contain the object they describe (eg an event describing a charge contains the full Charge object)
+ */
+function generateWebhookEventMock(eventType: string, eventObject: IObject): IEvent {
+    return {
+        id: generateId(),
+        type: eventType,
+        object: "event",
+        data: {
+            object: eventObject
+        },
+        api_version: stripeApiVersion,
+        created: Date.now(),
+        livemode: false,
+        pending_webhooks: 1
+    };
 }
