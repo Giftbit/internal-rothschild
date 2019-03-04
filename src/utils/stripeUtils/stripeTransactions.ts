@@ -53,7 +53,7 @@ export async function createRefund(params: Stripe.refunds.IRefundCreationOptions
         checkForStandardStripeErrors(err);
         if ((err as Stripe.IStripeError).code === "charge_already_refunded") {
             // Refunds are sorted most recent first, so we only need one.
-            const refunds = await lightrailStripe.charges.listRefunds(params.charge, {limit: 1});
+            const refunds = await lightrailStripe.charges.listRefunds(params.charge, {limit: 1}, {stripe_account: merchantStripeAccountId});
             if (refunds.data.length === 0) {
                 throw new Error(`Attempting to refund charge '${params.charge}' resulted in 'charge_already_refunded' but listing refunds returned nothing.`);
             } else {
@@ -81,7 +81,7 @@ export async function captureCharge(chargeId: string, options: Stripe.charges.IC
 
         checkForStandardStripeErrors(err);
         if ((err as Stripe.IStripeError).code === "charge_already_captured") {
-            return await lightrailStripe.charges.retrieve(chargeId);
+            return await lightrailStripe.charges.retrieve(chargeId, {stripe_account: merchantStripeAccountId});
         }
         if ((err as Stripe.IStripeError).code === "charge_already_refunded") {
             throw new StripeRestError(409, `Stripe charge '${chargeId}' cannot be captured because it was refunded.`, "StripeChargeAlreadyRefunded", err);

@@ -7,16 +7,21 @@ import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
 import {StripeTransactionStep, Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
-import chaiExclude = require("chai-exclude");
 import {CaptureRequest, CheckoutRequest, VoidRequest} from "../../../../model/TransactionRequest";
 import {
-    setStubsForStripeTests, stripeLiveConfig,
-    stubCheckoutStripeCharge, stubStripeCapture, stubStripeRefund, stubStripeUpdateCharge, testStripeLive,
+    setStubsForStripeTests,
+    stripeLiveLightrailConfig,
+    stripeLiveMerchantConfig,
+    stubCheckoutStripeCharge,
+    stubStripeCapture,
+    stubStripeRefund,
+    testStripeLive,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
 import * as Stripe from "stripe";
-import {captureCharge, createCharge, createRefund} from "../../../../utils/stripeUtils/stripeTransactions";
+import {captureCharge, createRefund} from "../../../../utils/stripeUtils/stripeTransactions";
+import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
@@ -718,7 +723,7 @@ describe("/v2/transactions/checkout - pending", () => {
         let refund: Stripe.refunds.IRefund;
         if (testStripeLive()) {
             // Refund the charge manually first.  Executing the void should pick up this refund.
-            refund = await createRefund({charge: (pendingTxRes.body.steps[1] as StripeTransactionStep).chargeId}, stripeLiveConfig.secretKey, stripeLiveConfig.stripeUserId);
+            refund = await createRefund({charge: (pendingTxRes.body.steps[1] as StripeTransactionStep).chargeId}, stripeLiveLightrailConfig.secretKey, stripeLiveMerchantConfig.stripeUserId);
         } else {
             // This is what effectively happens.  This mock kinda defeats the purpose of the test though.
             [refund] = stubStripeRefund(pendingStripeCharge);
@@ -797,7 +802,7 @@ describe("/v2/transactions/checkout - pending", () => {
         let capture: Stripe.charges.ICharge;
         if (testStripeLive()) {
             // Capture the charge manually first.  Executing the capture should pick up this object.
-            capture = await captureCharge((pendingTxRes.body.steps[1] as StripeTransactionStep).chargeId, {}, stripeLiveConfig.secretKey, stripeLiveConfig.stripeUserId);
+            capture = await captureCharge((pendingTxRes.body.steps[1] as StripeTransactionStep).chargeId, {}, stripeLiveLightrailConfig.secretKey, stripeLiveMerchantConfig.stripeUserId);
         } else {
             // This is what effectively happens.  This mock kinda defeats the purpose of the test though.
             [capture] = stubStripeCapture(pendingStripeCharge);
