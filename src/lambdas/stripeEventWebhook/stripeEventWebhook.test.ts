@@ -25,7 +25,12 @@ import {generateId, testAuthedRequest} from "../../utils/testUtils";
 import {installRestRoutes} from "../rest/installRestRoutes";
 import {installStripeEventWebhookRoute} from "./installStripeEventWebhookRoute";
 import * as chai from "chai";
-import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
+import {
+    setStubsForStripeTests,
+    stubCheckoutStripeCharge,
+    testStripeLive,
+    unsetStubsForStripeTests
+} from "../../utils/testUtils/stripeTestUtils";
 import {getLightrailStripeModeConfig} from "../../utils/stripeUtils/stripeAccess";
 import {StripeTransactionStep, Transaction} from "../../model/Transaction";
 import {Value} from "../../model/Value";
@@ -107,13 +112,18 @@ describe("/v2/stripeEventWebhook", () => {
     });
 
     it("does nothing for vanilla refunds", async () => {
-        const checkout: CheckoutRequest = {
+        const checkoutRequest: CheckoutRequest = {
             ...checkoutReqBase,
             id: generateId()
         };
-        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(restRouter, "/v2/transactions/checkout", "POST", checkout);
+        const [stripeResponse] = stubCheckoutStripeCharge(checkoutRequest, 1, 950);
+        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(restRouter, "/v2/transactions/checkout", "POST", checkoutRequest);
         chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
         chai.assert.isNotNull(checkoutResp.body.steps.find(step => step.rail === "stripe"));
+        if (!testStripeLive()) {
+            chai.assert.equal((checkoutResp.body.steps[1] as StripeTransactionStep).chargeId, stripeResponse.id);
+            chai.assert.deepEqual((checkoutResp.body.steps[1] as StripeTransactionStep).charge, stripeResponse, `body.steps=${JSON.stringify(checkoutResp.body.steps)}`);
+        }
 
         const stripeStep = <StripeTransactionStep>checkoutResp.body.steps.find(step => step.rail === "stripe");
 
@@ -124,7 +134,7 @@ describe("/v2/stripeEventWebhook", () => {
         chai.assert.equal(fetchValueResp.statusCode, 200);
         chai.assert.equal(fetchValueResp.body.balance, 0);
 
-        const fetchTransactionChainResp = await testAuthedRequest<Transaction[]>(restRouter, `/v2/transactions/${checkout.id}/chain`, "GET");
+        const fetchTransactionChainResp = await testAuthedRequest<Transaction[]>(restRouter, `/v2/transactions/${checkoutRequest.id}/chain`, "GET");
         chai.assert.equal(fetchTransactionChainResp.body.length, 1);
     });
 });
