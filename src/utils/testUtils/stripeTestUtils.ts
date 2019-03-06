@@ -215,7 +215,7 @@ export function generateStripeRefundResponse(options: GenerateStripeRefundRespon
         "metadata": {
             "reason": options.reason || "Refunded due to error on the Lightrail side"
         },
-        "reason": null,
+        "reason": options.reason || null,
         "receipt_number": null,
         "source_transfer_reversal": null,
         "transfer_reversal": null,
