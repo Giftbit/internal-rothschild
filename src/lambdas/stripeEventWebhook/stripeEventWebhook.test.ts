@@ -26,7 +26,10 @@ import {installRestRoutes} from "../rest/installRestRoutes";
 import {installStripeEventWebhookRoute} from "./installStripeEventWebhookRoute";
 import * as chai from "chai";
 import {
+    generateStripeRefundResponse,
     setStubsForStripeTests,
+    stripeLiveLightrailConfig,
+    stripeLiveMerchantConfig,
     stubCheckoutStripeCharge,
     testStripeLive,
     unsetStubsForStripeTests
@@ -37,10 +40,8 @@ import {Value} from "../../model/Value";
 import {createCurrency} from "../rest/currencies";
 import {Currency} from "../../model/Currency";
 import {stripeApiVersion} from "../../utils/stripeUtils/StripeConfig";
-import {IObject} from "stripe";
 import {CheckoutRequest} from "../../model/TransactionRequest";
-import Stripe = require("stripe");
-import IEvent = Stripe.events.IEvent;
+import * as stripe from "stripe";
 
 describe("/v2/stripeEventWebhook", () => {
     const restRouter = new cassava.Router();
@@ -127,7 +128,7 @@ describe("/v2/stripeEventWebhook", () => {
 
         const stripeStep = <StripeTransactionStep>checkoutResp.body.steps.find(step => step.rail === "stripe");
 
-        const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateWebhookEventMock("charge.refunded", stripeStep.charge));
+        const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", stripeStep.charge));
         chai.assert.equal(webhookResp.statusCode, 204);
 
         const fetchValueResp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/values/${value1.id}`, "GET");
@@ -163,11 +164,13 @@ async function testSignedWebhookRequest(router: cassava.Router, body: any) {
  * Generates a dummy Stripe webhook event
  * @param eventType Possible Event types: https://stripe.com/docs/api/events/types
  * @param eventObject Events contain the object they describe (eg an event describing a charge contains the full Charge object)
+ * Re 'account' property in return type: "For these events [i.e. Connect events], there will be an additional account attribute in the received Event object." - https://stripe.com/docs/api/events
  */
-function generateWebhookEventMock(eventType: string, eventObject: IObject): IEvent {
+function generateConnectWebhookEventMock(eventType: string, eventObject: stripe.IObject): stripe.events.IEvent & { account: string } {
     return {
         id: generateId(),
         type: eventType,
+        account: stripeLiveMerchantConfig.stripeUserId,
         object: "event",
         data: {
             object: eventObject
