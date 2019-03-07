@@ -451,7 +451,6 @@ describe("/v2/stripeEventWebhook", () => {
     });
 
     it("reverses Lightrail transaction & freezes Values for Stripe refunds updated with 'reason: fraudulent'");
-    it("reverses Lightrail transaction & freezes Values for Stripe refunds on charges with 'risk_level: elevated'");
 });
 
 
