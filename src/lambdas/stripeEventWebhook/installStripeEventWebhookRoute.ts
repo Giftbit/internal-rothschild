@@ -33,8 +33,7 @@ export function installStripeEventWebhookRoute(router: cassava.Router): void {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNAUTHORIZED, "The Stripe signature could not be validated");
             }
 
-            // todo try catch scenarios: already frozen
-            //  also track triggering eventID (& Stripe accountId?) in reversal/freezing metadata
+            // todo track triggering eventID (& Stripe accountId?) in reversal/freezing metadata
             await handleRefundForFraud(event);
 
             return {
