@@ -26,6 +26,7 @@ import {installRestRoutes} from "../rest/installRestRoutes";
 import {installStripeEventWebhookRoute} from "./installStripeEventWebhookRoute";
 import * as chai from "chai";
 import {
+    generateStripeChargeResponse,
     generateStripeRefundResponse,
     setStubsForStripeTests,
     stripeLiveLightrailConfig,
@@ -231,7 +232,18 @@ describe("/v2/stripeEventWebhook", () => {
         chai.assert.equal(fetchValueResp.body.frozen, true);
     }).timeout(8000);
 
-    it("does nothing if event comes from our account instead of Connected account");
+    it("does nothing if event comes from our account instead of Connected account", async () => {
+        const platformWebhookEvent = generateConnectWebhookEventMock("nonsense.event.type", generateStripeChargeResponse({
+            transactionId: generateId(),
+            amount: 1234,
+            currency: "NIL",
+            pending: false,
+        }));
+        delete platformWebhookEvent.account;
+
+        const webhookResp = await testSignedWebhookRequest(webhookEventRouter, platformWebhookEvent);
+        chai.assert.equal(webhookResp.statusCode, 204);
+    });
 
     it("logs Stripe eventId & Connected accountId in metadata", async () => {
         // Setup: create Value and Checkout transaction
