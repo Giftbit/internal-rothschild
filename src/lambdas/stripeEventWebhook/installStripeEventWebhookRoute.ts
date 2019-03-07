@@ -68,10 +68,8 @@ async function handleRefundForFraud(event: stripe.events.IEvent & { account?: st
 
     const auth: giftbitRoutes.jwtauth.AuthorizationBadge = getAuthBadgeFromStripeCharge(stripeAccountId, stripeCharge);
 
-    if ((event.data.object as stripe.charges.ICharge).refunds.data.find(refund => refund.reason === "fraudulent")) {
+    if (stripeCharge.refunds.data.find(refund => refund.reason === "fraudulent")) {
         // Stripe supports partial refunds; if even one is marked with 'reason: fraudulent' we'll treat the Transaction as fraudulent
-
-        log.info(`Stripe charge ${(event.data.object as stripe.charges.ICharge).id} has a refund with 'reason: fraudulent'. Reversing Lightrail Transaction and freezing all implicated Values.`);
 
         const lrTransaction: Transaction = await getLightrailTransactionFromStripeCharge(auth, stripeCharge);
 
