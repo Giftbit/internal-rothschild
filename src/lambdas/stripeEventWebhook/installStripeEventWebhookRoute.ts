@@ -19,7 +19,6 @@ export function installStripeEventWebhookRoute(router: cassava.Router): void {
     router.route("/v2/stripeEventWebhook")
         .method("POST")
         .handler(async evt => {
-            // todo - configure metrics logging to show test/live mode for these requests. MetricsRoute currently relies on the jwt but that doesn't apply here.
             const testMode: boolean = !evt.body.livemode;
             const lightrailStripeConfig: StripeModeConfig = await getLightrailStripeModeConfig(testMode);
             const stripe = new Stripe(lightrailStripeConfig.secretKey);
@@ -34,7 +33,7 @@ export function installStripeEventWebhookRoute(router: cassava.Router): void {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNAUTHORIZED, "The Stripe signature could not be validated");
             }
 
-            // todo try catch scenarios: already reversed; already frozen
+            // todo try catch scenarios: already frozen
             //  also track triggering eventID (& Stripe accountId?) in reversal/freezing metadata
             await handleRefundForFraud(event);
 
@@ -77,9 +76,8 @@ async function handleRefundForFraud(event: stripe.events.IEvent & { account?: st
             await createReverse(auth, {id: `${lrTransaction.id}-webhook-rev`}, lrTransaction.id);
             log.info(`Reversed Transaction ${lrTransaction.id}.`);
         } catch (e) {
-            giftbitRoutes.sentry.sendErrorNotification(e);
-            log.error(`Failed to reverse Transaction ${lrTransaction.id}. Will still try to freeze implicated Values.`);
-            // todo handle already reversed
+            log.error(`Failed to reverse Transaction ${lrTransaction.id}. This could be because it has already been reversed. Will still try to freeze implicated Values.`);
+            log.error(e);
         }
 
         // Get list of all Values used in the Transaction and all Values attached to Contacts used in the Transaction
@@ -98,8 +96,8 @@ async function handleRefundForFraud(event: stripe.events.IEvent & { account?: st
             log.info("Implicated Values including all Values attached to implicated Contacts frozen.");
         } catch (e) {
             log.error(`Failed to freeze Values '${JSON.stringify(affectedValueIds)}' and Values attached to Contacts '${JSON.stringify(affectedContactIds)}'`);
+            log.error(e);
         }
-
     }
 }
 
