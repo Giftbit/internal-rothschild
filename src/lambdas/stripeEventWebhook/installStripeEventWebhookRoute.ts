@@ -19,7 +19,6 @@ export function installStripeEventWebhookRoute(router: cassava.Router): void {
     router.route("/v2/stripeEventWebhook")
         .method("POST")
         .handler(async evt => {
-            // todo - configure metrics logging to show test/live mode for these requests. MetricsRoute currently relies on the jwt but that doesn't apply here.
             const testMode: boolean = !evt.body.livemode;
             const lightrailStripeConfig: StripeModeConfig = await getLightrailStripeModeConfig(testMode);
             const stripe = new Stripe(lightrailStripeConfig.secretKey);
@@ -99,7 +98,6 @@ async function handleRefundForFraud(event: stripe.events.IEvent & { account?: st
             log.error(`Failed to freeze Values '${JSON.stringify(affectedValueIds)}' and Values attached to Contacts '${JSON.stringify(affectedContactIds)}'`);
             log.error(e);
         }
-
     }
 }
 
