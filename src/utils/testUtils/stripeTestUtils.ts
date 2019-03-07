@@ -117,7 +117,7 @@ export function generateStripeChargeResponse(options: GenerateStripeChargeRespon
         "object": "charge",
         "amount": options.amount,
         "amount_refunded": 0,
-        "application": "ca_D5LfFkNWh8XbFWxIcEx6N9FXaNmfJ9Fr",
+        "application": "ca_Bg3hpStH7AImYbs5sSfGH06jTMS0Krwl",
         "application_fee": null,
         "balance_transaction": "txn_" + getRandomChars(24),
         "captured": !options.pending,
