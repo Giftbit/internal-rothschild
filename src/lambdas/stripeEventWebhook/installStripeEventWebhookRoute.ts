@@ -42,7 +42,6 @@ export function installStripeEventWebhookRoute(router: cassava.Router): void {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNAUTHORIZED, "The Stripe signature could not be validated");
             }
 
-            // todo track triggering eventID (& Stripe accountId?) in reversal/freezing metadata
             await handleRefundForFraud(event);
 
             return {
@@ -52,7 +51,7 @@ export function installStripeEventWebhookRoute(router: cassava.Router): void {
         });
 }
 
-async function handleRefundForFraud(event: stripe.events.IEvent & { account?: string }): Promise<void> {
+async function handleRefundForFraud(event: stripe.events.IEvent & { account: string }): Promise<void> {
     if (
         event.type !== "charge.refunded" ||
         event.data.object.object !== "charge" ||
@@ -74,12 +73,19 @@ async function handleRefundForFraud(event: stripe.events.IEvent & { account?: st
         const lrTransaction: Transaction = await getLightrailTransactionFromStripeCharge(auth, stripeCharge);
 
         log.info(`Stripe charge ${stripeCharge.id} on Transaction ${lrTransaction.id} was refunded due to suspected fraud. Reversing Lightrail transaction...`);
+        let reverseTransaction: Transaction;
         try {
-            await createReverse(auth, {id: `${lrTransaction.id}-webhook-rev`}, lrTransaction.id);
+            reverseTransaction = await createReverse(auth, {
+                id: `${lrTransaction.id}-webhook-rev`,
+                metadata: {
+                    stripeWebhookTriggeredAction: `Transaction reversed by Lightrail because Stripe charge ${stripeCharge.id} was refunded as fraudulent. Stripe eventId: ${event.id}, Stripe accountId: ${event.account}`
+                }
+            }, lrTransaction.id);
             log.info(`Reversed Transaction ${lrTransaction.id}.`);
         } catch (e) {
             log.error(`Failed to reverse Transaction ${lrTransaction.id}. This could be because it has already been reversed. Will still try to freeze implicated Values.`);
             log.error(e);
+            // todo soft alert on failure
         }
 
         // Get list of all Values used in the Transaction and all Values attached to Contacts used in the Transaction
@@ -94,11 +100,12 @@ async function handleRefundForFraud(event: stripe.events.IEvent & { account?: st
             await freezeAffectedValues(auth, knex, {
                 valueIds: affectedValueIds,
                 contactIds: affectedContactIds
-            }, lrTransaction.id);
+            }, lrTransaction.id, constructValueFreezeMessage(lrTransaction.id, reverseTransaction.id || "", stripeCharge.id, event));
             log.info("Implicated Values including all Values attached to implicated Contacts frozen.");
         } catch (e) {
-            log.error(`Failed to freeze Values '${JSON.stringify(affectedValueIds)}' and Values attached to Contacts '${JSON.stringify(affectedContactIds)}'`);
+            log.error(`Failed to freeze Values '${JSON.stringify(affectedValueIds)}' and/or Values attached to Contacts '${JSON.stringify(affectedContactIds)}'`);
             log.error(e);
+            // todo soft alert on failure
         }
     }
 }
@@ -123,7 +130,7 @@ async function getLightrailTransactionFromStripeCharge(auth: giftbitRoutes.jwtau
     return lrTransaction;
 }
 
-async function freezeAffectedValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, knex: Knex, valueIdentifiers: { valueIds?: string[], contactIds?: string[] }, lightrailTransactionId: string): Promise<void> {
+async function freezeAffectedValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, knex: Knex, valueIdentifiers: { valueIds?: string[], contactIds?: string[] }, lightrailTransactionId: string, message: string): Promise<void> {
     await knex.transaction(async trx => {
         // Get the master version of the Values and lock them.
         const selectValueRes: DbValue[] = await trx("Values").select()
@@ -147,18 +154,20 @@ async function freezeAffectedValues(auth: giftbitRoutes.jwtauth.AuthorizationBad
                 userId: auth.userId,
             })
             .whereIn("id", existingValues.map(value => value.id))
-            .update({frozen: true});
+            .update(Value.toDbValueUpdate(auth, {
+                frozen: true,
+                metadata: {
+                    stripeWebhookTriggeredAction: message
+                }
+            }));
         if (updateRes === 0) {
             throw new cassava.RestError(404);
         }
         if (updateRes < selectValueRes.length) {
             throw new Error(`Illegal UPDATE query. Updated ${updateRes} Values, should have updated ${selectValueRes.length} Values.`);
         }
-
-        return; // note we could return the updated values here
     });
 }
-
 
 /**
  * This is a workaround method. When we can get the Lightrail userId directly from the Stripe accountId, we won't need to pass in the charge.
@@ -189,4 +198,8 @@ function getLightrailUserIdFromStripeCharge(stripeAccountId: string, stripeCharg
     } else {
         throw new Error(`Could not get Lightrail userId from Stripe accountId ${stripeAccountId} and charge ${stripeCharge.id}`);
     }
+}
+
+function constructValueFreezeMessage(lightrailTransactionId: string, lightrailReverseId: string, stripeChargeId: string, stripeEvent: stripe.events.IEvent & { account: string }): string {
+    return `Value frozen by Lightrail because it or an attached Contact was associated with a Stripe charge that was refunded as fraudulent. Lightrail transactionId ${lightrailTransactionId} with reverse transaction ${lightrailReverseId}, Stripe chargeId: ${stripeChargeId}, Stripe eventId: ${stripeEvent.id}, Stripe accountId: ${stripeEvent.account}`;
 }
