@@ -558,6 +558,12 @@ describe("/v2/stripeEventWebhook", () => {
         it("Lightrail transaction not reversed but Values frozen");
     });
 
+    describe("handles scenarios - irreversible Transaction", () => {
+        it("uses existing 'reverse' Transaction");
+
+        it("voids instead of reversing if original Transaction was pending");
+    });
+
     it("reverses Lightrail transaction & freezes Values for Stripe refunds updated with 'reason: fraudulent'");
 });
 
