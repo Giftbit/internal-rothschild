@@ -29,6 +29,15 @@ export function installStripeEventWebhookRoute(router: cassava.Router): void {
                 event = stripe.webhooks.constructEvent(evt.bodyRaw, evt.headersLowerCase["stripe-signature"], lightrailStripeConfig.connectWebhookSigningSecret);
                 log.info("Stripe signature verified");
                 // todo send 2xx immediately if signature verifies - otherwise it may time out, which means failure, which means the webhook could get turned off
+
+                if (!event.account) {
+                    // todo use metrics logger to track this unless we decide to handle our own events
+                    log.warn("Received event that did not have property 'account'. This endpoint is not configured to handle events from the Lightrail Stripe account.");
+                    return {
+                        statusCode: 204,
+                        body: null
+                    };
+                }
             } catch (err) {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNAUTHORIZED, "The Stripe signature could not be validated");
             }
@@ -52,10 +61,6 @@ async function handleRefundForFraud(event: stripe.events.IEvent & { account?: st
     ) {
         log.info(`This event does not describe a refund of a fraudulent charge. Event ID: ${event.id} with Stripe account ID: ${event.account}`);
         return;
-    }
-    if (!event.account) {
-        // todo consider how we handle our own events
-        throw new Error("This event did not come from a connected account: missing property 'account'.");
     }
 
     const stripeAccountId: string = event.account;

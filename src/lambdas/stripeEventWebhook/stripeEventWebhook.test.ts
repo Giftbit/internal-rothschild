@@ -231,6 +231,8 @@ describe("/v2/stripeEventWebhook", () => {
         chai.assert.equal(fetchValueResp.body.frozen, true);
     }).timeout(8000);
 
+    it("does nothing if event comes from our account instead of Connected account");
+
     describe("handles scenarios - action already taken in Lightrail", () => {
         it("Lightrail transaction already reversed", async () => {
             // Setup: create Value and Checkout transaction
