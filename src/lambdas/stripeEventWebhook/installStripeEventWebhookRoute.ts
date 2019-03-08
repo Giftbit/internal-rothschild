@@ -106,14 +106,29 @@ async function handleRefundForFraud(event: stripe.events.IEvent & { account: str
 
             } else if ((e as giftbitRoutes.GiftbitRestError).isRestError && e.additionalParams.messageCode === "TransactionPending") {
                 log.info(`Transaction '${lrTransaction.id}' was pending: voiding instead...`);
-                voidTransaction = await createVoid(auth, {
-                    id: `${lrTransaction.id}-webhook-void`,
-                    metadata: {
-                        stripeWebhookTriggeredAction: `Transaction voided by Lightrail because Stripe charge ${stripeCharge.id} was refunded as fraudulent. Stripe eventId: ${event.id}, Stripe accountId: ${event.account}`
-                    }
-                }, lrTransaction.id);
-                log.info(`Voided Transaction '${lrTransaction.id}' with void transaction '${voidTransaction.id}'`);
+                try {
+                    voidTransaction = await createVoid(auth, {
+                        id: `${lrTransaction.id}-webhook-void`,
+                        metadata: {
+                            stripeWebhookTriggeredAction: `Transaction voided by Lightrail because Stripe charge ${stripeCharge.id} was refunded as fraudulent. Stripe eventId: ${event.id}, Stripe accountId: ${event.account}`
+                        }
+                    }, lrTransaction.id);
+                    log.info(`Voided Transaction '${lrTransaction.id}' with void transaction '${voidTransaction.id}'`);
 
+                } catch (e) {
+                    if ((e as giftbitRoutes.GiftbitRestError).isRestError && e.additionalParams.messageCode === "TransactionVoided") {
+                        log.info(`Transaction '${lrTransaction.id}' was pending and has already been voided. Fetching existing void transaction...`);
+
+                        const dbTransaction = await getDbTransaction(auth, lrTransaction.id);
+                        voidTransaction = (await getTransactions(auth, {
+                            transactionType: "void",
+                            rootTransactionId: dbTransaction.rootTransactionId
+                        }, {
+                            limit: 100, after: null, before: null, last: false, maxLimit: 1000, sort: null
+                        })).transactions[0];
+                        log.info(`Transaction '${lrTransaction.id}' was voided by transaction '${voidTransaction.id}'`);
+                    }
+                }
             } else {
                 log.error(`Failed to reverse Transaction ${lrTransaction.id}. This could be because it has already been reversed. Will still try to freeze implicated Values.`);
                 log.error(e);
