@@ -1,23 +1,3 @@
-// create charge (connected account)
-// refund - normal
-// update refund -- fraudulent
-
-// create charge (elevated risk)
-// refund - normal
-
-// ====================================
-// Handling Stripe refunds with elevated risk level:
-//     There are three levels of risk evaluation: normal, elevated, high. High risk transactions are blocked by default. Elevated risk transactions succeed, but if they are using Stripe Radar for Fraud Teams, it will be placed in a queue for manual review.
-//     Should this endpoint listen for:
-// - Any refunds (any reason) where the original charge event had `risk_level: elevated`?
-//     - Refunds for any charge with `reason: fraudulent`?
-//
-//     `charge.refunded` (use `charge.refunds.data[##].reason == 'fraudulent'`)
-//         `charge.refund.updated` - Occurs whenever a refund is updated, on selected payment methods.
-//     `review.closed` - Occurs whenever a review is closed. The review’s reason field indicates why: approved, disputed, refunded, or refunded_as_fraud
-// ====================================
-
-
 import * as cassava from "cassava";
 import * as cryptojs from "crypto-js";
 import * as testUtils from "../../utils/testUtils";
