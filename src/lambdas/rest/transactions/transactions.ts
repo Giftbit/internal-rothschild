@@ -349,7 +349,7 @@ async function createCapture(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req
     );
 }
 
-async function createVoid(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: VoidRequest, transactionIdToVoid: string): Promise<Transaction> {
+export async function createVoid(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: VoidRequest, transactionIdToVoid: string): Promise<Transaction> {
     return executeTransactionPlanner(
         auth,
         {
