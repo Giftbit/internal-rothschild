@@ -33,7 +33,7 @@ export function installStripeEventWebhookRoute(router: cassava.Router): void {
             try {
                 log.info("Verifying Stripe signature...");
                 event = stripe.webhooks.constructEvent(evt.bodyRaw, evt.headersLowerCase["stripe-signature"], lightrailStripeConfig.connectWebhookSigningSecret);
-                log.info("Stripe signature verified");
+                log.info(`Stripe signature verified. Event: ${JSON.stringify(event)}`);
                 // todo send 2xx immediately if signature verifies - otherwise it may time out, which means failure, which means the webhook could get turned off
 
                 if (!event.account) {
@@ -48,7 +48,7 @@ export function installStripeEventWebhookRoute(router: cassava.Router): void {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNAUTHORIZED, "The Stripe signature could not be validated");
             }
 
-            await handleRefundForFraud(event);
+            await handleRefundForFraud(event, stripe);
 
             return {
                 statusCode: 204,
@@ -57,106 +57,126 @@ export function installStripeEventWebhookRoute(router: cassava.Router): void {
         });
 }
 
-async function handleRefundForFraud(event: stripe.events.IEvent & { account: string }): Promise<void> {
-    if (
-        event.type !== "charge.refunded" ||
-        event.data.object.object !== "charge" ||
-        (event.data.object as stripe.charges.ICharge).refunds.data.length === 0 ||
-        (event.data.object as stripe.charges.ICharge).refunds.data.find(refund => refund.reason === "fraudulent") === undefined
-    ) {
-        log.info(`This event does not describe a refund of a fraudulent charge. Event ID: ${event.id} with Stripe account ID: ${event.account}`);
+async function handleRefundForFraud(event: stripe.events.IEvent & { account: string }, stripe: Stripe): Promise<void> {
+    if (!checkEventForFraudAction(event)) {
         return;
     }
 
     const stripeAccountId: string = event.account;
-    const stripeCharge = <stripe.charges.ICharge>event.data.object;
+
+    const stripeCharge: stripe.charges.ICharge = await getStripeChargeFromEvent(event, stripe);
 
     const auth: giftbitRoutes.jwtauth.AuthorizationBadge = getAuthBadgeFromStripeCharge(stripeAccountId, stripeCharge);
 
-    if (stripeCharge.refunds.data.find(refund => refund.reason === "fraudulent")) {
-        // Stripe supports partial refunds; if even one is marked with 'reason: fraudulent' we'll treat the Transaction as fraudulent
+    const lrTransaction: Transaction = await getLightrailTransactionFromStripeCharge(auth, stripeCharge);
 
-        const lrTransaction: Transaction = await getLightrailTransactionFromStripeCharge(auth, stripeCharge);
-
-        log.info(`Stripe charge ${stripeCharge.id} on Transaction ${lrTransaction.id} was refunded due to suspected fraud. Reversing Lightrail transaction...`);
-        let reverseTransaction: Transaction;
-        let voidTransaction: Transaction;
-        try {
-            reverseTransaction = await createReverse(auth, {
-                id: `${lrTransaction.id}-webhook-rev`,
-                metadata: {
-                    stripeWebhookTriggeredAction: `Transaction reversed by Lightrail because Stripe charge ${stripeCharge.id} was refunded as fraudulent. Stripe eventId: ${event.id}, Stripe accountId: ${event.account}`
-                }
-            }, lrTransaction.id);
-            log.info(`Reversed Transaction ${lrTransaction.id}.`);
-
-        } catch (e) {
-            // handle other semi-reversible situations
-            if ((e as giftbitRoutes.GiftbitRestError).isRestError && e.additionalParams.messageCode === "TransactionReversed") {
-                log.info(`Transaction '${lrTransaction.id}' has already been reversed. Fetching existing reverse transaction...`);
-
-                const dbTransaction = await getDbTransaction(auth, lrTransaction.id);
-                reverseTransaction = (await getTransactions(auth, {
-                    transactionType: "reverse",
-                    rootTransactionId: dbTransaction.rootTransactionId
-                }, {
-                    limit: 100, after: null, before: null, last: false, maxLimit: 1000, sort: null
-                })).transactions[0];
-                log.info(`Transaction '${lrTransaction.id}' was reversed by transaction '${reverseTransaction.id}'`);
-
-            } else if ((e as giftbitRoutes.GiftbitRestError).isRestError && e.additionalParams.messageCode === "TransactionPending") {
-                log.info(`Transaction '${lrTransaction.id}' was pending: voiding instead...`);
-                try {
-                    voidTransaction = await createVoid(auth, {
-                        id: `${lrTransaction.id}-webhook-void`,
-                        metadata: {
-                            stripeWebhookTriggeredAction: `Transaction voided by Lightrail because Stripe charge ${stripeCharge.id} was refunded as fraudulent. Stripe eventId: ${event.id}, Stripe accountId: ${event.account}`
-                        }
-                    }, lrTransaction.id);
-                    log.info(`Voided Transaction '${lrTransaction.id}' with void transaction '${voidTransaction.id}'`);
-
-                } catch (e) {
-                    if ((e as giftbitRoutes.GiftbitRestError).isRestError && e.additionalParams.messageCode === "TransactionVoided") {
-                        log.info(`Transaction '${lrTransaction.id}' was pending and has already been voided. Fetching existing void transaction...`);
-
-                        const dbTransaction = await getDbTransaction(auth, lrTransaction.id);
-                        voidTransaction = (await getTransactions(auth, {
-                            transactionType: "void",
-                            rootTransactionId: dbTransaction.rootTransactionId
-                        }, {
-                            limit: 100, after: null, before: null, last: false, maxLimit: 1000, sort: null
-                        })).transactions[0];
-                        log.info(`Transaction '${lrTransaction.id}' was voided by transaction '${voidTransaction.id}'`);
-                    }
-                }
-            } else {
-                log.error(`Failed to reverse Transaction ${lrTransaction.id}. This could be because it has already been reversed. Will still try to freeze implicated Values.`);
-                log.error(e);
-                // todo soft alert on failure
+    log.info(`Stripe charge ${stripeCharge.id} on Transaction ${lrTransaction.id} was refunded due to suspected fraud. Reversing Lightrail transaction...`);
+    let reverseTransaction: Transaction;
+    let voidTransaction: Transaction;
+    try {
+        reverseTransaction = await createReverse(auth, {
+            id: `${lrTransaction.id}-webhook-rev`,
+            metadata: {
+                stripeWebhookTriggeredAction: `Transaction reversed by Lightrail because Stripe charge ${stripeCharge.id} was refunded as fraudulent. Stripe eventId: ${event.id}, Stripe accountId: ${event.account}`
             }
-        }
+        }, lrTransaction.id);
+        log.info(`Reversed Transaction ${lrTransaction.id}.`);
 
-        // Get list of all Values used in the Transaction and all Values attached to Contacts used in the Transaction
-        const lightrailSteps = <LightrailTransactionStep[]>lrTransaction.steps.filter(step => step.rail === "lightrail");
-        let affectedValueIds: string[] = lightrailSteps.map(step => step.valueId);
-        const affectedContactIds: string[] = lrTransaction.paymentSources.filter(src => src.rail === "lightrail" && src.contactId).map(src => (src as LightrailTransactionStep).contactId);
+    } catch (e) {
+        // handle other semi-reversible situations
+        if ((e as giftbitRoutes.GiftbitRestError).isRestError && e.additionalParams.messageCode === "TransactionReversed") {
+            log.info(`Transaction '${lrTransaction.id}' has already been reversed. Fetching existing reverse transaction...`);
 
-        const reverseOrVoidId = reverseTransaction && reverseTransaction.id || voidTransaction && voidTransaction.id || "";
+            const dbTransaction = await getDbTransaction(auth, lrTransaction.id);
+            reverseTransaction = (await getTransactions(auth, {
+                transactionType: "reverse",
+                rootTransactionId: dbTransaction.rootTransactionId
+            }, {
+                limit: 100, after: null, before: null, last: false, maxLimit: 1000, sort: null
+            })).transactions[0];
+            log.info(`Transaction '${lrTransaction.id}' was reversed by transaction '${reverseTransaction.id}'`);
 
-        log.info(`Freezing implicated Values: '${JSON.stringify(affectedValueIds)}' and all Values attached to implicated Contacts: '${JSON.stringify(affectedContactIds)}'`);
+        } else if ((e as giftbitRoutes.GiftbitRestError).isRestError && e.additionalParams.messageCode === "TransactionPending") {
+            log.info(`Transaction '${lrTransaction.id}' was pending: voiding instead...`);
+            try {
+                voidTransaction = await createVoid(auth, {
+                    id: `${lrTransaction.id}-webhook-void`,
+                    metadata: {
+                        stripeWebhookTriggeredAction: `Transaction voided by Lightrail because Stripe charge ${stripeCharge.id} was refunded as fraudulent. Stripe eventId: ${event.id}, Stripe accountId: ${event.account}`
+                    }
+                }, lrTransaction.id);
+                log.info(`Voided Transaction '${lrTransaction.id}' with void transaction '${voidTransaction.id}'`);
 
-        const knex = await getKnexWrite();
-        try {
-            await freezeAffectedValues(auth, knex, {
-                valueIds: affectedValueIds,
-                contactIds: affectedContactIds
-            }, lrTransaction.id, constructValueFreezeMessage(lrTransaction.id, reverseOrVoidId, stripeCharge.id, event));
-            log.info("Implicated Values including all Values attached to implicated Contacts frozen.");
-        } catch (e) {
-            log.error(`Failed to freeze Values '${JSON.stringify(affectedValueIds)}' and/or Values attached to Contacts '${JSON.stringify(affectedContactIds)}'`);
+            } catch (e) {
+                if ((e as giftbitRoutes.GiftbitRestError).isRestError && e.additionalParams.messageCode === "TransactionVoided") {
+                    log.info(`Transaction '${lrTransaction.id}' was pending and has already been voided. Fetching existing void transaction...`);
+
+                    const dbTransaction = await getDbTransaction(auth, lrTransaction.id);
+                    voidTransaction = (await getTransactions(auth, {
+                        transactionType: "void",
+                        rootTransactionId: dbTransaction.rootTransactionId
+                    }, {
+                        limit: 100, after: null, before: null, last: false, maxLimit: 1000, sort: null
+                    })).transactions[0];
+                    log.info(`Transaction '${lrTransaction.id}' was voided by transaction '${voidTransaction.id}'`);
+                }
+            }
+        } else {
+            log.error(`Failed to reverse Transaction ${lrTransaction.id}. This could be because it has already been reversed. Will still try to freeze implicated Values.`);
             log.error(e);
             // todo soft alert on failure
         }
+    }
+
+    // Get list of all Values used in the Transaction and all Values attached to Contacts used in the Transaction
+    const lightrailSteps = <LightrailTransactionStep[]>lrTransaction.steps.filter(step => step.rail === "lightrail");
+    let affectedValueIds: string[] = lightrailSteps.map(step => step.valueId);
+    const affectedContactIds: string[] = lrTransaction.paymentSources.filter(src => src.rail === "lightrail" && src.contactId).map(src => (src as LightrailTransactionStep).contactId);
+
+    const reverseOrVoidId = reverseTransaction && reverseTransaction.id || voidTransaction && voidTransaction.id || "";
+
+    log.info(`Freezing implicated Values: '${JSON.stringify(affectedValueIds)}' and all Values attached to implicated Contacts: '${JSON.stringify(affectedContactIds)}'`);
+
+    const knex = await getKnexWrite();
+    try {
+        await freezeAffectedValues(auth, knex, {
+            valueIds: affectedValueIds,
+            contactIds: affectedContactIds
+        }, lrTransaction.id, constructValueFreezeMessage(lrTransaction.id, reverseOrVoidId, stripeCharge.id, event));
+        log.info("Implicated Values including all Values attached to implicated Contacts frozen.");
+    } catch (e) {
+        log.error(`Failed to freeze Values '${JSON.stringify(affectedValueIds)}' and/or Values attached to Contacts '${JSON.stringify(affectedContactIds)}'`);
+        log.error(e);
+        // todo soft alert on failure
+    }
+}
+
+function checkEventForFraudAction(event: stripe.events.IEvent & { account?: string }): boolean {
+    if (event.type === "charge.refunded") {
+        // console.log(`\n\ncharge.refunded: ${}`)
+        // Stripe supports partial refunds; if even one is marked with 'reason: fraudulent' we'll treat the Transaction as fraudulent
+        return ((event.data.object as stripe.charges.ICharge).refunds.data.find(refund => refund.reason === "fraudulent") !== undefined);
+    } else if (event.type === "charge.refund.updated") {
+        return ((event.data.object as stripe.refunds.IRefund).reason === "fraudulent");
+    } else if (event.type === "review.closed") {
+        return ((event.data.object as stripe.reviews.IReview).reason === "refunded_as_fraud");
+    } else {
+        log.info(`This event is not one of ['charge.refunded', 'charge.refund.updated', 'review.closed']: taking no action. Event ID: '${event.id}' with Stripe connected account ID: '${event.account}'`);
+        return false;
+    }
+}
+
+async function getStripeChargeFromEvent(event: stripe.events.IEvent, stripe: Stripe): Promise<stripe.charges.ICharge> {
+    if (event.data.object.object === "charge") {
+        return event.data.object as stripe.charges.ICharge;
+    } else if (event.data.object.object === "refund") {
+        const refund = event.data.object as stripe.refunds.IRefund;
+        return typeof refund.charge === "string" ? await stripe.charges.retrieve(refund.charge) : refund.charge;
+    } else if (event.data.object.object === "review") {
+        const review = event.data.object as stripe.reviews.IReview;
+        return typeof review.charge === "string" ? await stripe.charges.retrieve(review.charge) : review.charge;
+    } else {
+        throw new Error(`Could not retrieve Stripe charge from event '${event.id}'`);
     }
 }
 
