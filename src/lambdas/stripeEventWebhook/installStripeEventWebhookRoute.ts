@@ -153,7 +153,6 @@ async function handleRefundForFraud(event: stripe.events.IEvent & { account: str
 
 function checkEventForFraudAction(event: stripe.events.IEvent & { account?: string }): boolean {
     if (event.type === "charge.refunded") {
-        // console.log(`\n\ncharge.refunded: ${}`)
         // Stripe supports partial refunds; if even one is marked with 'reason: fraudulent' we'll treat the Transaction as fraudulent
         return ((event.data.object as stripe.charges.ICharge).refunds.data.find(refund => refund.reason === "fraudulent") !== undefined);
     } else if (event.type === "charge.refund.updated") {
