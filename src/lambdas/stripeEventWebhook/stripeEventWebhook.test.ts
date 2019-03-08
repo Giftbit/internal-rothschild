@@ -666,9 +666,100 @@ describe("/v2/stripeEventWebhook", () => {
             chai.assert.deepEqual(fetchValueResp.body.metadata, {stripeWebhookTriggeredAction: `Value frozen by Lightrail because it or an attached Contact was associated with a Stripe charge that was refunded as fraudulent. Lightrail transactionId '${checkoutRequest.id}' with reverse transaction '${reversedTransactionResponse.body.id}', Stripe chargeId: '${refundedCharge.id}', Stripe eventId: '${webhookEvent.id}', Stripe accountId: '${stripeLiveMerchantConfig.stripeUserId}'`}, `value metadata: ${JSON.stringify(fetchValueResp.body.metadata)}`);
         }).timeout(8000);
 
-        it("voids instead of reversing if original Transaction was pending");
+        it("voids instead of reversing if original Transaction was pending", async () => {
+            // Setup: create Value and Checkout transaction
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "CAD",
+                balance: 50
+            };
+            const postValueResp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", value);
+            chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
 
-        it("uses existing 'void' Transaction", async () => {
+            const checkoutRequest: CheckoutRequest = {
+                id: generateId(),
+                currency: currency.code,
+                lineItems: [{
+                    type: "product",
+                    productId: "pid",
+                    unitPrice: 1000
+                }],
+                sources: [
+                    {
+                        rail: "lightrail",
+                        valueId: value.id
+                    },
+                    {
+                        rail: "stripe",
+                        source: "tok_visa"
+                    }
+                ],
+                pending: true
+            };
+            const [stripeCheckoutChargeMock] = stubCheckoutStripeCharge(checkoutRequest, 1, 950);
+
+            const checkoutResp = await testUtils.testAuthedRequest<Transaction>(restRouter, "/v2/transactions/checkout", "POST", checkoutRequest);
+            chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
+            if (!testStripeLive()) { // check that the stubbing is doing what it should
+                chai.assert.equal((checkoutResp.body.steps[1] as StripeTransactionStep).chargeId, stripeCheckoutChargeMock.id);
+                chai.assert.deepEqual((checkoutResp.body.steps[1] as StripeTransactionStep).charge, stripeCheckoutChargeMock, `body.steps=${JSON.stringify(checkoutResp.body.steps)}`);
+            }
+
+            chai.assert.isNotNull(checkoutResp.body.steps.find(step => step.rail === "stripe"));
+            const stripeStep = <StripeTransactionStep>checkoutResp.body.steps.find(step => step.rail === "stripe");
+            chai.assert.equal((stripeStep.charge as stripe.charges.ICharge).captured, false);
+
+            // Create the refund in Stripe with 'reason: fraudulent' that will trigger a webhook event being posted
+            let refundedCharge: stripe.charges.ICharge;
+            if (testStripeLive()) {
+                const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
+
+                // if live testing, need to make sure the charge actually exists in Stripe
+                const chargeFromStripe = await lightrailStripe.charges.retrieve(stripeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+                chai.assert.isNotNull(chargeFromStripe);
+
+                refundedCharge = await lightrailStripe.charges.refund(stripeStep.chargeId, {reason: "fraudulent"}, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+
+            } else {
+                stubStripeRefund(stripeStep.charge as stripe.charges.ICharge, {reason: "fraudulent"});
+                refundedCharge = {
+                    ...stripeCheckoutChargeMock,
+                    refunded: true,
+                    refunds: {
+                        object: "list",
+                        data: [
+                            generateStripeRefundResponse({
+                                amount: stripeCheckoutChargeMock.amount,
+                                currency: stripeCheckoutChargeMock.currency,
+                                reason: "fraudulent",
+                                stripeChargeId: stripeCheckoutChargeMock.id
+                            })
+                        ],
+                        has_more: false,
+                        url: null
+                    }
+                };
+            }
+
+            // Create & post webhook event locally (live events DO get triggered during live testing,
+            // but we can't use them because they get posted to the lamdba, not sent back in an http response)
+            const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", refundedCharge));
+            chai.assert.equal(webhookResp.statusCode, 204);
+
+            // Check that transaction chain & values are in the expected state
+            // NOTE if we ever start returning responses before handling the event we might need to address timing here - see https://stripe.com/docs/webhooks#best-practices
+            const fetchTransactionChainResp = await testAuthedRequest<Transaction[]>(restRouter, `/v2/transactions/${checkoutRequest.id}/chain`, "GET");
+            chai.assert.equal(fetchTransactionChainResp.statusCode, 200, `fetchTransactionChainResp.body=${fetchTransactionChainResp.body}`);
+            chai.assert.equal(fetchTransactionChainResp.body.length, 2);
+            chai.assert.equal(fetchTransactionChainResp.body[1].transactionType, "void", `transaction types in chain: ${JSON.stringify(fetchTransactionChainResp.body.map(txn => txn.transactionType))}`);
+
+            const fetchValueResp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/values/${value.id}`, "GET");
+            chai.assert.equal(fetchValueResp.statusCode, 200, `fetchValueResp.body=${fetchValueResp.body}`);
+            chai.assert.equal(fetchValueResp.body.balance, value.balance);
+            chai.assert.equal(fetchValueResp.body.frozen, true);
+        }).timeout(8000);
+
+        it("uses existing 'void' Transaction if original Transaction was pending and has been voided", async () => {
             // Setup: create Value and Checkout transaction
             const value: Partial<Value> = {
                 id: generateId(),
