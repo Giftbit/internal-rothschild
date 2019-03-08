@@ -17,6 +17,8 @@ import {
 import {getKnexWrite} from "../../utils/dbUtils/connection";
 import {DbValue, Value} from "../../model/Value";
 import * as Knex from "knex";
+import {stripeLiveLightrailConfig, stripeLiveMerchantConfig} from "../../utils/testUtils/stripeTestUtils";
+import {retrieveCharge} from "../../utils/stripeUtils/stripeTransactions";
 
 
 export function installStripeEventWebhookRoute(router: cassava.Router): void {
@@ -170,10 +172,10 @@ async function getStripeChargeFromEvent(event: stripe.events.IEvent, stripe: Str
         return event.data.object as stripe.charges.ICharge;
     } else if (event.data.object.object === "refund") {
         const refund = event.data.object as stripe.refunds.IRefund;
-        return typeof refund.charge === "string" ? await stripe.charges.retrieve(refund.charge) : refund.charge;
+        return typeof refund.charge === "string" ? await retrieveCharge(refund.charge, stripeLiveLightrailConfig.secretKey, stripeLiveMerchantConfig.stripeUserId) : refund.charge;
     } else if (event.data.object.object === "review") {
         const review = event.data.object as stripe.reviews.IReview;
-        return typeof review.charge === "string" ? await stripe.charges.retrieve(review.charge) : review.charge;
+        return typeof review.charge === "string" ? await retrieveCharge(review.charge, stripeLiveLightrailConfig.secretKey, stripeLiveMerchantConfig.stripeUserId) : review.charge;
     } else {
         throw new Error(`Could not retrieve Stripe charge from event '${event.id}'`);
     }

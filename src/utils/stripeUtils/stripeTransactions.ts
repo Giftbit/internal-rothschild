@@ -113,6 +113,30 @@ export async function updateCharge(chargeId: string, params: Stripe.charges.ICha
     }
 }
 
+export async function retrieveCharge(chargeId: string, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<Stripe.charges.ICharge> {
+    const lightrailStripe = new Stripe(lightrailStripeSecretKey);
+    lightrailStripe.setApiVersion(stripeApiVersion);
+    log.info("Retrieving Stripe charge", chargeId);
+    try {
+        const charge = await lightrailStripe.charges.retrieve(
+            chargeId, {
+                stripe_account: merchantStripeAccountId,
+            }
+        );
+        log.info("retrieved Stripe charge", charge);
+        return charge;
+    } catch (err) {
+        checkForStandardStripeErrors(err);
+        if (err.statusCode === 404) {
+            throw new StripeRestError(404, `Charge not found: ${chargeId}`, null, err);
+        }
+        log.warn("Error retrieving Stripe charge:", err);
+        giftbitRoutes.sentry.sendErrorNotification(err);
+        throw err;
+    }
+
+}
+
 function checkForStandardStripeErrors(err: any): void {
     switch (err.type) {
         case "RateLimitError":
