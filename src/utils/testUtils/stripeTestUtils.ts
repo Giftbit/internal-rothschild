@@ -29,6 +29,7 @@ let stripeChargeStub: sinon.SinonStub = null;
 let stripeCaptureStub: sinon.SinonStub = null;
 let stripeRefundStub: sinon.SinonStub = null;
 let stripeUpdateChargeStub: sinon.SinonStub = null;
+let stripeChargeRetrievalStub: sinon.SinonStub = null;
 
 /**
  * See .env.example for Stripe config details
@@ -265,6 +266,13 @@ export function getStripeChargeStub(options: GetStripeChargeStubOptions): sinon.
     );
 }
 
+export function getStripeChargeRetrievalStub(chargeId: string): sinon.SinonStub {
+    log.debug(`stubbing stripe charge retrieval, chargeId=${chargeId}`);
+    const stub = stripeChargeRetrievalStub || (stripeChargeRetrievalStub = sinonSandbox.stub(stripeTransactions, "retrieveCharge").callThrough());
+
+    return stub.withArgs(sinon.match(chargeId));
+}
+
 export interface GetStripeCaptureStubOptions {
     stripeChargeId: string;
 }
@@ -312,6 +320,17 @@ export function getStripeUpdateChargeStub(options: GetStripeUpdateChargeStubOpti
         sinon.match(stripeStubbedConfig.secretKey),
         sinon.match(stripeStubbedConfig.stripeUserId)
     );
+}
+
+export function stubStripeRetrieveCharge(charge: stripe.charges.ICharge): [stripe.charges.ICharge, sinon.SinonStub] {
+    if (testStripeLive()) {
+        return [null, null];
+    }
+
+    const response = charge;
+    const stub = getStripeChargeRetrievalStub(charge.id).resolves(response);
+
+    return [response, stub];
 }
 
 export function stubCheckoutStripeCharge(request: CheckoutRequest, stripeSourceIx: number, amount: number, additionalProperties?: Partial<stripe.charges.ICharge>): [stripe.charges.ICharge, sinon.SinonStub] {
