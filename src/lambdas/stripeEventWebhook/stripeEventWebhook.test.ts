@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as cryptojs from "crypto-js";
 import * as testUtils from "../../utils/testUtils";
-import {generateId, testAuthedRequest} from "../../utils/testUtils";
+import {generateId, setCodeCryptographySecrets, testAuthedRequest} from "../../utils/testUtils";
 import {installRestRoutes} from "../rest/installRestRoutes";
 import {getAuthBadgeFromStripeCharge, installStripeEventWebhookRoute} from "./installStripeEventWebhookRoute";
 import * as chai from "chai";
@@ -68,6 +68,8 @@ describe("/v2/stripeEventWebhook", () => {
         restRouter.route(testUtils.authRoute);
         installRestRoutes(restRouter);
         installStripeEventWebhookRoute(webhookEventRouter);
+
+        await setCodeCryptographySecrets();
 
         await createCurrency(testUtils.defaultTestUser.auth, currency);
 
@@ -1047,6 +1049,140 @@ describe("/v2/stripeEventWebhook", () => {
         chai.assert.equal(fetchValueResp.statusCode, 200, `fetchValueResp.body=${fetchValueResp.body}`);
         chai.assert.equal(fetchValueResp.body.balance, value.balance);
         chai.assert.equal(fetchValueResp.body.frozen, true);
+    });
+
+    it("does not freeze generic values - attached or unattached", async () => {
+        // Setup: create Value and Checkout transaction
+        const contact: Partial<Contact> = {
+            id: generateId()
+        };
+        const genericValue1: Partial<Value> = {
+            id: generateId(),
+            isGenericCode: true,
+            code: "USEME",
+            currency: currency.code,
+            balance: 100,
+        };
+        const genericValue2: Partial<Value> = {
+            id: generateId(),
+            isGenericCode: true,
+            code: "CONTACTME",
+            currency: currency.code,
+            balance: 200,
+        };
+        const genericValue3: Partial<Value> = {
+            id: generateId(),
+            isGenericCode: true,
+            code: "CONTACTME2",
+            currency: currency.code,
+            balance: 50,
+        };
+        const postContactResp = await testUtils.testAuthedRequest<Contact>(restRouter, "/v2/contacts", "POST", contact);
+        chai.assert.equal(postContactResp.statusCode, 201, `body=${JSON.stringify(postContactResp.body)}`);
+        const postValue1Resp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", genericValue1);
+        chai.assert.equal(postValue1Resp.statusCode, 201, `body=${JSON.stringify(postValue1Resp.body)}`);
+        const postValue2Resp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", genericValue2);
+        chai.assert.equal(postValue2Resp.statusCode, 201, `body=${JSON.stringify(postValue2Resp.body)}`);
+        const attachValue2Resp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+            valueId: genericValue2.id,
+            attachGenericAsNewValue: true
+        });
+        chai.assert.equal(attachValue2Resp.statusCode, 200);
+        const postValue3Resp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", genericValue3);
+        chai.assert.equal(postValue3Resp.statusCode, 201, `body=${JSON.stringify(postValue3Resp.body)}`);
+        const attachValue3Resp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+            valueId: genericValue3.id
+        });
+        chai.assert.equal(attachValue3Resp.statusCode, 200);
+
+        const checkoutRequest: CheckoutRequest = {
+            id: generateId(),
+            currency: currency.code,
+            lineItems: [{
+                type: "product",
+                productId: "pid",
+                unitPrice: 1000
+            }],
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: genericValue1.id
+                },
+                {
+                    rail: "lightrail",
+                    contactId: contact.id
+                },
+                {
+                    rail: "stripe",
+                    source: "tok_visa"
+                }
+            ]
+        };
+        const [stripeCheckoutChargeMock] = stubCheckoutStripeCharge(checkoutRequest, 2, 650);
+
+        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(restRouter, "/v2/transactions/checkout", "POST", checkoutRequest);
+        chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
+        if (!testStripeLive()) { // check that the stubbing is doing what it should
+            chai.assert.equal((checkoutResp.body.steps[3] as StripeTransactionStep).chargeId, stripeCheckoutChargeMock.id, `checkoutResp.body.steps=${JSON.stringify(checkoutResp.body.steps)}`);
+            chai.assert.deepEqual((checkoutResp.body.steps[3] as StripeTransactionStep).charge, stripeCheckoutChargeMock, `body.steps=${JSON.stringify(checkoutResp.body.steps)}`);
+        }
+
+        chai.assert.isNotNull(checkoutResp.body.steps.find(step => step.rail === "stripe"));
+        const stripeStep = <StripeTransactionStep>checkoutResp.body.steps.find(step => step.rail === "stripe");
+
+        // Create the refund in Stripe with 'reason: fraudulent' that will trigger a webhook event being posted
+        let refundedCharge: stripe.charges.ICharge;
+        if (testStripeLive()) {
+            const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
+
+            // if live testing, need to make sure the charge actually exists in Stripe
+            const chargeFromStripe = await lightrailStripe.charges.retrieve(stripeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+            chai.assert.isNotNull(chargeFromStripe);
+
+            refundedCharge = await lightrailStripe.charges.refund(stripeStep.chargeId, {reason: "fraudulent"}, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+
+        } else {
+            stubStripeRefund(stripeStep.charge as stripe.charges.ICharge, {reason: "fraudulent"});
+            refundedCharge = {
+                ...stripeCheckoutChargeMock,
+                refunded: true,
+                refunds: {
+                    object: "list",
+                    data: [
+                        generateStripeRefundResponse({
+                            amount: stripeCheckoutChargeMock.amount,
+                            currency: stripeCheckoutChargeMock.currency,
+                            reason: "fraudulent",
+                            stripeChargeId: stripeCheckoutChargeMock.id
+                        })
+                    ],
+                    has_more: false,
+                    url: null
+                }
+            };
+        }
+
+        // Create & post webhook event locally
+        const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", refundedCharge));
+        chai.assert.equal(webhookResp.statusCode, 204);
+
+        const fetchTransactionChainResp = await testAuthedRequest<Transaction[]>(restRouter, `/v2/transactions/${checkoutRequest.id}/chain`, "GET");
+        chai.assert.equal(fetchTransactionChainResp.statusCode, 200, `fetchTransactionChainResp.body=${fetchTransactionChainResp.body}`);
+        chai.assert.equal(fetchTransactionChainResp.body.length, 2, `fetchTransactionChainResp.body=${fetchTransactionChainResp.body}`);
+        chai.assert.equal(fetchTransactionChainResp.body[1].transactionType, "reverse", `transaction types in chain: ${JSON.stringify(fetchTransactionChainResp.body.map(txn => txn.transactionType))}`);
+
+        const fetchValue1Resp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/values/${genericValue1.id}`, "GET");
+        chai.assert.equal(fetchValue1Resp.statusCode, 200, `fetchValueResp.body=${fetchValue1Resp.body}`);
+        chai.assert.equal(fetchValue1Resp.body.balance, genericValue1.balance, `fetchValue1Resp.body=${JSON.stringify(fetchValue1Resp.body)}`);
+        chai.assert.equal(fetchValue1Resp.body.frozen, false, `fetchValue1Resp.body.frozen=${fetchValue1Resp.body.frozen}`);
+        const fetchValue2Resp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/values/${genericValue2.id}`, "GET");
+        chai.assert.equal(fetchValue2Resp.statusCode, 200, `fetchValueResp.body=${fetchValue2Resp.body}`);
+        chai.assert.equal(fetchValue2Resp.body.balance, genericValue2.balance);
+        chai.assert.equal(fetchValue2Resp.body.frozen, false, `fetchValue2Resp.body.frozen=${fetchValue2Resp.body.frozen}`);
+        const fetchValue3Resp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/values/${genericValue3.id}`, "GET");
+        chai.assert.equal(fetchValue3Resp.statusCode, 200, `fetchValueResp.body=${fetchValue3Resp.body}`);
+        chai.assert.equal(fetchValue3Resp.body.balance, genericValue3.balance);
+        chai.assert.equal(fetchValue3Resp.body.frozen, false, `fetchValue2Resp.body.frozen=${fetchValue3Resp.body.frozen}`);
     });
 
     it("builds auth badge with appropriate scopes", async () => {
