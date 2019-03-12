@@ -3,7 +3,7 @@ import * as cryptojs from "crypto-js";
 import * as testUtils from "../../utils/testUtils";
 import {generateId, testAuthedRequest} from "../../utils/testUtils";
 import {installRestRoutes} from "../rest/installRestRoutes";
-import {installStripeEventWebhookRoute} from "./installStripeEventWebhookRoute";
+import {getAuthBadgeFromStripeCharge, installStripeEventWebhookRoute} from "./installStripeEventWebhookRoute";
 import * as chai from "chai";
 import {
     generateStripeChargeResponse,
@@ -1048,6 +1048,73 @@ describe("/v2/stripeEventWebhook", () => {
         chai.assert.equal(fetchValueResp.body.balance, value.balance);
         chai.assert.equal(fetchValueResp.body.frozen, true);
     });
+
+    it("builds auth badge with appropriate scopes", async () => {
+        const charge = generateStripeChargeResponse({
+            transactionId: generateId(),
+            amount: 1234,
+            currency: currency.code,
+            pending: false,
+        });
+        const auth = getAuthBadgeFromStripeCharge(stripeLiveMerchantConfig.stripeUserId, charge);
+        const jwt = auth.sign("secret");
+
+        // Setup: create Value (jwt created by webhook handling code won't have "values:create")
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: currency.code,
+            balance: 1,
+            frozen: true
+        };
+        const createValueResp = await testAuthedRequest(restRouter, "/v2/values", "POST", value);
+        chai.assert.equal(createValueResp.statusCode, 201, `createValueResp.body=${JSON.stringify(createValueResp.body)}`);
+
+        // Test scopes that will be on new jwt
+        const getValuesResp = await testRequest(jwt, restRouter, "/v2/values", "GET");
+        chai.assert.equal(getValuesResp.statusCode, 200, `getValuesResp.body=${JSON.stringify(getValuesResp.body)}`);
+        chai.assert.isObject(getValuesResp.body.find(val => val.id === value.id), `getValuesResp.body=${JSON.stringify(getValuesResp.body)}`);
+
+        const updateValueResp = await testRequest(jwt, restRouter, `/v2/values/${value.id}`, "PATCH", {
+            frozen: false
+        });
+        chai.assert.equal(updateValueResp.statusCode, 200, `updateValueResp.body=${JSON.stringify(updateValueResp.body)}`);
+
+        const postValueResp = await testRequest(jwt, restRouter, "/v2/values", "POST", {
+            id: generateId(),
+            currency: currency.code,
+            balance: 1
+        });
+        chai.assert.equal(postValueResp.statusCode, 403, `postValueResp.body=${JSON.stringify(postValueResp.body)}`);
+
+        const getTransactionsResp = await testRequest(jwt, restRouter, "/v2/transactions", "GET");
+        chai.assert.equal(getTransactionsResp.statusCode, 200, `getTransactionsResp.body=${JSON.stringify(getTransactionsResp.body)}`);
+
+        const postTransactionsResp = await testRequest(jwt, restRouter, "/v2/transactions/checkout", "POST", {
+            id: generateId(),
+            currency: currency.code,
+            lineItems: [{
+                type: "product",
+                productId: "pid",
+                unitPrice: 1
+            }],
+            sources: [{rail: "lightrail", valueId: value.id}]
+        });
+        chai.assert.equal(postTransactionsResp.statusCode, 201, `postTransactionsResp.body=${JSON.stringify(postTransactionsResp.body)}`);
+
+        const getContactsResp = await testRequest(jwt, restRouter, "/v2/contacts", "GET");
+        chai.assert.equal(getContactsResp.statusCode, 200);
+        const postContactResp = await testRequest(jwt, restRouter, "/v2/contacts", "POST", {
+            id: generateId(),
+        });
+        chai.assert.equal(postContactResp.statusCode, 403, `${JSON.stringify(postContactResp.body)}`);
+
+        const getProgramsResp = await testRequest(jwt, restRouter, "/v2/programs", "GET");
+        chai.assert.equal(getProgramsResp.statusCode, 403, `getProgramsResp.body=${JSON.stringify(getProgramsResp.body)}`);
+        const postProgramsResp = await testRequest(jwt, restRouter, "/v2/programs", "POST", {
+            id: generateId()
+        });
+        chai.assert.equal(postProgramsResp.statusCode, 403, `postProgramsResp.body=${JSON.stringify(postProgramsResp.body)}`);
+    });
 });
 
 
@@ -1089,5 +1156,18 @@ function generateConnectWebhookEventMock(eventType: string, eventObject: stripe.
         created: Date.now(),
         livemode: false,
         pending_webhooks: 1
+    };
+}
+
+async function testRequest(jwtAuth: string, router: cassava.Router, url: string, method: string, body?: any) {
+    const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent(url, method, {
+        headers: {Authorization: `Bearer ${jwtAuth}`},
+        body: body && JSON.stringify(body) || undefined
+    }));
+
+    return {
+        statusCode: resp.statusCode,
+        headers: resp.headers,
+        body: resp.body && JSON.parse(resp.body) || undefined
     };
 }
