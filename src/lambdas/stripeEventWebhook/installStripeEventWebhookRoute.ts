@@ -19,6 +19,7 @@ import {DbValue, Value} from "../../model/Value";
 import * as Knex from "knex";
 import {stripeLiveLightrailConfig, stripeLiveMerchantConfig} from "../../utils/testUtils/stripeTestUtils";
 import {retrieveCharge} from "../../utils/stripeUtils/stripeTransactions";
+import {generateId} from "../../utils/testUtils";
 
 
 export function installStripeEventWebhookRoute(router: cassava.Router): void {
@@ -245,14 +246,17 @@ async function freezeAffectedValues(auth: giftbitRoutes.jwtauth.AuthorizationBad
  * @param stripeAccountId
  * @param stripeCharge
  */
-function getAuthBadgeFromStripeCharge(stripeAccountId: string, stripeCharge: stripe.charges.ICharge): giftbitRoutes.jwtauth.AuthorizationBadge {
+export function getAuthBadgeFromStripeCharge(stripeAccountId: string, stripeCharge: stripe.charges.ICharge): giftbitRoutes.jwtauth.AuthorizationBadge {
     const lightrailUserId = getLightrailUserIdFromStripeCharge(stripeAccountId, stripeCharge);
 
     return new AuthorizationBadge({
         g: {
             gui: lightrailUserId,
             tmi: lightrailUserId,
-        }
+        },
+        iat: Date.now(),
+        jti: `webhook-badge-${generateId()}`,
+        scopes: ["lightrailV2:transactions", "lightrailV2:values:list", "lightrailV2:values:update", "lightrailV2:contacts:list"] // transactions:reverse, transactions:void
     });
 }
 
