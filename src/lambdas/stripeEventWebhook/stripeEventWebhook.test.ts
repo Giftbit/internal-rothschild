@@ -39,7 +39,7 @@ describe("/v2/stripeEventWebhook", () => {
     };
     const value1: Partial<Value> = {
         id: generateId(),
-        currency: "CAD",
+        currency: currency.code,
         balance: 50 // deliberately low so Stripe will always be charged
     };
 
@@ -127,7 +127,7 @@ describe("/v2/stripeEventWebhook", () => {
         // Setup: create Value and Checkout transaction
         const value: Partial<Value> = {
             id: generateId(),
-            currency: "CAD",
+            currency: currency.code,
             balance: 50
         };
         const postValueResp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", value);
@@ -328,7 +328,7 @@ describe("/v2/stripeEventWebhook", () => {
             // Setup: create Value and Checkout transaction
             const value: Partial<Value> = {
                 id: generateId(),
-                currency: "CAD",
+                currency: currency.code,
                 balance: 50
             };
             const postValueResp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", value);
@@ -432,7 +432,7 @@ describe("/v2/stripeEventWebhook", () => {
             // Setup: create Value and Checkout transaction
             const value: Partial<Value> = {
                 id: generateId(),
-                currency: "CAD",
+                currency: currency.code,
                 balance: 50
             };
             const postValueResp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", value);
@@ -545,7 +545,7 @@ describe("/v2/stripeEventWebhook", () => {
             // Setup: create Value and Checkout transaction
             const value: Partial<Value> = {
                 id: generateId(),
-                currency: "CAD",
+                currency: currency.code,
                 balance: 50
             };
             const postValueResp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", value);
@@ -651,7 +651,7 @@ describe("/v2/stripeEventWebhook", () => {
             // Setup: create Value and Checkout transaction
             const value: Partial<Value> = {
                 id: generateId(),
-                currency: "CAD",
+                currency: currency.code,
                 balance: 50
             };
             const postValueResp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", value);
@@ -744,7 +744,7 @@ describe("/v2/stripeEventWebhook", () => {
             // Setup: create Value and Checkout transaction
             const value: Partial<Value> = {
                 id: generateId(),
-                currency: "CAD",
+                currency: currency.code,
                 balance: 50
             };
             const postValueResp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", value);
@@ -852,7 +852,7 @@ describe("/v2/stripeEventWebhook", () => {
         // Setup: create Value and Checkout transaction
         const value: Partial<Value> = {
             id: generateId(),
-            currency: "CAD",
+            currency: currency.code,
             balance: 50
         };
         const postValueResp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", value);
