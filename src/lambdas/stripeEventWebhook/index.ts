@@ -4,6 +4,7 @@ import * as logPrefix from "loglevel-plugin-prefix";
 import {installStripeEventWebhookRoute} from "./installStripeEventWebhookRoute";
 import {initializeLightrailStripeConfig} from "../../utils/stripeUtils/stripeAccess";
 import {StripeConfig} from "../../utils/stripeUtils/StripeConfig";
+import {CodeCryptographySecrets, initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils";
 import log = require("loglevel");
 
 // Wrapping console.log instead of binding (default behaviour for loglevel)
@@ -34,6 +35,10 @@ router.route(new cassava.routes.LoggingRoute({
 router.route(new giftbitRoutes.MetricsRoute({
     logFunction: log.info
 }));
+
+initializeCodeCryptographySecrets(
+    giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<CodeCryptographySecrets>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY")
+);
 
 initializeLightrailStripeConfig(
     giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE")

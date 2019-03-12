@@ -213,6 +213,7 @@ async function freezeAffectedValues(auth: giftbitRoutes.jwtauth.AuthorizationBad
                 builder.whereIn("id", valueIdentifiers.valueIds)
                     .orWhereIn("contactId", valueIdentifiers.contactIds);
             })
+            .andWhereNot("isGenericCode", true)
             .forUpdate();
 
         if (selectValueRes.length === 0) {
