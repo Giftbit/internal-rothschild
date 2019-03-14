@@ -15,7 +15,6 @@ import {
 } from "../rest/transactions/transactions";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
 import {DbValue, Value} from "../../model/Value";
-import * as Knex from "knex";
 import {stripeLiveLightrailConfig, stripeLiveMerchantConfig} from "../../utils/testUtils/stripeTestUtils";
 import {retrieveCharge} from "../../utils/stripeUtils/stripeTransactions";
 import {generateId} from "../../utils/testUtils";
@@ -67,7 +66,7 @@ async function handleRefundForFraud(event: Stripe.events.IEvent & { account: str
 
     const stripeCharge: Stripe.charges.ICharge = await getStripeChargeFromEvent(event, stripe);
 
-    const auth: giftbitRoutes.jwtauth.AuthorizationBadge = getAuthBadgeFromStripeCharge(stripeAccountId, stripeCharge);
+    const auth = getAuthBadgeFromStripeCharge(stripeAccountId, stripeCharge);
 
     const lrTransaction: Transaction = await getLightrailTransactionFromStripeCharge(auth, stripeCharge);
 
@@ -136,17 +135,16 @@ async function handleRefundForFraud(event: Stripe.events.IEvent & { account: str
 
     const reverseOrVoidId = reverseTransaction && reverseTransaction.id || voidTransaction && voidTransaction.id || "";
 
-    log.info(`Freezing implicated Values: '${JSON.stringify(affectedValueIds)}' and all Values attached to implicated Contacts: '${JSON.stringify(affectedContactIds)}'`);
+    log.info(`Freezing implicated Values: '${affectedValueIds}' and all Values attached to implicated Contacts: '${affectedContactIds}'`);
 
-    const knex = await getKnexWrite();
     try {
-        await freezeAffectedValues(auth, knex, {
+        await freezeAffectedValues(auth, {
             valueIds: affectedValueIds,
             contactIds: affectedContactIds
         }, lrTransaction.id, constructValueFreezeMessage(lrTransaction.id, reverseOrVoidId, stripeCharge.id, event));
         log.info("Implicated Values including all Values attached to implicated Contacts frozen.");
     } catch (e) {
-        log.error(`Failed to freeze Values '${JSON.stringify(affectedValueIds)}' and/or Values attached to Contacts '${JSON.stringify(affectedContactIds)}'`);
+        log.error(`Failed to freeze Values '${affectedValueIds}' and/or Values attached to Contacts '${affectedContactIds}'`);
         log.error(e);
         // todo soft alert on failure
     }
@@ -200,7 +198,8 @@ async function getLightrailTransactionFromStripeCharge(auth: giftbitRoutes.jwtau
     return lrTransaction;
 }
 
-async function freezeAffectedValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, knex: Knex, valueIdentifiers: { valueIds?: string[], contactIds?: string[] }, lightrailTransactionId: string, message: string): Promise<void> {
+async function freezeAffectedValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueIdentifiers: { valueIds?: string[], contactIds?: string[] }, lightrailTransactionId: string, message: string): Promise<void> {
+    const knex = await getKnexWrite();
     await knex.transaction(async trx => {
         // Get the master version of the Values and lock them.
         const selectValueRes: DbValue[] = await trx("Values").select()
@@ -215,7 +214,7 @@ async function freezeAffectedValues(auth: giftbitRoutes.jwtauth.AuthorizationBad
             .forUpdate();
 
         if (selectValueRes.length === 0) {
-            throw new giftbitRoutes.GiftbitRestError(404, `Values to freeze not found for Transaction '${lightrailTransactionId}' with valueIdentifiers '${JSON.stringify(valueIdentifiers)}'.`, "ValueNotFound");
+            throw new giftbitRoutes.GiftbitRestError(404, `Values to freeze not found for Transaction '${lightrailTransactionId}' with valueIdentifiers '${valueIdentifiers}'.`, "ValueNotFound");
         }
 
         const existingValues: Value[] = await Promise.all(selectValueRes.map(async dbValue => await DbValue.toValue(dbValue)));
