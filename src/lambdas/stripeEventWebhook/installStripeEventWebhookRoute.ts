@@ -138,7 +138,7 @@ async function handleRefundForFraud(event: Stripe.events.IEvent & { account: str
     log.info(`Freezing implicated Values: '${affectedValueIds}' and all Values attached to implicated Contacts: '${affectedContactIds}'`);
 
     try {
-        await freezeAffectedValues(auth, {
+        await freezeValuesAffectedByFraud(auth, {
             valueIds: affectedValueIds,
             contactIds: affectedContactIds
         }, lrTransaction.id, constructValueFreezeMessage(lrTransaction.id, reverseOrVoidId, stripeCharge.id, event));
@@ -198,7 +198,7 @@ async function getLightrailTransactionFromStripeCharge(auth: giftbitRoutes.jwtau
     return lrTransaction;
 }
 
-async function freezeAffectedValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueIdentifiers: { valueIds?: string[], contactIds?: string[] }, lightrailTransactionId: string, message: string): Promise<void> {
+async function freezeValuesAffectedByFraud(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueIdentifiers: { valueIds?: string[], contactIds?: string[] }, lightrailTransactionId: string, message: string): Promise<void> {
     const knex = await getKnexWrite();
     await knex.transaction(async trx => {
         // Get the master version of the Values and lock them.
