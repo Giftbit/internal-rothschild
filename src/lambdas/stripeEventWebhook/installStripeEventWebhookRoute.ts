@@ -1,6 +1,5 @@
 import log = require("loglevel");
 import Stripe = require("stripe");
-import * as stripe from "stripe";
 import * as cassava from "cassava";
 import {getLightrailStripeModeConfig} from "../../utils/stripeUtils/stripeAccess";
 import {StripeModeConfig} from "../../utils/stripeUtils/StripeConfig";
@@ -60,14 +59,14 @@ export function installStripeEventWebhookRoute(router: cassava.Router): void {
         });
 }
 
-async function handleRefundForFraud(event: stripe.events.IEvent & { account: string }, stripe: Stripe): Promise<void> {
+async function handleRefundForFraud(event: Stripe.events.IEvent & { account: string }, stripe: Stripe): Promise<void> {
     if (!checkEventForFraudAction(event)) {
         return;
     }
 
     const stripeAccountId: string = event.account;
 
-    const stripeCharge: stripe.charges.ICharge = await getStripeChargeFromEvent(event, stripe);
+    const stripeCharge: Stripe.charges.ICharge = await getStripeChargeFromEvent(event, stripe);
 
     const auth: giftbitRoutes.jwtauth.AuthorizationBadge = getAuthBadgeFromStripeCharge(stripeAccountId, stripeCharge);
 
@@ -154,35 +153,35 @@ async function handleRefundForFraud(event: stripe.events.IEvent & { account: str
     }
 }
 
-function checkEventForFraudAction(event: stripe.events.IEvent & { account?: string }): boolean {
+function checkEventForFraudAction(event: Stripe.events.IEvent & { account?: string }): boolean {
     if (event.type === "charge.refunded") {
         // Stripe supports partial refunds; if even one is marked with 'reason: fraudulent' we'll treat the Transaction as fraudulent
-        return ((event.data.object as stripe.charges.ICharge).refunds.data.find(refund => refund.reason === "fraudulent") !== undefined);
+        return ((event.data.object as Stripe.charges.ICharge).refunds.data.find(refund => refund.reason === "fraudulent") !== undefined);
     } else if (event.type === "charge.refund.updated") {
-        return ((event.data.object as stripe.refunds.IRefund).reason === "fraudulent");
+        return ((event.data.object as Stripe.refunds.IRefund).reason === "fraudulent");
     } else if (event.type === "review.closed") {
-        return ((event.data.object as stripe.reviews.IReview).reason === "refunded_as_fraud");
+        return ((event.data.object as Stripe.reviews.IReview).reason === "refunded_as_fraud");
     } else {
         log.info(`This event is not one of ['charge.refunded', 'charge.refund.updated', 'review.closed']: taking no action. Event ID: '${event.id}' with Stripe connected account ID: '${event.account}'`);
         return false;
     }
 }
 
-async function getStripeChargeFromEvent(event: stripe.events.IEvent, stripe: Stripe): Promise<stripe.charges.ICharge> {
+async function getStripeChargeFromEvent(event: Stripe.events.IEvent, stripe: Stripe): Promise<Stripe.charges.ICharge> {
     if (event.data.object.object === "charge") {
-        return event.data.object as stripe.charges.ICharge;
+        return event.data.object as Stripe.charges.ICharge;
     } else if (event.data.object.object === "refund") {
-        const refund = event.data.object as stripe.refunds.IRefund;
+        const refund = event.data.object as Stripe.refunds.IRefund;
         return typeof refund.charge === "string" ? await retrieveCharge(refund.charge, stripeLiveLightrailConfig.secretKey, stripeLiveMerchantConfig.stripeUserId) : refund.charge;
     } else if (event.data.object.object === "review") {
-        const review = event.data.object as stripe.reviews.IReview;
+        const review = event.data.object as Stripe.reviews.IReview;
         return typeof review.charge === "string" ? await retrieveCharge(review.charge, stripeLiveLightrailConfig.secretKey, stripeLiveMerchantConfig.stripeUserId) : review.charge;
     } else {
         throw new Error(`Could not retrieve Stripe charge from event '${event.id}'`);
     }
 }
 
-async function getLightrailTransactionFromStripeCharge(auth: giftbitRoutes.jwtauth.AuthorizationBadge, stripeCharge: stripe.charges.ICharge): Promise<Transaction> {
+async function getLightrailTransactionFromStripeCharge(auth: giftbitRoutes.jwtauth.AuthorizationBadge, stripeCharge: Stripe.charges.ICharge): Promise<Transaction> {
     const presumedTransactionId = stripeCharge.metadata["lightrailTransactionId"];
     const lrTransaction: Transaction = await getTransaction(auth, presumedTransactionId);
 
@@ -247,7 +246,7 @@ async function freezeAffectedValues(auth: giftbitRoutes.jwtauth.AuthorizationBad
  * @param stripeAccountId
  * @param stripeCharge
  */
-export function getAuthBadgeFromStripeCharge(stripeAccountId: string, stripeCharge: stripe.charges.ICharge): giftbitRoutes.jwtauth.AuthorizationBadge {
+export function getAuthBadgeFromStripeCharge(stripeAccountId: string, stripeCharge: Stripe.charges.ICharge): giftbitRoutes.jwtauth.AuthorizationBadge {
     const lightrailUserId = getLightrailUserIdFromStripeCharge(stripeAccountId, stripeCharge);
 
     return new AuthorizationBadge({
@@ -268,7 +267,7 @@ export function getAuthBadgeFromStripeCharge(stripeAccountId: string, stripeChar
  * @param stripeAccountId
  * @param stripeCharge
  */
-function getLightrailUserIdFromStripeCharge(stripeAccountId: string, stripeCharge: stripe.charges.ICharge): string {
+function getLightrailUserIdFromStripeCharge(stripeAccountId: string, stripeCharge: Stripe.charges.ICharge): string {
     if (stripeCharge.metadata["lightrailUserId"] && stripeCharge.metadata["lightrailUserId"].length > 0) {
         return stripeCharge.metadata["lightrailUserId"];
     } else {
@@ -276,6 +275,6 @@ function getLightrailUserIdFromStripeCharge(stripeAccountId: string, stripeCharg
     }
 }
 
-function constructValueFreezeMessage(lightrailTransactionId: string, lightrailReverseId: string, stripeChargeId: string, stripeEvent: stripe.events.IEvent & { account: string }): string {
+function constructValueFreezeMessage(lightrailTransactionId: string, lightrailReverseId: string, stripeChargeId: string, stripeEvent: Stripe.events.IEvent & { account: string }): string {
     return `Value frozen by Lightrail because it or an attached Contact was associated with a Stripe charge that was refunded as fraudulent. Lightrail transactionId '${lightrailTransactionId}' with reverse transaction '${lightrailReverseId}', Stripe chargeId: '${stripeChargeId}', Stripe eventId: '${stripeEvent.id}', Stripe accountId: '${stripeEvent.account}'`;
 }
