@@ -1180,6 +1180,13 @@ describe("/v2/stripeEventWebhook", () => {
             currency: currency.code,
             balance: 200,
         };
+        const genericValue3: Partial<Value> = {
+            id: generateId(),
+            isGenericCode: true,
+            code: "CONTACTME2",
+            currency: currency.code,
+            balance: 50,
+        };
         const postContactResp = await testUtils.testAuthedRequest<Contact>(restRouter, "/v2/contacts", "POST", contact);
         chai.assert.equal(postContactResp.statusCode, 201, `body=${JSON.stringify(postContactResp.body)}`);
         const postValue1Resp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", genericValue1);
@@ -1191,6 +1198,12 @@ describe("/v2/stripeEventWebhook", () => {
             attachGenericAsNewValue: true
         });
         chai.assert.equal(attachValue2Resp.statusCode, 200);
+        const postValue3Resp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", genericValue3);
+        chai.assert.equal(postValue3Resp.statusCode, 201, `body=${JSON.stringify(postValue3Resp.body)}`);
+        const attachValue3Resp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+            valueId: genericValue3.id
+        });
+        chai.assert.equal(attachValue3Resp.statusCode, 200);
 
         const checkoutRequest: CheckoutRequest = {
             id: generateId(),
@@ -1215,13 +1228,13 @@ describe("/v2/stripeEventWebhook", () => {
                 }
             ]
         };
-        const [stripeCheckoutChargeMock] = stubCheckoutStripeCharge(checkoutRequest, 2, 700);
+        const [stripeCheckoutChargeMock] = stubCheckoutStripeCharge(checkoutRequest, 2, 650);
 
         const checkoutResp = await testUtils.testAuthedRequest<Transaction>(restRouter, "/v2/transactions/checkout", "POST", checkoutRequest);
         chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
         if (!testStripeLive()) { // check that the stubbing is doing what it should
-            chai.assert.equal((checkoutResp.body.steps[2] as StripeTransactionStep).chargeId, stripeCheckoutChargeMock.id, `checkoutResp.body.steps=${JSON.stringify(checkoutResp.body.steps)}`);
-            chai.assert.deepEqual((checkoutResp.body.steps[2] as StripeTransactionStep).charge, stripeCheckoutChargeMock, `body.steps=${JSON.stringify(checkoutResp.body.steps)}`);
+            chai.assert.equal((checkoutResp.body.steps[3] as StripeTransactionStep).chargeId, stripeCheckoutChargeMock.id, `checkoutResp.body.steps=${JSON.stringify(checkoutResp.body.steps)}`);
+            chai.assert.deepEqual((checkoutResp.body.steps[3] as StripeTransactionStep).charge, stripeCheckoutChargeMock, `body.steps=${JSON.stringify(checkoutResp.body.steps)}`);
         }
 
         chai.assert.isNotNull(checkoutResp.body.steps.find(step => step.rail === "stripe"));
@@ -1276,6 +1289,10 @@ describe("/v2/stripeEventWebhook", () => {
         chai.assert.equal(fetchValue2Resp.statusCode, 200, `fetchValueResp.body=${fetchValue2Resp.body}`);
         chai.assert.equal(fetchValue2Resp.body.balance, genericValue2.balance);
         chai.assert.equal(fetchValue2Resp.body.frozen, false, `fetchValue2Resp.body.frozen=${fetchValue2Resp.body.frozen}`);
+        const fetchValue3Resp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/values/${genericValue3.id}`, "GET");
+        chai.assert.equal(fetchValue3Resp.statusCode, 200, `fetchValueResp.body=${fetchValue3Resp.body}`);
+        chai.assert.equal(fetchValue3Resp.body.balance, genericValue3.balance);
+        chai.assert.equal(fetchValue3Resp.body.frozen, false, `fetchValue2Resp.body.frozen=${fetchValue3Resp.body.frozen}`);
     });
 
     it("builds auth badge with appropriate scopes", async () => {
