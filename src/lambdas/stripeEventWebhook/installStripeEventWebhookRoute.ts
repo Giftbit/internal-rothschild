@@ -12,7 +12,7 @@ import {DbValue, Value} from "../../model/Value";
 import {stripeLiveLightrailConfig, stripeLiveMerchantConfig} from "../../utils/testUtils/stripeTestUtils";
 import {retrieveCharge} from "../../utils/stripeUtils/stripeTransactions";
 import {generateCode} from "../../utils/codeGenerator";
-
+import {MetricsLogger} from "../../utils/metricsLogger";
 
 export function installStripeEventWebhookRoute(router: cassava.Router): void {
     // These paths are configured in our Stripe account and not publicly known
@@ -60,16 +60,21 @@ async function handleConnectedAccountEvent(event: Stripe.events.IEvent & { accou
         const stripeCharge: Stripe.charges.ICharge = await getStripeChargeFromEvent(event, stripe);
         const auth = getAuthBadgeFromStripeCharge(stripeAccountId, stripeCharge, event);
 
+        MetricsLogger.stripeWebhookFraudEvent(event, auth);
+
         const presumedLightrailTransactionId = stripeCharge.metadata["lightrailTransactionId"];
         let lightrailTransaction: Transaction = await getLightrailTransactionFromStripeCharge(auth, stripeCharge, presumedLightrailTransactionId);
         let handlingTransaction: Transaction;
         try {
             handlingTransaction = await reverseOrVoidFraudulentTransaction(auth, (event as any), stripeCharge);
         } catch (e) {
-            // todo metrics on failure
             giftbitRoutes.sentry.sendErrorNotification(e);
         }
-        await handleValuesAffectedByFraudulentTransaction(auth, event, stripeCharge, lightrailTransaction, handlingTransaction);
+        try {
+            await handleValuesAffectedByFraudulentTransaction(auth, event, stripeCharge, lightrailTransaction, handlingTransaction);
+        } catch (e) {
+            giftbitRoutes.sentry.sendErrorNotification(e);
+        }
     } else {
         log.info(`Received Connected Account event of type '${event.type}', eventId '${event.id}', accountId '${event.account}'. Exiting without handling.`);
         return;
@@ -197,8 +202,8 @@ async function handleValuesAffectedByFraudulentTransaction(auth: giftbitRoutes.j
         log.info("Implicated Values including all Values attached to implicated Contacts frozen.");
     } catch (e) {
         log.error(`Failed to freeze Values '${affectedValueIds}' and/or Values attached to Contacts '${affectedContactIds}'`);
-        log.error(e);
-        // todo soft alert on failure: metrics & sentry
+        MetricsLogger.stripeWebhookHandlerError(event, auth);
+        giftbitRoutes.sentry.sendErrorNotification(e);
     }
 }
 

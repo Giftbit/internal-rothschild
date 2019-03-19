@@ -35,7 +35,7 @@ import {generateConnectWebhookEventMock, testSignedWebhookRequest} from "../../u
  *      Note, if we ever start returning responses before handling the event we might need to address timing here.
  *      See https://stripe.com/docs/webhooks#best-practices
  */
-describe.only("/v2/stripeEventWebhook", () => {
+describe("/v2/stripeEventWebhook", () => {
     const restRouter = new cassava.Router();
     const webhookEventRouter = new cassava.Router();
 
