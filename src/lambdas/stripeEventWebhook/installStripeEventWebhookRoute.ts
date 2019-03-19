@@ -58,7 +58,7 @@ async function handleConnectedAccountEvent(event: Stripe.events.IEvent & { accou
 
         const stripeAccountId: string = event.account;
         const stripeCharge: Stripe.charges.ICharge = await getStripeChargeFromEvent(event, stripe);
-        const auth = getAuthBadgeFromStripeCharge(stripeAccountId, stripeCharge);
+        const auth = getAuthBadgeFromStripeCharge(stripeAccountId, stripeCharge, event);
 
         let lightrailTransaction: Transaction;
         let handlingTransaction: Transaction;
@@ -243,8 +243,8 @@ async function freezeValuesAffectedByFraud(auth: giftbitRoutes.jwtauth.Authoriza
  * @param stripeAccountId
  * @param stripeCharge
  */
-export function getAuthBadgeFromStripeCharge(stripeAccountId: string, stripeCharge: Stripe.charges.ICharge): giftbitRoutes.jwtauth.AuthorizationBadge {
-    const lightrailUserId = getLightrailUserIdFromStripeCharge(stripeAccountId, stripeCharge);
+export function getAuthBadgeFromStripeCharge(stripeAccountId: string, stripeCharge: Stripe.charges.ICharge, event: Stripe.events.IEvent & { account: string }): giftbitRoutes.jwtauth.AuthorizationBadge {
+    let lightrailUserId = getLightrailUserIdFromStripeCharge(stripeAccountId, stripeCharge, !event.livemode);
 
     return new AuthorizationBadge({
         g: {
@@ -263,8 +263,9 @@ export function getAuthBadgeFromStripeCharge(stripeAccountId: string, stripeChar
  * from Stripe accountId to Lightrail userId. When that happens, we won't need to pass the charge object in.
  * @param stripeAccountId
  * @param stripeCharge
+ * @param testMode - currently not actually required (lightrailUserId written to charge metadata will contain "-TEST" already) but will be for non-workaround method
  */
-function getLightrailUserIdFromStripeCharge(stripeAccountId: string, stripeCharge: Stripe.charges.ICharge): string {
+function getLightrailUserIdFromStripeCharge(stripeAccountId: string, stripeCharge: Stripe.charges.ICharge, testMode: boolean): string {
     if (stripeCharge.metadata["lightrailUserId"] && stripeCharge.metadata["lightrailUserId"].length > 0) {
         return stripeCharge.metadata["lightrailUserId"];
     } else {
