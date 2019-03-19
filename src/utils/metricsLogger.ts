@@ -19,6 +19,20 @@ export namespace MetricsLogger {
     export function stripeError(error: Stripe.IStripeError, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
         logMetric(1, MetricsType.Histogram, `rothschild.transactions.stripe.errors`, {stripeErrorType: error.type}, auth);
     }
+
+    export function stripeWebhookHandlerError(event: Stripe.events.IEvent & { account?: string }, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
+        logMetric(1, MetricsType.Histogram, `rothschild.stripeEventWebhook.error`, {
+            stripeEventType: event.type,
+            stripeAccountId: event.account,
+        }, auth);
+    }
+
+    export function stripeWebhookFraudEvent(event: Stripe.events.IEvent & { account?: string }, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
+        logMetric(1, MetricsType.Histogram, `rothschild.stripeEventWebhook.fraud`, {
+            stripeEventType: event.type,
+            stripeAccountId: event.account
+        }, auth);
+    }
 }
 
 export enum ValueAttachmentTypes {

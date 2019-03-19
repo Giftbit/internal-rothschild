@@ -23,7 +23,7 @@ import {CheckoutRequest} from "../../model/TransactionRequest";
 import * as stripe from "stripe";
 import {generateConnectWebhookEventMock, testSignedWebhookRequest} from "../../utils/testUtils/webhookHandlerTestUtils";
 
-describe.only("/v2/stripeEventWebhook", () => {
+describe("/v2/stripeEventWebhook", () => {
     const restRouter = new cassava.Router();
     const webhookEventRouter = new cassava.Router();
 
