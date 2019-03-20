@@ -9,7 +9,6 @@ import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
 import {createReverse, createVoid, getTransaction} from "../rest/transactions/transactions";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {DbValue, Value} from "../../model/Value";
-import {stripeLiveLightrailConfig, stripeLiveMerchantConfig} from "../../utils/testUtils/stripeTestUtils";
 import {retrieveCharge} from "../../utils/stripeUtils/stripeTransactions";
 import {generateCode} from "../../utils/codeGenerator";
 import {MetricsLogger} from "../../utils/metricsLogger";
@@ -52,12 +51,11 @@ export function installStripeEventWebhookRoute(router: cassava.Router): void {
 }
 
 async function handleConnectedAccountEvent(event: Stripe.events.IEvent & { account: string }, stripe: Stripe) {
-
     if (checkEventForFraudAction(event)) {
         log.info(`Event ${event.id} indicates that fraud has occurred. Reversing corresponding Lightrail Transaction and freezing associated Values.`);
 
         const stripeAccountId: string = event.account;
-        const stripeCharge: Stripe.charges.ICharge = await getStripeChargeFromEvent(event, stripe);
+        const stripeCharge: Stripe.charges.ICharge = await getStripeChargeFromEvent(event);
         const auth = getAuthBadgeFromStripeCharge(stripeAccountId, stripeCharge, event);
 
         MetricsLogger.stripeWebhookFraudEvent(event, auth);
@@ -153,15 +151,17 @@ function checkEventForFraudAction(event: Stripe.events.IEvent & { account?: stri
     }
 }
 
-async function getStripeChargeFromEvent(event: Stripe.events.IEvent, stripe: Stripe): Promise<Stripe.charges.ICharge> {
+async function getStripeChargeFromEvent(event: Stripe.events.IEvent & { account: string }): Promise<Stripe.charges.ICharge> {
+    const lightrailStripeConfig: StripeModeConfig = await getLightrailStripeModeConfig(!event.livemode);
+
     if (event.data.object.object === "charge") {
         return event.data.object as Stripe.charges.ICharge;
     } else if (event.data.object.object === "refund") {
         const refund = event.data.object as Stripe.refunds.IRefund;
-        return typeof refund.charge === "string" ? await retrieveCharge(refund.charge, stripeLiveLightrailConfig.secretKey, stripeLiveMerchantConfig.stripeUserId) : refund.charge;
+        return typeof refund.charge === "string" ? await retrieveCharge(refund.charge, lightrailStripeConfig.secretKey, event.account) : refund.charge;
     } else if (event.data.object.object === "review") {
         const review = event.data.object as Stripe.reviews.IReview;
-        return typeof review.charge === "string" ? await retrieveCharge(review.charge, stripeLiveLightrailConfig.secretKey, stripeLiveMerchantConfig.stripeUserId) : review.charge;
+        return typeof review.charge === "string" ? await retrieveCharge(review.charge, lightrailStripeConfig.secretKey, event.account) : review.charge;
     } else {
         throw new Error(`Could not retrieve Stripe charge from event '${event.id}'`);
     }
@@ -249,9 +249,7 @@ async function freezeValuesAffectedByFraud(auth: giftbitRoutes.jwtauth.Authoriza
 }
 
 /**
- * This is a workaround method. When we can get the Lightrail userId directly from the Stripe accountId, we won't need to pass in the charge.
- * @param stripeAccountId
- * @param stripeCharge
+ * This is a workaround method until we can get the Lightrail userId directly from the Stripe accountId.
  */
 export function getAuthBadgeFromStripeCharge(stripeAccountId: string, stripeCharge: Stripe.charges.ICharge, event: Stripe.events.IEvent & { account: string }): giftbitRoutes.jwtauth.AuthorizationBadge {
     let lightrailUserId = getLightrailUserIdFromStripeCharge(stripeAccountId, stripeCharge, !event.livemode);
