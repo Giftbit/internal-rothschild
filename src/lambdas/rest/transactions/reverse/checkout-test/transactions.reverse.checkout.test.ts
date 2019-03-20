@@ -15,11 +15,16 @@ import {CheckoutRequest, ReverseRequest} from "../../../../../model/TransactionR
 import {after} from "mocha";
 import {
     setStubsForStripeTests,
+    stripeLiveLightrailConfig,
+    stripeLiveMerchantConfig,
     stubCheckoutStripeCharge,
     stubStripeRefund,
+    testStripeLive,
     unsetStubsForStripeTests
 } from "../../../../../utils/testUtils/stripeTestUtils";
 import chaiExclude = require("chai-exclude");
+import Stripe = require("stripe");
+import log = require("loglevel");
 
 chai.use(chaiExclude);
 
@@ -269,6 +274,137 @@ describe("/v2/transactions/reverse - checkout", () => {
         const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate");
     });
+
+    it("can reverse checkout when Stripe charge has been refunded", async function () {
+        if (!testStripeLive()) {
+            log.warn("This test verifies an interaction with Stripe and doesn't make sense to run with mocks.");
+            this.skip();
+            return;
+        }
+
+        // create value
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 110
+        };
+        const postValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+        chai.assert.equal(postValue.statusCode, 201);
+
+        // create checkout
+        const checkout: CheckoutRequest = {
+            id: generateId(),
+            lineItems: [{
+                unitPrice: 2000,
+            }],
+            currency: "USD",
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: value.id
+                },
+                {
+                    rail: "stripe",
+                    source: "tok_visa"
+                }
+            ]
+        };
+        const [charge] = stubCheckoutStripeCharge(checkout, 1, 1890);
+        const postCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
+        chai.assert.equal(postCheckout.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
+        chai.assert.equal((postCheckout.body.steps[0] as LightrailTransactionStep).balanceChange, -110, `body=${JSON.stringify(postCheckout.body)}`);
+        chai.assert.isDefined(postCheckout.body.steps.find(step => step.rail === "stripe"));
+
+        const stripeStep = <StripeTransactionStep>postCheckout.body.steps.find(step => step.rail === "stripe");
+        chai.assert.isObject(stripeStep.charge);
+
+        // create Stripe refund
+        const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
+
+        const chargeFromStripe = await lightrailStripe.charges.retrieve(stripeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+        chai.assert.isNotNull(chargeFromStripe);
+
+        await lightrailStripe.charges.refund(stripeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+
+        // create reverse
+        const reverse: Partial<ReverseRequest> = {
+            id: generateId()
+        };
+        const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.id}/reverse`, "POST", reverse);
+        chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
+        verifyCheckoutReverseTotals(postCheckout.body, postReverse.body);
+        chai.assert.isDefined(postReverse.body.steps.find(step => step.rail === "lightrail" && step.balanceChange === 110));
+        chai.assert.isDefined(postReverse.body.steps.find(step => step.rail === "stripe"));
+
+        // check value is same as before
+        const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
+        chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate");
+    }).timeout(8000);
+
+    it("can reverse checkout when Stripe charge has been partially refunded", async function () {
+        if (!testStripeLive()) {
+            log.warn("This test verifies an interaction with Stripe around partial refunds which we don't support yet, so it doesn't make sense to run with mocks.");
+            this.skip();
+            return;
+        }
+
+        // create value
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 110
+        };
+        const postValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+        chai.assert.equal(postValue.statusCode, 201);
+
+        // create checkout
+        const checkout: CheckoutRequest = {
+            id: generateId(),
+            lineItems: [{
+                unitPrice: 2000,
+            }],
+            currency: "USD",
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: value.id
+                },
+                {
+                    rail: "stripe",
+                    source: "tok_visa"
+                }
+            ]
+        };
+        const postCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
+        chai.assert.equal(postCheckout.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
+        chai.assert.equal((postCheckout.body.steps[0] as LightrailTransactionStep).balanceChange, -110, `body=${JSON.stringify(postCheckout.body)}`);
+
+        const stripeStep = <StripeTransactionStep>postCheckout.body.steps.find(step => step.rail === "stripe");
+        chai.assert.isObject(stripeStep);
+        chai.assert.isObject(stripeStep.charge);
+
+        // create Stripe refund
+        const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
+
+        const chargeFromStripe = await lightrailStripe.charges.retrieve(stripeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+        chai.assert.isNotNull(chargeFromStripe);
+
+        const partialRefund: Stripe.refunds.IRefund = await lightrailStripe.charges.refund(stripeStep.chargeId, {amount: 200}, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+
+        // create reverse
+        const reverse: Partial<ReverseRequest> = {
+            id: generateId()
+        };
+        const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.id}/reverse`, "POST", reverse);
+        chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
+        verifyCheckoutReverseTotals(postCheckout.body, postReverse.body);
+        chai.assert.isDefined(postReverse.body.steps.find(step => step.rail === "lightrail" && step.balanceChange === 110));
+        chai.assert.isDefined(postReverse.body.steps.find(step => step.rail === "stripe"));
+
+        // check value is same as before
+        const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
+        chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate");
+    }).timeout(8000);
 
     function verifyCheckoutReverseTotals(checkout: Transaction, reverse: Transaction): void {
         for (const key of Object.keys(checkout.totals)) {
