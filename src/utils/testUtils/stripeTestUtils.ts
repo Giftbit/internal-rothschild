@@ -118,7 +118,7 @@ export function generateStripeChargeResponse(options: GenerateStripeChargeRespon
         "object": "charge",
         "amount": options.amount,
         "amount_refunded": 0,
-        "application": "ca_Bg3hpStH7AImYbs5sSfGH06jTMS0Krwl",
+        "application": "ca_Bg3hpStH7AImYbs5sSfGH06jTMS0Krwl", // from dummy merchant testing account: matters for live tests of stripe webhook event handler
         "application_fee": null,
         "balance_transaction": "txn_" + getRandomChars(24),
         "captured": !options.pending,
