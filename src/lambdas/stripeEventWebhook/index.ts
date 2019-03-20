@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as logPrefix from "loglevel-plugin-prefix";
 import {installStripeEventWebhookRoute} from "./installStripeEventWebhookRoute";
-import {initializeLightrailStripeConfig} from "../../utils/stripeUtils/stripeAccess";
+import {initializeAssumeCheckoutToken, initializeLightrailStripeConfig} from "../../utils/stripeUtils/stripeAccess";
 import {StripeConfig} from "../../utils/stripeUtils/StripeConfig";
 import {CodeCryptographySecrets, initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils";
 import log = require("loglevel");
@@ -38,6 +38,10 @@ router.route(new giftbitRoutes.MetricsRoute({
 
 initializeCodeCryptographySecrets(
     giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<CodeCryptographySecrets>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY")
+);
+
+initializeAssumeCheckoutToken(
+    giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<giftbitRoutes.secureConfig.AssumeScopeToken>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH")
 );
 
 initializeLightrailStripeConfig(
