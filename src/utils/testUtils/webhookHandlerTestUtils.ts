@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as cryptojs from "crypto-js";
 import {generateId} from "../../utils/testUtils";
-import {stripeLiveMerchantConfig,} from "../../utils/testUtils/stripeTestUtils";
+import {stripeLiveMerchantConfig} from "../../utils/testUtils/stripeTestUtils";
 import {getLightrailStripeModeConfig} from "../../utils/stripeUtils/stripeAccess";
 import {stripeApiVersion} from "../../utils/stripeUtils/StripeConfig";
 import * as stripe from "stripe";

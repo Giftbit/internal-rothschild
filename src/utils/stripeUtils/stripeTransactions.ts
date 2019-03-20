@@ -118,11 +118,7 @@ export async function retrieveCharge(chargeId: string, lightrailStripeSecretKey:
     lightrailStripe.setApiVersion(stripeApiVersion);
     log.info("Retrieving Stripe charge", chargeId);
     try {
-        const charge = await lightrailStripe.charges.retrieve(
-            chargeId, {
-                stripe_account: merchantStripeAccountId,
-            }
-        );
+        const charge = await lightrailStripe.charges.retrieve(chargeId, {stripe_account: merchantStripeAccountId});
         log.info("retrieved Stripe charge", charge);
         return charge;
     } catch (err) {

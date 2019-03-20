@@ -19,22 +19,22 @@ export function installStripeEventWebhookRoute(router: cassava.Router): void {
     router.route("/v2/stripeEventWebhook")
         .method("POST")
         .handler(async evt => {
-            const testMode: boolean = !evt.body.livemode;
-            const lightrailStripeConfig: StripeModeConfig = await getLightrailStripeModeConfig(testMode);
+            const isTestMode: boolean = !evt.body.livemode;
+            const lightrailStripeConfig: StripeModeConfig = await getLightrailStripeModeConfig(isTestMode);
             const stripe = new Stripe(lightrailStripeConfig.secretKey);
 
             let event: Stripe.events.IEvent & { account?: string };
-            log.info("Verifying Stripe signature...");
+            log.info(`Verifying Stripe signature for eventId '${evt.body.id}' from account '${evt.body.account}'`);
             try {
                 event = stripe.webhooks.constructEvent(evt.bodyRaw, evt.headersLowerCase["stripe-signature"], lightrailStripeConfig.connectWebhookSigningSecret);
                 log.info(`Stripe signature verified. Event: ${JSON.stringify(event)}`);
             } catch (err) {
-                log.info("Event could not be verified.");
+                log.info(`Event '${evt.body.id}' could not be verified.`);
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNAUTHORIZED, "The Stripe signature could not be validated");
             }
 
             if (event.account) {
-                await handleConnectedAccountEvent((event as any), stripe); // cast to any since event.account definitely exists here
+                await handleConnectedAccountEvent((event as Stripe.events.IEvent & { account: string }), stripe);
             } else {
                 log.warn(`Received event '${event.id}' that did not have property 'account'. This endpoint is not configured to handle events from the Lightrail Stripe account.`);
                 return {
@@ -51,7 +51,7 @@ export function installStripeEventWebhookRoute(router: cassava.Router): void {
 }
 
 async function handleConnectedAccountEvent(event: Stripe.events.IEvent & { account: string }, stripe: Stripe) {
-    if (checkEventForFraudAction(event)) {
+    if (isFraudActionEvent(event)) {
         log.info(`Event ${event.id} indicates that fraud has occurred. Reversing corresponding Lightrail Transaction and freezing associated Values.`);
 
         const stripeAccountId: string = event.account;
@@ -64,12 +64,12 @@ async function handleConnectedAccountEvent(event: Stripe.events.IEvent & { accou
         let lightrailTransaction: Transaction = await getLightrailTransactionFromStripeCharge(auth, stripeCharge, presumedLightrailTransactionId);
         let handlingTransaction: Transaction;
         try {
-            handlingTransaction = await reverseOrVoidFraudulentTransaction(auth, (event as any), stripeCharge);
+            handlingTransaction = await reverseOrVoidFraudulentTransaction(auth, (event as Stripe.events.IEvent & { account: string }), stripeCharge);
         } catch (e) {
             giftbitRoutes.sentry.sendErrorNotification(e);
         }
         try {
-            await handleValuesAffectedByFraudulentTransaction(auth, event, stripeCharge, lightrailTransaction, handlingTransaction);
+            await freezeValuesAffectedByFraudulentTransaction(auth, event, stripeCharge, lightrailTransaction, handlingTransaction);
         } catch (e) {
             giftbitRoutes.sentry.sendErrorNotification(e);
         }
@@ -81,7 +81,7 @@ async function handleConnectedAccountEvent(event: Stripe.events.IEvent & { accou
 
 async function getLightrailTransactionFromStripeCharge(auth, stripeCharge, presumedLightrailTransactionId): Promise<Transaction> {
     const transaction: Transaction = await getTransaction(auth, presumedLightrailTransactionId);
-    if (checkMatchStripeChargeLightrailTransaction(stripeCharge, transaction)) {
+    if (isMatchedStripeChargeLightrailTransaction(stripeCharge, transaction)) {
         return transaction;
     } else {
         throw new giftbitRoutes.GiftbitRestError(404, `Could not find Lightrail Transaction corresponding to Stripe Charge '${stripeCharge.id}'.`, "TransactionNotFound");
@@ -137,7 +137,7 @@ async function reverseOrVoidFraudulentTransaction(auth: giftbitRoutes.jwtauth.Au
     return reverseOrVoidTransaction;
 }
 
-function checkEventForFraudAction(event: Stripe.events.IEvent & { account?: string }): boolean {
+function isFraudActionEvent(event: Stripe.events.IEvent & { account?: string }): boolean {
     if (event.type === "charge.refunded") {
         // Stripe supports partial refunds; if even one is marked with 'reason: fraudulent' we'll treat the Transaction as fraudulent
         return ((event.data.object as Stripe.charges.ICharge).refunds.data.find(refund => refund.reason === "fraudulent") !== undefined);
@@ -174,40 +174,40 @@ async function getLightrailDbTransactionChainFromStripeCharge(auth: giftbitRoute
         .andWhere("Transactions.rootTransactionId", "=", lightrailTransactionId);
 
     const rootTransaction: Transaction = await getTransaction(auth, lightrailTransactionId);
-    if (checkMatchStripeChargeLightrailTransaction(stripeCharge, rootTransaction)) {
+    if (isMatchedStripeChargeLightrailTransaction(stripeCharge, rootTransaction)) {
         return dbTransactionChain;
     } else {
         throw new Error(`Property mismatch: Stripe charge '${stripeCharge.id}' should match a charge in Lightrail Transaction '${lightrailTransactionId}' except for refund details. Transaction='${JSON.stringify(rootTransaction)}'`);
     }
 }
 
-function checkMatchStripeChargeLightrailTransaction(stripeCharge: Stripe.charges.ICharge, lightrailTransaction: Transaction): boolean {
+function isMatchedStripeChargeLightrailTransaction(stripeCharge: Stripe.charges.ICharge, lightrailTransaction: Transaction): boolean {
     const stripeStep = <StripeTransactionStep>lightrailTransaction.steps.find(step => step.rail === "stripe" && step.chargeId === stripeCharge.id);
-    return !!stripeStep && stripeStep.charge.amount === stripeCharge.amount;
+    return !!stripeStep;
 }
 
-async function handleValuesAffectedByFraudulentTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, event: Stripe.events.IEvent & { account: string }, stripeCharge: Stripe.charges.ICharge, fraudulentTransaction: Transaction, reverseOrVoidTransaction?: Transaction): Promise<void> {
+async function freezeValuesAffectedByFraudulentTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, event: Stripe.events.IEvent & { account: string }, stripeCharge: Stripe.charges.ICharge, fraudulentTransaction: Transaction, reverseOrVoidTransaction?: Transaction): Promise<void> {
     // Get list of all Values used in the Transaction and all Values attached to Contacts used in the Transaction
     const lightrailSteps = <LightrailTransactionStep[]>fraudulentTransaction.steps.filter(step => step.rail === "lightrail");
-    let affectedValueIds: string[] = lightrailSteps.map(step => step.valueId);
-    const affectedContactIds: string[] = fraudulentTransaction.paymentSources.filter(src => src.rail === "lightrail" && src.contactId).map(src => (src as LightrailTransactionStep).contactId);
+    let chargedValueIds: string[] = lightrailSteps.map(step => step.valueId);
+    const chargedContactIds: string[] = fraudulentTransaction.paymentSources.filter(src => src.rail === "lightrail" && src.contactId).map(src => (src as LightrailTransactionStep).contactId);
 
-    log.info(`Freezing implicated Values: '${affectedValueIds}' and all Values attached to implicated Contacts: '${affectedContactIds}'`);
+    log.info(`Freezing implicated Values: '${chargedValueIds}' and all Values attached to implicated Contacts: '${chargedContactIds}'`);
 
     try {
-        await freezeValuesAffectedByFraud(auth, {
-            valueIds: affectedValueIds,
-            contactIds: affectedContactIds
-        }, fraudulentTransaction.id, constructValueFreezeMessage(fraudulentTransaction.id, reverseOrVoidTransaction.id, stripeCharge.id, event));
+        await freezeValues(auth, {
+            valueIds: chargedValueIds,
+            contactIds: chargedContactIds
+        }, fraudulentTransaction.id, buildValueFreezeMessage(fraudulentTransaction.id, reverseOrVoidTransaction.id, stripeCharge.id, event));
         log.info("Implicated Values including all Values attached to implicated Contacts frozen.");
     } catch (e) {
-        log.error(`Failed to freeze Values '${affectedValueIds}' and/or Values attached to Contacts '${affectedContactIds}'`);
+        log.error(`Failed to freeze Values '${chargedValueIds}' and/or Values attached to Contacts '${chargedContactIds}'`);
         MetricsLogger.stripeWebhookHandlerError(event, auth);
         giftbitRoutes.sentry.sendErrorNotification(e);
     }
 }
 
-async function freezeValuesAffectedByFraud(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueIdentifiers: { valueIds?: string[], contactIds?: string[] }, lightrailTransactionId: string, message: string): Promise<void> {
+async function freezeValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueIdentifiers: { valueIds?: string[], contactIds?: string[] }, lightrailTransactionId: string, message: string): Promise<void> {
     const knex = await getKnexWrite();
     await knex.transaction(async trx => {
         // Get the master version of the Values and lock them.
@@ -281,7 +281,7 @@ function getLightrailUserIdFromStripeCharge(stripeAccountId: string, stripeCharg
     }
 }
 
-function constructValueFreezeMessage(lightrailTransactionId: string, lightrailReverseId: string, stripeChargeId: string, stripeEvent: Stripe.events.IEvent & { account: string }): string {
+function buildValueFreezeMessage(lightrailTransactionId: string, lightrailReverseId: string, stripeChargeId: string, stripeEvent: Stripe.events.IEvent & { account: string }): string {
     return `Value frozen by Lightrail because it or an attached Contact was associated with a Stripe charge that was refunded as fraudulent. Lightrail transactionId '${lightrailTransactionId}' with reverse/void transaction '${lightrailReverseId}', Stripe chargeId: '${stripeChargeId}', Stripe eventId: '${stripeEvent.id}', Stripe accountId: '${stripeEvent.account}'`;
 }
 
