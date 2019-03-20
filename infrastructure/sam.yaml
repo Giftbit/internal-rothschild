@@ -456,6 +456,8 @@ Resources:
           SECURE_CONFIG_BUCKET: !Ref SecureConfigBucket
           SECURE_CONFIG_KEY_SENTRY: sentry_lambda_services.json
           SECURE_CONFIG_KEY_STRIPE: stripe_connect.json
+          SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH: assumeRetrieveStripeAuth.json
+          SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY: code_cryptography_secrets.json
       VpcConfig:
         SecurityGroupIds:
           - !GetAtt LambdaSecurityGroup.GroupId
@@ -485,6 +487,8 @@ Resources:
               Resource:
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/stripe_connect.json"
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeRetrieveStripeAuth.json"
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/code_cryptography_secrets.json"
             - Effect: Allow
               Action:
                 - kms:Decrypt
