@@ -54,7 +54,7 @@ describe.only("/v2/values/", () => {
         });
 
         const contactId = generateId();
-        it.skip("can attach generic value", async () => {
+        it("can attach generic value", async () => {
             const contact: Partial<Contact> = {
                 id: contactId
             };
@@ -64,44 +64,40 @@ describe.only("/v2/values/", () => {
 
             const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {code: genericValue.code});
             chai.assert.equal(attach.statusCode, 200);
+            console.log(JSON.stringify(attach.body, null, 4));
             chai.assert.deepEqualExcluding(attach.body,
                 {
-                    id: genericValue.id,
-                    currency: "USD",
-                    balance: 5000, // todo - slight bug
-                    usesRemaining: 10, //
-                    programId: null,
-                    issuanceId: null,
-                    contactId: null,
-                    code: "SIGNUP2019",
-                    isGenericCode: true,
-                    genericCodeProperties: { // todo - doesn't seem like there's a strong reason to exclude. Any of these generic code properties means it can't be used in checkout.
-                        valuePropertiesPerContact: {
-                            balance: 500,
-                            usesRemaining: 2
-                        },
-                        // attachesRemaining: 10
-                    },
-                    pretax: false,
-                    active: true,
-                    canceled: false,
-                    frozen: false,
-                    discount: false,
-                    discountSellerLiability: null,
-                    redemptionRule: null,
-                    balanceRule: null,
-                    startDate: null,
-                    endDate: null,
-                    metadata: {},
-                    createdDate: null,
-                    updatedDate: null,
-                    updatedContactIdDate: null,
-                    createdBy: "default-test-user-TEST"
-                }, ["createdDate", "updatedDate"]);
+                    "id": null, // it's hashed
+                    "currency": "USD",
+                    "balance": 500,
+                    "usesRemaining": null,
+                    "programId": null,
+                    "issuanceId": null,
+                    "contactId": "0bdb31fa-105c-4d59-b",
+                    "code": null,
+                    "isGenericCode": false,
+                    "genericCodeProperties": null,
+                    "pretax": false,
+                    "active": true,
+                    "canceled": false,
+                    "frozen": false,
+                    "discount": false,
+                    "discountSellerLiability": null,
+                    "redemptionRule": null,
+                    "balanceRule": null,
+                    "startDate": null,
+                    "endDate": null,
+                    "metadata": {},
+                    "createdDate": null,
+                    "updatedDate": null,
+                    "updatedContactIdDate": null,
+                    "createdBy": "default-test-user-TEST"
+                }, ["id", "createdDate", "updatedDate", "updatedContactIdDate"]);
 
 
             const getTx = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/values/${attach.body.id}/transactions?transactionType=attach`, "GET");
             chai.assert.equal(getTx.statusCode, 200);
+            console.log(JSON.stringify(getTx.body, null, 4));
             chai.assert.deepEqualExcluding(getTx.body[0],
                 {
                     id: null, // it's a hash.
