@@ -12,6 +12,7 @@ export interface Value {
     issuanceId: string | null;
     code: string | null;
     isGenericCode: boolean | null;
+    genericCodeProperties?: GenericCodeProperties | null;
     contactId: string | null;
     pretax: boolean;
     active: boolean;
@@ -28,6 +29,13 @@ export interface Value {
     updatedDate: Date;
     updatedContactIdDate: Date | null;
     createdBy: string;
+}
+
+export interface GenericCodeProperties {
+    valuePropertiesPerContact: {
+        balance: number | null;
+        usesRemaining: number | null;
+    }
 }
 
 export interface Rule {
@@ -69,6 +77,10 @@ export namespace Value {
             updatedDate: v.updatedDate,
             updatedContactIdDate: v.updatedContactIdDate,
             createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
+
+            // generic code properties
+            balancePerContact: v.genericCodeProperties ? v.genericCodeProperties.valuePropertiesPerContact.balance : null,
+            usesPerContact: v.genericCodeProperties ? v.genericCodeProperties.valuePropertiesPerContact.usesRemaining : null,
         };
     }
 
@@ -111,7 +123,6 @@ export interface DbValue {
     programId: string | null;
     issuanceId: string | null;
     codeLastFour: string | null;
-    isGenericCode: boolean | null;
     codeHashed: string | null;
     codeEncrypted: string | null;
     contactId: string | null;
@@ -130,6 +141,11 @@ export interface DbValue {
     updatedDate: Date;
     updatedContactIdDate: Date | null;
     createdBy: string;
+
+    // generic code properties
+    isGenericCode: boolean | null;
+    balancePerContact: number | null;
+    usesPerContact: number | null;
 }
 
 export namespace DbValue {
@@ -144,6 +160,12 @@ export namespace DbValue {
             contactId: v.contactId,
             code: await dbValueCodeToValueCode(v, showCode),
             isGenericCode: v.isGenericCode,
+            genericCodeProperties: v.isGenericCode ? {
+                valuePropertiesPerContact: {
+                    balance: v.balancePerContact,
+                    usesRemaining: v.usesPerContact
+                }
+            } : null,
             pretax: v.pretax,
             active: v.active,
             canceled: v.canceled,

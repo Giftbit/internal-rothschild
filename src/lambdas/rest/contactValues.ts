@@ -168,12 +168,15 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     }
 
     if (value.isGenericCode) {
-        if (params.attachGenericAsNewValue) {
+
+        if (params.attachGenericAsNewValue) /* legacy case to eventually be removed */ {
             MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, auth);
             return await attachGenericValueAsNewValue(auth, contact.id, value);
+        } else if (value.genericCodeProperties && value.genericCodeProperties.valuePropertiesPerContact) {
+
         } else {
             MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, auth);
-            await attachGenericValue(auth, contact.id, value);
+            await attachSharedGenericValue(auth, contact.id, value);
             return value;
         }
     } else {
@@ -222,7 +225,7 @@ export async function detachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     }
 }
 
-async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, value: Value): Promise<DbContactValue> {
+async function attachSharedGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, value: Value): Promise<DbContactValue> {
     const dbContactValue: DbContactValue = {
         userId: auth.userId,
         valueId: value.id,
@@ -253,8 +256,111 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     return dbContactValue;
 }
 
+async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<Value> {
+    const now = nowInDbPrecision();
+    const newAttachedValue: Value = {
+        ...genericValue,
+        id: crypto.createHash("sha1").update(genericValue.id + "/" + contactId).digest("base64").replace(/\//g, "-"),
+        code: null,
+        isGenericCode: false,
+        contactId: contactId,
+        usesRemaining: genericValue.genericCodeProperties.valuePropertiesPerContact.usesRemaining,
+        createdDate: now,
+        updatedDate: now,
+        updatedContactIdDate: now,
+        createdBy: auth.teamMemberId
+    };
+    const dbNewAttachedValue: DbValue = await Value.toDbValue(auth, newAttachedValue);
+
+    const attachTransaction: Transaction = {
+        id: newAttachedValue.id,
+        transactionType: "attach",
+        currency: genericValue.currency,
+        steps: [],
+        totals: null,
+        lineItems: null,
+        paymentSources: null,
+        createdDate: now,
+        createdBy: auth.teamMemberId,
+        metadata: null,
+        tax: null
+    };
+    const dbAttachTransaction: DbTransaction = Transaction.toDbTransaction(auth, attachTransaction);
+    dbAttachTransaction.rootTransactionId = dbAttachTransaction.id;
+
+    const dbLightrailTransactionStep0: LightrailDbTransactionStep = {
+        userId: auth.userId,
+        id: `${dbAttachTransaction.id}-0`,
+        transactionId: dbAttachTransaction.id,
+        valueId: genericValue.id,
+        contactId: null,
+        balanceBefore: genericValue.balance,
+        balanceAfter: genericValue.balance,
+        balanceChange: 0,
+        usesRemainingBefore: genericValue.usesRemaining != null ? genericValue.usesRemaining : null,
+        usesRemainingAfter: genericValue.usesRemaining != null ? genericValue.usesRemaining - 1 : null,
+        usesRemainingChange: genericValue.usesRemaining != null ? -1 : null
+    };
+    const dbLightrailTransactionStep1: LightrailDbTransactionStep = {
+        userId: auth.userId,
+        id: `${dbAttachTransaction.id}-1`,
+        transactionId: dbAttachTransaction.id,
+        valueId: newAttachedValue.id,
+        contactId: newAttachedValue.contactId,
+        balanceBefore: newAttachedValue.balance != null ? 0 : null,
+        balanceAfter: newAttachedValue.balance,
+        balanceChange: newAttachedValue.balance || 0,
+        usesRemainingBefore: 0,
+        usesRemainingAfter: newAttachedValue.usesRemaining,
+        usesRemainingChange: newAttachedValue.usesRemaining
+    };
+
+    const knex = await getKnexWrite();
+    await knex.transaction(async trx => {
+        if (genericValue.usesRemaining != null) {
+            const usesDecrementRes: number = await trx("Values")
+                .where({
+                    userId: auth.userId,
+                    id: genericValue.id
+                })
+                .where("usesRemaining", ">", 0)
+                .increment("usesRemaining", -1);
+            if (usesDecrementRes === 0) {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${genericValue.id}' cannot be attached because it has 0 usesRemaining.`, "InsufficientUsesRemaining");
+            }
+            if (usesDecrementRes > 1) {
+                throw new Error(`Illegal UPDATE query.  Updated ${usesDecrementRes} values.`);
+            }
+        }
+
+        try {
+            await trx("Values")
+                .insert(dbNewAttachedValue);
+        } catch (err) {
+            const constraint = getSqlErrorConstraintName(err);
+            if (constraint === "PRIMARY") {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${genericValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
+            }
+            if (constraint === "fk_Values_Contacts") {
+                throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${contactId}' not found.`, "ContactNotFound");
+            }
+            log.error(`An unexpected error occurred while attempting to insert new attach value ${JSON.stringify(newAttachedValue)}. err: ${err}.`);
+            throw err;
+        }
+
+        await trx("Transactions")
+            .insert(dbAttachTransaction);
+        await trx("LightrailTransactionSteps")
+            .insert(dbLightrailTransactionStep0);
+        await trx("LightrailTransactionSteps")
+            .insert(dbLightrailTransactionStep1);
+    });
+
+    return DbValue.toValue(dbNewAttachedValue);
+}
+
 /**
- * Legacy functionality. This makes a new Value and attaches it to the Contact. Yervana is using this.
+ * Legacy functionality. This makes a new Value and attaches it to the Contact. Yervana is using this. Update Mar 20, 2019. More users than Yervana are now using this.
  */
 async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, originalValue: Value): Promise<Value> {
     const now = nowInDbPrecision();

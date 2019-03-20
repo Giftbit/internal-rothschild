@@ -718,6 +718,7 @@ function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partial
         issuanceId: null,
         code: null,
         isGenericCode: false,
+        genericCodeProperties: partialValue.genericCodeProperties ? partialValue.genericCodeProperties : undefined,
         contactId: null,
         pretax: program ? program.pretax : false,
         active: program ? program.active : true,
@@ -892,6 +893,26 @@ const valueSchema: jsonschema.Schema = {
                 },
                 suffix: {
                     type: "string"
+                }
+            }
+        },
+        genericCodeProperties: {
+            title: "Generic Code Properties",
+            type: ["object", "null"],
+            additionalProperties: false,
+            properties: {
+                valuePropertiesPerContact: {
+                    title: "Value Properties Per Contact Params",
+                    type: ["object", "null"],
+                    additionalProperties: false,
+                    properties: {
+                        balance: {
+                            type: ["integer", "null"]
+                        },
+                        usesRemaining: {
+                            type: ["integer", "null"]
+                        }
+                    }
                 }
             }
         },
