@@ -109,48 +109,44 @@ async function reverseOrVoidFraudulentTransaction(auth: giftbitRoutes.jwtauth.Au
     const dbTransactionChain: DbTransaction[] = await getLightrailDbTransactionChainFromStripeCharge(auth, stripeCharge, presumedLightrailTransactionId);
     const dbTransactionToHandle: DbTransaction = dbTransactionChain.find(txn => txn.id === presumedLightrailTransactionId);
 
-    let reverseOrVoidTransaction: Transaction;
-
     if (isReversed(dbTransactionToHandle, dbTransactionChain)) {
         log.info(`Transaction '${dbTransactionToHandle.id}' has already been reversed. Fetching existing reverse transaction...`);
         const reverseDbTransaction = dbTransactionChain.find(txn => txn.transactionType === "reverse" && txn.rootTransactionId === dbTransactionToHandle.id);
-        reverseOrVoidTransaction = await getTransaction(auth, reverseDbTransaction.id);
-
-        log.info(`Lightrail Transaction '${dbTransactionToHandle.id}' was reversed by Transaction '${reverseOrVoidTransaction.id}'`);
+        const reverseTransaction = await getTransaction(auth, reverseDbTransaction.id);
+        log.info(`Lightrail Transaction '${dbTransactionToHandle.id}' was reversed by Transaction '${reverseTransaction.id}'`);
+        return reverseTransaction;
 
     } else if (isReversible(dbTransactionToHandle, dbTransactionChain)) {
-        reverseOrVoidTransaction = await createReverse(auth, {
+        const reverseTransaction = await createReverse(auth, {
             id: `${dbTransactionToHandle.id}-webhook-rev`,
             metadata: {
                 stripeWebhookTriggeredAction: `Transaction reversed by Lightrail because Stripe charge '${stripeCharge.id}' was refunded as fraudulent. Stripe eventId: '${event.id}', Stripe accountId: '${event.account}'`
             }
         }, dbTransactionToHandle.id);
-
-        log.info(`Lightrail Transaction '${dbTransactionToHandle.id}' was reversed by Transaction '${reverseOrVoidTransaction.id}'`);
+        log.info(`Lightrail Transaction '${dbTransactionToHandle.id}' was reversed by Transaction '${reverseTransaction.id}'`);
+        return reverseTransaction;
 
     } else if (isVoided(dbTransactionToHandle, dbTransactionChain)) {
         log.info(`Transaction '${dbTransactionToHandle.id}' was pending and has already been voided. Fetching existing void transaction...`);
-
         let voidDbTransaction = dbTransactionChain.find(txn => txn.transactionType === "void" && txn.rootTransactionId === dbTransactionToHandle.id);
-        reverseOrVoidTransaction = await getTransaction(auth, voidDbTransaction.id);
-
-        log.info(`Transaction '${dbTransactionToHandle.id}' was voided by transaction '${reverseOrVoidTransaction.id}'`);
+        const voidTransaction = await getTransaction(auth, voidDbTransaction.id);
+        log.info(`Transaction '${dbTransactionToHandle.id}' was voided by transaction '${voidTransaction.id}'`);
+        return voidTransaction;
 
     } else if (isVoidable(dbTransactionToHandle, dbTransactionChain)) {
         log.info(`Transaction '${dbTransactionToHandle.id}' was pending: voiding...`);
-        reverseOrVoidTransaction = await createVoid(auth, {
+        const voidTransaction = await createVoid(auth, {
             id: `${dbTransactionToHandle.id}-webhook-void`,
             metadata: {
                 stripeWebhookTriggeredAction: `Transaction voided by Lightrail because Stripe charge ${stripeCharge.id} was refunded as fraudulent. Stripe eventId: ${event.id}, Stripe accountId: ${event.account}`
             }
         }, dbTransactionToHandle.id);
-        log.info(`Voided Transaction '${dbTransactionToHandle.id}' with void transaction '${reverseOrVoidTransaction.id}'`);
+        log.info(`Voided Transaction '${dbTransactionToHandle.id}' with void transaction '${voidTransaction.id}'`);
+        return voidTransaction;
 
     } else {
         throw new Error(`Stripe webhook event '${event.id}' from account '${event.account}' indicated fraud. Corresponding Lightrail Transaction '${dbTransactionToHandle.id}' could not be reversed or voided and has not already been reversed or voided. Transactions in chain: ${dbTransactionChain.map(txn => txn.id)}. Will still try to freeze implicated Values.`);
     }
-
-    return reverseOrVoidTransaction;
 }
 
 function isFraudActionEvent(event: Stripe.events.IEvent & { account?: string }): boolean {
