@@ -34,7 +34,7 @@ export function installStripeEventWebhookRoute(router: cassava.Router): void {
             }
 
             if (event.account) {
-                await handleConnectedAccountEvent((event as Stripe.events.IEvent & { account: string }), stripe);
+                await handleConnectedAccountEvent((event as Stripe.events.IEvent & { account: string }));
             } else {
                 log.warn(`Received event '${event.id}' that did not have property 'account'. This endpoint is not configured to handle events from the Lightrail Stripe account.`);
                 return {
@@ -50,32 +50,48 @@ export function installStripeEventWebhookRoute(router: cassava.Router): void {
         });
 }
 
-async function handleConnectedAccountEvent(event: Stripe.events.IEvent & { account: string }, stripe: Stripe) {
-    if (isFraudActionEvent(event)) {
-        log.info(`Event ${event.id} indicates that fraud has occurred. Reversing corresponding Lightrail Transaction and freezing associated Values.`);
-
-        const stripeAccountId: string = event.account;
-        const stripeCharge: Stripe.charges.ICharge = await getStripeChargeFromEvent(event);
-        const auth = getAuthBadgeFromStripeCharge(stripeAccountId, stripeCharge, event);
-
-        MetricsLogger.stripeWebhookFraudEvent(event, auth);
-
-        const presumedLightrailTransactionId = stripeCharge.metadata["lightrailTransactionId"];
-        let lightrailTransaction: Transaction = await getLightrailTransactionFromStripeCharge(auth, stripeCharge, presumedLightrailTransactionId);
-        let handlingTransaction: Transaction;
-        try {
-            handlingTransaction = await reverseOrVoidFraudulentTransaction(auth, (event as Stripe.events.IEvent & { account: string }), stripeCharge);
-        } catch (e) {
-            giftbitRoutes.sentry.sendErrorNotification(e);
-        }
-        try {
-            await freezeValuesAffectedByFraudulentTransaction(auth, event, stripeCharge, lightrailTransaction, handlingTransaction);
-        } catch (e) {
-            giftbitRoutes.sentry.sendErrorNotification(e);
-        }
+async function handleConnectedAccountEvent(event: Stripe.events.IEvent & { account: string }): Promise<void> {
+    if (isFraudActionEvent(event)) { // right now these are the only events we really care about
+        await handleFraudReverseEvent(event);
     } else {
-        log.info(`Received Connected Account event of type '${event.type}', eventId '${event.id}', accountId '${event.account}'. Exiting without handling.`);
+        log.info(`Received Connected Account event of type '${event.type}', eventId '${event.id}', accountId '${event.account}'. This event does not indicate that fraud has occurred: exiting without handling.`);
         return;
+    }
+}
+
+async function handleFraudReverseEvent(event: Stripe.events.IEvent & { account: string }): Promise<void> {
+    log.info(`Event ${event.id} indicates that fraud has occurred. Reversing corresponding Lightrail Transaction and freezing associated Values.`);
+
+    const stripeAccountId: string = event.account;
+    const stripeCharge: Stripe.charges.ICharge = await getStripeChargeFromEvent(event);
+    const auth = getAuthBadgeFromStripeCharge(stripeAccountId, stripeCharge, event);
+
+    MetricsLogger.stripeWebhookFraudEvent(event, auth);
+
+    let lightrailTransaction: Transaction;
+    try {
+        lightrailTransaction = await getLightrailTransactionFromStripeCharge(auth, stripeCharge, stripeCharge.metadata["lightrailTransactionId"]);
+    } catch (e) {
+        log.error(`Failed to fetch Lightrail Transaction from Stripe charge '${stripeCharge.id}'. Exiting and returning success response to Stripe since this is likely Lightrail problem. Event=${JSON.stringify(event)}`);
+        MetricsLogger.stripeWebhookHandlerError(event, auth);
+        giftbitRoutes.sentry.sendErrorNotification(e);
+        return;
+    }
+
+    let handlingTransaction: Transaction;
+    try {
+        handlingTransaction = await reverseOrVoidFraudulentTransaction(auth, (event as Stripe.events.IEvent & { account: string }), stripeCharge);
+    } catch (e) {
+        MetricsLogger.stripeWebhookHandlerError(event, auth);
+        giftbitRoutes.sentry.sendErrorNotification(e);
+        // Don't exit or throw a real error here since we still want to try to freeze the Values
+    }
+
+    try {
+        await freezeValuesAffectedByFraudulentTransaction(auth, event, stripeCharge, lightrailTransaction, handlingTransaction);
+    } catch (e) {
+        MetricsLogger.stripeWebhookHandlerError(event, auth);
+        giftbitRoutes.sentry.sendErrorNotification(e);
     }
 }
 
