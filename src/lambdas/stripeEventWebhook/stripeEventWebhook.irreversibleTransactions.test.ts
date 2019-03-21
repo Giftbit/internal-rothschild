@@ -23,7 +23,7 @@ import * as stripe from "stripe";
 import {generateConnectWebhookEventMock, testSignedWebhookRequest} from "../../utils/testUtils/webhookHandlerTestUtils";
 import {createRefund} from "../../utils/stripeUtils/stripeTransactions";
 
-describe("/v2/stripeEventWebhook", () => {
+describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
     const restRouter = new cassava.Router();
     const webhookEventRouter = new cassava.Router();
 

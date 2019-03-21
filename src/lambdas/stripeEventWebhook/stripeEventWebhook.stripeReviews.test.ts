@@ -23,7 +23,7 @@ import {CheckoutRequest} from "../../model/TransactionRequest";
 import * as stripe from "stripe";
 import {generateConnectWebhookEventMock, testSignedWebhookRequest} from "../../utils/testUtils/webhookHandlerTestUtils";
 
-describe("/v2/stripeEventWebhook", () => {
+describe("/v2/stripeEventWebhook - Stripe Review events", () => {
     const restRouter = new cassava.Router();
     const webhookEventRouter = new cassava.Router();
 
@@ -152,5 +152,5 @@ describe("/v2/stripeEventWebhook", () => {
         chai.assert.equal(fetchValueResp.statusCode, 200, `fetchValueResp.body=${fetchValueResp.body}`);
         chai.assert.equal(fetchValueResp.body.balance, value.balance, `fetchValueResp.body.balance=${fetchValueResp.body.balance}`);
         chai.assert.equal(fetchValueResp.body.frozen, true, `fetchValueResp.body.frozen=${fetchValueResp.body.frozen}`);
-    });
+    }).timeout(8000);
 });
