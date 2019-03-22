@@ -709,6 +709,11 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
 function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partialValue: Partial<Value>, program: Program = null, generateCodeParameters: GenerateCodeParameters = null): Value {
     const now = nowInDbPrecision();
 
+    console.log((partialValue.genericCodeProperties ? "b" : "c"));
+    console.log((partialValue.genericCodeProperties != null ? "b" : "c"));
+    console.log((partialValue.genericCodeProperties.valuePropertiesPerContact.balance != null ? "b" : "c"));
+    console.log((partialValue.genericCodeProperties != null && partialValue.genericCodeProperties.valuePropertiesPerContact.balance != null ? "b" : "c"));
+    console.log("partialValue: " + JSON.stringify(partialValue, null, 4));
     let value: Value = pickOrDefault(partialValue, {
         id: null,
         currency: program ? program.currency : null,
@@ -719,6 +724,7 @@ function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partial
         code: null,
         isGenericCode: false,
         genericCodeProperties: partialValue.genericCodeProperties ? partialValue.genericCodeProperties : undefined,
+        attachedFromGenericValueId: null,
         contactId: null,
         pretax: program ? program.pretax : false,
         active: program ? program.active : true,
@@ -736,6 +742,10 @@ function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partial
         updatedContactIdDate: partialValue.contactId ? now : null,
         createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
     });
+
+    if (partialValue.genericCodeProperties != null && partialValue.genericCodeProperties.valuePropertiesPerContact.balance != null) {
+        value.balance = partialValue.balance; // set to whatever the user set it to.
+    }
 
     value.metadata = {...(program && program.metadata ? program.metadata : {}), ...value.metadata};
 
@@ -756,6 +766,10 @@ function checkValueProperties(value: Value, program: Program = null): void {
 
     if (value.balance != null && value.balanceRule) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a balance and balanceRule.`);
+    }
+    console.log("checkValueProperties. Value: " + JSON.stringify(value, null, 4));
+    if (value.balance == null && value.balanceRule == null && (value.genericCodeProperties && value.genericCodeProperties.valuePropertiesPerContact.balance == null)) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value must have a balanceRule, a balance, or a genericCodeProperties.valuePropertiesPerContact.balance.`);
     }
     if (value.discountSellerLiability !== null && !value.discount) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have discountSellerLiability if it is not a discount.`);

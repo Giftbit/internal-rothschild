@@ -12,7 +12,7 @@ import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe.only("/v2/values/", () => {
+describe("/v2/values/", () => {
 
     const router = new cassava.Router();
 
@@ -35,13 +35,14 @@ describe.only("/v2/values/", () => {
             currency: "USD",
             isGenericCode: true,
             code: "SIGNUP2019",
-            genericCodeProperties: { // todo - genericCodeLimits? the nested property could be perContactLimits?
-                valuePropertiesPerContact: { // todo - consider name? "perContact" makes sense. ValueProperties might not make sense since we are not creating another Value. limitsPerContact?
+            genericCodeProperties: {
+                valuePropertiesPerContact: {
                     balance: 500,
-                    usesRemaining: null
+                    usesRemaining: 2
                 }
             },
-            balance: 5000 // todo - don't care if these numbers are in sync.
+            balance: 5000,
+            usesRemaining: 10
         };
         it("can create generic value", async () => {
             const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
@@ -54,6 +55,7 @@ describe.only("/v2/values/", () => {
         });
 
         const contactId = generateId();
+        let attachedValueId: string;
         it("can attach generic value", async () => {
             const contact: Partial<Contact> = {
                 id: contactId
@@ -64,17 +66,17 @@ describe.only("/v2/values/", () => {
 
             const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {code: genericValue.code});
             chai.assert.equal(attach.statusCode, 200);
-            console.log(JSON.stringify(attach.body, null, 4));
             chai.assert.deepEqualExcluding(attach.body,
                 {
                     "id": null, // it's hashed
                     "currency": "USD",
                     "balance": 500,
-                    "usesRemaining": null,
+                    "usesRemaining": 2,
                     "programId": null,
                     "issuanceId": null,
-                    "contactId": "0bdb31fa-105c-4d59-b",
+                    "contactId": contact.id,
                     "code": null,
+                    "attachedFromGenericValueId": genericValue.id,
                     "isGenericCode": false,
                     "genericCodeProperties": null,
                     "pretax": false,
@@ -87,87 +89,100 @@ describe.only("/v2/values/", () => {
                     "balanceRule": null,
                     "startDate": null,
                     "endDate": null,
-                    "metadata": {},
+                    "metadata": {
+                        attachedFromGenericValue: {
+                            code: "SIGNUP2019"
+                        }
+                    },
                     "createdDate": null,
                     "updatedDate": null,
                     "updatedContactIdDate": null,
                     "createdBy": "default-test-user-TEST"
                 }, ["id", "createdDate", "updatedDate", "updatedContactIdDate"]);
+            attachedValueId = attach.body.id;
 
 
             const getTx = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/values/${attach.body.id}/transactions?transactionType=attach`, "GET");
             chai.assert.equal(getTx.statusCode, 200);
-            console.log(JSON.stringify(getTx.body, null, 4));
             chai.assert.deepEqualExcluding(getTx.body[0],
                 {
-                    id: null, // it's a hash.
-                    transactionType: "attach",
-                    currency: "USD",
-                    totals: null,
-                    lineItems: null,
-                    paymentSources: null,
-                    steps: [ // todo - all attaches should have a transaction, even if it doesn't have generic code limit. The step should still be included because it contains contact info.
-                        { // TODO - Review this step with JG. Balance etc.
-                            rail: "lightrail",
-                            valueId: genericValue.id,
-                            contactId: contactId,
-                            code: null,
-                            balanceBefore: 5000,
-                            balanceAfter: 4500,
-                            balanceChange: -500,
-                            usesRemainingBefore: 10,
-                            usesRemainingAfter: 8,
-                            usesRemainingChange: -2
+                    "id": attach.body.id, // the transaction.id is the same as the new attached value.id.
+                    "transactionType": "attach",
+                    "currency": "USD",
+                    "totals": null,
+                    "lineItems": null,
+                    "paymentSources": null,
+                    "steps": [
+                        {
+                            "rail": "lightrail",
+                            "valueId": genericValue.id,
+                            "contactId": null,
+                            "code": "SIGNUP2019",
+                            "balanceBefore": 5000,
+                            "balanceAfter": 4500,
+                            "balanceChange": -500,
+                            "usesRemainingBefore": 10,
+                            "usesRemainingAfter": 8,
+                            "usesRemainingChange": -2
+                        },
+                        {
+                            "rail": "lightrail",
+                            "valueId": attach.body.id,
+                            "contactId": contactId,
+                            "code": null,
+                            "balanceBefore": 0,
+                            "balanceAfter": 500,
+                            "balanceChange": 500,
+                            "usesRemainingBefore": 0,
+                            "usesRemainingAfter": 2,
+                            "usesRemainingChange": 2
                         }
                     ],
-                    metadata: null,
-                    tax: null,
-                    pending: false,
-                    createdDate: null,
-                    createdBy: "default-test-user-TEST"
-                }, ["id", "createdDate"]);
+                    "metadata": null,
+                    "tax": null,
+                    "pending": false,
+                    "createdDate": null,
+                    "createdBy": "default-test-user-TEST"
+                }, ["createdDate"]);
 
             const listContactValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${contactId}/values`, "GET");
             chai.assert.equal(listContactValues.statusCode, 200);
             chai.assert.equal(listContactValues.body.length, 1);
             chai.assert.deepEqualExcluding(listContactValues.body[0], {
-                id: genericValue.id,
-                currency: "USD",
-                balance: 500,
-                usesRemaining: null,
-                programId: null,
-                issuanceId: null,
-                contactId: contactId,
-                code: "SIGNUP2019",
-                isGenericCode: true,
-                genericCodeProperties: {
-                    valuePropertiesPerContact: {
-                        balance: 500,
-                        usesRemaining: null
-                    },
-                    attachesRemaining: 9
+                "id": attach.body.id,
+                "currency": "USD",
+                "balance": 500,
+                "usesRemaining": 2,
+                "programId": null,
+                "issuanceId": null,
+                "contactId": contact.id,
+                "code": null,
+                "attachedFromGenericValueId": genericValue.id,
+                "isGenericCode": false,
+                "genericCodeProperties": null,
+                "pretax": false,
+                "active": true,
+                "canceled": false,
+                "frozen": false,
+                "discount": false,
+                "discountSellerLiability": null,
+                "redemptionRule": null,
+                "balanceRule": null,
+                "startDate": null,
+                "endDate": null,
+                "metadata": {
+                    attachedFromGenericValue: {
+                        code: "SIGNUP2019"
+                    }
                 },
-                pretax: false,
-                active: true,
-                canceled: false,
-                frozen: false,
-                discount: false,
-                discountSellerLiability: null,
-                redemptionRule: null,
-                balanceRule: null,
-                startDate: null,
-                endDate: null,
-                metadata: {},
-                createdDate: null,
-                updatedDate: null,
-                updatedContactIdDate: null,
-                createdBy: "default-test-user-TEST"
-            }, ["createdDate", "updatedDate"]);
-
-            console.log(JSON.stringify(listContactValues.body, null, 4));
+                "createdDate": null,
+                "updatedDate": null,
+                "updatedContactIdDate": null,
+                "createdBy": "default-test-user-TEST"
+            }, ["createdDate", "updatedDate", "updatedContactIdDate"]);
         });
 
-        it.skip("can checkout against generic code using contactId", async () => {
+        it("can checkout against generic code using contactId", async () => {
             const checkoutRequest: CheckoutRequest = {
                 id: generateId(),
                 currency: "USD",
@@ -217,15 +232,15 @@ describe.only("/v2/values/", () => {
                 steps: [
                     {
                         rail: "lightrail",
-                        valueId: genericValue.id,
+                        valueId: attachedValueId,
                         contactId: contactId,
-                        code: "SIGNUP2019",
+                        code: null,
                         balanceBefore: 500,
                         balanceAfter: 0,
                         balanceChange: -500,
-                        usesRemainingBefore: null,
-                        usesRemainingAfter: null,
-                        usesRemainingChange: null
+                        usesRemainingBefore: 2,
+                        usesRemainingAfter: 1,
+                        usesRemainingChange: -1
                     }
                 ],
                 paymentSources: [
@@ -239,5 +254,24 @@ describe.only("/v2/values/", () => {
                 createdBy: "default-test-user-TEST"
             }, ["createdDate"]);
         });
+    });
+
+    it.only("can't create a generic value with balance == null, balanceRule == null and valuePropertiesPerContact.balance == null", async () => {
+        const genericValue: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            isGenericCode: true,
+            code: "SUMMERTIME2020",
+            genericCodeProperties: {
+                valuePropertiesPerContact: {
+                    balance: null,
+                    usesRemaining: 2
+                }
+            }
+        };
+
+        const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
+        chai.assert.equal(create.statusCode, 422);
+        chai.assert.deepNestedInclude(create.body, genericValue);
     });
 });

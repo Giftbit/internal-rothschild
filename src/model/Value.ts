@@ -13,6 +13,7 @@ export interface Value {
     code: string | null;
     isGenericCode: boolean | null;
     genericCodeProperties?: GenericCodeProperties | null;
+    attachedFromGenericValueId: string | null;
     contactId: string | null;
     pretax: boolean;
     active: boolean;
@@ -81,6 +82,7 @@ export namespace Value {
             // generic code properties
             balancePerContact: v.genericCodeProperties ? v.genericCodeProperties.valuePropertiesPerContact.balance : null,
             usesPerContact: v.genericCodeProperties ? v.genericCodeProperties.valuePropertiesPerContact.usesRemaining : null,
+            attachedFromGenericValueId: v.attachedFromGenericValueId
         };
     }
 
@@ -146,6 +148,7 @@ export interface DbValue {
     isGenericCode: boolean | null;
     balancePerContact: number | null;
     usesPerContact: number | null;
+    attachedFromGenericValueId: string | null;
 }
 
 export namespace DbValue {
@@ -166,6 +169,7 @@ export namespace DbValue {
                     usesRemaining: v.usesPerContact
                 }
             } : null,
+            attachedFromGenericValueId: v.attachedFromGenericValueId,
             pretax: v.pretax,
             active: v.active,
             canceled: v.canceled,

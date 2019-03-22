@@ -28,11 +28,19 @@ export interface ExecuteTransactionPlannerOptions {
     simulate: boolean;
 }
 
+export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ExecuteTransactionPlannerOptions, planner: () => Promise<TransactionPlan>): Promise<Transaction> {
+    const knex = await getKnexWrite();
+    // This syntax around awaits and returns here seems strange. Review with JG.
+    return await knex.transaction(async trx => {
+        return executeTransactionPlannerInExistingTransaction(auth, options, planner, trx);
+    });
+}
+
 /**
  * Calls the planner and executes on the plan created.  If the plan cannot be executed
  * but can be replanned then the planner will be called again.
  */
-export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ExecuteTransactionPlannerOptions, planner: () => Promise<TransactionPlan>): Promise<Transaction> {
+export async function executeTransactionPlannerInExistingTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ExecuteTransactionPlannerOptions, planner: () => Promise<TransactionPlan>, trx: Knex = null): Promise<Transaction> {
     while (true) {
         try {
             const plan = await planner();
@@ -40,14 +48,15 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
                 plan.steps.find(step => step.rail === "lightrail" && step.value.balance != null && step.value.balance + step.amount < 0)) {
                 throw new giftbitRoutes.GiftbitRestError(409, "Insufficient balance for the transaction.", "InsufficientBalance");
             }
+            if (plan.steps.find(step => step.rail === "lightrail" && step.value.usesRemaining != null && step.value.usesRemaining + step.uses < 0)) {
+                throw new giftbitRoutes.GiftbitRestError(409, "Insufficient balance for the transaction.", "InsufficientUsesRemaining");
+            }
+
             if (options.simulate) {
                 return TransactionPlan.toTransaction(auth, plan, options.simulate);
             }
 
-            const knex = await getKnexWrite();
-            await knex.transaction(async trx => {
-                return await executeTransactionPlan(auth, plan, trx);
-            });
+            return await executeTransactionPlan(auth, plan, trx);
         } catch (err) {
             log.warn("Error thrown executing transaction plan.", err);
             if ((err as TransactionPlanError).isTransactionPlanError && (err as TransactionPlanError).isReplanable) {

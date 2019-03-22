@@ -14,7 +14,7 @@ import {AttachValueParameters} from "../../model/internal/AttachValueParameters"
 import {ValueIdentifier} from "../../model/internal/ValueIdentifier";
 import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
 import {LightrailTransactionPlanStep, TransactionPlan} from "./transactions/TransactionPlan";
-import {executeTransactionPlan} from "./transactions/executeTransactionPlan";
+import {executeTransactionPlannerInExistingTransaction} from "./transactions/executeTransactionPlan";
 import log = require("loglevel");
 
 export function installContactValuesRest(router: cassava.Router): void {
@@ -176,7 +176,7 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             return await attachGenericValueAsNewValue(auth, contact.id, value);
         } else if (value.genericCodeProperties && value.genericCodeProperties.valuePropertiesPerContact) {
             MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericContactLimit, auth);
-            return await attachGenericValueWithContactUsageLimits(auth, contact.id, value);
+            return await attachPerContactGenericValue(auth, contact.id, value);
         } else {
             MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, auth);
             await attachSharedGenericValue(auth, contact.id, value);
@@ -259,7 +259,7 @@ async function attachSharedGenericValue(auth: giftbitRoutes.jwtauth.Authorizatio
     return dbContactValue;
 }
 
-async function attachGenericValueWithContactUsageLimits(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<Value> {
+async function attachPerContactGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<Value> {
     const now = nowInDbPrecision();
 
     const amount = genericValue.genericCodeProperties.valuePropertiesPerContact.balance;
@@ -274,47 +274,55 @@ async function attachGenericValueWithContactUsageLimits(auth: giftbitRoutes.jwta
         balance: amount != null ? 0 : null, // initial set to 0 if exists and will be updated as transaction step.
         usesRemaining: uses != null ? 0 : null, // same here
         genericCodeProperties: null,
+        metadata: {
+            ...genericValue.metadata,
+            attachedFromGenericValue: {
+                code: genericValue.code
+            }
+        },
+        attachedFromGenericValueId: genericValue.id,
         createdDate: now,
         updatedDate: now,
         updatedContactIdDate: now,
-        createdBy: auth.teamMemberId
+        createdBy: auth.teamMemberId,
     };
     const dbNewAttachedValue: DbValue = await Value.toDbValue(auth, newAttachedValue);
 
-    const transactionPlan: TransactionPlan = {
-        id: newAttachedValue.id,
-        transactionType: "attach",
-        currency: genericValue.currency,
-        steps: [],
-        totals: null,
-        lineItems: null,
-        paymentSources: null,
-        createdDate: now,
-        metadata: null,
-        tax: null
+    const transactionPlanner = async (): Promise<TransactionPlan> => {
+        const transactionPlan: TransactionPlan = {
+            id: newAttachedValue.id,
+            transactionType: "attach",
+            currency: genericValue.currency,
+            steps: [],
+            totals: null,
+            lineItems: null,
+            paymentSources: null,
+            createdDate: now,
+            metadata: null,
+            tax: null
+        };
+        transactionPlan.steps.push(
+            {
+                rail: "lightrail",
+                value: genericValue,
+                amount: genericValue.balance !== null ? -amount : null,
+                uses: genericValue.usesRemaining !== null ? -uses : null
+            } as LightrailTransactionPlanStep
+        );
+
+        transactionPlan.steps.push(
+            {
+                rail: "lightrail",
+                value: newAttachedValue,
+                amount: amount,
+                uses: uses
+            } as LightrailTransactionPlanStep
+        );
+        return transactionPlan;
     };
-
-    transactionPlan.steps.push(
-        {
-            rail: "lightrail",
-            value: genericValue,
-            amount: -amount,
-            uses: -uses
-        } as LightrailTransactionPlanStep
-    );
-
-    transactionPlan.steps.push(
-        {
-            rail: "lightrail",
-            value: newAttachedValue,
-            amount: amount,
-            uses: uses
-        } as LightrailTransactionPlanStep
-    );
 
     const knex = await getKnexWrite();
     await knex.transaction(async trx => {
-        console.log("here 1")
         try {
             await trx("Values")
                 .insert(dbNewAttachedValue);
@@ -329,98 +337,15 @@ async function attachGenericValueWithContactUsageLimits(auth: giftbitRoutes.jwta
             log.error(`An unexpected error occurred while attempting to insert new attach value ${JSON.stringify(newAttachedValue)}. err: ${err}.`);
             throw err;
         }
-        console.log("here 2")
 
-        await executeTransactionPlan(auth, transactionPlan, trx);
+        await executeTransactionPlannerInExistingTransaction(auth, {
+            allowRemainder: false,
+            simulate: false
+        }, transactionPlanner, trx);
     });
-    console.log("GETTING HERE????");
 
-    // //
-    // // const attachTransaction: Transaction = {
-    // //     id: newAttachedValue.id,
-    // //     transactionType: "attach",
-    // //     currency: genericValue.currency,
-    // //     steps: [],
-    // //     totals: null,
-    // //     lineItems: null,
-    // //     paymentSources: null,
-    // //     createdDate: now,
-    // //     createdBy: auth.teamMemberId,
-    // //     metadata: null,
-    // //     tax: null
-    // // };
-    // // const dbAttachTransaction: DbTransaction = Transaction.toDbTransaction(auth, attachTransaction);
-    // // dbAttachTransaction.rootTransactionId = dbAttachTransaction.id;
-    //
-    // const txStepForGenericValue: LightrailDbTransactionStep = {
-    //     userId: auth.userId,
-    //     id: `${dbAttachTransaction.id}-0`,
-    //     transactionId: dbAttachTransaction.id,
-    //     valueId: genericValue.id,
-    //     contactId: null,
-    //     balanceBefore: genericValue.balance,
-    //     balanceAfter: genericValue.balance,
-    //     balanceChange: 0,
-    //     usesRemainingBefore: genericValue.usesRemaining != null ? genericValue.usesRemaining : null,
-    //     usesRemainingAfter: genericValue.usesRemaining != null ? genericValue.usesRemaining - 1 : null,
-    //     usesRemainingChange: genericValue.usesRemaining != null ? -1 : null
-    // };
-    // const dbLightrailTransactionStep1: LightrailDbTransactionStep = {
-    //     userId: auth.userId,
-    //     id: `${dbAttachTransaction.id}-1`,
-    //     transactionId: dbAttachTransaction.id,
-    //     valueId: newAttachedValue.id,
-    //     contactId: newAttachedValue.contactId,
-    //     balanceBefore: newAttachedValue.balance != null ? 0 : null,
-    //     balanceAfter: newAttachedValue.balance,
-    //     balanceChange: newAttachedValue.balance || 0,
-    //     usesRemainingBefore: 0,
-    //     usesRemainingAfter: newAttachedValue.usesRemaining,
-    //     usesRemainingChange: newAttachedValue.usesRemaining
-    // };
-
-    // const knex = await getKnexWrite();
-    // await knex.transaction(async trx => {
-    //     if (genericValue.usesRemaining != null) {
-    //         const usesDecrementRes: number = await trx("Values")
-    //             .where({
-    //                 userId: auth.userId,
-    //                 id: genericValue.id
-    //             })
-    //             .where("usesRemaining", ">", 0)
-    //             .increment("usesRemaining", -1);
-    //         if (usesDecrementRes === 0) {
-    //             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${genericValue.id}' cannot be attached because it has 0 usesRemaining.`, "InsufficientUsesRemaining");
-    //         }
-    //         if (usesDecrementRes > 1) {
-    //             throw new Error(`Illegal UPDATE query.  Updated ${usesDecrementRes} values.`);
-    //         }
-    //     }
-    //
-    //     try {
-    //         await trx("Values")
-    //             .insert(dbNewAttachedValue);
-    //     } catch (err) {
-    //         const constraint = getSqlErrorConstraintName(err);
-    //         if (constraint === "PRIMARY") {
-    //             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${genericValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
-    //         }
-    //         if (constraint === "fk_Values_Contacts") {
-    //             throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${contactId}' not found.`, "ContactNotFound");
-    //         }
-    //         log.error(`An unexpected error occurred while attempting to insert new attach value ${JSON.stringify(newAttachedValue)}. err: ${err}.`);
-    //         throw err;
-    //     }
-    //
-    //     await trx("Transactions")
-    //         .insert(dbAttachTransaction);
-    //     await trx("LightrailTransactionSteps")
-    //         .insert(txStepForGenericValue);
-    //     await trx("LightrailTransactionSteps")
-    //         .insert(dbLightrailTransactionStep1);
-    // });
-
-    return await getValue(auth, newAttachedValue.id);
+    return await
+        getValue(auth, newAttachedValue.id);
 }
 
 /**
