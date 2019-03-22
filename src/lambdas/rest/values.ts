@@ -767,8 +767,8 @@ function checkValueProperties(value: Value, program: Program = null): void {
     if (value.balance != null && value.balanceRule) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a balance and balanceRule.`);
     }
-    console.log("checkValueProperties. Value: " + JSON.stringify(value, null, 4));
     if (value.balance == null && value.balanceRule == null && (value.genericCodeProperties && value.genericCodeProperties.valuePropertiesPerContact.balance == null)) {
+        // this is a good check, but it's not possible to hit since balance defaults to 0 if there's no balanceRule and valuePropertiesPerContact.balance.
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value must have a balanceRule, a balance, or a genericCodeProperties.valuePropertiesPerContact.balance.`);
     }
     if (value.discountSellerLiability !== null && !value.discount) {
