@@ -21,7 +21,6 @@ import {Currency} from "../../model/Currency";
 import {CheckoutRequest} from "../../model/TransactionRequest";
 import * as stripe from "stripe";
 import {generateConnectWebhookEventMock, testSignedWebhookRequest} from "../../utils/testUtils/webhookHandlerTestUtils";
-import {getDbTransactionChain} from "../rest/transactions/transactions";
 import log = require("loglevel");
 
 describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
@@ -293,86 +292,4 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
         chai.assert.equal(fetchValueResp.body.frozen, true, `fetchValueResp.body.frozen=${fetchValueResp.body.frozen}`);
         chai.assert.deepEqual(fetchValueResp.body.metadata, {stripeWebhookTriggeredAction: `Value frozen by Lightrail because it or an attached Contact was associated with a Stripe charge that was refunded as fraudulent. Lightrail transactionId '${checkoutRequest.id}' with reverse/void transaction '${voidTransactionResponse.body.id}', Stripe chargeId: '${stripeChargeStep.charge.id}', Stripe eventId: '${webhookEvent.id}', Stripe accountId: '${stripeLiveMerchantConfig.stripeUserId}'`}, `value metadata: ${JSON.stringify(fetchValueResp.body.metadata)}`);
     }).timeout(12000);
-
-    // util function test
-    it("gets transaction chain", async () => {
-        // regular reverse
-        const value: Partial<Value> = {
-            id: generateId(),
-            currency: currency.code,
-            balance: 50
-        };
-        const postValueResp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", value);
-        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
-
-        const checkoutRequest: CheckoutRequest = {
-            id: generateId(),
-            currency: currency.code,
-            lineItems: [{
-                type: "product",
-                productId: "pid",
-                unitPrice: 1000
-            }],
-            sources: [
-                {
-                    rail: "lightrail",
-                    valueId: value.id
-                },
-                {
-                    rail: "stripe",
-                    source: "tok_visa"
-                }
-            ],
-        };
-
-        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(restRouter, "/v2/transactions/checkout", "POST", checkoutRequest);
-        chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
-
-        const reverseResp = await testUtils.testAuthedRequest<Transaction>(restRouter, `/v2/transactions/${checkoutResp.body.id}/reverse`, "POST", {id: generateId()});
-        chai.assert.equal(reverseResp.statusCode, 201);
-
-        const checkoutChain = await getDbTransactionChain(testUtils.defaultTestUser.auth, checkoutResp.body.id);
-        const reverseChain = await getDbTransactionChain(testUtils.defaultTestUser.auth, reverseResp.body.id);
-        chai.assert.deepEqual(checkoutChain, reverseChain, `checkoutChain=${JSON.stringify(checkoutChain)}, reverseChain=${JSON.stringify(reverseChain)}`);
-
-        // pending
-        const value1: Partial<Value> = {
-            id: generateId(),
-            currency: currency.code,
-            balance: 50
-        };
-        const postValue1Resp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", value1);
-        chai.assert.equal(postValue1Resp.statusCode, 201, `body=${JSON.stringify(postValue1Resp.body)}`);
-
-        const checkout1Request: CheckoutRequest = {
-            id: generateId(),
-            currency: currency.code,
-            lineItems: [{
-                type: "product",
-                productId: "pid",
-                unitPrice: 1000
-            }],
-            sources: [
-                {
-                    rail: "lightrail",
-                    valueId: value1.id
-                },
-                {
-                    rail: "stripe",
-                    source: "tok_visa"
-                }
-            ],
-            pending: true
-        };
-
-        const checkout1Resp = await testUtils.testAuthedRequest<Transaction>(restRouter, "/v2/transactions/checkout", "POST", checkout1Request);
-        chai.assert.equal(checkout1Resp.statusCode, 201, `body=${JSON.stringify(checkout1Resp.body)}`);
-
-        const voidResp = await testUtils.testAuthedRequest<Transaction>(restRouter, `/v2/transactions/${checkout1Resp.body.id}/void`, "POST", {id: generateId()});
-        chai.assert.equal(voidResp.statusCode, 201);
-
-        const checkout1Chain = await getDbTransactionChain(testUtils.defaultTestUser.auth, checkout1Resp.body.id);
-        const voidChain = await getDbTransactionChain(testUtils.defaultTestUser.auth, voidResp.body.id);
-        chai.assert.deepEqual(checkout1Chain, voidChain, `checkoutChain=${JSON.stringify(checkout1Chain)}, reverseChain=${JSON.stringify(voidChain)}`);
-    }).timeout(8000);
 });
