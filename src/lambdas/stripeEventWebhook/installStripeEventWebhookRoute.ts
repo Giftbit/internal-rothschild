@@ -11,7 +11,7 @@ import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {DbValue, Value} from "../../model/Value";
 import {retrieveCharge} from "../../utils/stripeUtils/stripeTransactions";
 import {generateCode} from "../../utils/codeGenerator";
-import {MetricsLogger} from "../../utils/metricsLogger";
+import {MetricsLogger as metricsLogger} from "../../utils/metricsLogger";
 
 export function installStripeEventWebhookRoute(router: cassava.Router): void {
     // These paths are configured in our Stripe account and not publicly known
@@ -60,20 +60,26 @@ async function handleConnectedAccountEvent(event: Stripe.events.IEvent & { accou
 }
 
 async function handleFraudReverseEvent(event: Stripe.events.IEvent & { account: string }): Promise<void> {
-    log.info(`Event ${event.id} indicates that fraud has occurred. Reversing corresponding Lightrail Transaction and freezing associated Values.`);
-
     const stripeAccountId: string = event.account;
     const stripeCharge: Stripe.charges.ICharge = await getStripeChargeFromEvent(event);
     const auth = getAuthBadgeFromStripeCharge(stripeAccountId, stripeCharge, event);
 
-    MetricsLogger.stripeWebhookFraudEvent(event, auth);
+    if (event.type === "charge.dispute.created") {
+        log.info(`Event ${event.id} indicates a charge dispute which usually means fraud. Sending metrics data but taking no further action until fraud action confirmed.`);
+        metricsLogger.stripeWebhookDisputeEvent(event, auth);
+        return;
+    }
+
+    log.info(`Event ${event.id} indicates that fraud has occurred. Reversing corresponding Lightrail Transaction and freezing associated Values.`);
+
+    metricsLogger.stripeWebhookFraudEvent(event, auth);
 
     let lightrailTransaction: Transaction;
     try {
         lightrailTransaction = await getRootTransactionFromStripeCharge(auth, stripeCharge);
     } catch (e) {
         log.error(`Failed to fetch Lightrail Transaction from Stripe charge '${stripeCharge.id}'. Exiting and returning success response to Stripe since this is likely Lightrail problem. Event=${JSON.stringify(event)}`);
-        MetricsLogger.stripeWebhookHandlerError(event, auth);
+        metricsLogger.stripeWebhookHandlerError(event, auth);
         giftbitRoutes.sentry.sendErrorNotification(e);
         return; // send success response to Stripe since this is likely a Lightrail issue
     }
@@ -82,7 +88,7 @@ async function handleFraudReverseEvent(event: Stripe.events.IEvent & { account: 
     try {
         handlingTransaction = await reverseOrVoidFraudulentTransaction(auth, (event as Stripe.events.IEvent & { account: string }), stripeCharge, lightrailTransaction);
     } catch (e) {
-        MetricsLogger.stripeWebhookHandlerError(event, auth);
+        metricsLogger.stripeWebhookHandlerError(event, auth);
         giftbitRoutes.sentry.sendErrorNotification(e);
         // Don't exit or throw a real error here since we still want to try to freeze the Values
     }
@@ -90,7 +96,7 @@ async function handleFraudReverseEvent(event: Stripe.events.IEvent & { account: 
     try {
         await freezeValuesAffectedByFraudulentTransaction(auth, event, stripeCharge, lightrailTransaction, handlingTransaction);
     } catch (e) {
-        MetricsLogger.stripeWebhookHandlerError(event, auth);
+        metricsLogger.stripeWebhookHandlerError(event, auth);
         giftbitRoutes.sentry.sendErrorNotification(e);
     }
 }
@@ -178,8 +184,10 @@ function isFraudActionEvent(event: Stripe.events.IEvent & { account?: string }):
         return ((event.data.object as Stripe.refunds.IRefund).reason === "fraudulent");
     } else if (event.type === "review.closed") {
         return ((event.data.object as Stripe.reviews.IReview).reason === "refunded_as_fraud");
+    } else if (event.type === "charge.dispute.created") {
+        return true;
     } else {
-        log.info(`This event is not one of ['charge.refunded', 'charge.refund.updated', 'review.closed']: taking no action. Event ID: '${event.id}' with Stripe connected account ID: '${event.account}'`);
+        log.info(`This event is not one of ['charge.refunded', 'charge.refund.updated', 'review.closed', 'charge.dispute.created']: taking no action. Event ID: '${event.id}' with Stripe connected account ID: '${event.account}'`);
         return false;
     }
 }
@@ -195,6 +203,9 @@ async function getStripeChargeFromEvent(event: Stripe.events.IEvent & { account:
     } else if (event.data.object.object === "review") {
         const review = event.data.object as Stripe.reviews.IReview;
         return typeof review.charge === "string" ? await retrieveCharge(review.charge, lightrailStripeConfig.secretKey, event.account) : review.charge;
+    } else if (event.data.object.object === "dispute") {
+        const dispute = event.data.object as Stripe.disputes.IDispute;
+        return typeof dispute.charge === "string" ? await retrieveCharge(dispute.charge, lightrailStripeConfig.secretKey, event.account) : dispute.charge;
     } else {
         throw new Error(`Could not retrieve Stripe charge from event '${event.id}'`);
     }
@@ -221,7 +232,7 @@ async function freezeValuesAffectedByFraudulentTransaction(auth: giftbitRoutes.j
         log.info("charged Values including all Values attached to charged Contacts frozen.");
     } catch (e) {
         log.error(`Failed to freeze Values '${chargedValueIds}' and/or Values attached to Contacts '${chargedContactIds}'`);
-        MetricsLogger.stripeWebhookHandlerError(event, auth);
+        metricsLogger.stripeWebhookHandlerError(event, auth);
         giftbitRoutes.sentry.sendErrorNotification(e);
     }
 }
