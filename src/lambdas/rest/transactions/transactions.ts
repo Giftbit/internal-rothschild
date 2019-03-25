@@ -24,6 +24,7 @@ import {createDebitTransactionPlan} from "./transactions.debit";
 import {createReverseTransactionPlan} from "./reverse/transactions.reverse";
 import {createCaptureTransactionPlan} from "./transactions.capture";
 import {createVoidTransactionPlan} from "./transactions.void";
+import {QueryBuilder} from "knex";
 import getPaginationParams = Pagination.getPaginationParams;
 
 export function installTransactionsRest(router: cassava.Router): void {
@@ -189,6 +190,9 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
     let query = knex("Transactions")
         .select("Transactions.*")
         .where("Transactions.userId", "=", auth.userId);
+    if (filterParams.rootTransactionId) {
+        query = getDbTransactionChainQuery(knex, auth, filterParams.rootTransactionId);
+    }
     if (valueId || contactId) {
         query.join("LightrailTransactionSteps", {
             "Transactions.id": "LightrailTransactionSteps.transactionId",
@@ -264,6 +268,25 @@ export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBa
 
     const transactions: Transaction[] = await DbTransaction.toTransactions([dbTransaction], auth.userId);
     return transactions[0];   // at this point there will only ever be one
+}
+
+export async function getDbTransactionChain(auth: giftbitRoutes.jwtauth.AuthorizationBadge, transactionId: string): Promise<DbTransaction[]> {
+    const knex = await getKnexRead();
+    const query = getDbTransactionChainQuery(knex, auth, transactionId);
+    return await query;
+}
+
+function getDbTransactionChainQuery(knex, auth: giftbitRoutes.jwtauth.AuthorizationBadge, transactionId: string): QueryBuilder {
+    return knex("Transactions as Tx1")
+        .join("Transactions", {
+            "Tx1.userId": "Transactions.userId",
+            "Tx1.rootTransactionId": "Transactions.rootTransactionId"
+        })
+        .where({
+            "Tx1.id": transactionId,
+            "Tx1.userId": auth.userId
+        })
+        .select("Transactions.*");
 }
 
 async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CreditRequest): Promise<Transaction> {

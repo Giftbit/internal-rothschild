@@ -6,7 +6,7 @@ import {StripeModeConfig} from "../../utils/stripeUtils/StripeConfig";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {DbTransaction, LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../model/Transaction";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
-import {createReverse, createVoid, getTransaction} from "../rest/transactions/transactions";
+import {createReverse, createVoid, getDbTransactionChain, getTransaction} from "../rest/transactions/transactions";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {DbValue, Value} from "../../model/Value";
 import {retrieveCharge} from "../../utils/stripeUtils/stripeTransactions";
@@ -70,7 +70,7 @@ async function handleFraudReverseEvent(event: Stripe.events.IEvent & { account: 
 
     let lightrailTransaction: Transaction;
     try {
-        lightrailTransaction = await getLightrailTransactionFromStripeCharge(auth, stripeCharge, stripeCharge.metadata["lightrailTransactionId"]);
+        lightrailTransaction = await getRootTransactionFromStripeCharge(auth, stripeCharge);
     } catch (e) {
         log.error(`Failed to fetch Lightrail Transaction from Stripe charge '${stripeCharge.id}'. Exiting and returning success response to Stripe since this is likely Lightrail problem. Event=${JSON.stringify(event)}`);
         MetricsLogger.stripeWebhookHandlerError(event, auth);
@@ -80,7 +80,7 @@ async function handleFraudReverseEvent(event: Stripe.events.IEvent & { account: 
 
     let handlingTransaction: Transaction;
     try {
-        handlingTransaction = await reverseOrVoidFraudulentTransaction(auth, (event as Stripe.events.IEvent & { account: string }), stripeCharge);
+        handlingTransaction = await reverseOrVoidFraudulentTransaction(auth, (event as Stripe.events.IEvent & { account: string }), stripeCharge, lightrailTransaction);
     } catch (e) {
         MetricsLogger.stripeWebhookHandlerError(event, auth);
         giftbitRoutes.sentry.sendErrorNotification(e);
@@ -95,8 +95,21 @@ async function handleFraudReverseEvent(event: Stripe.events.IEvent & { account: 
     }
 }
 
-async function getLightrailTransactionFromStripeCharge(auth, stripeCharge, presumedLightrailTransactionId): Promise<Transaction> {
-    const transaction: Transaction = await getTransaction(auth, presumedLightrailTransactionId);
+async function getRootTransactionFromStripeCharge(auth: giftbitRoutes.jwtauth.AuthorizationBadge, stripeCharge: Stripe.charges.ICharge): Promise<Transaction> {
+    const knex = await getKnexRead();
+    const res: DbTransaction[] = await knex("Transactions")
+        .where({
+            "Transactions.userId": auth.userId,
+        })
+        .join("StripeTransactionSteps", {
+            "StripeTransactionSteps.userId": "Transactions.userId",
+            "Transactions.id": "StripeTransactionSteps.transactionId",
+        })
+        .where({"StripeTransactionSteps.chargeId": stripeCharge.id}) // this can return multiple Transactions
+        .select("Transactions.*");
+
+    const rootTransaction: DbTransaction = res.find(tx => tx.id === tx.rootTransactionId);
+    const transaction: Transaction = (await DbTransaction.toTransactions([rootTransaction], auth.userId))[0];
     if (isMatchedStripeChargeLightrailTransaction(stripeCharge, transaction)) {
         return transaction;
     } else {
@@ -104,10 +117,18 @@ async function getLightrailTransactionFromStripeCharge(auth, stripeCharge, presu
     }
 }
 
-async function reverseOrVoidFraudulentTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, event: Stripe.events.IEvent & { account: string }, stripeCharge: Stripe.charges.ICharge): Promise<Transaction> {
-    const presumedLightrailTransactionId = stripeCharge.metadata["lightrailTransactionId"];
-    const dbTransactionChain: DbTransaction[] = await getLightrailDbTransactionChainFromStripeCharge(auth, stripeCharge, presumedLightrailTransactionId);
-    const dbTransactionToHandle: DbTransaction = dbTransactionChain.find(txn => txn.id === presumedLightrailTransactionId);
+async function reverseOrVoidFraudulentTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, event: Stripe.events.IEvent & { account: string }, stripeCharge: Stripe.charges.ICharge, lightrailTransaction: Transaction): Promise<Transaction> {
+    if (!isMatchedStripeChargeLightrailTransaction(stripeCharge, lightrailTransaction)) {
+        throw new Error(`Property mismatch: Stripe charge '${stripeCharge.id}' should match a charge in Lightrail Transaction '${lightrailTransaction.id}' except for refund details. Transaction='${JSON.stringify(lightrailTransaction)}'`);
+    }
+
+    const dbTransactionChain: DbTransaction[] = await getDbTransactionChain(auth, lightrailTransaction.id);
+    const dbTransactionToHandle: DbTransaction = dbTransactionChain.find(txn => txn.id === lightrailTransaction.id);
+
+    if (!dbTransactionToHandle) {
+        log.error("No dbTransactionToHandle. Exiting.");
+        return;
+    }
 
     if (isReversed(dbTransactionToHandle, dbTransactionChain)) {
         log.info(`Transaction '${dbTransactionToHandle.id}' has already been reversed. Fetching existing reverse transaction...`);
@@ -176,20 +197,6 @@ async function getStripeChargeFromEvent(event: Stripe.events.IEvent & { account:
         return typeof review.charge === "string" ? await retrieveCharge(review.charge, lightrailStripeConfig.secretKey, event.account) : review.charge;
     } else {
         throw new Error(`Could not retrieve Stripe charge from event '${event.id}'`);
-    }
-}
-
-async function getLightrailDbTransactionChainFromStripeCharge(auth: giftbitRoutes.jwtauth.AuthorizationBadge, stripeCharge: Stripe.charges.ICharge, lightrailTransactionId: string): Promise<DbTransaction[]> {
-    const knex = await getKnexRead();
-    const dbTransactionChain: DbTransaction[] = await knex("Transactions")
-        .where("Transactions.userId", "=", auth.userId)
-        .andWhere("Transactions.rootTransactionId", "=", lightrailTransactionId);
-
-    const rootTransaction: Transaction = await getTransaction(auth, lightrailTransactionId);
-    if (isMatchedStripeChargeLightrailTransaction(stripeCharge, rootTransaction)) {
-        return dbTransactionChain;
-    } else {
-        throw new Error(`Property mismatch: Stripe charge '${stripeCharge.id}' should match a charge in Lightrail Transaction '${lightrailTransactionId}' except for refund details. Transaction='${JSON.stringify(rootTransaction)}'`);
     }
 }
 
