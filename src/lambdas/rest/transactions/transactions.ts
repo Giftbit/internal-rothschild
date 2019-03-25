@@ -266,6 +266,20 @@ export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBa
     return transactions[0];   // at this point there will only ever be one
 }
 
+export async function getDbTransactionChain(auth: giftbitRoutes.jwtauth.AuthorizationBadge, transactionId: string): Promise<DbTransaction[]> {
+    const knex = await getKnexRead();
+    return await knex("Transactions as Tx1")
+        .join("Transactions as Tx2", {
+            "Tx1.userId": "Tx2.userId",
+            "Tx1.rootTransactionId": "Tx2.rootTransactionId"
+        })
+        .where({
+            "Tx1.id": transactionId,
+            "Tx1.userId": auth.userId
+        })
+        .select("Tx2.*");
+}
+
 async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CreditRequest): Promise<Transaction> {
     return await executeTransactionPlanner(
         auth,
