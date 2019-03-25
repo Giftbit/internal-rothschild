@@ -58,6 +58,7 @@ describe("/v2/stripeEventWebhook - Stripe Refund events", () => {
     after(() => {
         unsetStubsForStripeTests();
     });
+
     it("reverses Lightrail transaction & freezes Values for Stripe refunds updated with 'reason: fraudulent'", async function () {
         const value: Partial<Value> = {
             id: generateId(),

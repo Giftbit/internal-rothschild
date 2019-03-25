@@ -75,7 +75,7 @@ async function handleFraudReverseEvent(event: Stripe.events.IEvent & { account: 
         log.error(`Failed to fetch Lightrail Transaction from Stripe charge '${stripeCharge.id}'. Exiting and returning success response to Stripe since this is likely Lightrail problem. Event=${JSON.stringify(event)}`);
         MetricsLogger.stripeWebhookHandlerError(event, auth);
         giftbitRoutes.sentry.sendErrorNotification(e);
-        return;
+        return; // send success response to Stripe since this is likely a Lightrail issue
     }
 
     let handlingTransaction: Transaction;
@@ -145,7 +145,7 @@ async function reverseOrVoidFraudulentTransaction(auth: giftbitRoutes.jwtauth.Au
         return voidTransaction;
 
     } else {
-        throw new Error(`Stripe webhook event '${event.id}' from account '${event.account}' indicated fraud. Corresponding Lightrail Transaction '${dbTransactionToHandle.id}' could not be reversed or voided and has not already been reversed or voided. Transactions in chain: ${dbTransactionChain.map(txn => txn.id)}. Will still try to freeze implicated Values.`);
+        throw new Error(`Stripe webhook event '${event.id}' from account '${event.account}' indicated fraud. Corresponding Lightrail Transaction '${dbTransactionToHandle.id}' could not be reversed or voided and has not already been reversed or voided. Transactions in chain: ${dbTransactionChain.map(txn => txn.id)}. Will still try to freeze charged Values.`);
     }
 }
 
@@ -204,14 +204,14 @@ async function freezeValuesAffectedByFraudulentTransaction(auth: giftbitRoutes.j
     let chargedValueIds: string[] = lightrailSteps.map(step => step.valueId);
     const chargedContactIds: string[] = fraudulentTransaction.paymentSources.filter(src => src.rail === "lightrail" && src.contactId).map(src => (src as LightrailTransactionStep).contactId);
 
-    log.info(`Freezing implicated Values: '${chargedValueIds}' and all Values attached to implicated Contacts: '${chargedContactIds}'`);
+    log.info(`Freezing charged Values: '${chargedValueIds}' and all Values attached to charged Contacts: '${chargedContactIds}'`);
 
     try {
         await freezeValues(auth, {
             valueIds: chargedValueIds,
             contactIds: chargedContactIds
         }, fraudulentTransaction.id, buildValueFreezeMessage(fraudulentTransaction.id, reverseOrVoidTransaction.id, stripeCharge.id, event));
-        log.info("Implicated Values including all Values attached to implicated Contacts frozen.");
+        log.info("charged Values including all Values attached to charged Contacts frozen.");
     } catch (e) {
         log.error(`Failed to freeze Values '${chargedValueIds}' and/or Values attached to Contacts '${chargedContactIds}'`);
         MetricsLogger.stripeWebhookHandlerError(event, auth);
@@ -251,6 +251,7 @@ async function freezeValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valu
                     stripeWebhookTriggeredAction: message
                 }
             }));
+
         if (updateRes === 0) {
             throw new cassava.RestError(404);
         }
@@ -262,6 +263,7 @@ async function freezeValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valu
 
 /**
  * This is a workaround method until we can get the Lightrail userId directly from the Stripe accountId.
+ * When that happens we'll be able to build the badge solely from the accountId and test/live flag on the event.
  */
 export function getAuthBadgeFromStripeCharge(stripeAccountId: string, stripeCharge: Stripe.charges.ICharge, event: Stripe.events.IEvent & { account: string }): giftbitRoutes.jwtauth.AuthorizationBadge {
     let lightrailUserId = getLightrailUserIdFromStripeCharge(stripeAccountId, stripeCharge, !event.livemode);

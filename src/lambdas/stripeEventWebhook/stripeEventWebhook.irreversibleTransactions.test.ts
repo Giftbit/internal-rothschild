@@ -49,9 +49,6 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
 
         await createCurrency(testUtils.defaultTestUser.auth, currency);
 
-        const postValue1Resp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", value1);
-        chai.assert.equal(postValue1Resp.statusCode, 201, `body=${JSON.stringify(postValue1Resp.body)}`);
-
         setStubsForStripeTests();
     });
 
