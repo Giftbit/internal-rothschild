@@ -33,6 +33,13 @@ export namespace MetricsLogger {
             stripeAccountId: event.account
         }, auth);
     }
+
+    export function stripeWebhookDisputeEvent(event: Stripe.events.IEvent & { account?: string }, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
+        logMetric(1, MetricsType.Histogram, `rothschild.stripeEventWebhook.dispute`, {
+            stripeEventType: event.type,
+            stripeAccountId: event.account
+        }, auth);
+    }
 }
 
 export enum ValueAttachmentTypes {
