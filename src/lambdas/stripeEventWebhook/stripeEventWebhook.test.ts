@@ -6,12 +6,10 @@ import {installStripeEventWebhookRoute} from "./installStripeEventWebhookRoute";
 import * as chai from "chai";
 import {
     generateStripeChargeResponse,
-    generateStripeRefundResponse,
     setStubsForStripeTests,
     stripeLiveLightrailConfig,
     stripeLiveMerchantConfig,
     stubCheckoutStripeCharge,
-    stubStripeRefund,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../utils/testUtils/stripeTestUtils";
@@ -133,7 +131,12 @@ describe("/v2/stripeEventWebhook", () => {
         chai.assert.equal(fetchTransactionChainResp.body.length, 1);
     });
 
-    it("reverses Lightrail transaction & freezes Values for Stripe refunds created with 'reason: fraudulent'", async () => {
+    it("reverses Lightrail transaction & freezes Values for Stripe refunds created with 'reason: fraudulent'", async function () {
+        if (!testStripeLive()) {
+            this.skip();
+            return;
+        }
+
         const value: Partial<Value> = {
             id: generateId(),
             currency: currency.code,
@@ -161,47 +164,20 @@ describe("/v2/stripeEventWebhook", () => {
                 }
             ]
         };
-        const [stripeCheckoutChargeMock] = stubCheckoutStripeCharge(checkoutRequest, 1, 950);
 
         const checkoutResp = await testUtils.testAuthedRequest<Transaction>(restRouter, "/v2/transactions/checkout", "POST", checkoutRequest);
         chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
-        if (!testStripeLive()) {
-            chai.assert.equal((checkoutResp.body.steps[1] as StripeTransactionStep).chargeId, stripeCheckoutChargeMock.id);
-            chai.assert.deepEqual((checkoutResp.body.steps[1] as StripeTransactionStep).charge, stripeCheckoutChargeMock, `body.steps=${JSON.stringify(checkoutResp.body.steps)}`);
-        }
 
         chai.assert.isNotNull(checkoutResp.body.steps.find(step => step.rail === "stripe"));
         const stripeStep = <StripeTransactionStep>checkoutResp.body.steps.find(step => step.rail === "stripe");
 
         let refundedCharge: stripe.charges.ICharge;
-        if (testStripeLive()) {
-            const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
+        const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
 
-            const chargeFromStripe = await lightrailStripe.charges.retrieve(stripeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
-            chai.assert.isNotNull(chargeFromStripe);
+        const chargeFromStripe = await lightrailStripe.charges.retrieve(stripeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+        chai.assert.isNotNull(chargeFromStripe);
 
-            refundedCharge = await lightrailStripe.charges.refund(stripeStep.chargeId, {reason: "fraudulent"}, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
-
-        } else {
-            stubStripeRefund(stripeStep.charge as stripe.charges.ICharge, {reason: "fraudulent"});
-            refundedCharge = {
-                ...stripeCheckoutChargeMock,
-                refunded: true,
-                refunds: {
-                    object: "list",
-                    data: [
-                        generateStripeRefundResponse({
-                            amount: stripeCheckoutChargeMock.amount,
-                            currency: stripeCheckoutChargeMock.currency,
-                            reason: "fraudulent",
-                            stripeChargeId: stripeCheckoutChargeMock.id
-                        })
-                    ],
-                    has_more: false,
-                    url: null
-                }
-            };
-        }
+        refundedCharge = await lightrailStripe.charges.refund(stripeStep.chargeId, {reason: "fraudulent"}, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
 
         const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", refundedCharge));
         chai.assert.equal(webhookResp.statusCode, 204);
@@ -230,7 +206,12 @@ describe("/v2/stripeEventWebhook", () => {
         chai.assert.equal(webhookResp.statusCode, 204);
     });
 
-    it("logs Stripe eventId & Connected accountId in metadata", async () => {
+    it("logs Stripe eventId & Connected accountId in metadata", async function () {
+        if (!testStripeLive()) {
+            this.skip();
+            return;
+        }
+
         const value: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
@@ -258,47 +239,20 @@ describe("/v2/stripeEventWebhook", () => {
                 }
             ]
         };
-        const [stripeCheckoutChargeMock] = stubCheckoutStripeCharge(checkoutRequest, 1, 950);
 
         const checkoutResp = await testUtils.testAuthedRequest<Transaction>(restRouter, "/v2/transactions/checkout", "POST", checkoutRequest);
         chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
-        if (!testStripeLive()) {
-            chai.assert.equal((checkoutResp.body.steps[1] as StripeTransactionStep).chargeId, stripeCheckoutChargeMock.id);
-            chai.assert.deepEqual((checkoutResp.body.steps[1] as StripeTransactionStep).charge, stripeCheckoutChargeMock, `body.steps=${JSON.stringify(checkoutResp.body.steps)}`);
-        }
 
         chai.assert.isNotNull(checkoutResp.body.steps.find(step => step.rail === "stripe"));
         const stripeStep = <StripeTransactionStep>checkoutResp.body.steps.find(step => step.rail === "stripe");
 
         let refundedCharge: stripe.charges.ICharge;
-        if (testStripeLive()) {
-            const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
+        const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
 
-            const chargeFromStripe = await lightrailStripe.charges.retrieve(stripeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
-            chai.assert.isNotNull(chargeFromStripe);
+        const chargeFromStripe = await lightrailStripe.charges.retrieve(stripeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+        chai.assert.isNotNull(chargeFromStripe);
 
-            refundedCharge = await lightrailStripe.charges.refund(stripeStep.chargeId, {reason: "fraudulent"}, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
-
-        } else {
-            stubStripeRefund(stripeStep.charge as stripe.charges.ICharge, {reason: "fraudulent"});
-            refundedCharge = {
-                ...stripeCheckoutChargeMock,
-                refunded: true,
-                refunds: {
-                    object: "list",
-                    data: [
-                        generateStripeRefundResponse({
-                            amount: stripeCheckoutChargeMock.amount,
-                            currency: stripeCheckoutChargeMock.currency,
-                            reason: "fraudulent",
-                            stripeChargeId: stripeCheckoutChargeMock.id
-                        })
-                    ],
-                    has_more: false,
-                    url: null
-                }
-            };
-        }
+        refundedCharge = await lightrailStripe.charges.refund(stripeStep.chargeId, {reason: "fraudulent"}, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
 
         const webhookEvent = generateConnectWebhookEventMock("charge.refunded", refundedCharge);
         const webhookResp = await testSignedWebhookRequest(webhookEventRouter, webhookEvent);
@@ -320,7 +274,12 @@ describe("/v2/stripeEventWebhook", () => {
     }).timeout(8000);
 
     describe("handles scenarios - action already taken in Lightrail", () => {
-        it("Lightrail transaction already reversed", async () => {
+        it("Lightrail transaction already reversed", async function () {
+            if (!testStripeLive()) {
+                this.skip();
+                return;
+            }
+
             const value: Partial<Value> = {
                 id: generateId(),
                 currency: currency.code,
@@ -348,57 +307,29 @@ describe("/v2/stripeEventWebhook", () => {
                     }
                 ]
             };
-            const [stripeCheckoutChargeMock] = stubCheckoutStripeCharge(checkoutRequest, 1, 950);
 
             const checkoutResp = await testUtils.testAuthedRequest<Transaction>(restRouter, "/v2/transactions/checkout", "POST", checkoutRequest);
             chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
-            if (!testStripeLive()) {
-                chai.assert.equal((checkoutResp.body.steps[1] as StripeTransactionStep).chargeId, stripeCheckoutChargeMock.id);
-                chai.assert.deepEqual((checkoutResp.body.steps[1] as StripeTransactionStep).charge, stripeCheckoutChargeMock, `body.steps=${JSON.stringify(checkoutResp.body.steps)}`);
-            }
 
             chai.assert.isNotNull(checkoutResp.body.steps.find(step => step.rail === "stripe"));
             const stripeChargeStep = <StripeTransactionStep>checkoutResp.body.steps.find(step => step.rail === "stripe");
 
             let refundedCharge: stripe.charges.ICharge;
 
-            if (!testStripeLive()) {
-                stubStripeRefund(stripeChargeStep.charge as stripe.charges.ICharge, {reason: "fraudulent"});
-                refundedCharge = {
-                    ...stripeCheckoutChargeMock,
-                    refunded: true,
-                    refunds: {
-                        object: "list",
-                        data: [
-                            generateStripeRefundResponse({
-                                amount: stripeCheckoutChargeMock.amount,
-                                currency: stripeCheckoutChargeMock.currency,
-                                reason: "fraudulent",
-                                stripeChargeId: stripeCheckoutChargeMock.id
-                            })
-                        ],
-                        has_more: false,
-                        url: null
-                    }
-                };
-            }
-
             const reversedTransactionResponse = await testUtils.testAuthedRequest<Transaction>(restRouter, `/v2/transactions/${checkoutRequest.id}/reverse`, "POST", {id: generateId()});
             chai.assert.equal(reversedTransactionResponse.statusCode, 201, `reversedTransactionResponse.body=${JSON.stringify(reversedTransactionResponse)}`);
             chai.assert.isNotNull(reversedTransactionResponse.body.steps.find(step => step.rail === "stripe"));
 
-            if (testStripeLive()) {
-                const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
+            const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
 
-                const chargeFromStripe = await lightrailStripe.charges.retrieve(stripeChargeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
-                chai.assert.isNotNull(chargeFromStripe);
-                chai.assert.equal(chargeFromStripe.refunds.data.length, 1);
+            const chargeFromStripe = await lightrailStripe.charges.retrieve(stripeChargeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+            chai.assert.isNotNull(chargeFromStripe);
+            chai.assert.equal(chargeFromStripe.refunds.data.length, 1);
 
-                // Manual workaround: update refund on returned charge with 'reason: fraudulent' so the webhook safety checks will pass
-                // Normal flow for a transaction reversed in Lightrail would be to do this through the Stripe dashboard
-                refundedCharge = {...chargeFromStripe};
-                refundedCharge.refunds.data[0].reason = "fraudulent";
-            }
+            // Manual workaround: update refund on returned charge with 'reason: fraudulent' so the webhook safety checks will pass
+            // Normal flow for a transaction reversed in Lightrail would be to do this through the Stripe dashboard
+            refundedCharge = {...chargeFromStripe};
+            refundedCharge.refunds.data[0].reason = "fraudulent";
 
             const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", refundedCharge));
             chai.assert.equal(webhookResp.statusCode, 204);
@@ -414,7 +345,12 @@ describe("/v2/stripeEventWebhook", () => {
             chai.assert.equal(fetchValueResp.body.frozen, true, `fetchValueResp.body.frozen=${fetchValueResp.body.frozen}`);
         }).timeout(8000);
 
-        it("Lightrail transaction already reversed and Values already frozen", async () => {
+        it("Lightrail transaction already reversed and Values already frozen", async function () {
+            if (!testStripeLive()) {
+                this.skip();
+                return;
+            }
+
             const value: Partial<Value> = {
                 id: generateId(),
                 currency: currency.code,
@@ -442,57 +378,29 @@ describe("/v2/stripeEventWebhook", () => {
                     }
                 ]
             };
-            const [stripeCheckoutChargeMock] = stubCheckoutStripeCharge(checkoutRequest, 1, 950);
 
             const checkoutResp = await testUtils.testAuthedRequest<Transaction>(restRouter, "/v2/transactions/checkout", "POST", checkoutRequest);
             chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
-            if (!testStripeLive()) {
-                chai.assert.equal((checkoutResp.body.steps[1] as StripeTransactionStep).chargeId, stripeCheckoutChargeMock.id);
-                chai.assert.deepEqual((checkoutResp.body.steps[1] as StripeTransactionStep).charge, stripeCheckoutChargeMock, `body.steps=${JSON.stringify(checkoutResp.body.steps)}`);
-            }
 
             chai.assert.isNotNull(checkoutResp.body.steps.find(step => step.rail === "stripe"));
             const stripeChargeStep = <StripeTransactionStep>checkoutResp.body.steps.find(step => step.rail === "stripe");
 
             let refundedCharge: stripe.charges.ICharge;
 
-            if (!testStripeLive()) {
-                stubStripeRefund(stripeChargeStep.charge as stripe.charges.ICharge, {reason: "fraudulent"});
-                refundedCharge = {
-                    ...stripeCheckoutChargeMock,
-                    refunded: true,
-                    refunds: {
-                        object: "list",
-                        data: [
-                            generateStripeRefundResponse({
-                                amount: stripeCheckoutChargeMock.amount,
-                                currency: stripeCheckoutChargeMock.currency,
-                                reason: "fraudulent",
-                                stripeChargeId: stripeCheckoutChargeMock.id
-                            })
-                        ],
-                        has_more: false,
-                        url: null
-                    }
-                };
-            }
-
             const reversedTransactionResponse = await testUtils.testAuthedRequest<Transaction>(restRouter, `/v2/transactions/${checkoutRequest.id}/reverse`, "POST", {id: generateId()});
             chai.assert.equal(reversedTransactionResponse.statusCode, 201, `reversedTransactionResponse.body=${JSON.stringify(reversedTransactionResponse)}`);
             chai.assert.isNotNull(reversedTransactionResponse.body.steps.find(step => step.rail === "stripe"));
 
-            if (testStripeLive()) {
-                const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
+            const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
 
-                const chargeFromStripe = await lightrailStripe.charges.retrieve(stripeChargeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
-                chai.assert.isNotNull(chargeFromStripe);
-                chai.assert.equal(chargeFromStripe.refunds.data.length, 1);
+            const chargeFromStripe = await lightrailStripe.charges.retrieve(stripeChargeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+            chai.assert.isNotNull(chargeFromStripe);
+            chai.assert.equal(chargeFromStripe.refunds.data.length, 1);
 
-                // Manual workaround: update refund on returned charge with 'reason: fraudulent' so the webhook safety checks will pass
-                // Normal flow for a transaction reversed in Lightrail would be to do this through the Stripe dashboard
-                refundedCharge = {...chargeFromStripe};
-                refundedCharge.refunds.data[0].reason = "fraudulent";
-            }
+            // Manual workaround: update refund on returned charge with 'reason: fraudulent' so the webhook safety checks will pass
+            // Normal flow for a transaction reversed in Lightrail would be to do this through the Stripe dashboard
+            refundedCharge = {...chargeFromStripe};
+            refundedCharge.refunds.data[0].reason = "fraudulent";
 
             const freezeValueResp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/values/${value.id}`, "PATCH", {frozen: true});
             chai.assert.equal(freezeValueResp.statusCode, 200, `freezeValueResp.body=${freezeValueResp.body}`);
@@ -511,11 +419,14 @@ describe("/v2/stripeEventWebhook", () => {
             chai.assert.equal(fetchValueResp.body.balance, value.balance, `fetchValueResp.body.balance=${fetchValueResp.body.balance}`);
             chai.assert.equal(fetchValueResp.body.frozen, true, `fetchValueResp.body.frozen=${fetchValueResp.body.frozen}`);
         }).timeout(8000);
-
-        it("Lightrail transaction not reversed but Values frozen");
     });
 
-    it("freezes Values attached to Contact used as a payment source", async () => {
+    it("freezes Values attached to Contact used as a payment source", async function () {
+        if (!testStripeLive()) {
+            this.skip();
+            return;
+        }
+
         const contact: Partial<Contact> = {
             id: generateId()
         };
@@ -561,7 +472,6 @@ describe("/v2/stripeEventWebhook", () => {
                 }
             ]
         };
-        const [stripeCheckoutChargeMock] = stubCheckoutStripeCharge(checkoutRequest, 1, 900);
 
         const checkoutResp = await testUtils.testAuthedRequest<Transaction>(restRouter, "/v2/transactions/checkout", "POST", checkoutRequest);
         chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
@@ -572,34 +482,12 @@ describe("/v2/stripeEventWebhook", () => {
         const stripeStep = <StripeTransactionStep>checkoutResp.body.steps.find(step => step.rail === "stripe");
 
         let refundedCharge: stripe.charges.ICharge;
-        if (testStripeLive()) {
-            const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
+        const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
 
-            const chargeFromStripe = await lightrailStripe.charges.retrieve(stripeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
-            chai.assert.isNotNull(chargeFromStripe);
+        const chargeFromStripe = await lightrailStripe.charges.retrieve(stripeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+        chai.assert.isNotNull(chargeFromStripe);
 
-            refundedCharge = await lightrailStripe.charges.refund(stripeStep.chargeId, {reason: "fraudulent"}, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
-
-        } else {
-            stubStripeRefund(stripeStep.charge as stripe.charges.ICharge, {reason: "fraudulent"});
-            refundedCharge = {
-                ...stripeCheckoutChargeMock,
-                refunded: true,
-                refunds: {
-                    object: "list",
-                    data: [
-                        generateStripeRefundResponse({
-                            amount: stripeCheckoutChargeMock.amount,
-                            currency: stripeCheckoutChargeMock.currency,
-                            reason: "fraudulent",
-                            stripeChargeId: stripeCheckoutChargeMock.id
-                        })
-                    ],
-                    has_more: false,
-                    url: null
-                }
-            };
-        }
+        refundedCharge = await lightrailStripe.charges.refund(stripeStep.chargeId, {reason: "fraudulent"}, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
 
         const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", refundedCharge));
         chai.assert.equal(webhookResp.statusCode, 204, `webhookResp.body=${JSON.stringify(webhookResp)}`);
@@ -620,7 +508,12 @@ describe("/v2/stripeEventWebhook", () => {
         chai.assert.equal(fetchValue2Resp.body.frozen, true, `fetchValue2Resp.body.frozen=${fetchValue2Resp.body.frozen}`);
     }).timeout(8000);
 
-    it("does not freeze generic values - attached or unattached", async () => {
+    it("does not freeze generic values - attached or unattached", async function () {
+        if (!testStripeLive()) {
+            this.skip();
+            return;
+        }
+
         const contact: Partial<Contact> = {
             id: generateId()
         };
@@ -686,47 +579,20 @@ describe("/v2/stripeEventWebhook", () => {
                 }
             ]
         };
-        const [stripeCheckoutChargeMock] = stubCheckoutStripeCharge(checkoutRequest, 2, 650);
 
         const checkoutResp = await testUtils.testAuthedRequest<Transaction>(restRouter, "/v2/transactions/checkout", "POST", checkoutRequest);
         chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
-        if (!testStripeLive()) {
-            chai.assert.equal((checkoutResp.body.steps[3] as StripeTransactionStep).chargeId, stripeCheckoutChargeMock.id, `checkoutResp.body.steps=${JSON.stringify(checkoutResp.body.steps)}`);
-            chai.assert.deepEqual((checkoutResp.body.steps[3] as StripeTransactionStep).charge, stripeCheckoutChargeMock, `body.steps=${JSON.stringify(checkoutResp.body.steps)}`);
-        }
 
         chai.assert.isNotNull(checkoutResp.body.steps.find(step => step.rail === "stripe"));
         const stripeStep = <StripeTransactionStep>checkoutResp.body.steps.find(step => step.rail === "stripe");
 
         let refundedCharge: stripe.charges.ICharge;
-        if (testStripeLive()) {
-            const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
+        const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
 
-            const chargeFromStripe = await lightrailStripe.charges.retrieve(stripeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
-            chai.assert.isNotNull(chargeFromStripe);
+        const chargeFromStripe = await lightrailStripe.charges.retrieve(stripeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+        chai.assert.isNotNull(chargeFromStripe);
 
-            refundedCharge = await lightrailStripe.charges.refund(stripeStep.chargeId, {reason: "fraudulent"}, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
-
-        } else {
-            stubStripeRefund(stripeStep.charge as stripe.charges.ICharge, {reason: "fraudulent"});
-            refundedCharge = {
-                ...stripeCheckoutChargeMock,
-                refunded: true,
-                refunds: {
-                    object: "list",
-                    data: [
-                        generateStripeRefundResponse({
-                            amount: stripeCheckoutChargeMock.amount,
-                            currency: stripeCheckoutChargeMock.currency,
-                            reason: "fraudulent",
-                            stripeChargeId: stripeCheckoutChargeMock.id
-                        })
-                    ],
-                    has_more: false,
-                    url: null
-                }
-            };
-        }
+        refundedCharge = await lightrailStripe.charges.refund(stripeStep.chargeId, {reason: "fraudulent"}, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
 
         const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", refundedCharge));
         chai.assert.equal(webhookResp.statusCode, 204, `webhookResp.body=${JSON.stringify(webhookResp)}`);
@@ -748,5 +614,5 @@ describe("/v2/stripeEventWebhook", () => {
         chai.assert.equal(fetchValue3Resp.statusCode, 200, `fetchValueResp.body=${fetchValue3Resp.body}`);
         chai.assert.equal(fetchValue3Resp.body.balance, genericValue3.balance);
         chai.assert.equal(fetchValue3Resp.body.frozen, false, `fetchValue2Resp.body.frozen=${fetchValue3Resp.body.frozen}`);
-    });
+    }).timeout(12000);
 });

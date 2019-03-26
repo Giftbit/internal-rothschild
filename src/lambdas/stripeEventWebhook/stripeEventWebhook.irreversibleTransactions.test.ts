@@ -5,12 +5,9 @@ import {installRestRoutes} from "../rest/installRestRoutes";
 import {installStripeEventWebhookRoute} from "./installStripeEventWebhookRoute";
 import * as chai from "chai";
 import {
-    generateStripeRefundResponse,
     setStubsForStripeTests,
     stripeLiveLightrailConfig,
     stripeLiveMerchantConfig,
-    stubCheckoutStripeCharge,
-    stubStripeRefund,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../utils/testUtils/stripeTestUtils";
@@ -21,7 +18,6 @@ import {Currency} from "../../model/Currency";
 import {CheckoutRequest} from "../../model/TransactionRequest";
 import * as stripe from "stripe";
 import {generateConnectWebhookEventMock, testSignedWebhookRequest} from "../../utils/testUtils/webhookHandlerTestUtils";
-import log = require("loglevel");
 
 describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
     const restRouter = new cassava.Router();
@@ -53,7 +49,6 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
 
     it("uses existing 'reverse' Transaction", async function () {
         if (!testStripeLive()) {
-            log.warn("Setting up stubs to run this test locally is too complex to be worthwhile.");
             this.skip();
             return;
         }
@@ -127,7 +122,11 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
         chai.assert.deepEqual(fetchValueResp.body.metadata, {stripeWebhookTriggeredAction: `Value frozen by Lightrail because it or an attached Contact was associated with a Stripe charge that was refunded as fraudulent. Lightrail transactionId '${checkoutRequest.id}' with reverse/void transaction '${reversedTransactionResponse.body.id}', Stripe chargeId: '${refundedCharge.id}', Stripe eventId: '${webhookEvent.id}', Stripe accountId: '${stripeLiveMerchantConfig.stripeUserId}'`}, `value metadata: ${JSON.stringify(fetchValueResp.body.metadata)}`);
     }).timeout(15000);
 
-    it("voids instead of reversing if original Transaction was pending", async () => {
+    it("voids instead of reversing if original Transaction was pending", async function () {
+        if (!testStripeLive()) {
+            this.skip();
+            return;
+        }
         const value: Partial<Value> = {
             id: generateId(),
             currency: currency.code,
@@ -156,48 +155,21 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
             ],
             pending: true
         };
-        const [stripeCheckoutChargeMock] = stubCheckoutStripeCharge(checkoutRequest, 1, 950);
 
         const checkoutResp = await testUtils.testAuthedRequest<Transaction>(restRouter, "/v2/transactions/checkout", "POST", checkoutRequest);
         chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
-        if (!testStripeLive()) {
-            chai.assert.equal((checkoutResp.body.steps[1] as StripeTransactionStep).chargeId, stripeCheckoutChargeMock.id);
-            chai.assert.deepEqual((checkoutResp.body.steps[1] as StripeTransactionStep).charge, stripeCheckoutChargeMock, `body.steps=${JSON.stringify(checkoutResp.body.steps)}`);
-        }
 
         chai.assert.isNotNull(checkoutResp.body.steps.find(step => step.rail === "stripe"));
         const stripeStep = <StripeTransactionStep>checkoutResp.body.steps.find(step => step.rail === "stripe");
         chai.assert.equal((stripeStep.charge as stripe.charges.ICharge).captured, false, `(stripeStep.charge as stripe.charges.ICharge).captured=${(stripeStep.charge as stripe.charges.ICharge).captured}`);
 
         let refundedCharge: stripe.charges.ICharge;
-        if (testStripeLive()) {
-            const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
+        const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
 
-            const chargeFromStripe = await lightrailStripe.charges.retrieve(stripeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
-            chai.assert.isNotNull(chargeFromStripe);
+        const chargeFromStripe = await lightrailStripe.charges.retrieve(stripeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+        chai.assert.isNotNull(chargeFromStripe);
 
-            refundedCharge = await lightrailStripe.charges.refund(stripeStep.chargeId, {reason: "fraudulent"}, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
-
-        } else {
-            stubStripeRefund(stripeStep.charge as stripe.charges.ICharge, {reason: "fraudulent"});
-            refundedCharge = {
-                ...stripeCheckoutChargeMock,
-                refunded: true,
-                refunds: {
-                    object: "list",
-                    data: [
-                        generateStripeRefundResponse({
-                            amount: stripeCheckoutChargeMock.amount,
-                            currency: stripeCheckoutChargeMock.currency,
-                            reason: "fraudulent",
-                            stripeChargeId: stripeCheckoutChargeMock.id
-                        })
-                    ],
-                    has_more: false,
-                    url: null
-                }
-            };
-        }
+        refundedCharge = await lightrailStripe.charges.refund(stripeStep.chargeId, {reason: "fraudulent"}, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
 
         const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", refundedCharge));
         chai.assert.equal(webhookResp.statusCode, 204);
@@ -215,7 +187,6 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
 
     it("uses existing 'void' Transaction if original Transaction was pending and has been voided", async function () {
         if (!testStripeLive()) {
-            log.warn("Setting up stubs to run this test locally is too complex to be worthwhile.");
             this.skip();
             return;
         }
