@@ -5,13 +5,9 @@ import {installRestRoutes} from "../rest/installRestRoutes";
 import {installStripeEventWebhookRoute} from "./installStripeEventWebhookRoute";
 import * as chai from "chai";
 import {
-    generateStripeRefundResponse,
     setStubsForStripeTests,
     stripeLiveLightrailConfig,
     stripeLiveMerchantConfig,
-    stubCheckoutStripeCharge,
-    stubStripeRefund,
-    stubStripeRetrieveCharge,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../utils/testUtils/stripeTestUtils";
@@ -58,7 +54,13 @@ describe("/v2/stripeEventWebhook - Stripe Review events", () => {
     after(() => {
         unsetStubsForStripeTests();
     });
-    it("reverses Lightrail transaction & freezes Values for Stripe event 'review.closed' with 'reason: refunded_as_fraud'", async () => {
+
+    it("reverses Lightrail transaction & freezes Values for Stripe event 'review.closed' with 'reason: refunded_as_fraud'", async function () {
+        if (!testStripeLive()) {
+            this.skip();
+            return;
+        }
+
         const value: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
@@ -86,49 +88,20 @@ describe("/v2/stripeEventWebhook - Stripe Review events", () => {
                 }
             ]
         };
-        const [stripeCheckoutChargeMock] = stubCheckoutStripeCharge(checkoutRequest, 1, 950);
 
         const checkoutResp = await testUtils.testAuthedRequest<Transaction>(restRouter, "/v2/transactions/checkout", "POST", checkoutRequest);
         chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
-        if (!testStripeLive()) {
-            chai.assert.equal((checkoutResp.body.steps[1] as StripeTransactionStep).chargeId, stripeCheckoutChargeMock.id);
-            chai.assert.deepEqual((checkoutResp.body.steps[1] as StripeTransactionStep).charge, stripeCheckoutChargeMock, `body.steps=${JSON.stringify(checkoutResp.body.steps)}`);
-        }
 
         chai.assert.isNotNull(checkoutResp.body.steps.find(step => step.rail === "stripe"));
         const stripeStep = <StripeTransactionStep>checkoutResp.body.steps.find(step => step.rail === "stripe");
 
         let refundedCharge: stripe.charges.ICharge;
-        if (testStripeLive()) {
-            const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
+        const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
 
-            const chargeFromStripe = await lightrailStripe.charges.retrieve(stripeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
-            chai.assert.isNotNull(chargeFromStripe);
+        const chargeFromStripe = await lightrailStripe.charges.retrieve(stripeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+        chai.assert.isNotNull(chargeFromStripe);
 
-            refundedCharge = await lightrailStripe.charges.refund(stripeStep.chargeId, {reason: "fraudulent"}, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
-
-        } else {
-            stubStripeRefund(stripeStep.charge as stripe.charges.ICharge, {reason: "fraudulent"});
-            refundedCharge = {
-                ...stripeCheckoutChargeMock,
-                refunded: true,
-                refunds: {
-                    object: "list",
-                    data: [
-                        generateStripeRefundResponse({
-                            amount: stripeCheckoutChargeMock.amount,
-                            currency: stripeCheckoutChargeMock.currency,
-                            reason: "fraudulent",
-                            stripeChargeId: stripeCheckoutChargeMock.id
-                        })
-                    ],
-                    has_more: false,
-                    url: null
-                }
-            };
-
-            stubStripeRetrieveCharge(refundedCharge);
-        }
+        refundedCharge = await lightrailStripe.charges.refund(stripeStep.chargeId, {reason: "fraudulent"}, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
 
         let review: stripe.reviews.IReview = {
             id: generateId(),
