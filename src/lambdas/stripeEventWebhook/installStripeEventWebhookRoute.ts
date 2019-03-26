@@ -51,27 +51,24 @@ export function installStripeEventWebhookRoute(router: cassava.Router): void {
 }
 
 async function handleConnectedAccountEvent(event: Stripe.events.IEvent & { account: string }): Promise<void> {
-    if (isFraudActionEvent(event)) { // right now these are the only events we really care about
-        await handleFraudReverseEvent(event);
+    const stripeAccountId: string = event.account;
+    const stripeCharge: Stripe.charges.ICharge = await getStripeChargeFromEvent(event); // todo refactor when we have mapping from Stripe accountId to Lightrail userId: won't need to get charge to get auth badge
+    const auth = getAuthBadgeFromStripeCharge(stripeAccountId, stripeCharge, event);
+
+    logEvent(auth, event);
+    if (isEventForLoggingOnly(event)) {
+        return;
+    }
+    if (isFraudActionEvent(event)) {
+        await handleFraudReverseEvent(auth, event, stripeCharge);
     } else {
         log.info(`Received Connected Account event of type '${event.type}', eventId '${event.id}', accountId '${event.account}'. This event does not indicate that fraud has occurred: exiting without handling.`);
         return;
     }
 }
 
-async function handleFraudReverseEvent(event: Stripe.events.IEvent & { account: string }): Promise<void> {
-    const stripeAccountId: string = event.account;
-    const stripeCharge: Stripe.charges.ICharge = await getStripeChargeFromEvent(event);
-    const auth = getAuthBadgeFromStripeCharge(stripeAccountId, stripeCharge, event);
-
-    logEvent(event, auth);
-
-    if (isEventForLoggingOnly(event)) {
-        return;
-    }
-
+async function handleFraudReverseEvent(auth: giftbitRoutes.jwtauth.AuthorizationBadge, event: Stripe.events.IEvent & { account: string }, stripeCharge: Stripe.charges.ICharge): Promise<void> {
     log.info(`Event ${event.id} indicates that fraud has occurred. Reversing corresponding Lightrail Transaction and freezing associated Values.`);
-
     metricsLogger.stripeWebhookFraudEvent(event, auth);
 
     let lightrailTransaction: Transaction;
@@ -105,7 +102,7 @@ function isEventForLoggingOnly(event: Stripe.events.IEvent & { account: string }
     return event.type === "charge.dispute.created" || (event.type === "charge.refund.updated" && (event.data.object as Stripe.refunds.IRefund).status === "failed");
 }
 
-function logEvent(event: Stripe.events.IEvent & { account: string }, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
+function logEvent(auth: giftbitRoutes.jwtauth.AuthorizationBadge, event: Stripe.events.IEvent & { account: string }) {
     metricsLogger.stripeWebhookEvent(event, auth);
 
     if (event.type === "charge.dispute.created") {
@@ -113,8 +110,8 @@ function logEvent(event: Stripe.events.IEvent & { account: string }, auth: giftb
         metricsLogger.stripeWebhookDisputeEvent(event, auth);
         return;
     } else if ((event.type === "charge.refund.updated" && (event.data.object as Stripe.refunds.IRefund).status === "failed")) {
-        log.info(`Event ${event.id} indicates a refund failure with failure reason '${(event.data.object as Stripe.refunds.IRefund).failure_reason}'. Sending error notification and taking no further action.`);
-        giftbitRoutes.sentry.sendErrorNotification(new Error(`Event of type '${event.type}', eventId '${event.id}', accountId '${event.account}' indicates a refund failure with failure reason '${(event.data.object as Stripe.refunds.IRefund).failure_reason}'.`));
+        log.info(`Event ${event.id} indicates a refund failure with failure reason '${(event.data.object as Stripe.refunds.IRefund).failure_reason}'. Sending error notification and taking no further action. State of Stripe and Lightrail may be inconsistent.`);
+        giftbitRoutes.sentry.sendErrorNotification(new Error(`Event of type '${event.type}', eventId '${event.id}', accountId '${event.account}' indicates a refund failure with failure reason '${(event.data.object as Stripe.refunds.IRefund).failure_reason}'. State of Stripe and Lightrail may be inconsistent.`));
         return;
     }
 }
@@ -200,8 +197,7 @@ function isFraudActionEvent(event: Stripe.events.IEvent & { account?: string }):
         return ((event.data.object as Stripe.charges.ICharge).refunds.data.find(refund => refund.reason === "fraudulent") !== undefined);
     } else if (event.type === "charge.refund.updated") {
         const refund = event.data.object as Stripe.refunds.IRefund;
-        return (refund.reason === "fraudulent") ||
-            ((refund.status === "failed"));
+        return (refund.reason === "fraudulent");
     } else if (event.type === "review.closed") {
         return ((event.data.object as Stripe.reviews.IReview).reason === "refunded_as_fraud");
     } else if (event.type === "charge.dispute.created") {
