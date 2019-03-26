@@ -38,7 +38,6 @@ describe("/v2/stripeEventWebhook - Stripe Dispute events", () => {
         sandbox.restore();
     });
 
-
     after(() => {
         unsetStubsForStripeTests();
     });

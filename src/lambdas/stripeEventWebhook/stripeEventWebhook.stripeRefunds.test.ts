@@ -1,4 +1,5 @@
 import * as cassava from "cassava";
+import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as testUtils from "../../utils/testUtils";
 import {generateId, setCodeCryptographySecrets, testAuthedRequest} from "../../utils/testUtils";
 import {installRestRoutes} from "../rest/installRestRoutes";
@@ -22,6 +23,8 @@ import {Currency} from "../../model/Currency";
 import {CheckoutRequest} from "../../model/TransactionRequest";
 import * as stripe from "stripe";
 import {generateConnectWebhookEventMock, testSignedWebhookRequest} from "../../utils/testUtils/webhookHandlerTestUtils";
+import sinon from "sinon";
+import log = require("loglevel");
 
 describe("/v2/stripeEventWebhook - Stripe Refund events", () => {
     const restRouter = new cassava.Router();
@@ -60,6 +63,12 @@ describe("/v2/stripeEventWebhook - Stripe Refund events", () => {
     });
 
     it("reverses Lightrail transaction & freezes Values for Stripe refunds updated with 'reason: fraudulent'", async function () {
+        if (!testStripeLive()) {
+            log.warn("Setting up stubs to run this test locally is too complex to be worthwhile.");
+            this.skip();
+            return;
+        }
+
         const value: Partial<Value> = {
             id: generateId(),
             currency: currency.code,
@@ -147,5 +156,71 @@ describe("/v2/stripeEventWebhook - Stripe Refund events", () => {
         chai.assert.equal(fetchValueResp.statusCode, 200, `fetchValueResp.body=${fetchValueResp.body}`);
         chai.assert.equal(fetchValueResp.body.balance, value.balance, `fetchValueResp.body.balance=${fetchValueResp.body.balance}`);
         chai.assert.equal(fetchValueResp.body.frozen, true, `fetchValueResp.body.frozen=${fetchValueResp.body.frozen}`);
+    }).timeout(8000);
+
+    it("throws Sentry error for Stripe refunds with 'status: failed'", async function () {
+        if (!testStripeLive()) {
+            log.warn("Setting up stubs to run this test locally is too complex to be worthwhile.");
+            this.skip();
+            return;
+        }
+
+        let sandbox = sinon.createSandbox();
+        (giftbitRoutes.sentry.sendErrorNotification as any).restore();
+        const stub = sandbox.stub(giftbitRoutes.sentry, "sendErrorNotification");
+
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: currency.code,
+            balance: 50
+        };
+        const postValueResp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", value);
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
+
+        const checkoutRequest: CheckoutRequest = {
+            id: generateId(),
+            currency: currency.code,
+            lineItems: [{
+                type: "product",
+                productId: "pid",
+                unitPrice: 1000
+            }],
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: value.id
+                },
+                {
+                    rail: "stripe",
+                    source: "tok_visa"
+                }
+            ]
+        };
+
+        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(restRouter, "/v2/transactions/checkout", "POST", checkoutRequest);
+        chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
+
+        chai.assert.isNotNull(checkoutResp.body.steps.find(step => step.rail === "stripe"));
+        const stripeStep = <StripeTransactionStep>checkoutResp.body.steps.find(step => step.rail === "stripe");
+
+        let refund: stripe.refunds.IRefund;
+        let refundedCharge: stripe.charges.ICharge;
+        const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
+
+        const chargeFromStripe = await lightrailStripe.charges.retrieve(stripeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+        chai.assert.isNotNull(chargeFromStripe);
+
+        refundedCharge = await lightrailStripe.charges.refund(stripeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+        refund = refundedCharge.refunds.data[0];
+        refund.status = "failed";
+        refund.failure_reason = "unknown";
+
+        const webhookEvent = generateConnectWebhookEventMock("charge.refund.updated", refund);
+        const webhookResp = await testSignedWebhookRequest(webhookEventRouter, webhookEvent);
+        chai.assert.equal(webhookResp.statusCode, 204, `webhookResp.body=${JSON.stringify(webhookResp.body)}`);
+
+        const errorRegex = new RegExp("Event of type 'charge.refund.updated', eventId '\.\+', accountId '\.\+' indicates a refund failure with failure reason 'unknown'.");
+        sinon.assert.calledWith(stub, sinon.match.instanceOf(Error));
+        sinon.assert.calledWith(stub, sinon.match.has("message", sinon.match(errorRegex)));
     }).timeout(8000);
 });
