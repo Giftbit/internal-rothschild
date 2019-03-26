@@ -64,9 +64,9 @@ async function handleFraudReverseEvent(event: Stripe.events.IEvent & { account: 
     const stripeCharge: Stripe.charges.ICharge = await getStripeChargeFromEvent(event);
     const auth = getAuthBadgeFromStripeCharge(stripeAccountId, stripeCharge, event);
 
-    if (event.type === "charge.dispute.created") {
-        log.info(`Event ${event.id} indicates a charge dispute which usually means fraud. Sending metrics data but taking no further action until fraud action confirmed.`);
-        metricsLogger.stripeWebhookDisputeEvent(event, auth);
+    logEvent(event, auth);
+
+    if (isEventForLoggingOnly(event)) {
         return;
     }
 
@@ -98,6 +98,24 @@ async function handleFraudReverseEvent(event: Stripe.events.IEvent & { account: 
     } catch (e) {
         metricsLogger.stripeWebhookHandlerError(event, auth);
         giftbitRoutes.sentry.sendErrorNotification(e);
+    }
+}
+
+function isEventForLoggingOnly(event: Stripe.events.IEvent & { account: string }) {
+    return event.type === "charge.dispute.created" || (event.type === "charge.refund.updated" && (event.data.object as Stripe.refunds.IRefund).status === "failed");
+}
+
+function logEvent(event: Stripe.events.IEvent & { account: string }, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
+    metricsLogger.stripeWebhookEvent(event, auth);
+
+    if (event.type === "charge.dispute.created") {
+        log.info(`Event ${event.id} indicates a charge dispute which usually means fraud. Sending metrics data but taking no further action until fraud action confirmed.`);
+        metricsLogger.stripeWebhookDisputeEvent(event, auth);
+        return;
+    } else if ((event.type === "charge.refund.updated" && (event.data.object as Stripe.refunds.IRefund).status === "failed")) {
+        log.info(`Event ${event.id} indicates a refund failure with failure reason '${(event.data.object as Stripe.refunds.IRefund).failure_reason}'. Sending error notification and taking no further action.`);
+        giftbitRoutes.sentry.sendErrorNotification(new Error(`Event of type '${event.type}', eventId '${event.id}', accountId '${event.account}' indicates a refund failure with failure reason '${(event.data.object as Stripe.refunds.IRefund).failure_reason}'.`));
+        return;
     }
 }
 
@@ -181,7 +199,9 @@ function isFraudActionEvent(event: Stripe.events.IEvent & { account?: string }):
         // Stripe supports partial refunds; if even one is marked with 'reason: fraudulent' we'll treat the Transaction as fraudulent
         return ((event.data.object as Stripe.charges.ICharge).refunds.data.find(refund => refund.reason === "fraudulent") !== undefined);
     } else if (event.type === "charge.refund.updated") {
-        return ((event.data.object as Stripe.refunds.IRefund).reason === "fraudulent");
+        const refund = event.data.object as Stripe.refunds.IRefund;
+        return (refund.reason === "fraudulent") ||
+            ((refund.status === "failed"));
     } else if (event.type === "review.closed") {
         return ((event.data.object as Stripe.reviews.IReview).reason === "refunded_as_fraud");
     } else if (event.type === "charge.dispute.created") {

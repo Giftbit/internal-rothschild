@@ -8,6 +8,7 @@ import * as testUtils from "../../../utils/testUtils/index";
 import {Transaction} from "../../../model/Transaction";
 import {getDbTransaction, getDbTransactionChain} from "./transactions";
 import {CheckoutRequest} from "../../../model/TransactionRequest";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -28,8 +29,13 @@ describe("/v2/transactions/chain", () => {
             decimalPlaces: 2
         });
         chai.assert.equal(currency.code, "USD");
+
+        setStubsForStripeTests();
     });
 
+    after(() => {
+        unsetStubsForStripeTests();
+    });
 
     // util function test
     it("gets transaction chain", async () => {
