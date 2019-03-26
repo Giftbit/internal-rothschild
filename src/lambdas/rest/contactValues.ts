@@ -170,7 +170,6 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     }
 
     if (value.isGenericCode) {
-
         if (params.attachGenericAsNewValue) /* legacy case to eventually be removed */ {
             MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, auth);
             return await attachGenericValueAsNewValue(auth, contact.id, value);

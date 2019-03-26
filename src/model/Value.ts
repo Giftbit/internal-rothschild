@@ -12,8 +12,8 @@ export interface Value {
     issuanceId: string | null;
     code: string | null;
     isGenericCode: boolean | null;
-    genericCodeProperties?: GenericCodeProperties | null;
-    attachedFromGenericValueId: string | null;
+    genericCodeProperties?: GenericCodeProperties | undefined;
+    attachedFromGenericValueId: string | undefined;
     contactId: string | null;
     pretax: boolean;
     active: boolean;
@@ -163,13 +163,13 @@ export namespace DbValue {
             contactId: v.contactId,
             code: await dbValueCodeToValueCode(v, showCode),
             isGenericCode: v.isGenericCode,
-            genericCodeProperties: v.isGenericCode ? {
+            genericCodeProperties: v.balancePerContact != null || v.usesPerContact != null ? {
                 valuePropertiesPerContact: {
                     balance: v.balancePerContact,
                     usesRemaining: v.usesPerContact
                 }
-            } : null,
-            attachedFromGenericValueId: v.attachedFromGenericValueId,
+            } : undefined,
+            attachedFromGenericValueId: v.attachedFromGenericValueId != null ? v.attachedFromGenericValueId : undefined,
             pretax: v.pretax,
             active: v.active,
             canceled: v.canceled,

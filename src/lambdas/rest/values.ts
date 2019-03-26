@@ -273,6 +273,10 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                     type: "string",
                     operators: ["eq", "in"]
                 },
+                attachedFromGenericValueId: {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
                 currency: {
                     type: "string",
                     operators: ["eq", "in"]
@@ -709,11 +713,6 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
 function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partialValue: Partial<Value>, program: Program = null, generateCodeParameters: GenerateCodeParameters = null): Value {
     const now = nowInDbPrecision();
 
-    console.log((partialValue.genericCodeProperties ? "b" : "c"));
-    console.log((partialValue.genericCodeProperties != null ? "b" : "c"));
-    console.log((partialValue.genericCodeProperties.valuePropertiesPerContact.balance != null ? "b" : "c"));
-    console.log((partialValue.genericCodeProperties != null && partialValue.genericCodeProperties.valuePropertiesPerContact.balance != null ? "b" : "c"));
-    console.log("partialValue: " + JSON.stringify(partialValue, null, 4));
     let value: Value = pickOrDefault(partialValue, {
         id: null,
         currency: program ? program.currency : null,
@@ -743,9 +742,10 @@ function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partial
         createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
     });
 
-    if (partialValue.genericCodeProperties != null && partialValue.genericCodeProperties.valuePropertiesPerContact.balance != null) {
-        value.balance = partialValue.balance; // set to whatever the user set it to.
-    }
+    // if (value.balance === null && value.balanceRule === null && partialValue.genericCodeProperties === undefined) {
+    //     value.balance = 0; // Balance defaults to 0 if no other balance properties are set.
+    //                        // This allows for scenario where valuePropertiesPerContact.balance is set and balance is intentionally set as null.
+    // }
 
     value.metadata = {...(program && program.metadata ? program.metadata : {}), ...value.metadata};
 
@@ -767,10 +767,6 @@ function checkValueProperties(value: Value, program: Program = null): void {
     if (value.balance != null && value.balanceRule) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a balance and balanceRule.`);
     }
-    if (value.balance == null && value.balanceRule == null && (value.genericCodeProperties && value.genericCodeProperties.valuePropertiesPerContact.balance == null)) {
-        // this is a good check, but it's not possible to hit since balance defaults to 0 if there's no balanceRule and valuePropertiesPerContact.balance.
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value must have a balanceRule, a balance, or a genericCodeProperties.valuePropertiesPerContact.balance.`);
-    }
     if (value.discountSellerLiability !== null && !value.discount) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have discountSellerLiability if it is not a discount.`);
     }
@@ -783,6 +779,15 @@ function checkValueProperties(value: Value, program: Program = null): void {
     if (!value.currency) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Property currency cannot be null. Please provide a currency or a programId.");
     }
+
+    // generic value checks
+    if (value.genericCodeProperties && value.genericCodeProperties.valuePropertiesPerContact.balance != null && value.balanceRule) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a genericCodeProperties.valuePropertiesPerContact.balance and balanceRule.`);
+    }
+    if (value.balance == null && value.balanceRule == null && (value.genericCodeProperties && value.genericCodeProperties.valuePropertiesPerContact.balance == null)) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value must have a balanceRule, a balance, or a genericCodeProperties.valuePropertiesPerContact.balance.`);
+    }
+
 
     checkRulesSyntax(value, "Value");
 }
