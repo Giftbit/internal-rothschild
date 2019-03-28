@@ -285,7 +285,7 @@ export async function createUSDValue(router: cassava.Router, valueProps?: Partia
     return valueResp.body;
 }
 
-export async function createUSDCheckout(router: cassava.Router, checkoutProps?: Partial<CheckoutRequest>): Promise<{ checkout: Transaction, valuesCharged: Value[] }> {
+export async function createUSDCheckout(router: cassava.Router, checkoutProps?: Partial<CheckoutRequest>, chargeStripe: boolean = true): Promise<{ checkout: Transaction, valuesCharged: Value[] }> {
     await createUSD(router);
 
     let baseCheckoutProps: Partial<CheckoutRequest> = {
@@ -296,20 +296,27 @@ export async function createUSDCheckout(router: cassava.Router, checkoutProps?: 
             productId: "pid",
             unitPrice: 1000
         }],
-        sources: [
-            {
-                rail: "stripe",
-                source: "tok_visa"
-            }
-        ]
+        sources: []
     };
-    if (!checkoutProps || !checkoutProps.sources || !checkoutProps.sources.find(src => src.rail === "lightrail")) {
-        const value = await createUSDValue(router);
+
+    const chargingStripe = chargeStripe || (checkoutProps && checkoutProps.sources && checkoutProps.sources.find(src => src.rail === "stripe"));
+    const stripeSourceSupplied = (checkoutProps && checkoutProps.sources && checkoutProps.sources.find(src => src.rail === "stripe"));
+    if (chargeStripe && !stripeSourceSupplied) {
+        baseCheckoutProps.sources.push({
+            rail: "stripe",
+            source: "tok_visa"
+        });
+    }
+
+    const lightrailSourceSupplied = (checkoutProps && checkoutProps.sources && checkoutProps.sources.find(src => src.rail === "lightrail"));
+    if (!lightrailSourceSupplied) {
+        const value = await createUSDValue(router, chargingStripe ? null : {balance: 1000}); // if not charging stripe, create a value with enough balance to cover the default transaction
         baseCheckoutProps.sources.push({
             rail: "lightrail",
             valueId: value.id
         });
     }
+
     const checkoutRequest: Partial<CheckoutRequest> = {
         ...baseCheckoutProps,
         ...checkoutProps
