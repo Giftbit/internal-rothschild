@@ -1,15 +1,17 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as testUtils from "../../utils/testUtils";
-import {setCodeCryptographySecrets, testAuthedRequest} from "../../utils/testUtils";
+import {setCodeCryptographySecrets} from "../../utils/testUtils";
 import {installRestRoutes} from "../rest/installRestRoutes";
 import {installStripeEventWebhookRoute} from "./installStripeEventWebhookRoute";
 import * as chai from "chai";
 import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
-import {LightrailTransactionStep, Transaction} from "../../model/Transaction";
-import {Value} from "../../model/Value";
+import {StripeTransactionStep} from "../../model/Transaction";
 import {
+    checkValuesState,
     generateConnectWebhookEventMock,
+    getAndCheckTransactionChain,
+    refundInStripe,
     setupForWebhookEvent,
     testSignedWebhookRequest
 } from "../../utils/testUtils/webhookHandlerTestUtils";
@@ -40,26 +42,19 @@ describe("/v2/stripeEventWebhook - Stripe Refund events", () => {
             return;
         }
 
-        const webhookEventSetup = await setupForWebhookEvent(restRouter, {refunded: true, refundReason: "fraudulent"});
+        const webhookEventSetup = await setupForWebhookEvent(restRouter);
         const checkout = webhookEventSetup.checkout;
-        const value = webhookEventSetup.value;
-        const refund = webhookEventSetup.stripeChargeAfterRefund.refunds.data[0];
+        const values = webhookEventSetup.valuesCharged;
+        const refundedCharge = await refundInStripe(checkout.steps.find(step => step.rail === "stripe") as StripeTransactionStep, "fraudulent");
+        const refund = refundedCharge.refunds.data[0];
 
         const webhookEvent = generateConnectWebhookEventMock("charge.refund.updated", refund);
         const webhookResp = await testSignedWebhookRequest(webhookEventRouter, webhookEvent);
         chai.assert.equal(webhookResp.statusCode, 204, `webhookResp.body=${JSON.stringify(webhookResp.body)}`);
 
-        const fetchTransactionChainResp = await testAuthedRequest<Transaction[]>(restRouter, `/v2/transactions/${checkout.id}/chain`, "GET");
-        chai.assert.equal(fetchTransactionChainResp.statusCode, 200, `fetchTransactionChainResp.body=${fetchTransactionChainResp.body}`);
-        chai.assert.equal(fetchTransactionChainResp.body.length, 2, `fetchTransactionChainResp.body=${JSON.stringify(fetchTransactionChainResp.body)}`);
-        chai.assert.equal(fetchTransactionChainResp.body[1].transactionType, "reverse", `transaction types in chain: ${JSON.stringify(fetchTransactionChainResp.body.map(txn => txn.transactionType))}`);
-
-        const valueId = (checkout.steps.find(src => src.rail === "lightrail") as LightrailTransactionStep).valueId;
-        const fetchValueResp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/values/${valueId}`, "GET");
-        chai.assert.equal(fetchValueResp.statusCode, 200, `fetchValueResp.body=${fetchValueResp.body}`);
-        chai.assert.equal(fetchValueResp.body.balance, value.balance, `fetchValueResp.body.balance=${fetchValueResp.body.balance}`);
-        chai.assert.equal(fetchValueResp.body.frozen, true, `fetchValueResp.body.frozen=${fetchValueResp.body.frozen}`);
-    }).timeout(8000);
+        await getAndCheckTransactionChain(restRouter, checkout.id, 2, ["checkout", "reverse"]);
+        await checkValuesState(restRouter, values, true);
+    }).timeout(12000);
 
     it("throws Sentry error for Stripe refunds with 'status: failed'", async function () {
         if (!testStripeLive()) {
@@ -71,8 +66,9 @@ describe("/v2/stripeEventWebhook - Stripe Refund events", () => {
         (giftbitRoutes.sentry.sendErrorNotification as any).restore();
         const stub = sandbox.stub(giftbitRoutes.sentry, "sendErrorNotification");
 
-        const webhookEventSetup = await setupForWebhookEvent(restRouter, {refunded: true, refundReason: "fraudulent"});
-        const refund = webhookEventSetup.stripeChargeAfterRefund.refunds.data[0];
+        const webhookEventSetup = await setupForWebhookEvent(restRouter);
+        const refundedCharge = await refundInStripe(webhookEventSetup.checkout.steps.find(step => step.rail === "stripe") as StripeTransactionStep, "fraudulent");
+        const refund = refundedCharge.refunds.data[0];
 
         refund.status = "failed";
         refund.failure_reason = "unknown";

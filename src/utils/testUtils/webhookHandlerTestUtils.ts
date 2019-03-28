@@ -56,11 +56,6 @@ export function generateConnectWebhookEventMock(eventType: string, eventObject: 
     };
 }
 
-export interface SetupForWebhookEventStripeOptions {
-    refunded?: boolean;
-    refundReason?: string;
-}
-
 export interface SetupForWebhookEventLightrailOptions {
     reversed?: boolean;
     captured?: boolean;
@@ -68,7 +63,7 @@ export interface SetupForWebhookEventLightrailOptions {
     initialCheckoutReq?: Partial<CheckoutRequest>;
 }
 
-export async function setupForWebhookEvent(router: cassava.Router, stripeOptions?: SetupForWebhookEventStripeOptions, lightrailOptions?: SetupForWebhookEventLightrailOptions): Promise<{
+export async function setupForWebhookEvent(router: cassava.Router, lightrailOptions?: SetupForWebhookEventLightrailOptions): Promise<{
     checkout: Transaction,
     valuesCharged: Value[],
     stripeStep: StripeTransactionStep,
@@ -137,7 +132,6 @@ export async function setupForWebhookEvent(router: cassava.Router, stripeOptions
     };
 }
 
-
 export async function refundInStripe(stripeStep: StripeTransactionStep, refundReason?: string): Promise<stripe.charges.ICharge> {
     const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
     const chargeFromStripe = await lightrailStripe.charges.retrieve(stripeStep.chargeId, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
@@ -176,4 +170,20 @@ export async function checkValuesState(router: cassava.Router, originalValues: V
             chai.assert.match(current.body.metadata["stripeWebhookTriggeredAction"], /Value frozen by Lightrail because it or an attached Contact was associated with a Stripe charge that was refunded as fraudulent. Lightrail transactionId '(?!').*' with reverse\/void transaction '(?!').*', Stripe chargeId: '(?!').*', Stripe eventId: '(?!').*', Stripe accountId: '(?!').*'/, `value metadata: ${JSON.stringify(current.body.metadata)}`);
         }
     }
+}
+
+export function buildStripeFraudRefundedChargeMock(refundedCharge: stripe.charges.ICharge, refund: stripe.refunds.IRefund): stripe.charges.ICharge {
+    return {
+        ...refundedCharge,
+        refunds: {
+            object: "list",
+            data: [{
+                ...refund,
+                reason: "fraudulent"
+            }],
+            has_more: false,
+            total_count: 1,
+            url: ""
+        }
+    };
 }

@@ -1,16 +1,18 @@
 import * as cassava from "cassava";
 import * as testUtils from "../../utils/testUtils";
-import {generateId, setCodeCryptographySecrets, testAuthedRequest} from "../../utils/testUtils";
+import {generateId, setCodeCryptographySecrets} from "../../utils/testUtils";
 import {installRestRoutes} from "../rest/installRestRoutes";
 import {installStripeEventWebhookRoute} from "./installStripeEventWebhookRoute";
 import * as chai from "chai";
 import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
-import {Transaction} from "../../model/Transaction";
 import {Value} from "../../model/Value";
 import {Currency} from "../../model/Currency";
 import * as stripe from "stripe";
 import {
+    checkValuesState,
     generateConnectWebhookEventMock,
+    getAndCheckTransactionChain,
+    refundInStripe,
     setupForWebhookEvent,
     testSignedWebhookRequest
 } from "../../utils/testUtils/webhookHandlerTestUtils";
@@ -52,10 +54,10 @@ describe("/v2/stripeEventWebhook - Stripe Review events", () => {
             return;
         }
 
-        const webhookEventSetup = await setupForWebhookEvent(restRouter, {refunded: true, refundReason: "fraudulent"});
+        const webhookEventSetup = await setupForWebhookEvent(restRouter);
         const checkout = webhookEventSetup.checkout;
-        const value = webhookEventSetup.value;
-        const refundedCharge = webhookEventSetup.stripeChargeAfterRefund;
+        const values = webhookEventSetup.valuesCharged;
+        const refundedCharge = await refundInStripe(webhookEventSetup.stripeStep, "fraudulent");
 
         let review: stripe.reviews.IReview = {
             id: generateId(),
@@ -70,14 +72,7 @@ describe("/v2/stripeEventWebhook - Stripe Review events", () => {
         const webhookResp = await testSignedWebhookRequest(webhookEventRouter, webhookEvent);
         chai.assert.equal(webhookResp.statusCode, 204, `webhookResp.body=${JSON.stringify(webhookResp)}`);
 
-        const fetchTransactionChainResp = await testAuthedRequest<Transaction[]>(restRouter, `/v2/transactions/${checkout.id}/chain`, "GET");
-        chai.assert.equal(fetchTransactionChainResp.statusCode, 200, `fetchTransactionChainResp.body=${fetchTransactionChainResp.body}`);
-        chai.assert.equal(fetchTransactionChainResp.body.length, 2, `fetchTransactionChainResp.body=${JSON.stringify(fetchTransactionChainResp.body)}`);
-        chai.assert.equal(fetchTransactionChainResp.body[1].transactionType, "reverse", `transaction types in chain: ${JSON.stringify(fetchTransactionChainResp.body.map(txn => txn.transactionType))}`);
-
-        const fetchValueResp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/values/${value.id}`, "GET");
-        chai.assert.equal(fetchValueResp.statusCode, 200, `fetchValueResp.body=${fetchValueResp.body}`);
-        chai.assert.equal(fetchValueResp.body.balance, value.balance, `fetchValueResp.body.balance=${fetchValueResp.body.balance}`);
-        chai.assert.equal(fetchValueResp.body.frozen, true, `fetchValueResp.body.frozen=${fetchValueResp.body.frozen}`);
-    }).timeout(8000);
+        await getAndCheckTransactionChain(restRouter, checkout.id, 2, ["checkout", "reverse"]);
+        await checkValuesState(restRouter, values);
+    }).timeout(12000);
 });

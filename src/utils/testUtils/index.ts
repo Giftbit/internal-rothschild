@@ -303,7 +303,7 @@ export async function createUSDCheckout(router: cassava.Router, checkoutProps?: 
             }
         ]
     };
-    if (!checkoutProps || !checkoutProps.sources.find(src => src.rail === "lightrail")) {
+    if (!checkoutProps || !checkoutProps.sources || !checkoutProps.sources.find(src => src.rail === "lightrail")) {
         const value = await createUSDValue(router);
         baseCheckoutProps.sources.push({
             rail: "lightrail",
