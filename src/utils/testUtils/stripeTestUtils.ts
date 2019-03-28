@@ -2,7 +2,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as kvsAccess from "../kvsAccess";
 import * as sinon from "sinon";
 import * as stripe from "stripe";
-import {defaultTestUser} from "./index";
+import {createUSDCheckout, defaultTestUser} from "./index";
 import * as stripeTransactions from "../stripeUtils/stripeTransactions";
 import {
     CheckoutRequest,
@@ -12,6 +12,10 @@ import {
 } from "../../model/TransactionRequest";
 import {StripeRestError} from "../stripeUtils/StripeRestError";
 import {initializeAssumeCheckoutToken, initializeLightrailStripeConfig} from "../stripeUtils/stripeAccess";
+import {Transaction} from "../../model/Transaction";
+import * as chai from "chai";
+import * as cassava from "cassava";
+import {Value} from "../../model/Value";
 import log = require("loglevel");
 
 if (testStripeLive()) {
@@ -555,4 +559,11 @@ function getRandomChars(length: number): string {
         res += charset.charAt(Math.floor(Math.random() * charset.length));
 
     return res;
+}
+
+export async function createStripeUSDCheckout(router: cassava.Router, checkoutProps?: Partial<CheckoutRequest>): Promise<{ checkout: Transaction, valuesCharged: Value[] }> {
+    const checkoutSetup = await createUSDCheckout(router, checkoutProps);
+    const checkout = checkoutSetup.checkout;
+    chai.assert.isNotNull(checkout.steps.find(step => step.rail === "stripe"));
+    return {checkout, valuesCharged: checkoutSetup.valuesCharged};
 }
