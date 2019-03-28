@@ -7,6 +7,10 @@ import * as path from "path";
 import {getDbCredentials} from "../dbUtils/connection";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
 import {initializeCodeCryptographySecrets} from "../codeCryptoUtils";
+import {Currency} from "../../model/Currency";
+import {Value} from "../../model/Value";
+import {CheckoutRequest} from "../../model/TransactionRequest";
+import {Transaction} from "../../model/Transaction";
 import log = require("loglevel");
 import papaparse = require("papaparse");
 import uuid = require("uuid");
@@ -249,4 +253,77 @@ export async function setCodeCryptographySecrets() {
         encryptionSecret: "ca7589aef4ffed15783341414fe2f4a5edf9ddad75cf2e96ed2a16aee88673ea",
         lookupHashSecret: "ae8645165cc7533dbcc84aeb21c7d6553a38271b7e3402f99d16b8a8717847e1"
     }));
+}
+
+export async function createUSD(router: cassava.Router): Promise<Currency> {
+    const getCurrencyResp = await testAuthedRequest<Currency>(router, "/v2/currencies/USD", "GET");
+    if (getCurrencyResp.statusCode === 200) {
+        return getCurrencyResp.body;
+    } else {
+        const createCurrencyResp = await testAuthedRequest<Currency>(router, "/v2/currencies", "POST", {
+            code: "USD",
+            symbol: "$",
+            decimalPlaces: 2,
+            name: "USD"
+        });
+        chai.assert.equal(createCurrencyResp.statusCode, 201, `currencyResp.body=${JSON.stringify(createCurrencyResp.body)}`);
+        return createCurrencyResp.body;
+    }
+}
+
+export async function createUSDValue(router: cassava.Router, valueProps?: Partial<Value>): Promise<Value> {
+    const baseValueProps: Partial<Value> = {
+        id: generateId(),
+        currency: "USD",
+        balance: 50
+    };
+    const valueResp = await testAuthedRequest<Value>(router, "/v2/values", "POST", {
+        ...baseValueProps,
+        ...valueProps
+    });
+    chai.assert.equal(valueResp.statusCode, 201, `valueResp.body=${JSON.stringify(valueResp.body)}`);
+    return valueResp.body;
+}
+
+export async function createUSDCheckout(router: cassava.Router, checkoutProps?: Partial<CheckoutRequest>): Promise<{ checkout: Transaction, valuesCharged: Value[] }> {
+    await createUSD(router);
+
+    let baseCheckoutProps: Partial<CheckoutRequest> = {
+        id: generateId(),
+        currency: "USD",
+        lineItems: [{
+            type: "product",
+            productId: "pid",
+            unitPrice: 1000
+        }],
+        sources: [
+            {
+                rail: "stripe",
+                source: "tok_visa"
+            }
+        ]
+    };
+    if (!checkoutProps || !checkoutProps.sources || !checkoutProps.sources.find(src => src.rail === "lightrail")) {
+        const value = await createUSDValue(router);
+        baseCheckoutProps.sources.push({
+            rail: "lightrail",
+            valueId: value.id
+        });
+    }
+    const checkoutRequest: Partial<CheckoutRequest> = {
+        ...baseCheckoutProps,
+        ...checkoutProps
+    };
+
+    const values: Value[] = [];
+    checkoutRequest.sources.forEach(async src => {
+        if (src.rail === "lightrail" && src.valueId) {
+            values.push((await testAuthedRequest<Value>(router, `/v2/values/${src.valueId}`, "GET")).body);
+        }
+    });
+
+    const checkoutResp = await testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+    chai.assert.equal(checkoutResp.statusCode, 201, `checkoutResp.body=${JSON.stringify(checkoutResp.body)}`);
+
+    return {checkout: checkoutResp.body, valuesCharged: values};
 }
