@@ -8,6 +8,13 @@ import {getDbCredentials} from "../../utils/dbUtils/connection";
 // Copies the .sql files into the schema dir using the file-loader.
 // Flyway will automatically load all .sql files it finds in that dir.
 import "./schema/*.sql";
+import {
+    getLightrailStripeModeConfig,
+    initializeAssumeCheckoutToken,
+    initializeLightrailStripeConfig
+} from "../../utils/stripeUtils/stripeAccess";
+import * as giftbitRoutes from "giftbit-cassava-routes";
+import {StripeConfig} from "../../utils/stripeUtils/StripeConfig";
 import log = require("loglevel");
 
 // Wrapping console.log instead of binding (default behaviour for loglevel)
@@ -37,6 +44,7 @@ export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, 
     }
 
     try {
+        await setStripeWebhookEvents(evt);
         const res = await migrateDatabase(ctx, evt.ResourceProperties.ReadOnlyUserPassword);
         return sendCloudFormationResponse(evt, ctx, true, res);
     } catch (err) {
@@ -134,4 +142,61 @@ async function logFlywaySchemaHistory(ctx: awslambda.Context): Promise<void> {
         "SELECT * FROM rothschild.flyway_schema_history"
     );
     log.info("flyway schema history:\n", JSON.stringify(res[0]));
+}
+
+async function setStripeWebhookEvents(event: awslambda.CloudFormationCustomResourceEvent): Promise<void> {
+    initializeAssumeCheckoutToken(
+        giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<giftbitRoutes.secureConfig.AssumeScopeToken>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH")
+    );
+
+    initializeLightrailStripeConfig(
+        giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE")
+    );
+
+    // events that should be enabled + webhook url are variables passed in on the event (defined in sam.yaml)
+    const webhookEventsToEnable = event.ResourceProperties.StripeWebhookEvents;
+    const url = event.ResourceProperties.StripeWebhookUrl;
+
+    // fetch existing webhooks
+    const lightrailStripe = require("stripe")((await getLightrailStripeModeConfig(false)).secretKey);
+    const webhooks = await lightrailStripe.webhookEndpoints.list();
+
+    // if an existing webhook is already configured with the right url, update it; otherwise create it (should only happen on fist deploy)
+    let webhook;
+    if (webhooks.data.find(w => w.url === url)) {
+        webhook = await lightrailStripe.webhookEndpoints.update(webhooks.data.find(w => w.url === url).id, {
+            enabled_events: webhookEventsToEnable,
+        });
+    } else {
+        webhook = await lightrailStripe.webhookEndpoints.create({
+            url,
+            enabled_events: webhookEventsToEnable,
+            connect: true
+        });
+    }
+
+    const updatedWebhook = await lightrailStripe.webhookEndpoints.retrieve(webhook.id);
+    if (!shallowArrayMatch(updatedWebhook.enabled_events, webhookEventsToEnable)) {
+        // todo wrap lambda handler in order to throw sentry error?
+        giftbitRoutes.sentry.sendErrorNotification(new Error(`Stripe webhook event setup error: Created or updated enabled events on Stripe webhook ${webhook.id}. Events that should be enabled according to sam.yaml variables are '${webhookEventsToEnable}'. Events enabled on retrieved webhook after update: '${webhook.enabled_events}'.`));
+        return;
+    }
+}
+
+function shallowArrayMatch(arr1: string[], arr2: string[]) {
+    if (!arr1 || !arr2 || !(arr1 instanceof Array) || !(arr2 instanceof Array) || arr1.length !== arr2.length) {
+        return false;
+    }
+    const sorted1 = arr1;
+    sorted1.sort();
+    const sorted2 = arr2;
+    sorted2.sort();
+
+    let areSame: boolean = true;
+    sorted1.forEach((item, index) => {
+        if (item !== sorted2[index]) {
+            areSame = false;
+        }
+    });
+    return areSame;
 }
