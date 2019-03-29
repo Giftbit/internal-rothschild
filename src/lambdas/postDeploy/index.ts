@@ -33,8 +33,7 @@ const flywayVersion = "5.0.7";
 /**
  * Handles a CloudFormationEvent and upgrades the database.
  */
-export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context): Promise<any> {
-
+async function handlerFunction(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context): Promise<any> {
     if (evt.RequestType === "Delete") {
         log.info("This action cannot be rolled back.  Calling success without doing anything.");
         return sendCloudFormationResponse(evt, ctx, true, {});
@@ -52,6 +51,13 @@ export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, 
         return sendCloudFormationResponse(evt, ctx, false, null, err.message);
     }
 }
+
+// Export the lambda handler with Sentry error logging supported.
+export const handler = giftbitRoutes.sentry.wrapLambdaHandler({
+    handler: handlerFunction,
+    logger: log.error,
+    secureConfig: giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<any>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_SENTRY")
+});
 
 async function migrateDatabase(ctx: awslambda.Context, readonlyUserPassword: string): Promise<any> {
     log.info("downloading flyway", flywayVersion);
@@ -145,58 +151,40 @@ async function logFlywaySchemaHistory(ctx: awslambda.Context): Promise<void> {
 }
 
 async function setStripeWebhookEvents(event: awslambda.CloudFormationCustomResourceEvent): Promise<void> {
-    initializeAssumeCheckoutToken(
-        giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<giftbitRoutes.secureConfig.AssumeScopeToken>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH")
-    );
+    try {
+        initializeAssumeCheckoutToken(
+            giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<giftbitRoutes.secureConfig.AssumeScopeToken>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH")
+        );
+        initializeLightrailStripeConfig(
+            giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE")
+        );
 
-    initializeLightrailStripeConfig(
-        giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE")
-    );
+        // set of events that should be enabled is a variable passed in on the event (defined in sam.yaml)
+        const webhookEventsToEnable = event.ResourceProperties.StripeWebhookEvents;
+        const url = buildStripeWebhookHandlerEndpoint(process.env["LIGHTRAIL_DOMAIN"]);
 
-    // events that should be enabled + webhook url are variables passed in on the event (defined in sam.yaml)
-    const webhookEventsToEnable = event.ResourceProperties.StripeWebhookEvents;
-    const url = event.ResourceProperties.StripeWebhookUrl;
+        // fetch existing webhooks
+        const lightrailStripe = require("stripe")((await getLightrailStripeModeConfig(false)).secretKey);
+        const webhooks = await lightrailStripe.webhookEndpoints.list();
 
-    // fetch existing webhooks
-    const lightrailStripe = require("stripe")((await getLightrailStripeModeConfig(false)).secretKey);
-    const webhooks = await lightrailStripe.webhookEndpoints.list();
-
-    // if an existing webhook is already configured with the right url, update it; otherwise create it (should only happen on fist deploy)
-    let webhook;
-    if (webhooks.data.find(w => w.url === url)) {
-        webhook = await lightrailStripe.webhookEndpoints.update(webhooks.data.find(w => w.url === url).id, {
-            enabled_events: webhookEventsToEnable,
-        });
-    } else {
-        webhook = await lightrailStripe.webhookEndpoints.create({
-            url,
-            enabled_events: webhookEventsToEnable,
-            connect: true
-        });
-    }
-
-    const updatedWebhook = await lightrailStripe.webhookEndpoints.retrieve(webhook.id);
-    if (!shallowArrayMatch(updatedWebhook.enabled_events, webhookEventsToEnable)) {
-        // todo wrap lambda handler in order to throw sentry error?
-        giftbitRoutes.sentry.sendErrorNotification(new Error(`Stripe webhook event setup error: Created or updated enabled events on Stripe webhook ${webhook.id}. Events that should be enabled according to sam.yaml variables are '${webhookEventsToEnable}'. Events enabled on retrieved webhook after update: '${webhook.enabled_events}'.`));
-        return;
+        // if an existing webhook is already configured with the right url, update it; otherwise create it (should only happen on first deploy)
+        if (webhooks.data.find(w => w.url === url)) {
+            await lightrailStripe.webhookEndpoints.update(webhooks.data.find(w => w.url === url).id, {
+                enabled_events: webhookEventsToEnable,
+            });
+        } else {
+            await lightrailStripe.webhookEndpoints.create({
+                url,
+                enabled_events: webhookEventsToEnable,
+                connect: true
+            });
+        }
+    } catch (e) {
+        giftbitRoutes.sentry.sendErrorNotification(e);
+        return; // fixing enabled webhook events manually is trivial in the Stripe dashboard so we don't want to throw any real errors
     }
 }
 
-function shallowArrayMatch(arr1: string[], arr2: string[]) {
-    if (!arr1 || !arr2 || !(arr1 instanceof Array) || !(arr2 instanceof Array) || arr1.length !== arr2.length) {
-        return false;
-    }
-    const sorted1 = arr1;
-    sorted1.sort();
-    const sorted2 = arr2;
-    sorted2.sort();
-
-    let areSame: boolean = true;
-    sorted1.forEach((item, index) => {
-        if (item !== sorted2[index]) {
-            areSame = false;
-        }
-    });
-    return areSame;
+function buildStripeWebhookHandlerEndpoint(lightrailDomain: string): string {
+    return `https://${lightrailDomain}/v2/stripeEventWebhook`;
 }
