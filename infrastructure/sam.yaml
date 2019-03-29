@@ -690,6 +690,7 @@ Resources:
           DB_PORT: !GetAtt DbCluster.Endpoint.Port
           DB_USERNAME: "master"
           DB_PASSWORD_PARAMETER: !GetAtt DbCredentials.PasswordParameter
+          LIGHTRAIL_DOMAIN: !Ref LightrailDomain
           SECURE_CONFIG_KEY_SENTRY: sentry_lambda_services.json
           SECURE_CONFIG_KEY_STRIPE: stripe_connect.json
           SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH: assumeRetrieveStripeAuth.json
@@ -734,4 +735,3 @@ Resources:
       BuildDate: !Ref BuildDate
       ReadOnlyUserPassword: !GetAtt DbReadUserCredentials.Password
       StripeWebhookEvents: ["charge.refunded", "charge.refund.updated", "review.closed", "charge.dispute.created"]
-      StripeWebhookUrls: ["https://api.lightraildev.net/v2/stripeEventWebhook", "https://api.lightrailstaging.net/v2/stripeEventWebhook", "https://api.lightrail.com/v2/stripeEventWebhook"]
