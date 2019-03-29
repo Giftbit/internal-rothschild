@@ -80,6 +80,7 @@ async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.Authoriza
     const updateRes = await query;
     if (updateRes !== 1) {
         // todo - I don't think this replanning works. By this point the Transaction will be written to the DB but the database transaction will not have yet been committed.
+        // todo - also if this fails, for what reason would replanning it succeed? maybe there's an alternate payment source?
         throw new TransactionPlanError(`Transaction execution canceled because Value updated ${updateRes} rows.  userId=${auth.userId} value.id=${step.value.id} value.balance=${step.value.balance} value.usesRemaining=${step.value.usesRemaining} step.amount=${step.amount} step.uses=${step.uses}`, {
             isReplanable: updateRes === 0
         });

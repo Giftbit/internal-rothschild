@@ -639,33 +639,72 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
      * This will need to be updated once partial capture becomes a thing since joining to the last Transaction in the chain
      * will no longer give a complete picture regarding what happened.
      */
-    let query = knex("LightrailTransactionSteps as LTS")
-        .where({
-            "LTS.userId": auth.userId,
-            "LTS.valueId": valueId,
-        })
-        .join("Transactions as T_ROOT", {
-            "T_ROOT.userId": "LTS.userId",
-            "T_ROOT.id": "LTS.transactionId"
-        })
-        .whereIn("T_ROOT.transactionType", ["checkout", "debit"])
-        .leftJoin("Transactions as T_LAST", query => {
-            query.on("T_ROOT.id", "=", "T_LAST.rootTransactionId")
-                .andOn("T_ROOT.userId", "=", "T_LAST.userId")
-                .andOn("T_LAST.id", "!=", "T_LAST.rootTransactionId")
-                .andOnNull("T_LAST.nextTransactionId");
-        })
-        .count({transactionCount: "*"})
-        .sum({balanceChange: "LTS.balanceChange"})
-        .sum({discountLightrail: "T_ROOT.totals_discountLightrail"})
-        .sum({paidLightrail: "T_ROOT.totals_paidLightrail"})
-        .sum({paidStripe: "T_ROOT.totals_paidStripe"})
-        .sum({paidInternal: "T_ROOT.totals_paidInternal"})
-        .sum({remainder: "T_ROOT.totals_remainder"})
-        .select({rootTransactionType: "T_ROOT.transactionType"})
-        .select({finalTransactionType: "T_LAST.transactionType"})
-        .groupBy("T_LAST.transactionType")
-        .groupBy("T_ROOT.transactionType");
+        // new query
+    let query = knex("Values as V")
+            .where({
+                "V.userId": auth.userId,
+
+            })
+            .andWhere(q => {
+                q.where("V.id", "=", valueId);
+                q.orWhere("V.attachedFromGenericValueId", "=", valueId);
+                return q;
+            })
+            .join("LightrailTransactionSteps as LTS", {
+                "LTS.userId": "V.userId",
+                "LTS.valueId": "V.id"
+            })
+            .join("Transactions as T_ROOT", {
+                "T_ROOT.userId": "LTS.userId",
+                "T_ROOT.id": "LTS.transactionId"
+            })
+            .whereIn("T_ROOT.transactionType", ["checkout", "debit"])
+            .leftJoin("Transactions as T_LAST", query => {
+                query.on("T_ROOT.id", "=", "T_LAST.rootTransactionId")
+                    .andOn("T_ROOT.userId", "=", "T_LAST.userId")
+                    .andOn("T_LAST.id", "!=", "T_LAST.rootTransactionId")
+                    .andOnNull("T_LAST.nextTransactionId");
+            })
+            .count({transactionCount: "*"})
+            .sum({balanceChange: "LTS.balanceChange"})
+            .sum({discountLightrail: "T_ROOT.totals_discountLightrail"})
+            .sum({paidLightrail: "T_ROOT.totals_paidLightrail"})
+            .sum({paidStripe: "T_ROOT.totals_paidStripe"})
+            .sum({paidInternal: "T_ROOT.totals_paidInternal"})
+            .sum({remainder: "T_ROOT.totals_remainder"})
+            .select({rootTransactionType: "T_ROOT.transactionType"})
+            .select({finalTransactionType: "T_LAST.transactionType"})
+            .groupBy("T_LAST.transactionType")
+            .groupBy("T_ROOT.transactionType");
+
+    // old query
+    // let query = knex("LightrailTransactionSteps as LTS")
+    //     .where({
+    //         "LTS.userId": auth.userId,
+    //         "LTS.valueId": valueId,
+    //     })
+    //     .join("Transactions as T_ROOT", {
+    //         "T_ROOT.userId": "LTS.userId",
+    //         "T_ROOT.id": "LTS.transactionId"
+    //     })
+    //     .whereIn("T_ROOT.transactionType", ["checkout", "debit"])
+    //     .leftJoin("Transactions as T_LAST", query => {
+    //         query.on("T_ROOT.id", "=", "T_LAST.rootTransactionId")
+    //             .andOn("T_ROOT.userId", "=", "T_LAST.userId")
+    //             .andOn("T_LAST.id", "!=", "T_LAST.rootTransactionId")
+    //             .andOnNull("T_LAST.nextTransactionId");
+    //     })
+    //     .count({transactionCount: "*"})
+    //     .sum({balanceChange: "LTS.balanceChange"})
+    //     .sum({discountLightrail: "T_ROOT.totals_discountLightrail"})
+    //     .sum({paidLightrail: "T_ROOT.totals_paidLightrail"})
+    //     .sum({paidStripe: "T_ROOT.totals_paidStripe"})
+    //     .sum({paidInternal: "T_ROOT.totals_paidInternal"})
+    //     .sum({remainder: "T_ROOT.totals_remainder"})
+    //     .select({rootTransactionType: "T_ROOT.transactionType"})
+    //     .select({finalTransactionType: "T_LAST.transactionType"})
+    //     .groupBy("T_LAST.transactionType")
+    //     .groupBy("T_ROOT.transactionType");
 
     const results: {
         transactionCount: number;
@@ -741,11 +780,6 @@ function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partial
         updatedContactIdDate: partialValue.contactId ? now : null,
         createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
     });
-
-    // if (value.balance === null && value.balanceRule === null && partialValue.genericCodeProperties === undefined) {
-    //     value.balance = 0; // Balance defaults to 0 if no other balance properties are set.
-    //                        // This allows for scenario where valuePropertiesPerContact.balance is set and balance is intentionally set as null.
-    // }
 
     value.metadata = {...(program && program.metadata ? program.metadata : {}), ...value.metadata};
 

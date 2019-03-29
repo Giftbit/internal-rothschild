@@ -22,9 +22,9 @@ import {createTransferTransactionPlan, resolveTransferTransactionPlanSteps} from
 import {createCreditTransactionPlan} from "./transactions.credit";
 import {createDebitTransactionPlan} from "./transactions.debit";
 import {createReverseTransactionPlan} from "./reverse/transactions.reverse";
-import getPaginationParams = Pagination.getPaginationParams;
 import {createCaptureTransactionPlan} from "./transactions.capture";
 import {createVoidTransactionPlan} from "./transactions.void";
+import getPaginationParams = Pagination.getPaginationParams;
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions")
@@ -289,6 +289,7 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
 }
 
 async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, checkout: CheckoutRequest): Promise<Transaction> {
+    console.log("createCheckout called");
     return executeTransactionPlanner(
         auth,
         {
@@ -302,7 +303,8 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
                 transactionId: checkout.id,
                 nonTransactableHandling: "exclude",
                 includeZeroBalance: !!checkout.allowRemainder,
-                includeZeroUsesRemaining: !!checkout.allowRemainder
+                includeZeroUsesRemaining: !!checkout.allowRemainder,
+                simulate: checkout.simulate
             });
             return optimizeCheckout(checkout, steps);
         }

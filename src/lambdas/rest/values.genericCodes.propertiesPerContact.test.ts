@@ -261,7 +261,7 @@ describe("/v2/values - generic code with per contact properties", () => {
                 }, ["id", "createdDate"]);
         });
 
-        it("generic code with per contact usage limits will fail to attach if insufficient usesRemaining. can credit usesRemaining and then attach another contact", async () => {
+        it("generic code with per contact properties will fail to attach if insufficient usesRemaining. can credit usesRemaining and then attach another contact", async () => {
             const genericValue: Partial<Value> = {
                 id: generateId(),
                 currency: "USD",
@@ -458,7 +458,136 @@ describe("/v2/values - generic code with per contact properties", () => {
         });
     });
 
-    // this might not be useful anymore.
+    describe("generic code with balance rule, limited to 1 use per contact, and no liability controls (ie, balance = null, usesRemaining = null)", () => {
+        const contact1Id = generateId();
+        const contact2Id = generateId();
+        const contact3Id = generateId();
+
+        before(async function () {
+            const createContact1 = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contact1Id});
+            chai.assert.equal(createContact1.statusCode, 201);
+            const createContact2 = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contact2Id});
+            chai.assert.equal(createContact2.statusCode, 201);
+            const createContact3 = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contact3Id});
+            chai.assert.equal(createContact3.statusCode, 201);
+        });
+
+        const genericValue: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            isGenericCode: true,
+            code: generateFullcode(),
+            genericCodeProperties: {
+                valuePropertiesPerContact: {
+                    usesRemaining: 1,
+                    balance: null
+                }
+            },
+            usesRemaining: null,
+            balance: null,
+            balanceRule: {
+                rule: "500 + value.balanceChange",
+                explanation: "$5 off purchase"
+            }
+        };
+
+        it("can create generic value", async () => {
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
+            chai.assert.equal(create.statusCode, 201);
+            chai.assert.deepNestedInclude(create.body, genericValue);
+        });
+
+        let valueAttachedToContact1: Value;
+        it("can attach to contact1", async () => {
+            const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1Id}/values/attach`, "POST", {code: genericValue.code});
+            chai.assert.equal(attach.statusCode, 200);
+            valueAttachedToContact1 = attach.body;
+        });
+
+        it("can lookup attach transaction", async () => {
+            chai.assert.isNotNull(valueAttachedToContact1, "Expected this to be set. earlier test must have failed.");
+            const getTx = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/values/${genericValue.id}/transactions?transactionType=attach`, "GET");
+            chai.assert.deepInclude(getTx.body[0],
+                {
+                    "transactionType": "attach",
+                    "steps": [
+                        {
+                            "rail": "lightrail",
+                            "valueId": genericValue.id,
+                            "contactId": null,
+                            "code": genericValue.code,
+                            "balanceBefore": null,
+                            "balanceAfter": null,
+                            "balanceChange": null,
+                            "usesRemainingBefore": null,
+                            "usesRemainingAfter": null,
+                            "usesRemainingChange": null
+                        },
+                        {
+                            "rail": "lightrail",
+                            "valueId": valueAttachedToContact1.id,
+                            "contactId": valueAttachedToContact1.contactId,
+                            "code": null,
+                            "balanceBefore": null,
+                            "balanceAfter": null,
+                            "balanceChange": null,
+                            "usesRemainingBefore": 0,
+                            "usesRemainingAfter": 1,
+                            "usesRemainingChange": 1
+                        }
+                    ]
+                });
+        });
+
+        it("can attach to contact2", async () => {
+            const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact2Id}/values/attach`, "POST", {code: genericValue.code});
+            chai.assert.equal(attach.statusCode, 200);
+        });
+
+        it("can checkout against contact1", async () => {
+            const checkoutRequest: CheckoutRequest = {
+                id: generateId(),
+                currency: "USD",
+                sources: [
+                    {rail: "lightrail", contactId: contact1Id}
+                ],
+                lineItems: [
+                    {unitPrice: 777}
+                ],
+                allowRemainder: true
+            };
+            const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+            chai.assert.equal(checkout.statusCode, 201);
+            chai.assert.deepEqual(checkout.body.steps,
+                [{
+                    "rail": "lightrail",
+                    "valueId": valueAttachedToContact1.id,
+                    "contactId": contact1Id,
+                    "code": null,
+                    "balanceBefore": null,
+                    "balanceAfter": null,
+                    "balanceChange": -500,
+                    "usesRemainingBefore": 1,
+                    "usesRemainingAfter": 0,
+                    "usesRemainingChange": -1
+                }]
+            );
+        });
+
+        it("can get generic code stats after contact1 checkout", async () => {
+            const stats = await testUtils.testAuthedRequest(router, `/v2/values/${genericValue.id}/stats`, "GET");
+            console.log(JSON.stringify(stats, null, 4));
+        });
+
+        it("contact 3 attaches")
+
+    });
+
+    // todo - test can't attach frozen generic value. or can you?
+    // todo - test can't attach inactive generic value. or can you?
+    // todo - test can't attach canceled generic value - this seems right.
+
+// this might not be useful anymore.
     describe.skip("set of test to create a generic value, attach, view in context of contact, view in context of generic code, and checkout", () => {
         const genericValue: Partial<Value> = {
             id: generateId(),
@@ -685,4 +814,5 @@ describe("/v2/values - generic code with per contact properties", () => {
             }, ["createdDate"]);
         });
     });
-});
+})
+;

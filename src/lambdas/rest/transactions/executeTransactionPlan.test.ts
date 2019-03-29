@@ -92,10 +92,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
 
         let err: TransactionPlanError;
         try {
-            const knex = await getKnexWrite();
-            await knex.transaction(async trx => {
-                await executeTransactionPlan(auth, plan, trx);
-            });
+            await executeTransactionPlan(auth, plan);
         } catch (e) {
             err = e;
         }
@@ -172,10 +169,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
 
         let err: TransactionPlanError;
         try {
-            const knex = await getKnexWrite();
-            await knex.transaction(async trx => {
-                await executeTransactionPlan(auth, plan, trx);
-            });
+            await executeTransactionPlan(auth, plan);
         } catch (e) {
             err = e;
         }

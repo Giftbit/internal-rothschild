@@ -34,8 +34,8 @@ export interface Value {
 
 export interface GenericCodeProperties {
     valuePropertiesPerContact: {
-        balance: number | null;
-        usesRemaining: number | null;
+        balance: number | null | undefined;
+        usesRemaining: number | null | undefined;
     }
 }
 

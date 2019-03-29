@@ -16,6 +16,7 @@ import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {computeCodeLookupHash} from "../../../utils/codeCryptoUtils";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import * as knex from "knex";
+import {attachPerContactGenericValue} from "../contactValues";
 
 /**
  * Options to resolving transaction parties.
@@ -53,9 +54,17 @@ export interface ResolveTransactionPartiesOptions {
      * Whether to accept Lightrail Values with 0 balance in the results.
      */
     includeZeroBalance: boolean;
+
+    /**
+     * Certain requests can resulting in creating new Values during resolveTransactionPlanSteps.
+     * For example, the system supports auto attaching certain generic codes. In the case of a simulate these
+     * create Values should not be persisted.
+     */
+    simulate?: boolean;
 }
 
 export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions): Promise<TransactionPlanStep[]> {
+    console.log("resolveTransactionPlanSteps called");
     const lightrailValues = await getLightrailValues(auth, options);
     const lightrailSteps = lightrailValues
         .map((v): LightrailTransactionPlanStep => ({
@@ -93,6 +102,7 @@ export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.Au
 }
 
 async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions): Promise<Value[]> {
+    console.log("getLightrailValues called");
     const valueIds = options.parties.filter(p => p.rail === "lightrail" && p.valueId)
         .map(p => (p as LightrailTransactionParty).valueId);
 
@@ -185,5 +195,30 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         }
     }
 
-    return values;
+    const attachableGenericValues: Value[] = values.filter(v => v.isGenericCode && v.genericCodeProperties && v.genericCodeProperties.valuePropertiesPerContact);
+    const resolvedValues = values.filter(v => attachableGenericValues.indexOf(v) == -1);
+    const contactId = (options.parties.find(party => party.rail === "lightrail" && party.contactId != null) as LightrailTransactionParty).contactId; // If there are more than 1 contactId in the sources we don't care. that's an edge case. Only auto-attach to the first.
+
+    // todo - should probably make sure the contact exists. otherwise the simulate is misleading.
+
+    console.log("found attachable generic values: " + JSON.stringify(attachableGenericValues, null, 4) + " \n and contactId: " + contactId);
+    if (attachableGenericValues.length > 0 && !contactId) {
+        throw new giftbitRoutes.GiftbitRestError(409, `Value '${attachableGenericValues[0].id}' cannot be transacted against because it must be attached to a Contact or a contactId must be provided in the request.`, "ValueMustBeAttached");
+    }
+    for (const attachableGenericValue of attachableGenericValues) {
+        if (resolvedValues.find(v => v.contactId === contactId && v.attachedFromGenericValueId === attachableGenericValue.id)) {
+            // already attached! do nothing!
+        } else {
+            console.log("attaching new generic value");
+            try {
+                resolvedValues.push(await attachPerContactGenericValue(auth, contactId, attachableGenericValue, options.simulate));
+            } catch (err) {
+                console.log("unexpected error occurred" + JSON.stringify(err));
+                throw err;
+            }
+            console.log("this finished");
+        }
+    }
+
+    return resolvedValues;
 }

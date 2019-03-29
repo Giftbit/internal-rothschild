@@ -17,6 +17,7 @@ import log = require("loglevel");
  * Build a TransactionPlan for checkout.  This mutates the steps by setting the amount.
  */
 export function calculateCheckoutTransactionPlan(checkout: CheckoutRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[], now: Date): TransactionPlan {
+    // throw new Error("Something bad happpened!!!");
     // Reset step amounts in case they were set in a previous call to this function.
     for (const step of preTaxSteps) {
         step.amount = 0;

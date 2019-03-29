@@ -30,6 +30,7 @@ export interface TransactionPlan {
     lineItems: LineItemResponse[] | null;
     paymentSources: TransactionParty[] | null;
     steps: TransactionPlanStep[];
+    newValues?: Value[];
     tax: TaxRequestProperties;
     pendingVoidDate?: Date;
     createdDate: Date;

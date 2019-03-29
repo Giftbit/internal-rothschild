@@ -1,9 +1,9 @@
 import * as awslambda from "aws-lambda";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {DbTransaction} from "../../model/Transaction";
-import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
+import {getKnexRead} from "../../utils/dbUtils/connection";
 import {nowInDbPrecision} from "../../utils/dbUtils";
-import {executeTransactionPlan} from "../rest/transactions/executeTransactionPlan";
+import {executeTransactionPlanner} from "../rest/transactions/executeTransactionPlan";
 import {createVoidTransactionPlanForDbTransaction} from "../rest/transactions/transactions.void";
 import log = require("loglevel");
 import uuid = require("uuid");
@@ -61,20 +61,19 @@ async function voidPendingTransaction(dbTransaction: DbTransaction): Promise<voi
         "lightrailV2:transactions:void"
     ];
 
-    const knex = await getKnexWrite();
-    await knex.transaction(async trx => {
-        await executeTransactionPlan(
-            auth,
-            await createVoidTransactionPlanForDbTransaction(
+
+    await executeTransactionPlanner(
+        auth,
+        {simulate: false, allowRemainder: false},
+        async () => {
+            return createVoidTransactionPlanForDbTransaction(
                 auth,
                 {
                     // This operation is naturally idempotent because of the transaction chain; so this ID doesn't matter much.
                     id: "automatic-void-" + uuid.v4()
                 },
                 dbTransaction
-            ),
-            trx
-        );
-    });
-
+            )
+        }
+    );
 }

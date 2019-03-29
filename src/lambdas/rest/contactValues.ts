@@ -14,7 +14,7 @@ import {AttachValueParameters} from "../../model/internal/AttachValueParameters"
 import {ValueIdentifier} from "../../model/internal/ValueIdentifier";
 import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
 import {LightrailTransactionPlanStep, TransactionPlan} from "./transactions/TransactionPlan";
-import {executeTransactionPlannerInExistingTransaction} from "./transactions/executeTransactionPlan";
+import {executeTransactionPlanner} from "./transactions/executeTransactionPlan";
 import log = require("loglevel");
 
 export function installContactValuesRest(router: cassava.Router): void {
@@ -258,7 +258,8 @@ async function attachSharedGenericValue(auth: giftbitRoutes.jwtauth.Authorizatio
     return dbContactValue;
 }
 
-async function attachPerContactGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<Value> {
+export async function attachPerContactGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value, simulate: boolean = false): Promise<Value> {
+    console.log("attachPerContactGenericValue called");
     const now = nowInDbPrecision();
 
     const amount = genericValue.genericCodeProperties.valuePropertiesPerContact.balance;
@@ -285,13 +286,13 @@ async function attachPerContactGenericValue(auth: giftbitRoutes.jwtauth.Authoriz
         updatedContactIdDate: now,
         createdBy: auth.teamMemberId,
     };
-    const dbNewAttachedValue: DbValue = await Value.toDbValue(auth, newAttachedValue);
 
     const transactionPlanner = async (): Promise<TransactionPlan> => {
         const transactionPlan: TransactionPlan = {
             id: newAttachedValue.id,
             transactionType: "attach",
             currency: genericValue.currency,
+            newValues: [newAttachedValue],
             steps: [],
             totals: null,
             lineItems: null,
@@ -319,13 +320,26 @@ async function attachPerContactGenericValue(auth: giftbitRoutes.jwtauth.Authoriz
         );
         return transactionPlan;
     };
+    if (simulate) {
+        return newAttachedValue;
+    }
+
+    await executeTransactionPlanner(auth, {
+        allowRemainder: false,
+        simulate: false
+    }, transactionPlanner);
+    /*
 
     const knex = await getKnexWrite();
     await knex.transaction(async trx => {
+        console.log("why isn't this happening?");
         try {
+            console.log("inserting new Value");
             await trx("Values")
                 .insert(dbNewAttachedValue);
+            console.log("finished inserting new Value");
         } catch (err) {
+
             const constraint = getSqlErrorConstraintName(err);
             if (constraint === "PRIMARY") {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${genericValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
@@ -337,14 +351,16 @@ async function attachPerContactGenericValue(auth: giftbitRoutes.jwtauth.Authoriz
             throw err;
         }
 
-        await executeTransactionPlannerInExistingTransaction(auth, {
+        console.log("attempting executeTransactionPlannerInExistingDbTransaction");
+        await executeTransactionPlannerInExistingDbTransaction(auth, {
             allowRemainder: false,
             simulate: false
         }, transactionPlanner, trx);
     });
 
-    return await
-        getValue(auth, newAttachedValue.id);
+    */
+
+    return await getValue(auth, newAttachedValue.id);
 }
 
 /**
