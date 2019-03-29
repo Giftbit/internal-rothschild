@@ -303,8 +303,7 @@ export function getStripeRefundStub(options: GetStripeRefundStubOptions): sinon.
     const stub = stripeRefundStub || (stripeRefundStub = sinonSandbox.stub(stripeTransactions, "createRefund").callThrough());
 
     return stub.withArgs(
-        sinon.match.has("amount", options.amount)
-            .and(sinon.match.has("charge", options.stripeChargeId)),
+        sinon.match.has("charge", options.stripeChargeId),
         sinon.match(stripeStubbedConfig.secretKey),
         sinon.match(stripeStubbedConfig.stripeUserId)
     );
