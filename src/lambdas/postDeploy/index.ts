@@ -33,7 +33,7 @@ const flywayVersion = "5.0.7";
 /**
  * Handles a CloudFormationEvent and upgrades the database.
  */
-async function handlerFunction(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context): Promise<any> {
+export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context): Promise<any> {
     if (evt.RequestType === "Delete") {
         log.info("This action cannot be rolled back.  Calling success without doing anything.");
         return sendCloudFormationResponse(evt, ctx, true, {});
@@ -51,13 +51,6 @@ async function handlerFunction(evt: awslambda.CloudFormationCustomResourceEvent,
         return sendCloudFormationResponse(evt, ctx, false, null, err.message);
     }
 }
-
-// Export the lambda handler with Sentry error logging supported.
-export const handler = giftbitRoutes.sentry.wrapLambdaHandler({
-    handler: handlerFunction,
-    logger: log.error,
-    secureConfig: giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<any>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_SENTRY")
-});
 
 async function migrateDatabase(ctx: awslambda.Context, readonlyUserPassword: string): Promise<any> {
     log.info("downloading flyway", flywayVersion);
@@ -158,30 +151,30 @@ async function setStripeWebhookEvents(event: awslambda.CloudFormationCustomResou
         initializeLightrailStripeConfig(
             giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE")
         );
+    } catch (err) {
+        log.error(JSON.stringify(err, null, 2));
+        return; // don't fail deployment if the function can't get the Stripe credentials (stack should be deployable in a new environment where function role name isn't known and can't have had permissions set)
+    }
 
-        // set of events that should be enabled is a variable passed in on the event (defined in sam.yaml)
-        const webhookEventsToEnable = event.ResourceProperties.StripeWebhookEvents;
-        const url = buildStripeWebhookHandlerEndpoint(process.env["LIGHTRAIL_DOMAIN"]);
+    // set of events that should be enabled is a variable passed in on the event (defined in sam.yaml)
+    const webhookEventsToEnable = event.ResourceProperties.StripeWebhookEvents;
+    const url = buildStripeWebhookHandlerEndpoint(process.env["LIGHTRAIL_DOMAIN"]);
 
-        // fetch existing webhooks
-        const lightrailStripe = require("stripe")((await getLightrailStripeModeConfig(false)).secretKey);
-        const webhooks = await lightrailStripe.webhookEndpoints.list();
+    // fetch existing webhooks
+    const lightrailStripe = require("stripe")((await getLightrailStripeModeConfig(false)).secretKey);
+    const webhooks = await lightrailStripe.webhookEndpoints.list();
 
-        // if an existing webhook is already configured with the right url, update it; otherwise create it (should only happen on first deploy)
-        if (webhooks.data.find(w => w.url === url)) {
-            await lightrailStripe.webhookEndpoints.update(webhooks.data.find(w => w.url === url).id, {
-                enabled_events: webhookEventsToEnable,
-            });
-        } else {
-            await lightrailStripe.webhookEndpoints.create({
-                url,
-                enabled_events: webhookEventsToEnable,
-                connect: true
-            });
-        }
-    } catch (e) {
-        giftbitRoutes.sentry.sendErrorNotification(e);
-        return; // fixing enabled webhook events manually is trivial in the Stripe dashboard so we don't want to throw any real errors
+    // if an existing webhook is already configured with the right url, update it; otherwise create it (should only happen on first deploy)
+    if (webhooks.data.find(w => w.url === url)) {
+        await lightrailStripe.webhookEndpoints.update(webhooks.data.find(w => w.url === url).id, {
+            enabled_events: webhookEventsToEnable,
+        });
+    } else {
+        await lightrailStripe.webhookEndpoints.create({
+            url,
+            enabled_events: webhookEventsToEnable,
+            connect: true
+        });
     }
 }
 
