@@ -152,7 +152,7 @@ async function setStripeWebhookEvents(event: awslambda.CloudFormationCustomResou
             giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE")
         );
     } catch (err) {
-        log.error(JSON.stringify(err, null, 2));
+        log.error(`Error fetching Stripe credentials from secure config: enabled Stripe webhook events have not been updated. Secure config permissions may need to be set. \nError: ${JSON.stringify(err, null, 2)}`);
         return; // don't fail deployment if the function can't get the Stripe credentials (stack should be deployable in a new environment where function role name isn't known and can't have had permissions set)
     }
 
