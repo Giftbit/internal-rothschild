@@ -9,9 +9,9 @@ import {Value} from "../../model/Value";
 import {Currency} from "../../model/Currency";
 import * as stripe from "stripe";
 import {
-    checkValuesState,
+    assertTransactionChainContainsTypes,
+    assertValuesRestoredAndFrozen,
     generateConnectWebhookEventMock,
-    getAndCheckTransactionChain,
     refundInStripe,
     setupForWebhookEvent,
     testSignedWebhookRequest
@@ -72,7 +72,7 @@ describe("/v2/stripeEventWebhook - Stripe Review events", () => {
         const webhookResp = await testSignedWebhookRequest(webhookEventRouter, webhookEvent);
         chai.assert.equal(webhookResp.statusCode, 204, `webhookResp.body=${JSON.stringify(webhookResp)}`);
 
-        await getAndCheckTransactionChain(restRouter, checkout.id, 2, ["checkout", "reverse"]);
-        await checkValuesState(restRouter, values);
+        await assertTransactionChainContainsTypes(restRouter, checkout.id, 2, ["checkout", "reverse"]);
+        await assertValuesRestoredAndFrozen(restRouter, values);
     }).timeout(12000);
 });

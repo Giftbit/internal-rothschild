@@ -91,8 +91,10 @@ export async function setupForWebhookEvent(router: cassava.Router, lightrailOpti
     chai.assert.isObject(checkoutSetup.checkout.steps.find(step => step.rail === "stripe"));
     const stripeStep = <StripeTransactionStep>checkoutSetup.checkout.steps.find(step => step.rail === "stripe");
 
+
     // if transaction should be reversed in Lightrail as well, do that (doesn't matter if it's already been refunded in Stripe)
     if (lightrailOptions && lightrailOptions.reversed) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // manually delay creating the next transaction so it has a different createdDate
         const reverseResp = await testAuthedRequest<Transaction>(router, `/v2/transactions/${checkoutSetup.checkout.id}/reverse`, "POST", {id: generateId()});
         chai.assert.equal(reverseResp.statusCode, 201, `reverseResp.body=${JSON.stringify(reverseResp.body)}`);
         nextLightrailTransaction = reverseResp.body;
@@ -104,6 +106,7 @@ export async function setupForWebhookEvent(router: cassava.Router, lightrailOpti
     // if original charge was pending and needs to be captured or voided, do that
     if (lightrailOptions && lightrailOptions.initialCheckoutReq && lightrailOptions.initialCheckoutReq.pending) {
         if (lightrailOptions.captured) {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // manually delay creating the next transaction so it has a different createdDate
             const captureResp = await testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.id}/capture`, "POST", {id: generateId()});
             chai.assert.equal(captureResp.statusCode, 201, `captureResp.body=${JSON.stringify(captureResp.body)}`);
             nextLightrailTransaction = captureResp.body;
@@ -111,6 +114,7 @@ export async function setupForWebhookEvent(router: cassava.Router, lightrailOpti
             nextStripeStep = <StripeTransactionStep>nextLightrailTransaction.steps.find(step => step.rail === "stripe");
         }
         if (lightrailOptions.voided) {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // manually delay creating the next transaction so it has a different createdDate
             const voidResp = await testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.id}/void`, "POST", {id: generateId()});
             chai.assert.equal(voidResp.statusCode, 201, `captureResp.body=${JSON.stringify(voidResp.body)}`);
             nextLightrailTransaction = voidResp.body;
@@ -146,7 +150,7 @@ export async function refundInStripe(stripeStep: StripeTransactionStep, refundRe
     return stripeChargeAfterRefund;
 }
 
-export async function getAndCheckTransactionChain(router: cassava.Router, transactionId: string, expectedLengthOfChain: number, orderedExpectedTransactionTypes: TransactionType[]): Promise<Transaction[]> {
+export async function assertTransactionChainContainsTypes(router: cassava.Router, transactionId: string, expectedLengthOfChain: number, orderedExpectedTransactionTypes: TransactionType[]): Promise<Transaction[]> {
     const fetchTransactionChainResp = await testAuthedRequest<Transaction[]>(router, `/v2/transactions/${transactionId}/chain`, "GET");
     chai.assert.equal(fetchTransactionChainResp.statusCode, 200, `fetchTransactionChainResp.body=${fetchTransactionChainResp.body}`);
     chai.assert.equal(fetchTransactionChainResp.body.length, expectedLengthOfChain, `fetchTransactionChainResp.body=${JSON.stringify(fetchTransactionChainResp.body)}`);
@@ -156,7 +160,7 @@ export async function getAndCheckTransactionChain(router: cassava.Router, transa
     return fetchTransactionChainResp.body;
 }
 
-export async function checkValuesState(router: cassava.Router, originalValues: Value[], withMetadata?: boolean) {
+export async function assertValuesRestoredAndFrozen(router: cassava.Router, originalValues: Value[], withMetadata?: boolean) {
     for (const v of originalValues) {
         const current = await testAuthedRequest<Value>(router, `/v2/values/${v.id}`, "GET");
         chai.assert.equal(current.statusCode, 200, `current value: ${JSON.stringify(current.body)}`);
