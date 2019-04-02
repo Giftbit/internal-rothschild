@@ -168,6 +168,18 @@ async function reverseOrVoidFraudulentTransaction(auth: giftbitRoutes.jwtauth.Au
         log.info(`Lightrail Transaction '${dbTransactionToHandle.id}' was reversed by Transaction '${reverseTransaction.id}'`);
         return reverseTransaction;
 
+    } else if (isCaptured(dbTransactionToHandle, dbTransactionChain)) {
+        log.info(`Transaction '${dbTransactionToHandle.id}' was pending and has been captured. Reversing capture transaction...`);
+        let captureDbTransaction = dbTransactionChain.find(txn => txn.transactionType === "capture" && txn.rootTransactionId === dbTransactionToHandle.id);
+        const reverseTransaction = await createReverse(auth, {
+            id: `${captureDbTransaction.id}-webhook-rev`,
+            metadata: {
+                stripeWebhookTriggeredAction: `Transaction reversed by Lightrail because Stripe charge '${stripeCharge.id}' was refunded as fraudulent. Stripe eventId: '${event.id}', Stripe accountId: '${event.account}'`
+            }
+        }, captureDbTransaction.id);
+        log.info(`Transaction '${dbTransactionToHandle.id}' was captured by transaction '${captureDbTransaction.id}' which was reversed by '${reverseTransaction.id}'`);
+        return reverseTransaction;
+
     } else if (isVoided(dbTransactionToHandle, dbTransactionChain)) {
         log.info(`Transaction '${dbTransactionToHandle.id}' was pending and has already been voided. Fetching existing void transaction...`);
         let voidDbTransaction = dbTransactionChain.find(txn => txn.transactionType === "void" && txn.rootTransactionId === dbTransactionToHandle.id);
@@ -337,6 +349,7 @@ function isReversible(transaction: DbTransaction, transactionChain: DbTransactio
     return transaction.transactionType !== "reverse" &&
         !transaction.pendingVoidDate &&
         transaction.transactionType !== "void" &&
+        transaction.transactionType !== "capture" &&
         !isReversed(transaction, transactionChain);
 }
 
@@ -352,5 +365,9 @@ function isVoidable(transaction: DbTransaction, transactionChain: DbTransaction[
 function isVoided(transaction: DbTransaction, transactionChain: DbTransaction[]): boolean {
     return !!transaction.pendingVoidDate &&
         !!transactionChain.find(txn => txn.transactionType === "void" && txn.rootTransactionId === transaction.id);
+}
+
+function isCaptured(transaction: DbTransaction, transactionChain: DbTransaction[]): boolean {
+    return !!transactionChain.find(txn => txn.transactionType === "capture" && txn.rootTransactionId === transaction.id);
 }
 
