@@ -157,7 +157,7 @@ async function setStripeWebhookEvents(event: awslambda.CloudFormationCustomResou
     }
 
     // set of events that should be enabled is a variable passed in on the event (defined in sam.yaml)
-    const webhookEventsToEnable = event.ResourceProperties.StripeWebhookEvents;
+    const webhookEventsToEnable = event.ResourceProperties.StripeWebhookEvents.split(",");
     const url = buildStripeWebhookHandlerEndpoint(process.env["LIGHTRAIL_DOMAIN"]);
 
     // fetch existing webhooks

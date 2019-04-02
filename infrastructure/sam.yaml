@@ -745,4 +745,4 @@ Resources:
       # This parameter isn't used, but changing it forces this function to run every time, which we want.
       BuildDate: !Ref BuildDate
       ReadOnlyUserPassword: !GetAtt DbReadUserCredentials.Password
-      StripeWebhookEvents: ["charge.refunded", "charge.refund.updated", "review.closed", "charge.dispute.created"]
+      StripeWebhookEvents: "charge.refunded,charge.refund.updated,review.closed,charge.dispute.created"
