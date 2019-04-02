@@ -13,7 +13,7 @@ Parameters:
     Description: Input to the PostDeployInvocation function to force it to run on every deployment.
     Default: "date +%s"
   Capacity:
-    AllowedValues : ["high", "low"]
+    AllowedValues: ["high", "low"]
     Type: String
   DbEncryptionKeyId:
     Type: String
@@ -372,12 +372,12 @@ Resources:
           ./install.sh
         fi
       Tags:
-      - Key: Name
-        Value: !Sub "${AWS::StackName} Bastion Host"
-      - Key: Service
-        Value: Rothschild
-      - Key: AuthorizedUsersGroup # SSH IAM Login scripts will use this to grant or deny access
-        Value: !Ref BastionHostAuthorizedUsersGroup
+        - Key: Name
+          Value: !Sub "${AWS::StackName} Bastion Host"
+        - Key: Service
+          Value: Rothschild
+        - Key: AuthorizedUsersGroup # SSH IAM Login scripts will use this to grant or deny access
+          Value: !Ref BastionHostAuthorizedUsersGroup
   BastionHostRole:
     Type: AWS::IAM::Role
     Properties:
