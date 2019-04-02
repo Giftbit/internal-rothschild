@@ -20,10 +20,7 @@ import {
 import {executeStripeSteps, rollbackStripeChargeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
 import {StripeRestError} from "../../../utils/stripeUtils/StripeRestError";
 import {MetricsLogger} from "../../../utils/metricsLogger";
-import {getSqlErrorConstraintName} from "../../../utils/dbUtils";
-import {Value} from "../../../model/Value";
 import log = require("loglevel");
-import Knex = require("knex");
 
 export interface ExecuteTransactionPlannerOptions {
     allowRemainder: boolean;
@@ -71,9 +68,6 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
 
     await knex.transaction(async trx => {
         try {
-            if (plan.newValues) {
-                await insertTransactionPlanNewValues(auth, trx, plan);
-            }
             await insertTransaction(trx, auth, plan);
         } catch (err) {
             log.warn("Error inserting transaction:", err);
@@ -136,27 +130,4 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
 
     MetricsLogger.transaction(plan, auth);
     return TransactionPlan.toTransaction(auth, plan);
-}
-
-async function insertTransactionPlanNewValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan) {
-    for (const v of plan.newValues) {
-        try {
-            console.log("inserting new Value");
-            await trx("Values")
-                .insert(await Value.toDbValue(auth, v));
-            console.log("finished inserting new Value");
-        } catch (err) {
-
-            const constraint = getSqlErrorConstraintName(err);
-            if (constraint === "PRIMARY") {
-                throw new giftbitRoutes.GiftbitRestError(409, `The Value '${v.attachedFromGenericValueId}' has already been attached to the Contact '${v.contactId}'.`, "ValueAlreadyAttached");
-            }
-            if (constraint === "fk_Values_Contacts") {
-                throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${v.contactId}' not found.`, "ContactNotFound");
-            }
-            log.error(`An unexpected error occurred while attempting to insert new attach value ${JSON.stringify(v)}. err: ${err}.`);
-            throw err;
-        }
-    }
-
 }

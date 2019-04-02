@@ -6,9 +6,11 @@ import {
     TransactionPlan
 } from "./TransactionPlan";
 import {TransactionPlanError} from "./TransactionPlanError";
-import {DbValue} from "../../../model/Value";
+import {DbValue, Value} from "../../../model/Value";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
+import {getSqlErrorConstraintName} from "../../../utils/dbUtils";
 import Knex = require("knex");
+import log = require("loglevel");
 
 export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<void> {
     try {
@@ -41,6 +43,9 @@ export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtaut
     for (let stepIx = 0; stepIx < steps.length; stepIx++) {
         const step = steps[stepIx] as LightrailTransactionPlanStep;
 
+        if (step.createValue) {
+            await createValueForTransactionPlanStep(auth, trx, step);
+        }
         if (step.value.balance != null || step.value.usesRemaining != null) {
             await updateLightrailValueForStep(auth, trx, step, plan);
         }
@@ -123,4 +128,27 @@ export async function insertInternalTransactionSteps(auth: giftbitRoutes.jwtauth
         .map(step => InternalTransactionPlanStep.toInternalDbTransactionStep(step as InternalTransactionPlanStep, plan, auth));
     await trx.into("InternalTransactionSteps")
         .insert(internalSteps);
+}
+
+
+async function createValueForTransactionPlanStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, step: LightrailTransactionPlanStep) {
+    const value: Value = step.value;
+    try {
+        console.log("inserting new Value");
+        await trx("Values")
+            .insert(await Value.toDbValue(auth, step.value));
+        console.log("finished inserting new Value");
+    } catch (err) {
+
+        const constraint = getSqlErrorConstraintName(err);
+        if (constraint === "PRIMARY") {
+            throw new giftbitRoutes.GiftbitRestError(409, `The Value '${value.attachedFromGenericValueId}' has already been attached to the Contact '${value.contactId}'.`, "ValueAlreadyAttached");
+        }
+        if (constraint === "fk_Values_Contacts") {
+            throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${value.contactId}' not found.`, "ContactNotFound");
+        }
+        log.error(`An unexpected error occurred while attempting to insert new attach value ${JSON.stringify(value)}. err: ${err}.`);
+        throw err;
+    }
+
 }

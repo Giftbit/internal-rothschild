@@ -30,13 +30,15 @@ export interface TransactionPlan {
     lineItems: LineItemResponse[] | null;
     paymentSources: TransactionParty[] | null;
     steps: TransactionPlanStep[];
-    newValues?: Value[];
     tax: TaxRequestProperties;
     pendingVoidDate?: Date;
     createdDate: Date;
     metadata: object | null;
     rootTransactionId?: string;
     previousTransactionId?: string;
+
+    //
+    newValues?: Value[];
 }
 
 export type TransactionPlanStep =
@@ -49,6 +51,7 @@ export interface LightrailTransactionPlanStep {
     value: Value;
     amount: number;
     uses: number | null;
+    createValue?: boolean;
 }
 
 export interface StripeChargeTransactionPlanStep {

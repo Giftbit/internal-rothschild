@@ -458,7 +458,7 @@ describe("/v2/values - generic code with per contact properties", () => {
         });
     });
 
-    describe("generic code with balance rule, limited to 1 use per contact, and no liability controls (ie, balance = null, usesRemaining = null)", () => {
+    describe.only("generic code with balance rule, limited to 1 use per contact, and no liability controls (ie, balance = null, usesRemaining = null)", () => {
         const contact1Id = generateId();
         const contact2Id = generateId();
         const contact3Id = generateId();
@@ -502,6 +502,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1Id}/values/attach`, "POST", {code: genericValue.code});
             chai.assert.equal(attach.statusCode, 200);
             valueAttachedToContact1 = attach.body;
+            console.log("valueAttachedToContact1 " + JSON.stringify(valueAttachedToContact1, null, 4));
         });
 
         it("can lookup attach transaction", async () => {

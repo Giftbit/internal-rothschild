@@ -8,6 +8,7 @@ import {
     CheckoutRequest,
     CreditRequest,
     DebitRequest,
+    LightrailTransactionParty,
     ReverseRequest,
     TransferRequest,
     VoidRequest
@@ -24,6 +25,10 @@ import {createDebitTransactionPlan} from "./transactions.debit";
 import {createReverseTransactionPlan} from "./reverse/transactions.reverse";
 import {createCaptureTransactionPlan} from "./transactions.capture";
 import {createVoidTransactionPlan} from "./transactions.void";
+import {Value} from "../../../model/Value";
+import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "./TransactionPlan";
+import {GenericCodePerContact} from "../genericCodePerContact";
+import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
 export function installTransactionsRest(router: cassava.Router): void {
@@ -303,12 +308,42 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
                 transactionId: checkout.id,
                 nonTransactableHandling: "exclude",
                 includeZeroBalance: !!checkout.allowRemainder,
-                includeZeroUsesRemaining: !!checkout.allowRemainder,
-                simulate: checkout.simulate
+                includeZeroUsesRemaining: !!checkout.allowRemainder
             });
-            return optimizeCheckout(checkout, steps);
-        }
-    );
+
+            const stepsForCheckout: TransactionPlanStep[] = steps.filter(s => s.rail !== "lightrail" || (s.rail === "lightrail" && !Value.isGenericCodeWithPropertiesPerContact(s.value)));
+            console.log("Steps: " + JSON.stringify(steps, null, 4));
+            const genericCodesWithPerContactProperties: Value[] = steps.filter(s => s.rail === "lightrail" && Value.isGenericCodeWithPropertiesPerContact(s.value)).map(s => (s as LightrailTransactionPlanStep).value);
+            const stepsForAutoAttach: LightrailTransactionPlanStep[] = [];
+            if (genericCodesWithPerContactProperties.length > 0) {
+                log.info("Found generic codes to be auto-attached.");
+                // If there are more than 1 contactId in the sources we don't care, that's an edge case. Only auto-attach to the first.
+                const contactId = (checkout.sources.find(source => source.rail === "lightrail" && source.contactId != null) as LightrailTransactionParty).contactId;
+
+                for (const genericCode of genericCodesWithPerContactProperties) {
+                    if (!contactId) {
+                        throw new giftbitRoutes.GiftbitRestError(409, `Value '${genericCode.id}' cannot be transacted against because it must be attached to a Contact or a contactId must be provided in the request.`, "ValueMustBeAttached");
+                    }
+
+                    const attachSteps: LightrailTransactionPlanStep[] = GenericCodePerContact.getAttachLightrailTransactionPlanSteps(auth, contactId, genericCode);
+                    stepsForAutoAttach.push(...attachSteps);
+                    const newValue: Value = attachSteps.find(s => s.value.id != genericCode.id).value;
+                    stepsForCheckout.push({
+                            rail: "lightrail",
+                            value: newValue,
+                            amount: 0,
+                            uses: null
+                        }
+                    )
+                }
+            }
+
+            console.log("Steps for checkout " + JSON.stringify(stepsForCheckout, null, 4));
+            const transactionPlan: TransactionPlan = optimizeCheckout(checkout, stepsForCheckout);
+            console.log("transaction plan: " + JSON.stringify(transactionPlan, null, 4));
+            transactionPlan.steps = [...stepsForAutoAttach, ...transactionPlan.steps];
+            return transactionPlan;
+        });
 }
 
 async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: TransferRequest): Promise<Transaction> {

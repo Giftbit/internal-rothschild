@@ -33,7 +33,7 @@ export interface Value {
 }
 
 export interface GenericCodeProperties {
-    valuePropertiesPerContact: {
+    valuePropertiesPerContact: { // todo evaluate this name vs. perContactValueProperties etc.
         balance: number | null | undefined;
         usesRemaining: number | null | undefined;
     }
@@ -113,6 +113,10 @@ export namespace Value {
             ...v,
             code: v.code && !v.isGenericCode ? formatCodeForLastFourDisplay(v.code) : v.code
         });
+    }
+
+    export function isGenericCodeWithPropertiesPerContact(v: Value): boolean {
+        return v.isGenericCode != null && v.genericCodeProperties != null && v.genericCodeProperties.valuePropertiesPerContact != null;
     }
 }
 

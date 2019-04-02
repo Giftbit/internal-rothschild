@@ -13,8 +13,7 @@ import {DbContactValue} from "../../model/DbContactValue";
 import {AttachValueParameters} from "../../model/internal/AttachValueParameters";
 import {ValueIdentifier} from "../../model/internal/ValueIdentifier";
 import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
-import {LightrailTransactionPlanStep, TransactionPlan} from "./transactions/TransactionPlan";
-import {executeTransactionPlanner} from "./transactions/executeTransactionPlan";
+import {GenericCodePerContact} from "./genericCodePerContact";
 import log = require("loglevel");
 
 export function installContactValuesRest(router: cassava.Router): void {
@@ -170,12 +169,13 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     }
 
     if (value.isGenericCode) {
-        if (params.attachGenericAsNewValue) /* legacy case to eventually be removed */ {
+        if (Value.isGenericCodeWithPropertiesPerContact(value)) {
+            MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericContactLimit, auth);
+            return await GenericCodePerContact.attach(auth, contact.id, value);
+        }
+        else if (params.attachGenericAsNewValue) /* legacy case to eventually be removed */ {
             MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, auth);
             return await attachGenericValueAsNewValue(auth, contact.id, value);
-        } else if (value.genericCodeProperties && value.genericCodeProperties.valuePropertiesPerContact) {
-            MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericContactLimit, auth);
-            return await attachPerContactGenericValue(auth, contact.id, value);
         } else {
             MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, auth);
             await attachSharedGenericValue(auth, contact.id, value);
@@ -256,111 +256,6 @@ async function attachSharedGenericValue(auth: giftbitRoutes.jwtauth.Authorizatio
         }
     });
     return dbContactValue;
-}
-
-export async function attachPerContactGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value, simulate: boolean = false): Promise<Value> {
-    console.log("attachPerContactGenericValue called");
-    const now = nowInDbPrecision();
-
-    const amount = genericValue.genericCodeProperties.valuePropertiesPerContact.balance;
-    const uses = genericValue.genericCodeProperties.valuePropertiesPerContact.usesRemaining;
-
-    const newAttachedValue: Value = {
-        ...genericValue,
-        id: crypto.createHash("sha1").update(genericValue.id + "/" + contactId).digest("base64").replace(/\//g, "-"),
-        code: null,
-        isGenericCode: false,
-        contactId: contactId,
-        balance: amount != null ? 0 : null, // initial set to 0 if exists and will be updated as transaction step.
-        usesRemaining: uses != null ? 0 : null, // same here
-        genericCodeProperties: null,
-        metadata: {
-            ...genericValue.metadata,
-            attachedFromGenericValue: {
-                code: genericValue.code
-            }
-        },
-        attachedFromGenericValueId: genericValue.id,
-        createdDate: now,
-        updatedDate: now,
-        updatedContactIdDate: now,
-        createdBy: auth.teamMemberId,
-    };
-
-    const transactionPlanner = async (): Promise<TransactionPlan> => {
-        const transactionPlan: TransactionPlan = {
-            id: newAttachedValue.id,
-            transactionType: "attach",
-            currency: genericValue.currency,
-            newValues: [newAttachedValue],
-            steps: [],
-            totals: null,
-            lineItems: null,
-            paymentSources: null,
-            createdDate: now,
-            metadata: null,
-            tax: null
-        };
-        transactionPlan.steps.push(
-            {
-                rail: "lightrail",
-                value: genericValue,
-                amount: genericValue.balance !== null ? -amount : null,
-                uses: genericValue.usesRemaining !== null ? -uses : null
-            } as LightrailTransactionPlanStep
-        );
-
-        transactionPlan.steps.push(
-            {
-                rail: "lightrail",
-                value: newAttachedValue,
-                amount: amount,
-                uses: uses
-            } as LightrailTransactionPlanStep
-        );
-        return transactionPlan;
-    };
-    if (simulate) {
-        return newAttachedValue;
-    }
-
-    await executeTransactionPlanner(auth, {
-        allowRemainder: false,
-        simulate: false
-    }, transactionPlanner);
-    /*
-
-    const knex = await getKnexWrite();
-    await knex.transaction(async trx => {
-        console.log("why isn't this happening?");
-        try {
-            console.log("inserting new Value");
-            await trx("Values")
-                .insert(dbNewAttachedValue);
-            console.log("finished inserting new Value");
-        } catch (err) {
-
-            const constraint = getSqlErrorConstraintName(err);
-            if (constraint === "PRIMARY") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${genericValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
-            }
-            if (constraint === "fk_Values_Contacts") {
-                throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${contactId}' not found.`, "ContactNotFound");
-            }
-            log.error(`An unexpected error occurred while attempting to insert new attach value ${JSON.stringify(newAttachedValue)}. err: ${err}.`);
-            throw err;
-        }
-
-        console.log("attempting executeTransactionPlannerInExistingDbTransaction");
-        await executeTransactionPlannerInExistingDbTransaction(auth, {
-            allowRemainder: false,
-            simulate: false
-        }, transactionPlanner, trx);
-    });
-
-    */
-
-    return await getValue(auth, newAttachedValue.id);
 }
 
 /**

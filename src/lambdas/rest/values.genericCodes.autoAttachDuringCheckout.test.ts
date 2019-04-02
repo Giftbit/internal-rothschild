@@ -29,7 +29,7 @@ describe("/v2/values - generic code with per contact properties", () => {
         });
     });
 
-    describe.only("auto attach simulate: true", () => {
+    describe("auto attach simulate: true", () => {
         const contact1Id = generateId();
 
         before(async function () {
