@@ -692,7 +692,6 @@ Resources:
           DB_PASSWORD_PARAMETER: !GetAtt DbCredentials.PasswordParameter
           LIGHTRAIL_DOMAIN: !Ref LightrailDomain
           SECURE_CONFIG_BUCKET: !Ref SecureConfigBucket
-          SECURE_CONFIG_KEY_SENTRY: sentry_lambda_services.json
           SECURE_CONFIG_KEY_STRIPE: stripe_connect.json
           SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH: assumeRetrieveStripeAuth.json
       VpcConfig:
@@ -718,6 +717,18 @@ Resources:
                 - kms:DescribeKey
               Resource:
                 - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
+            - Effect: Allow
+              Action:
+                - kms:Decrypt
+                - kms:DescribeKey
+              Resource:
+                - !Ref SecureConfigKmsArn
+              Condition:
+                StringLike:
+                  "kms:ViaService":
+                    !Sub "s3.${AWS::Region}.amazonaws.com"
+                  "kms:EncryptionContext:aws:s3:arn":
+                    !Sub "arn:aws:s3:::${SecureConfigBucket}/*"
             - Effect: Allow
               Action:
                 - s3:GetObject
