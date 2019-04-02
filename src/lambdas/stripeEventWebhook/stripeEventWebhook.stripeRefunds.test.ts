@@ -8,9 +8,9 @@ import * as chai from "chai";
 import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
 import {StripeTransactionStep} from "../../model/Transaction";
 import {
-    checkValuesState,
+    assertTransactionChainContainsTypes,
+    assertValuesRestoredAndFrozen,
     generateConnectWebhookEventMock,
-    getAndCheckTransactionChain,
     refundInStripe,
     setupForWebhookEvent,
     testSignedWebhookRequest
@@ -52,8 +52,8 @@ describe("/v2/stripeEventWebhook - Stripe Refund events", () => {
         const webhookResp = await testSignedWebhookRequest(webhookEventRouter, webhookEvent);
         chai.assert.equal(webhookResp.statusCode, 204, `webhookResp.body=${JSON.stringify(webhookResp.body)}`);
 
-        await getAndCheckTransactionChain(restRouter, checkout.id, 2, ["checkout", "reverse"]);
-        await checkValuesState(restRouter, values, true);
+        await assertTransactionChainContainsTypes(restRouter, checkout.id, 2, ["checkout", "reverse"]);
+        await assertValuesRestoredAndFrozen(restRouter, values, true);
     }).timeout(12000);
 
     it("throws Sentry error for Stripe refunds with 'status: failed'", async function () {
