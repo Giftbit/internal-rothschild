@@ -163,24 +163,30 @@ async function setStripeWebhookEvents(event: awslambda.CloudFormationCustomResou
     const webhookEventsToEnable = event.ResourceProperties.StripeWebhookEvents.split(",");
     const url = buildStripeWebhookHandlerEndpoint(process.env["LIGHTRAIL_DOMAIN"]);
 
-    log.info("Fetching existing Stripe webhooks...");
-    const lightrailStripe = require("stripe")((await getLightrailStripeModeConfig(false)).secretKey);
+    // configure Stripe webhooks the same way for livemode and testmode
+    await getAndSetStripeWebhookEvents(webhookEventsToEnable, url, false);
+    await getAndSetStripeWebhookEvents(webhookEventsToEnable, url, true);
+}
+
+async function getAndSetStripeWebhookEvents(webhookEvents: string[], url: string, testMode: boolean): Promise<void> {
+    log.info(`Fetching existing Stripe webhooks for testMode=${testMode}...`);
+    const lightrailStripe = require("stripe")((await getLightrailStripeModeConfig(testMode)).secretKey);
     const webhooks = await lightrailStripe.webhookEndpoints.list();
     log.info(`Got existing webhooks: ${JSON.stringify(webhooks, null, 2)}`);
 
     // if an existing webhook is already configured with the right url, update it; otherwise create it (should only happen on first deploy)
     if (webhooks.data.find(w => w.url === url)) {
         await lightrailStripe.webhookEndpoints.update(webhooks.data.find(w => w.url === url).id, {
-            enabled_events: webhookEventsToEnable,
+            enabled_events: webhookEvents,
         });
     } else {
         await lightrailStripe.webhookEndpoints.create({
             url,
-            enabled_events: webhookEventsToEnable,
+            enabled_events: webhookEvents,
             connect: true
         });
     }
-    log.info(`Stripe webhook events configured. Endpoint: '${url}'; events: '${webhookEventsToEnable}'`);
+    log.info(`Stripe webhook events configured: testMode=${testMode}. Endpoint: '${url}'; events: '${webhookEvents}'`);
 }
 
 function buildStripeWebhookHandlerEndpoint(lightrailDomain: string): string {
