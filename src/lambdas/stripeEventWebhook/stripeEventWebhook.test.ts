@@ -1,6 +1,13 @@
 import * as cassava from "cassava";
 import * as testUtils from "../../utils/testUtils";
-import {createUSDCheckout, generateId, setCodeCryptographySecrets, testAuthedRequest} from "../../utils/testUtils";
+import {
+    createUSD,
+    createUSDCheckout,
+    createUSDValue,
+    generateId,
+    setCodeCryptographySecrets,
+    testAuthedRequest
+} from "../../utils/testUtils";
 import {installRestRoutes} from "../rest/installRestRoutes";
 import {installStripeEventWebhookRoute} from "./installStripeEventWebhookRoute";
 import * as chai from "chai";
@@ -132,26 +139,65 @@ describe("/v2/stripeEventWebhook", () => {
         chai.assert.equal(webhookResp.statusCode, 204);
     });
 
-    it("logs Stripe eventId & Connected accountId in metadata", async function () {
-        if (!testStripeLive()) {
-            this.skip();
-            return;
-        }
-        const webhookEventSetup = await setupForWebhookEvent(restRouter);
-        const checkout = webhookEventSetup.checkout;
-        const values = webhookEventSetup.valuesCharged;
-        const refundedCharge = await refundInStripe(checkout.steps.find(step => step.rail === "stripe") as StripeTransactionStep, "fraudulent");
+    describe("metadata operations", () => {
+        it("logs Stripe eventId & Connected accountId in metadata", async function () {
+            if (!testStripeLive()) {
+                this.skip();
+                return;
+            }
+            const webhookEventSetup = await setupForWebhookEvent(restRouter);
+            const checkout = webhookEventSetup.checkout;
+            const values = webhookEventSetup.valuesCharged;
+            const refundedCharge = await refundInStripe(checkout.steps.find(step => step.rail === "stripe") as StripeTransactionStep, "fraudulent");
 
-        const webhookEvent = generateConnectWebhookEventMock("charge.refunded", refundedCharge);
-        const webhookResp = await testSignedWebhookRequest(webhookEventRouter, webhookEvent);
-        chai.assert.equal(webhookResp.statusCode, 204);
+            const webhookEvent = generateConnectWebhookEventMock("charge.refunded", refundedCharge);
+            const webhookResp = await testSignedWebhookRequest(webhookEventRouter, webhookEvent);
+            chai.assert.equal(webhookResp.statusCode, 204);
 
-        const chain = await assertTransactionChainContainsTypes(restRouter, checkout.id, 2, ["checkout", "reverse"]);
-        const reverseTransaction: Transaction = chain[1];
-        chai.assert.deepEqual(reverseTransaction.metadata, {stripeWebhookTriggeredAction: `Transaction reversed by Lightrail because Stripe charge '${refundedCharge.id}' was refunded as fraudulent. Stripe eventId: '${webhookEvent.id}', Stripe accountId: '${stripeLiveMerchantConfig.stripeUserId}'`}, `reverseTransaction metadata: ${JSON.stringify(reverseTransaction.metadata)}`);
+            const chain = await assertTransactionChainContainsTypes(restRouter, checkout.id, 2, ["checkout", "reverse"]);
+            const reverseTransaction: Transaction = chain[1];
+            chai.assert.deepEqual(reverseTransaction.metadata, {stripeWebhookTriggeredAction: `Transaction reversed by Lightrail because Stripe charge '${refundedCharge.id}' was refunded as fraudulent. Stripe eventId: '${webhookEvent.id}', Stripe accountId: '${stripeLiveMerchantConfig.stripeUserId}'`}, `reverseTransaction metadata: ${JSON.stringify(reverseTransaction.metadata)}`);
 
-        await assertValuesRestoredAndFrozen(restRouter, values, true);
-    }).timeout(8000);
+            await assertValuesRestoredAndFrozen(restRouter, values, true);
+        }).timeout(8000);
+
+        it("preserves existing Value metadata", async function () {
+            if (!testStripeLive()) {
+                this.skip();
+                return;
+            }
+
+            await createUSD(restRouter);
+            const value1 = await createUSDValue(restRouter, {metadata: {"marco": "polo"}});
+            const value2 = await createUSDValue(restRouter, {metadata: {"call": "response"}});
+
+            const webhookEventSetup = await setupForWebhookEvent(restRouter, {
+                initialCheckoutReq: {
+                    sources: [
+                        {rail: "lightrail", valueId: value1.id},
+                        {rail: "lightrail", valueId: value2.id},
+                        {rail: "stripe", source: "tok_visa"}]
+                }
+            });
+            chai.assert.isObject(webhookEventSetup.valuesCharged.find(v => v.id === value1.id));
+
+            const refundedCharge = await refundInStripe(webhookEventSetup.checkout.steps.find(step => step.rail === "stripe") as StripeTransactionStep, "fraudulent");
+
+            const webhookEvent = generateConnectWebhookEventMock("charge.refunded", refundedCharge);
+            const webhookResp = await testSignedWebhookRequest(webhookEventRouter, webhookEvent);
+            chai.assert.equal(webhookResp.statusCode, 204);
+
+            const getValue1Resp = await testAuthedRequest<Value>(restRouter, `/v2/values/${value1.id}`, "GET");
+            chai.assert.isObject(getValue1Resp.body.metadata, `getValue1Resp.body=${JSON.stringify(getValue1Resp.body)}`);
+            chai.assert.equal(getValue1Resp.body.metadata["marco"], "polo", `getValue1Resp.body.metadata=${JSON.stringify(getValue1Resp.body.metadata)}`);
+            chai.assert.isString(getValue1Resp.body.metadata["stripeWebhookTriggeredAction"], `getValue1Resp.body.metadata=${JSON.stringify(getValue1Resp.body.metadata)}`);
+
+            const getValue2Resp = await testAuthedRequest<Value>(restRouter, `/v2/values/${value2.id}`, "GET");
+            chai.assert.isObject(getValue2Resp.body.metadata, `getValue2Resp.body=${JSON.stringify(getValue2Resp.body)}`);
+            chai.assert.equal(getValue2Resp.body.metadata["call"], "response", `getValue2Resp.body.metadata=${JSON.stringify(getValue2Resp.body.metadata)}`);
+            chai.assert.isString(getValue2Resp.body.metadata["stripeWebhookTriggeredAction"], `getValue2Resp.body.metadata=${JSON.stringify(getValue2Resp.body.metadata)}`);
+        }).timeout(12000);
+    });
 
     it("freezes Values attached to Contact used as a payment source", async function () {
         if (!testStripeLive()) {
