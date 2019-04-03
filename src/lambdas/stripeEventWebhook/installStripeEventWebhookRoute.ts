@@ -286,24 +286,27 @@ async function freezeValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valu
 
         const existingValues: Value[] = await Promise.all(selectValueRes.map(async dbValue => await DbValue.toValue(dbValue)));
 
-        const updateRes: number = await trx("Values")
-            .where({
-                userId: auth.userId,
-            })
-            .whereIn("id", existingValues.map(value => value.id))
-            .update(Value.toDbValueUpdate(auth, {
-                frozen: true,
-                metadata: {
-                    stripeWebhookTriggeredAction: message
-                }
-            }));
+        let queries = [];
+        for (const value of existingValues) {
+            const perValueQuery = knex("Values")
+                .where({
+                    userId: auth.userId,
+                    id: value.id
+                })
+                .update(Value.toDbValueUpdate(auth, {
+                    frozen: true,
+                    metadata: appendWebhookActionMessageToMetadata(value.metadata, message)
+                }))
+                .transacting(trx);
+            queries.push(perValueQuery);
+        }
 
-        if (updateRes === 0) {
-            throw new cassava.RestError(404);
-        }
-        if (updateRes < selectValueRes.length) {
-            throw new Error(`Illegal UPDATE query. Updated ${updateRes} Values, should have updated ${selectValueRes.length} Values.`);
-        }
+        await Promise.all(queries)
+            .then(trx.commit)
+            .catch(async err => {
+                await trx.rollback;
+                throw new Error(`Error freezing values. err=${err}`);
+            });
     });
 }
 
@@ -371,3 +374,9 @@ function isCaptured(transaction: DbTransaction, transactionChain: DbTransaction[
     return !!transactionChain.find(txn => txn.transactionType === "capture" && txn.rootTransactionId === transaction.id);
 }
 
+function appendWebhookActionMessageToMetadata(originalMetadata: object, message: string): object {
+    return {
+        ...originalMetadata,
+        stripeWebhookTriggeredAction: message
+    };
+}
