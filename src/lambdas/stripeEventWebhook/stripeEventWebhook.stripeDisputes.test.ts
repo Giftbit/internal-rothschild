@@ -4,13 +4,13 @@ import {generateId, setCodeCryptographySecrets} from "../../utils/testUtils";
 import {installRestRoutes} from "../rest/installRestRoutes";
 import {installStripeEventWebhookRoute} from "./installStripeEventWebhookRoute";
 import * as chai from "chai";
-import {
-    generateStripeChargeResponse,
-    setStubsForStripeTests,
-    unsetStubsForStripeTests
-} from "../../utils/testUtils/stripeTestUtils";
+import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
 import * as stripe from "stripe";
-import {generateConnectWebhookEventMock, testSignedWebhookRequest} from "../../utils/testUtils/webhookHandlerTestUtils";
+import {
+    generateConnectWebhookEventMock,
+    setupForWebhookEvent,
+    testSignedWebhookRequest
+} from "../../utils/testUtils/webhookHandlerTestUtils";
 import sinon from "sinon";
 import log = require("loglevel");
 
@@ -46,7 +46,14 @@ describe("/v2/stripeEventWebhook - Stripe Dispute events", () => {
         return new RegExp("MONITORING\\|\\d{10}\\|1\\|histogram\\|rothschild\\.stripeEventWebhook\\.dispute\\|#stripeEventType:charge.dispute.created,#stripeAccountId:acct_1BOVE6CM9MOvFvZK,#userId:default-test-user-TEST,#teamMemberId:default-test-user-TEST,#liveMode:false");
     }
 
-    it("logs & metrics receipt of 'charge.dispute' events'", async () => {
+    it("logs & metrics receipt of 'charge.dispute' events'", async function () {
+        if (!testStripeLive()) {
+            this.skip();
+            return;
+        }
+
+        const webhookEventSetup = await setupForWebhookEvent(restRouter, {reversed: true});
+
         const spy = sandbox.spy(log, "info");
 
         const disputeMock: stripe.disputes.IDispute = {
@@ -54,15 +61,7 @@ describe("/v2/stripeEventWebhook - Stripe Dispute events", () => {
             id: generateId(),
             amount: 123,
             balance_transactions: null,
-            charge: generateStripeChargeResponse({
-                transactionId: generateId(),
-                amount: 123,
-                currency: "USD",
-                pending: false,
-                metadata: {
-                    lightrailUserId: testUtils.defaultTestUser.userId
-                },
-            }),
+            charge: webhookEventSetup.finalStateStripeCharge,
             created: Date.now(),
             currency: null,
             evidence: null,
