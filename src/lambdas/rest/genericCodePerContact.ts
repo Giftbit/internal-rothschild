@@ -8,7 +8,6 @@ import {getValue} from "./values";
 
 export namespace GenericCodePerContact {
     export async function attach(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value, simulate: boolean = false): Promise<Value> {
-        console.log("attachPerContactGenericValue called");
         let newAttachedValueId: string = null;
 
         const transactionPlanner = async (): Promise<TransactionPlan> => {
@@ -52,6 +51,7 @@ export namespace GenericCodePerContact {
 
         return [
             {
+                // generic code
                 rail: "lightrail",
                 value: genericValue,
                 amount: genericValue.balance !== null ? -amount : null,
@@ -59,14 +59,15 @@ export namespace GenericCodePerContact {
             } as LightrailTransactionPlanStep,
             {
                 rail: "lightrail",
+                createValue: true,
                 value: {
                     ...genericValue,
                     id: crypto.createHash("sha1").update(genericValue.id + "/" + contactId).digest("base64").replace(/\//g, "-"),
                     code: null,
                     isGenericCode: false,
                     contactId: contactId,
-                    balance: amount != null ? 0 : null, // initial set to 0 if exists and will be updated as transaction step.
-                    usesRemaining: uses != null ? 0 : null, // same here
+                    balance: amount != null ? amount : null,
+                    usesRemaining: uses != null ? uses : null,
                     genericCodeProperties: null,
                     metadata: {
                         ...genericValue.metadata,
@@ -82,7 +83,6 @@ export namespace GenericCodePerContact {
                 },
                 amount: amount,
                 uses: uses,
-                createValue: true
             } as LightrailTransactionPlanStep
         ];
     }

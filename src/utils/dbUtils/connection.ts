@@ -51,12 +51,9 @@ export async function getDbCredentials(): Promise<{ username: string, password: 
  * connections when the process is shut down.
  */
 export async function getKnexWrite(): Promise<knex> {
-    console.log("getKnexWrite");
     if (knexWriteClient) {
-        console.log("found knex write client.");
         return knexWriteClient;
     }
-    console.log("didn't find knex write client");
 
     checkForEnvVar("DB_ENDPOINT", "DB_PORT");
     const credentials = await getDbCredentials();

@@ -67,8 +67,8 @@ describe("/v2/values - generic code with per contact properties", () => {
                 id: generateId(),
                 currency: "USD",
                 sources: [
-                    // {rail: "lightrail", contactId: contact1Id},
-                    {rail: "lightrail", contactId: "sfgdfgdsfgsdfg"},
+                    {rail: "lightrail", contactId: contact1Id},
+                    // {rail: "lightrail", contactId: "sfgdfgdsfgsdfg"}, todo - try with an invalid contactId
                     {rail: "lightrail", code: genericValue.code}
                 ],
                 lineItems: [
@@ -79,7 +79,6 @@ describe("/v2/values - generic code with per contact properties", () => {
             };
             const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
             console.log(JSON.stringify(checkout.body, null, 4));
-
         });
     });
 
@@ -99,15 +98,15 @@ describe("/v2/values - generic code with per contact properties", () => {
             genericCodeProperties: {
                 valuePropertiesPerContact: {
                     usesRemaining: 1,
-                    balance: null
+                    balance: 500
                 }
             },
             usesRemaining: null,
             balance: null,
-            balanceRule: {
-                rule: "500 + value.balanceChange",
-                explanation: "$5 off purchase"
-            }
+            // balanceRule: {
+            //     rule: "500 + value.balanceChange",
+            //     explanation: "$5 off purchase"
+            // }
         };
 
         it("can create generic value", async () => {
@@ -130,12 +129,8 @@ describe("/v2/values - generic code with per contact properties", () => {
                 allowRemainder: true,
                 simulate: false
             };
-            console.log("calling checkout in test.");
             const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-            console.log(JSON.stringify(checkout.body, null, 4));
-
-            const txs = await testUtils.testAuthedRequest(router, "/v2/transactions", "GET")
-            console.log(JSON.stringify(txs, null, 4));
+            console.log("checkout response\n" + JSON.stringify(checkout.body, null, 4));
         }).timeout(5000);
     });
 });

@@ -16,6 +16,7 @@ import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {computeCodeLookupHash} from "../../../utils/codeCryptoUtils";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import * as knex from "knex";
+import {GenericCodePerContact} from "../genericCodePerContact";
 
 /**
  * Options to resolving transaction parties.
@@ -53,11 +54,44 @@ export interface ResolveTransactionPartiesOptions {
      * Whether to accept Lightrail Values with 0 balance in the results.
      */
     includeZeroBalance: boolean;
+
+    /**
+     * Whether generic codes with per contact properties should be auto attached.
+     */
+    autoAttachGenericCodesWithPerContactProperties?: boolean;
 }
 
-export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions): Promise<TransactionPlanStep[]> {
-    const lightrailValues = await getLightrailValues(auth, options);
-    const lightrailSteps = lightrailValues
+export interface ResolvedTransactionPlanSteps {
+    preliminaryTransactionSteps: LightrailTransactionPlanStep[]; // auto attach steps
+    transactionSteps: TransactionPlanStep[]; // blankTransactionSteps
+}
+
+export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions): Promise<ResolvedTransactionPlanSteps> {
+    const values = await getLightrailValues(auth, options);
+    let valuesForTransactionSteps: Value[] = null;
+
+    const planSteps: ResolvedTransactionPlanSteps = {
+        preliminaryTransactionSteps: [],
+        transactionSteps: []
+    };
+    if (options.autoAttachGenericCodesWithPerContactProperties) {
+        const valuesThatMustBeAttached: Value[] = values.filter(v => Value.isGenericCodeWithPropertiesPerContact(v));
+        valuesForTransactionSteps = values.filter(v => valuesThatMustBeAttached.indexOf(v) === -1);
+        if (valuesThatMustBeAttached.length > 0) {
+
+            const contactId = (options.parties.find(p => p.rail === "lightrail" && p.contactId != null) as LightrailTransactionParty).contactId;
+            if (!contactId) {
+                throw new giftbitRoutes.GiftbitRestError(409, `Values '${valuesThatMustBeAttached.map(v => v.id)}' cannot be transacted against because they must be attached to a Contact first. Alternatively, a contactId must be included a source in the checkout request.`, "ValueMustBeAttached");
+            }
+            const autoAttachSteps = getAutoAttachSteps(auth, valuesThatMustBeAttached, contactId);
+            planSteps.preliminaryTransactionSteps.push(...autoAttachSteps);
+            valuesForTransactionSteps.push(...autoAttachSteps.filter(s => s.createValue === true).map(s => s.value));
+        }
+    } else {
+        valuesForTransactionSteps = values;
+    }
+
+    const lightrailSteps = valuesForTransactionSteps
         .map((v): LightrailTransactionPlanStep => ({
             rail: "lightrail",
             value: v,
@@ -89,11 +123,11 @@ export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.Au
             amount: 0
         }));
 
-    return [...lightrailSteps, ...internalSteps, ...stripeSteps];
+    planSteps.transactionSteps.push(...lightrailSteps, ...internalSteps, ...stripeSteps);
+    return planSteps;
 }
 
 async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions): Promise<Value[]> {
-    console.log("getLightrailValues called");
     const valueIds = options.parties.filter(p => p.rail === "lightrail" && p.valueId)
         .map(p => (p as LightrailTransactionParty).valueId);
 
@@ -186,4 +220,12 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         }
     }
     return values;
+}
+
+function getAutoAttachSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, genericValues: Value[], contactId: string): LightrailTransactionPlanStep[] {
+    const attachSteps: LightrailTransactionPlanStep[] = [];
+    for (const genericValue of genericValues) {
+        attachSteps.push(...GenericCodePerContact.getAttachLightrailTransactionPlanSteps(auth, contactId, genericValue));
+    }
+    return attachSteps;
 }

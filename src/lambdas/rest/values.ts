@@ -1,5 +1,6 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import {GiftbitRestError} from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {DbValue, formatCodeForLastFourDisplay, Rule, Value} from "../../model/Value";
@@ -24,6 +25,7 @@ import {getTransactions} from "./transactions/transactions";
 import {Currency, formatAmountForCurrencyDisplay} from "../../model/Currency";
 import {getCurrency} from "./currencies";
 import {getRuleFromCache} from "./transactions/getRuleFromCache";
+import {insertValue} from "./insertValue";
 import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
@@ -338,19 +340,23 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     value.startDate = value.startDate ? dateInDbPrecision(new Date(value.startDate)) : null;
     value.endDate = value.endDate ? dateInDbPrecision(new Date(value.endDate)) : null;
 
-    const dbValue = await Value.toDbValue(auth, value);
-
+    // todo - this awkwardly doesn't work as a TransactionPlan even though steps can support creating Values. This is complicated by issuances where the knex trx involves creating all Values.
+    let dbValue: DbValue;
     try {
-        await trx.into("Values")
-            .insert(dbValue);
-        if (value.balance || value.usesRemaining) {
-            if (value.balance < 0) {
-                throw new Error("balance cannot be negative");
-            }
-            if (value.usesRemaining < 0) {
-                throw new Error("usesRemaining cannot be negative");
-            }
-
+        dbValue = await insertValue(auth, trx, value);
+    } catch (err) {
+        /**
+         *  Retrying twice is an arbitrary number. This may need to be increased if we're still seeing regular failures.
+         *  Unless users are using their own character set there are around 1 billion possible codes.
+         *  It seems unlikely for 3+ retry failures even if users have millions of codes. */
+        if (err instanceof GiftbitRestError && err["messageCode"] === "ValueCodeExists" && params.generateCodeParameters && retryCount < 2) {
+            log.info(`Retrying creating the Value because there was a code uniqueness constraint failure for a generated code. Retry number: ${retryCount}. ValueId: ${params.partialValue.id}.`);
+            return createValue(auth, params, trx, retryCount + 1);
+        }
+        throw err
+    }
+    if (value.balance || value.usesRemaining) {
+        try {
             const transactionId = value.id;
             const initialBalanceTransaction: DbTransaction = {
                 userId: auth.userId,
@@ -391,35 +397,22 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             };
             await trx.into("Transactions").insert(initialBalanceTransaction);
             await trx.into("LightrailTransactionSteps").insert(initialBalanceTransactionStep);
-        }
-
-        if (value.contactId) {
-            MetricsLogger.valueAttachment(ValueAttachmentTypes.OnCreate, auth);
-        }
-
-        return DbValue.toValue(dbValue, params.showCode);
-    } catch (err) {
-        log.debug(err);
-        const constraint = getSqlErrorConstraintName(err);
-        if (constraint === "PRIMARY") {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with id '${value.id}' already exists.`, "ValueIdExists");
-        }
-        if (constraint === "uq_Values_codeHashed") {
-            if (params.generateCodeParameters && retryCount < 2 /* Retrying twice is an arbitrary number. This may need to be increased if we're still seeing regular failures. Unless users are using their own character set there are around 1 billion possible codes. It seems unlikely for 3+ retry failures even if users have millions of codes. */) {
-                log.info(`Retrying creating the Value because there was a code uniqueness constraint failure for a generated code. Retry number: ${retryCount}. ValueId: ${params.partialValue.id}.`);
-                return createValue(auth, params, trx, retryCount + 1);
-            } else {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with the given code already exists.`, "ValueCodeExists");
+        } catch
+            (err) {
+            log.debug(err);
+            const constraint = getSqlErrorConstraintName(err);
+            if (constraint === "PRIMARY") {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Transaction with id '${value.id}' already exists.`, "TransactionExists");
             }
+            throw err;
         }
-        if (constraint === "fk_Values_Currencies") {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${value.currency}' does not exist. See the documentation on creating currencies.`, "CurrencyNotFound");
-        }
-        if (constraint === "fk_Values_Contacts") {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Contact '${value.contactId}' does not exist.`, "ContactNotFound");
-        }
-        throw err;
     }
+
+    if (value.contactId) {
+        MetricsLogger.valueAttachment(ValueAttachmentTypes.OnCreate, auth);
+    }
+
+    return DbValue.toValue(dbValue, params.showCode);
 }
 
 export async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, showCode: boolean = false): Promise<Value> {

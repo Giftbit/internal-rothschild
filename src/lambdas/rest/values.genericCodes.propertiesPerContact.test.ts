@@ -160,7 +160,7 @@ describe("/v2/values - generic code with per contact properties", () => {
 
             const attachAgain = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {code: genericValue.code});
             chai.assert.equal(attachAgain.statusCode, 409);
-            chai.assert.equal(attachAgain.body["messageCode"], "ValueAlreadyAttached");
+            chai.assert.equal(attachAgain.body["messageCode"], "TransactionExists");
         });
 
         it("generic code with per contact usage limits will fail to attach if insufficient balance. can credit balance and then attach another contact", async () => {
@@ -458,7 +458,7 @@ describe("/v2/values - generic code with per contact properties", () => {
         });
     });
 
-    describe.only("generic code with balance rule, limited to 1 use per contact, and no liability controls (ie, balance = null, usesRemaining = null)", () => {
+    describe("generic code with balance rule, limited to 1 use per contact, and no liability controls (ie, balance = null, usesRemaining = null)", () => {
         const contact1Id = generateId();
         const contact2Id = generateId();
         const contact3Id = generateId();

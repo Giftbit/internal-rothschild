@@ -36,9 +36,6 @@ export interface TransactionPlan {
     metadata: object | null;
     rootTransactionId?: string;
     previousTransactionId?: string;
-
-    //
-    newValues?: Value[];
 }
 
 export type TransactionPlanStep =
@@ -149,17 +146,33 @@ export namespace LightrailTransactionPlanStep {
     }
 
     function getSharedProperties(step: LightrailTransactionPlanStep) {
-        return {
+        let sharedProperties = {
             valueId: step.value.id,
             contactId: step.value.contactId,
             code: step.value.code,
-            balanceBefore: step.value.balance,
-            balanceAfter: step.value.balance != null ? step.value.balance + (step.amount || 0) : null,
-            balanceChange: step.value.balance != null || step.amount != null ? (step.amount || 0) : null,
-            usesRemainingBefore: step.value.usesRemaining != null ? step.value.usesRemaining : null,
-            usesRemainingAfter: step.value.usesRemaining != null ? step.value.usesRemaining + (step.uses || 0) : null,
-            usesRemainingChange: step.value.usesRemaining != null || step.uses != null ? (step.uses || 0) : null
         };
+
+        if (step.createValue) {
+            return {
+                ...sharedProperties,
+                balanceBefore: step.amount != null ? 0 : null,
+                balanceChange: step.amount,
+                balanceAfter: step.amount,
+                usesRemainingBefore: step.uses != null ? 0 : null,
+                usesRemainingChange: step.uses,
+                usesRemainingAfter: step.uses
+            }
+        } else {
+            return {
+                ...sharedProperties,
+                balanceBefore: step.value.balance,
+                balanceChange: step.value.balance != null || step.amount != null ? (step.amount || 0) : null,
+                balanceAfter: step.value.balance != null ? step.value.balance + (step.amount || 0) : null,
+                usesRemainingBefore: step.value.usesRemaining != null ? step.value.usesRemaining : null,
+                usesRemainingChange: step.value.usesRemaining != null || step.uses != null ? (step.uses || 0) : null,
+                usesRemainingAfter: step.value.usesRemaining != null ? step.value.usesRemaining + (step.uses || 0) : null
+            }
+        }
     }
 }
 

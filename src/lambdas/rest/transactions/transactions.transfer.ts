@@ -17,14 +17,14 @@ export interface TransferTransactionSteps {
 }
 
 export async function resolveTransferTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: TransferRequest): Promise<TransferTransactionSteps> {
-    const sourceSteps = await resolveTransactionPlanSteps(auth, {
+    const sourceSteps = (await resolveTransactionPlanSteps(auth, {
         currency: req.currency,
         parties: [req.source],
         transactionId: req.id,
         nonTransactableHandling: "error",
         includeZeroBalance: true,
         includeZeroUsesRemaining: true
-    });
+    })).transactionSteps;
     if (sourceSteps.length !== 1 || (sourceSteps[0].rail !== "lightrail" && sourceSteps[0].rail !== "stripe")) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable Value.", "InvalidParty");
     }
@@ -33,14 +33,14 @@ export async function resolveTransferTransactionPlanSteps(auth: giftbitRoutes.jw
         throw new giftbitRoutes.GiftbitRestError(409, `Stripe source 'maxAmount' of ${sourceStep.maxAmount} is less than transfer amount ${req.amount}.`);
     }
 
-    const destSteps = await resolveTransactionPlanSteps(auth, {
+    const destSteps = (await resolveTransactionPlanSteps(auth, {
         currency: req.currency,
         parties: [req.destination],
         transactionId: req.id,
         nonTransactableHandling: "error",
         includeZeroBalance: true,
         includeZeroUsesRemaining: true
-    });
+    })).transactionSteps;
     if (destSteps.length !== 1 || destSteps[0].rail !== "lightrail") {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable Value.", "InvalidParty");
     }
