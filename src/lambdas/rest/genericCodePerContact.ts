@@ -62,7 +62,7 @@ export namespace GenericCodePerContact {
                 createValue: true,
                 value: {
                     ...genericValue,
-                    id: crypto.createHash("sha1").update(genericValue.id + "/" + contactId).digest("base64").replace(/\//g, "-"),
+                    id: generateValueId(genericValue.id, contactId),
                     code: null,
                     isGenericCode: false,
                     contactId: contactId,
@@ -85,5 +85,9 @@ export namespace GenericCodePerContact {
                 uses: uses,
             } as LightrailTransactionPlanStep
         ];
+    }
+
+    export function generateValueId(genericValueId: string, contactId: string) {
+        return crypto.createHash("sha1").update(genericValueId + "/" + contactId).digest("base64").replace(/\//g, "-")
     }
 }

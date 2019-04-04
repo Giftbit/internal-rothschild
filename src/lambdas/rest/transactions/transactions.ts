@@ -24,7 +24,7 @@ import {createDebitTransactionPlan} from "./transactions.debit";
 import {createReverseTransactionPlan} from "./reverse/transactions.reverse";
 import {createCaptureTransactionPlan} from "./transactions.capture";
 import {createVoidTransactionPlan} from "./transactions.void";
-import {TransactionPlan} from "./TransactionPlan";
+import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import getPaginationParams = Pagination.getPaginationParams;
 
 export function installTransactionsRest(router: cassava.Router): void {
@@ -308,7 +308,20 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
             });
 
             const transactionPlan: TransactionPlan = optimizeCheckout(checkout, resolvedSteps.transactionSteps);
-            transactionPlan.steps = [...resolvedSteps.preliminaryTransactionSteps, ...transactionPlan.steps];
+
+            // remove any preliminary steps that weren't used
+            const usedPreliminarySteps: LightrailTransactionPlanStep[] = [];
+            for (const prelimStep of resolvedSteps.preliminaryTransactionSteps.filter(s => s.createValue)) {
+                if (transactionPlan.steps.find(s => s.rail === "lightrail" && s.value.id === prelimStep.value.id)) {
+                    // it was used
+                    usedPreliminarySteps.push(resolvedSteps.preliminaryTransactionSteps.find(lightrailStep => lightrailStep.value.id === prelimStep.value.attachedFromGenericValueId));
+                    usedPreliminarySteps.push(prelimStep);
+                } else {
+                    // not used.
+                }
+            }
+
+            transactionPlan.steps = [...usedPreliminarySteps, ...transactionPlan.steps];
             return transactionPlan;
         });
 }
