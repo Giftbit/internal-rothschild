@@ -9,7 +9,7 @@ import {httpStatusCode, RestError} from "cassava";
 import * as kvsAccess from "../kvsAccess";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
 import {generateCode} from "../codeGenerator";
-import {DbTransaction} from "../../model/Transaction";
+import {DbTransaction, Transaction} from "../../model/Transaction";
 import {getKnexRead} from "../dbUtils/connection";
 
 let assumeCheckoutToken: Promise<giftbitRoutes.secureConfig.AssumeScopeToken>;
@@ -102,7 +102,13 @@ async function getLightrailUserIdFromStripeCharge(stripeAccountId: string, strip
     }
 }
 
-export async function getRootDbTransactionFromStripeCharge(stripeCharge: Stripe.charges.ICharge): Promise<DbTransaction> {
+export async function getRootTransactionFromStripeCharge(stripeCharge: Stripe.charges.ICharge): Promise<Transaction> {
+    const dbTransaction = await getRootDbTransactionFromStripeCharge(stripeCharge);
+    const [transaction] = await DbTransaction.toTransactions([dbTransaction], dbTransaction.createdBy);
+    return transaction;
+}
+
+async function getRootDbTransactionFromStripeCharge(stripeCharge: Stripe.charges.ICharge): Promise<DbTransaction> {
     try {
         const knex = await getKnexRead();
         const res: DbTransaction[] = await knex("Transactions")

@@ -6,7 +6,7 @@ import {Value} from "../../../model/Value";
 import {createUSDCheckout, generateId, testAuthedRequest} from "../../../utils/testUtils";
 import * as testUtils from "../../../utils/testUtils/index";
 import {Transaction} from "../../../model/Transaction";
-import {getDbTransaction, getDbTransactionChain} from "./transactions";
+import {getDbTransaction} from "./transactions";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
 import chaiExclude = require("chai-exclude");
 
@@ -34,47 +34,6 @@ describe("/v2/transactions/chain", () => {
 
     after(() => {
         unsetStubsForStripeTests();
-    });
-
-    // util function tests
-    describe("gets transaction chain", () => {
-        it("regular checkout + reverse", async () => {
-            const checkoutSetup = await createUSDCheckout(router, null, false);
-
-            const reverseResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkoutSetup.checkout.id}/reverse`, "POST", {id: generateId()});
-            chai.assert.equal(reverseResp.statusCode, 201);
-
-            const checkoutChain = await getDbTransactionChain(testUtils.defaultTestUser.auth, checkoutSetup.checkout.id);
-            const reverseChain = await getDbTransactionChain(testUtils.defaultTestUser.auth, reverseResp.body.id);
-            chai.assert.deepEqual(checkoutChain, reverseChain, `checkoutChain=${JSON.stringify(checkoutChain)}, reverseChain=${JSON.stringify(reverseChain)}`);
-        });
-
-        it("pending checkout + void", async () => {
-            const checkoutSetup = await createUSDCheckout(router, {pending: true}, false);
-
-            const voidResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkoutSetup.checkout.id}/void`, "POST", {id: generateId()});
-            chai.assert.equal(voidResp.statusCode, 201);
-
-            const checkout1Chain = await getDbTransactionChain(testUtils.defaultTestUser.auth, checkoutSetup.checkout.id);
-            const voidChain = await getDbTransactionChain(testUtils.defaultTestUser.auth, voidResp.body.id);
-            chai.assert.deepEqual(checkout1Chain, voidChain, `checkoutChain=${JSON.stringify(checkout1Chain)}, reverseChain=${JSON.stringify(voidChain)}`);
-        });
-
-        it("pending checkout + capture + reverse", async () => {
-            const checkoutSetup = await createUSDCheckout(router, {pending: true}, false);
-
-            const captureResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkoutSetup.checkout.id}/capture`, "POST", {id: generateId()});
-            chai.assert.equal(captureResp.statusCode, 201, `captureResp.body=${JSON.stringify(captureResp.body)}`);
-
-            const reverseResp = await testAuthedRequest<Transaction>(router, `/v2/transactions/${captureResp.body.id}/reverse`, "POST", {id: generateId()});
-            chai.assert.equal(reverseResp.statusCode, 201, `reverseResp.body=${JSON.stringify(reverseResp.body)}`);
-
-            const checkoutChain = await getDbTransactionChain(testUtils.defaultTestUser.auth, checkoutSetup.checkout.id);
-            const captureChain = await getDbTransactionChain(testUtils.defaultTestUser.auth, captureResp.body.id);
-            const reverseChain = await getDbTransactionChain(testUtils.defaultTestUser.auth, reverseResp.body.id);
-            chai.assert.deepEqual(checkoutChain, captureChain, `checkoutChain=${JSON.stringify(checkoutChain)}, captureChain=${JSON.stringify(captureChain)}`);
-            chai.assert.deepEqual(checkoutChain, reverseChain, `checkoutChain=${JSON.stringify(checkoutChain)}, reverseChain=${JSON.stringify(reverseChain)}`);
-        });
     });
 
     let firstTransaction: Transaction;

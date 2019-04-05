@@ -4,17 +4,17 @@ import * as cassava from "cassava";
 import {
     getAuthBadgeFromStripeCharge,
     getLightrailStripeModeConfig,
-    getRootDbTransactionFromStripeCharge
+    getRootTransactionFromStripeCharge
 } from "../../utils/stripeUtils/stripeAccess";
 import {StripeModeConfig} from "../../utils/stripeUtils/StripeConfig";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
 import {DbTransaction, StripeTransactionStep, Transaction} from "../../model/Transaction";
-import {createReverse, createVoid, getDbTransactionChain, getTransaction} from "../rest/transactions/transactions";
+import {createReverse, createVoid, getTransaction} from "../rest/transactions/transactions";
 import {retrieveCharge} from "../../utils/stripeUtils/stripeTransactions";
 import {MetricsLogger as metricsLogger} from "../../utils/metricsLogger";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
-import {freezeLightrailSources} from "../../utils/stripeEventWebhookRouteUtils";
+import {freezeLightrailSources, getDbTransactionChain} from "../../utils/stripeEventWebhookRouteUtils";
 
 export function installStripeEventWebhookRoute(router: cassava.Router): void {
     // These paths are configured in our Stripe account and not publicly known
@@ -93,8 +93,7 @@ async function handleFraudReverseEvent(auth: giftbitRoutes.jwtauth.Authorization
 
     let lightrailTransaction: Transaction;
     try {
-        const dbTransaction = await getRootDbTransactionFromStripeCharge(stripeCharge);
-        [lightrailTransaction] = await DbTransaction.toTransactions([dbTransaction], auth.userId);
+        lightrailTransaction = await getRootTransactionFromStripeCharge(stripeCharge);
     } catch (e) {
         log.error(`Failed to fetch Lightrail Transaction from Stripe charge '${stripeCharge.id}'. Exiting and returning success response to Stripe since this is likely a Lightrail problem. Event=${JSON.stringify(event)}`);
         metricsLogger.stripeWebhookHandlerError(event, auth);
@@ -236,7 +235,7 @@ async function getStripeChargeFromEvent(event: Stripe.events.IEvent & { account:
         const dispute = event.data.object as Stripe.disputes.IDispute;
         return typeof dispute.charge === "string" ? await retrieveCharge(dispute.charge, lightrailStripeConfig.secretKey, event.account) : dispute.charge;
     } else {
-        throw new Error(`Could not retrieve Stripe charge from event '${event.id}'`);
+        throw new Error(`Could not retrieve Stripe charge from event. Event=${JSON.stringify(event)}`);
     }
 }
 
