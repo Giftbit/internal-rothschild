@@ -4,16 +4,18 @@ import {
     createUSD,
     createUSDCheckout,
     createUSDValue,
+    defaultTestUser,
     generateId,
     setCodeCryptographySecrets,
     testAuthedRequest
 } from "../../utils/testUtils";
 import {installRestRoutes} from "../rest/installRestRoutes";
-import {installStripeEventWebhookRoute} from "./installStripeEventWebhookRoute";
+import * as stripeAccess from "../../utils/stripeUtils/stripeAccess";
 import * as chai from "chai";
 import {
     generateStripeChargeResponse,
     setStubsForStripeTests,
+    stripeLiveLightrailConfig,
     stripeLiveMerchantConfig,
     testStripeLive,
     unsetStubsForStripeTests
@@ -31,6 +33,11 @@ import {
     setupForWebhookEvent,
     testSignedWebhookRequest
 } from "../../utils/testUtils/webhookHandlerTestUtils";
+import sinon from "sinon";
+import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
+import {generateCode} from "../../utils/codeGenerator";
+import {installStripeEventWebhookRoute} from "./installStripeEventWebhookRoute";
+import * as webhookUtils from "../../utils/stripeEventWebhookRouteUtils";
 
 /**
  * Webhook handling tests follow this format:
@@ -393,5 +400,119 @@ describe("/v2/stripeEventWebhook", () => {
             chai.assert.deepEqual(chainFromCheckout, chainFromCaptureResp, `chainFromCheckout2=${JSON.stringify(chainFromCheckout)}, \nchainFromCaptureResp=${JSON.stringify(chainFromCaptureResp)}`);
             chai.assert.deepEqual(chainFromCheckout, chainFromReverseResp, `chainFromCheckout2=${JSON.stringify(chainFromCheckout)}, \nchainFromReverseResp2=${JSON.stringify(chainFromReverseResp)}`);
         });
+    });
+
+    /**
+     * If Stripe receives a failure response, they will resend the event every 24 hours up to 7 days.
+     * If we are unable to handle the event but the problem is not likely to change, we should return success so they don't bother retrying.
+     * Only return failure responses for situations that might change with another attempt.
+     */
+    describe("error handling", () => {
+        it("returns success if can't find Lightrail userId", async function () {
+            if (!testStripeLive()) {
+                this.skip();
+                return;
+            }
+
+            const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
+            const charge = await lightrailStripe.charges.create({
+                amount: 500,
+                currency: "usd",
+                source: "tok_visa"
+            }, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+            await lightrailStripe.refunds.create({
+                charge: charge.id,
+                reason: "fraudulent"
+            }, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+            const refundedCharge = await lightrailStripe.charges.retrieve(charge.id, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+            chai.assert.isTrue(refundedCharge.refunded, `Stripe charge should have 'refunded=true': ${JSON.stringify(refundedCharge)}`);
+            const eventMock = generateConnectWebhookEventMock("charge.refunded", refundedCharge);
+
+            // TODO Replace above mock creation with the following when we have direct mapping from Stripe accountId to Lightrail userId:
+            //  Current handling logic fetches the charge from the event first and then uses that to get the userId, so if the event doesn't refer to a real charge, it'll throw the wrong error.
+            //  When we have the direct mapping we'll just need to generate a mock event with a fake accountId.
+            // const eventMock = {
+            //     ...generateConnectWebhookEventMock("charge.refunded", {} as stripe.events.IEvent),
+            //     account: "fake"
+            // };
+
+            const webhookResp = await testSignedWebhookRequest(webhookEventRouter, eventMock);
+            chai.assert.equal(webhookResp.statusCode, 204, `webhookResp.body=${JSON.stringify(webhookResp.body)}`);
+        });
+
+        it("returns success if can't find Lightrail transaction", async function () {
+            if (!testStripeLive()) {
+                this.skip();
+                return;
+            }
+
+            let sandbox = sinon.createSandbox();
+            const stub = sandbox.stub(stripeAccess, "getAuthBadgeFromStripeCharge");
+            stub.resolves(new AuthorizationBadge({
+                g: {
+                    gui: defaultTestUser.userId,
+                    tmi: defaultTestUser.userId,
+                },
+                iat: Date.now(),
+                jti: `webhook-badge-${generateCode({})}`,
+                scopes: ["lightrailV2:transactions:list", "lightrailV2:transactions:reverse", "lightrailV2:transactions:void", "lightrailV2:values:list", "lightrailV2:values:update", "lightrailV2:contacts:list"]
+            }));
+
+            // create & refund a charge in Stripe that won't exist in Lightrail
+            const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
+            const charge = await lightrailStripe.charges.create({
+                amount: 500,
+                currency: "usd",
+                source: "tok_visa"
+            }, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+            await lightrailStripe.refunds.create({
+                charge: charge.id,
+                reason: "fraudulent"
+            }, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+            const refundedCharge = await lightrailStripe.charges.retrieve(charge.id, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+            chai.assert.isTrue(refundedCharge.refunded, `Stripe charge should have 'refunded=true': ${JSON.stringify(refundedCharge)}`);
+
+            const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", refundedCharge));
+            chai.assert.equal(webhookResp.statusCode, 204, `webhookResp.body=${JSON.stringify(webhookResp.body)}`);
+
+            sandbox.restore();
+        }).timeout(12000);
+
+        it("returns failure response if can't freeze all Lightrail values", async function () {
+            if (!testStripeLive()) {
+                this.skip();
+                return;
+            }
+
+            let sandbox = sinon.createSandbox();
+            const stub = sandbox.stub(webhookUtils, "freezeLightrailSources");
+            stub.rejects(new Error("End of the world, at least for now "));
+
+            const webhookEventSetup = await setupForWebhookEvent(restRouter);
+            const values = webhookEventSetup.valuesCharged;
+            const refundedCharge = await refundInStripe(webhookEventSetup.checkout.steps.find(step => step.rail === "stripe") as StripeTransactionStep, "fraudulent");
+
+            const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", refundedCharge));
+            chai.assert.equal(webhookResp.statusCode, 500, `webhookResp.body=${JSON.stringify(webhookResp.body)}`);
+
+            const getValueResp = await testAuthedRequest<Value>(restRouter, `/v2/values/${values[0].id}`, "GET");
+            chai.assert.equal(getValueResp.statusCode, 200, `getValueResp.body=${JSON.stringify(getValueResp.body)}`);
+            chai.assert.equal(getValueResp.body.frozen, false, `getValueResp.body.frozen=${getValueResp.body.frozen}`);
+        }).timeout(8000);
+
+        it("passes 5XX through to Stripe", async function () {
+            if (!testStripeLive()) {
+                this.skip();
+                return;
+            }
+
+            let sandbox = sinon.createSandbox();
+            const stub = sandbox.stub(stripeAccess, "getAuthBadgeFromStripeCharge");
+            stub.rejects(new Error("End of the world, at least for now "));
+
+            const webhookEventSetup = await setupForWebhookEvent(restRouter);
+            const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", webhookEventSetup.finalStateStripeCharge));
+            chai.assert.equal(webhookResp.statusCode, 500, `webhookResp.body=${JSON.stringify(webhookResp.body)}`);
+        }).timeout(8000);
     });
 });
