@@ -1,7 +1,7 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {getKnexWrite} from "./dbUtils/connection";
+import {getKnexRead, getKnexWrite} from "./dbUtils/connection";
 import {DbValue, Value} from "../model/Value";
-import {LightrailTransactionStep, Transaction} from "../model/Transaction";
+import {DbTransaction, LightrailTransactionStep, Transaction} from "../model/Transaction";
 import log = require("loglevel");
 import Stripe = require("stripe");
 
@@ -79,4 +79,18 @@ function appendWebhookActionMessageToMetadata(originalMetadata: object, message:
 
 function buildValueFreezeMessage(lightrailTransactionId: string, lightrailReverseId: string, stripeChargeId: string, stripeEvent: Stripe.events.IEvent & { account: string }): string {
     return `Value frozen by Lightrail because it or an attached Contact was associated with a Stripe charge that was refunded as fraudulent. Lightrail transactionId '${lightrailTransactionId}' with reverse/void transaction '${lightrailReverseId}', Stripe chargeId: '${stripeChargeId}', Stripe eventId: '${stripeEvent.id}', Stripe accountId: '${stripeEvent.account}'`;
+}
+
+export async function getDbTransactionChain(auth: giftbitRoutes.jwtauth.AuthorizationBadge, transactionId: string): Promise<DbTransaction[]> {
+    const knex = await getKnexRead();
+    return await knex("Transactions as Tx1")
+        .join("Transactions", {
+            "Tx1.userId": "Transactions.userId",
+            "Tx1.rootTransactionId": "Transactions.rootTransactionId"
+        })
+        .where({
+            "Tx1.id": transactionId,
+            "Tx1.userId": auth.userId
+        })
+        .select("Transactions.*");
 }
