@@ -76,7 +76,7 @@ export async function getAuthBadgeFromStripeCharge(stripeAccountId: string, stri
     return new AuthorizationBadge({
         g: {
             gui: lightrailUserId,
-            tmi: lightrailUserId,
+            tmi: "stripe-webhook-event-handler",
         },
         iat: Date.now(),
         jti: `webhook-badge-${generateCode({})}`,

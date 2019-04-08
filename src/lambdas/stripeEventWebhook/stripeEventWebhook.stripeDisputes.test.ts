@@ -43,7 +43,7 @@ describe("/v2/stripeEventWebhook - Stripe Dispute events", () => {
     });
 
     function getDisputeLogMatcher(): RegExp {
-        return new RegExp("MONITORING\\|\\d{10}\\|1\\|histogram\\|rothschild\\.stripeEventWebhook\\.dispute\\|#stripeEventType:charge.dispute.created,#stripeAccountId:acct_1BOVE6CM9MOvFvZK,#userId:default-test-user-TEST,#teamMemberId:default-test-user-TEST,#liveMode:false");
+        return new RegExp("MONITORING\\|\\d{10}\\|1\\|histogram\\|rothschild\\.stripeEventWebhook\\.dispute\\|#stripeEventType:charge.dispute.created,#stripeAccountId:acct_1BOVE6CM9MOvFvZK,#userId:default-test-user-TEST,#teamMemberId:stripe-webhook-event-handler,#liveMode:false");
     }
 
     it("logs & metrics receipt of 'charge.dispute' events'", async function () {
