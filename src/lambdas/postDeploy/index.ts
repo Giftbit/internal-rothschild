@@ -164,11 +164,11 @@ async function setStripeWebhookEvents(event: awslambda.CloudFormationCustomResou
     const url = buildStripeWebhookHandlerEndpoint(process.env["LIGHTRAIL_DOMAIN"]);
 
     // configure Stripe webhooks the same way for livemode and testmode
-    await getAndSetStripeWebhookEvents(webhookEventsToEnable, url, false);
-    await getAndSetStripeWebhookEvents(webhookEventsToEnable, url, true);
+    await configureStripeWebhook(webhookEventsToEnable, url, false);
+    await configureStripeWebhook(webhookEventsToEnable, url, true);
 }
 
-async function getAndSetStripeWebhookEvents(webhookEvents: string[], url: string, testMode: boolean): Promise<void> {
+async function configureStripeWebhook(webhookEvents: string[], url: string, testMode: boolean): Promise<void> {
     log.info(`Fetching existing Stripe webhooks for testMode=${testMode}...`);
     const lightrailStripe = require("stripe")((await getLightrailStripeModeConfig(testMode)).secretKey);
     const webhooks = await lightrailStripe.webhookEndpoints.list();
