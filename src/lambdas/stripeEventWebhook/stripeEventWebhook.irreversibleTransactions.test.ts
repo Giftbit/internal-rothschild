@@ -48,18 +48,14 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
         }
 
         const webhookEventSetup = await setupForWebhookEvent(restRouter, {reversed: true});
-        const checkout = webhookEventSetup.checkout;
-        const values = webhookEventSetup.valuesCharged;
-        const nextLightrailTransaction = webhookEventSetup.nextLightrailTransaction;
-        const refundedCharge = webhookEventSetup.finalStateStripeCharge;
 
-        const stripeChargeMock = buildStripeFraudRefundedChargeMock(refundedCharge, webhookEventSetup.nextStripeStep.charge as stripe.refunds.IRefund);
+        const stripeChargeMock = buildStripeFraudRefundedChargeMock(webhookEventSetup.finalStateStripeCharge, webhookEventSetup.nextStripeStep.charge as stripe.refunds.IRefund);
         const webhookEvent = generateConnectWebhookEventMock("charge.refunded", stripeChargeMock);
         const webhookResp = await testSignedWebhookRequest(webhookEventRouter, webhookEvent);
         chai.assert.equal(webhookResp.statusCode, 204, `webhookResp.body = ${JSON.stringify(webhookResp)}`);
 
-        await assertTransactionChainContainsTypes(restRouter, checkout.id, 2, ["checkout", "reverse"]);
-        await assertValuesRestoredAndFrozen(restRouter, values, true);
+        await assertTransactionChainContainsTypes(restRouter, webhookEventSetup.checkout.id, 2, ["checkout", "reverse"]);
+        await assertValuesRestoredAndFrozen(restRouter, webhookEventSetup.valuesCharged, true);
     }).timeout(15000);
 
     it("succeeds when Values already frozen and Transaction has been reversed", async function () {
@@ -69,11 +65,9 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
         }
 
         const webhookEventSetup = await setupForWebhookEvent(restRouter, {reversed: true});
-        const checkout = webhookEventSetup.checkout;
-        const values = webhookEventSetup.valuesCharged;
         const refundedCharge = buildStripeFraudRefundedChargeMock(webhookEventSetup.finalStateStripeCharge, webhookEventSetup.finalStateStripeCharge.refunds.data[0]);
 
-        for (const value of values) {
+        for (const value of webhookEventSetup.valuesCharged) {
             const freezeValueResp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/values/${value.id}`, "PATCH", {frozen: true});
             chai.assert.equal(freezeValueResp.statusCode, 200, `freezeValueResp.body=${freezeValueResp.body}`);
             chai.assert.equal(freezeValueResp.body.frozen, true, `freezeValueResp.body.frozen=${freezeValueResp.body.frozen}`);
@@ -82,12 +76,12 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
         const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", refundedCharge));
         chai.assert.equal(webhookResp.statusCode, 204, `webhookResp.body=${webhookResp.body}`);
 
-        const fetchTransactionChainResp = await testAuthedRequest<Transaction[]>(restRouter, `/v2/transactions/${checkout.id}/chain`, "GET");
+        const fetchTransactionChainResp = await testAuthedRequest<Transaction[]>(restRouter, `/v2/transactions/${webhookEventSetup.checkout.id}/chain`, "GET");
         chai.assert.equal(fetchTransactionChainResp.statusCode, 200, `fetchTransactionChainResp.body=${fetchTransactionChainResp.body}`);
         chai.assert.equal(fetchTransactionChainResp.body.length, 2, `fetchTransactionChainResp.body=${fetchTransactionChainResp.body}`);
         chai.assert.isNotNull(fetchTransactionChainResp.body.find(txn => txn.transactionType === "reverse"), `transaction types in chain: ${JSON.stringify(fetchTransactionChainResp.body.map(txn => txn.transactionType))}`);
 
-        for (const value of values) {
+        for (const value of webhookEventSetup.valuesCharged) {
             const fetchValueResp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/values/${value.id}`, "GET");
             chai.assert.equal(fetchValueResp.statusCode, 200, `fetchValueResp.body=${fetchValueResp.body}`);
             chai.assert.equal(fetchValueResp.body.balance, value.balance, `fetchValueResp.body.balance=${fetchValueResp.body.balance}`);
@@ -102,20 +96,17 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
         }
 
         const webhookEventSetup = await setupForWebhookEvent(restRouter, {initialCheckoutReq: {pending: true}});
-        const checkout = webhookEventSetup.checkout;
-        const values = webhookEventSetup.valuesCharged;
-        const refundedCharge = webhookEventSetup.finalStateStripeCharge;
 
-        const stripeChargeMock = buildStripeFraudRefundedChargeMock(refundedCharge, generateStripeRefundResponse({
-            stripeChargeId: refundedCharge.id,
-            amount: refundedCharge.amount,
-            currency: refundedCharge.currency
+        const stripeChargeMock = buildStripeFraudRefundedChargeMock(webhookEventSetup.finalStateStripeCharge, generateStripeRefundResponse({
+            stripeChargeId: webhookEventSetup.finalStateStripeCharge.id,
+            amount: webhookEventSetup.finalStateStripeCharge.amount,
+            currency: webhookEventSetup.finalStateStripeCharge.currency
         }));
         const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", stripeChargeMock));
         chai.assert.equal(webhookResp.statusCode, 204);
 
-        await assertTransactionChainContainsTypes(restRouter, checkout.id, 2, ["checkout", "void"]);
-        await assertValuesRestoredAndFrozen(restRouter, values, true);
+        await assertTransactionChainContainsTypes(restRouter, webhookEventSetup.checkout.id, 2, ["checkout", "void"]);
+        await assertValuesRestoredAndFrozen(restRouter, webhookEventSetup.valuesCharged, true);
     }).timeout(12000);
 
     it("uses existing 'void' Transaction if original Transaction was pending and has been voided", async function () {
@@ -128,21 +119,16 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
             voided: true,
             initialCheckoutReq: {pending: true}
         });
-        const checkout = webhookEventSetup.checkout;
-        const charge = webhookEventSetup.stripeStep.charge;
-        const values = webhookEventSetup.valuesCharged;
-        const nextLightrailTransaction = webhookEventSetup.nextLightrailTransaction;
-        const refundedCharge = webhookEventSetup.finalStateStripeCharge;
 
-        chai.assert.isFalse((charge as stripe.charges.ICharge).captured);
+        chai.assert.isFalse((webhookEventSetup.stripeStep.charge as stripe.charges.ICharge).captured);
 
-        const stripeChargeMock = buildStripeFraudRefundedChargeMock(refundedCharge, webhookEventSetup.nextStripeStep.charge as stripe.refunds.IRefund);
+        const stripeChargeMock = buildStripeFraudRefundedChargeMock(webhookEventSetup.finalStateStripeCharge, webhookEventSetup.nextStripeStep.charge as stripe.refunds.IRefund);
         const webhookEvent = generateConnectWebhookEventMock("charge.refunded", stripeChargeMock);
         const webhookResp = await testSignedWebhookRequest(webhookEventRouter, webhookEvent);
         chai.assert.equal(webhookResp.statusCode, 204, `webhookResp.body=${JSON.stringify(webhookResp)}`);
 
-        await assertTransactionChainContainsTypes(restRouter, checkout.id, 2, ["checkout", "void"]);
-        await assertValuesRestoredAndFrozen(restRouter, values, true);
+        await assertTransactionChainContainsTypes(restRouter, webhookEventSetup.checkout.id, 2, ["checkout", "void"]);
+        await assertValuesRestoredAndFrozen(restRouter, webhookEventSetup.valuesCharged, true);
     }).timeout(18000);
 
     it("reverses 'capture' Transaction if original Transaction was pending and has been captured", async function () {
@@ -155,19 +141,15 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
             captured: true,
             initialCheckoutReq: {pending: true}
         });
-        const checkout = webhookEventSetup.checkout;
-        const values = webhookEventSetup.valuesCharged;
-        const nextLightrailTransaction = webhookEventSetup.nextLightrailTransaction;
-        const capturedCharge = webhookEventSetup.finalStateStripeCharge;
 
-        chai.assert.isTrue((capturedCharge as stripe.charges.ICharge).captured, `Final state of Stripe charge from setup: ${JSON.stringify(capturedCharge)}`);
+        chai.assert.isTrue((webhookEventSetup.finalStateStripeCharge as stripe.charges.ICharge).captured, `Final state of Stripe charge from setup: ${JSON.stringify(webhookEventSetup.finalStateStripeCharge)}`);
 
-        const stripeChargeMock = buildStripeFraudRefundedChargeMock(capturedCharge, webhookEventSetup.nextStripeStep.charge as stripe.refunds.IRefund);
+        const stripeChargeMock = buildStripeFraudRefundedChargeMock(webhookEventSetup.finalStateStripeCharge, webhookEventSetup.nextStripeStep.charge as stripe.refunds.IRefund);
         const webhookEvent = generateConnectWebhookEventMock("charge.refunded", stripeChargeMock);
         const webhookResp = await testSignedWebhookRequest(webhookEventRouter, webhookEvent);
         chai.assert.equal(webhookResp.statusCode, 204, `webhookResp.body=${JSON.stringify(webhookResp)}`);
 
-        await assertTransactionChainContainsTypes(restRouter, checkout.id, 3, ["checkout", "capture", "reverse"]);
-        await assertValuesRestoredAndFrozen(restRouter, values, true);
+        await assertTransactionChainContainsTypes(restRouter, webhookEventSetup.checkout.id, 3, ["checkout", "capture", "reverse"]);
+        await assertValuesRestoredAndFrozen(restRouter, webhookEventSetup.valuesCharged, true);
     }).timeout(8000);
 });

@@ -43,17 +43,15 @@ describe("/v2/stripeEventWebhook - Stripe Refund events", () => {
         }
 
         const webhookEventSetup = await setupForWebhookEvent(restRouter);
-        const checkout = webhookEventSetup.checkout;
-        const values = webhookEventSetup.valuesCharged;
-        const refundedCharge = await refundInStripe(checkout.steps.find(step => step.rail === "stripe") as StripeTransactionStep, "fraudulent");
+        const refundedCharge = await refundInStripe(webhookEventSetup.checkout.steps.find(step => step.rail === "stripe") as StripeTransactionStep, "fraudulent");
         const refund = refundedCharge.refunds.data[0];
 
         const webhookEvent = generateConnectWebhookEventMock("charge.refund.updated", refund);
         const webhookResp = await testSignedWebhookRequest(webhookEventRouter, webhookEvent);
         chai.assert.equal(webhookResp.statusCode, 204, `webhookResp.body=${JSON.stringify(webhookResp.body)}`);
 
-        await assertTransactionChainContainsTypes(restRouter, checkout.id, 2, ["checkout", "reverse"]);
-        await assertValuesRestoredAndFrozen(restRouter, values, true);
+        await assertTransactionChainContainsTypes(restRouter, webhookEventSetup.checkout.id, 2, ["checkout", "reverse"]);
+        await assertValuesRestoredAndFrozen(restRouter, webhookEventSetup.valuesCharged, true);
     }).timeout(12000);
 
     it("throws Sentry error for Stripe refunds with 'status: failed'", async function () {

@@ -55,8 +55,6 @@ describe("/v2/stripeEventWebhook - Stripe Review events", () => {
         }
 
         const webhookEventSetup = await setupForWebhookEvent(restRouter);
-        const checkout = webhookEventSetup.checkout;
-        const values = webhookEventSetup.valuesCharged;
         const refundedCharge = await refundInStripe(webhookEventSetup.stripeStep, "fraudulent");
 
         let review: stripe.reviews.IReview = {
@@ -72,7 +70,7 @@ describe("/v2/stripeEventWebhook - Stripe Review events", () => {
         const webhookResp = await testSignedWebhookRequest(webhookEventRouter, webhookEvent);
         chai.assert.equal(webhookResp.statusCode, 204, `webhookResp.body=${JSON.stringify(webhookResp)}`);
 
-        await assertTransactionChainContainsTypes(restRouter, checkout.id, 2, ["checkout", "reverse"]);
-        await assertValuesRestoredAndFrozen(restRouter, values);
+        await assertTransactionChainContainsTypes(restRouter, webhookEventSetup.checkout.id, 2, ["checkout", "reverse"]);
+        await assertValuesRestoredAndFrozen(restRouter, webhookEventSetup.valuesCharged);
     }).timeout(12000);
 });
