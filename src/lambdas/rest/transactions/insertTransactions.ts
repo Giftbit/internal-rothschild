@@ -9,11 +9,14 @@ import {TransactionPlanError} from "./TransactionPlanError";
 import {DbValue} from "../../../model/Value";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {insertValue} from "../insertValue";
+import {executeStripeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
+import {LightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/StripeConfig";
 import Knex = require("knex");
 
-export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<void> {
+export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<Transaction> {
     try {
-        let dbT: DbTransaction = Transaction.toDbTransaction(auth, TransactionPlan.toTransaction(auth, plan));
+        const transaction = TransactionPlan.toTransaction(auth, plan);
+        let dbT: DbTransaction = Transaction.toDbTransaction(auth, transaction);
         dbT.rootTransactionId = plan.rootTransactionId ? plan.rootTransactionId : plan.id;
         await trx.into("Transactions")
             .insert(dbT);
@@ -28,6 +31,7 @@ export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.A
                     nextTransactionId: null
                 }).update(updateProperties);
         }
+        return transaction;
     } catch (err) {
         if (err.code === "ER_DUP_ENTRY") {
             throw new giftbitRoutes.GiftbitRestError(409, `A Lightrail transaction with transactionId '${plan.id}' already exists.`, "TransactionExists");
@@ -112,7 +116,8 @@ async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.Authoriza
     }
 }
 
-export async function insertStripeTransactionSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan): Promise<void> {
+export async function insertStripeTransactionSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan, stripeConfig: LightrailAndMerchantStripeConfig): Promise<void> {
+    await executeStripeSteps(auth, stripeConfig, plan);
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe")
         .map(step => StripeTransactionPlanStep.toStripeDbTransactionStep(step as StripeTransactionPlanStep, plan, auth));
     await trx.into("StripeTransactionSteps")

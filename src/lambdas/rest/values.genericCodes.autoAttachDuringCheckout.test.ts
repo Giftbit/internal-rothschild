@@ -169,10 +169,10 @@ describe("/v2/values - generic code with per contact properties", () => {
                             "contactId": null,
                             "code": genericValue.code,
                             "balanceBefore": null,
-                            "balanceChange": null,
+                            "balanceChange": -500,
                             "balanceAfter": null,
                             "usesRemainingBefore": null,
-                            "usesRemainingChange": null,
+                            "usesRemainingChange": -1,
                             "usesRemainingAfter": null
                         },
                         {
@@ -319,6 +319,7 @@ describe("/v2/values - generic code with per contact properties", () => {
                             "valueId": GenericCodePerContact.generateValueId(genericValue.id, contactId),
                             "contactId": contactId,
                             "code": null,
+                            "attachedFromValueId": "123",
                             "balanceBefore": null,
                             "balanceChange": null,
                             "balanceAfter": null,
@@ -330,7 +331,8 @@ describe("/v2/values - generic code with per contact properties", () => {
                             "rail": "lightrail",
                             "valueId": GenericCodePerContact.generateValueId(genericValue.id, contactId),
                             "contactId": contactId,
-                            "code": null,
+                            "code": null, // this is not the generic code.
+                            "attachedFromValueId": "123",
                             "balanceBefore": null,
                             "balanceChange": -500,
                             "balanceAfter": null,

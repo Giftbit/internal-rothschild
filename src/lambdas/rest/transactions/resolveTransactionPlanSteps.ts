@@ -9,6 +9,7 @@ import {
     InternalTransactionPlanStep,
     LightrailTransactionPlanStep,
     StripeTransactionPlanStep,
+    TransactionPlan,
     TransactionPlanStep
 } from "./TransactionPlan";
 import {DbValue, Value} from "../../../model/Value";
@@ -62,7 +63,7 @@ export interface ResolveTransactionPartiesOptions {
 }
 
 export interface ResolvedTransactionPlanSteps {
-    preliminaryTransactionSteps: LightrailTransactionPlanStep[]; // auto attach steps
+    attachTransactions: TransactionPlan[]; // this name can be updated
     transactionSteps: TransactionPlanStep[]; // blankTransactionSteps
 }
 
@@ -71,7 +72,7 @@ export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.Au
     let valuesForTransactionSteps: Value[] = null;
 
     const planSteps: ResolvedTransactionPlanSteps = {
-        preliminaryTransactionSteps: [],
+        attachTransactions: [],
         transactionSteps: []
     };
     if (options.autoAttachGenericCodesWithPerContactProperties) {
@@ -83,8 +84,11 @@ export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.Au
             if (!contactId) {
                 throw new giftbitRoutes.GiftbitRestError(409, `Values '${valuesThatMustBeAttached.map(v => v.id)}' cannot be transacted against because they must be attached to a Contact first. Alternatively, a contactId must be included a source in the checkout request.`, "ValueMustBeAttached");
             }
-            const autoAttachSteps = getAutoAttachSteps(auth, valuesThatMustBeAttached, contactId);
-            planSteps.preliminaryTransactionSteps.push(...autoAttachSteps);
+            for (const genericValue of valuesThatMustBeAttached) {
+                const transactionPlan = await await await GenericCodePerContact.getTransactionPlan(auth, contactId, genericValue);
+                planSteps.attachTransactions.push(...GenericCodePerContact.getTransactionPlan(auth, contactId, genericValue));
+            }
+            planSteps.attachTransactions.push(... await GenericCodePerContact.getTransactionPlan(auth, val));
             valuesForTransactionSteps.push(...autoAttachSteps.filter(s => s.createValue === true).map(s => s.value));
         }
     } else {
@@ -222,10 +226,10 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     return values;
 }
 
-function getAutoAttachSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, genericValues: Value[], contactId: string): LightrailTransactionPlanStep[] {
-    const attachSteps: LightrailTransactionPlanStep[] = [];
+async function getAutoAttachSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, genericValues: Value[], contactId: string): Promise<TransactionPlan[]> {
+    const attachTransactions: TransactionPlan[] = [];
     for (const genericValue of genericValues) {
-        attachSteps.push(...GenericCodePerContact.getAttachLightrailTransactionPlanSteps(auth, contactId, genericValue));
+        attachTransactions.push(... (await GenericCodePerContact.getTransactionPlan(auth, contactId, genericValue)));
     }
-    return attachSteps;
+    return attachTransactions;
 }
