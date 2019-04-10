@@ -26,10 +26,10 @@ export interface ExecuteTransactionPlannerOptions {
  * Calls the planner and executes on the plan created.  If the plan cannot be executed
  * but can be replanned then the planner will be called again.
  */
-export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ExecuteTransactionPlannerOptions, planner: () => Promise<TransactionPlan[]>): Promise<Transaction[]> {
+export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ExecuteTransactionPlannerOptions, planner: () => Promise<TransactionPlan | TransactionPlan[]>): Promise<Transaction[]> {
     while (true) {
         try {
-            const plans = await planner();
+            const plans = [...(await planner())];
             for (const plan of plans) {
                 if ((plan.totals && plan.totals.remainder && !options.allowRemainder) ||
                     plan.steps.find(step => step.rail === "lightrail" && step.value.balance != null && step.value.balance + step.amount < 0)) {

@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import * as pendingTransactionUtils from "./pendingTransactionUtils";
-import {resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
+import {filterForUsedAttaches, resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
 import {
     CaptureRequest,
     CheckoutRequest,
@@ -24,7 +24,7 @@ import {createDebitTransactionPlan} from "./transactions.debit";
 import {createReverseTransactionPlan} from "./reverse/transactions.reverse";
 import {createCaptureTransactionPlan} from "./transactions.capture";
 import {createVoidTransactionPlan} from "./transactions.void";
-import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
+import {TransactionPlan} from "./TransactionPlan";
 import getPaginationParams = Pagination.getPaginationParams;
 
 export function installTransactionsRest(router: cassava.Router): void {
@@ -268,29 +268,29 @@ export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBa
 }
 
 async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CreditRequest): Promise<Transaction> {
-    return await executeTransactionPlanner(
+    return (await executeTransactionPlanner(
         auth,
         {
             simulate: req.simulate,
             allowRemainder: false
         },
         async () => createCreditTransactionPlan(auth, req)
-    );
+    )).find(tx => tx.transactionType === "credit");
 }
 
 async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: DebitRequest): Promise<Transaction> {
-    return await executeTransactionPlanner(
+    return (await executeTransactionPlanner(
         auth,
         {
             simulate: req.simulate,
             allowRemainder: req.allowRemainder
         },
         async () => createDebitTransactionPlan(auth, req)
-    );
+    )).find(tx => tx.transactionType === "debit");
 }
 
 async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, checkout: CheckoutRequest): Promise<Transaction> {
-    return executeTransactionPlanner(
+    return (await executeTransactionPlanner(
         auth,
         {
             simulate: checkout.simulate,
@@ -309,21 +309,11 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
 
             const transactionPlan: TransactionPlan = optimizeCheckout(checkout, resolvedSteps.transactionSteps);
 
-            // remove any preliminary steps that weren't used
-            const usedPreliminarySteps: LightrailTransactionPlanStep[] = [];
-            for (const prelimStep of resolvedSteps.preliminaryTransactionSteps.filter(s => s.createValue)) {
-                if (transactionPlan.steps.find(s => s.rail === "lightrail" && s.value.id === prelimStep.value.id)) {
-                    // it was used
-                    usedPreliminarySteps.push(resolvedSteps.preliminaryTransactionSteps.find(lightrailStep => lightrailStep.value.id === prelimStep.value.attachedFromGenericValueId));
-                    usedPreliminarySteps.push(prelimStep);
-                } else {
-                    // not used.
-                }
-            }
+            // Only persist attach transactions that were used. Is this a checkout piece of logic?
+            const attachTransactionsToPersist: TransactionPlan[] = filterForUsedAttaches(resolvedSteps, transactionPlan);
 
-            transactionPlan.steps = [...usedPreliminarySteps, ...transactionPlan.steps];
-            return transactionPlan;
-        });
+            return [...attachTransactionsToPersist, transactionPlan];
+        })).find(tx => tx.transactionType === "checkout");
 }
 
 async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: TransferRequest): Promise<Transaction> {
