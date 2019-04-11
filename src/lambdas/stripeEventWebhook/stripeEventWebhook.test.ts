@@ -36,7 +36,7 @@ import {
 import sinon from "sinon";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
 import {generateCode} from "../../utils/codeGenerator";
-import {installStripeEventWebhookRoute} from "./installStripeEventWebhookRoute";
+import {installStripeEventWebhookRest} from "./installStripeEventWebhookRest";
 import * as webhookUtils from "../../utils/stripeEventWebhookRouteUtils";
 
 /**
@@ -58,7 +58,7 @@ describe("/v2/stripeEventWebhook", () => {
         await testUtils.resetDb();
         restRouter.route(testUtils.authRoute);
         installRestRoutes(restRouter);
-        installStripeEventWebhookRoute(webhookEventRouter);
+        installStripeEventWebhookRest(webhookEventRouter);
 
         await setCodeCryptographySecrets();
 

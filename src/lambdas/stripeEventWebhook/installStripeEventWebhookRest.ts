@@ -16,7 +16,7 @@ import {MetricsLogger as metricsLogger} from "../../utils/metricsLogger";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
 import {freezeLightrailSources, getDbTransactionChain} from "../../utils/stripeEventWebhookRouteUtils";
 
-export function installStripeEventWebhookRoute(router: cassava.Router): void {
+export function installStripeEventWebhookRest(router: cassava.Router): void {
     // These paths are configured in our Stripe account and not publicly known
     // (not that it would do any harm as we verify signatures).
     router.route("/v2/stripeEventWebhook")

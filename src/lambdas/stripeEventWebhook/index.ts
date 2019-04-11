@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as logPrefix from "loglevel-plugin-prefix";
-import {installStripeEventWebhookRoute} from "./installStripeEventWebhookRoute";
+import {installStripeEventWebhookRest} from "./installStripeEventWebhookRest";
 import {initializeAssumeCheckoutToken, initializeLightrailStripeConfig} from "../../utils/stripeUtils/stripeAccess";
 import {StripeConfig} from "../../utils/stripeUtils/StripeConfig";
 import {CodeCryptographySecrets, initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils";
@@ -48,7 +48,7 @@ initializeLightrailStripeConfig(
     giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE")
 );
 
-installStripeEventWebhookRoute(router);
+installStripeEventWebhookRest(router);
 
 // Export the lambda handler with Sentry error logging supported.
 export const handler = giftbitRoutes.sentry.wrapLambdaHandler({

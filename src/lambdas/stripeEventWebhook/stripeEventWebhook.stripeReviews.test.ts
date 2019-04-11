@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as testUtils from "../../utils/testUtils";
 import {generateId, setCodeCryptographySecrets} from "../../utils/testUtils";
 import {installRestRoutes} from "../rest/installRestRoutes";
-import {installStripeEventWebhookRoute} from "./installStripeEventWebhookRoute";
+import {installStripeEventWebhookRest} from "./installStripeEventWebhookRest";
 import * as chai from "chai";
 import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
 import {Value} from "../../model/Value";
@@ -37,7 +37,7 @@ describe("/v2/stripeEventWebhook - Stripe Review events", () => {
         await testUtils.resetDb();
         restRouter.route(testUtils.authRoute);
         installRestRoutes(restRouter);
-        installStripeEventWebhookRoute(webhookEventRouter);
+        installStripeEventWebhookRest(webhookEventRouter);
 
         await setCodeCryptographySecrets();
 
