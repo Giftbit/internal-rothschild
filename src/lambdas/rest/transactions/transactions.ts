@@ -13,7 +13,7 @@ import {
     VoidRequest
 } from "../../../model/TransactionRequest";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
-import {executeTransactionPlanner} from "./executeTransactionPlan";
+import {executeTransactionPlanner} from "./executeTransactionPlans";
 import {Pagination, PaginationParams} from "../../../model/Pagination";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {optimizeCheckout} from "./checkout/checkoutTransactionPlanner";
@@ -268,29 +268,29 @@ export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBa
 }
 
 async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CreditRequest): Promise<Transaction> {
-    return (await executeTransactionPlanner(
+    return await executeTransactionPlanner(
         auth,
         {
             simulate: req.simulate,
             allowRemainder: false
         },
         async () => createCreditTransactionPlan(auth, req)
-    )).find(tx => tx.transactionType === "credit");
+    );
 }
 
 async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: DebitRequest): Promise<Transaction> {
-    return (await executeTransactionPlanner(
+    return await executeTransactionPlanner(
         auth,
         {
             simulate: req.simulate,
             allowRemainder: req.allowRemainder
         },
         async () => createDebitTransactionPlan(auth, req)
-    )).find(tx => tx.transactionType === "debit");
+    );
 }
 
 async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, checkout: CheckoutRequest): Promise<Transaction> {
-    return (await executeTransactionPlanner(
+    const transaction = await executeTransactionPlanner(
         auth,
         {
             simulate: checkout.simulate,
@@ -313,7 +313,8 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
             const attachTransactionsToPersist: TransactionPlan[] = filterForUsedAttaches(resolvedSteps, transactionPlan);
 
             return [...attachTransactionsToPersist, transactionPlan];
-        })).find(tx => tx.transactionType === "checkout");
+        });
+    return Array.isArray(transaction) ? transaction.find(tx => tx.transactionType === "checkout") : transaction;
 }
 
 async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: TransferRequest): Promise<Transaction> {

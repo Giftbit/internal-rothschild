@@ -3,23 +3,23 @@ import {nowInDbPrecision} from "../../utils/dbUtils/index";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {LightrailTransactionPlanStep, TransactionPlan} from "./transactions/TransactionPlan";
-import {executeTransactionPlanner} from "./transactions/executeTransactionPlan";
+import {executeTransactionPlanner} from "./transactions/executeTransactionPlans";
 import {getValue} from "./values";
-import {LightrailTransactionStep} from "../../model/Transaction";
+import {LightrailTransactionStep, Transaction} from "../../model/Transaction";
 
 export namespace GenericCodePerContact {
-    export async function attach(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value, simulate: boolean = false): Promise<Value> {
+    export async function attach(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<Value> {
 
-        const planner = async (): Promise<TransactionPlan[]> => {
-            return [getTransactionPlan(auth, contactId, genericValue)];
+        const planner = async (): Promise<TransactionPlan> => {
+            return getTransactionPlan(auth, contactId, genericValue);
         };
 
-        const transactions = await executeTransactionPlanner(auth, {
+        const transaction: Transaction = await executeTransactionPlanner(auth, {
             allowRemainder: false,
             simulate: false
         }, planner);
 
-        const newAttachedValueId = (transactions[0].steps.find(step => (step as LightrailTransactionStep).valueId !== genericValue.id) as LightrailTransactionStep).valueId;
+        const newAttachedValueId = (transaction.steps.find(step => (step as LightrailTransactionStep).valueId !== genericValue.id) as LightrailTransactionStep).valueId;
         if (!newAttachedValueId) {
             throw new Error("This cannot happen. Something must have gone seriously wrong.")
         }

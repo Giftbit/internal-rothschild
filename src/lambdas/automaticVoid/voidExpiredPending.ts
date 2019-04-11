@@ -3,7 +3,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {DbTransaction} from "../../model/Transaction";
 import {getKnexRead} from "../../utils/dbUtils/connection";
 import {nowInDbPrecision} from "../../utils/dbUtils";
-import {executeTransactionPlanner} from "../rest/transactions/executeTransactionPlan";
+import {executeTransactionPlanner} from "../rest/transactions/executeTransactionPlans";
 import {createVoidTransactionPlanForDbTransaction} from "../rest/transactions/transactions.void";
 import log = require("loglevel");
 import uuid = require("uuid");

@@ -349,7 +349,7 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
          *  Retrying twice is an arbitrary number. This may need to be increased if we're still seeing regular failures.
          *  Unless users are using their own character set there are around 1 billion possible codes.
          *  It seems unlikely for 3+ retry failures even if users have millions of codes. */
-        if (err instanceof GiftbitRestError && err["messageCode"] === "ValueCodeExists" && params.generateCodeParameters && retryCount < 2) {
+        if (err instanceof GiftbitRestError && err.additionalParams["messageCode"] === "ValueCodeExists" && params.generateCodeParameters && retryCount < 2) {
             log.info(`Retrying creating the Value because there was a code uniqueness constraint failure for a generated code. Retry number: ${retryCount}. ValueId: ${params.partialValue.id}.`);
             return createValue(auth, params, trx, retryCount + 1);
         }

@@ -26,10 +26,13 @@ export interface ExecuteTransactionPlannerOptions {
  * Calls the planner and executes on the plan created.  If the plan cannot be executed
  * but can be replanned then the planner will be called again.
  */
-export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ExecuteTransactionPlannerOptions, planner: () => Promise<TransactionPlan | TransactionPlan[]>): Promise<Transaction[]> {
+export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ExecuteTransactionPlannerOptions, planner: () => Promise<TransactionPlan>): Promise<Transaction>;
+export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ExecuteTransactionPlannerOptions, planner: () => Promise<TransactionPlan[]>): Promise<Transaction[]>;
+export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ExecuteTransactionPlannerOptions, planner: () => Promise<TransactionPlan | TransactionPlan[]>): Promise<Transaction | Transaction[]> {
     while (true) {
         try {
-            const plans = [...(await planner())];
+            const fetchedTransactionPlans = await planner();
+            const plans: TransactionPlan[] = fetchedTransactionPlans instanceof Array ? fetchedTransactionPlans : [fetchedTransactionPlans];
             for (const plan of plans) {
                 if ((plan.totals && plan.totals.remainder && !options.allowRemainder) ||
                     plan.steps.find(step => step.rail === "lightrail" && step.value.balance != null && step.value.balance + step.amount < 0)) {
@@ -41,10 +44,12 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
             }
 
             if (options.simulate) {
-                return plans.map(plan => TransactionPlan.toTransaction(auth, plan, options.simulate));
+                const transactions = plans.map(plan => TransactionPlan.toTransaction(auth, plan, options.simulate));
+                return transactions.length === 1 ? transactions[0] : transactions;
             }
 
-            return await executeTransactionPlan(auth, plans);
+            const insertedTransactions = await executeTransactionPlans(auth, plans);
+            return insertedTransactions.length === 1 ? insertedTransactions[0] : insertedTransactions;
         } catch (err) {
             log.warn("Error thrown executing transaction plan.", err);
             if ((err as TransactionPlanError).isTransactionPlanError && (err as TransactionPlanError).isReplanable) {
@@ -56,7 +61,7 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
     }
 }
 
-export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plans: TransactionPlan[]): Promise<Transaction[]> {
+export async function executeTransactionPlans(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plans: TransactionPlan[]): Promise<Transaction[]> {
     auth.requireIds("userId", "teamMemberId");
     let stripeConfig: LightrailAndMerchantStripeConfig;
     const plansContainStripeSteps: boolean = plans.find(plan => plan.steps.find(step => step.rail === "stripe") != null) != null
@@ -65,11 +70,10 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
     }
 
     const knex = await getKnexWrite();
-    const transactions: Transaction[] = []
     await knex.transaction(async trx => {
-        for (const plan of plans) {
+        for (let plan of plans) {
             try {
-                transactions.push(await insertTransaction(trx, auth, plan));
+                await insertTransaction(trx, auth, plan);
             } catch (err) {
                 log.warn("Error inserting transaction:", err);
                 if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "TransactionExists") {
@@ -81,9 +85,9 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
             }
 
             try {
-                await insertStripeTransactionSteps(auth, trx, plan, stripeConfig);
-                await insertLightrailTransactionSteps(auth, trx, plan);
-                await insertInternalTransactionSteps(auth, trx, plan);
+                plan = await insertStripeTransactionSteps(auth, trx, plan, stripeConfig);
+                plan = await insertLightrailTransactionSteps(auth, trx, plan);
+                plan = await insertInternalTransactionSteps(auth, trx, plan);
             } catch (err) {
                 log.error(`Error occurred while processing transaction steps: ${err}`);
 
@@ -139,5 +143,5 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
     });
 
     plans.forEach(plan => MetricsLogger.transaction(plan, auth));
-    return transactions;
+    return plans.map(plan => TransactionPlan.toTransaction(auth, plan)); // Has to re-call ".toTransaction" since things like the Stripe steps are updated when inserted.
 }

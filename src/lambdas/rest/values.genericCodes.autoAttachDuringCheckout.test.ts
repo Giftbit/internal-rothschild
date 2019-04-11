@@ -83,7 +83,7 @@ describe("/v2/values - generic code with per contact properties", () => {
         });
     });
 
-    describe.only("auto attach simulate: false", () => {
+    describe("auto attach simulate: false", () => {
         const contactId = generateId();
 
         before(async function () {
@@ -165,30 +165,6 @@ describe("/v2/values - generic code with per contact properties", () => {
                     "steps": [
                         {
                             "rail": "lightrail",
-                            "valueId": genericValue.id,
-                            "contactId": null,
-                            "code": genericValue.code,
-                            "balanceBefore": null,
-                            "balanceChange": -500,
-                            "balanceAfter": null,
-                            "usesRemainingBefore": null,
-                            "usesRemainingChange": -1,
-                            "usesRemainingAfter": null
-                        },
-                        {
-                            "rail": "lightrail",
-                            "valueId": GenericCodePerContact.generateValueId(genericValue.id, contactId),
-                            "contactId": contactId,
-                            "code": null,
-                            "balanceBefore": 0,
-                            "balanceChange": 500,
-                            "balanceAfter": 500,
-                            "usesRemainingBefore": 0,
-                            "usesRemainingChange": 1,
-                            "usesRemainingAfter": 1
-                        },
-                        {
-                            "rail": "lightrail",
                             "valueId": GenericCodePerContact.generateValueId(genericValue.id, contactId),
                             "contactId": contactId,
                             "code": null,
@@ -207,7 +183,7 @@ describe("/v2/values - generic code with per contact properties", () => {
                         },
                         {
                             "rail": "lightrail",
-                            "code": genericValue.code
+                            "code": formatCodeForLastFourDisplay(genericValue.code) // todo - fullcode or last 4?
                         }
                     ],
                     "pending": false,
@@ -218,7 +194,7 @@ describe("/v2/values - generic code with per contact properties", () => {
         }).timeout(5000);
     });
 
-    describe.only("auto attach, generic code with balanceRule and usesRemaining", () => {
+    describe("auto attach, generic code with balanceRule and usesRemaining", () => {
         const contactId = generateId();
 
         before(async function () {
@@ -304,35 +280,9 @@ describe("/v2/values - generic code with per contact properties", () => {
                     "steps": [
                         {
                             "rail": "lightrail",
-                            "valueId": genericValue.id,
-                            "contactId": null,
-                            "code": genericValue.code,
-                            "balanceBefore": null,
-                            "balanceChange": null,
-                            "balanceAfter": null,
-                            "usesRemainingBefore": 5,
-                            "usesRemainingChange": -1,
-                            "usesRemainingAfter": 4
-                        },
-                        {
-                            "rail": "lightrail",
                             "valueId": GenericCodePerContact.generateValueId(genericValue.id, contactId),
                             "contactId": contactId,
                             "code": null,
-                            "attachedFromValueId": "123",
-                            "balanceBefore": null,
-                            "balanceChange": null,
-                            "balanceAfter": null,
-                            "usesRemainingBefore": 0,
-                            "usesRemainingChange": 1,
-                            "usesRemainingAfter": 1
-                        },
-                        {
-                            "rail": "lightrail",
-                            "valueId": GenericCodePerContact.generateValueId(genericValue.id, contactId),
-                            "contactId": contactId,
-                            "code": null, // this is not the generic code.
-                            "attachedFromValueId": "123",
                             "balanceBefore": null,
                             "balanceChange": -500,
                             "balanceAfter": null,
@@ -348,7 +298,7 @@ describe("/v2/values - generic code with per contact properties", () => {
                         },
                         {
                             "rail": "lightrail",
-                            "code": genericValue.code
+                            "code": formatCodeForLastFourDisplay(genericValue.code) // todo - should this be just last four?
                         }
                     ],
                     "pending": false,
@@ -359,7 +309,7 @@ describe("/v2/values - generic code with per contact properties", () => {
         }).timeout(5000);
     });
 
-    describe.only("doesn't auto attach if attached Value isn't used", () => {
+    describe("doesn't auto attach if attached Value isn't used", () => {
         const contactId = generateId();
         const discountValueId = generateId();
 

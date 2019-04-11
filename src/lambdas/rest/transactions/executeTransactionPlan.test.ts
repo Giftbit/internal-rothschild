@@ -5,7 +5,7 @@ import {defaultTestUser} from "../../../utils/testUtils";
 import {DbValue} from "../../../model/Value";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {TransactionPlan} from "./TransactionPlan";
-import {executeTransactionPlan} from "./executeTransactionPlan";
+import {executeTransactionPlans} from "./executeTransactionPlans";
 import {DbCurrency} from "../../../model/Currency";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
@@ -92,7 +92,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
 
         let err: TransactionPlanError;
         try {
-            await executeTransactionPlan(auth, plan);
+            await executeTransactionPlans(auth, [plan]);
         } catch (e) {
             err = e;
         }
@@ -169,7 +169,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
 
         let err: TransactionPlanError;
         try {
-            await executeTransactionPlan(auth, plan);
+            await executeTransactionPlans(auth, [plan]);
         } catch (e) {
             err = e;
         }

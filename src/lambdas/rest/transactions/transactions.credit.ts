@@ -5,7 +5,7 @@ import * as cassava from "cassava";
 import {CreditRequest} from "../../../model/TransactionRequest";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 
-export async function createCreditTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CreditRequest): Promise<TransactionPlan[]> {
+export async function createCreditTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CreditRequest): Promise<TransactionPlan> {
     const steps = (await resolveTransactionPlanSteps(auth, {
         currency: req.currency,
         parties: [req.destination],
@@ -29,7 +29,7 @@ export async function createCreditTransactionPlan(auth: giftbitRoutes.jwtauth.Au
     step.amount = req.amount || 0;
     step.uses = req.uses != null ? req.uses : null;
 
-    return [{
+    return {
         id: req.id,
         transactionType: "credit",
         currency: req.currency,
@@ -40,5 +40,5 @@ export async function createCreditTransactionPlan(auth: giftbitRoutes.jwtauth.Au
         tax: null,
         lineItems: null,
         paymentSources: null
-    }];
+    };
 }

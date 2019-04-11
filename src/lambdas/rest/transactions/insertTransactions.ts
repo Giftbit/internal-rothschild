@@ -41,10 +41,10 @@ export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.A
     }
 }
 
-export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan): Promise<void> {
-    const steps = plan.steps.filter(step => step.rail === "lightrail");
+export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan): Promise<TransactionPlan> {
+    const steps = plan.steps.filter(step => step.rail === "lightrail") as LightrailTransactionPlanStep[];
     for (let stepIx = 0; stepIx < steps.length; stepIx++) {
-        const step = steps[stepIx] as LightrailTransactionPlanStep;
+        const step = steps[stepIx];
 
         if (step.createValue) {
             await insertValue(auth, trx, step.value);
@@ -55,6 +55,7 @@ export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtaut
         await trx.into("LightrailTransactionSteps")
             .insert(LightrailTransactionPlanStep.toLightrailDbTransactionStep(step, plan, auth, stepIx));
     }
+    return plan;
 }
 
 async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, step: LightrailTransactionPlanStep, plan: TransactionPlan): Promise<void> {
@@ -116,17 +117,19 @@ async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.Authoriza
     }
 }
 
-export async function insertStripeTransactionSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan, stripeConfig: LightrailAndMerchantStripeConfig): Promise<void> {
+export async function insertStripeTransactionSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan, stripeConfig: LightrailAndMerchantStripeConfig): Promise<TransactionPlan> {
     await executeStripeSteps(auth, stripeConfig, plan);
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe")
         .map(step => StripeTransactionPlanStep.toStripeDbTransactionStep(step as StripeTransactionPlanStep, plan, auth));
     await trx.into("StripeTransactionSteps")
         .insert(stripeSteps);
+    return plan;
 }
 
-export async function insertInternalTransactionSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan): Promise<void> {
+export async function insertInternalTransactionSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan): Promise<TransactionPlan> {
     const internalSteps = plan.steps.filter(step => step.rail === "internal")
         .map(step => InternalTransactionPlanStep.toInternalDbTransactionStep(step as InternalTransactionPlanStep, plan, auth));
     await trx.into("InternalTransactionSteps")
         .insert(internalSteps);
+    return plan;
 }
