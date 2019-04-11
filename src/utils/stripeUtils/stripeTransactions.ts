@@ -130,7 +130,6 @@ export async function retrieveCharge(chargeId: string, lightrailStripeSecretKey:
         giftbitRoutes.sentry.sendErrorNotification(err);
         throw err;
     }
-
 }
 
 function checkForStandardStripeErrors(err: any): void {

@@ -95,7 +95,7 @@ async function handleFraudReverseEvent(auth: giftbitRoutes.jwtauth.Authorization
     try {
         lightrailTransaction = await getRootTransactionFromStripeCharge(stripeCharge);
     } catch (e) {
-        log.error(`Failed to fetch Lightrail Transaction from Stripe charge '${stripeCharge.id}'. Exiting and returning success response to Stripe since this is likely a Lightrail problem. Event=${JSON.stringify(event)}`);
+        log.error(`Failed to fetch Lightrail Transaction from Stripe charge '${stripeCharge.id}'. Further action is likely required: Stripe charge was flagged as fraudulent; corresponding Lightrail transaction should be reversed and charged sources should be frozen. Exiting and returning success response to Stripe since this is likely a Lightrail problem. Event=${JSON.stringify(event)}`);
         metricsLogger.stripeWebhookHandlerError(event, auth);
         giftbitRoutes.sentry.sendErrorNotification(e);
         return; // allow handler to send success response to Stripe since this is likely a Lightrail issue

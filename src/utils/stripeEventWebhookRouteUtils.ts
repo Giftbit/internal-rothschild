@@ -61,12 +61,7 @@ async function freezeValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valu
             queries.push(perValueQuery);
         }
 
-        await Promise.all(queries)
-            .then(trx.commit)
-            .catch(async err => {
-                await trx.rollback;
-                throw new Error(`Error freezing values. err=${err}`);
-            });
+        await Promise.all(queries);
     });
 }
 
