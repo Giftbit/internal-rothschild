@@ -94,7 +94,7 @@ export async function getAuthBadgeFromStripeCharge(stripeAccountId: string, stri
  */
 async function getLightrailUserIdFromStripeCharge(stripeAccountId: string, stripeCharge: Stripe.charges.ICharge, testMode: boolean): Promise<string> {
     try {
-        const rootTransaction: DbTransaction = await getRootDbTransactionFromStripeCharge(stripeCharge);
+        const rootTransaction: Transaction = await getRootTransactionFromStripeCharge(stripeCharge);
         return rootTransaction.createdBy;
     } catch (e) {
         log.error(`Could not get Lightrail userId from Stripe accountId ${stripeAccountId} and charge ${stripeCharge.id}. \nError: ${e}`);
@@ -103,24 +103,29 @@ async function getLightrailUserIdFromStripeCharge(stripeAccountId: string, strip
 }
 
 export async function getRootTransactionFromStripeCharge(stripeCharge: Stripe.charges.ICharge): Promise<Transaction> {
-    const dbTransaction = await getRootDbTransactionFromStripeCharge(stripeCharge);
-    const [transaction] = await DbTransaction.toTransactions([dbTransaction], dbTransaction.createdBy);
-    return transaction;
+    const res = await getDbTransactionsFromStripeCharge(stripeCharge);
+    const roots = res.filter(tx => tx.id === tx.rootTransactionId);
+
+    if (roots.length === 1) {
+        const dbTransaction = roots[0];
+        const [transaction] = await DbTransaction.toTransactions([dbTransaction], dbTransaction.createdBy);
+        return transaction;
+
+    } else if (roots.length === 0) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.NOT_FOUND, `Could not find Lightrail Transaction corresponding to Stripe Charge '${stripeCharge.id}'.`, "TransactionNotFound");
+
+    } else if (roots.length > 1) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Multiple Lightrail root transactions returned for Stripe chargeId ${stripeCharge.id}`);
+    }
 }
 
-async function getRootDbTransactionFromStripeCharge(stripeCharge: Stripe.charges.ICharge): Promise<DbTransaction> {
-    try {
-        const knex = await getKnexRead();
-        const res: DbTransaction[] = await knex("Transactions")
-            .join("StripeTransactionSteps", {
-                "StripeTransactionSteps.userId": "Transactions.userId",
-                "Transactions.id": "StripeTransactionSteps.transactionId",
-            })
-            .where({"StripeTransactionSteps.chargeId": stripeCharge.id}) // this can return multiple Transactions
-            .select("Transactions.*");
-
-        return res.find(tx => tx.id === tx.rootTransactionId);
-    } catch (e) {
-        throw new giftbitRoutes.GiftbitRestError(404, `Could not find Lightrail Transaction corresponding to Stripe Charge '${stripeCharge.id}'.`, "TransactionNotFound");
-    }
+async function getDbTransactionsFromStripeCharge(stripeCharge: Stripe.charges.ICharge): Promise<DbTransaction[]> {
+    const knex = await getKnexRead();
+    return await knex("Transactions")
+        .join("StripeTransactionSteps", {
+            "StripeTransactionSteps.userId": "Transactions.userId",
+            "Transactions.id": "StripeTransactionSteps.transactionId",
+        })
+        .where({"StripeTransactionSteps.chargeId": stripeCharge.id}) // this can return multiple Transactions: refund steps use the chargeId of the charge they refund
+        .select("Transactions.*");
 }
