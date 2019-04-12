@@ -278,7 +278,6 @@ export function getStripeCaptureStub(options: GetStripeCaptureStubOptions): sino
 }
 
 export interface GetStripeRefundStubOptions {
-    amount: number;
     stripeChargeId: string;
 }
 
@@ -287,8 +286,7 @@ export function getStripeRefundStub(options: GetStripeRefundStubOptions): sinon.
     const stub = stripeRefundStub || (stripeRefundStub = sinonSandbox.stub(stripeTransactions, "createRefund").callThrough());
 
     return stub.withArgs(
-        sinon.match.has("amount", options.amount)
-            .and(sinon.match.has("charge", options.stripeChargeId)),
+        sinon.match.has("charge", options.stripeChargeId),
         sinon.match(stripeStubbedConfig.secretKey),
         sinon.match(stripeStubbedConfig.stripeUserId)
     );
@@ -467,7 +465,6 @@ export function stubStripeRefund(charge: stripe.charges.ICharge, additionalPrope
 
     const stub = getStripeRefundStub(
         {
-            amount: charge.amount,
             stripeChargeId: charge.id
         })
         .resolves(response);

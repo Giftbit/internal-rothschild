@@ -64,7 +64,7 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
 export async function executeTransactionPlans(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plans: TransactionPlan[]): Promise<Transaction[]> {
     auth.requireIds("userId", "teamMemberId");
     let stripeConfig: LightrailAndMerchantStripeConfig;
-    const plansContainStripeSteps: boolean = plans.find(plan => plan.steps.find(step => step.rail === "stripe") != null) != null
+    const plansContainStripeSteps: boolean = plans.find(plan => plan.steps.find(step => step.rail === "stripe") != null) != null;
     if (plansContainStripeSteps) {
         stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
     }
