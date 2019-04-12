@@ -153,6 +153,9 @@ async function setStripeWebhookEvents(event: awslambda.CloudFormationCustomResou
         initializeLightrailStripeConfig(
             giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE")
         );
+
+        await getLightrailStripeModeConfig(false); // await setup here to make sure the promises set in initializeAssumeCheckoutToken() & initializeLightrailStripeConfig() resolve, otherwise this block won't throw an error but the config won't actually be available
+
         log.info(`Assume token and Stripe config initialized.`);
     } catch (err) {
         log.error(`Error fetching Stripe credentials from secure config: enabled Stripe webhook events have not been updated. Secure config permissions may need to be set. \nError: ${JSON.stringify(err, null, 2)}`);
