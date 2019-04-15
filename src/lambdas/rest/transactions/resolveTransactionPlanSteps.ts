@@ -87,20 +87,23 @@ export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.Au
             }
             for (const genericValue of valuesThatMustBeAttached) {
                 const transactionPlan = GenericCodePerContact.getTransactionPlan(auth, contactId, genericValue);
+                console.log("Did this happen??? " + JSON.stringify(transactionPlan));
                 resolvedTransactionSteps.attachTransactions.push(transactionPlan);
-                valuesForTransactionSteps.push((transactionPlan.steps.find(s => (s as LightrailTransactionPlanStep).createValue) as LightrailTransactionPlanStep).value);
+                valuesForTransactionSteps.push((transactionPlan.steps.find(s => (s as LightrailTransactionPlanStep).action === "INSERT_VALUE") as LightrailTransactionPlanStep).value);
             }
         }
     } else {
         valuesForTransactionSteps = values;
     }
 
+    console.log("valuesForTransactionSteps: " + JSON.stringify(valuesForTransactionSteps, null, 4));
     const lightrailSteps = valuesForTransactionSteps
         .map((v): LightrailTransactionPlanStep => ({
             rail: "lightrail",
             value: v,
             amount: 0,
-            uses: null
+            uses: null,
+            action: "UPDATE_VALUE"
         }));
 
     const internalSteps = options.parties
@@ -229,7 +232,7 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 export function filterForUsedAttaches(resolvedSteps, transactionPlan: TransactionPlan) {
     const attachTransactionsToPersist: TransactionPlan[] = [];
     for (const attachTx of resolvedSteps.attachTransactions) {
-        const newAttachedValue: LightrailTransactionPlanStep = attachTx.steps.find(s => (s as LightrailTransactionPlanStep).createValue) as LightrailTransactionPlanStep;
+        const newAttachedValue: LightrailTransactionPlanStep = attachTx.steps.find(s => (s as LightrailTransactionPlanStep).action === "INSERT_VALUE") as LightrailTransactionPlanStep;
         if (transactionPlan.steps.find(s => s.rail === "lightrail" && s.value.id === newAttachedValue.value.id)) {
             // it was used
             attachTransactionsToPersist.push(attachTx)

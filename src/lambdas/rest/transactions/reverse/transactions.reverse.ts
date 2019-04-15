@@ -106,7 +106,8 @@ function getReverseForLightrailTransactionStep(auth: giftbitRoutes.jwtauth.Autho
         rail: "lightrail",
         value: value,
         amount: step.balanceChange != null ? -step.balanceChange : null,
-        uses: step.usesRemainingChange != null ? -step.usesRemainingChange : null
+        uses: step.usesRemainingChange != null ? -step.usesRemainingChange : null,
+        action: "UPDATE_VALUE"
     };
 }
 

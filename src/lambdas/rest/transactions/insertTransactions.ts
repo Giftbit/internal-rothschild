@@ -46,14 +46,23 @@ export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtaut
     for (let stepIx = 0; stepIx < steps.length; stepIx++) {
         const step = steps[stepIx];
 
-        if (step.createValue) {
-            await insertValue(auth, trx, step.value);
-        } else if (step.value.balance != null || step.value.usesRemaining != null) {
-            await updateLightrailValueForStep(auth, trx, step, plan);
+        console.log("processing " + JSON.stringify(step, null, 4));
+        switch (step.action) {
+            case "INSERT_VALUE":
+                await insertValue(auth, trx, step.value);
+                break;
+            case "UPDATE_VALUE":
+                await updateLightrailValueForStep(auth, trx, step, plan);
+                break;
+            default:
+                throw new Error(`Unexpected step value action ${step.action}. This should not happen`);
         }
+        console.log("done value action")
 
         await trx.into("LightrailTransactionSteps")
             .insert(LightrailTransactionPlanStep.toLightrailDbTransactionStep(step, plan, auth, stepIx));
+
+        console.log("inserted step")
     }
     return plan;
 }

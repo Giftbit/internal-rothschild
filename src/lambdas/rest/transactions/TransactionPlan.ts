@@ -48,7 +48,7 @@ export interface LightrailTransactionPlanStep {
     value: Value;
     amount: number;
     uses: number | null;
-    createValue?: boolean;
+    action: "UPDATE_VALUE" | "INSERT_VALUE";
 }
 
 export interface StripeChargeTransactionPlanStep {
@@ -152,7 +152,7 @@ export namespace LightrailTransactionPlanStep {
             code: step.value.code,
         };
 
-        if (step.createValue) {
+        if (step.action === "INSERT_VALUE") {
             return {
                 ...sharedProperties,
                 balanceBefore: step.amount != null ? 0 : null,

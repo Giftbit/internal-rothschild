@@ -41,13 +41,14 @@ export namespace GenericCodePerContact {
                 {
                     // generic code
                     rail: "lightrail",
+                    action: "UPDATE_VALUE",
                     value: genericValue,
                     amount: genericValue.balance !== null ? -amount : null,
                     uses: genericValue.usesRemaining !== null ? -uses : null
                 } as LightrailTransactionPlanStep,
                 {
                     rail: "lightrail",
-                    createValue: true,
+                    action: "INSERT_VALUE",
                     value: {
                         ...genericValue,
                         id: newAttachedValueId,
