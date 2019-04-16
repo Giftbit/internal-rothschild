@@ -307,7 +307,6 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
                 autoAttachGenericCodesWithPerContactProperties: true
             });
 
-            console.log("resolved steps: " + JSON.stringify(resolvedSteps, null, 4));
             const transactionPlan: TransactionPlan = optimizeCheckout(checkout, resolvedSteps.transactionSteps);
 
             // Only persist attach transactions that were used. Is this a checkout piece of logic?

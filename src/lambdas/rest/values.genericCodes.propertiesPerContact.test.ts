@@ -558,7 +558,6 @@ describe("/v2/values - generic code with per contact properties", () => {
                 allowRemainder: true
             };
             const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-            console.log("BLAH BLAH BLAH!");
             console.log(JSON.stringify(checkout, null, 4));
             chai.assert.equal(checkout.statusCode, 201);
             chai.assert.deepEqual(checkout.body.steps,

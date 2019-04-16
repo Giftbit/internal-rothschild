@@ -6,6 +6,7 @@ import {LightrailTransactionPlanStep, TransactionPlan} from "./transactions/Tran
 import {executeTransactionPlanner} from "./transactions/executeTransactionPlans";
 import {getValue} from "./values";
 import {LightrailTransactionStep, Transaction} from "../../model/Transaction";
+import {ValueCreationService} from "./valueCreationService";
 
 export namespace GenericCodePerContact {
     export async function attach(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<Value> {
@@ -33,6 +34,28 @@ export namespace GenericCodePerContact {
         const amount = genericValue.genericCodeProperties.valuePropertiesPerContact.balance;
         const uses = genericValue.genericCodeProperties.valuePropertiesPerContact.usesRemaining;
 
+        const newValue = ValueCreationService.initializeValue(auth, {
+            ...genericValue,
+            id: newAttachedValueId,
+            code: null,
+            isGenericCode: false,
+            contactId: contactId,
+            balance: amount != null ? amount : null,
+            usesRemaining: uses != null ? uses : null,
+            genericCodeProperties: null,
+            metadata: {
+                ...genericValue.metadata,
+                attachedFromGenericValue: {
+                    code: genericValue.code
+                }
+            },
+            attachedFromGenericValueId: genericValue.id,
+            createdDate: now,
+            updatedDate: now,
+            updatedContactIdDate: now,
+            createdBy: auth.teamMemberId,
+        });
+
         return {
             id: newAttachedValueId,
             transactionType: "attach",
@@ -49,27 +72,7 @@ export namespace GenericCodePerContact {
                 {
                     rail: "lightrail",
                     action: "INSERT_VALUE",
-                    value: {
-                        ...genericValue,
-                        id: newAttachedValueId,
-                        code: null,
-                        isGenericCode: false,
-                        contactId: contactId,
-                        balance: amount != null ? amount : null,
-                        usesRemaining: uses != null ? uses : null,
-                        genericCodeProperties: null,
-                        metadata: {
-                            ...genericValue.metadata,
-                            attachedFromGenericValue: {
-                                code: genericValue.code
-                            }
-                        },
-                        attachedFromGenericValueId: genericValue.id,
-                        createdDate: now,
-                        updatedDate: now,
-                        updatedContactIdDate: now,
-                        createdBy: auth.teamMemberId,
-                    },
+                    value: newValue,
                     amount: amount,
                     uses: uses,
                 } as LightrailTransactionPlanStep

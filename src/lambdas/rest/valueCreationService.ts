@@ -3,7 +3,6 @@ import {GiftbitRestError} from "giftbit-cassava-routes";
 import * as Knex from "knex";
 import {DbValue, Value} from "../../model/Value";
 import {dateInDbPrecision, getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
-import {insertValue} from "./insertValue";
 import {DbTransaction, LightrailDbTransactionStep} from "../../model/Transaction";
 import * as cassava from "cassava";
 import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
@@ -21,9 +20,6 @@ export namespace ValueCreationService {
         auth.requireIds("userId", "teamMemberId");
         let value: Value = initializeValue(auth, params.partialValue, params.program, params.generateCodeParameters);
         log.info(`Create Value requested for user: ${auth.userId}. Value`, Value.toStringSanitized(value));
-
-        log.info(`Checking properties for ${value.id}.`);
-        checkValueProperties(value, params.program);
 
         value.startDate = value.startDate ? dateInDbPrecision(new Date(value.startDate)) : null;
         value.endDate = value.endDate ? dateInDbPrecision(new Date(value.endDate)) : null;
@@ -103,7 +99,7 @@ export namespace ValueCreationService {
         return DbValue.toValue(dbValue, params.showCode);
     }
 
-    function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partialValue: Partial<Value>, program: Program = null, generateCodeParameters: GenerateCodeParameters = null): Value {
+    export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partialValue: Partial<Value>, program: Program = null, generateCodeParameters: GenerateCodeParameters = null): Value {
         const now = nowInDbPrecision();
 
         let value: Value = pickOrDefault(partialValue, {
@@ -144,6 +140,8 @@ export namespace ValueCreationService {
         if (value.code && value.isGenericCode == null) {
             value.isGenericCode = false;
         }
+
+        checkValueProperties(value, program);
         return value;
     }
 
@@ -200,10 +198,43 @@ export namespace ValueCreationService {
         }
     }
 
-
     export function checkCodeParameters(generateCode: GenerateCodeParameters, code: string, isGenericCode: boolean): void {
         if (generateCode && (code || isGenericCode)) {
             throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Parameter generateCode is not allowed with parameters code or isGenericCode:true.`);
         }
+    }
+
+    export async function insertValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, value: Value): Promise<DbValue> {
+        if (value.balance < 0) {
+            throw new Error("balance cannot be negative");
+        }
+        if (value.usesRemaining < 0) {
+            throw new Error("usesRemaining cannot be negative");
+        }
+
+        const dbValue: DbValue = await Value.toDbValue(auth, value);
+        try {
+            await trx("Values")
+                .insert(dbValue);
+
+        } catch (err) {
+            log.debug(err);
+            const constraint = getSqlErrorConstraintName(err);
+            if (constraint === "PRIMARY") {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with id '${value.id}' already exists.`, "ValueIdExists");
+            }
+            if (constraint === "uq_Values_codeHashed") {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with the given code already exists.`, "ValueCodeExists");
+            }
+            if (constraint === "fk_Values_Currencies") {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${value.currency}' does not exist. See the documentation on creating currencies.`, "CurrencyNotFound");
+            }
+            if (constraint === "fk_Values_Contacts") {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Contact '${value.contactId}' does not exist.`, "ContactNotFound");
+            }
+            throw err;
+        }
+
+        return dbValue;
     }
 }

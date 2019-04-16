@@ -8,9 +8,9 @@ import {
 import {TransactionPlanError} from "./TransactionPlanError";
 import {DbValue} from "../../../model/Value";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
-import {insertValue} from "../insertValue";
 import {executeStripeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
 import {LightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/StripeConfig";
+import {ValueCreationService} from "../valueCreationService";
 import Knex = require("knex");
 
 export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<Transaction> {
@@ -46,10 +46,9 @@ export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtaut
     for (let stepIx = 0; stepIx < steps.length; stepIx++) {
         const step = steps[stepIx];
 
-        console.log("processing " + JSON.stringify(step, null, 4));
         switch (step.action) {
             case "INSERT_VALUE":
-                await insertValue(auth, trx, step.value);
+                await ValueCreationService.insertValue(auth, trx, step.value);
                 break;
             case "UPDATE_VALUE":
                 await updateLightrailValueForStep(auth, trx, step, plan);
@@ -57,12 +56,9 @@ export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtaut
             default:
                 throw new Error(`Unexpected step value action ${step.action}. This should not happen`);
         }
-        console.log("done value action")
 
         await trx.into("LightrailTransactionSteps")
             .insert(LightrailTransactionPlanStep.toLightrailDbTransactionStep(step, plan, auth, stepIx));
-
-        console.log("inserted step")
     }
     return plan;
 }

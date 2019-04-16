@@ -89,7 +89,6 @@ export async function executeTransactionPlans(auth: giftbitRoutes.jwtauth.Author
                 plan = await insertLightrailTransactionSteps(auth, trx, plan);
                 plan = await insertInternalTransactionSteps(auth, trx, plan);
             } catch (err) {
-                console.log(err);
                 log.error(`Error occurred while processing transaction steps: ${err}`);
 
                 // this does the same thing as the loop below
@@ -136,7 +135,6 @@ export async function executeTransactionPlans(auth: giftbitRoutes.jwtauth.Author
                     throw new giftbitRoutes.GiftbitRestError(409, `A transaction step in transaction '${plan.id}' already exists. This should not be possible.`, "TransactionStepExists");
                 } else {
                     log.warn(err);
-                    console.log("err here: " + JSON.stringify(err));
                     giftbitRoutes.sentry.sendErrorNotification(err);
                     throw new giftbitRoutes.GiftbitRestError(500, `An error occurred while processing transaction '${plan.id}'.`);
                 }

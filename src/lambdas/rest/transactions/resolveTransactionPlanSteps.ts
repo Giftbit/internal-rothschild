@@ -87,7 +87,6 @@ export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.Au
             }
             for (const genericValue of valuesThatMustBeAttached) {
                 const transactionPlan = GenericCodePerContact.getTransactionPlan(auth, contactId, genericValue);
-                console.log("Did this happen??? " + JSON.stringify(transactionPlan));
                 resolvedTransactionSteps.attachTransactions.push(transactionPlan);
                 valuesForTransactionSteps.push((transactionPlan.steps.find(s => (s as LightrailTransactionPlanStep).action === "INSERT_VALUE") as LightrailTransactionPlanStep).value);
             }
@@ -96,7 +95,6 @@ export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.Au
         valuesForTransactionSteps = values;
     }
 
-    console.log("valuesForTransactionSteps: " + JSON.stringify(valuesForTransactionSteps, null, 4));
     const lightrailSteps = valuesForTransactionSteps
         .map((v): LightrailTransactionPlanStep => ({
             rail: "lightrail",
