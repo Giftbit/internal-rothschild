@@ -14,7 +14,7 @@ import {
     initializeLightrailStripeConfig
 } from "../../utils/stripeUtils/stripeAccess";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {StripeConfig} from "../../utils/stripeUtils/StripeConfig";
+import {StripeConfig, StripeModeConfig} from "../../utils/stripeUtils/StripeConfig";
 import log = require("loglevel");
 
 // Wrapping console.log instead of binding (default behaviour for loglevel)
@@ -145,22 +145,15 @@ async function logFlywaySchemaHistory(ctx: awslambda.Context): Promise<void> {
 
 async function setStripeWebhookEvents(event: awslambda.CloudFormationCustomResourceEvent): Promise<void> {
     log.info(`Preparing to set enabled Stripe webhook events: '${event.ResourceProperties.StripeWebhookEvents}'`);
-    try {
-        log.info(`Initializing assume token and Stripe config...`);
-        initializeAssumeCheckoutToken(
-            giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<giftbitRoutes.secureConfig.AssumeScopeToken>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH")
-        );
-        initializeLightrailStripeConfig(
-            giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE")
-        );
 
-        await getLightrailStripeModeConfig(false); // await setup here to make sure the promises set in initializeAssumeCheckoutToken() & initializeLightrailStripeConfig() resolve, otherwise this block won't throw an error but the config won't actually be available
-
-        log.info(`Assume token and Stripe config initialized.`);
-    } catch (err) {
-        log.error(`Error fetching Stripe credentials from secure config: enabled Stripe webhook events have not been updated. Secure config permissions may need to be set. \nError: ${JSON.stringify(err, null, 2)}`);
-        return; // don't fail deployment if the function can't get the Stripe credentials (stack should be deployable in a new environment where function role name isn't known and can't have had permissions set)
-    }
+    log.info(`Initializing assume token and Stripe config...`);
+    initializeAssumeCheckoutToken(
+        giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<giftbitRoutes.secureConfig.AssumeScopeToken>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH")
+    );
+    initializeLightrailStripeConfig(
+        giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE")
+    );
+    log.info(`Assume token and Stripe config initialized.`);
 
     // set of events that should be enabled is a variable passed in on the event (defined in sam.yaml)
     const webhookEventsToEnable = event.ResourceProperties.StripeWebhookEvents.split(",");
@@ -172,8 +165,16 @@ async function setStripeWebhookEvents(event: awslambda.CloudFormationCustomResou
 }
 
 async function configureStripeWebhook(webhookEvents: string[], url: string, testMode: boolean): Promise<void> {
+    let lightrailStripeModeConfig: StripeModeConfig;
+    try {
+        lightrailStripeModeConfig = await getLightrailStripeModeConfig(testMode);
+    } catch (err) {
+        log.error(`Error fetching Stripe credentials from secure config: enabled Stripe webhook events have not been updated. Secure config permissions may need to be set. \nError: ${JSON.stringify(err, null, 2)}`);
+        return; // don't fail deployment if the function can't get the Stripe credentials (stack should be deployable in a new environment where function role name isn't known and can't have had permissions set)
+    }
+
     log.info(`Fetching existing Stripe webhooks for testMode=${testMode}...`);
-    const lightrailStripe = require("stripe")((await getLightrailStripeModeConfig(testMode)).secretKey);
+    const lightrailStripe = require("stripe")(lightrailStripeModeConfig.secretKey);
     const webhooks = await lightrailStripe.webhookEndpoints.list();
     log.info(`Got existing webhooks: ${JSON.stringify(webhooks, null, 2)}`);
 
