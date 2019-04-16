@@ -6,12 +6,14 @@ import {
     TransactionPlan
 } from "./TransactionPlan";
 import {TransactionPlanError} from "./TransactionPlanError";
-import {DbValue} from "../../../model/Value";
+import {DbValue, Value} from "../../../model/Value";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {executeStripeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
 import {LightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/StripeConfig";
-import {ValueCreationService} from "../valueCreationService";
+import {getSqlErrorConstraintName} from "../../../utils/dbUtils";
+import * as cassava from "cassava";
 import Knex = require("knex");
+import log = require("loglevel");
 
 export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<Transaction> {
     try {
@@ -48,7 +50,7 @@ export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtaut
 
         switch (step.action) {
             case "INSERT_VALUE":
-                await ValueCreationService.insertValue(auth, trx, step.value);
+                await insertValue(auth, trx, step.value);
                 break;
             case "UPDATE_VALUE":
                 await updateLightrailValueForStep(auth, trx, step, plan);
@@ -61,6 +63,40 @@ export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtaut
             .insert(LightrailTransactionPlanStep.toLightrailDbTransactionStep(step, plan, auth, stepIx));
     }
     return plan;
+}
+
+export async function insertValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, value: Value): Promise<DbValue> {
+    if (value.balance < 0) {
+        throw new Error("balance cannot be negative");
+    }
+    if (value.usesRemaining < 0) {
+        throw new Error("usesRemaining cannot be negative");
+    }
+
+    const dbValue: DbValue = await Value.toDbValue(auth, value);
+    try {
+        await trx("Values")
+            .insert(dbValue);
+
+    } catch (err) {
+        log.debug(err);
+        const constraint = getSqlErrorConstraintName(err);
+        if (constraint === "PRIMARY") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with id '${value.id}' already exists.`, "ValueIdExists");
+        }
+        if (constraint === "uq_Values_codeHashed") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with the given code already exists.`, "ValueCodeExists");
+        }
+        if (constraint === "fk_Values_Currencies") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${value.currency}' does not exist. See the documentation on creating currencies.`, "CurrencyNotFound");
+        }
+        if (constraint === "fk_Values_Contacts") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Contact '${value.contactId}' does not exist.`, "ContactNotFound");
+        }
+        throw err;
+    }
+
+    return dbValue;
 }
 
 async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, step: LightrailTransactionPlanStep, plan: TransactionPlan): Promise<void> {
