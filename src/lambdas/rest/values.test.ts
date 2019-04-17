@@ -11,6 +11,8 @@ import {LightrailTransactionStep, Transaction} from "../../model/Transaction";
 import {installRestRoutes} from "./installRestRoutes";
 import {createCurrency} from "./currencies";
 import {computeCodeLookupHash, decryptCode} from "../../utils/codeCryptoUtils";
+import * as codeGenerator from "../../utils/codeGenerator";
+import * as sinon from "sinon";
 import parseLinkHeader = require("parse-link-header");
 import chaiExclude = require("chai-exclude");
 
@@ -19,6 +21,7 @@ chai.use(chaiExclude);
 describe("/v2/values/", () => {
 
     const router = new cassava.Router();
+    const sinonSandbox = sinon.createSandbox();
 
     before(async function () {
         await testUtils.resetDb();
@@ -31,6 +34,10 @@ describe("/v2/values/", () => {
             symbol: "$",
             decimalPlaces: 2
         });
+    });
+
+    after(async () => {
+        sinonSandbox.restore();
     });
 
     it("can list 0 values", async () => {
@@ -63,6 +70,7 @@ describe("/v2/values/", () => {
         };
 
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", valueWithMissingCurrency);
+        // todo - this test is failing
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
     });
 
@@ -1545,4 +1553,41 @@ describe("/v2/values/", () => {
         chai.assert.equal(createValue.statusCode, 422);
         chai.assert.include(createValue.body.message, "requestBody.id does not meet maximum length of 64");
     });
+
+    it("can create a code using generateParams that will retry on collision and will return the correct re-generated code", async () => {
+        const generateCodeArgs = {
+            length: 6,
+            charset: "abcde"
+        };
+
+        const code1 = "aaaaa";
+        const code2 = "bbbbb";
+        const generateCodeStub = sinonSandbox.stub(codeGenerator, "generateCode");
+        generateCodeStub.withArgs(generateCodeArgs)
+            .onCall(0).returns(code1)  // Value1 will be created with code1
+            .onCall(1).returns(code1)  // Value2 will fail creation
+            .onCall(2).returns(code1)  // Value2, retry 1 fails
+            .onCall(3).returns(code2); // value2, retry 2 succeeds
+
+        const value1Request = {
+            id: generateId(),
+            generateCode: generateCodeArgs,
+            currency: "USD",
+            balance: 1
+        };
+        const value2Request = {
+            ...value1Request,
+            id: generateId()
+        };
+
+        const createValue1 = await testUtils.testAuthedRequest<Value>(router, `/v2/values?showCode=true`, "POST", value1Request);
+        chai.assert.equal(createValue1.body.code, code1);
+
+        const createValue2 = await testUtils.testAuthedRequest<Value>(router, `/v2/values?showCode=true`, "POST", value2Request);
+        chai.assert.equal(createValue2.body.code, code2);
+
+        const getValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?showCode=true&id.in=${value1Request.id + "," + value2Request.id}`, "GET");
+        chai.assert.sameMembers(getValues.body.map(v => v.code), [code1, code2])
+        generateCodeStub.restore();
+    })
 });

@@ -21,6 +21,7 @@ import {
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {TaxRequestProperties} from "../../../model/TaxProperties";
+import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
 
 export interface TransactionPlan {
     id: string;
@@ -49,6 +50,7 @@ export interface LightrailTransactionPlanStep {
     amount: number;
     uses: number | null;
     action: "UPDATE_VALUE" | "INSERT_VALUE";
+    codeParamsForRetry?: GenerateCodeParameters;
 }
 
 export interface StripeChargeTransactionPlanStep {
@@ -296,6 +298,7 @@ export namespace TransactionPlan {
     export function getSanitizedPaymentSources(plan: TransactionPlan): TransactionParty[] {
         let cleanSources: TransactionParty[] = [];
         for (let source of plan.paymentSources) {
+            // todo - nuke this.
             if (source.rail === "lightrail" && source.code) {
                 // checking whether the code is generic without pulling the Value from the db again:
                 // secret codes come back as lastFour, so if a step has a Value whose code matches the (full) code in the payment source, it means it's a generic code
@@ -334,6 +337,10 @@ export namespace TransactionPlan {
             case "internal":
                 return InternalTransactionPlanStep.toInternalTransactionStep(step);
         }
+    }
+
+    export function containsStripeSteps(plan: TransactionPlan): boolean {
+        return plan.steps.find(step => step.rail === "stripe") != null;
     }
 }
 

@@ -5,10 +5,10 @@ import {defaultTestUser} from "../../../utils/testUtils";
 import {DbValue} from "../../../model/Value";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {TransactionPlan} from "./TransactionPlan";
-import {executeTransactionPlans} from "./executeTransactionPlans";
 import {DbCurrency} from "../../../model/Currency";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
+import {executeTransactionPlanWithRollback} from "./executeTransactionPlans";
 
 describe("rest/transactions/executeTransactionPlan", () => {
 
@@ -70,6 +70,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
         await knex("Currencies").insert(currency);
         await knex("Values").insert(value);
 
+        value.balance = 3500; // pretend there's enough value.
         const plan: TransactionPlan = {
             id: "xxx",
             transactionType: "debit",
@@ -93,12 +94,16 @@ describe("rest/transactions/executeTransactionPlan", () => {
 
         let err: TransactionPlanError;
         try {
-            await executeTransactionPlans(auth, [plan]);
+            const knex = await getKnexWrite();
+            await knex.transaction(async trx => {
+                await executeTransactionPlanWithRollback(auth, trx, plan, {allowRemainder: false, simulate: false});
+            });
         } catch (e) {
             err = e;
         }
 
         chai.assert.isDefined(err, "executeTransactionPlan threw an error");
+        // todo - this test is failing
         chai.assert.isTrue(err.isTransactionPlanError, "isTransactionPlanError");
         chai.assert.isTrue(err.isReplanable, "isReplanable");
 
@@ -148,6 +153,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
         const knex = await getKnexWrite();
         await knex("Values").insert(value);
 
+        value.usesRemaining = 1;
         const plan: TransactionPlan = {
             id: "xxx",
             transactionType: "debit",
@@ -171,12 +177,16 @@ describe("rest/transactions/executeTransactionPlan", () => {
 
         let err: TransactionPlanError;
         try {
-            await executeTransactionPlans(auth, [plan]);
+            const knex = await getKnexWrite();
+            await knex.transaction(async trx => {
+                await executeTransactionPlanWithRollback(auth, trx, plan, {allowRemainder: false, simulate: false});
+            });
         } catch (e) {
             err = e;
         }
 
         chai.assert.isDefined(err, "executeTransactionPlan threw an error");
+        // todo - this test is failing
         chai.assert.isTrue(err.isTransactionPlanError, "isTransactionPlanError");
         chai.assert.isTrue(err.isReplanable, "isReplanable");
 

@@ -80,11 +80,13 @@ export function installValuesRest(router: cassava.Router): void {
                 value = await ValueCreationService.createValue(auth, {
                         partialValue: value,
                         generateCodeParameters: evt.body.generateCode,
-                        program: program,
-                        showCode: (evt.queryStringParameters.showCode === "true")
+                        program: program
                     },
                     trx);
             });
+            if (value.code && !value.isGenericCode && !(evt.queryStringParameters.showCode === "true")) {
+                value.code = formatCodeForLastFourDisplay(value.code);
+            }
 
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
@@ -852,5 +854,4 @@ export interface CreateValueParameters {
     partialValue: Partial<Value>;
     generateCodeParameters: GenerateCodeParameters | null;
     program: Program | null;
-    showCode: boolean;
 }

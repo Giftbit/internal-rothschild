@@ -180,8 +180,7 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
                 await ValueCreationService.createValue(auth, {
                     partialValue: partialValue,
                     generateCodeParameters: codeParameters.generateCode,
-                    program: program,
-                    showCode: false
+                    program: program
                 }, trx);
             }
         });

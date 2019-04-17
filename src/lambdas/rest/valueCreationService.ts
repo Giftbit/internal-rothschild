@@ -1,9 +1,7 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {GiftbitRestError} from "giftbit-cassava-routes";
 import * as Knex from "knex";
-import {DbValue, Value} from "../../model/Value";
+import {Value} from "../../model/Value";
 import {dateInDbPrecision, getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
-import {DbTransaction, LightrailDbTransactionStep} from "../../model/Transaction";
 import * as cassava from "cassava";
 import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
 import {Program} from "../../model/Program";
@@ -12,7 +10,8 @@ import {pickOrDefault} from "../../utils/pick";
 import {generateCode} from "../../utils/codeGenerator";
 import {CreateValueParameters} from "./values";
 import {checkRulesSyntax} from "./transactions/rules/RuleContext";
-import {insertValue} from "./transactions/insertTransactions";
+import {TransactionPlan} from "./transactions/TransactionPlan";
+import {executeTransactionPlanWithRollback} from "./transactions/executeTransactionPlans";
 import log = require("loglevel");
 
 export namespace ValueCreationService {
@@ -25,79 +24,43 @@ export namespace ValueCreationService {
         value.startDate = value.startDate ? dateInDbPrecision(new Date(value.startDate)) : null;
         value.endDate = value.endDate ? dateInDbPrecision(new Date(value.endDate)) : null;
 
-        // todo - this awkwardly doesn't work as a TransactionPlan even though steps can support creating Values. This is complicated by issuances where the knex trx involves creating all Values.
-        let dbValue: DbValue;
+        const plan: TransactionPlan = {
+            id: value.id,
+            transactionType: "initialBalance",
+            currency: value.currency,
+            totals: null,
+            lineItems: null,
+            paymentSources: null,
+            steps: [{
+                rail: "lightrail",
+                value: value,
+                amount: value.balance,
+                uses: value.usesRemaining,
+                action: "INSERT_VALUE",
+                codeParamsForRetry: params.generateCodeParameters
+            }],
+            tax: null,
+            pendingVoidDate: null,
+            createdDate: value.createdDate,
+            metadata: null,
+        };
+
+
         try {
-            dbValue = await insertValue(auth, trx, value);
+            await executeTransactionPlanWithRollback(auth, trx, plan, {simulate: false, allowRemainder: false});
         } catch (err) {
-            /**
-             *  Retrying twice is an arbitrary number. This may need to be increased if we're still seeing regular failures.
-             *  Unless users are using their own character set there are around 1 billion possible codes.
-             *  It seems unlikely for 3+ retry failures even if users have millions of codes. */
-            if (err instanceof GiftbitRestError && err.additionalParams["messageCode"] === "ValueCodeExists" && params.generateCodeParameters && retryCount < 2) {
-                log.info(`Retrying creating the Value because there was a code uniqueness constraint failure for a generated code. Retry number: ${retryCount}. ValueId: ${params.partialValue.id}.`);
-                return createValue(auth, params, trx, retryCount + 1);
+            const constraint = getSqlErrorConstraintName(err);
+            if (constraint === "PRIMARY") {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Transaction with id '${value.id}' already exists.`, "TransactionExists");
             }
-            throw err
-        }
-        if (value.balance || value.usesRemaining) {
-            try {
-                const transactionId = value.id;
-                const initialBalanceTransaction: DbTransaction = {
-                    userId: auth.userId,
-                    id: transactionId,
-                    transactionType: "initialBalance",
-                    currency: value.currency,
-                    totals_subtotal: null,
-                    totals_tax: null,
-                    totals_discountLightrail: null,
-                    totals_paidLightrail: null,
-                    totals_paidStripe: null,
-                    totals_paidInternal: null,
-                    totals_remainder: null,
-                    totals_marketplace_sellerGross: null,
-                    totals_marketplace_sellerDiscount: null,
-                    totals_marketplace_sellerNet: null,
-                    lineItems: null,
-                    paymentSources: null,
-                    pendingVoidDate: null,
-                    metadata: null,
-                    rootTransactionId: transactionId,
-                    nextTransactionId: null,
-                    createdDate: value.createdDate,
-                    tax: null,
-                    createdBy: auth.teamMemberId,
-                };
-                const initialBalanceTransactionStep: LightrailDbTransactionStep = {
-                    userId: auth.userId,
-                    id: `${value.id}-0`,
-                    transactionId: transactionId,
-                    valueId: value.id,
-                    balanceBefore: value.balance != null ? 0 : null,
-                    balanceAfter: value.balance,
-                    balanceChange: value.balance,
-                    usesRemainingBefore: value.usesRemaining != null ? 0 : null,
-                    usesRemainingAfter: value.usesRemaining,
-                    usesRemainingChange: value.usesRemaining
-                };
-                await trx.into("Transactions").insert(initialBalanceTransaction);
-                await trx.into("LightrailTransactionSteps").insert(initialBalanceTransactionStep);
-            } catch
-                (err) {
-                log.debug(err);
-                const constraint = getSqlErrorConstraintName(err);
-                if (constraint === "PRIMARY") {
-                    throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Transaction with id '${value.id}' already exists.`, "TransactionExists");
-                }
-                throw err;
-            }
+            throw err;
         }
 
         if (value.contactId) {
             MetricsLogger.valueAttachment(ValueAttachmentTypes.OnCreate, auth);
         }
 
-        return DbValue.toValue(dbValue, params.showCode);
+        return value;
     }
 
     export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partialValue: Partial<Value>, program: Program = null, generateCodeParameters: GenerateCodeParameters = null): Value {
@@ -113,7 +76,7 @@ export namespace ValueCreationService {
             code: null,
             isGenericCode: false,
             genericCodeProperties: partialValue.genericCodeProperties ? partialValue.genericCodeProperties : undefined,
-            attachedFromGenericValueId: null,
+            attachedFromGenericValueId: undefined,
             contactId: null,
             pretax: program ? program.pretax : false,
             active: program ? program.active : true,
