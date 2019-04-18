@@ -1,9 +1,10 @@
 import * as testUtils from "../../../utils/testUtils";
+import {createUSDValue, generateId, testAuthedRequest} from "../../../utils/testUtils";
 import * as chai from "chai";
 import * as cassava from "cassava";
 import {installRestRoutes} from "../installRestRoutes";
 import {createCurrency} from "../currencies";
-import {TransactionForReports} from "../../../model/Transaction";
+import {Transaction, TransactionForReports} from "../../../model/Transaction";
 
 describe("transactions reports", () => {
     const router = new cassava.Router();
@@ -23,12 +24,34 @@ describe("transactions reports", () => {
         await testUtils.createUSDCheckout(router, null, false);
         await testUtils.createUSDCheckout(router, null, false);
         await testUtils.createUSDCheckout(router, null, false);
+
+        const value = await createUSDValue(router, {balance: 1000});
+        const creditResp = await testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", {
+            id: generateId(),
+            currency: "USD",
+            amount: 500,
+            destination: {
+                rail: "lightrail",
+                valueId: value.id
+            }
+        });
+        chai.assert.equal(creditResp.statusCode, 201, `creditResp.body=${JSON.stringify(creditResp.body)}`);
+        const debitResp = await testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
+            id: generateId(),
+            currency: "USD",
+            amount: 550,
+            source: {
+                rail: "lightrail",
+                valueId: value.id
+            }
+        });
+        chai.assert.equal(debitResp.statusCode, 201, `debitResp.body=${JSON.stringify(debitResp.body)}`);
     });
 
     it("can download a csv of Transactions", async () => {
         const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/transactions/reports", "GET");
         chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-        chai.assert.equal(resp.body.length, 6, `transactions in resp.body=${resp.body.map(txn => txn.transactionType)}`);
+        chai.assert.equal(resp.body.length, 9, `transactions in resp.body=${resp.body.map(txn => txn.transactionType)}`);
 
         const checkouts = resp.body.filter(txn => txn.transactionType === "checkout");
         chai.assert.equal(checkouts.length, 3, `checkout transactions: ${JSON.stringify(checkouts)}`);
@@ -56,7 +79,7 @@ describe("transactions reports", () => {
         }
 
         const initialBalances = resp.body.filter(txn => txn.transactionType === "initialBalance");
-        chai.assert.equal(initialBalances.length, 3, `initial balance transactions: ${JSON.stringify(initialBalances)}`);
+        chai.assert.equal(initialBalances.length, 4, `initial balance transactions: ${JSON.stringify(initialBalances)}`);
         for (const [index, txn] of initialBalances.entries()) {
             chai.assert.deepEqualExcluding(txn, {
                 id: "",
@@ -83,7 +106,113 @@ describe("transactions reports", () => {
 
     it("can download a csv of Transactions - filtered by programId");
 
-    it("can download a csv of Transactions - filtered by transactionType");
+    describe("filtering by transactionType", () => {
+        it("can download a csv of checkout Transactions", async () => {
+            const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/transactions/reports?transactionType=checkout", "GET");
+            chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
+            chai.assert.equal(resp.body.length, 3, `transactions in resp.body=${resp.body.map(txn => txn.transactionType)}`);
+            for (const [index, txn] of resp.body.entries()) {
+                chai.assert.deepEqualExcluding(txn, {
+                    id: "",
+                    createdDate: null,
+                    transactionType: "checkout",
+                    transactionAmount: -1000,
+                    subtotal: 1000,
+                    tax: 0,
+                    discountLightrail: 0,
+                    paidLightrail: 1000,
+                    paidStripe: 0,
+                    paidInternal: 0,
+                    remainder: 0,
+                    stepsCount: 1,
+                    sellerNet: null,
+                    sellerGross: null,
+                    sellerDiscount: null,
+                    balanceRule: null,
+                    redemptionRule: null,
+                    metadata: null
+                }, ["id", "createdDate", "metadata"], `checkout transaction ${index} of ${resp.body.length}: ${JSON.stringify(txn)}`);
+            }
+        });
+
+        it("can download a csv of initialBalance Transactions", async () => {
+            const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/transactions/reports?transactionType=initialBalance", "GET");
+            chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
+            chai.assert.equal(resp.body.length, 4, `transactions in resp.body=${resp.body.map(txn => txn.transactionType)}`);
+            for (const [index, txn] of resp.body.entries()) {
+                chai.assert.deepEqualExcluding(txn, {
+                    id: "",
+                    createdDate: null,
+                    transactionType: "initialBalance",
+                    transactionAmount: 1000,
+                    subtotal: null,
+                    tax: null,
+                    discountLightrail: null,
+                    paidLightrail: null,
+                    paidStripe: null,
+                    paidInternal: null,
+                    remainder: null,
+                    stepsCount: 1,
+                    sellerNet: null,
+                    sellerGross: null,
+                    sellerDiscount: null,
+                    balanceRule: null,
+                    redemptionRule: null,
+                    metadata: null
+                }, ["id", "createdDate", "metadata"], `initialBalance transaction ${index} of ${resp.body.length}: ${JSON.stringify(txn)}`);
+            }
+        });
+
+        it("can download a csv of credit and debit Transactions (two types)", async () => {
+            const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/transactions/reports?transactionType.in=credit,debit", "GET");
+            chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
+            chai.assert.equal(resp.body.length, 2, `transactions in resp.body=${resp.body.map(txn => txn.transactionType)}`);
+
+            const credit = resp.body.find(txn => txn.transactionType === "credit");
+            chai.assert.deepEqualExcluding(credit, {
+                id: "",
+                createdDate: null,
+                transactionType: "credit",
+                transactionAmount: 500,
+                subtotal: null,
+                tax: null,
+                discountLightrail: null,
+                paidLightrail: null,
+                paidStripe: null,
+                paidInternal: null,
+                remainder: null,
+                stepsCount: 1,
+                sellerNet: null,
+                sellerGross: null,
+                sellerDiscount: null,
+                balanceRule: null,
+                redemptionRule: null,
+                metadata: null
+            }, ["id", "createdDate", "metadata"], `credit transaction: ${JSON.stringify(credit)}`);
+
+            const debit = resp.body.find(txn => txn.transactionType === "debit");
+            chai.assert.deepEqualExcluding(debit, {
+                id: "",
+                createdDate: null,
+                transactionType: "debit",
+                transactionAmount: -550,
+                subtotal: null,
+                tax: null,
+                discountLightrail: null,
+                paidLightrail: null,
+                paidStripe: null,
+                paidInternal: null,
+                remainder: 0,
+                stepsCount: 1,
+                sellerNet: null,
+                sellerGross: null,
+                sellerDiscount: null,
+                balanceRule: null,
+                redemptionRule: null,
+                metadata: null
+            }, ["id", "createdDate", "metadata"], `debit transaction: ${JSON.stringify(debit)}`);
+        });
+    });
 
     describe("date range limits", () => {
         it("defaults to most recent month");
