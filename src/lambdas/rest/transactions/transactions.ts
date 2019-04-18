@@ -35,6 +35,7 @@ import {createVoidTransactionPlan} from "./transactions.void";
 import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {Value} from "../../../model/Value";
 import {getAttachTransactionPlanForGenericCodeWithPerContactOptions} from "../genericCodeWithPerContactOptions";
+import {csvSerializer} from "../../../serializers";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -46,6 +47,22 @@ export function installTransactionsRest(router: cassava.Router): void {
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:transactions:list");
             const res = await getTransactions(auth, evt.queryStringParameters, getPaginationParams(evt));
+            return {
+                headers: Pagination.toHeaders(evt, res.pagination),
+                body: res.transactions
+            };
+        });
+
+    router.route("/v2/transactions/reports")
+        .method("GET")
+        .serializers({"text/csv": csvSerializer})
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:transactions:list");
+
+            const res = await getTransactionsForReport(auth, evt.queryStringParameters, getPaginationParams(evt));
+
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.transactions
@@ -251,6 +268,32 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
     };
 }
 
+async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams) {
+    auth.requireIds("userId");
+
+    const knex = await getKnexRead();
+    let query = knex("Transactions")
+        .select("Transactions.*")
+        .where("Transactions.userId", "=", auth.userId);
+
+    const res = await filterAndPaginateQuery<DbTransaction>(query, filterParams, {
+        properties: {
+            "transactionType": {
+                type: "string",
+                operators: ["eq", "in"]
+            },
+            "createdDate": {
+                type: "Date",
+                operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
+            },
+        }
+    }, pagination);
+    return {
+        transactions: await DbTransaction.formatForReports(res.body, auth),
+        pagination: res.pagination
+    };
+}
+
 export async function getDbTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<DbTransaction> {
     auth.requireIds("userId");
 
@@ -322,7 +365,7 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
             const valuesForCheckout: Value[] = fetchedValues.filter(v => valuesToAttach.indexOf(v) === -1);
             const attachTransactionPlans: TransactionPlan[] = [];
             if (valuesToAttach.length > 0) {
-                attachTransactionPlans.push(... await getAutoAttachTransactionPlans(auth, valuesToAttach, valuesForCheckout, checkout.sources));
+                attachTransactionPlans.push(...await getAutoAttachTransactionPlans(auth, valuesToAttach, valuesForCheckout, checkout.sources));
                 for (const plan of attachTransactionPlans) {
                     valuesForCheckout.push((plan.steps.find(s => (s as LightrailTransactionPlanStep).action === "insert") as LightrailTransactionPlanStep).value);
                 }

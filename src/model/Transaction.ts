@@ -5,6 +5,7 @@ import {LineItem} from "./LineItem";
 import {TransactionParty} from "./TransactionRequest";
 import {LightrailDbTransactionStep, TransactionType} from "./Transaction";
 import {TaxRequestProperties} from "./TaxProperties";
+import {getValue} from "../lambdas/rest/values/values";
 
 export interface Transaction {
     id: string;
@@ -47,6 +48,27 @@ export interface DbTransaction {
     nextTransactionId: string | null;
     tax: string | null;
     pendingVoidDate: Date | null;
+}
+
+export interface TransactionForReports {
+    id: string;
+    createdDate: Date;
+    transactionType: string;
+    subtotal: number | null;
+    tax: number | null;
+    discountLightrail: number | null;
+    paidLightrail: number | null;
+    paidStripe: number | null;
+    paidInternal: number | null;
+    remainder: number | null;
+    transactionAmount: number;
+    stepsCount: number;
+    balanceRule: string | null;
+    redemptionRule: string | null;
+    sellerNet: number | null;
+    sellerGross: number | null;
+    sellerDiscount: number | null;
+    metadata: string | null;
 }
 
 export namespace Transaction {
@@ -138,6 +160,89 @@ export namespace DbTransaction {
             }
             return t;
         });
+    }
+
+    export async function formatForReports(txns: DbTransaction[], auth: giftbitRoutes.jwtauth.AuthorizationBadge): Promise<TransactionForReports[]> {
+        const knex = await getKnexRead();
+        let txIds: string[] = txns.map(tx => tx.id);
+        let dbSteps: any[] = await knex("LightrailTransactionSteps")
+            .where("userId", auth.userId)
+            .whereIn("transactionId", txIds);
+        dbSteps = dbSteps.concat(await knex("StripeTransactionSteps")
+            .where("userId", auth.userId)
+            .whereIn("transactionId", txIds));
+        dbSteps = dbSteps.concat(await knex("InternalTransactionSteps")
+            .where("userId", auth.userId)
+            .whereIn("transactionId", txIds));
+
+        const reportsTxns: TransactionForReports[] = await Promise.all(txns.map(async dbT => {
+            const steps = dbSteps.filter(step => step.transactionId === dbT.id);
+            let t: TransactionForReports = {
+                id: dbT.id,
+                createdDate: dbT.createdDate,
+                transactionType: dbT.transactionType,
+                transactionAmount: addStepAmounts(steps),
+                subtotal: null,
+                tax: null,
+                discountLightrail: null,
+                paidLightrail: null,
+                paidStripe: null,
+                paidInternal: null,
+                remainder: null,
+                sellerNet: null,
+                sellerGross: null,
+                sellerDiscount: null,
+                stepsCount: steps.length,
+                balanceRule: null,
+                redemptionRule: null,
+                metadata: dbT.metadata && dbT.metadata.replace(",", ";"), // don't create column breaks
+            };
+
+            if (hasNonNullTotals(dbT)) {
+                t.subtotal = dbT.totals_subtotal !== null ? dbT.totals_subtotal : undefined;
+                t.tax = dbT.totals_tax !== null ? dbT.totals_tax : undefined;
+                t.discountLightrail = dbT.totals_discountLightrail !== null ? dbT.totals_discountLightrail : undefined;
+                t.paidLightrail = dbT.totals_paidLightrail !== null ? dbT.totals_paidLightrail : undefined;
+                t.paidStripe = dbT.totals_paidStripe !== null ? dbT.totals_paidStripe : undefined;
+                t.paidInternal = dbT.totals_paidInternal !== null ? dbT.totals_paidInternal : undefined;
+                t.remainder = dbT.totals_remainder !== null ? dbT.totals_remainder : undefined;
+            }
+
+            if (dbT.totals_marketplace_sellerNet !== null) {
+                t.sellerGross = dbT.totals_marketplace_sellerGross;
+                t.sellerDiscount = dbT.totals_marketplace_sellerDiscount;
+                t.sellerNet = dbT.totals_marketplace_sellerNet;
+            }
+
+            if (dbT.transactionType === "initialBalance") {
+                const value = await getValue(auth, steps[0].valueId);
+                t.balanceRule = value.balanceRule && value.balanceRule.toString().replace(",", ";"); // don't create column breaks
+                t.redemptionRule = value.redemptionRule && value.redemptionRule.toString().replace(",", ";"); // don't create column breaks
+            }
+
+            return t;
+        }));
+
+        return reportsTxns;
+    }
+}
+
+function addStepAmounts(steps: DbTransactionStep[]): number {
+    const amounts = steps.map(step => getStepAmount(step));
+    return amounts.reduce((acc, amount) => {
+        return acc + amount;
+    }, 0);
+}
+
+function getStepAmount(step: LightrailDbTransactionStep | StripeDbTransactionStep | InternalDbTransactionStep): number {
+    if ((step as LightrailDbTransactionStep).balanceChange !== null) {
+        return (step as LightrailDbTransactionStep).balanceChange;
+    } else if ((step as StripeDbTransactionStep).amount) {
+        return (step as StripeDbTransactionStep).amount;
+    } else if ((step as InternalDbTransactionStep).balanceChange !== null) {
+        return (step as InternalDbTransactionStep).balanceChange;
+    } else {
+        return 0;
     }
 }
 
