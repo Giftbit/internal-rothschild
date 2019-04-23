@@ -12,7 +12,7 @@ import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe.only("/v2/transactions", () => {
+describe("/v2/transactions", () => {
     const router = new cassava.Router();
 
     before(async function () {

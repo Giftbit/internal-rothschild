@@ -37,7 +37,10 @@ export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.A
         }
         return transaction;
     } catch (err) {
-        if (err.code === "ER_DUP_ENTRY") {
+        const constraint = getSqlErrorConstraintName(err);
+        if (constraint === "fk_Transaction_Currencies") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${plan.currency}' does not exist. See the documentation on creating currencies.`, "CurrencyNotFound");
+        } else if (err.code === "ER_DUP_ENTRY") {
             throw new giftbitRoutes.GiftbitRestError(409, `A Lightrail transaction with transactionId '${plan.id}' already exists.`, "TransactionExists");
         } else {
             throw err;
@@ -86,12 +89,16 @@ export async function insertValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         if (constraint === "PRIMARY") {
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with id '${value.id}' already exists.`, "ValueIdExists");
         }
-        if (constraint === "uq_Values_codeHashed" && codeParamsForRetry != null && retryCount < 2) {
-            /*  Retrying twice is an arbitrary number. This may need to be increased if we're still seeing regular failures.
-             *  Unless users are using their own character set there are around 1 billion possible codes.
-             *  It seems unlikely for 3+ retry failures even if users have millions of codes. */
-            value.code = generateCode(codeParamsForRetry);
-            return insertValue(auth, trx, value, codeParamsForRetry, retryCount + 1);
+        if (constraint === "uq_Values_codeHashed") {
+            if (codeParamsForRetry != null && retryCount < 2) {
+                /*  Retrying twice is an arbitrary number. This may need to be increased if we're still seeing regular failures.
+                 *  Unless users are using their own character set there are around 1 billion possible codes.
+                 *  It seems unlikely for 3+ retry failures even if users have millions of codes. */
+                value.code = generateCode(codeParamsForRetry);
+                return insertValue(auth, trx, value, codeParamsForRetry, retryCount + 1);
+            } else {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with the given code already exists.`, "ValueCodeExists");
+            }
         }
         if (constraint === "fk_Values_Currencies") {
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${value.currency}' does not exist. See the documentation on creating currencies.`, "CurrencyNotFound");

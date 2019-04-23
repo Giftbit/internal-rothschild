@@ -1,7 +1,7 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as Knex from "knex";
 import {Value} from "../../model/Value";
-import {dateInDbPrecision, getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
+import {dateInDbPrecision, nowInDbPrecision} from "../../utils/dbUtils";
 import * as cassava from "cassava";
 import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
 import {Program} from "../../model/Program";
@@ -49,9 +49,10 @@ export namespace ValueCreationService {
         try {
             await executeTransactionPlanWithRollback(auth, trx, plan, {simulate: false, allowRemainder: false});
         } catch (err) {
-            const constraint = getSqlErrorConstraintName(err);
-            if (constraint === "PRIMARY") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Transaction with id '${value.id}' already exists.`, "TransactionExists");
+            console.log(err);
+            console.log(JSON.stringify(err, null, 4));
+            if (err["additionalParams"]["messageCode"] === "TransactionExists") {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with id '${value.id}' already exists.`, "ValueIdExists");
             }
             throw err;
         }

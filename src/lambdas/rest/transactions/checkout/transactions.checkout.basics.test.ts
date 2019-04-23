@@ -144,7 +144,7 @@ describe("/v2/transactions/checkout - basics", () => {
                 "lineItems": "[{\"type\":\"product\",\"productId\":\"happiness-😃\",\"unitPrice\":50,\"quantity\":1,\"lineTotal\":{\"subtotal\":50,\"taxable\":50,\"tax\":0,\"discount\":0,\"remainder\":0,\"payable\":50}}]",
                 "paymentSources": "[{\"rail\":\"lightrail\",\"valueId\":\"basic-checkout-vs\"}]",
                 "pendingVoidDate": null,
-                "metadata": "null",
+                "metadata": null,
                 "tax": "{\"roundingMode\":\"HALF_EVEN\"}",
                 "createdBy": "default-test-user-TEST",
                 "totals_subtotal": 50,

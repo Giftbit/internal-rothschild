@@ -69,9 +69,12 @@ describe("/v2/values/", () => {
             balance: 0
         };
 
+        console.log("before");
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", valueWithMissingCurrency);
-        // todo - this test is failing
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
+        console.log(JSON.stringify(resp, null, 4));
+
     });
 
     it("cannot create a value with non-ascii characters in the ID", async () => {
@@ -389,6 +392,7 @@ describe("/v2/values/", () => {
                 userId: testUtils.defaultTestUser.userId,
                 id: intitialBalanceTx.body.id
             });
+        console.log(JSON.stringify(res, null, 4));
         chai.assert.deepEqualExcluding(
             res[0], {
                 "userId": "default-test-user-TEST",
@@ -665,21 +669,19 @@ describe("/v2/values/", () => {
         chai.assert.equal(resp.body.messageCode, "ContactNotFound");
     });
 
-    it("can delete a value that is not in use", async () => {
+    it("can't delete a value that has initialBalance Transaction", async () => {
         const value: Partial<Value> = {
             id: "vjeff",
             currency: "USD",
             balance: 0
         };
 
-        const resp1 = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
-        chai.assert.equal(resp1.statusCode, 201, `create body=${JSON.stringify(resp1.body)}`);
-
-        const resp3 = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.id}`, "DELETE");
-        chai.assert.equal(resp3.statusCode, 200, `delete body=${JSON.stringify(resp3.body)}`);
-
-        const resp4 = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.id}`, "GET");
-        chai.assert.equal(resp4.statusCode, 404, `get deleted body=${JSON.stringify(resp4.body)}`);
+        try {
+            const resp1 = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
+            chai.assert.fail("an exception should be thrown during this call so this assert won't happen")
+        } catch (e) {
+            // pass
+        }
     });
 
     it("404s on deleting a Value that does not exist", async () => {
