@@ -77,5 +77,5 @@ describe("/v2/stripeEventWebhook - Stripe Dispute events", () => {
         chai.assert.equal(webhookResp.statusCode, 204);
 
         sinon.assert.calledWith(spy, sinon.match(getDisputeLogMatcher()));
-    });
+    }).timeout(8000);
 });

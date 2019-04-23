@@ -362,6 +362,30 @@ export async function createVoid(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
     );
 }
 
+export function isReversible(transaction: Transaction, transactionChain: Transaction[]): boolean {
+    return transaction.transactionType !== "reverse" &&
+        !transaction.pending &&
+        transaction.transactionType !== "void" &&
+        transaction.transactionType !== "capture" &&
+        !isReversed(transaction, transactionChain);
+}
+
+export function isReversed(transaction: Transaction, transactionChain: Transaction[]): boolean {
+    return (!!transactionChain.find(txn => txn.transactionType === "reverse"));
+}
+
+export function isVoidable(transaction: Transaction, transactionChain: Transaction[]): boolean {
+    return !!transaction.pending && !isVoided(transaction, transactionChain);
+}
+
+export function isVoided(transaction: Transaction, transactionChain: Transaction[]): boolean {
+    return !!transaction.pending && !!transactionChain.find(txn => txn.transactionType === "void");
+}
+
+export function isCaptured(transaction: Transaction, transactionChain: Transaction[]): boolean {
+    return !!transactionChain.find(txn => txn.transactionType === "capture");
+}
+
 const lightrailPartySchema: jsonschema.Schema = {
     title: "lightrail",
     type: "object",

@@ -5,8 +5,6 @@ import {installRestRoutes} from "../rest/installRestRoutes";
 import {installStripeEventWebhookRest} from "./installStripeEventWebhookRest";
 import * as chai from "chai";
 import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
-import {Value} from "../../model/Value";
-import {Currency} from "../../model/Currency";
 import * as stripe from "stripe";
 import {
     assertTransactionChainContainsTypes,
@@ -20,18 +18,6 @@ import {
 describe("/v2/stripeEventWebhook - Stripe Review events", () => {
     const restRouter = new cassava.Router();
     const webhookEventRouter = new cassava.Router();
-
-    const currency: Currency = {
-        code: "CAD",
-        name: "Antlers",
-        symbol: "$",
-        decimalPlaces: 2
-    };
-    const value1: Partial<Value> = {
-        id: generateId(),
-        currency: currency.code,
-        balance: 50
-    };
 
     before(async function () {
         await testUtils.resetDb();
