@@ -8,6 +8,12 @@ import Stripe = require("stripe");
 export async function freezeLightrailSources(auth: giftbitRoutes.jwtauth.AuthorizationBadge, event: Stripe.events.IEvent & { account: string }, stripeCharge: Stripe.charges.ICharge, fraudulentTransaction: Transaction, reverseOrVoidTransaction?: Transaction): Promise<void> {
     // Get list of all Values used in the Transaction and all Values attached to Contacts used in the Transaction
     const lightrailSteps = <LightrailTransactionStep[]>fraudulentTransaction.steps.filter(step => step.rail === "lightrail");
+
+    if (lightrailSteps.length === 0) {
+        log.info(`No Lightrail sources were charged in Transaction '${fraudulentTransaction.id}': no Values to freeze.`);
+        return;
+    }
+
     let chargedValueIds: string[] = lightrailSteps.map(step => step.valueId);
     const chargedContactIds: string[] = fraudulentTransaction.paymentSources.filter(src => src.rail === "lightrail" && src.contactId).map(src => (src as LightrailTransactionStep).contactId);
 
@@ -41,7 +47,7 @@ async function freezeValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valu
             .forUpdate();
 
         if (selectValueRes.length === 0) {
-            throw new giftbitRoutes.GiftbitRestError(404, `Values to freeze not found for Transaction '${lightrailTransactionId}' with valueIdentifiers '${valueIdentifiers}'.`, "ValueNotFound");
+            throw new giftbitRoutes.GiftbitRestError(404, `Values to freeze not found for Transaction '${lightrailTransactionId}' with valueIdentifiers '${JSON.stringify(valueIdentifiers)}'.`, "ValueNotFound");
         }
 
         const existingValues: Value[] = await Promise.all(selectValueRes.map(async dbValue => await DbValue.toValue(dbValue)));
