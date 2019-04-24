@@ -13,7 +13,7 @@ import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe("/v2/values - generic code with per contact properties", () => {
+describe.only("/v2/transactions/checkout - generic code with auto-attach", () => {
 
     const router = new cassava.Router();
 
@@ -30,60 +30,7 @@ describe("/v2/values - generic code with per contact properties", () => {
         });
     });
 
-    describe("auto attach simulate: true", () => {
-        const contact1Id = generateId();
-
-        before(async function () {
-            const createContact1 = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contact1Id});
-            chai.assert.equal(createContact1.statusCode, 201);
-        });
-
-        const genericValue: Partial<Value> = {
-            id: generateId(),
-            currency: "USD",
-            isGenericCode: true,
-            code: generateFullcode(),
-            genericCodeProperties: {
-                valuePropertiesPerContact: {
-                    usesRemaining: 1,
-                    balance: null
-                }
-            },
-            usesRemaining: null,
-            balance: null,
-            balanceRule: {
-                rule: "500 + value.balanceChange",
-                explanation: "$5 off purchase"
-            }
-        };
-
-        it("can create generic value", async () => {
-            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
-            chai.assert.equal(create.statusCode, 201);
-            chai.assert.deepNestedInclude(create.body, genericValue);
-        });
-
-        it("can checkout against contact1", async () => {
-            const checkoutRequest: CheckoutRequest = {
-                id: generateId(),
-                currency: "USD",
-                sources: [
-                    {rail: "lightrail", contactId: contact1Id},
-                    // {rail: "lightrail", contactId: "sfgdfgdsfgsdfg"}, todo - try with an invalid contactId
-                    {rail: "lightrail", code: genericValue.code}
-                ],
-                lineItems: [
-                    {unitPrice: 777}
-                ],
-                allowRemainder: true,
-                simulate: true
-            };
-            const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-            console.log(JSON.stringify(checkout.body, null, 4));
-        });
-    });
-
-    describe("auto attach simulate: false", () => {
+    describe("auto attach core flows", () => {
         const contactId = generateId();
 
         before(async function () {
@@ -98,7 +45,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             code: generateFullcode(),
             genericCodeProperties: {
                 valuePropertiesPerContact: {
-                    usesRemaining: 1,
+                    usesRemaining: 3,
                     balance: 500
                 }
             },
@@ -112,7 +59,25 @@ describe("/v2/values - generic code with per contact properties", () => {
             chai.assert.deepNestedInclude(create.body, genericValue);
         });
 
-        it("can checkout against contact1", async () => {
+        it("can't checkout against generic code directly (ie without providing contactId as a payment source)", async () => {
+            const checkoutRequest: CheckoutRequest = {
+                id: generateId(),
+                currency: "USD",
+                sources: [
+                    {rail: "lightrail", code: genericValue.code}
+                ],
+                lineItems: [
+                    {unitPrice: 200}
+                ],
+                simulate: false
+            };
+            const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+            chai.assert.equal(checkout.statusCode, 409);
+            chai.assert.equal(checkout.body["messageCode"], "ValueMustBeAttached");
+        });
+
+
+        it("can checkout against with code and contact", async () => {
             const checkoutRequest: CheckoutRequest = {
                 id: generateId(),
                 currency: "USD",
@@ -121,13 +86,11 @@ describe("/v2/values - generic code with per contact properties", () => {
                     {rail: "lightrail", code: genericValue.code}
                 ],
                 lineItems: [
-                    {unitPrice: 777}
+                    {unitPrice: 200}
                 ],
-                allowRemainder: true,
                 simulate: false
             };
             const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-            console.log("checkout response\n" + JSON.stringify(checkout.body, null, 4));
 
             chai.assert.deepEqualExcluding(checkout.body, {
                     "id": checkoutRequest.id,
@@ -138,27 +101,27 @@ describe("/v2/values - generic code with per contact properties", () => {
                         "roundingMode": "HALF_EVEN"
                     },
                     "totals": {
-                        "subtotal": 777,
+                        "subtotal": 200,
                         "tax": 0,
                         "discount": 0,
-                        "payable": 777,
-                        "remainder": 277,
+                        "payable": 200,
+                        "remainder": 0,
                         "discountLightrail": 0,
-                        "paidLightrail": 500,
+                        "paidLightrail": 200,
                         "paidStripe": 0,
                         "paidInternal": 0
                     },
                     "lineItems": [
                         {
-                            "unitPrice": 777,
+                            "unitPrice": 200,
                             "quantity": 1,
                             "lineTotal": {
-                                "subtotal": 777,
-                                "taxable": 777,
+                                "subtotal": 200,
+                                "taxable": 200,
                                 "tax": 0,
                                 "discount": 0,
-                                "remainder": 277,
-                                "payable": 777
+                                "remainder": 0,
+                                "payable": 200
                             }
                         }
                     ],
@@ -169,11 +132,11 @@ describe("/v2/values - generic code with per contact properties", () => {
                             "contactId": contactId,
                             "code": null,
                             "balanceBefore": 500,
-                            "balanceChange": -500,
-                            "balanceAfter": 0,
-                            "usesRemainingBefore": 1,
+                            "balanceChange": -200,
+                            "balanceAfter": 300,
+                            "usesRemainingBefore": 3,
                             "usesRemainingChange": -1,
-                            "usesRemainingAfter": 0
+                            "usesRemainingAfter": 2
                         }
                     ],
                     "paymentSources": [
@@ -191,10 +154,56 @@ describe("/v2/values - generic code with per contact properties", () => {
                     "createdBy": "default-test-user-TEST"
                 }, ["createdDate"]
             )
-        }).timeout(5000);
+        });
+
+        it("can checkout against contact1 and code again (this time code already attached so doesn't attach again)", async () => {
+            const checkoutRequest: CheckoutRequest = {
+                id: generateId(),
+                currency: "USD",
+                sources: [
+                    {rail: "lightrail", contactId: contactId},
+                    {rail: "lightrail", code: genericValue.code}
+                ],
+                lineItems: [
+                    {unitPrice: 150}
+                ],
+                simulate: false
+            };
+            const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+            chai.assert.equal(checkout.statusCode, 201);
+            chai.assert.equal(checkout.body.steps[0]["balanceAfter"], 150);
+            chai.assert.equal(checkout.body.steps[0]["usesRemainingAfter"], 1);
+        });
+
+        it("can checkout against contact1", async () => {
+            const checkoutRequest: CheckoutRequest = {
+                id: generateId(),
+                currency: "USD",
+                sources: [
+                    {rail: "lightrail", contactId: contactId},
+                    {rail: "lightrail", code: genericValue.code}
+                ],
+                lineItems: [
+                    {unitPrice: 50}
+                ],
+                simulate: false
+            };
+            const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+            chai.assert.equal(checkout.statusCode, 201);
+            chai.assert.equal(checkout.body.steps[0]["balanceAfter"], 100);
+            chai.assert.equal(checkout.body.steps[0]["usesRemainingAfter"], 0);
+        });
+
+        it("can't manually attach generic code after it has been auto-attached", async () => {
+            const attach = await testUtils.testAuthedRequest(router, `/v2/contacts/${contactId}/values/attach`, "POST", {
+                code: genericValue.code
+            });
+            chai.assert.equal(attach.statusCode, 409);
+            chai.assert.equal(attach.body["messageCode"], "ValueAlreadyAttached");
+        });
     });
 
-    describe("auto attach, generic code with balanceRule and usesRemaining", () => {
+    describe("auto attach generic value with balanceRule", () => {
         const contactId = generateId();
 
         before(async function () {
@@ -242,71 +251,10 @@ describe("/v2/values - generic code with per contact properties", () => {
                 simulate: false
             };
             const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-            console.log("checkout response\n" + JSON.stringify(checkout.body, null, 4));
-
-            chai.assert.deepEqualExcluding(checkout.body, {
-                    "id": checkoutRequest.id,
-                    "transactionType": "checkout",
-                    "currency": "USD",
-                    "createdDate": null,
-                    "tax": {
-                        "roundingMode": "HALF_EVEN"
-                    },
-                    "totals": {
-                        "subtotal": 777,
-                        "tax": 0,
-                        "discount": 0,
-                        "payable": 777,
-                        "remainder": 277,
-                        "discountLightrail": 0,
-                        "paidLightrail": 500,
-                        "paidStripe": 0,
-                        "paidInternal": 0
-                    },
-                    "lineItems": [
-                        {
-                            "unitPrice": 777,
-                            "quantity": 1,
-                            "lineTotal": {
-                                "subtotal": 777,
-                                "taxable": 777,
-                                "tax": 0,
-                                "discount": 0,
-                                "remainder": 277,
-                                "payable": 777
-                            }
-                        }
-                    ],
-                    "steps": [
-                        {
-                            "rail": "lightrail",
-                            "valueId": GenericCodePerContact.generateValueId(genericValue.id, contactId),
-                            "contactId": contactId,
-                            "code": null,
-                            "balanceBefore": null,
-                            "balanceChange": -500,
-                            "balanceAfter": null,
-                            "usesRemainingBefore": 1,
-                            "usesRemainingChange": -1,
-                            "usesRemainingAfter": 0
-                        }
-                    ],
-                    "paymentSources": [
-                        {
-                            "rail": "lightrail",
-                            "contactId": contactId
-                        },
-                        {
-                            "rail": "lightrail",
-                            "code": formatCodeForLastFourDisplay(genericValue.code) // todo - should this be just last four?
-                        }
-                    ],
-                    "pending": false,
-                    "metadata": null,
-                    "createdBy": "default-test-user-TEST"
-                }, ["createdDate"]
-            )
-        }).timeout(5000);
+            chai.assert.equal(checkout.statusCode, 201);
+            chai.assert.equal(checkout.body.steps[0]["balanceChange"], -500);
+            chai.assert.equal(checkout.body.steps[0]["usesRemainingAfter"], 0);
+        });
     });
 
     describe("doesn't auto attach if attached Value isn't used", () => {
@@ -368,7 +316,6 @@ describe("/v2/values - generic code with per contact properties", () => {
                 simulate: false
             };
             const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-            console.log("checkout response\n" + JSON.stringify(checkout.body, null, 4));
 
             chai.assert.deepEqualExcluding(checkout.body, {
                     "id": checkoutRequest.id,
@@ -434,5 +381,80 @@ describe("/v2/values - generic code with per contact properties", () => {
                 }, ["createdDate"]
             )
         }).timeout(5000);
+    });
+
+    describe("auto attach simulate: true", () => {
+        const contactId = generateId();
+
+        before(async function () {
+            const createContact1 = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contactId});
+            chai.assert.equal(createContact1.statusCode, 201);
+        });
+
+        const genericValue: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            isGenericCode: true,
+            code: generateFullcode(),
+            genericCodeProperties: {
+                valuePropertiesPerContact: {
+                    usesRemaining: 1,
+                    balance: null
+                }
+            },
+            usesRemaining: null,
+            balance: null,
+            balanceRule: {
+                rule: "500 + value.balanceChange",
+                explanation: "$5 off purchase"
+            }
+        };
+
+        it("can create generic value", async () => {
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
+            chai.assert.equal(create.statusCode, 201);
+            chai.assert.deepNestedInclude(create.body, genericValue);
+        });
+
+        it("can checkout against contact1", async () => {
+            const checkoutRequest: CheckoutRequest = {
+                id: generateId(),
+                currency: "USD",
+                sources: [
+                    {rail: "lightrail", contactId: contactId},
+                    {rail: "lightrail", code: genericValue.code}
+                ],
+                lineItems: [
+                    {unitPrice: 777}
+                ],
+                allowRemainder: true,
+                simulate: true
+            };
+            const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+            chai.assert.equal(checkout.statusCode, 200);
+            chai.assert.isTrue(checkout.body.simulated);
+            chai.assert.equal(checkout.body.steps[0]["valueId"], GenericCodePerContact.generateValueId(genericValue.id, contactId));
+            chai.assert.equal(checkout.body.steps[0]["balanceAfter"], 100);
+            chai.assert.equal(checkout.body.steps[0]["usesRemainingAfter"], 0);
+        });
+
+        it("can't simulate against an invalid contact id with auto-attach", async () => {
+            const checkoutRequest: CheckoutRequest = {
+                id: generateId(),
+                currency: "USD",
+                sources: [
+                    {rail: "lightrail", contactId: "sfgdfgdsfgsdfg"},
+                    {rail: "lightrail", code: genericValue.code}
+                ],
+                lineItems: [
+                    {unitPrice: 777}
+                ],
+                allowRemainder: true,
+                simulate: true
+            };
+            const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+            chai.assert.equal(checkout.statusCode, 404);
+            chai.assert.equal(checkout.body["messageCode"], "ContactNotFound");
+        });
     });
 });

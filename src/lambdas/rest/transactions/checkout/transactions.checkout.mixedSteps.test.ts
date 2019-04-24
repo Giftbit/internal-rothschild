@@ -6,7 +6,7 @@ import * as testUtils from "../../../../utils/testUtils";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../../utils/testUtils";
 import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
-import {Value} from "../../../../model/Value";
+import {formatCodeForLastFourDisplay, Value} from "../../../../model/Value";
 import {after} from "mocha";
 import {
     setStubsForStripeTests,
@@ -367,7 +367,7 @@ describe("/v2/transactions/checkout - mixed sources", () => {
                 },
                 {
                     rail: "lightrail",
-                    code: valueGenericCode.code
+                    code: formatCodeForLastFourDisplay(valueGenericCode.code)
                 }
             ],
             pending: false,

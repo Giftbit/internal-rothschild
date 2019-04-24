@@ -18,6 +18,8 @@ import {computeCodeLookupHash} from "../../../utils/codeCryptoUtils";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import * as knex from "knex";
 import {GenericCodePerContact} from "../genericCodePerContact";
+import {getContact} from "../contacts";
+import log = require("loglevel");
 
 /**
  * Options to resolving transaction parties.
@@ -68,8 +70,8 @@ export interface ResolvedTransactionPlanSteps {
 }
 
 export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions): Promise<ResolvedTransactionPlanSteps> {
-    const values = await getLightrailValues(auth, options);
-    let valuesForTransactionSteps: Value[];
+    const fetchedValues = await getLightrailValues(auth, options);
+    let valuesForTx: Value[];
 
     const resolvedTransactionSteps: ResolvedTransactionPlanSteps = {
         attachTransactions: [],
@@ -77,25 +79,30 @@ export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.Au
     };
     // Can't attach all generic codes because existing generic codes where users use attachGenericAsNewValue. Also breaks how shared generic values work.
     if (options.autoAttachGenericCodesWithPerContactProperties) {
-        const valuesThatMustBeAttached: Value[] = values.filter(v => Value.isGenericCodeWithPropertiesPerContact(v));
-        valuesForTransactionSteps = values.filter(v => valuesThatMustBeAttached.indexOf(v) === -1);
-        if (valuesThatMustBeAttached.length > 0) {
+        const valuesThatMustBeAttached: Value[] = fetchedValues.filter(v => Value.isGenericCodeWithPropertiesPerContact(v));
+        valuesForTx = fetchedValues.filter(v => valuesThatMustBeAttached.indexOf(v) === -1);
 
-            const contactId = (options.parties.find(p => p.rail === "lightrail" && p.contactId != null) as LightrailTransactionParty).contactId;
+        if (valuesThatMustBeAttached.length > 0) {
+            const contactId = await getContactIdFromSources(auth, options);
             if (!contactId) {
-                throw new giftbitRoutes.GiftbitRestError(409, `Values '${valuesThatMustBeAttached.map(v => v.id)}' cannot be transacted against because they must be attached to a Contact first. Alternatively, a contactId must be included a source in the checkout request.`, "ValueMustBeAttached");
+                throw new giftbitRoutes.GiftbitRestError(409, `Values cannot be transacted against because they must be attached to a Contact first. Alternatively, a contactId must be included a source in the checkout request.`, "ValueMustBeAttached");
             }
+
             for (const genericValue of valuesThatMustBeAttached) {
-                const transactionPlan = GenericCodePerContact.getTransactionPlan(auth, contactId, genericValue);
-                resolvedTransactionSteps.attachTransactions.push(transactionPlan);
-                valuesForTransactionSteps.push((transactionPlan.steps.find(s => (s as LightrailTransactionPlanStep).action === "INSERT_VALUE") as LightrailTransactionPlanStep).value);
+                if (valuesForTx.find(v => v.attachedFromGenericValueId === genericValue.id)) {
+                    log.debug(`Skipping attaching generic value ${genericValue.id} since it's already been attached.`)
+                } else {
+                    const transactionPlan = GenericCodePerContact.getTransactionPlan(auth, contactId, genericValue);
+                    resolvedTransactionSteps.attachTransactions.push(transactionPlan);
+                    valuesForTx.push((transactionPlan.steps.find(s => (s as LightrailTransactionPlanStep).action === "INSERT_VALUE") as LightrailTransactionPlanStep).value);
+                }
             }
         }
     } else {
-        valuesForTransactionSteps = values;
+        valuesForTx = fetchedValues;
     }
 
-    const lightrailSteps = valuesForTransactionSteps
+    const lightrailSteps = valuesForTx
         .map((v): LightrailTransactionPlanStep => ({
             rail: "lightrail",
             value: v,
@@ -240,4 +247,16 @@ export function filterForUsedAttaches(resolvedSteps, transactionPlan: Transactio
         }
     }
     return attachTransactionsToPersist;
+}
+
+async function getContactIdFromSources(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions): Promise<string> {
+    const contactPaymentSource = options.parties.find(p => p.rail === "lightrail" && p.contactId != null) as LightrailTransactionParty;
+    const contactId = contactPaymentSource ? contactPaymentSource.contactId : null;
+
+    if (contactId) {
+        const contact = await getContact(auth, contactId);
+        return contact.id;
+    } else {
+        return null
+    }
 }

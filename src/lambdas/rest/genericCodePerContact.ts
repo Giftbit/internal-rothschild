@@ -2,11 +2,13 @@ import {Value} from "../../model/Value";
 import {nowInDbPrecision} from "../../utils/dbUtils/index";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import {GiftbitRestError} from "giftbit-cassava-routes";
 import {LightrailTransactionPlanStep, TransactionPlan} from "./transactions/TransactionPlan";
 import {executeTransactionPlanner} from "./transactions/executeTransactionPlans";
 import {getValue} from "./values";
 import {LightrailTransactionStep, Transaction} from "../../model/Transaction";
 import {ValueCreationService} from "./valueCreationService";
+import * as cassava from "cassava";
 
 export namespace GenericCodePerContact {
     export async function attach(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<Value> {
@@ -15,10 +17,19 @@ export namespace GenericCodePerContact {
             return getTransactionPlan(auth, contactId, genericValue);
         };
 
-        const transaction: Transaction = await executeTransactionPlanner(auth, {
-            allowRemainder: false,
-            simulate: false
-        }, planner);
+        let transaction: Transaction;
+        try {
+            transaction = await executeTransactionPlanner(auth, {
+                allowRemainder: false,
+                simulate: false
+            }, planner);
+        } catch (err) {
+            if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "TransactionExists") {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${genericValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
+            } else {
+                throw err;
+            }
+        }
 
         const newAttachedValueId = (transaction.steps.find(step => (step as LightrailTransactionStep).valueId !== genericValue.id) as LightrailTransactionStep).valueId;
         if (!newAttachedValueId) {
