@@ -12,7 +12,7 @@ import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe("/v2/values - generic code with per contact properties", () => {
+describe.only("/v2/values - generic code with per contact properties", () => {
 
     const router = new cassava.Router();
 
@@ -160,7 +160,7 @@ describe("/v2/values - generic code with per contact properties", () => {
 
             const attachAgain = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {code: genericValue.code});
             chai.assert.equal(attachAgain.statusCode, 409);
-            chai.assert.equal(attachAgain.body["messageCode"], "TransactionExists");
+            chai.assert.equal(attachAgain.body["messageCode"], "ValueAlreadyAttached");
         });
 
         it("generic code with per contact usage limits will fail to attach if insufficient balance. can credit balance and then attach another contact", async () => {
