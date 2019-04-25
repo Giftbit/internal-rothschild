@@ -758,7 +758,7 @@ describe("/v2/values - generic code with per contact properties", () => {
     });
 
     describe("value state (inactive, frozen, cancelled) tests", () => {
-        const genericValue: Partial<Value> = {
+        const genericValueTemplate: Partial<Value> = {
             id: generateId(),
             currency: "USD",
             isGenericCode: true,
@@ -778,14 +778,14 @@ describe("/v2/values - generic code with per contact properties", () => {
 
         it("can't attach inactive value", async () => {
             const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
-                ...genericValue,
+                ...genericValueTemplate,
                 id: generateId(),
                 active: false
             } as Partial<Value>);
             chai.assert.equal(create.statusCode, 201);
             chai.assert.isFalse(create.body.active);
             const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {
-                valueId: genericValue.id
+                valueId: create.body.id
             });
             chai.assert.equal(attach.statusCode, 409);
             chai.assert.equal(attach.body.messageCode, "ValueInactive");
@@ -793,14 +793,14 @@ describe("/v2/values - generic code with per contact properties", () => {
 
         it("can't attach frozen value", async () => {
             const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
-                ...genericValue,
+                ...genericValueTemplate,
                 id: generateId(),
                 frozen: true
             } as Partial<Value>);
             chai.assert.equal(create.statusCode, 201);
             chai.assert.isTrue(create.body.frozen);
             const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {
-                valueId: genericValue.id
+                valueId: create.body.id
             });
             chai.assert.equal(attach.statusCode, 409);
             chai.assert.equal(attach.body.messageCode, "ValueFrozen");
@@ -808,7 +808,7 @@ describe("/v2/values - generic code with per contact properties", () => {
 
         it("can't attach frozen value", async () => {
             const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
-                ...genericValue,
+                ...genericValueTemplate,
                 id: generateId(),
             } as Partial<Value>);
             chai.assert.equal(create.statusCode, 201);
@@ -819,7 +819,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             chai.assert.equal(cancel.statusCode, 200);
             chai.assert.isTrue(cancel.body.canceled);
             const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {
-                valueId: genericValue.id
+                valueId: create.body.id
             });
             chai.assert.equal(attach.statusCode, 409);
             chai.assert.equal(attach.body.messageCode, "ValueCanceled");
