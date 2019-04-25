@@ -13,7 +13,7 @@ export interface Value {
     code: string | null;
     isGenericCode: boolean | null;
     genericCodeProperties?: GenericCodeProperties | undefined;
-    attachedFromGenericValueId: string | undefined; // todo - consider moving inside genericCodeProperties. used for stats. this may not be necessary w/ tags.
+    attachedFromGenericValueId: string | undefined;
     contactId: string | null;
     pretax: boolean;
     active: boolean;

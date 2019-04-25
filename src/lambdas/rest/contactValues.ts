@@ -158,6 +158,9 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     const contact = await getContact(auth, params.contactId);
     const value = await getValueByIdentifier(auth, params.valueIdentifier);
 
+    if (!value.active) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value cannot be attached because it is inactive.`, "ValueInactive");
+    }
     if (value.frozen) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value cannot be attached because it is frozen.`, "ValueFrozen");
     }
@@ -266,6 +269,7 @@ async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.Authoriz
     const newAttachedValue: Value = {
         ...originalValue,
         id: getIdForNewAttachedValue({contactId: contactId, valueId: originalValue.id}),
+        attachedFromGenericValueId: originalValue.id,
         code: null,
         isGenericCode: false,
         contactId: contactId,

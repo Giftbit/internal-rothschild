@@ -13,7 +13,7 @@ import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe.only("/v2/transactions/checkout - generic code with auto-attach", () => {
+describe("/v2/transactions/checkout - generic code with auto-attach", () => {
 
     const router = new cassava.Router();
 
@@ -624,7 +624,7 @@ describe.only("/v2/transactions/checkout - generic code with auto-attach", () =>
             chai.assert.equal(create.statusCode, 201);
         });
 
-        it("can checkout against contact1", async () => {
+        it("can checkout directly against generic code and it's not auto-attached", async () => {
             const checkoutRequest: CheckoutRequest = {
                 id: generateId(),
                 currency: "USD",

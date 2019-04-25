@@ -543,72 +543,42 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
      * This will need to be updated once partial capture becomes a thing since joining to the last Transaction in the chain
      * will no longer give a complete picture regarding what happened.
      */
-        // new query
     let query = knex("Values as V")
-            .where({
-                "V.userId": auth.userId,
+        .where({
+            "V.userId": auth.userId,
 
-            })
-            .andWhere(q => {
-                q.where("V.id", "=", valueId);
-                q.orWhere("V.attachedFromGenericValueId", "=", valueId);
-                return q;
-            })
-            .join("LightrailTransactionSteps as LTS", {
-                "LTS.userId": "V.userId",
-                "LTS.valueId": "V.id"
-            })
-            .join("Transactions as T_ROOT", {
-                "T_ROOT.userId": "LTS.userId",
-                "T_ROOT.id": "LTS.transactionId"
-            })
-            .whereIn("T_ROOT.transactionType", ["checkout", "debit"])
-            .leftJoin("Transactions as T_LAST", query => {
-                query.on("T_ROOT.id", "=", "T_LAST.rootTransactionId")
-                    .andOn("T_ROOT.userId", "=", "T_LAST.userId")
-                    .andOn("T_LAST.id", "!=", "T_LAST.rootTransactionId")
-                    .andOnNull("T_LAST.nextTransactionId");
-            })
-            .count({transactionCount: "*"})
-            .sum({balanceChange: "LTS.balanceChange"})
-            .sum({discountLightrail: "T_ROOT.totals_discountLightrail"})
-            .sum({paidLightrail: "T_ROOT.totals_paidLightrail"})
-            .sum({paidStripe: "T_ROOT.totals_paidStripe"})
-            .sum({paidInternal: "T_ROOT.totals_paidInternal"})
-            .sum({remainder: "T_ROOT.totals_remainder"})
-            .select({rootTransactionType: "T_ROOT.transactionType"})
-            .select({finalTransactionType: "T_LAST.transactionType"})
-            .groupBy("T_LAST.transactionType")
-            .groupBy("T_ROOT.transactionType");
-
-    // old query
-    // let query = knex("LightrailTransactionSteps as LTS")
-    //     .where({
-    //         "LTS.userId": auth.userId,
-    //         "LTS.valueId": valueId,
-    //     })
-    //     .join("Transactions as T_ROOT", {
-    //         "T_ROOT.userId": "LTS.userId",
-    //         "T_ROOT.id": "LTS.transactionId"
-    //     })
-    //     .whereIn("T_ROOT.transactionType", ["checkout", "debit"])
-    //     .leftJoin("Transactions as T_LAST", query => {
-    //         query.on("T_ROOT.id", "=", "T_LAST.rootTransactionId")
-    //             .andOn("T_ROOT.userId", "=", "T_LAST.userId")
-    //             .andOn("T_LAST.id", "!=", "T_LAST.rootTransactionId")
-    //             .andOnNull("T_LAST.nextTransactionId");
-    //     })
-    //     .count({transactionCount: "*"})
-    //     .sum({balanceChange: "LTS.balanceChange"})
-    //     .sum({discountLightrail: "T_ROOT.totals_discountLightrail"})
-    //     .sum({paidLightrail: "T_ROOT.totals_paidLightrail"})
-    //     .sum({paidStripe: "T_ROOT.totals_paidStripe"})
-    //     .sum({paidInternal: "T_ROOT.totals_paidInternal"})
-    //     .sum({remainder: "T_ROOT.totals_remainder"})
-    //     .select({rootTransactionType: "T_ROOT.transactionType"})
-    //     .select({finalTransactionType: "T_LAST.transactionType"})
-    //     .groupBy("T_LAST.transactionType")
-    //     .groupBy("T_ROOT.transactionType");
+        })
+        .andWhere(q => {
+            q.where("V.id", "=", valueId);
+            q.orWhere("V.attachedFromGenericValueId", "=", valueId);
+            return q;
+        })
+        .join("LightrailTransactionSteps as LTS", {
+            "LTS.userId": "V.userId",
+            "LTS.valueId": "V.id"
+        })
+        .join("Transactions as T_ROOT", {
+            "T_ROOT.userId": "LTS.userId",
+            "T_ROOT.id": "LTS.transactionId"
+        })
+        .whereIn("T_ROOT.transactionType", ["checkout", "debit"])
+        .leftJoin("Transactions as T_LAST", query => {
+            query.on("T_ROOT.id", "=", "T_LAST.rootTransactionId")
+                .andOn("T_ROOT.userId", "=", "T_LAST.userId")
+                .andOn("T_LAST.id", "!=", "T_LAST.rootTransactionId")
+                .andOnNull("T_LAST.nextTransactionId");
+        })
+        .count({transactionCount: "*"})
+        .sum({balanceChange: "LTS.balanceChange"})
+        .sum({discountLightrail: "T_ROOT.totals_discountLightrail"})
+        .sum({paidLightrail: "T_ROOT.totals_paidLightrail"})
+        .sum({paidStripe: "T_ROOT.totals_paidStripe"})
+        .sum({paidInternal: "T_ROOT.totals_paidInternal"})
+        .sum({remainder: "T_ROOT.totals_remainder"})
+        .select({rootTransactionType: "T_ROOT.transactionType"})
+        .select({finalTransactionType: "T_LAST.transactionType"})
+        .groupBy("T_LAST.transactionType")
+        .groupBy("T_ROOT.transactionType");
 
     const results: {
         transactionCount: number;
@@ -623,7 +593,6 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
                                       // This is the transactionType of the last transaction in the chain.
                                       // If null, this means the root transaction is the only transaction in the chain.
     }[] = await query;
-
     for (const row of results) {
         if (row.rootTransactionType === "debit" && (row.finalTransactionType === null || row.finalTransactionType === "capture")) {
             stats.redeemed.balance += -row.balanceChange;
@@ -637,14 +606,25 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
         }
     }
 
-    const attachedStats = await knex("ContactValues")
+    // shared generic values stats
+    const attachedContactValues = await knex("ContactValues")
         .where({
             "userId": auth.userId,
             "valueId": valueId
         })
         .count({count: "*"});
-    stats.attachedContacts.count = attachedStats[0].count;
+    stats.attachedContacts.count = attachedContactValues[0].count;
 
+    // legacy attachGenericAsNewValueStats
+    const attachedFromGenericValueStats = await knex("Values")
+        .where({
+            "userId": auth.userId,
+            "attachedFromGenericValueId": valueId
+        })
+        .count({count: "*"});
+    stats.attachedContacts.count += attachedFromGenericValueStats[0].count;
+
+    // unique code
     if (value.contactId) {
         stats.attachedContacts.count += 1;
     }

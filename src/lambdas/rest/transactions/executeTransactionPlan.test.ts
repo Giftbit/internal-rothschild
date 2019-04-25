@@ -8,7 +8,7 @@ import {TransactionPlan} from "./TransactionPlan";
 import {DbCurrency} from "../../../model/Currency";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
-import {executeTransactionPlanWithRollback} from "./executeTransactionPlans";
+import {executeTransactionPlan} from "./executeTransactionPlans";
 
 describe("rest/transactions/executeTransactionPlan", () => {
 
@@ -96,14 +96,13 @@ describe("rest/transactions/executeTransactionPlan", () => {
         try {
             const knex = await getKnexWrite();
             await knex.transaction(async trx => {
-                await executeTransactionPlanWithRollback(auth, trx, plan, {allowRemainder: false, simulate: false});
+                await executeTransactionPlan(auth, trx, plan, {allowRemainder: false, simulate: false});
             });
         } catch (e) {
             err = e;
         }
 
         chai.assert.isDefined(err, "executeTransactionPlan threw an error");
-        // todo - this test is failing
         chai.assert.isTrue(err.isTransactionPlanError, "isTransactionPlanError");
         chai.assert.isTrue(err.isReplanable, "isReplanable");
 
@@ -179,14 +178,13 @@ describe("rest/transactions/executeTransactionPlan", () => {
         try {
             const knex = await getKnexWrite();
             await knex.transaction(async trx => {
-                await executeTransactionPlanWithRollback(auth, trx, plan, {allowRemainder: false, simulate: false});
+                await executeTransactionPlan(auth, trx, plan, {allowRemainder: false, simulate: false});
             });
         } catch (e) {
             err = e;
         }
 
         chai.assert.isDefined(err, "executeTransactionPlan threw an error");
-        // todo - this test is failing
         chai.assert.isTrue(err.isTransactionPlanError, "isTransactionPlanError");
         chai.assert.isTrue(err.isReplanable, "isReplanable");
 

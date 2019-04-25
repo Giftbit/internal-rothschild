@@ -147,7 +147,7 @@ describe("/v2/transactions", () => {
     it("orders transactions by date created", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions", "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.equal(resp.body.length, 5);  // TODO 6 once filter tests are back in: transfer2 first, transfer3 second
+        chai.assert.equal(resp.body.length, 5);
 
         const ids = resp.body.map(t => t.id);
         chai.assert.include(ids, transfer1.id);

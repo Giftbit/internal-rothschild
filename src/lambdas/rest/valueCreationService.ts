@@ -12,7 +12,7 @@ import {generateCode} from "../../utils/codeGenerator";
 import {CreateValueParameters} from "./values";
 import {checkRulesSyntax} from "./transactions/rules/RuleContext";
 import {TransactionPlan} from "./transactions/TransactionPlan";
-import {executeTransactionPlanWithRollback} from "./transactions/executeTransactionPlans";
+import {executeTransactionPlan} from "./transactions/executeTransactionPlans";
 import log = require("loglevel");
 
 export namespace ValueCreationService {
@@ -48,7 +48,7 @@ export namespace ValueCreationService {
 
 
         try {
-            await executeTransactionPlanWithRollback(auth, trx, plan, {simulate: false, allowRemainder: false});
+            await executeTransactionPlan(auth, trx, plan, {simulate: false, allowRemainder: false});
         } catch (err) {
             if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "TransactionExists") {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with id '${value.id}' already exists.`, "ValueIdExists");

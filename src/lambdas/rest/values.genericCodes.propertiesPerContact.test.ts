@@ -6,13 +6,14 @@ import {Value} from "../../model/Value";
 import {installRestRoutes} from "./installRestRoutes";
 import {createCurrency} from "./currencies";
 import {Contact} from "../../model/Contact";
-import {Transaction} from "../../model/Transaction";
-import {CheckoutRequest, CreditRequest} from "../../model/TransactionRequest";
+import {LightrailTransactionStep, Transaction} from "../../model/Transaction";
+import {CheckoutRequest, CreditRequest, ReverseRequest} from "../../model/TransactionRequest";
+import {GenericCodePerContact} from "./genericCodePerContact";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe.only("/v2/values - generic code with per contact properties", () => {
+describe("/v2/values - generic code with per contact properties", () => {
 
     const router = new cassava.Router();
 
@@ -91,377 +92,388 @@ describe.only("/v2/values - generic code with per contact properties", () => {
         chai.assert.equal(create.body.message, "Value must have a balanceRule, a balance, or a genericCodeProperties.valuePropertiesPerContact.balance.")
     });
 
-    describe("attach tests", () => {
+    it("can't attach generic code with contact usage limits to same contact twice", async () => {
+        const genericValue: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            isGenericCode: true,
+            code: generateFullcode(),
+            genericCodeProperties: {
+                valuePropertiesPerContact: {
+                    balance: 500,
+                    usesRemaining: 2
+                }
+            },
+            balance: 5000,
+            usesRemaining: 10
+        };
+        const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
+        chai.assert.equal(create.statusCode, 201);
+        chai.assert.deepNestedInclude(create.body, genericValue);
+
         const contactId = generateId();
-
-        before(async function () {
-            const contact: Partial<Contact> = {
-                id: contactId
-            };
-
-            const createContact = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact);
-            chai.assert.equal(createContact.statusCode, 201);
+        const createContact = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {
+            id: contactId
         });
+        chai.assert.equal(createContact.statusCode, 201);
 
-        it("can't attach generic code with contact usage limits to same contact twice", async () => {
-            const genericValue: Partial<Value> = {
-                id: generateId(),
-                currency: "USD",
-                isGenericCode: true,
-                code: generateFullcode(),
-                genericCodeProperties: {
-                    valuePropertiesPerContact: {
-                        balance: 500,
-                        usesRemaining: 2
+        const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {code: genericValue.code});
+        chai.assert.equal(attach.statusCode, 200);
+        chai.assert.deepEqualExcluding(attach.body,
+            {
+                "id": null, // it's hashed
+                "currency": "USD",
+                "balance": 500,
+                "usesRemaining": 2,
+                "programId": null,
+                "issuanceId": null,
+                "contactId": contactId,
+                "code": null,
+                "attachedFromGenericValueId": genericValue.id,
+                "isGenericCode": false,
+                "pretax": false,
+                "active": true,
+                "canceled": false,
+                "frozen": false,
+                "discount": false,
+                "discountSellerLiability": null,
+                "redemptionRule": null,
+                "balanceRule": null,
+                "startDate": null,
+                "endDate": null,
+                "metadata": {
+                    attachedFromGenericValue: {
+                        code: genericValue.code
                     }
                 },
-                balance: 5000,
-                usesRemaining: 10
-            };
+                "createdDate": null,
+                "updatedDate": null,
+                "updatedContactIdDate": null,
+                "createdBy": "default-test-user-TEST"
+            }, ["id", "createdDate", "updatedDate", "updatedContactIdDate"]);
 
-            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
-            chai.assert.equal(create.statusCode, 201);
-            chai.assert.deepNestedInclude(create.body, genericValue);
-
-            const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {code: genericValue.code});
-            chai.assert.equal(attach.statusCode, 200);
-            chai.assert.deepEqualExcluding(attach.body,
-                {
-                    "id": null, // it's hashed
-                    "currency": "USD",
-                    "balance": 500,
-                    "usesRemaining": 2,
-                    "programId": null,
-                    "issuanceId": null,
-                    "contactId": contactId,
-                    "code": null,
-                    "attachedFromGenericValueId": genericValue.id,
-                    "isGenericCode": false,
-                    "pretax": false,
-                    "active": true,
-                    "canceled": false,
-                    "frozen": false,
-                    "discount": false,
-                    "discountSellerLiability": null,
-                    "redemptionRule": null,
-                    "balanceRule": null,
-                    "startDate": null,
-                    "endDate": null,
-                    "metadata": {
-                        attachedFromGenericValue: {
-                            code: genericValue.code
-                        }
-                    },
-                    "createdDate": null,
-                    "updatedDate": null,
-                    "updatedContactIdDate": null,
-                    "createdBy": "default-test-user-TEST"
-                }, ["id", "createdDate", "updatedDate", "updatedContactIdDate"]);
-
-            const attachAgain = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {code: genericValue.code});
-            chai.assert.equal(attachAgain.statusCode, 409);
-            chai.assert.equal(attachAgain.body["messageCode"], "ValueAlreadyAttached");
-        });
-
-        it("generic code with per contact usage limits will fail to attach if insufficient balance. can credit balance and then attach another contact", async () => {
-            const genericValue: Partial<Value> = {
-                id: generateId(),
-                currency: "USD",
-                isGenericCode: true,
-                code: generateFullcode(),
-                genericCodeProperties: {
-                    valuePropertiesPerContact: {
-                        balance: 500,
-                        usesRemaining: 2
-                    }
-                },
-                balance: 1200
-            };
-
-            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
-            chai.assert.equal(create.statusCode, 201);
-            chai.assert.deepNestedInclude(create.body, genericValue);
-
-            const contacts: Contact[] = [];
-            for (let i = 0; i < 3; i++) {
-                const contact: Partial<Contact> = {
-                    id: generateId()
-                };
-                const createContact = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact);
-                chai.assert.equal(createContact.statusCode, 201);
-                contacts.push(createContact.body);
-
-                if (i < 2) {
-                    // succeeds for first 2 contacts
-                    const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: genericValue.code});
-                    chai.assert.equal(attach.statusCode, 200);
-                } else {
-                    // fails. insufficient funds
-                    const attach = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: genericValue.code});
-                    chai.assert.equal(attach.statusCode, 409);
-                    chai.assert.equal(attach.body["messageCode"], "InsufficientBalance");
-                }
-            }
-
-            const creditRequest: CreditRequest = {
-                id: generateId(),
-                currency: "USD",
-                destination: {
-                    rail: "lightrail",
-                    valueId: genericValue.id
-                },
-                amount: 300
-            };
-            const credit = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", creditRequest);
-            chai.assert.equal(credit.statusCode, 201);
-
-            const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contacts[2].id}/values/attach`, "POST", {code: genericValue.code});
-            chai.assert.equal(attach.statusCode, 200);
-
-            const getTx = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/values/${attach.body.id}/transactions?transactionType=attach`, "GET");
-            chai.assert.deepEqualExcluding(getTx.body[0],
-                {
-                    "id": null,
-                    "transactionType": "attach",
-                    "currency": "USD",
-                    "totals": null,
-                    "lineItems": null,
-                    "paymentSources": null,
-                    "steps": [
-                        {
-                            "rail": "lightrail",
-                            "valueId": genericValue.id,
-                            "contactId": null,
-                            "code": genericValue.code,
-                            "balanceBefore": 500,
-                            "balanceAfter": 0,
-                            "balanceChange": -500,
-                            "usesRemainingBefore": null,
-                            "usesRemainingAfter": null,
-                            "usesRemainingChange": null
-                        },
-                        {
-                            "rail": "lightrail",
-                            "valueId": attach.body.id,
-                            "contactId": contacts[2].id,
-                            "code": null,
-                            "balanceBefore": 0,
-                            "balanceAfter": 500,
-                            "balanceChange": 500,
-                            "usesRemainingBefore": 0,
-                            "usesRemainingAfter": 2,
-                            "usesRemainingChange": 2
-                        }
-                    ],
-                    "metadata": null,
-                    "tax": null,
-                    "pending": false,
-                    "createdDate": null,
-                    "createdBy": "default-test-user-TEST"
-                }, ["id", "createdDate"]);
-        });
-
-        it("generic code with per contact properties will fail to attach if insufficient usesRemaining. can credit usesRemaining and then attach another contact", async () => {
-            const genericValue: Partial<Value> = {
-                id: generateId(),
-                currency: "USD",
-                isGenericCode: true,
-                code: generateFullcode(),
-                genericCodeProperties: {
-                    valuePropertiesPerContact: {
-                        balance: 500,
-                        usesRemaining: 2
-                    }
-                },
-                usesRemaining: 5,
-                balance: null
-            };
-
-            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
-            chai.assert.equal(create.statusCode, 201);
-            chai.assert.deepNestedInclude(create.body, genericValue);
-
-            const contacts: Contact[] = [];
-            for (let i = 0; i < 3; i++) {
-                const contact: Partial<Contact> = {
-                    id: generateId()
-                };
-                const createContact = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact);
-                chai.assert.equal(createContact.statusCode, 201);
-                contacts.push(createContact.body);
-
-                if (i < 2) {
-                    // succeeds for first 2 contacts
-                    const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: genericValue.code});
-                    chai.assert.equal(attach.statusCode, 200);
-                } else {
-                    // fails. insufficient funds
-                    const attach = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: genericValue.code});
-                    chai.assert.equal(attach.statusCode, 409);
-                    chai.assert.equal(attach.body["messageCode"], "InsufficientUsesRemaining");
-                }
-            }
-
-            const creditRequest: CreditRequest = {
-                id: generateId(),
-                currency: "USD",
-                destination: {
-                    rail: "lightrail",
-                    valueId: genericValue.id
-                },
-                uses: 2
-            };
-            const credit = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", creditRequest);
-            chai.assert.equal(credit.statusCode, 201);
-
-            const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contacts[2].id}/values/attach`, "POST", {code: genericValue.code});
-            chai.assert.equal(attach.statusCode, 200);
-        });
-
-        it("can create a generic value with per contact properties and no balance or usesRemaining liability controls", async () => {
-            const genericValue: Partial<Value> = {
-                id: generateId(),
-                currency: "USD",
-                isGenericCode: true,
-                code: generateFullcode(),
-                genericCodeProperties: {
-                    valuePropertiesPerContact: {
-                        balance: 500,
-                        usesRemaining: 2
-                    }
-                },
-                balance: null
-            };
-
-            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
-            chai.assert.equal(create.statusCode, 201);
-            chai.assert.deepNestedInclude(create.body, genericValue);
-
-            const createContact = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: generateId()});
-            chai.assert.equal(createContact.statusCode, 201);
-
-            const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${createContact.body.id}/values/attach`, "POST", {code: genericValue.code});
-            chai.assert.equal(attach.statusCode, 200);
-
-            const getTx = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/values/${attach.body.id}/transactions?transactionType=attach`, "GET");
-            chai.assert.deepEqualExcluding(getTx.body[0],
-                {
-                    "id": null,
-                    "transactionType": "attach",
-                    "currency": "USD",
-                    "totals": null,
-                    "lineItems": null,
-                    "paymentSources": null,
-                    "steps": [
-                        {
-                            "rail": "lightrail",
-                            "valueId": genericValue.id,
-                            "contactId": null,
-                            "code": genericValue.code,
-                            "balanceBefore": null,
-                            "balanceAfter": null,
-                            "balanceChange": null,
-                            "usesRemainingBefore": null,
-                            "usesRemainingAfter": null,
-                            "usesRemainingChange": null
-                        },
-                        {
-                            "rail": "lightrail",
-                            "valueId": attach.body.id,
-                            "contactId": createContact.body.id,
-                            "code": null,
-                            "balanceBefore": 0,
-                            "balanceAfter": 500,
-                            "balanceChange": 500,
-                            "usesRemainingBefore": 0,
-                            "usesRemainingAfter": 2,
-                            "usesRemainingChange": 2
-                        }
-                    ],
-                    "metadata": null,
-                    "tax": null,
-                    "pending": false,
-                    "createdDate": null,
-                    "createdBy": "default-test-user-TEST"
-                }, ["id", "createdDate"]);
-
-        });
-
-        it("test hashed id for attach", async () => {
-            const genericValue: Partial<Value> = {
-                id: "dontChangeValueId",
-                currency: "USD",
-                isGenericCode: true,
-                code: generateFullcode(),
-                genericCodeProperties: {
-                    valuePropertiesPerContact: {
-                        balance: 500,
-                        usesRemaining: 2
-                    }
-                },
-                balance: null
-            };
-
-            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
-            chai.assert.equal(createValue.statusCode, 201);
-            chai.assert.deepNestedInclude(createValue.body, genericValue);
-
-            const createContact = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: "dontChangeContactId"});
-            chai.assert.equal(createContact.statusCode, 201);
-
-            const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${createContact.body.id}/values/attach`, "POST", {valueId: genericValue.id});
-            chai.assert.equal(attach.statusCode, 200);
-
-            chai.assert.equal(createValue.body.id, "dontChangeValueId", "This should equal setValueId. Don't change this. This test checks for a consistent hash which prevents a Contact from attaching a generic code twice.");
-            chai.assert.equal(createContact.body.id, "dontChangeContactId", "This should equal setValueId. Don't change this. This test checks for a consistent hash which prevents a Contact from attaching a generic code twice.");
-            chai.assert.equal(attach.body.id, "3BzqT3K3VueDcNW7QGRXT+BJ0q4=", "The id should equal the expected hash of the contactId and valueId. It's important that this doesn't change since this prevents a Contact from attaching a generic code twice.");
-        });
-
-        it("can list values associated with generic value", async () => {
-            const genericValue: Partial<Value> = {
-                id: generateId(),
-                currency: "USD",
-                isGenericCode: true,
-                code: generateFullcode(),
-                genericCodeProperties: {
-                    valuePropertiesPerContact: {
-                        balance: null,
-                        usesRemaining: 1
-                    }
-                },
-                balanceRule: {
-                    rule: "200 + value.balanceChange",
-                    explanation: "worth $2 off purchase"
-                }
-            };
-
-            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
-            chai.assert.equal(create.statusCode, 201);
-            chai.assert.deepNestedInclude(create.body, genericValue);
-
-            const attachedValues: Value[] = [];
-            for (let i = 0; i < 3; i++) {
-                const contact: Partial<Contact> = {
-                    id: generateId()
-                };
-                const createContact = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact);
-                chai.assert.equal(createContact.statusCode, 201);
-
-                const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: genericValue.code});
-                chai.assert.equal(attach.statusCode, 200);
-                attachedValues.push(attach.body);
-            }
-
-            const listAttachedValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?attachedFromGenericValueId=${genericValue.id}`, "GET");
-            console.log(JSON.stringify(listAttachedValues, null, 4));
-            chai.assert.sameDeepMembers(attachedValues, listAttachedValues.body);
-        });
+        const attachAgain = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {code: genericValue.code});
+        chai.assert.equal(attachAgain.statusCode, 409);
+        chai.assert.equal(attachAgain.body["messageCode"], "ValueAlreadyAttached");
     });
 
-    describe("generic code with balance rule, limited to 1 use per contact, and no liability controls (ie, balance = null, usesRemaining = null)", () => {
+    it("insufficient balance will cause attach to fail. can credit balance and then attach another contact", async () => {
+        const genericValue: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            isGenericCode: true,
+            code: generateFullcode(),
+            genericCodeProperties: {
+                valuePropertiesPerContact: {
+                    balance: 500,
+                    usesRemaining: 2
+                }
+            },
+            balance: 1200
+        };
+        const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
+        chai.assert.equal(create.statusCode, 201);
+        chai.assert.deepNestedInclude(create.body, genericValue);
+
+        // try attaching to 3 contacts
+        const contacts: Contact[] = [];
+        for (let i = 0; i < 3; i++) {
+            const contact: Partial<Contact> = {
+                id: generateId()
+            };
+            const createContact = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact);
+            chai.assert.equal(createContact.statusCode, 201);
+            contacts.push(createContact.body);
+
+            if (i < 2) {
+                // succeeds for first 2 contacts
+                const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: genericValue.code});
+                chai.assert.equal(attach.statusCode, 200);
+            } else {
+                // fails. insufficient funds
+                const attach = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: genericValue.code});
+                chai.assert.equal(attach.statusCode, 409);
+                chai.assert.equal(attach.body["messageCode"], "InsufficientBalance");
+            }
+        }
+
+        // credit generic code's balance
+        const creditRequest: CreditRequest = {
+            id: generateId(),
+            currency: "USD",
+            destination: {
+                rail: "lightrail",
+                valueId: genericValue.id
+            },
+            amount: 300
+        };
+        const credit = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", creditRequest);
+        chai.assert.equal(credit.statusCode, 201);
+
+        const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contacts[2].id}/values/attach`, "POST", {code: genericValue.code});
+        chai.assert.equal(attach.statusCode, 200);
+
+        const getTx = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/values/${attach.body.id}/transactions?transactionType=attach`, "GET");
+        chai.assert.deepEqualExcluding(getTx.body[0],
+            {
+                "id": null,
+                "transactionType": "attach",
+                "currency": "USD",
+                "totals": null,
+                "lineItems": null,
+                "paymentSources": null,
+                "steps": [
+                    {
+                        "rail": "lightrail",
+                        "valueId": genericValue.id,
+                        "contactId": null,
+                        "code": genericValue.code,
+                        "balanceBefore": 500,
+                        "balanceAfter": 0,
+                        "balanceChange": -500,
+                        "usesRemainingBefore": null,
+                        "usesRemainingAfter": null,
+                        "usesRemainingChange": null
+                    },
+                    {
+                        "rail": "lightrail",
+                        "valueId": attach.body.id,
+                        "contactId": contacts[2].id,
+                        "code": null,
+                        "balanceBefore": 0,
+                        "balanceAfter": 500,
+                        "balanceChange": 500,
+                        "usesRemainingBefore": 0,
+                        "usesRemainingAfter": 2,
+                        "usesRemainingChange": 2
+                    }
+                ],
+                "metadata": null,
+                "tax": null,
+                "pending": false,
+                "createdDate": null,
+                "createdBy": "default-test-user-TEST"
+            }, ["id", "createdDate"]);
+    });
+
+    it("generic code with per contact properties will fail to attach if insufficient usesRemaining. can credit usesRemaining and then attach another contact", async () => {
+        const genericValue: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            isGenericCode: true,
+            code: generateFullcode(),
+            genericCodeProperties: {
+                valuePropertiesPerContact: {
+                    balance: 500,
+                    usesRemaining: 2
+                }
+            },
+            usesRemaining: 5,
+            balance: null
+        };
+        const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
+        chai.assert.equal(create.statusCode, 201);
+        chai.assert.deepNestedInclude(create.body, genericValue);
+
+        // try attaching to 3 contacts
+        const contacts: Contact[] = [];
+        for (let i = 0; i < 3; i++) {
+            const contact: Partial<Contact> = {
+                id: generateId()
+            };
+            const createContact = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact);
+            chai.assert.equal(createContact.statusCode, 201);
+            contacts.push(createContact.body);
+
+            if (i < 2) {
+                // succeeds for first 2 contacts
+                const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: genericValue.code});
+                chai.assert.equal(attach.statusCode, 200);
+            } else {
+                // fails. insufficient funds
+                const attach = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: genericValue.code});
+                chai.assert.equal(attach.statusCode, 409);
+                chai.assert.equal(attach.body["messageCode"], "InsufficientUsesRemaining");
+            }
+        }
+
+        // credit uses remaining
+        const creditRequest: CreditRequest = {
+            id: generateId(),
+            currency: "USD",
+            destination: {
+                rail: "lightrail",
+                valueId: genericValue.id
+            },
+            uses: 2
+        };
+        const credit = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", creditRequest);
+        chai.assert.equal(credit.statusCode, 201);
+
+        // try attaching again
+        const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contacts[2].id}/values/attach`, "POST", {code: genericValue.code});
+        chai.assert.equal(attach.statusCode, 200);
+    });
+
+    it("can create a generic value with per contact properties and no balance or usesRemaining liability controls", async () => {
+        const genericValue: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            isGenericCode: true,
+            code: generateFullcode(),
+            genericCodeProperties: {
+                valuePropertiesPerContact: {
+                    balance: 500,
+                    usesRemaining: 2
+                }
+            },
+            balance: null
+        };
+
+        const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
+        chai.assert.equal(create.statusCode, 201);
+        chai.assert.deepNestedInclude(create.body, genericValue);
+
+        const createContact = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: generateId()});
+        chai.assert.equal(createContact.statusCode, 201);
+
+        const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${createContact.body.id}/values/attach`, "POST", {code: genericValue.code});
+        chai.assert.equal(attach.statusCode, 200);
+
+        const getTx = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/values/${attach.body.id}/transactions?transactionType=attach`, "GET");
+        chai.assert.deepEqualExcluding(getTx.body[0],
+            {
+                "id": null,
+                "transactionType": "attach",
+                "currency": "USD",
+                "totals": null,
+                "lineItems": null,
+                "paymentSources": null,
+                "steps": [
+                    {
+                        "rail": "lightrail",
+                        "valueId": genericValue.id,
+                        "contactId": null,
+                        "code": genericValue.code,
+                        "balanceBefore": null,
+                        "balanceAfter": null,
+                        "balanceChange": null,
+                        "usesRemainingBefore": null,
+                        "usesRemainingAfter": null,
+                        "usesRemainingChange": null
+                    },
+                    {
+                        "rail": "lightrail",
+                        "valueId": attach.body.id,
+                        "contactId": createContact.body.id,
+                        "code": null,
+                        "balanceBefore": 0,
+                        "balanceAfter": 500,
+                        "balanceChange": 500,
+                        "usesRemainingBefore": 0,
+                        "usesRemainingAfter": 2,
+                        "usesRemainingChange": 2
+                    }
+                ],
+                "metadata": null,
+                "tax": null,
+                "pending": false,
+                "createdDate": null,
+                "createdBy": "default-test-user-TEST"
+            }, ["id", "createdDate"]);
+    });
+
+    it("test hashed id for attach", async () => {
+        const genericValue: Partial<Value> = {
+            id: "dontChangeValueId",
+            currency: "USD",
+            isGenericCode: true,
+            code: generateFullcode(),
+            genericCodeProperties: {
+                valuePropertiesPerContact: {
+                    balance: 500,
+                    usesRemaining: 2
+                }
+            },
+            balance: null
+        };
+
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
+        chai.assert.equal(createValue.statusCode, 201);
+        chai.assert.deepNestedInclude(createValue.body, genericValue);
+
+        const createContact = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: "dontChangeContactId"});
+        chai.assert.equal(createContact.statusCode, 201);
+
+        const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${createContact.body.id}/values/attach`, "POST", {valueId: genericValue.id});
+        chai.assert.equal(attach.statusCode, 200);
+
+        chai.assert.equal(createValue.body.id, "dontChangeValueId", "This should equal setValueId. Don't change this. This test checks for a consistent hash which prevents a Contact from attaching a generic code twice.");
+        chai.assert.equal(createContact.body.id, "dontChangeContactId", "This should equal setValueId. Don't change this. This test checks for a consistent hash which prevents a Contact from attaching a generic code twice.");
+        chai.assert.equal(attach.body.id, "3BzqT3K3VueDcNW7QGRXT+BJ0q4=", "The id should equal the expected hash of the contactId and valueId. It's important that this doesn't change since this prevents a Contact from attaching a generic code twice.");
+    });
+
+    it("can list values associated with generic value", async () => {
+        const genericValue: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            isGenericCode: true,
+            code: generateFullcode(),
+            genericCodeProperties: {
+                valuePropertiesPerContact: {
+                    balance: null,
+                    usesRemaining: 1
+                }
+            },
+            balanceRule: {
+                rule: "200 + value.balanceChange",
+                explanation: "worth $2 off purchase"
+            }
+        };
+
+        const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
+        chai.assert.equal(create.statusCode, 201);
+        chai.assert.deepNestedInclude(create.body, genericValue);
+
+        const attachedValues: Value[] = [];
+        for (let i = 0; i < 3; i++) {
+            const contact: Partial<Contact> = {
+                id: generateId()
+            };
+            const createContact = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact);
+            chai.assert.equal(createContact.statusCode, 201);
+
+            const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: genericValue.code});
+            chai.assert.equal(attach.statusCode, 200);
+            attachedValues.push(attach.body);
+        }
+
+        const listAttachedValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?attachedFromGenericValueId=${genericValue.id}`, "GET");
+        chai.assert.sameDeepMembers(attachedValues, listAttachedValues.body);
+    });
+
+    describe("happy path and stats", () => {
         const contact1Id = generateId();
         const contact2Id = generateId();
         const contact3Id = generateId();
+
+        const genericValue: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            isGenericCode: true,
+            code: generateFullcode(),
+            discount: true,
+            genericCodeProperties: {
+                valuePropertiesPerContact: {
+                    usesRemaining: 1,
+                    balance: null
+                }
+            },
+            balanceRule: {
+                rule: "500 + value.balanceChange",
+                explanation: "$5 off purchase"
+            }
+        };
 
         before(async function () {
             const createContact1 = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contact1Id});
@@ -470,28 +482,7 @@ describe.only("/v2/values - generic code with per contact properties", () => {
             chai.assert.equal(createContact2.statusCode, 201);
             const createContact3 = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contact3Id});
             chai.assert.equal(createContact3.statusCode, 201);
-        });
 
-        const genericValue: Partial<Value> = {
-            id: generateId(),
-            currency: "USD",
-            isGenericCode: true,
-            code: generateFullcode(),
-            genericCodeProperties: {
-                valuePropertiesPerContact: {
-                    usesRemaining: 1,
-                    balance: null
-                }
-            },
-            usesRemaining: null,
-            balance: null,
-            balanceRule: {
-                rule: "500 + value.balanceChange",
-                explanation: "$5 off purchase"
-            }
-        };
-
-        it("can create generic value", async () => {
             const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
             chai.assert.equal(create.statusCode, 201);
             chai.assert.deepNestedInclude(create.body, genericValue);
@@ -502,7 +493,6 @@ describe.only("/v2/values - generic code with per contact properties", () => {
             const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1Id}/values/attach`, "POST", {code: genericValue.code});
             chai.assert.equal(attach.statusCode, 200);
             valueAttachedToContact1 = attach.body;
-            console.log("valueAttachedToContact1 " + JSON.stringify(valueAttachedToContact1, null, 4));
         });
 
         it("can lookup attach transaction", async () => {
@@ -557,8 +547,8 @@ describe.only("/v2/values - generic code with per contact properties", () => {
                 ],
                 allowRemainder: true
             };
+
             const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-            console.log(JSON.stringify(checkout, null, 4));
             chai.assert.equal(checkout.statusCode, 201);
             chai.assert.deepEqual(checkout.body.steps,
                 [{
@@ -578,243 +568,263 @@ describe.only("/v2/values - generic code with per contact properties", () => {
 
         it("can get generic code stats after contact1 checkout", async () => {
             const stats = await testUtils.testAuthedRequest(router, `/v2/values/${genericValue.id}/stats`, "GET");
-            console.log(JSON.stringify(stats, null, 4));
-        });
-
-        it("contact 3 attaches")
-
-    });
-
-    // todo - test can't attach frozen generic value. or can you?
-    // todo - test can't attach inactive generic value. or can you?
-    // todo - test can't attach canceled generic value - this seems right.
-
-// this might not be useful anymore.
-    describe.skip("set of test to create a generic value, attach, view in context of contact, view in context of generic code, and checkout", () => {
-        const genericValue: Partial<Value> = {
-            id: generateId(),
-            currency: "USD",
-            isGenericCode: true,
-            code: "SIGNUP2019",
-            genericCodeProperties: {
-                valuePropertiesPerContact: {
-                    balance: 500,
-                    usesRemaining: 2
-                }
-            },
-            balance: 5000,
-            usesRemaining: 10
-        };
-        it("can create generic value", async () => {
-            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
-            chai.assert.equal(create.statusCode, 201);
-            chai.assert.deepNestedInclude(create.body, genericValue);
-
-            const get = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${genericValue.id}`, "GET");
-            chai.assert.equal(get.statusCode, 200);
-            chai.assert.deepEqual(create.body, get.body);
-        });
-
-        const contactId = generateId();
-        let attachedValueId: string;
-        it("can attach generic value", async () => {
-            const contact: Partial<Contact> = {
-                id: contactId
-            };
-
-            const createContact = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact);
-            chai.assert.equal(createContact.statusCode, 201);
-
-            const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {code: genericValue.code});
-            chai.assert.equal(attach.statusCode, 200);
-            chai.assert.deepEqualExcluding(attach.body,
-                {
-                    "id": null, // it's hashed
-                    "currency": "USD",
+            chai.assert.equal(stats.statusCode, 200);
+            chai.assert.deepEqual(stats.body, {
+                "redeemed": {
                     "balance": 500,
-                    "usesRemaining": 2,
-                    "programId": null,
-                    "issuanceId": null,
-                    "contactId": contact.id,
-                    "code": null,
-                    "attachedFromGenericValueId": genericValue.id,
-                    "isGenericCode": false,
-                    "genericCodeProperties": null,
-                    "pretax": false,
-                    "active": true,
-                    "canceled": false,
-                    "frozen": false,
-                    "discount": false,
-                    "discountSellerLiability": null,
-                    "redemptionRule": null,
-                    "balanceRule": null,
-                    "startDate": null,
-                    "endDate": null,
-                    "metadata": {
-                        attachedFromGenericValue: {
-                            code: "SIGNUP2019"
-                        }
-                    },
-                    "createdDate": null,
-                    "updatedDate": null,
-                    "updatedContactIdDate": null,
-                    "createdBy": "default-test-user-TEST"
-                }, ["id", "createdDate", "updatedDate", "updatedContactIdDate"]);
-            attachedValueId = attach.body.id;
-
-
-            const getTx = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/values/${attach.body.id}/transactions?transactionType=attach`, "GET");
-            chai.assert.equal(getTx.statusCode, 200);
-            chai.assert.deepEqualExcluding(getTx.body[0],
-                {
-                    "id": attach.body.id, // the transaction.id is the same as the new attached value.id.
-                    "transactionType": "attach",
-                    "currency": "USD",
-                    "totals": null,
-                    "lineItems": null,
-                    "paymentSources": null,
-                    "steps": [
-                        {
-                            "rail": "lightrail",
-                            "valueId": genericValue.id,
-                            "contactId": null,
-                            "code": "SIGNUP2019",
-                            "balanceBefore": 5000,
-                            "balanceAfter": 4500,
-                            "balanceChange": -500,
-                            "usesRemainingBefore": 10,
-                            "usesRemainingAfter": 8,
-                            "usesRemainingChange": -2
-                        },
-                        {
-                            "rail": "lightrail",
-                            "valueId": attach.body.id,
-                            "contactId": contactId,
-                            "code": null,
-                            "balanceBefore": 0,
-                            "balanceAfter": 500,
-                            "balanceChange": 500,
-                            "usesRemainingBefore": 0,
-                            "usesRemainingAfter": 2,
-                            "usesRemainingChange": 2
-                        }
-                    ],
-                    "metadata": null,
-                    "tax": null,
-                    "pending": false,
-                    "createdDate": null,
-                    "createdBy": "default-test-user-TEST"
-                }, ["createdDate"]);
-
-            const listContactValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${contactId}/values`, "GET");
-            chai.assert.equal(listContactValues.statusCode, 200);
-            chai.assert.equal(listContactValues.body.length, 1);
-            chai.assert.deepEqualExcluding(listContactValues.body[0], {
-                "id": attach.body.id,
-                "currency": "USD",
-                "balance": 500,
-                "usesRemaining": 2,
-                "programId": null,
-                "issuanceId": null,
-                "contactId": contact.id,
-                "code": null,
-                "attachedFromGenericValueId": genericValue.id,
-                "isGenericCode": false,
-                "genericCodeProperties": null,
-                "pretax": false,
-                "active": true,
-                "canceled": false,
-                "frozen": false,
-                "discount": false,
-                "discountSellerLiability": null,
-                "redemptionRule": null,
-                "balanceRule": null,
-                "startDate": null,
-                "endDate": null,
-                "metadata": {
-                    attachedFromGenericValue: {
-                        code: "SIGNUP2019"
-                    }
+                    "transactionCount": 1
                 },
-                "createdDate": null,
-                "updatedDate": null,
-                "updatedContactIdDate": null,
-                "createdBy": "default-test-user-TEST"
-            }, ["createdDate", "updatedDate", "updatedContactIdDate"]);
+                "checkout": {
+                    "lightrailSpend": 500,
+                    "overspend": 277,
+                    "transactionCount": 1
+                },
+                "attachedContacts": {
+                    "count": 2
+                }
+            });
         });
 
-        it("can checkout against generic code using contactId", async () => {
+        it("contact 3 auto-attaches via checkout", async () => {
             const checkoutRequest: CheckoutRequest = {
                 id: generateId(),
                 currency: "USD",
                 sources: [
-                    {rail: "lightrail", contactId: contactId}
+                    {rail: "lightrail", code: genericValue.code},
+                    {rail: "lightrail", contactId: contact3Id}
                 ],
                 lineItems: [
-                    {unitPrice: 777}
-                ],
-                allowRemainder: true
+                    {unitPrice: 100},
+                    {unitPrice: 125}
+                ]
             };
             const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
             chai.assert.equal(checkout.statusCode, 201);
-            chai.assert.deepEqualExcluding(checkout.body, {
-                id: checkoutRequest.id,
-                transactionType: "checkout",
+            chai.assert.equal((checkout.body.steps[0] as LightrailTransactionStep).valueId, GenericCodePerContact.generateValueId(genericValue.id, contact3Id));
+            chai.assert.equal((checkout.body.steps[0] as LightrailTransactionStep).balanceChange, -225);
+        });
+
+        it("can get stats", async () => {
+            const stats = await testUtils.testAuthedRequest(router, `/v2/values/${genericValue.id}/stats`, "GET");
+            chai.assert.equal(stats.statusCode, 200);
+            chai.assert.deepEqual(stats.body, {
+                "redeemed": {
+                    "balance": 725,
+                    "transactionCount": 2
+                },
+                "checkout": {
+                    "lightrailSpend": 725,
+                    "overspend": 277,
+                    "transactionCount": 2
+                },
+                "attachedContacts": {
+                    "count": 3
+                }
+            });
+        });
+
+        it("contact stats are correct for other types of generic code attaches", async () => {
+            const legacyGenericValue: Partial<Value> = {
+                id: generateId(),
                 currency: "USD",
-                createdDate: null,
-                tax: {
-                    roundingMode: "HALF_EVEN"
+                isGenericCode: true,
+                code: generateFullcode(),
+                discount: true,
+                balanceRule: {
+                    rule: "500 + value.balanceChange",
+                    explanation: "$5 off purchase"
+                }
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", legacyGenericValue);
+            chai.assert.equal(create.statusCode, 201);
+
+            // attach as shared
+            const attachContact1 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1Id}/values/attach`, "POST", {code: legacyGenericValue.code});
+            chai.assert.equal(attachContact1.statusCode, 200);
+
+            // attachGenericAsNewValue
+            const attachContact2 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact2Id}/values/attach`, "POST", {
+                code: legacyGenericValue.code,
+                attachGenericAsNewValue: true
+            });
+            chai.assert.equal(attachContact2.statusCode, 200);
+
+            const stats = await testUtils.testAuthedRequest(router, `/v2/values/${legacyGenericValue.id}/stats`, "GET");
+            chai.assert.equal(stats.statusCode, 200);
+            chai.assert.deepEqual(stats.body, {
+                "redeemed": {
+                    "balance": 0,
+                    "transactionCount": 0
                 },
-                totals: {
-                    subtotal: 777,
-                    tax: 0,
-                    discount: 0,
-                    payable: 777,
-                    remainder: 277,
-                    discountLightrail: 0,
-                    paidLightrail: 500,
-                    paidStripe: 0,
-                    paidInternal: 0
+                "checkout": {
+                    "lightrailSpend": 0,
+                    "overspend": 0,
+                    "transactionCount": 0
                 },
-                lineItems: [
+                "attachedContacts": {
+                    "count": 2
+                }
+            });
+        });
+
+    });
+
+    it("can reverse - the created value persists but the steps are reversed so it's effectively unusable", async () => {
+        // create value
+        const genericValue: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 400,
+            genericCodeProperties: {
+                valuePropertiesPerContact: {
+                    usesRemaining: 1,
+                    balance: 100
+                }
+            },
+            usesRemaining: 4,
+            discount: true,
+            isGenericCode: true
+        };
+        const postValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", genericValue);
+        chai.assert.equal(postValue.statusCode, 201);
+
+        // create contact
+        const contact: Partial<Contact> = {
+            id: generateId(),
+            email: "kevin.bacon@example.com"
+        };
+        const postContact = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts`, "POST", contact);
+        chai.assert.equal(postContact.statusCode, 201);
+
+        // create attach
+        const postAttach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+            valueId: genericValue.id
+        });
+        chai.assert.equal(postAttach.statusCode, 200, `body=${JSON.stringify(postAttach.body)}`);
+        chai.assert.equal(postAttach.body.contactId, contact.id); // returns the new value for the Contact
+        chai.assert.equal(postAttach.body.usesRemaining, 1);
+
+        // create reverse
+        const attachTx = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${genericValue.id}&transactionType=attach`, "GET");
+        const reverse: Partial<ReverseRequest> = {
+            id: generateId()
+        };
+        const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${encodeURIComponent(attachTx.body[0].id)}/reverse`, "POST", reverse); // attach on generic uses a hash so can have special characters
+        chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postReverse.body)}`);
+        chai.assert.deepEqualExcluding(postReverse.body, {
+                "id": reverse.id,
+                "transactionType": "reverse",
+                "currency": "USD",
+                "createdDate": null,
+                "totals": null,
+                "lineItems": null,
+                "tax": null,
+                "steps": [
                     {
-                        unitPrice: 777,
-                        quantity: 1,
-                        lineTotal: {
-                            subtotal: 777,
-                            taxable: 777,
-                            tax: 0,
-                            discount: 0,
-                            remainder: 277,
-                            payable: 777
-                        }
+                        "rail": "lightrail",
+                        "valueId": genericValue.id,
+                        "contactId": null,
+                        "code": null,
+                        "balanceBefore": 300,
+                        "balanceAfter": 400,
+                        "balanceChange": 100,
+                        "usesRemainingBefore": 3,
+                        "usesRemainingAfter": 4,
+                        "usesRemainingChange": 1
+                    },
+                    {
+                        "rail": "lightrail",
+                        "valueId": postAttach.body.id,
+                        "contactId": contact.id,
+                        "code": null,
+                        "balanceBefore": 100,
+                        "balanceAfter": 0,
+                        "balanceChange": -100,
+                        "usesRemainingBefore": 1,
+                        "usesRemainingAfter": 0,
+                        "usesRemainingChange": -1
                     }
                 ],
-                steps: [
-                    {
-                        rail: "lightrail",
-                        valueId: attachedValueId,
-                        contactId: contactId,
-                        code: null,
-                        balanceBefore: 500,
-                        balanceAfter: 0,
-                        balanceChange: -500,
-                        usesRemainingBefore: 2,
-                        usesRemainingAfter: 1,
-                        usesRemainingChange: -1
-                    }
-                ],
-                paymentSources: [
-                    {
-                        rail: "lightrail",
-                        contactId: contactId
-                    }
-                ],
-                pending: false,
-                metadata: null,
-                createdBy: "default-test-user-TEST"
-            }, ["createdDate"]);
+                "paymentSources": null,
+                "pending": false,
+                "metadata": null,
+                "createdBy": "default-test-user-TEST"
+            } as Transaction, ["createdDate"]
+        );
+
+        // check value is same as before
+        const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${genericValue.id}`, "GET");
+        chai.assert.deepEqualExcluding(getValue.body, postValue.body, ["updatedDate", "updatedContactIdDate"]);
+    });
+
+    describe("value state (inactive, frozen, cancelled) tests", () => {
+        const genericValue: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            isGenericCode: true,
+            genericCodeProperties: {
+                valuePropertiesPerContact: {
+                    balance: 10,
+                    usesRemaining: 1
+                }
+            }
+        };
+        const contactId = generateId();
+
+        before(async function () {
+            const createContact1 = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contactId});
+            chai.assert.equal(createContact1.statusCode, 201);
+        });
+
+        it("can't attach inactive value", async () => {
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                ...genericValue,
+                id: generateId(),
+                active: false
+            } as Partial<Value>);
+            chai.assert.equal(create.statusCode, 201);
+            chai.assert.isFalse(create.body.active);
+            const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {
+                valueId: genericValue.id
+            });
+            chai.assert.equal(attach.statusCode, 409);
+            chai.assert.equal(attach.body.messageCode, "ValueInactive");
+        });
+
+        it("can't attach frozen value", async () => {
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                ...genericValue,
+                id: generateId(),
+                frozen: true
+            } as Partial<Value>);
+            chai.assert.equal(create.statusCode, 201);
+            chai.assert.isTrue(create.body.frozen);
+            const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {
+                valueId: genericValue.id
+            });
+            chai.assert.equal(attach.statusCode, 409);
+            chai.assert.equal(attach.body.messageCode, "ValueFrozen");
+        });
+
+        it("can't attach frozen value", async () => {
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+                ...genericValue,
+                id: generateId(),
+            } as Partial<Value>);
+            chai.assert.equal(create.statusCode, 201);
+
+            const cancel = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${create.body.id}`, "PATCH", {
+                canceled: true
+            });
+            chai.assert.equal(cancel.statusCode, 200);
+            chai.assert.isTrue(cancel.body.canceled);
+            const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {
+                valueId: genericValue.id
+            });
+            chai.assert.equal(attach.statusCode, 409);
+            chai.assert.equal(attach.body.messageCode, "ValueCanceled");
         });
     });
-})
-;
+});
+
+
