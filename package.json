@@ -54,7 +54,7 @@
     "dotenv": "^6.2.0",
     "dotenv-safe": "^6.1.0",
     "file-loader": "^3.0.1",
-    "giftbit-cassava-routes": "git+ssh://git@github.com/Giftbit/giftbit-cassava-routes.git#semver:^10.1.1",
+    "giftbit-cassava-routes": "git+ssh://git@github.com/Giftbit/giftbit-cassava-routes.git#semver:^10.2.0",
     "giftbit-lambda-metricslib": "git+ssh://git@github.com/Giftbit/giftbit-lambda-metricslib.git#semver:^3.0.0",
     "giftbit-ruleslib": "git+ssh://git@github.com/Giftbit/giftbit-ruleslib.git#semver:^4.2.0",
     "import-glob-loader": "^1.1.0",

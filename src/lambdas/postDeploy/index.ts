@@ -148,10 +148,16 @@ async function setStripeWebhookEvents(event: awslambda.CloudFormationCustomResou
 
     log.info(`Initializing assume token and Stripe config...`);
     initializeAssumeCheckoutToken(
-        giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<giftbitRoutes.secureConfig.AssumeScopeToken>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH")
+        giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<giftbitRoutes.secureConfig.AssumeScopeToken>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH", {
+            errorLogger: log.error,
+            maxAttempts: 10
+        })
     );
     initializeLightrailStripeConfig(
-        giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE")
+        giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE", {
+            errorLogger: log.error,
+            maxAttempts: 10
+        })
     );
     log.info(`Assume token and Stripe config initialized.`);
 
