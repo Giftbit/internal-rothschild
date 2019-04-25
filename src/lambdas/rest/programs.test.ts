@@ -1440,7 +1440,7 @@ describe("/v2/programs", () => {
                 const statsResp = await testUtils.testAuthedRequest<any>(router, `/v2/programs/${programId}/stats`, "GET");
                 chai.assert.equal(statsResp.statusCode, 200, JSON.stringify(statsResp.body));
                 chai.assert.deepEqual(statsResp.body, scenario.result);
-            }).timeout(10000);
+            }).timeout(15000);
         }
 
         // Run each scenario individually.

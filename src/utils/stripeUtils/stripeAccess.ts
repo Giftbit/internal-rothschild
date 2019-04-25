@@ -1,29 +1,62 @@
-// First two functions copied from internal-turnkey
-// Minor modification made to facilitate testing: fetchFromS3ByEnvVar is called directly in getStripeConfig rather than in a promise, so that it can be mocked
-
 import log = require("loglevel");
+import Stripe = require("stripe");
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
 import {LightrailAndMerchantStripeConfig, StripeConfig, StripeModeConfig} from "./StripeConfig";
 import {StripeAuth} from "./StripeAuth";
+import * as cassava from "cassava";
 import {httpStatusCode, RestError} from "cassava";
 import * as kvsAccess from "../kvsAccess";
+import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
+import {generateCode} from "../codeGenerator";
+import {DbTransaction, Transaction} from "../../model/Transaction";
+import {getKnexRead} from "../dbUtils/connection";
+
+let assumeCheckoutToken: Promise<giftbitRoutes.secureConfig.AssumeScopeToken>;
+
+export function initializeAssumeCheckoutToken(tokenPromise: Promise<giftbitRoutes.secureConfig.AssumeScopeToken>): void {
+    assumeCheckoutToken = tokenPromise;
+}
+
+export async function setupLightrailAndMerchantStripeConfig(auth: giftbitRoutes.jwtauth.AuthorizationBadge): Promise<LightrailAndMerchantStripeConfig> {
+    const authorizeAs = auth.getAuthorizeAsPayload();
+
+    if (!assumeCheckoutToken) {
+        throw new Error("AssumeCheckoutToken has not been initialized.");
+    }
+    log.info("fetching retrieve stripe auth assume token");
+    const assumeToken = (await assumeCheckoutToken).assumeToken;
+    log.info("got retrieve stripe auth assume token");
+
+    const lightrailStripeModeConfig = await getLightrailStripeModeConfig(auth.isTestUser());
+
+    log.info("fetching merchant stripe auth");
+    const merchantStripeConfig: StripeAuth = await kvsAccess.kvsGet(assumeToken, "stripeAuth", authorizeAs);
+    log.info("got merchant stripe auth");
+    validateStripeConfig(merchantStripeConfig, lightrailStripeModeConfig);
+
+    return {merchantStripeConfig, lightrailStripeConfig: lightrailStripeModeConfig};
+}
+
+let lightrailStripeConfig: Promise<StripeConfig>;
+
+export function initializeLightrailStripeConfig(lightrailStripePromise: Promise<StripeConfig>): void {
+    lightrailStripeConfig = lightrailStripePromise;
+}
 
 /**
  * Get Stripe credentials for test or live mode.  Test mode credentials allow
  * dummy credit cards and skip through stripe connect.
- * @param test whether to use test account credentials or live credentials
+ * @param testMode whether to use test account credentials or live credentials
  */
-export async function getStripeConfig(test: boolean): Promise<StripeModeConfig> {
-    const stripeConfig = await giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE");
-    if (!stripeConfig.live && !stripeConfig.test) {
-        // TEMP this is a short term measure to be able to use new code with old config files
-        return stripeConfig as any;
+export async function getLightrailStripeModeConfig(testMode: boolean): Promise<StripeModeConfig> {
+    if (!lightrailStripeConfig) {
+        throw new Error("lightrailStripeConfig has not been initialized.");
     }
-    return test ? stripeConfig.test : stripeConfig.live;
+    return testMode ? (await lightrailStripeConfig).test : (await lightrailStripeConfig).live;
 }
 
-export function validateStripeConfig(merchantStripeConfig: StripeAuth, lightrailStripeConfig: StripeModeConfig) {
+function validateStripeConfig(merchantStripeConfig: StripeAuth, lightrailStripeConfig: StripeModeConfig) {
     if (!merchantStripeConfig || !merchantStripeConfig.stripe_user_id) {
         throw new GiftbitRestError(424, "Merchant stripe config stripe_user_id must be set.", "MissingStripeUserId");
     }
@@ -33,21 +66,66 @@ export function validateStripeConfig(merchantStripeConfig: StripeAuth, lightrail
     }
 }
 
-// This is a draft that's waiting for the rest of the system to get put together: might work but likely need to revisit assume token
-export async function setupLightrailAndMerchantStripeConfig(auth: giftbitRoutes.jwtauth.AuthorizationBadge): Promise<LightrailAndMerchantStripeConfig> {
-    const authorizeAs = auth.getAuthorizeAsPayload();
+/**
+ * This is a workaround method until we can get the Lightrail userId directly from the Stripe accountId.
+ * When that happens we'll be able to build the badge solely from the accountId and test/live flag on the event.
+ */
+export async function getAuthBadgeFromStripeCharge(stripeAccountId: string, stripeCharge: Stripe.charges.ICharge, event: Stripe.events.IEvent & { account: string }): Promise<giftbitRoutes.jwtauth.AuthorizationBadge> {
+    let lightrailUserId = await getLightrailUserIdFromStripeCharge(stripeAccountId, stripeCharge, !event.livemode);
 
-    log.info("fetching retrieve stripe auth assume token");
-    const assumeCheckoutToken = giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<giftbitRoutes.secureConfig.AssumeScopeToken>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH");
-    const assumeToken = (await assumeCheckoutToken).assumeToken;
-    log.info("got retrieve stripe auth assume token");
+    return new AuthorizationBadge({
+        g: {
+            gui: lightrailUserId,
+            tmi: "stripe-webhook-event-handler",
+        },
+        iat: Date.now(),
+        jti: `webhook-badge-${generateCode({})}`,
+        scopes: ["lightrailV2:transactions:list", "lightrailV2:transactions:reverse", "lightrailV2:transactions:void", "lightrailV2:values:list", "lightrailV2:values:update", "lightrailV2:contacts:list"]
+    });
+}
 
-    log.info("fetching stripe auth");
-    const merchantStripeConfig: StripeAuth = await kvsAccess.kvsGet(assumeToken, "stripeAuth", authorizeAs);
-    log.info("got stripe auth");
+/**
+ * This is a workaround method. For now, it relies on finding the Lightrail userId by looking up the root Transaction that the Stripe charge is attached to.
+ * Stripe resource IDs are globally unique so this is a reasonable temporary method.
+ * When the new user service exists and provides a direct mapping from Stripe accountId to Lightrail userId, we'll be able to do a direct lookup without using the Stripe charge.
+ * @param stripeAccountId
+ * @param stripeCharge
+ * @param testMode - currently not actually required (lightrailUserId will contain "-TEST" already) but will be for non-workaround method
+ */
+async function getLightrailUserIdFromStripeCharge(stripeAccountId: string, stripeCharge: Stripe.charges.ICharge, testMode: boolean): Promise<string> {
+    try {
+        const rootTransaction: Transaction = await getRootTransactionFromStripeCharge(stripeCharge);
+        return rootTransaction.createdBy;
+    } catch (e) {
+        log.error(`Could not get Lightrail userId from Stripe accountId ${stripeAccountId} and charge ${stripeCharge.id}. \nError: ${e}`);
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNAUTHORIZED, `Could not get Lightrail userId from Stripe accountId ${stripeAccountId} and charge ${stripeCharge.id}`);
+    }
+}
 
-    const lightrailStripeConfig = await getStripeConfig(auth.isTestUser());
-    validateStripeConfig(merchantStripeConfig, lightrailStripeConfig);
+export async function getRootTransactionFromStripeCharge(stripeCharge: Stripe.charges.ICharge): Promise<Transaction> {
+    const res = await getDbTransactionsFromStripeCharge(stripeCharge);
+    const roots = res.filter(tx => tx.id === tx.rootTransactionId);
 
-    return {merchantStripeConfig, lightrailStripeConfig};
+    if (roots.length === 1) {
+        const dbTransaction = roots[0];
+        const [transaction] = await DbTransaction.toTransactions([dbTransaction], dbTransaction.createdBy);
+        return transaction;
+
+    } else if (roots.length === 0) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.NOT_FOUND, `Could not find Lightrail Transaction corresponding to Stripe Charge '${stripeCharge.id}'.`, "TransactionNotFound");
+
+    } else if (roots.length > 1) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Multiple Lightrail root transactions returned for Stripe chargeId ${stripeCharge.id}`);
+    }
+}
+
+async function getDbTransactionsFromStripeCharge(stripeCharge: Stripe.charges.ICharge): Promise<DbTransaction[]> {
+    const knex = await getKnexRead();
+    return await knex("Transactions")
+        .join("StripeTransactionSteps", {
+            "StripeTransactionSteps.userId": "Transactions.userId",
+            "Transactions.id": "StripeTransactionSteps.transactionId",
+        })
+        .where({"StripeTransactionSteps.chargeId": stripeCharge.id}) // this can return multiple Transactions: refund steps use the chargeId of the charge they refund
+        .select("Transactions.*");
 }

@@ -1,11 +1,10 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as logPrefix from "loglevel-plugin-prefix";
-import {installRestRoutes} from "./installRestRoutes";
-import {CodeCryptographySecrets, initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils"; // Prefix log messages with the level.
-import {initializeIntercomSecrets, IntercomSecrets} from "../../utils/intercomUtils";
+import {installStripeEventWebhookRest} from "./installStripeEventWebhookRest";
 import {initializeAssumeCheckoutToken, initializeLightrailStripeConfig} from "../../utils/stripeUtils/stripeAccess";
 import {StripeConfig} from "../../utils/stripeUtils/StripeConfig";
+import {CodeCryptographySecrets, initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils";
 import log = require("loglevel");
 
 // Wrapping console.log instead of binding (default behaviour for loglevel)
@@ -37,23 +36,8 @@ router.route(new giftbitRoutes.MetricsRoute({
     logFunction: log.info
 }));
 
-router.route(new giftbitRoutes.HealthCheckRoute("/v2/healthCheck"));
-
-router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute({
-    authConfigPromise: giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<any>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_JWT"),
-    rolesConfigPromise: giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<any>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ROLE_DEFINITIONS"),
-    sharedSecretProvider: new giftbitRoutes.jwtauth.sharedSecret.RestSharedSecretProvider(`https://${process.env["LIGHTRAIL_DOMAIN"]}/v1/storage/jwtSecret`, giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<giftbitRoutes.secureConfig.AssumeScopeToken>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_STORAGE_SCOPE_TOKEN"),
-    ),
-    infoLogFunction: log.info,
-    errorLogFunction: log.error
-}));
-
 initializeCodeCryptographySecrets(
     giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<CodeCryptographySecrets>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY")
-);
-
-initializeIntercomSecrets(
-    giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<IntercomSecrets>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_INTERCOM_SECRET")
 );
 
 initializeAssumeCheckoutToken(
@@ -64,7 +48,7 @@ initializeLightrailStripeConfig(
     giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE")
 );
 
-installRestRoutes(router);
+installStripeEventWebhookRest(router);
 
 // Export the lambda handler with Sentry error logging supported.
 export const handler = giftbitRoutes.sentry.wrapLambdaHandler({
