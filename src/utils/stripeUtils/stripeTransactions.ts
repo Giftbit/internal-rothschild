@@ -113,12 +113,31 @@ export async function updateCharge(chargeId: string, params: Stripe.charges.ICha
     }
 }
 
+export async function retrieveCharge(chargeId: string, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<Stripe.charges.ICharge> {
+    const lightrailStripe = new Stripe(lightrailStripeSecretKey);
+    lightrailStripe.setApiVersion(stripeApiVersion);
+    log.info("Retrieving Stripe charge", chargeId);
+    try {
+        const charge = await lightrailStripe.charges.retrieve(chargeId, {stripe_account: merchantStripeAccountId});
+        log.info("retrieved Stripe charge", charge);
+        return charge;
+    } catch (err) {
+        checkForStandardStripeErrors(err);
+        if (err.statusCode === 404) {
+            throw new StripeRestError(404, `Charge not found: ${chargeId}`, null, err);
+        }
+        log.warn("Error retrieving Stripe charge:", err);
+        giftbitRoutes.sentry.sendErrorNotification(err);
+        throw err;
+    }
+}
+
 function checkForStandardStripeErrors(err: any): void {
     switch (err.type) {
         case "RateLimitError":
             throw new StripeRestError(429, `Service was rate limited by dependent service.`, "DependentServiceRateLimited", err); // technically this is up to us to handle once we're past mvp stage: since we are sending the requests, we should take responsibility for spacing & retrying
         case "StripePermissionError":
-            throw new StripeRestError(424, "Application access may have been revoked. .", "StripePermissionError", err);
+            throw new StripeRestError(424, "Application access may have been revoked.", "StripePermissionError", err);
         default:
         // do nothing
     }

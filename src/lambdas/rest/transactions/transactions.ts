@@ -22,9 +22,9 @@ import {createTransferTransactionPlan, resolveTransferTransactionPlanSteps} from
 import {createCreditTransactionPlan} from "./transactions.credit";
 import {createDebitTransactionPlan} from "./transactions.debit";
 import {createReverseTransactionPlan} from "./reverse/transactions.reverse";
-import getPaginationParams = Pagination.getPaginationParams;
 import {createCaptureTransactionPlan} from "./transactions.capture";
 import {createVoidTransactionPlan} from "./transactions.void";
+import getPaginationParams = Pagination.getPaginationParams;
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions")
@@ -323,7 +323,7 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
     );
 }
 
-async function createReverse(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: ReverseRequest, transactionIdToReverse: string): Promise<Transaction> {
+export async function createReverse(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: ReverseRequest, transactionIdToReverse: string): Promise<Transaction> {
     return executeTransactionPlanner(
         auth,
         {
@@ -349,7 +349,7 @@ async function createCapture(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req
     );
 }
 
-async function createVoid(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: VoidRequest, transactionIdToVoid: string): Promise<Transaction> {
+export async function createVoid(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: VoidRequest, transactionIdToVoid: string): Promise<Transaction> {
     return executeTransactionPlanner(
         auth,
         {
@@ -360,6 +360,30 @@ async function createVoid(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: V
             return await createVoidTransactionPlan(auth, req, transactionIdToVoid);
         }
     );
+}
+
+export function isReversible(transaction: Transaction, transactionChain: Transaction[]): boolean {
+    return transaction.transactionType !== "reverse" &&
+        !transaction.pending &&
+        transaction.transactionType !== "void" &&
+        transaction.transactionType !== "capture" &&
+        !isReversed(transaction, transactionChain);
+}
+
+export function isReversed(transaction: Transaction, transactionChain: Transaction[]): boolean {
+    return (!!transactionChain.find(txn => txn.transactionType === "reverse"));
+}
+
+export function isVoidable(transaction: Transaction, transactionChain: Transaction[]): boolean {
+    return !!transaction.pending && !isVoided(transaction, transactionChain);
+}
+
+export function isVoided(transaction: Transaction, transactionChain: Transaction[]): boolean {
+    return !!transaction.pending && !!transactionChain.find(txn => txn.transactionType === "void");
+}
+
+export function isCaptured(transaction: Transaction, transactionChain: Transaction[]): boolean {
+    return !!transactionChain.find(txn => txn.transactionType === "capture");
 }
 
 const lightrailPartySchema: jsonschema.Schema = {
