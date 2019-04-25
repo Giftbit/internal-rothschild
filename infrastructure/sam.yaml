@@ -13,7 +13,7 @@ Parameters:
     Description: Input to the PostDeployInvocation function to force it to run on every deployment.
     Default: "date +%s"
   Capacity:
-    AllowedValues : ["high", "low"]
+    AllowedValues: ["high", "low"]
     Type: String
   DbEncryptionKeyId:
     Type: String
@@ -372,12 +372,12 @@ Resources:
           ./install.sh
         fi
       Tags:
-      - Key: Name
-        Value: !Sub "${AWS::StackName} Bastion Host"
-      - Key: Service
-        Value: Rothschild
-      - Key: AuthorizedUsersGroup # SSH IAM Login scripts will use this to grant or deny access
-        Value: !Ref BastionHostAuthorizedUsersGroup
+        - Key: Name
+          Value: !Sub "${AWS::StackName} Bastion Host"
+        - Key: Service
+          Value: Rothschild
+        - Key: AuthorizedUsersGroup # SSH IAM Login scripts will use this to grant or deny access
+          Value: !Ref BastionHostAuthorizedUsersGroup
   BastionHostRole:
     Type: AWS::IAM::Role
     Properties:
@@ -436,6 +436,85 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName} bastion host security group"
+
+  StripeEventWebhookFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../dist/stripeEventWebhook/stripeEventWebhook.zip
+      Handler: index.handler
+      Runtime: nodejs8.10
+      MemorySize: 128
+      Timeout: 180 # seconds, 900 max
+      Environment:
+        Variables:
+          DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
+          DB_READ_ENDPOINT: !GetAtt DbCluster.ReadEndpoint.Address
+          DB_PORT: !GetAtt DbCluster.Endpoint.Port
+          DB_USERNAME: "master"
+          DB_PASSWORD_PARAMETER: !GetAtt DbCredentials.PasswordParameter
+          LIGHTRAIL_DOMAIN: !Ref LightrailDomain
+          SECURE_CONFIG_BUCKET: !Ref SecureConfigBucket
+          SECURE_CONFIG_KEY_SENTRY: sentry_lambda_services.json
+          SECURE_CONFIG_KEY_STRIPE: stripe_connect.json
+          SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH: assumeRetrieveStripeAuth.json
+          SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY: code_cryptography_secrets.json
+      VpcConfig:
+        SecurityGroupIds:
+          - !GetAtt LambdaSecurityGroup.GroupId
+        SubnetIds:
+          - !Ref SubnetPrivateA
+          - !Ref SubnetPrivateB
+          - !Ref SubnetPrivateC
+      Policies:
+        - AWSLambdaVPCAccessExecutionRole
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+                - ssm:GetParameters
+              Resource:
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DbCredentials.PasswordParameter}"
+            - Effect: Allow
+              Action:
+                - kms:Decrypt
+                - kms:DescribeKey
+              Resource:
+                - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource:
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/stripe_connect.json"
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeRetrieveStripeAuth.json"
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/code_cryptography_secrets.json"
+            - Effect: Allow
+              Action:
+                - kms:Decrypt
+                - kms:DescribeKey
+              Resource:
+                - !Ref SecureConfigKmsArn
+              Condition:
+                StringLike:
+                  "kms:ViaService":
+                    !Sub "s3.${AWS::Region}.amazonaws.com"
+                  "kms:EncryptionContext:aws:s3:arn":
+                    !Sub "arn:aws:s3:::${SecureConfigBucket}/*"
+      Tags:
+        ShortName: StripeEventWebhookFunction
+        Service: Rothschild
+      Events:
+        StripeEventWebhook:
+          Type: Api
+          Properties:
+            Path: /v2/stripeEventWebhook
+            Method: ANY
+        StripeTestEventWebhook:
+          Type: Api
+          Properties:
+            Path: /v2/stripeTestEventWebhook
+            Method: ANY
 
   RestFunction:
     Type: AWS::Serverless::Function
@@ -611,6 +690,10 @@ Resources:
           DB_PORT: !GetAtt DbCluster.Endpoint.Port
           DB_USERNAME: "master"
           DB_PASSWORD_PARAMETER: !GetAtt DbCredentials.PasswordParameter
+          LIGHTRAIL_DOMAIN: !Ref LightrailDomain
+          SECURE_CONFIG_BUCKET: !Ref SecureConfigBucket
+          SECURE_CONFIG_KEY_STRIPE: stripe_connect.json
+          SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH: assumeRetrieveStripeAuth.json
       VpcConfig:
         SecurityGroupIds:
           - !GetAtt LambdaSecurityGroup.GroupId
@@ -634,6 +717,24 @@ Resources:
                 - kms:DescribeKey
               Resource:
                 - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
+            - Effect: Allow
+              Action:
+                - kms:Decrypt
+                - kms:DescribeKey
+              Resource:
+                - !Ref SecureConfigKmsArn
+              Condition:
+                StringLike:
+                  "kms:ViaService":
+                    !Sub "s3.${AWS::Region}.amazonaws.com"
+                  "kms:EncryptionContext:aws:s3:arn":
+                    !Sub "arn:aws:s3:::${SecureConfigBucket}/*"
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource:
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/stripe_connect.json"
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeRetrieveStripeAuth.json"
       Tags:
         ShortName: PostDeployFunction
         Service: Rothschild
@@ -644,3 +745,4 @@ Resources:
       # This parameter isn't used, but changing it forces this function to run every time, which we want.
       BuildDate: !Ref BuildDate
       ReadOnlyUserPassword: !GetAtt DbReadUserCredentials.Password
+      StripeWebhookEvents: "charge.refunded,charge.refund.updated,review.closed,charge.dispute.created"

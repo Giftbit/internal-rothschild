@@ -8,6 +8,13 @@ import {getDbCredentials} from "../../utils/dbUtils/connection";
 // Copies the .sql files into the schema dir using the file-loader.
 // Flyway will automatically load all .sql files it finds in that dir.
 import "./schema/*.sql";
+import {
+    getLightrailStripeModeConfig,
+    initializeAssumeCheckoutToken,
+    initializeLightrailStripeConfig
+} from "../../utils/stripeUtils/stripeAccess";
+import * as giftbitRoutes from "giftbit-cassava-routes";
+import {StripeConfig, StripeModeConfig} from "../../utils/stripeUtils/StripeConfig";
 import log = require("loglevel");
 
 // Wrapping console.log instead of binding (default behaviour for loglevel)
@@ -27,7 +34,6 @@ const flywayVersion = "5.0.7";
  * Handles a CloudFormationEvent and upgrades the database.
  */
 export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context): Promise<any> {
-
     if (evt.RequestType === "Delete") {
         log.info("This action cannot be rolled back.  Calling success without doing anything.");
         return sendCloudFormationResponse(evt, ctx, true, {});
@@ -37,6 +43,7 @@ export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, 
     }
 
     try {
+        await setStripeWebhookEvents(evt);
         const res = await migrateDatabase(ctx, evt.ResourceProperties.ReadOnlyUserPassword);
         return sendCloudFormationResponse(evt, ctx, true, res);
     } catch (err) {
@@ -134,4 +141,58 @@ async function logFlywaySchemaHistory(ctx: awslambda.Context): Promise<void> {
         "SELECT * FROM rothschild.flyway_schema_history"
     );
     log.info("flyway schema history:\n", JSON.stringify(res[0]));
+}
+
+async function setStripeWebhookEvents(event: awslambda.CloudFormationCustomResourceEvent): Promise<void> {
+    log.info(`Preparing to set enabled Stripe webhook events: '${event.ResourceProperties.StripeWebhookEvents}'`);
+
+    log.info(`Initializing assume token and Stripe config...`);
+    initializeAssumeCheckoutToken(
+        giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<giftbitRoutes.secureConfig.AssumeScopeToken>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH")
+    );
+    initializeLightrailStripeConfig(
+        giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE")
+    );
+    log.info(`Assume token and Stripe config initialized.`);
+
+    // set of events that should be enabled is a variable passed in on the event (defined in sam.yaml)
+    const webhookEventsToEnable = event.ResourceProperties.StripeWebhookEvents.split(",");
+    const url = buildStripeWebhookHandlerEndpoint(process.env["LIGHTRAIL_DOMAIN"]);
+
+    // configure Stripe webhooks the same way for livemode and testmode
+    await configureStripeWebhook(webhookEventsToEnable, url, false);
+    await configureStripeWebhook(webhookEventsToEnable, url, true);
+}
+
+async function configureStripeWebhook(webhookEvents: string[], url: string, testMode: boolean): Promise<void> {
+    let lightrailStripeModeConfig: StripeModeConfig;
+    try {
+        lightrailStripeModeConfig = await getLightrailStripeModeConfig(testMode);
+    } catch (err) {
+        log.error(`Error fetching Stripe credentials from secure config: enabled Stripe webhook events have not been updated. Secure config permissions may need to be set. \nError: ${JSON.stringify(err, null, 2)}`);
+        return; // don't fail deployment if the function can't get the Stripe credentials (stack should be deployable in a new environment where function role name isn't known and can't have had permissions set)
+    }
+
+    log.info(`Fetching existing Stripe webhooks for testMode=${testMode}...`);
+    const lightrailStripe = require("stripe")(lightrailStripeModeConfig.secretKey);
+    const webhooks = await lightrailStripe.webhookEndpoints.list();
+    log.info(`Got existing webhooks: ${JSON.stringify(webhooks, null, 2)}`);
+
+    // if an existing webhook is already configured with the right url, update it; otherwise create it (should only happen on first deploy)
+    if (webhooks.data.find(w => w.url === url)) {
+        await lightrailStripe.webhookEndpoints.update(webhooks.data.find(w => w.url === url).id, {
+            enabled_events: webhookEvents,
+        });
+    } else {
+        await lightrailStripe.webhookEndpoints.create({
+            url,
+            enabled_events: webhookEvents,
+            connect: true
+        });
+    }
+    log.info(`Stripe webhook events configured: testMode=${testMode}. Endpoint: '${url}'; events: '${webhookEvents}'`);
+}
+
+function buildStripeWebhookHandlerEndpoint(lightrailDomain: string): string {
+    return `https://${lightrailDomain}/v2/stripeEventWebhook`;
 }
