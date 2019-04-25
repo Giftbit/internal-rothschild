@@ -510,11 +510,6 @@ Resources:
           Properties:
             Path: /v2/stripeEventWebhook
             Method: ANY
-        StripeTestEventWebhook:
-          Type: Api
-          Properties:
-            Path: /v2/stripeTestEventWebhook
-            Method: ANY
 
   RestFunction:
     Type: AWS::Serverless::Function
