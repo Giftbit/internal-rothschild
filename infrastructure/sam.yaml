@@ -13,7 +13,7 @@ Parameters:
     Description: Input to the PostDeployInvocation function to force it to run on every deployment.
     Default: "date +%s"
   Capacity:
-    AllowedValues : ["high", "low"]
+    AllowedValues: ["high", "low"]
     Type: String
   DbEncryptionKeyId:
     Type: String
@@ -372,12 +372,12 @@ Resources:
           ./install.sh
         fi
       Tags:
-      - Key: Name
-        Value: !Sub "${AWS::StackName} Bastion Host"
-      - Key: Service
-        Value: Rothschild
-      - Key: AuthorizedUsersGroup # SSH IAM Login scripts will use this to grant or deny access
-        Value: !Ref BastionHostAuthorizedUsersGroup
+        - Key: Name
+          Value: !Sub "${AWS::StackName} Bastion Host"
+        - Key: Service
+          Value: Rothschild
+        - Key: AuthorizedUsersGroup # SSH IAM Login scripts will use this to grant or deny access
+          Value: !Ref BastionHostAuthorizedUsersGroup
   BastionHostRole:
     Type: AWS::IAM::Role
     Properties:
@@ -456,6 +456,8 @@ Resources:
           SECURE_CONFIG_BUCKET: !Ref SecureConfigBucket
           SECURE_CONFIG_KEY_SENTRY: sentry_lambda_services.json
           SECURE_CONFIG_KEY_STRIPE: stripe_connect.json
+          SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH: assumeRetrieveStripeAuth.json
+          SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY: code_cryptography_secrets.json
       VpcConfig:
         SecurityGroupIds:
           - !GetAtt LambdaSecurityGroup.GroupId
@@ -485,6 +487,8 @@ Resources:
               Resource:
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/stripe_connect.json"
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeRetrieveStripeAuth.json"
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/code_cryptography_secrets.json"
             - Effect: Allow
               Action:
                 - kms:Decrypt
@@ -686,6 +690,10 @@ Resources:
           DB_PORT: !GetAtt DbCluster.Endpoint.Port
           DB_USERNAME: "master"
           DB_PASSWORD_PARAMETER: !GetAtt DbCredentials.PasswordParameter
+          LIGHTRAIL_DOMAIN: !Ref LightrailDomain
+          SECURE_CONFIG_BUCKET: !Ref SecureConfigBucket
+          SECURE_CONFIG_KEY_STRIPE: stripe_connect.json
+          SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH: assumeRetrieveStripeAuth.json
       VpcConfig:
         SecurityGroupIds:
           - !GetAtt LambdaSecurityGroup.GroupId
@@ -709,6 +717,24 @@ Resources:
                 - kms:DescribeKey
               Resource:
                 - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
+            - Effect: Allow
+              Action:
+                - kms:Decrypt
+                - kms:DescribeKey
+              Resource:
+                - !Ref SecureConfigKmsArn
+              Condition:
+                StringLike:
+                  "kms:ViaService":
+                    !Sub "s3.${AWS::Region}.amazonaws.com"
+                  "kms:EncryptionContext:aws:s3:arn":
+                    !Sub "arn:aws:s3:::${SecureConfigBucket}/*"
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource:
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/stripe_connect.json"
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeRetrieveStripeAuth.json"
       Tags:
         ShortName: PostDeployFunction
         Service: Rothschild
@@ -719,3 +745,4 @@ Resources:
       # This parameter isn't used, but changing it forces this function to run every time, which we want.
       BuildDate: !Ref BuildDate
       ReadOnlyUserPassword: !GetAtt DbReadUserCredentials.Password
+      StripeWebhookEvents: "charge.refunded,charge.refund.updated,review.closed,charge.dispute.created"

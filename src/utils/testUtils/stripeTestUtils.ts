@@ -2,7 +2,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as kvsAccess from "../kvsAccess";
 import * as sinon from "sinon";
 import * as stripe from "stripe";
-import {defaultTestUser} from "./index";
+import {createUSDCheckout, defaultTestUser} from "./index";
 import * as stripeTransactions from "../stripeUtils/stripeTransactions";
 import {
     CheckoutRequest,
@@ -12,6 +12,10 @@ import {
 } from "../../model/TransactionRequest";
 import {StripeRestError} from "../stripeUtils/StripeRestError";
 import {initializeAssumeCheckoutToken, initializeLightrailStripeConfig} from "../stripeUtils/stripeAccess";
+import {Transaction} from "../../model/Transaction";
+import * as chai from "chai";
+import * as cassava from "cassava";
+import {Value} from "../../model/Value";
 import log = require("loglevel");
 
 if (testStripeLive()) {
@@ -29,6 +33,7 @@ let stripeChargeStub: sinon.SinonStub = null;
 let stripeCaptureStub: sinon.SinonStub = null;
 let stripeRefundStub: sinon.SinonStub = null;
 let stripeUpdateChargeStub: sinon.SinonStub = null;
+let stripeChargeRetrievalStub: sinon.SinonStub = null;
 
 /**
  * See .env.example for Stripe config details
@@ -69,13 +74,13 @@ export function setStubsForStripeTests() {
             clientId: "test-client-id",
             secretKey: testStripeLive() ? stripeLiveLightrailConfig.secretKey : stripeStubbedConfig.secretKey,
             publishableKey: "test-pk",
-            connectWebhookSigningSecret: ""
+            connectWebhookSigningSecret: "secret"
         },
         live: {
             clientId: null,
             secretKey: testStripeLive() ? stripeLiveLightrailConfig.secretKey : stripeStubbedConfig.secretKey,
             publishableKey: null,
-            connectWebhookSigningSecret: null
+            connectWebhookSigningSecret: "secret"
         }
     }));
 
@@ -117,7 +122,7 @@ export function generateStripeChargeResponse(options: GenerateStripeChargeRespon
         "object": "charge",
         "amount": options.amount,
         "amount_refunded": 0,
-        "application": "ca_D5LfFkNWh8XbFWxIcEx6N9FXaNmfJ9Fr",
+        "application": "ca_Bg3hpStH7AImYbs5sSfGH06jTMS0Krwl", // from dummy merchant testing account: matters for live tests of stripe webhook event handler
         "application_fee": null,
         "balance_transaction": "txn_" + getRandomChars(24),
         "captured": !options.pending,
@@ -215,7 +220,7 @@ export function generateStripeRefundResponse(options: GenerateStripeRefundRespon
         "metadata": {
             "reason": options.reason || "Refunded due to error on the Lightrail side"
         },
-        "reason": null,
+        "reason": options.reason || null,
         "receipt_number": null,
         "source_transfer_reversal": null,
         "transfer_reversal": null,
@@ -265,6 +270,13 @@ export function getStripeChargeStub(options: GetStripeChargeStubOptions): sinon.
     );
 }
 
+export function getStripeChargeRetrievalStub(chargeId: string): sinon.SinonStub {
+    log.debug(`stubbing stripe charge retrieval, chargeId=${chargeId}`);
+    const stub = stripeChargeRetrievalStub || (stripeChargeRetrievalStub = sinonSandbox.stub(stripeTransactions, "retrieveCharge").callThrough());
+
+    return stub.withArgs(sinon.match(chargeId));
+}
+
 export interface GetStripeCaptureStubOptions {
     stripeChargeId: string;
 }
@@ -291,8 +303,7 @@ export function getStripeRefundStub(options: GetStripeRefundStubOptions): sinon.
     const stub = stripeRefundStub || (stripeRefundStub = sinonSandbox.stub(stripeTransactions, "createRefund").callThrough());
 
     return stub.withArgs(
-        sinon.match.has("amount", options.amount)
-            .and(sinon.match.has("charge", options.stripeChargeId)),
+        sinon.match.has("charge", options.stripeChargeId),
         sinon.match(stripeStubbedConfig.secretKey),
         sinon.match(stripeStubbedConfig.stripeUserId)
     );
@@ -312,6 +323,17 @@ export function getStripeUpdateChargeStub(options: GetStripeUpdateChargeStubOpti
         sinon.match(stripeStubbedConfig.secretKey),
         sinon.match(stripeStubbedConfig.stripeUserId)
     );
+}
+
+export function stubStripeRetrieveCharge(charge: stripe.charges.ICharge): [stripe.charges.ICharge, sinon.SinonStub] {
+    if (testStripeLive()) {
+        return [null, null];
+    }
+
+    const response = charge;
+    const stub = getStripeChargeRetrievalStub(charge.id).resolves(response);
+
+    return [response, stub];
 }
 
 export function stubCheckoutStripeCharge(request: CheckoutRequest, stripeSourceIx: number, amount: number, additionalProperties?: Partial<stripe.charges.ICharge>): [stripe.charges.ICharge, sinon.SinonStub] {
@@ -536,4 +558,11 @@ function getRandomChars(length: number): string {
         res += charset.charAt(Math.floor(Math.random() * charset.length));
 
     return res;
+}
+
+export async function createStripeUSDCheckout(router: cassava.Router, checkoutProps?: Partial<CheckoutRequest>): Promise<{ checkout: Transaction, valuesCharged: Value[] }> {
+    const checkoutSetup = await createUSDCheckout(router, checkoutProps);
+    const checkout = checkoutSetup.checkout;
+    chai.assert.isNotNull(checkout.steps.find(step => step.rail === "stripe"));
+    return {checkout, valuesCharged: checkoutSetup.valuesCharged};
 }

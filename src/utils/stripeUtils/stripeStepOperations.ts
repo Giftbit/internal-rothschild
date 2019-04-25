@@ -23,7 +23,6 @@ export async function executeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
                 step.chargeResult = await createCharge(stripeChargeParams, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, step.idempotentStepId);
             } else if (step.type === "refund") {
                 const stripeRefundParams: Stripe.refunds.IRefundCreationOptionsWithCharge = {
-                    amount: step.amount,
                     charge: step.chargeId,
                     metadata: {
                         reason: step.reason || "not specified"
