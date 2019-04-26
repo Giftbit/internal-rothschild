@@ -666,7 +666,6 @@ describe("/v2/values - generic code with per contact properties", () => {
                 }
             });
         });
-
     });
 
     it("can reverse - the created value persists but the steps are reversed so it's effectively unusable", async () => {
@@ -826,5 +825,3 @@ describe("/v2/values - generic code with per contact properties", () => {
         });
     });
 });
-
-

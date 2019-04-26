@@ -477,7 +477,6 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             }
         };
 
-
         before(async function () {
             const createContact1 = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contactId});
             chai.assert.equal(createContact1.statusCode, 201);
@@ -604,6 +603,32 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             chai.assert.equal(attach.statusCode, 409);
             chai.assert.equal(attach.body["messageCode"], "ValueAlreadyAttached");
         });
+
+        it("auto-attaches to first contact in list if multiple contactIds passed in payment sources", async () => {
+            const contact2 = generateId();
+            const createContact = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contact2});
+            chai.assert.equal(createContact.statusCode, 201);
+
+            // auto attach
+            const checkoutRequest: CheckoutRequest = {
+                id: generateId(),
+                currency: "USD",
+                sources: [
+                    {rail: "lightrail", code: genericValue.code},
+                    {rail: "lightrail", contactId: contactId},
+                    {rail: "lightrail", contactId: contact2}
+                ],
+                lineItems: [
+                    {unitPrice: genericValue.genericCodeProperties.perContact.balance + 1} // it costs more so an auto-attach that's not used isn't thrown away.
+                ],
+                allowRemainder: true
+            };
+            const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+            chai.assert.equal(checkout.statusCode, 201);
+            chai.assert.equal(checkout.body.steps.length, 1);
+            chai.assert.equal((checkout.body.steps[0] as LightrailTransactionStep).contactId, contactId, "Expected to be auto attached to first contact in list.")
+
+        });
     });
 
     describe("doesn't auto attach legacy generic code", () => {
@@ -702,7 +727,6 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
         };
 
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
-        console.log(JSON.stringify(postCheckoutResp.body));
         chai.assert.equal(postCheckoutResp.statusCode, 409, `resp=${JSON.stringify(postCheckoutResp, null, 4)}`);
 
         const attachTx = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${genericValue.id}&transactionType=attach`, "GET");

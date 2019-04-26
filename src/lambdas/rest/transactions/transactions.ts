@@ -309,7 +309,7 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
 
             const transactionPlan: TransactionPlan = optimizeCheckout(checkout, resolvedSteps.transactionSteps);
 
-            // Only persist attach transactions that were used. Is this a checkout piece of logic?
+            // Only persist attach transactions that were used.
             const attachTransactionsToPersist: TransactionPlan[] = filterForUsedAttaches(resolvedSteps, transactionPlan);
 
             return [...attachTransactionsToPersist, transactionPlan];

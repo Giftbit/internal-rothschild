@@ -79,7 +79,8 @@ export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.Au
     };
     if (options.autoAttach) {
         const valuesThatMustBeAttached: Value[] = fetchedValues.filter(v => Value.isGenericCodeWithPropertiesPerContact(v));
-        // Can't attach all generic codes because existing generic codes where users use attachGenericAsNewValue. Also breaks how shared generic values work.
+        // Can't attach all generic codes because existing generic codes can't be distinguished if the user is calling
+        // attach with attachGenericAsNewValue: true.
         valuesForTx = fetchedValues.filter(v => valuesThatMustBeAttached.indexOf(v) === -1);
 
         if (valuesThatMustBeAttached.length > 0) {
@@ -239,11 +240,8 @@ export function filterForUsedAttaches(resolvedSteps, transactionPlan: Transactio
     for (const attachTx of resolvedSteps.attachTransactions) {
         const newAttachedValue: LightrailTransactionPlanStep = attachTx.steps.find(s => (s as LightrailTransactionPlanStep).action === "INSERT_VALUE") as LightrailTransactionPlanStep;
         if (transactionPlan.steps.find(s => s.rail === "lightrail" && s.value.id === newAttachedValue.value.id)) {
-            // it was used
+            // new attached value was used
             attachTransactionsToPersist.push(attachTx);
-        } else {
-            // not used.
-
         }
     }
     return attachTransactionsToPersist;
