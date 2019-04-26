@@ -459,6 +459,40 @@ describe("/v2/stripeEventWebhook", () => {
      * Only return failure responses for situations that might change with another attempt.
      */
     describe("error handling", () => {
+        it("handles case where no Lightrail sources charged", async function () {
+            if (!testStripeLive()) {
+                this.skip();
+                return;
+            }
+
+            const webhookEventSetup = await setupForWebhookEvent(restRouter, {
+                initialCheckoutReq: {
+                    sources: [{
+                        rail: "stripe",
+                        source: "tok_visa"
+                    }]
+                }
+            });
+            chai.assert.equal(webhookEventSetup.valuesCharged.length, 0, `values charged: ${JSON.stringify(webhookEventSetup.valuesCharged)}`);
+
+            const refundedCharge = await refundInStripe(webhookEventSetup.checkout.steps.find(step => step.rail === "stripe") as StripeTransactionStep, "fraudulent");
+
+            const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", refundedCharge));
+            chai.assert.equal(webhookResp.statusCode, 204);
+
+            const fetchTransactionChainResp = await testAuthedRequest<Transaction[]>(restRouter, `/v2/transactions/${webhookEventSetup.checkout.id}/chain`, "GET");
+            chai.assert.equal(fetchTransactionChainResp.statusCode, 200, `fetchTransactionChainResp.body=${fetchTransactionChainResp.body}`);
+            chai.assert.equal(fetchTransactionChainResp.body.length, 2);
+            chai.assert.equal(fetchTransactionChainResp.body[1].transactionType, "reverse", `transaction types in chain: ${JSON.stringify(fetchTransactionChainResp.body.map(txn => txn.transactionType))}`);
+
+            for (const value of webhookEventSetup.valuesCharged) {
+                const fetchValueResp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/values/${value.id}`, "GET");
+                chai.assert.equal(fetchValueResp.statusCode, 200, `fetchValueResp.body=${fetchValueResp.body}`);
+                chai.assert.equal(fetchValueResp.body.balance, value.balance);
+                chai.assert.equal(fetchValueResp.body.frozen, true, `fetchValueResp.body.frozen=${fetchValueResp.body.frozen}`);
+            }
+        });
+
         it("returns success if can't find Lightrail userId", async function () {
             if (!testStripeLive()) {
                 this.skip();
