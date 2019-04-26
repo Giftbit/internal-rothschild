@@ -710,7 +710,7 @@ const valueSchema: jsonschema.Schema = {
             type: ["object", "null"],
             additionalProperties: false,
             properties: {
-                valuePropertiesPerContact: {
+                perContact: {
                     title: "Value Properties Per Contact Params",
                     type: ["object", "null"],
                     additionalProperties: false,

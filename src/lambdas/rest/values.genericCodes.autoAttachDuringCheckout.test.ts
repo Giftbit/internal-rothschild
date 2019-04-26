@@ -44,7 +44,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             isGenericCode: true,
             code: generateFullcode(),
             genericCodeProperties: {
-                valuePropertiesPerContact: {
+                perContact: {
                     usesRemaining: 3,
                     balance: 500
                 }
@@ -196,7 +196,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             isGenericCode: true,
             code: generateFullcode(),
             genericCodeProperties: {
-                valuePropertiesPerContact: {
+                perContact: {
                     usesRemaining: 1,
                     balance: null
                 }
@@ -246,7 +246,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             isGenericCode: true,
             code: generateFullcode(),
             genericCodeProperties: {
-                valuePropertiesPerContact: {
+                perContact: {
                     usesRemaining: 1,
                     balance: null
                 }
@@ -374,7 +374,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             isGenericCode: true,
             code: generateFullcode(),
             genericCodeProperties: {
-                valuePropertiesPerContact: {
+                perContact: {
                     usesRemaining: 1,
                     balance: null
                 }
@@ -444,7 +444,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             isGenericCode: true,
             code: generateFullcode(),
             genericCodeProperties: {
-                valuePropertiesPerContact: {
+                perContact: {
                     usesRemaining: 1,
                     balance: null
                 }
@@ -460,7 +460,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             isGenericCode: true,
             code: generateFullcode(),
             genericCodeProperties: {
-                valuePropertiesPerContact: {
+                perContact: {
                     usesRemaining: 1,
                     balance: null
                 }
@@ -541,7 +541,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             isGenericCode: true,
             code: generateFullcode(),
             genericCodeProperties: {
-                valuePropertiesPerContact: {
+                perContact: {
                     usesRemaining: 3,
                     balance: 500
                 }

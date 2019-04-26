@@ -262,7 +262,7 @@ async function attachSharedGenericValue(auth: giftbitRoutes.jwtauth.Authorizatio
 }
 
 /**
- * Legacy functionality. This makes a new Value and attaches it to the Contact. Yervana is using this. Update Mar 20, 2019. More users than Yervana are now using this.
+ * Legacy functionality. This makes a new Value and attaches it to the Contact. Yervana as well as others are using this.
  */
 async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, originalValue: Value): Promise<Value> {
     const now = nowInDbPrecision();

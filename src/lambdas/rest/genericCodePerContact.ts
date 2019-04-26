@@ -42,8 +42,8 @@ export namespace GenericCodePerContact {
     export function getTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): TransactionPlan {
         const now = nowInDbPrecision();
         const newAttachedValueId = generateValueId(genericValue.id, contactId);
-        const amount = genericValue.genericCodeProperties.valuePropertiesPerContact.balance;
-        const uses = genericValue.genericCodeProperties.valuePropertiesPerContact.usesRemaining;
+        const amount = genericValue.genericCodeProperties.perContact.balance;
+        const uses = genericValue.genericCodeProperties.perContact.usesRemaining;
 
         const newValue = ValueCreationService.initializeValue(auth, {
             ...genericValue,
@@ -51,8 +51,8 @@ export namespace GenericCodePerContact {
             code: null,
             isGenericCode: false,
             contactId: contactId,
-            balance: amount != null ? amount : null,
-            usesRemaining: uses != null ? uses : null,
+            balance: amount != null ? amount : null, // balance is initiated rather than being adjusted during inserting the step. this makes auto-attach during checkout work
+            usesRemaining: uses != null ? uses : null, // likewise
             genericCodeProperties: null,
             metadata: {
                 ...genericValue.metadata,
@@ -77,8 +77,8 @@ export namespace GenericCodePerContact {
                     rail: "lightrail",
                     action: "UPDATE_VALUE",
                     value: genericValue,
-                    amount: genericValue.balance !== null ? -amount : null,
-                    uses: genericValue.usesRemaining !== null ? -uses : null
+                    amount: genericValue.balance !== null ? -amount : null, // generic code can have balance: null but perContact balance set.
+                    uses: genericValue.usesRemaining !== null ? -uses : null // likewise
                 } as LightrailTransactionPlanStep,
                 {
                     rail: "lightrail",

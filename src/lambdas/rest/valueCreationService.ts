@@ -131,11 +131,11 @@ export namespace ValueCreationService {
         }
 
         // generic value checks
-        if (value.genericCodeProperties && value.genericCodeProperties.valuePropertiesPerContact.balance != null && value.balanceRule) {
-            throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a genericCodeProperties.valuePropertiesPerContact.balance and balanceRule.`);
+        if (value.genericCodeProperties && value.genericCodeProperties.perContact.balance != null && value.balanceRule) {
+            throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a genericCodeProperties.perContact.balance and balanceRule.`);
         }
-        if (value.balance == null && value.balanceRule == null && (value.genericCodeProperties && value.genericCodeProperties.valuePropertiesPerContact.balance == null)) {
-            throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value must have a balanceRule, a balance, or a genericCodeProperties.valuePropertiesPerContact.balance.`);
+        if (value.balance == null && value.balanceRule == null && (value.genericCodeProperties && value.genericCodeProperties.perContact.balance == null)) {
+            throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value must have a balanceRule, a balance, or a genericCodeProperties.perContact.balance.`);
         }
 
         checkRulesSyntax(value, "Value");

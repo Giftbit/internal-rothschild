@@ -33,7 +33,7 @@ export interface Value {
 }
 
 export interface GenericCodeProperties {
-    valuePropertiesPerContact: { // todo evaluate this name vs. perContactValueProperties etc.
+    perContact: {
         balance: number | null | undefined;
         usesRemaining: number | null | undefined;
     }
@@ -80,8 +80,8 @@ export namespace Value {
             createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
 
             // generic code properties
-            balancePerContact: v.genericCodeProperties ? v.genericCodeProperties.valuePropertiesPerContact.balance : null,
-            usesPerContact: v.genericCodeProperties ? v.genericCodeProperties.valuePropertiesPerContact.usesRemaining : null,
+            balancePerContact: v.genericCodeProperties ? v.genericCodeProperties.perContact.balance : null,
+            usesPerContact: v.genericCodeProperties ? v.genericCodeProperties.perContact.usesRemaining : null,
             attachedFromGenericValueId: v.attachedFromGenericValueId
         };
     }
@@ -116,7 +116,7 @@ export namespace Value {
     }
 
     export function isGenericCodeWithPropertiesPerContact(v: Value): boolean {
-        return v.isGenericCode != null && v.genericCodeProperties != null && v.genericCodeProperties.valuePropertiesPerContact != null;
+        return v.isGenericCode != null && v.genericCodeProperties != null && v.genericCodeProperties.perContact != null;
     }
 }
 
@@ -168,7 +168,7 @@ export namespace DbValue {
             code: await dbValueCodeToValueCode(v, showCode),
             isGenericCode: v.isGenericCode,
             genericCodeProperties: v.balancePerContact != null || v.usesPerContact != null ? {
-                valuePropertiesPerContact: {
+                perContact: {
                     balance: v.balancePerContact,
                     usesRemaining: v.usesPerContact
                 }

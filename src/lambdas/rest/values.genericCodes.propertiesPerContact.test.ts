@@ -37,7 +37,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             isGenericCode: true,
             code: generateFullcode(),
             genericCodeProperties: {
-                valuePropertiesPerContact: {
+                perContact: {
                     balance: null,
                     usesRemaining: 2
                 }
@@ -50,7 +50,7 @@ describe("/v2/values - generic code with per contact properties", () => {
         chai.assert.equal(create.body.balance, 0);
     });
 
-    it("balance can be set to null if valuePropertiesPerContact.balance is set", async () => {
+    it("balance can be set to null if perContact.balance is set", async () => {
         const genericValue: Partial<Value> = {
             id: generateId(),
             currency: "USD",
@@ -58,7 +58,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             code: generateFullcode(),
             balance: null,
             genericCodeProperties: {
-                valuePropertiesPerContact: {
+                perContact: {
                     balance: 500,
                     usesRemaining: 2
                 }
@@ -71,7 +71,7 @@ describe("/v2/values - generic code with per contact properties", () => {
         chai.assert.isNull(create.body.balance);
     });
 
-    it("one of balance, valuePropertiesPerContact.balance, or balanceRule must be set", async () => {
+    it("one of balance, perContact.balance, or balanceRule must be set", async () => {
         const genericValue: Partial<Value> = {
             id: generateId(),
             currency: "USD",
@@ -79,7 +79,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             code: generateFullcode(),
             balance: null,
             genericCodeProperties: {
-                valuePropertiesPerContact: {
+                perContact: {
                     balance: null,
                     usesRemaining: 2
                 }
@@ -89,7 +89,7 @@ describe("/v2/values - generic code with per contact properties", () => {
 
         const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericValue);
         chai.assert.equal(create.statusCode, 422);
-        chai.assert.equal(create.body.message, "Value must have a balanceRule, a balance, or a genericCodeProperties.valuePropertiesPerContact.balance.")
+        chai.assert.equal(create.body.message, "Value must have a balanceRule, a balance, or a genericCodeProperties.perContact.balance.")
     });
 
     it("can't attach generic code with contact usage limits to same contact twice", async () => {
@@ -99,7 +99,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             isGenericCode: true,
             code: generateFullcode(),
             genericCodeProperties: {
-                valuePropertiesPerContact: {
+                perContact: {
                     balance: 500,
                     usesRemaining: 2
                 }
@@ -164,7 +164,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             isGenericCode: true,
             code: generateFullcode(),
             genericCodeProperties: {
-                valuePropertiesPerContact: {
+                perContact: {
                     balance: 500,
                     usesRemaining: 2
                 }
@@ -263,7 +263,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             isGenericCode: true,
             code: generateFullcode(),
             genericCodeProperties: {
-                valuePropertiesPerContact: {
+                perContact: {
                     balance: 500,
                     usesRemaining: 2
                 }
@@ -322,7 +322,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             isGenericCode: true,
             code: generateFullcode(),
             genericCodeProperties: {
-                valuePropertiesPerContact: {
+                perContact: {
                     balance: 500,
                     usesRemaining: 2
                 }
@@ -390,7 +390,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             isGenericCode: true,
             code: generateFullcode(),
             genericCodeProperties: {
-                valuePropertiesPerContact: {
+                perContact: {
                     balance: 500,
                     usesRemaining: 2
                 }
@@ -420,7 +420,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             isGenericCode: true,
             code: generateFullcode(),
             genericCodeProperties: {
-                valuePropertiesPerContact: {
+                perContact: {
                     balance: null,
                     usesRemaining: 1
                 }
@@ -464,7 +464,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             code: generateFullcode(),
             discount: true,
             genericCodeProperties: {
-                valuePropertiesPerContact: {
+                perContact: {
                     usesRemaining: 1,
                     balance: null
                 }
@@ -676,7 +676,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             currency: "USD",
             balance: 400,
             genericCodeProperties: {
-                valuePropertiesPerContact: {
+                perContact: {
                     usesRemaining: 1,
                     balance: 100
                 }
@@ -763,7 +763,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             currency: "USD",
             isGenericCode: true,
             genericCodeProperties: {
-                valuePropertiesPerContact: {
+                perContact: {
                     balance: 10,
                     usesRemaining: 1
                 }
