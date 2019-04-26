@@ -91,7 +91,6 @@ export async function setupForWebhookEvent(router: cassava.Router, lightrailOpti
     chai.assert.isObject(checkoutSetup.checkout.steps.find(step => step.rail === "stripe"));
     const stripeStep = <StripeTransactionStep>checkoutSetup.checkout.steps.find(step => step.rail === "stripe");
 
-
     // if transaction should be reversed in Lightrail as well, do that (doesn't matter if it's already been refunded in Stripe)
     if (lightrailOptions && lightrailOptions.reversed) {
         await new Promise(resolve => setTimeout(resolve, 1000)); // manually delay creating the next transaction so it has a different createdDate

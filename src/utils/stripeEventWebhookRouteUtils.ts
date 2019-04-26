@@ -24,7 +24,7 @@ export async function freezeLightrailSources(auth: giftbitRoutes.jwtauth.Authori
             valueIds: chargedValueIds,
             contactIds: chargedContactIds
         }, fraudulentTransaction.id, buildValueFreezeMessage(fraudulentTransaction.id, (reverseOrVoidTransaction && reverseOrVoidTransaction.id), stripeCharge.id, event));
-        log.info("charged Values including all Values attached to charged Contacts frozen.");
+        log.info("Charged Values including all Values attached to charged Contacts frozen, except generic Values.");
     } catch (e) {
         log.error(`Failed to freeze Values '${chargedValueIds}' and/or Values attached to Contacts '${chargedContactIds}'`);
         throw e;
@@ -43,17 +43,26 @@ async function freezeValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valu
                 builder.whereIn("id", valueIdentifiers.valueIds)
                     .orWhereIn("contactId", valueIdentifiers.contactIds);
             })
-            .andWhereNot("isGenericCode", true)
             .forUpdate();
 
         if (selectValueRes.length === 0) {
             throw new giftbitRoutes.GiftbitRestError(404, `Values to freeze not found for Transaction '${lightrailTransactionId}' with valueIdentifiers '${JSON.stringify(valueIdentifiers)}'.`, "ValueNotFound");
         }
 
-        const existingValues: Value[] = await Promise.all(selectValueRes.map(async dbValue => await DbValue.toValue(dbValue)));
+        // don't freeze generic values
+        const genericValues: DbValue[] = selectValueRes.filter(v => v.isGenericCode === true);
+        if (genericValues.length === selectValueRes.length) {
+            log.info(`All Lightrail Values charged in Transaction '${lightrailTransactionId}' were generic Values: '${genericValues.map(v => v.id)}'. Exiting without freezing.`);
+            return;
+        } else if (genericValues.length > 0) {
+            log.info(`Generic Values '${genericValues.map(v => v.id)}' were charged in Transaction '${lightrailTransactionId}'. Generic Values will not be frozen.`);
+        }
+
+        const uniqueDbValues: DbValue[] = selectValueRes.filter(v => v.isGenericCode === false);
+        const uniqueValuesToFreeze: Value[] = await Promise.all(uniqueDbValues.map(async dbValue => await DbValue.toValue(dbValue)));
 
         let queries = [];
-        for (const value of existingValues) {
+        for (const value of uniqueValuesToFreeze) {
             const perValueQuery = knex("Values")
                 .where({
                     userId: auth.userId,
