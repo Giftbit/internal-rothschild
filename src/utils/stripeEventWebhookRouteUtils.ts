@@ -2,6 +2,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {getKnexRead, getKnexWrite} from "./dbUtils/connection";
 import {DbValue, Value} from "../model/Value";
 import {DbTransaction, LightrailTransactionStep, Transaction} from "../model/Transaction";
+import {QueryBuilder} from "knex";
 import log = require("loglevel");
 import Stripe = require("stripe");
 
@@ -49,19 +50,14 @@ async function freezeValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valu
             throw new giftbitRoutes.GiftbitRestError(404, `Values to freeze not found for Transaction '${lightrailTransactionId}' with valueIdentifiers '${JSON.stringify(valueIdentifiers)}'.`, "ValueNotFound");
         }
 
-        // don't freeze generic values
-        const genericValues: DbValue[] = selectValueRes.filter(v => v.isGenericCode === true);
-        if (genericValues.length === selectValueRes.length) {
-            log.info(`All Lightrail Values charged in Transaction '${lightrailTransactionId}' were generic Values: '${genericValues.map(v => v.id)}'. Exiting without freezing.`);
-            return;
-        } else if (genericValues.length > 0) {
-            log.info(`Generic Values '${genericValues.map(v => v.id)}' were charged in Transaction '${lightrailTransactionId}'. Generic Values will not be frozen.`);
-        }
-
         const uniqueDbValues: DbValue[] = selectValueRes.filter(v => v.isGenericCode === false);
+        if (uniqueDbValues.length === 0) {
+            log.info(`No Values to freeze.`);
+            return;
+        }
         const uniqueValuesToFreeze: Value[] = await Promise.all(uniqueDbValues.map(async dbValue => await DbValue.toValue(dbValue)));
 
-        let queries = [];
+        const queries: QueryBuilder[] = [];
         for (const value of uniqueValuesToFreeze) {
             const perValueQuery = knex("Values")
                 .where({
