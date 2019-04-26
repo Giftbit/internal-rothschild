@@ -38,6 +38,7 @@ import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
 import {generateCode} from "../../utils/codeGenerator";
 import {installStripeEventWebhookRest} from "./installStripeEventWebhookRest";
 import * as webhookUtils from "../../utils/stripeEventWebhookRouteUtils";
+import * as giftbitRoutes from "giftbit-cassava-routes";
 
 /**
  * Webhook handling tests follow this format:
@@ -268,102 +269,160 @@ describe("/v2/stripeEventWebhook", () => {
         await assertValuesRestoredAndFrozen(restRouter, webhookEventSetup.valuesCharged, true);
     }).timeout(8000);
 
-    it("does not freeze generic values - attached or unattached", async function () {
-        if (!testStripeLive()) {
-            this.skip();
-            return;
-        }
+    describe("generic values", () => {
+        it("does not freeze generic values - attached or unattached", async function () {
+            if (!testStripeLive()) {
+                this.skip();
+                return;
+            }
 
-        const contact: Partial<Contact> = {
-            id: generateId()
-        };
-        const genericUsedDirectlyInCheckout: Partial<Value> = {
-            id: generateId(),
-            isGenericCode: true,
-            code: "USEME",
-            currency: "USD",
-            balance: 100,
-        };
-        const genericAttachedAsNewValue: Partial<Value> = {
-            id: generateId(),
-            isGenericCode: true,
-            code: "CONTACTME",
-            currency: "USD",
-            balance: 200,
-        };
-        const genericAttachedRegular: Partial<Value> = {
-            id: generateId(),
-            isGenericCode: true,
-            code: "CONTACTME2",
-            currency: "USD",
-            balance: 50,
-        };
-        const postContactResp = await testUtils.testAuthedRequest<Contact>(restRouter, "/v2/contacts", "POST", contact);
-        chai.assert.equal(postContactResp.statusCode, 201, `body=${JSON.stringify(postContactResp.body)}`);
-        const postValue1Resp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", genericUsedDirectlyInCheckout);
-        chai.assert.equal(postValue1Resp.statusCode, 201, `body=${JSON.stringify(postValue1Resp.body)}`);
+            let sandbox = sinon.createSandbox();
+            (giftbitRoutes.sentry.sendErrorNotification as any).restore();
+            const stub = sandbox.stub(giftbitRoutes.sentry, "sendErrorNotification");
 
-        const postValue2Resp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", genericAttachedAsNewValue);
-        chai.assert.equal(postValue2Resp.statusCode, 201, `body=${JSON.stringify(postValue2Resp.body)}`);
-        const attachValue2Resp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/contacts/${contact.id}/values/attach`, "POST", {
-            valueId: genericAttachedAsNewValue.id,
-            attachGenericAsNewValue: true
+            await createUSD(restRouter);
+
+            const contact: Partial<Contact> = {
+                id: generateId()
+            };
+            const genericUsedDirectlyInCheckout: Partial<Value> = {
+                id: generateId(),
+                isGenericCode: true,
+                code: "USEME",
+                currency: "USD",
+                balance: 100,
+            };
+            const genericAttachedRegular: Partial<Value> = {
+                id: generateId(),
+                isGenericCode: true,
+                code: "CONTACTME2",
+                currency: "USD",
+                balance: 50,
+            };
+            const postContactResp = await testUtils.testAuthedRequest<Contact>(restRouter, "/v2/contacts", "POST", contact);
+            chai.assert.equal(postContactResp.statusCode, 201, `body=${JSON.stringify(postContactResp.body)}`);
+            const postValue1Resp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", genericUsedDirectlyInCheckout);
+            chai.assert.equal(postValue1Resp.statusCode, 201, `body=${JSON.stringify(postValue1Resp.body)}`);
+
+            const postValue2Resp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", genericAttachedRegular);
+            chai.assert.equal(postValue2Resp.statusCode, 201, `body=${JSON.stringify(postValue2Resp.body)}`);
+            const attachValue2Resp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+                valueId: genericAttachedRegular.id
+            });
+            chai.assert.equal(attachValue2Resp.statusCode, 200, `attachValue2Resp.body=${JSON.stringify(attachValue2Resp.body)}`);
+
+            const checkoutRequest: CheckoutRequest = {
+                id: generateId(),
+                currency: "USD",
+                lineItems: [{
+                    type: "product",
+                    productId: "pid",
+                    unitPrice: 1000
+                }],
+                sources: [
+                    {
+                        rail: "lightrail",
+                        valueId: genericUsedDirectlyInCheckout.id
+                    },
+                    {
+                        rail: "lightrail",
+                        contactId: contact.id
+                    },
+                    {
+                        rail: "stripe",
+                        source: "tok_visa"
+                    }
+                ]
+            };
+
+            const webhookEventSetup = await setupForWebhookEvent(restRouter, {initialCheckoutReq: checkoutRequest});
+
+            const refundedCharge = await refundInStripe(webhookEventSetup.stripeStep, "fraudulent");
+
+            const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", refundedCharge));
+            chai.assert.equal(webhookResp.statusCode, 204, `webhookResp.body=${JSON.stringify(webhookResp)}`);
+
+            await assertTransactionChainContainsTypes(restRouter, webhookEventSetup.checkout.id, 2, ["checkout", "reverse"]);
+
+            const fetchValue1Resp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/values/${genericUsedDirectlyInCheckout.id}`, "GET");
+            chai.assert.equal(fetchValue1Resp.statusCode, 200, `fetchValueResp.body=${fetchValue1Resp.body}`);
+            chai.assert.equal(fetchValue1Resp.body.balance, genericUsedDirectlyInCheckout.balance, `fetchValue1Resp.body=${JSON.stringify(fetchValue1Resp.body)}`);
+            chai.assert.equal(fetchValue1Resp.body.frozen, false, `fetchValue1Resp.body.frozen=${fetchValue1Resp.body.frozen}`);
+            const fetchValue2Resp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/values/${genericAttachedRegular.id}`, "GET");
+            chai.assert.equal(fetchValue2Resp.statusCode, 200, `fetchValueResp.body=${fetchValue2Resp.body}`);
+            chai.assert.equal(fetchValue2Resp.body.balance, genericAttachedRegular.balance);
+            chai.assert.equal(fetchValue2Resp.body.frozen, false, `fetchValue2Resp.body.frozen=${fetchValue2Resp.body.frozen}`);
+
+            sinon.assert.notCalled(stub);
+        }).timeout(12000);
+
+        it("freezes unique values only when both generic and unique are used", async function () {
+            if (!testStripeLive()) {
+                this.skip();
+                return;
+            }
+
+            let sandbox = sinon.createSandbox();
+            (giftbitRoutes.sentry.sendErrorNotification as any).restore();
+            const stub = sandbox.stub(giftbitRoutes.sentry, "sendErrorNotification");
+
+            const uniqueValue = await createUSDValue(restRouter);
+            const genericUsedDirectlyInCheckout: Partial<Value> = {
+                id: generateId(),
+                isGenericCode: true,
+                code: "CODEIT",
+                currency: "USD",
+                balance: 100,
+            };
+            const postValue2Resp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", genericUsedDirectlyInCheckout);
+            chai.assert.equal(postValue2Resp.statusCode, 201, `body=${JSON.stringify(postValue2Resp.body)}`);
+
+
+            const checkoutRequest: CheckoutRequest = {
+                id: generateId(),
+                currency: "USD",
+                lineItems: [{
+                    type: "product",
+                    productId: "pid",
+                    unitPrice: 1000
+                }],
+                sources: [
+                    {
+                        rail: "lightrail",
+                        code: genericUsedDirectlyInCheckout.code
+                    },
+                    {
+                        rail: "lightrail",
+                        valueId: uniqueValue.id
+                    },
+                    {
+                        rail: "stripe",
+                        source: "tok_visa"
+                    }
+                ]
+            };
+
+            const webhookEventSetup = await setupForWebhookEvent(restRouter, {initialCheckoutReq: checkoutRequest});
+
+            const refundedCharge = await refundInStripe(webhookEventSetup.stripeStep, "fraudulent");
+
+            const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", refundedCharge));
+            chai.assert.equal(webhookResp.statusCode, 204, `webhookResp.body=${JSON.stringify(webhookResp)}`);
+
+            await assertTransactionChainContainsTypes(restRouter, webhookEventSetup.checkout.id, 2, ["checkout", "reverse"]);
+
+            const fetchUniqueValueResp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/values/${uniqueValue.id}`, "GET");
+            chai.assert.equal(fetchUniqueValueResp.statusCode, 200, `fetchValueResp.body=${fetchUniqueValueResp.body}`);
+            chai.assert.equal(fetchUniqueValueResp.body.balance, uniqueValue.balance, `fetchUniqueValueResp.body=${JSON.stringify(fetchUniqueValueResp.body)}`);
+            chai.assert.equal(fetchUniqueValueResp.body.frozen, true, `fetchUniqueValueResp.body.frozen=${fetchUniqueValueResp.body.frozen}`);
+            const fetchValue2Resp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/values/${genericUsedDirectlyInCheckout.id}`, "GET");
+            chai.assert.equal(fetchValue2Resp.statusCode, 200, `fetchValueResp.body=${fetchValue2Resp.body}`);
+            chai.assert.equal(fetchValue2Resp.body.balance, genericUsedDirectlyInCheckout.balance);
+            chai.assert.equal(fetchValue2Resp.body.frozen, false, `fetchValue2Resp.body.frozen=${fetchValue2Resp.body.frozen}`);
+
+            sinon.assert.notCalled(stub);
         });
-        chai.assert.equal(attachValue2Resp.statusCode, 200, `attachValue2Resp.body=${JSON.stringify(attachValue2Resp.body)}`);
-
-        const postValue3Resp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", genericAttachedRegular);
-        chai.assert.equal(postValue3Resp.statusCode, 201, `body=${JSON.stringify(postValue3Resp.body)}`);
-        const attachValue3Resp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/contacts/${contact.id}/values/attach`, "POST", {
-            valueId: genericAttachedRegular.id
-        });
-        chai.assert.equal(attachValue3Resp.statusCode, 200, `attachValue3Resp.body=${JSON.stringify(attachValue3Resp.body)}`);
-
-        const checkoutRequest: CheckoutRequest = {
-            id: generateId(),
-            currency: "USD",
-            lineItems: [{
-                type: "product",
-                productId: "pid",
-                unitPrice: 1000
-            }],
-            sources: [
-                {
-                    rail: "lightrail",
-                    valueId: genericUsedDirectlyInCheckout.id
-                },
-                {
-                    rail: "lightrail",
-                    contactId: contact.id
-                },
-                {
-                    rail: "stripe",
-                    source: "tok_visa"
-                }
-            ]
-        };
-
-        const webhookEventSetup = await setupForWebhookEvent(restRouter, {initialCheckoutReq: checkoutRequest});
-
-        const refundedCharge = await refundInStripe(webhookEventSetup.stripeStep, "fraudulent");
-
-        const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", refundedCharge));
-        chai.assert.equal(webhookResp.statusCode, 204, `webhookResp.body=${JSON.stringify(webhookResp)}`);
-
-        await assertTransactionChainContainsTypes(restRouter, webhookEventSetup.checkout.id, 2, ["checkout", "reverse"]);
-
-        const fetchValue1Resp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/values/${genericUsedDirectlyInCheckout.id}`, "GET");
-        chai.assert.equal(fetchValue1Resp.statusCode, 200, `fetchValueResp.body=${fetchValue1Resp.body}`);
-        chai.assert.equal(fetchValue1Resp.body.balance, genericUsedDirectlyInCheckout.balance, `fetchValue1Resp.body=${JSON.stringify(fetchValue1Resp.body)}`);
-        chai.assert.equal(fetchValue1Resp.body.frozen, false, `fetchValue1Resp.body.frozen=${fetchValue1Resp.body.frozen}`);
-        const fetchValue2Resp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/values/${genericAttachedAsNewValue.id}`, "GET");
-        chai.assert.equal(fetchValue2Resp.statusCode, 200, `fetchValueResp.body=${fetchValue2Resp.body}`);
-        chai.assert.equal(fetchValue2Resp.body.balance, genericAttachedAsNewValue.balance);
-        chai.assert.equal(fetchValue2Resp.body.frozen, false, `fetchValue2Resp.body.frozen=${fetchValue2Resp.body.frozen}`);
-        const fetchValue3Resp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/values/${genericAttachedRegular.id}`, "GET");
-        chai.assert.equal(fetchValue3Resp.statusCode, 200, `fetchValueResp.body=${fetchValue3Resp.body}`);
-        chai.assert.equal(fetchValue3Resp.body.balance, genericAttachedRegular.balance);
-        chai.assert.equal(fetchValue3Resp.body.frozen, false, `fetchValue2Resp.body.frozen=${fetchValue3Resp.body.frozen}`);
-    }).timeout(12000);
+    });
 
     describe("utility - 'assertTransactionChainContainsTypes'", () => {
         it("fetches & checks chain correctly - checkout + reverse", async () => {
@@ -400,6 +459,40 @@ describe("/v2/stripeEventWebhook", () => {
      * Only return failure responses for situations that might change with another attempt.
      */
     describe("error handling", () => {
+        it("handles case where no Lightrail sources charged", async function () {
+            if (!testStripeLive()) {
+                this.skip();
+                return;
+            }
+
+            const webhookEventSetup = await setupForWebhookEvent(restRouter, {
+                initialCheckoutReq: {
+                    sources: [{
+                        rail: "stripe",
+                        source: "tok_visa"
+                    }]
+                }
+            });
+            chai.assert.equal(webhookEventSetup.valuesCharged.length, 0, `values charged: ${JSON.stringify(webhookEventSetup.valuesCharged)}`);
+
+            const refundedCharge = await refundInStripe(webhookEventSetup.checkout.steps.find(step => step.rail === "stripe") as StripeTransactionStep, "fraudulent");
+
+            const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", refundedCharge));
+            chai.assert.equal(webhookResp.statusCode, 204);
+
+            const fetchTransactionChainResp = await testAuthedRequest<Transaction[]>(restRouter, `/v2/transactions/${webhookEventSetup.checkout.id}/chain`, "GET");
+            chai.assert.equal(fetchTransactionChainResp.statusCode, 200, `fetchTransactionChainResp.body=${fetchTransactionChainResp.body}`);
+            chai.assert.equal(fetchTransactionChainResp.body.length, 2);
+            chai.assert.equal(fetchTransactionChainResp.body[1].transactionType, "reverse", `transaction types in chain: ${JSON.stringify(fetchTransactionChainResp.body.map(txn => txn.transactionType))}`);
+
+            for (const value of webhookEventSetup.valuesCharged) {
+                const fetchValueResp = await testUtils.testAuthedRequest<Value>(restRouter, `/v2/values/${value.id}`, "GET");
+                chai.assert.equal(fetchValueResp.statusCode, 200, `fetchValueResp.body=${fetchValueResp.body}`);
+                chai.assert.equal(fetchValueResp.body.balance, value.balance);
+                chai.assert.equal(fetchValueResp.body.frozen, true, `fetchValueResp.body.frozen=${fetchValueResp.body.frozen}`);
+            }
+        });
+
         it("returns success if can't find Lightrail userId", async function () {
             if (!testStripeLive()) {
                 this.skip();
