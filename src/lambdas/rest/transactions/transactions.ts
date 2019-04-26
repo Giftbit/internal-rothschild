@@ -304,7 +304,7 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
                 nonTransactableHandling: "exclude",
                 includeZeroBalance: !!checkout.allowRemainder,
                 includeZeroUsesRemaining: !!checkout.allowRemainder,
-                autoAttachGenericCodesWithPerContactProperties: true
+                autoAttach: true
             });
 
             const transactionPlan: TransactionPlan = optimizeCheckout(checkout, resolvedSteps.transactionSteps);

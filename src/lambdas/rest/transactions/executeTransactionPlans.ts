@@ -64,7 +64,6 @@ async function executeTransactionPlans(auth: giftbitRoutes.jwtauth.Authorization
             insertedTransactions.push(await executeTransactionPlan(auth, trx, plans[plansIndex], options));
         }
     } catch (err) {
-        console.log("error thrown!" + err);
         log.warn("Error thrown executing transaction plan.", err);
         // rollback transaction plans that have been executed.
         for (let rollbackIndex = 0; rollbackIndex < plansIndex; rollbackIndex++) {

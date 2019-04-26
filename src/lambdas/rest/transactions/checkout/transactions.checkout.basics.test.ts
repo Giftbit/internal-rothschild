@@ -750,7 +750,6 @@ describe("/v2/transactions/checkout - basics", () => {
             chai.assert.equal((createCheckout.body.steps[0] as LightrailTransactionStep).contactId, contact.id, "The contactId is not directly on the Value, but attached to the Value via ContactValues. It's important for tracking reasons that the contactId is persisted onto the transaction step.");
 
             const listTransactionsAssociatedWithContact = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?contactId=${contact.id}`, "GET");
-            console.log("listTransactionsAssociatedWithContact " + JSON.stringify(listTransactionsAssociatedWithContact));
             chai.assert.equal(listTransactionsAssociatedWithContact.body.length, 2, "Should return 2 transactions. initialBalance and checkout");
             chai.assert.deepEqual(listTransactionsAssociatedWithContact.body.find(tx => tx.transactionType === "checkout"), createCheckout.body);
         });

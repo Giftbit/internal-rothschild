@@ -33,7 +33,7 @@ export namespace GenericCodePerContact {
 
         const newAttachedValueId = (transaction.steps.find(step => (step as LightrailTransactionStep).valueId !== genericValue.id) as LightrailTransactionStep).valueId;
         if (!newAttachedValueId) {
-            throw new Error("This cannot happen. Something must have gone seriously wrong.")
+            throw new Error("This cannot happen. Something must have gone seriously wrong.");
         }
 
         return await getValue(auth, newAttachedValueId);
@@ -99,6 +99,6 @@ export namespace GenericCodePerContact {
     }
 
     export function generateValueId(genericValueId: string, contactId: string) {
-        return crypto.createHash("sha1").update(genericValueId + "/" + contactId).digest("base64").replace(/\//g, "-")
+        return crypto.createHash("sha1").update(genericValueId + "/" + contactId).digest("base64").replace(/\//g, "-");
     }
 }

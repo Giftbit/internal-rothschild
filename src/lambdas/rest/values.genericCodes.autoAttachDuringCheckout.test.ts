@@ -9,6 +9,7 @@ import {Contact} from "../../model/Contact";
 import {LightrailTransactionStep, Transaction} from "../../model/Transaction";
 import {CheckoutRequest} from "../../model/TransactionRequest";
 import {GenericCodePerContact} from "./genericCodePerContact";
+import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -28,6 +29,11 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             symbol: "$",
             decimalPlaces: 2
         });
+        setStubsForStripeTests();
+    });
+
+    after(() => {
+        unsetStubsForStripeTests();
     });
 
     describe("happy paths", () => {
@@ -135,7 +141,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
                     "metadata": null,
                     "createdBy": "default-test-user-TEST"
                 }, ["createdDate"]
-            )
+            );
 
             // check for attach transaction
             const attachTx = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${genericValue.id}&transactionType=attach`, "GET");
@@ -356,7 +362,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
                     "metadata": null,
                     "createdBy": "default-test-user-TEST"
                 }, ["createdDate"]
-            )
+            );
         });
     });
 
@@ -645,5 +651,61 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             const attachTx = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${genericValue.id}&transactionType=attach`, "GET");
             chai.assert.equal(attachTx.body.length, 0);
         });
+    });
+
+    it("checkout with stripe exception rolls back auto-attach. no value is inserted", async function () {
+        if (!testStripeLive()) {
+            this.skip();
+            return;
+        }
+
+        const contactId = generateId();
+
+        const genericValue: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            isGenericCode: true,
+            code: generateFullcode(),
+            discount: true,
+            usesRemaining: 5,
+            balance: null,
+            balanceRule: {
+                rule: "500 + value.balanceChange",
+                explanation: "$5 off purchase"
+            }
+        };
+
+        const createContact = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contactId});
+        chai.assert.equal(createContact.statusCode, 201);
+
+        const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
+        chai.assert.equal(create.statusCode, 201);
+
+        const request: CheckoutRequest = {
+            id: "chg-fraudulent",
+            sources: [
+                {
+                    rail: "stripe",
+                    source: "tok_chargeDeclinedFraudulent"
+                },
+                {
+                    rail: "lightrail",
+                    contactId: contactId
+                },
+                {
+                    rail: "lightrail",
+                    code: genericValue.code
+                }
+            ],
+            currency: "USD",
+            lineItems: [{unitPrice: 1000}]
+        };
+
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+        console.log(JSON.stringify(postCheckoutResp.body));
+        chai.assert.equal(postCheckoutResp.statusCode, 409, `resp=${JSON.stringify(postCheckoutResp, null, 4)}`);
+
+        const attachTx = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${genericValue.id}&transactionType=attach`, "GET");
+        chai.assert.equal(attachTx.body.length, 0);
     });
 });

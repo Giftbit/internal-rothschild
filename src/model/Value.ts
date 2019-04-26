@@ -36,7 +36,7 @@ export interface GenericCodeProperties {
     perContact: {
         balance: number | null | undefined;
         usesRemaining: number | null | undefined;
-    }
+    };
 }
 
 export interface Rule {

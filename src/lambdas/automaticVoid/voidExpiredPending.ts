@@ -73,7 +73,7 @@ async function voidPendingTransaction(dbTransaction: DbTransaction): Promise<voi
                     id: "automatic-void-" + uuid.v4()
                 },
                 dbTransaction
-            )
+            );
         }
     );
 }

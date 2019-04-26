@@ -89,7 +89,7 @@ describe("/v2/values - generic code with per contact properties", () => {
 
         const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericValue);
         chai.assert.equal(create.statusCode, 422);
-        chai.assert.equal(create.body.message, "Value must have a balanceRule, a balance, or a genericCodeProperties.perContact.balance.")
+        chai.assert.equal(create.body.message, "Value must have a balanceRule, a balance, or a genericCodeProperties.perContact.balance.");
     });
 
     it("can't attach generic code with contact usage limits to same contact twice", async () => {

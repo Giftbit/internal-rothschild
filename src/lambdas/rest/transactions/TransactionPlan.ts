@@ -150,26 +150,29 @@ export namespace LightrailTransactionPlanStep {
             code: step.value.code,
         };
 
-        if (step.action === "INSERT_VALUE") {
-            return {
-                ...sharedProperties,
-                balanceBefore: step.amount != null ? 0 : null,
-                balanceChange: step.amount,
-                balanceAfter: step.amount,
-                usesRemainingBefore: step.uses != null ? 0 : null,
-                usesRemainingChange: step.uses,
-                usesRemainingAfter: step.uses
-            }
-        } else {
-            return {
-                ...sharedProperties,
-                balanceBefore: step.value.balance,
-                balanceChange: step.value.balance != null || step.amount != null ? (step.amount || 0) : null,
-                balanceAfter: step.value.balance != null ? step.value.balance + (step.amount || 0) : null,
-                usesRemainingBefore: step.value.usesRemaining != null ? step.value.usesRemaining : null,
-                usesRemainingChange: step.value.usesRemaining != null || step.uses != null ? (step.uses || 0) : null,
-                usesRemainingAfter: step.value.usesRemaining != null ? step.value.usesRemaining + (step.uses || 0) : null
-            }
+        switch (step.action) {
+            case "INSERT_VALUE":
+                return {
+                    ...sharedProperties,
+                    balanceBefore: step.amount != null ? 0 : null,
+                    balanceChange: step.amount,
+                    balanceAfter: step.amount,
+                    usesRemainingBefore: step.uses != null ? 0 : null,
+                    usesRemainingChange: step.uses,
+                    usesRemainingAfter: step.uses
+                };
+            case "UPDATE_VALUE":
+                return {
+                    ...sharedProperties,
+                    balanceBefore: step.value.balance,
+                    balanceChange: step.value.balance != null || step.amount != null ? (step.amount || 0) : null,
+                    balanceAfter: step.value.balance != null ? step.value.balance + (step.amount || 0) : null,
+                    usesRemainingBefore: step.value.usesRemaining,
+                    usesRemainingChange: step.value.usesRemaining != null || step.uses != null ? (step.uses || 0) : null,
+                    usesRemainingAfter: step.value.usesRemaining != null ? step.value.usesRemaining + (step.uses || 0) : null
+                };
+            default:
+                throw new Error(`Unexpected step.action ${step.action} received. This should not be possible.`)
         }
     }
 }
@@ -301,7 +304,7 @@ export namespace TransactionPlan {
             } else {
                 return source;
             }
-        })
+        });
     }
 
     function getSharedProperties(plan: TransactionPlan) {

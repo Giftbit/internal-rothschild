@@ -69,12 +69,9 @@ describe("/v2/values/", () => {
             balance: 0
         };
 
-        console.log("before");
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", valueWithMissingCurrency);
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
-        console.log(JSON.stringify(resp, null, 4));
-
     });
 
     it("cannot create a value with non-ascii characters in the ID", async () => {
@@ -392,7 +389,6 @@ describe("/v2/values/", () => {
                 userId: testUtils.defaultTestUser.userId,
                 id: intitialBalanceTx.body.id
             });
-        console.log(JSON.stringify(res, null, 4));
         chai.assert.deepEqualExcluding(
             res[0], {
                 "userId": "default-test-user-TEST",
@@ -678,7 +674,7 @@ describe("/v2/values/", () => {
 
         try {
             const resp1 = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
-            chai.assert.fail("an exception should be thrown during this call so this assert won't happen")
+            chai.assert.fail("an exception should be thrown during this call so this assert won't happen");
         } catch (e) {
             // pass
         }
@@ -1589,7 +1585,7 @@ describe("/v2/values/", () => {
         chai.assert.equal(createValue2.body.code, code2);
 
         const getValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?showCode=true&id.in=${value1Request.id + "," + value2Request.id}`, "GET");
-        chai.assert.sameMembers(getValues.body.map(v => v.code), [code1, code2])
+        chai.assert.sameMembers(getValues.body.map(v => v.code), [code1, code2]);
         generateCodeStub.restore();
-    })
+    });
 });

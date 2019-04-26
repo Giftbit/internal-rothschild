@@ -61,7 +61,7 @@ export interface ResolveTransactionPartiesOptions {
     /**
      * Whether generic codes with per contact properties should be auto attached.
      */
-    autoAttachGenericCodesWithPerContactProperties?: boolean;
+    autoAttach?: boolean;
 }
 
 export interface ResolvedTransactionPlanSteps {
@@ -77,9 +77,9 @@ export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.Au
         attachTransactions: [],
         transactionSteps: []
     };
-    // Can't attach all generic codes because existing generic codes where users use attachGenericAsNewValue. Also breaks how shared generic values work.
-    if (options.autoAttachGenericCodesWithPerContactProperties) {
+    if (options.autoAttach) {
         const valuesThatMustBeAttached: Value[] = fetchedValues.filter(v => Value.isGenericCodeWithPropertiesPerContact(v));
+        // Can't attach all generic codes because existing generic codes where users use attachGenericAsNewValue. Also breaks how shared generic values work.
         valuesForTx = fetchedValues.filter(v => valuesThatMustBeAttached.indexOf(v) === -1);
 
         if (valuesThatMustBeAttached.length > 0) {
@@ -90,7 +90,7 @@ export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.Au
 
             for (const genericValue of valuesThatMustBeAttached) {
                 if (valuesForTx.find(v => v.attachedFromGenericValueId === genericValue.id)) {
-                    log.debug(`Skipping attaching generic value ${genericValue.id} since it's already been attached.`)
+                    log.debug(`Skipping attaching generic value ${genericValue.id} since it's already been attached.`);
                 } else {
                     const transactionPlan = GenericCodePerContact.getTransactionPlan(auth, contactId, genericValue);
                     resolvedTransactionSteps.attachTransactions.push(transactionPlan);
@@ -240,7 +240,7 @@ export function filterForUsedAttaches(resolvedSteps, transactionPlan: Transactio
         const newAttachedValue: LightrailTransactionPlanStep = attachTx.steps.find(s => (s as LightrailTransactionPlanStep).action === "INSERT_VALUE") as LightrailTransactionPlanStep;
         if (transactionPlan.steps.find(s => s.rail === "lightrail" && s.value.id === newAttachedValue.value.id)) {
             // it was used
-            attachTransactionsToPersist.push(attachTx)
+            attachTransactionsToPersist.push(attachTx);
         } else {
             // not used.
 
@@ -257,6 +257,6 @@ async function getContactIdFromSources(auth: giftbitRoutes.jwtauth.Authorization
         const contact = await getContact(auth, contactId);
         return contact.id;
     } else {
-        return null
+        return null;
     }
 }
