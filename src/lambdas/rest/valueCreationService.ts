@@ -17,7 +17,7 @@ import log = require("loglevel");
 
 export namespace ValueCreationService {
 
-    export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: CreateValueParameters, trx: Knex.Transaction, retryCount: number = 0): Promise<Value> {
+    export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: CreateValueParameters, trx: Knex.Transaction): Promise<Value> {
         auth.requireIds("userId", "teamMemberId");
         let value: Value = initializeValue(auth, params.partialValue, params.program, params.generateCodeParameters);
         log.info(`Create Value requested for user: ${auth.userId}. Value`, Value.toStringSanitized(value));
@@ -45,7 +45,6 @@ export namespace ValueCreationService {
             createdDate: value.createdDate,
             metadata: null,
         };
-
 
         try {
             await executeTransactionPlan(auth, trx, plan, {simulate: false, allowRemainder: false});

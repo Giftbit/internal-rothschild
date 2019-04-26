@@ -24,7 +24,7 @@ export interface ExecuteTransactionPlannerOptions {
 }
 
 /**
- * Calls the planner and executes on the plan created.  If the plan cannot be executed
+ * Calls the planner and executes on the plans created.  If a plan cannot be executed
  * but can be replanned then the planner will be called again.
  */
 export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ExecuteTransactionPlannerOptions, planner: () => Promise<TransactionPlan>): Promise<Transaction>;
@@ -71,9 +71,13 @@ async function executeTransactionPlans(auth: giftbitRoutes.jwtauth.Authorization
         }
         throw err;
     }
+    plans.forEach(plan => MetricsLogger.transaction(plan, auth));
     return insertedTransactions;
 }
 
+/**
+ * Can be called to execute a Transaction Plan inside an existing knex trx.
+ */
 export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan, options: ExecuteTransactionPlannerOptions): Promise<Transaction> {
     auth.requireIds("userId", "teamMemberId");
 
@@ -89,9 +93,8 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         return TransactionPlan.toTransaction(auth, plan, options.simulate);
     }
 
-    // fetch stripe config if needed
     let stripeConfig: LightrailAndMerchantStripeConfig = null;
-    if (TransactionPlan.containsStripeSteps(plan) && !stripeConfig) {
+    if (TransactionPlan.containsStripeSteps(plan)) {
         stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
     }
 
@@ -131,8 +134,6 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         }
 
     }
-
-    MetricsLogger.transaction(plan, auth);
     return TransactionPlan.toTransaction(auth, plan); // Has to re-call ".toTransaction" since things like the Stripe steps are updated when inserted.
 }
 
