@@ -36,6 +36,7 @@ import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {Value} from "../../../model/Value";
 import {getAttachTransactionPlanForGenericCodeWithPerContactOptions} from "../genericCodeWithPerContactOptions";
 import {csvSerializer} from "../../../serializers";
+import {filterQuery} from "../../../utils/dbUtils/filterQuery";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -275,6 +276,25 @@ async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.Authorizatio
     let query = knex("Transactions")
         .select("Transactions.*")
         .where("Transactions.userId", "=", auth.userId);
+
+    if (filterParams["programId"] || filterParams["programId.eq"] || filterParams["programId.in"]) {
+        query.join("LightrailTransactionSteps", {
+            "Transactions.id": "LightrailTransactionSteps.transactionId",
+            "Transactions.userId": "LightrailTransactionSteps.userId"
+        })
+            .join("Values", {
+                "LightrailTransactionSteps.valueId": "Values.id"
+            });
+        query = filterQuery(query, filterParams, {
+            properties: {
+                "programId": {
+                    type: "string",
+                    operators: ["eq", "in"],
+                    columnName: "Values.programId",
+                }
+            }
+        });
+    }
 
     const res = await filterAndPaginateQuery<DbTransaction>(query, filterParams, {
         properties: {
