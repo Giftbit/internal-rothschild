@@ -46,7 +46,7 @@ export interface LightrailInsertTransactionPlanStep {
     rail: "lightrail";
     value: Value;
     action: "insert";
-    codeParamsForRetry?: GenerateCodeParameters;
+    generateCodeParameters?: GenerateCodeParameters;
 }
 
 export interface LightrailUpdateTransactionPlanStep {

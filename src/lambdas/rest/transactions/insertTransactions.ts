@@ -13,8 +13,8 @@ import {executeStripeSteps} from "../../../utils/stripeUtils/stripeStepOperation
 import {LightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/StripeConfig";
 import {getSqlErrorConstraintName} from "../../../utils/dbUtils";
 import * as cassava from "cassava";
-import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
 import {generateCode} from "../../../utils/codeGenerator";
+import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
 import Knex = require("knex");
 import log = require("loglevel");
 
@@ -56,7 +56,7 @@ export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtaut
 
         switch (step.action) {
             case "insert":
-                await insertValue(auth, trx, step.value, step.codeParamsForRetry);
+                await insertValue(auth, trx, step.value, step.generateCodeParameters);
                 break;
             case "update":
                 await updateLightrailValueForStep(auth, trx, step, plan);
@@ -71,12 +71,16 @@ export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtaut
     return plan;
 }
 
-export async function insertValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, value: Value, codeParamsForRetry: GenerateCodeParameters, retryCount = 0): Promise<DbValue> {
+export async function insertValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, value: Value, generateCodeParameters: GenerateCodeParameters, retryCount = 0): Promise<DbValue> {
     if (value.balance < 0) {
         throw new Error("balance cannot be negative");
     }
     if (value.usesRemaining < 0) {
         throw new Error("usesRemaining cannot be negative");
+    }
+
+    if (generateCodeParameters) {
+        value.code = generateCode(generateCodeParameters);
     }
 
     const dbValue: DbValue = await Value.toDbValue(auth, value);
@@ -91,12 +95,12 @@ export async function insertValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with id '${value.id}' already exists.`, "ValueIdExists");
         }
         if (constraint === "uq_Values_codeHashed") {
-            if (codeParamsForRetry != null && retryCount < 2) {
+            if (generateCodeParameters != null && retryCount < 2) {
                 /*  Retrying twice is an arbitrary number. This may need to be increased if we're still seeing regular failures.
                  *  Unless users are using their own character set there are around 1 billion possible codes.
                  *  It seems unlikely for 3+ retry failures even if users have millions of codes. */
-                value.code = generateCode(codeParamsForRetry);
-                return insertValue(auth, trx, value, codeParamsForRetry, retryCount + 1);
+                // value.code = generateCode(codeParamsForRetry);
+                return insertValue(auth, trx, value, generateCodeParameters, retryCount + 1);
             } else {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with the given code already exists.`, "ValueCodeExists");
             }

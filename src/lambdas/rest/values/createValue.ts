@@ -8,7 +8,6 @@ import {MetricsLogger, ValueAttachmentTypes} from "../../../utils/metricsLogger"
 import {Program} from "../../../model/Program";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
 import {pickOrDefault} from "../../../utils/pick";
-import {generateCode} from "../../../utils/codeGenerator";
 import {CreateValueParameters} from "./values";
 import {checkRulesSyntax} from "../transactions/rules/RuleContext";
 import {TransactionPlan} from "../transactions/TransactionPlan";
@@ -36,7 +35,7 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             amount: value.balance,
             uses: value.usesRemaining,
             action: "insert",
-            codeParamsForRetry: params.generateCodeParameters
+            generateCodeParameters: params.generateCodeParameters
         }],
         tax: null,
         pendingVoidDate: null,
@@ -56,8 +55,6 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     if (value.contactId) {
         MetricsLogger.valueAttachment(ValueAttachmentTypes.OnCreate, auth);
     }
-
-    // todo - move code generate logic down into insert as the only plave this happens. Add a comment here to point out plan / value is being mutated. This to avoid an extra read.
     return value;
 }
 
@@ -95,11 +92,9 @@ export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 
     value.metadata = {...(program && program.metadata ? program.metadata : {}), ...value.metadata};
 
-    if (generateCodeParameters) {
-        checkCodeParameters(generateCodeParameters, value.code, value.isGenericCode);
-        value.code = generateCodeParameters ? generateCode(generateCodeParameters) : value.code;
-    }
-    if (value.code && value.isGenericCode == null) {
+    // code generation is done when the Value is inserted into the database.
+    checkCodeParameters(generateCodeParameters, value.code, value.isGenericCode);
+    if (value.code && !generateCodeParameters && value.isGenericCode == null) {
         value.isGenericCode = false;
     }
 
