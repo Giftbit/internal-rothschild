@@ -272,7 +272,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                     type: "string",
                     operators: ["eq", "in"]
                 },
-                attachedFromGenericValueId: {
+                attachedFromValueId: {
                     type: "string",
                     operators: ["eq", "in"]
                 },
@@ -550,7 +550,7 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
         })
         .andWhere(q => {
             q.where("V.id", "=", valueId);
-            q.orWhere("V.attachedFromGenericValueId", "=", valueId);
+            q.orWhere("V.attachedFromValueId", "=", valueId);
             return q;
         })
         .join("LightrailTransactionSteps as LTS", {
@@ -619,7 +619,7 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
     const attachedFromGenericValueStats = await knex("Values")
         .where({
             "userId": auth.userId,
-            "attachedFromGenericValueId": valueId
+            "attachedFromValueId": valueId
         })
         .count({count: "*"});
     stats.attachedContacts.count += attachedFromGenericValueStats[0].count;

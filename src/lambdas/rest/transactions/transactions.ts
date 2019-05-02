@@ -327,7 +327,7 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
                 }
 
                 for (const genericValue of valuesToAttach) {
-                    if (valuesForCheckout.find(v => v.attachedFromGenericValueId === genericValue.id)) {
+                    if (valuesForCheckout.find(v => v.attachedFromValueId === genericValue.id)) {
                         log.debug(`Skipping attaching generic value ${genericValue.id} since it's already been attached.`);
                     } else {
                         const transactionPlan = getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth, contactId, genericValue);

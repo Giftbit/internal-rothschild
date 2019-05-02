@@ -63,7 +63,7 @@ export function getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth
                 code: genericValue.code
             }
         },
-        attachedFromGenericValueId: genericValue.id,
+        attachedFromValueId: genericValue.id,
         createdDate: now,
         updatedDate: now,
         updatedContactIdDate: now,

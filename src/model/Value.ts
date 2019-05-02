@@ -13,7 +13,7 @@ export interface Value {
     code: string | null;
     isGenericCode: boolean | null;
     genericCodeOptions?: GenericCodeOptions | undefined;
-    attachedFromGenericValueId: string | undefined; // todo - drop word generic
+    attachedFromValueId: string | undefined; // todo - drop word generic
     contactId: string | null;
     pretax: boolean;
     active: boolean;
@@ -82,7 +82,7 @@ export namespace Value {
             // generic code properties
             genericCodeOptions_perContact_balance: v.genericCodeOptions ? v.genericCodeOptions.perContact.balance : null,
             genericCodeOptions_perContact_usesRemaining: v.genericCodeOptions ? v.genericCodeOptions.perContact.usesRemaining : null,
-            attachedFromGenericValueId: v.attachedFromGenericValueId
+            attachedFromValueId: v.attachedFromValueId
         };
     }
 
@@ -150,7 +150,7 @@ export interface DbValue {
     isGenericCode: boolean | null;
     genericCodeOptions_perContact_balance: number | null;
     genericCodeOptions_perContact_usesRemaining: number | null;
-    attachedFromGenericValueId: string | null;
+    attachedFromValueId: string | null;
 }
 
 export namespace DbValue {
@@ -171,7 +171,7 @@ export namespace DbValue {
                     usesRemaining: v.genericCodeOptions_perContact_usesRemaining
                 }
             } : undefined,
-            attachedFromGenericValueId: v.attachedFromGenericValueId != null ? v.attachedFromGenericValueId : undefined,
+            attachedFromValueId: v.attachedFromValueId != null ? v.attachedFromValueId : undefined,
             pretax: v.pretax,
             active: v.active,
             canceled: v.canceled,

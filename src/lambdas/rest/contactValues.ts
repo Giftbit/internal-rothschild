@@ -269,7 +269,7 @@ async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.Authoriz
     const newAttachedValue: Value = {
         ...originalValue,
         id: getIdForNewAttachedValue({contactId: contactId, valueId: originalValue.id}),
-        attachedFromGenericValueId: originalValue.id,
+        attachedFromValueId: originalValue.id,
         code: null,
         isGenericCode: false,
         contactId: contactId,

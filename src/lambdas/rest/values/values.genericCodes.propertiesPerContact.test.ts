@@ -129,7 +129,7 @@ describe("/v2/values - generic code with per contact properties", () => {
                 "issuanceId": null,
                 "contactId": contactId,
                 "code": null,
-                "attachedFromGenericValueId": genericValue.id,
+                "attachedFromValueId": genericValue.id,
                 "isGenericCode": false,
                 "pretax": false,
                 "active": true,
@@ -448,7 +448,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             attachedValues.push(attach.body);
         }
 
-        const listAttachedValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?attachedFromGenericValueId=${genericValue.id}`, "GET");
+        const listAttachedValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?attachedFromValueId=${genericValue.id}`, "GET");
         chai.assert.sameDeepMembers(attachedValues, listAttachedValues.body);
     });
 
