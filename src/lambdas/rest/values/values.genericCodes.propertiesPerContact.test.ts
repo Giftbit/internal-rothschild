@@ -118,6 +118,7 @@ describe("/v2/values - generic code with per contact properties", () => {
         chai.assert.equal(createContact.statusCode, 201);
 
         const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {code: genericValue.code});
+        console.log(JSON.stringify(attach, null, 4));
         chai.assert.equal(attach.statusCode, 200);
         chai.assert.deepEqualExcluding(attach.body,
             {

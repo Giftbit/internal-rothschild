@@ -3,17 +3,18 @@ import {nowInDbPrecision} from "../../utils/dbUtils/index";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
-import {LightrailTransactionPlanStep, TransactionPlan} from "./transactions/TransactionPlan";
+import {
+    LightrailInsertTransactionPlanStep,
+    LightrailTransactionPlanStep,
+    LightrailUpdateTransactionPlanStep,
+    TransactionPlan
+} from "./transactions/TransactionPlan";
 import {executeTransactionPlanner} from "./transactions/executeTransactionPlans";
-import {getValue} from "./values/values";
-import {LightrailTransactionStep, Transaction} from "../../model/Transaction";
+import {Transaction} from "../../model/Transaction";
 import * as cassava from "cassava";
 import {initializeValue} from "./values/createValue";
 
-
 export async function attachGenericCodeWithPerContactOptions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<Value> {
-
-    // todo - double check the type of Value
     let transaction: Transaction;
     let transactionPlan: TransactionPlan;
     try {
@@ -28,14 +29,7 @@ export async function attachGenericCodeWithPerContactOptions(auth: giftbitRoutes
             throw err;
         }
     }
-
-    const newAttachedValueId = (transaction.steps.find(step => (step as LightrailTransactionStep).valueId !== genericValue.id) as LightrailTransactionStep).valueId;
-    if (!newAttachedValueId) {
-        throw new Error("This cannot happen. Something must have gone seriously wrong.");
-    }
-
-    // todo pull value out of transactionPlan.
-    return await getValue(auth, newAttachedValueId);
+    return (transactionPlan.steps.find((step: LightrailTransactionPlanStep) => step.action === "insert") as LightrailInsertTransactionPlanStep).value;
 }
 
 export function getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): TransactionPlan {
@@ -56,7 +50,7 @@ export function getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth
         contactId: contactId,
         balance: amount != null ? amount : null, // balance is initiated rather than being adjusted during inserting the step. this makes auto-attach during checkout work
         usesRemaining: uses != null ? uses : null, // likewise
-        genericCodeOptions: null,
+        genericCodeOptions: undefined,
         metadata: {
             ...genericValue.metadata,
             attachedFromGenericValue: {
@@ -70,27 +64,24 @@ export function getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth
         createdBy: auth.teamMemberId,
     });
 
+    const updateStep: LightrailUpdateTransactionPlanStep = {
+        rail: "lightrail",
+        action: "update",
+        value: genericValue,
+        amount: genericValue.balance !== null ? -amount : null, // generic code can have balance: null but perContact balance set.
+        uses: genericValue.usesRemaining !== null ? -uses : null // likewise
+    };
+    const insertStep: LightrailInsertTransactionPlanStep = {
+        rail: "lightrail",
+        action: "insert",
+        value: newValue
+    };
+
     return {
         id: newAttachedValueId,
         transactionType: "attach",
         currency: genericValue.currency,
-        steps: [
-            {
-                // generic code
-                rail: "lightrail",
-                action: "update",
-                value: genericValue,
-                amount: genericValue.balance !== null ? -amount : null, // generic code can have balance: null but perContact balance set.
-                uses: genericValue.usesRemaining !== null ? -uses : null // likewise
-            } as LightrailTransactionPlanStep,
-            {
-                rail: "lightrail",
-                action: "insert",
-                value: newValue,
-                amount: amount,
-                uses: uses,
-            } as LightrailTransactionPlanStep
-        ],
+        steps: [updateStep, insertStep],
         totals: null,
         lineItems: null,
         paymentSources: null,
@@ -98,7 +89,6 @@ export function getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth
         metadata: null,
         tax: null
     };
-
 }
 
 export function generateIdForNewAttachedValue(genericValueId: string, contactId: string) {
