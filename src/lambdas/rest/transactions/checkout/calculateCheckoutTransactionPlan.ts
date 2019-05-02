@@ -1,6 +1,7 @@
 import {
     InternalTransactionPlanStep,
-    LightrailTransactionPlanStep,
+    isStepWithAmount,
+    LightrailUpdateTransactionPlanStep,
     StripeChargeTransactionPlanStep,
     TransactionPlan,
     TransactionPlanStep
@@ -16,18 +17,14 @@ import log = require("loglevel");
 /**
  * Build a TransactionPlan for checkout.  This mutates the steps by setting the amount.
  */
-export function calculateCheckoutTransactionPlan(checkout: CheckoutRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[], now: Date): TransactionPlan {
+export function calculateCheckoutTransactionPlanForOrderedSteps(checkout: CheckoutRequest, preTaxSteps: TransactionPlanStep[], postTaxSteps: TransactionPlanStep[], now: Date): TransactionPlan {
     // Reset step amounts in case they were set in a previous call to this function.
-    for (const step of preTaxSteps) {
-        step.amount = 0;
-        if ((step as LightrailTransactionPlanStep).uses != null) {
-            (step as LightrailTransactionPlanStep).uses = 0;
-        }
-    }
-    for (const step of postTaxSteps) {
-        step.amount = 0;
-        if ((step as LightrailTransactionPlanStep).uses != null) {
-            (step as LightrailTransactionPlanStep).uses = 0;
+    for (const step of [...preTaxSteps, ...postTaxSteps]) {
+        if (isStepWithAmount(step)) {
+            step.amount = 0;
+            if ((step as LightrailUpdateTransactionPlanStep).uses != null) {
+                (step as LightrailUpdateTransactionPlanStep).uses = 0;
+            }
         }
     }
 
@@ -38,7 +35,7 @@ export function calculateCheckoutTransactionPlan(checkout: CheckoutRequest, preT
     calculateAmountsForTransactionSteps(postTaxSteps, transactionPlan);
     transactionPlan.calculateTotalsFromLineItemsAndSteps();
 
-    transactionPlan.steps = transactionPlan.steps.filter(s => s.amount !== 0);
+    transactionPlan.steps = transactionPlan.steps.filter(s => isStepWithAmount(s) && s.amount !== 0);
     return transactionPlan;
 }
 
@@ -62,7 +59,7 @@ function calculateAmountsForTransactionSteps(steps: TransactionPlanStep[], trans
         const step = steps[stepsIndex];
         switch (step.rail) {
             case "lightrail":
-                calculateAmountForLightrailTransactionStep(step, transactionPlan);
+                calculateAmountForLightrailTransactionStep(step as LightrailUpdateTransactionPlanStep, transactionPlan);
                 break;
             case "stripe":
                 if (step.type === "charge") {
@@ -78,7 +75,7 @@ function calculateAmountsForTransactionSteps(steps: TransactionPlanStep[], trans
     }
 }
 
-function calculateAmountForLightrailTransactionStep(step: LightrailTransactionPlanStep, transactionPlan: TransactionPlan): void {
+function calculateAmountForLightrailTransactionStep(step: LightrailUpdateTransactionPlanStep, transactionPlan: TransactionPlan): void {
     log.info(`calculateAmountForLightrailTransactionStep ${JSON.stringify(step)}.`);
 
     let value = step.value;
@@ -155,7 +152,7 @@ function getAvailableBalance(balance: number, negativeStepAmount: number): numbe
     return balance + negativeStepAmount;
 }
 
-function getRuleContext(transactionPlan: TransactionPlan, value: Value, step: LightrailTransactionPlanStep, item: LineItemResponse): RuleContext {
+function getRuleContext(transactionPlan: TransactionPlan, value: Value, step: LightrailUpdateTransactionPlanStep, item: LineItemResponse): RuleContext {
     return new RuleContext({
         totals: transactionPlan.totals,
         lineItems: transactionPlan.lineItems,

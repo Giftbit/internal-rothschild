@@ -1,17 +1,17 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import * as testUtils from "../../utils/testUtils";
-import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../utils/testUtils";
-import {DbValue, Value} from "../../model/Value";
-import {Currency} from "../../model/Currency";
-import {Contact} from "../../model/Contact";
-import {getCodeLastFourNoPrefix} from "../../model/DbCode";
-import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
-import {LightrailTransactionStep, Transaction} from "../../model/Transaction";
-import {installRestRoutes} from "./installRestRoutes";
-import {createCurrency} from "./currencies";
-import {computeCodeLookupHash, decryptCode} from "../../utils/codeCryptoUtils";
-import * as codeGenerator from "../../utils/codeGenerator";
+import * as testUtils from "../../../utils/testUtils/index";
+import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../utils/testUtils/index";
+import {DbValue, Value} from "../../../model/Value";
+import {Currency} from "../../../model/Currency";
+import {Contact} from "../../../model/Contact";
+import {getCodeLastFourNoPrefix} from "../../../model/DbCode";
+import {getKnexRead, getKnexWrite} from "../../../utils/dbUtils/connection";
+import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {installRestRoutes} from "../installRestRoutes";
+import {createCurrency} from "../currencies";
+import {computeCodeLookupHash, decryptCode} from "../../../utils/codeCryptoUtils";
+import * as codeGenerator from "../../../utils/codeGenerator";
 import * as sinon from "sinon";
 import parseLinkHeader = require("parse-link-header");
 import chaiExclude = require("chai-exclude");
@@ -780,7 +780,7 @@ describe("/v2/values/", () => {
 
             const page1 = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?id.in=${ids.join(",")}`, "GET");
             chai.assert.equal(page1.statusCode, 200, `body=${JSON.stringify(page1.body)}`);
-            chai.assert.deepEqualExcludingEvery<any>(page1.body, expected, ["userId", "codeHashed", "code", "codeLastFour", "startDate", "endDate", "createdDate", "updatedDate", "updatedContactIdDate", "codeEncrypted", "isGenericCode", "attachedFromGenericValueId", "usesPerContact", "balancePerContact"]);
+            chai.assert.deepEqualExcludingEvery<any>(page1.body, expected, ["userId", "codeHashed", "code", "codeLastFour", "startDate", "endDate", "createdDate", "updatedDate", "updatedContactIdDate", "codeEncrypted", "isGenericCode", "attachedFromGenericValueId", "genericCodeOptions_perContact_usesRemaining", "genericCodeOptions_perContact_balance"]);
             chai.assert.isDefined(page1.headers["Link"]);
         });
     });

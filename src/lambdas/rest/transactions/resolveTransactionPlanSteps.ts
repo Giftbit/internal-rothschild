@@ -17,9 +17,7 @@ import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {computeCodeLookupHash} from "../../../utils/codeCryptoUtils";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import * as knex from "knex";
-import {GenericCodePerContact} from "../genericCodePerContact";
 import {getContact} from "../contacts";
-import log = require("loglevel");
 
 /**
  * Options to resolving transaction parties.
@@ -57,62 +55,25 @@ export interface ResolveTransactionPartiesOptions {
      * Whether to accept Lightrail Values with 0 balance in the results.
      */
     includeZeroBalance: boolean;
-
-    /**
-     * Whether generic codes with per contact properties should be auto attached.
-     */
-    autoAttach?: boolean;
 }
 
-export interface ResolvedTransactionPlanSteps {
-    attachTransactions: TransactionPlan[];
-    transactionSteps: TransactionPlanStep[];
-}
-
-export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions): Promise<ResolvedTransactionPlanSteps> {
+export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions,): Promise<TransactionPlanStep[]> {
     const fetchedValues = await getLightrailValues(auth, options);
-    let valuesForTx: Value[];
+    return getTransactionPlanStepsFromLoadedSources(options.transactionId, fetchedValues,
+        options.parties.filter(party => party.rail !== "lightrail") as (StripeTransactionParty | InternalTransactionParty)[]);
+}
 
-    const resolvedTransactionSteps: ResolvedTransactionPlanSteps = {
-        attachTransactions: [],
-        transactionSteps: []
-    };
-    if (options.autoAttach) {
-        const valuesThatMustBeAttached: Value[] = fetchedValues.filter(v => Value.isGenericCodeWithPropertiesPerContact(v));
-        // Can't attach all generic codes because existing generic codes can't be distinguished if the user is calling
-        // attach with attachGenericAsNewValue: true.
-        valuesForTx = fetchedValues.filter(v => valuesThatMustBeAttached.indexOf(v) === -1);
-
-        if (valuesThatMustBeAttached.length > 0) {
-            const contactId = await getContactIdFromSources(auth, options);
-            if (!contactId) {
-                throw new giftbitRoutes.GiftbitRestError(409, `Values cannot be transacted against because they must be attached to a Contact first. Alternatively, a contactId must be included a source in the checkout request.`, "ValueMustBeAttached");
-            }
-
-            for (const genericValue of valuesThatMustBeAttached) {
-                if (valuesForTx.find(v => v.attachedFromGenericValueId === genericValue.id)) {
-                    log.debug(`Skipping attaching generic value ${genericValue.id} since it's already been attached.`);
-                } else {
-                    const transactionPlan = GenericCodePerContact.getTransactionPlan(auth, contactId, genericValue);
-                    resolvedTransactionSteps.attachTransactions.push(transactionPlan);
-                    valuesForTx.push((transactionPlan.steps.find(s => (s as LightrailTransactionPlanStep).action === "INSERT_VALUE") as LightrailTransactionPlanStep).value);
-                }
-            }
-        }
-    } else {
-        valuesForTx = fetchedValues;
-    }
-
-    const lightrailSteps = valuesForTx
+export function getTransactionPlanStepsFromLoadedSources(transactionId: string, lightrailSources: Value[], nonLightrailSources: (StripeTransactionParty | InternalTransactionParty)[]): TransactionPlanStep[] {
+    const lightrailSteps = lightrailSources
         .map((v): LightrailTransactionPlanStep => ({
             rail: "lightrail",
             value: v,
             amount: 0,
             uses: null,
-            action: "UPDATE_VALUE"
+            action: "update"
         }));
 
-    const internalSteps = options.parties
+    const internalSteps = nonLightrailSources
         .filter(p => p.rail === "internal")
         .map((p: InternalTransactionParty): InternalTransactionPlanStep => ({
             rail: "internal",
@@ -123,12 +84,13 @@ export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.Au
             amount: 0
         }));
 
-    const stripeSteps = options.parties
+
+    const stripeSteps = nonLightrailSources
         .filter(p => p.rail === "stripe")
         .map((p: StripeTransactionParty, index): StripeTransactionPlanStep => ({
             rail: "stripe",
             type: "charge",
-            idempotentStepId: `${options.transactionId}-${index}`,
+            idempotentStepId: `${transactionId}-${index}`,
             source: p.source || null,
             customer: p.customer || null,
             maxAmount: p.maxAmount || null,
@@ -136,11 +98,10 @@ export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.Au
             amount: 0
         }));
 
-    resolvedTransactionSteps.transactionSteps.push(...lightrailSteps, ...internalSteps, ...stripeSteps);
-    return resolvedTransactionSteps;
+    return [...lightrailSteps, ...internalSteps, ...stripeSteps];
 }
 
-async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions): Promise<Value[]> {
+export async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions): Promise<Value[]> {
     const valueIds = options.parties.filter(p => p.rail === "lightrail" && p.valueId)
         .map(p => (p as LightrailTransactionParty).valueId);
 
@@ -235,20 +196,20 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     return values;
 }
 
-export function filterForUsedAttaches(resolvedSteps, transactionPlan: TransactionPlan) {
+export function filterForUsedAttaches(attachTransactionPlans: TransactionPlan[], transactionPlan: TransactionPlan) {
     const attachTransactionsToPersist: TransactionPlan[] = [];
-    for (const attachTx of resolvedSteps.attachTransactions) {
-        const newAttachedValue: LightrailTransactionPlanStep = attachTx.steps.find(s => (s as LightrailTransactionPlanStep).action === "INSERT_VALUE") as LightrailTransactionPlanStep;
+    for (const attach of attachTransactionPlans) {
+        const newAttachedValue: LightrailTransactionPlanStep = attach.steps.find(s => (s as LightrailTransactionPlanStep).action === "insert") as LightrailTransactionPlanStep;
         if (transactionPlan.steps.find(s => s.rail === "lightrail" && s.value.id === newAttachedValue.value.id)) {
             // new attached value was used
-            attachTransactionsToPersist.push(attachTx);
+            attachTransactionsToPersist.push(attach);
         }
     }
     return attachTransactionsToPersist;
 }
 
-async function getContactIdFromSources(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions): Promise<string> {
-    const contactPaymentSource = options.parties.find(p => p.rail === "lightrail" && p.contactId != null) as LightrailTransactionParty;
+export async function getContactIdFromSources(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[]): Promise<string> {
+    const contactPaymentSource = parties.find(p => p.rail === "lightrail" && p.contactId != null) as LightrailTransactionParty;
     const contactId = contactPaymentSource ? contactPaymentSource.contactId : null;
 
     if (contactId) {

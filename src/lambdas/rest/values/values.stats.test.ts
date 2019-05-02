@@ -1,12 +1,12 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import * as testUtils from "../../utils/testUtils";
-import {generateId, setCodeCryptographySecrets, testAuthedRequest} from "../../utils/testUtils";
-import {installRestRoutes} from "./installRestRoutes";
-import {createCurrency} from "./currencies";
-import {Value} from "../../model/Value";
-import {Transaction} from "../../model/Transaction";
-import {Contact} from "../../model/Contact";
+import * as testUtils from "../../../utils/testUtils/index";
+import {generateId, setCodeCryptographySecrets, testAuthedRequest} from "../../../utils/testUtils/index";
+import {installRestRoutes} from "../installRestRoutes";
+import {createCurrency} from "../currencies";
+import {Value} from "../../../model/Value";
+import {Transaction} from "../../../model/Transaction";
+import {Contact} from "../../../model/Contact";
 import {
     CheckoutRequest,
     CreditRequest,
@@ -14,14 +14,14 @@ import {
     LightrailTransactionParty,
     StripeTransactionParty,
     TransferRequest
-} from "../../model/TransactionRequest";
+} from "../../../model/TransactionRequest";
 import {
     setStubsForStripeTests,
     stubCheckoutStripeCharge,
     stubStripeCapture,
     stubStripeRefund,
     unsetStubsForStripeTests
-} from "../../utils/testUtils/stripeTestUtils";
+} from "../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
 
 require("dotenv").config();

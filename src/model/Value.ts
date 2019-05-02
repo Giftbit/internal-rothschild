@@ -12,8 +12,8 @@ export interface Value {
     issuanceId: string | null;
     code: string | null;
     isGenericCode: boolean | null;
-    genericCodeProperties?: GenericCodeProperties | undefined;
-    attachedFromGenericValueId: string | undefined;
+    genericCodeOptions?: GenericCodeOptions | undefined;
+    attachedFromGenericValueId: string | undefined; // todo - drop word generic
     contactId: string | null;
     pretax: boolean;
     active: boolean;
@@ -32,10 +32,10 @@ export interface Value {
     createdBy: string;
 }
 
-export interface GenericCodeProperties {
+export interface GenericCodeOptions {
     perContact: {
-        balance: number | null | undefined;
-        usesRemaining: number | null | undefined;
+        balance: number | null;
+        usesRemaining: number | null;
     };
 }
 
@@ -80,8 +80,8 @@ export namespace Value {
             createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
 
             // generic code properties
-            balancePerContact: v.genericCodeProperties ? v.genericCodeProperties.perContact.balance : null,
-            usesPerContact: v.genericCodeProperties ? v.genericCodeProperties.perContact.usesRemaining : null,
+            genericCodeOptions_perContact_balance: v.genericCodeOptions ? v.genericCodeOptions.perContact.balance : null,
+            genericCodeOptions_perContact_usesRemaining: v.genericCodeOptions ? v.genericCodeOptions.perContact.usesRemaining : null,
             attachedFromGenericValueId: v.attachedFromGenericValueId
         };
     }
@@ -116,7 +116,7 @@ export namespace Value {
     }
 
     export function isGenericCodeWithPropertiesPerContact(v: Value): boolean {
-        return v.isGenericCode != null && v.genericCodeProperties != null && v.genericCodeProperties.perContact != null;
+        return v.isGenericCode != null && v.genericCodeOptions != null && v.genericCodeOptions.perContact != null;
     }
 }
 
@@ -147,11 +147,9 @@ export interface DbValue {
     updatedDate: Date;
     updatedContactIdDate: Date | null;
     createdBy: string;
-
-    // generic code properties
     isGenericCode: boolean | null;
-    balancePerContact: number | null;
-    usesPerContact: number | null;
+    genericCodeOptions_perContact_balance: number | null;
+    genericCodeOptions_perContact_usesRemaining: number | null;
     attachedFromGenericValueId: string | null;
 }
 
@@ -167,10 +165,10 @@ export namespace DbValue {
             contactId: v.contactId,
             code: await dbValueCodeToValueCode(v, showCode),
             isGenericCode: v.isGenericCode,
-            genericCodeProperties: v.balancePerContact != null || v.usesPerContact != null ? {
+            genericCodeOptions: v.genericCodeOptions_perContact_balance != null || v.genericCodeOptions_perContact_usesRemaining != null ? {
                 perContact: {
-                    balance: v.balancePerContact,
-                    usesRemaining: v.usesPerContact
+                    balance: v.genericCodeOptions_perContact_balance,
+                    usesRemaining: v.genericCodeOptions_perContact_usesRemaining
                 }
             } : undefined,
             attachedFromGenericValueId: v.attachedFromGenericValueId != null ? v.attachedFromGenericValueId : undefined,

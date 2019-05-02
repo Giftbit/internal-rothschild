@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as transactions from "../transactions";
-import * as valueStores from "../../values";
+import * as valueStores from "../../values/values";
 import * as testUtils from "../../../../utils/testUtils";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../../utils/testUtils";
 import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../../model/Transaction";

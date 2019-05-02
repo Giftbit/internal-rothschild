@@ -2,6 +2,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {
     InternalTransactionPlanStep,
     LightrailTransactionPlanStep,
+    LightrailUpdateTransactionPlanStep,
     StripeTransactionPlanStep,
     TransactionPlan
 } from "./TransactionPlan";
@@ -54,14 +55,14 @@ export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtaut
         const step = steps[stepIx];
 
         switch (step.action) {
-            case "INSERT_VALUE":
+            case "insert":
                 await insertValue(auth, trx, step.value, step.codeParamsForRetry);
                 break;
-            case "UPDATE_VALUE":
+            case "update":
                 await updateLightrailValueForStep(auth, trx, step, plan);
                 break;
             default:
-                throw new Error(`Unexpected step value action ${step.action}. This should not happen`);
+                throw new Error(`Unexpected step value action. This should not happen.`);
         }
 
         await trx.into("LightrailTransactionSteps")
@@ -112,7 +113,7 @@ export async function insertValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     return dbValue;
 }
 
-async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, step: LightrailTransactionPlanStep, plan: TransactionPlan): Promise<void> {
+async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, step: LightrailUpdateTransactionPlanStep, plan: TransactionPlan): Promise<void> {
     let updateProperties: { [P in keyof DbValue]?: DbValue[P] | Knex.Raw } = {
         updatedDate: plan.createdDate
     };

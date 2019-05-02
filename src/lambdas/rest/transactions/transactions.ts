@@ -2,13 +2,20 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import * as pendingTransactionUtils from "./pendingTransactionUtils";
-import {filterForUsedAttaches, resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
+import {
+    filterForUsedAttaches,
+    getContactIdFromSources,
+    getLightrailValues,
+    getTransactionPlanStepsFromLoadedSources
+} from "./resolveTransactionPlanSteps";
 import {
     CaptureRequest,
     CheckoutRequest,
     CreditRequest,
     DebitRequest,
+    InternalTransactionParty,
     ReverseRequest,
+    StripeTransactionParty,
     TransferRequest,
     VoidRequest
 } from "../../../model/TransactionRequest";
@@ -16,7 +23,7 @@ import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {executeTransactionPlanner} from "./executeTransactionPlans";
 import {Pagination, PaginationParams} from "../../../model/Pagination";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
-import {optimizeCheckout} from "./checkout/checkoutTransactionPlanner";
+import {getCheckoutTransactionPlan} from "./checkout/checkoutTransactionPlanner";
 import {filterAndPaginateQuery} from "../../../utils/dbUtils";
 import {createTransferTransactionPlan, resolveTransferTransactionPlanSteps} from "./transactions.transfer";
 import {createCreditTransactionPlan} from "./transactions.credit";
@@ -24,7 +31,10 @@ import {createDebitTransactionPlan} from "./transactions.debit";
 import {createReverseTransactionPlan} from "./reverse/transactions.reverse";
 import {createCaptureTransactionPlan} from "./transactions.capture";
 import {createVoidTransactionPlan} from "./transactions.void";
-import {TransactionPlan} from "./TransactionPlan";
+import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
+import {Value} from "../../../model/Value";
+import {getAttachTransactionPlanForGenericCodeWithPerContactOptions} from "../genericCodeWithPerContactOptions";
+import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
 export function installTransactionsRest(router: cassava.Router): void {
@@ -297,22 +307,44 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
             allowRemainder: checkout.allowRemainder
         },
         async () => {
-            const resolvedSteps = await resolveTransactionPlanSteps(auth, {
+            const fetchedValues = await getLightrailValues(auth, {
                 currency: checkout.currency,
                 parties: checkout.sources,
                 transactionId: checkout.id,
                 nonTransactableHandling: "exclude",
                 includeZeroBalance: !!checkout.allowRemainder,
                 includeZeroUsesRemaining: !!checkout.allowRemainder,
-                autoAttach: true
             });
 
-            const transactionPlan: TransactionPlan = optimizeCheckout(checkout, resolvedSteps.transactionSteps);
+            // handle auto attach on generic codes
+            const valuesToAttach: Value[] = fetchedValues.filter(v => Value.isGenericCodeWithPropertiesPerContact(v));
+            const valuesForCheckout: Value[] = fetchedValues.filter(v => valuesToAttach.indexOf(v) === -1);
+            const attachTransactionPlans: TransactionPlan[] = [];
+            if (valuesToAttach.length > 0) {
+                const contactId = await getContactIdFromSources(auth, checkout.sources);
+                if (!contactId) {
+                    throw new giftbitRoutes.GiftbitRestError(409, `Values cannot be transacted against because they must be attached to a Contact first. Alternatively, a contactId must be included a source in the checkout request.`, "ValueMustBeAttached");
+                }
+
+                for (const genericValue of valuesToAttach) {
+                    if (valuesForCheckout.find(v => v.attachedFromGenericValueId === genericValue.id)) {
+                        log.debug(`Skipping attaching generic value ${genericValue.id} since it's already been attached.`);
+                    } else {
+                        const transactionPlan = getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth, contactId, genericValue);
+                        attachTransactionPlans.push(transactionPlan);
+                        valuesForCheckout.push((transactionPlan.steps.find(s => (s as LightrailTransactionPlanStep).action === "insert") as LightrailTransactionPlanStep).value);
+                    }
+                }
+            }
+            const checkoutTransactionPlanSteps = getTransactionPlanStepsFromLoadedSources(checkout.id, valuesForCheckout,
+                checkout.sources.filter(src => src.rail !== "lightrail") as (StripeTransactionParty | InternalTransactionParty)[]);
+
+            const checkoutTransactionPlan: TransactionPlan = getCheckoutTransactionPlan(checkout, checkoutTransactionPlanSteps);
 
             // Only persist attach transactions that were used.
-            const attachTransactionsToPersist: TransactionPlan[] = filterForUsedAttaches(resolvedSteps, transactionPlan);
+            const attachTransactionsToPersist: TransactionPlan[] = filterForUsedAttaches(attachTransactionPlans, checkoutTransactionPlan);
 
-            return [...attachTransactionsToPersist, transactionPlan];
+            return [...attachTransactionsToPersist, checkoutTransactionPlan];
         });
     return Array.isArray(transaction) ? transaction.find(tx => tx.transactionType === "checkout") : transaction;
 }

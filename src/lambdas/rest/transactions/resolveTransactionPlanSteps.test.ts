@@ -73,7 +73,7 @@ describe("resolveTransactionPlanSteps", () => {
                 includeZeroBalance: true
             };
             const contactLightrailValues = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, contactAsTransactionSource);
-            chai.assert.sameMembers(contactLightrailValues.transactionSteps.map(v => (v as LightrailTransactionPlanStep).value.id), data.valuesAttachedToContactA.map(v => v.id));
+            chai.assert.sameMembers(contactLightrailValues.map(v => (v as LightrailTransactionPlanStep).value.id), data.valuesAttachedToContactA.map(v => v.id));
         });
 
         it("can get lightrail transaction plan steps associated with contactB", async () => {
@@ -92,7 +92,7 @@ describe("resolveTransactionPlanSteps", () => {
                 includeZeroBalance: true
             };
             const contactLightrailValues = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, contactAsTransactionSource);
-            chai.assert.sameMembers(contactLightrailValues.transactionSteps.map(v => (v as LightrailTransactionPlanStep).value.id), data.valuesAttachedToContactB.map(v => v.id));
+            chai.assert.sameMembers(contactLightrailValues.map(v => (v as LightrailTransactionPlanStep).value.id), data.valuesAttachedToContactB.map(v => v.id));
         });
 
         it("can get lightrail transaction plan steps associated with contactA and contactB. Doesnt duplicate shared generic Values.", async () => {
@@ -117,7 +117,7 @@ describe("resolveTransactionPlanSteps", () => {
             const contactLightrailValues = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, contactAsTransactionSource);
 
             const distinctValues = [...data.valuesAttachedToContactA, ...data.valuesAttachedToContactB.filter(v => v.id !== data.genVal2.id)];
-            chai.assert.sameMembers(contactLightrailValues.transactionSteps.map(v => (v as LightrailTransactionPlanStep).value.id), distinctValues.map(v => v.id));
+            chai.assert.sameMembers(contactLightrailValues.map(v => (v as LightrailTransactionPlanStep).value.id), distinctValues.map(v => v.id));
         });
     });
 });

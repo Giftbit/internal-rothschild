@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {getValue, getValueByCode, getValues, injectValueStats, updateValue} from "./values";
+import {getValue, getValueByCode, getValues, injectValueStats, updateValue} from "./values/values";
 import {csvSerializer} from "../../serializers";
 import {Pagination} from "../../model/Pagination";
 import {DbValue, Value} from "../../model/Value";
@@ -13,7 +13,7 @@ import {DbContactValue} from "../../model/DbContactValue";
 import {AttachValueParameters} from "../../model/internal/AttachValueParameters";
 import {ValueIdentifier} from "../../model/internal/ValueIdentifier";
 import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
-import {GenericCodePerContact} from "./genericCodePerContact";
+import {attachGenericCodeWithPerContactOptions} from "./genericCodeWithPerContactOptions";
 import log = require("loglevel");
 
 export function installContactValuesRest(router: cassava.Router): void {
@@ -174,7 +174,7 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     if (value.isGenericCode) {
         if (Value.isGenericCodeWithPropertiesPerContact(value)) {
             MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericPerContactProps, auth);
-            return await GenericCodePerContact.attach(auth, contact.id, value);
+            return await attachGenericCodeWithPerContactOptions(auth, contact.id, value);
         }
         else if (params.attachGenericAsNewValue) /* legacy case to eventually be removed */ {
             MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, auth);

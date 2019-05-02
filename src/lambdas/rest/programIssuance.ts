@@ -11,7 +11,7 @@ import {DbIssuance, Issuance} from "../../model/Issuance";
 import {getProgram} from "./programs";
 import {Value} from "../../model/Value";
 import {CodeParameters} from "../../model/CodeParameters";
-import {ValueCreationService} from "./valueCreationService";
+import {createValue} from "./values/createValue";
 import log = require("loglevel");
 
 export function installIssuancesRest(router: cassava.Router): void {
@@ -177,7 +177,7 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
                     endDate: issuance.endDate ? issuance.endDate : null,
                     metadata: issuance.metadata
                 };
-                await ValueCreationService.createValue(auth, {
+                await createValue(auth, {
                     partialValue: partialValue,
                     generateCodeParameters: codeParameters.generateCode,
                     program: program

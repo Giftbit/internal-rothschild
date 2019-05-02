@@ -35,7 +35,7 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
         try {
 
             const fetchedTransactionPlans = await planner();
-            const plans: TransactionPlan[] = fetchedTransactionPlans instanceof Array ? fetchedTransactionPlans : [fetchedTransactionPlans];
+            const plans: TransactionPlan[] = Array.isArray(fetchedTransactionPlans) ? fetchedTransactionPlans : [fetchedTransactionPlans];
 
             let insertedTransactions: Transaction[];
             const knex = await getKnexWrite();
@@ -58,7 +58,7 @@ export async function executeTransactionPlanner(auth: giftbitRoutes.jwtauth.Auth
 
 async function executeTransactionPlans(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plans: TransactionPlan[], options: ExecuteTransactionPlannerOptions): Promise<Transaction[]> {
     const insertedTransactions: Transaction[] = [];
-    let plansIndex;
+    let plansIndex: number;
     try {
         for (plansIndex = 0; plansIndex < plans.length; plansIndex++) {
             insertedTransactions.push(await executeTransactionPlan(auth, trx, plans[plansIndex], options));
@@ -82,10 +82,10 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
     auth.requireIds("userId", "teamMemberId");
 
     if ((plan.totals && plan.totals.remainder && !options.allowRemainder) ||
-        plan.steps.find(step => step.rail === "lightrail" && step.value.balance != null && step.value.balance + step.amount < 0)) {
+        plan.steps.find(step => step.rail === "lightrail" && step.action === "update" && step.value.balance != null && step.value.balance + step.amount < 0)) {
         throw new giftbitRoutes.GiftbitRestError(409, "Insufficient balance for the transaction.", "InsufficientBalance");
     }
-    if (plan.steps.find(step => step.rail === "lightrail" && step.value.usesRemaining != null && step.value.usesRemaining + step.uses < 0)) {
+    if (plan.steps.find(step => step.rail === "lightrail" && step.action === "update" && step.value.usesRemaining != null && step.value.usesRemaining + step.uses < 0)) {
         throw new giftbitRoutes.GiftbitRestError(409, "Insufficient usesRemaining for the transaction.", "InsufficientUsesRemaining");
     }
 
@@ -142,15 +142,9 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
  * @stripeConfig (optional) - added as a small optimization so that stripeConfig doesn't always have to be re-fetched.
  */
 async function rollbackTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan, trx: Knex, err: Error, stripeConfig: LightrailAndMerchantStripeConfig = null): Promise<void> {
-    if (TransactionPlan.containsStripeSteps(plan) && !stripeConfig) {
-        stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
-    }
     // rollback charges
     const stripeChargeSteps: StripeChargeTransactionPlanStep[] = plan.steps.filter(step => step.rail === "stripe" && step.type === "charge") as StripeChargeTransactionPlanStep[];
     if (stripeChargeSteps.length > 0) {
-        if (!stripeConfig) {
-            stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
-        }
         const stripeChargeStepsToRefund = stripeChargeSteps.filter(step => step.chargeResult != null) as StripeChargeTransactionPlanStep[];
         if (stripeChargeStepsToRefund.length > 0) {
             await rollbackStripeChargeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeChargeStepsToRefund, "Refunded due to error on the Lightrail side.");
@@ -161,9 +155,6 @@ async function rollbackTransactionPlan(auth: giftbitRoutes.jwtauth.Authorization
     // You can't undo a refund in Stripe, so check for any refunds and if found throw an exception.
     const stripeRefundSteps: StripeRefundTransactionPlanStep[] = plan.steps.filter(step => step.rail === "stripe" && step.type === "refund") as StripeRefundTransactionPlanStep[];
     if (stripeRefundSteps.length > 0) {
-        if (!stripeConfig) {
-            stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
-        }
         const stepsSuccessfullyRefunded: StripeRefundTransactionPlanStep[] = stripeRefundSteps.filter(step => step.refundResult != null);
         if (stepsSuccessfullyRefunded.length > 0) {
             const message = `Exception ${JSON.stringify(err)} was thrown while processing steps. There was a refund that was successfully refunded but the exception was thrown after and refunds cannot be undone. This is a bad situation as the Transaction could not be saved.`;

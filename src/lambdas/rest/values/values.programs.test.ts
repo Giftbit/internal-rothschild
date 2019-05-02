@@ -1,12 +1,12 @@
-import * as testUtils from "../../utils/testUtils";
-import {generateId} from "../../utils/testUtils";
+import * as testUtils from "../../../utils/testUtils/index";
+import {generateId} from "../../../utils/testUtils/index";
 import * as cassava from "cassava";
 import * as chai from "chai";
-import {installRestRoutes} from "./installRestRoutes";
-import {createCurrency} from "./currencies";
-import {Program} from "../../model/Program";
-import {Value} from "../../model/Value";
-import {dateInDbPrecision} from "../../utils/dbUtils";
+import {installRestRoutes} from "../installRestRoutes";
+import {createCurrency} from "../currencies";
+import {Program} from "../../../model/Program";
+import {Value} from "../../../model/Value";
+import {dateInDbPrecision} from "../../../utils/dbUtils/index";
 
 describe("/v2/values create from program", () => {
 

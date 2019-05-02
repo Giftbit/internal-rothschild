@@ -40,13 +40,21 @@ export type TransactionPlanStep =
     | StripeTransactionPlanStep
     | InternalTransactionPlanStep;
 
-export interface LightrailTransactionPlanStep {
+export type LightrailTransactionPlanStep = LightrailUpdateTransactionPlanStep | LightrailInsertTransactionPlanStep;
+
+export interface LightrailInsertTransactionPlanStep {
+    rail: "lightrail";
+    value: Value;
+    action: "insert";
+    codeParamsForRetry?: GenerateCodeParameters;
+}
+
+export interface LightrailUpdateTransactionPlanStep {
     rail: "lightrail";
     value: Value;
     amount: number;
     uses: number | null;
-    action: "UPDATE_VALUE" | "INSERT_VALUE";
-    codeParamsForRetry?: GenerateCodeParameters;
+    action: "update";
 }
 
 export interface StripeChargeTransactionPlanStep {
@@ -63,6 +71,10 @@ export interface StripeChargeTransactionPlanStep {
      * Result of creating the charge in Stripe is only set if the plan is executed.
      */
     chargeResult?: stripe.charges.ICharge;
+}
+
+export function isStepWithAmount(step: TransactionPlanStep): step is LightrailUpdateTransactionPlanStep | StripeTransactionPlanStep | InternalTransactionPlanStep {
+    return (<any>step).amount !== undefined;
 }
 
 export interface StripeRefundTransactionPlanStep {
@@ -151,17 +163,17 @@ export namespace LightrailTransactionPlanStep {
         };
 
         switch (step.action) {
-            case "INSERT_VALUE":
+            case "insert":
                 return {
                     ...sharedProperties,
-                    balanceBefore: step.amount != null ? 0 : null,
-                    balanceChange: step.amount,
-                    balanceAfter: step.amount,
-                    usesRemainingBefore: step.uses != null ? 0 : null,
-                    usesRemainingChange: step.uses,
-                    usesRemainingAfter: step.uses
+                    balanceBefore: step.value.balance != null ? 0 : null,
+                    balanceChange: step.value.balance,
+                    balanceAfter: step.value.balance,
+                    usesRemainingBefore: step.value.usesRemaining != null ? 0 : null,
+                    usesRemainingChange: step.value.usesRemaining,
+                    usesRemainingAfter: step.value.usesRemaining
                 };
-            case "UPDATE_VALUE":
+            case "update":
                 return {
                     ...sharedProperties,
                     balanceBefore: step.value.balance,
@@ -172,7 +184,7 @@ export namespace LightrailTransactionPlanStep {
                     usesRemainingAfter: step.value.usesRemaining != null ? step.value.usesRemaining + (step.uses || 0) : null
                 };
             default:
-                throw new Error(`Unexpected step.action ${step.action} received. This should not be possible.`)
+                throw new Error(`Unexpected step action received. This should not be possible.`)
         }
     }
 }

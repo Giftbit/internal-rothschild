@@ -43,8 +43,8 @@ describe("rest/transactions/executeTransactionPlan", () => {
             codeLastFour: null,
             isGenericCode: false,
             attachedFromGenericValueId: null,
-            balancePerContact: null,
-            usesPerContact: null,
+            genericCodeOptions_perContact_balance: null,
+            genericCodeOptions_perContact_usesRemaining: null,
             codeEncrypted: null,
             codeHashed: null,
             contactId: null,
@@ -81,7 +81,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
                     value: await DbValue.toValue(value),
                     amount: -3500,    // more than is in the value
                     uses: null,
-                    action: "UPDATE_VALUE"
+                    action: "update"
                 }
             ],
             totals: {remainder: 0},
@@ -126,8 +126,8 @@ describe("rest/transactions/executeTransactionPlan", () => {
             codeLastFour: null,
             isGenericCode: false,
             attachedFromGenericValueId: null,
-            balancePerContact: null,
-            usesPerContact: null,
+            genericCodeOptions_perContact_balance: null,
+            genericCodeOptions_perContact_usesRemaining: null,
             codeEncrypted: null,
             codeHashed: null,
             contactId: null,
@@ -163,7 +163,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
                     value: await DbValue.toValue(value),
                     amount: -1200,
                     uses: -1,
-                    action: "UPDATE_VALUE"
+                    action: "update"
                 }
             ],
             totals: {remainder: null},

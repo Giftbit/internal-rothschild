@@ -1,27 +1,27 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import {Pagination, PaginationParams} from "../../model/Pagination";
-import {DbValue, formatCodeForLastFourDisplay, Value} from "../../model/Value";
-import {pick} from "../../utils/pick";
-import {csvSerializer} from "../../serializers";
+import {Pagination, PaginationParams} from "../../../model/Pagination";
+import {DbValue, formatCodeForLastFourDisplay, Value} from "../../../model/Value";
+import {pick} from "../../../utils/pick";
+import {csvSerializer} from "../../../serializers";
 import {
     dateInDbPrecision,
     filterAndPaginateQuery,
     getSqlErrorConstraintName,
     nowInDbPrecision
-} from "../../utils/dbUtils";
-import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
-import {DbCode} from "../../model/DbCode";
-import {generateCode} from "../../utils/codeGenerator";
-import {computeCodeLookupHash} from "../../utils/codeCryptoUtils";
-import {getProgram} from "./programs";
-import {Program} from "../../model/Program";
-import {GenerateCodeParameters} from "../../model/GenerateCodeParameters";
-import {getTransactions} from "./transactions/transactions";
-import {Currency, formatAmountForCurrencyDisplay} from "../../model/Currency";
-import {getCurrency} from "./currencies";
-import {ValueCreationService} from "./valueCreationService";
+} from "../../../utils/dbUtils/index";
+import {getKnexRead, getKnexWrite} from "../../../utils/dbUtils/connection";
+import {DbCode} from "../../../model/DbCode";
+import {generateCode} from "../../../utils/codeGenerator";
+import {computeCodeLookupHash} from "../../../utils/codeCryptoUtils";
+import {getProgram} from "../programs";
+import {Program} from "../../../model/Program";
+import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
+import {getTransactions} from "../transactions/transactions";
+import {Currency, formatAmountForCurrencyDisplay} from "../../../model/Currency";
+import {getCurrency} from "../currencies";
+import {checkCodeParameters, checkValueProperties, createValue} from "./createValue";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -77,7 +77,7 @@ export function installValuesRest(router: cassava.Router): void {
 
             const knex = await getKnexWrite();
             await knex.transaction(async trx => {
-                value = await ValueCreationService.createValue(auth, {
+                value = await createValue(auth, {
                         partialValue: value,
                         generateCodeParameters: evt.body.generateCode,
                         program: program
@@ -200,7 +200,7 @@ export function installValuesRest(router: cassava.Router): void {
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:values:update");
             evt.validateBody(valueChangeCodeSchema);
-            ValueCreationService.checkCodeParameters(evt.body.generateCode, evt.body.code, evt.body.isGenericCode);
+            checkCodeParameters(evt.body.generateCode, evt.body.code, evt.body.isGenericCode);
 
             const now = nowInDbPrecision();
             let code = evt.body.code;
@@ -391,7 +391,7 @@ export async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             ...valueUpdates
         };
 
-        ValueCreationService.checkValueProperties(updatedValue);
+        checkValueProperties(updatedValue);
 
         const dbValue = Value.toDbValueUpdate(auth, valueUpdates);
         const updateRes: number = await trx("Values")
@@ -705,7 +705,7 @@ const valueSchema: jsonschema.Schema = {
                 }
             }
         },
-        genericCodeProperties: {
+        genericCodeOptions: {
             title: "Generic Code Properties",
             type: ["object", "null"],
             additionalProperties: false,

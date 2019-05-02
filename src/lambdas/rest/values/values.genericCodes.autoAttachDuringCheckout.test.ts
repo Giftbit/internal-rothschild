@@ -1,15 +1,19 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import * as testUtils from "../../utils/testUtils";
-import {generateFullcode, generateId, setCodeCryptographySecrets} from "../../utils/testUtils";
-import {formatCodeForLastFourDisplay, Value} from "../../model/Value";
-import {installRestRoutes} from "./installRestRoutes";
-import {createCurrency} from "./currencies";
-import {Contact} from "../../model/Contact";
-import {LightrailTransactionStep, Transaction} from "../../model/Transaction";
-import {CheckoutRequest} from "../../model/TransactionRequest";
-import {GenericCodePerContact} from "./genericCodePerContact";
-import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
+import * as testUtils from "../../../utils/testUtils/index";
+import {generateFullcode, generateId, setCodeCryptographySecrets} from "../../../utils/testUtils/index";
+import {formatCodeForLastFourDisplay, Value} from "../../../model/Value";
+import {installRestRoutes} from "../installRestRoutes";
+import {createCurrency} from "../currencies";
+import {Contact} from "../../../model/Contact";
+import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {CheckoutRequest} from "../../../model/TransactionRequest";
+import {
+    setStubsForStripeTests,
+    testStripeLive,
+    unsetStubsForStripeTests
+} from "../../../utils/testUtils/stripeTestUtils";
+import {generateIdForNewAttachedValue} from "../genericCodeWithPerContactOptions";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -49,7 +53,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             currency: "USD",
             isGenericCode: true,
             code: generateFullcode(),
-            genericCodeProperties: {
+            genericCodeOptions: {
                 perContact: {
                     usesRemaining: 3,
                     balance: 500
@@ -116,7 +120,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
                     "steps": [
                         {
                             "rail": "lightrail",
-                            "valueId": GenericCodePerContact.generateValueId(genericValue.id, contactId),
+                            "valueId": generateIdForNewAttachedValue(genericValue.id, contactId),
                             "contactId": contactId,
                             "code": null,
                             "balanceBefore": 500,
@@ -134,7 +138,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
                         },
                         {
                             "rail": "lightrail",
-                            "code": formatCodeForLastFourDisplay(genericValue.code) // todo - fullcode or last 4?
+                            "code": formatCodeForLastFourDisplay(genericValue.code)
                         }
                     ],
                     "pending": false,
@@ -173,8 +177,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
                 id: generateId(),
                 currency: "USD",
                 sources: [
-                    {rail: "lightrail", contactId: contactId},
-                    {rail: "lightrail", code: genericValue.code}
+                    {rail: "lightrail", contactId: contactId}
                 ],
                 lineItems: [
                     {unitPrice: 50}
@@ -201,7 +204,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             currency: "USD",
             isGenericCode: true,
             code: generateFullcode(),
-            genericCodeProperties: {
+            genericCodeOptions: {
                 perContact: {
                     usesRemaining: 1,
                     balance: null
@@ -251,7 +254,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             currency: "USD",
             isGenericCode: true,
             code: generateFullcode(),
-            genericCodeProperties: {
+            genericCodeOptions: {
                 perContact: {
                     usesRemaining: 1,
                     balance: null
@@ -334,7 +337,6 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
                         }
                     ],
                     "steps": [
-                        // no attach steps
                         {
                             "rail": "lightrail",
                             "valueId": discountValueId,
@@ -379,7 +381,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             currency: "USD",
             isGenericCode: true,
             code: generateFullcode(),
-            genericCodeProperties: {
+            genericCodeOptions: {
                 perContact: {
                     usesRemaining: 1,
                     balance: null
@@ -416,7 +418,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
             chai.assert.equal(checkout.statusCode, 200);
             chai.assert.isTrue(checkout.body.simulated);
-            chai.assert.equal(checkout.body.steps[0]["valueId"], GenericCodePerContact.generateValueId(genericValue.id, contactId));
+            chai.assert.equal(checkout.body.steps[0]["valueId"], generateIdForNewAttachedValue(genericValue.id, contactId));
             chai.assert.equal(checkout.body.steps[0]["balanceChange"], -500);
             chai.assert.equal(checkout.body.steps[0]["usesRemainingAfter"], 0);
         });
@@ -449,7 +451,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             currency: "USD",
             isGenericCode: true,
             code: generateFullcode(),
-            genericCodeProperties: {
+            genericCodeOptions: {
                 perContact: {
                     usesRemaining: 1,
                     balance: null
@@ -465,7 +467,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             currency: "USD",
             isGenericCode: true,
             code: generateFullcode(),
-            genericCodeProperties: {
+            genericCodeOptions: {
                 perContact: {
                     usesRemaining: 1,
                     balance: null
@@ -510,7 +512,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             chai.assert.isTrue(checkout.body.simulated);
             chai.assert.sameMembers(
                 checkout.body.steps.map(step => (step as LightrailTransactionStep).valueId),
-                [genericValue1.id, genericValue2.id].map(gcId => GenericCodePerContact.generateValueId(gcId, contactId))
+                [genericValue1.id, genericValue2.id].map(gcId => generateIdForNewAttachedValue(gcId, contactId))
             );
             chai.assert.equal(checkout.body.totals.paidLightrail, 300);
         });
@@ -522,7 +524,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             chai.assert.equal(checkout.statusCode, 201);
             chai.assert.sameMembers(
                 checkout.body.steps.map(step => (step as LightrailTransactionStep).valueId),
-                [genericValue1.id, genericValue2.id].map(gcId => GenericCodePerContact.generateValueId(gcId, contactId))
+                [genericValue1.id, genericValue2.id].map(gcId => generateIdForNewAttachedValue(gcId, contactId))
             );
             chai.assert.equal(checkout.body.totals.paidLightrail, 300);
 
@@ -545,7 +547,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             currency: "USD",
             isGenericCode: true,
             code: generateFullcode(),
-            genericCodeProperties: {
+            genericCodeOptions: {
                 perContact: {
                     usesRemaining: 3,
                     balance: 500
@@ -619,7 +621,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
                     {rail: "lightrail", contactId: contact2}
                 ],
                 lineItems: [
-                    {unitPrice: genericValue.genericCodeProperties.perContact.balance + 1} // it costs more so an auto-attach that's not used isn't thrown away.
+                    {unitPrice: genericValue.genericCodeOptions.perContact.balance + 1} // it costs more so an auto-attach that's not used isn't thrown away.
                 ],
                 allowRemainder: true
             };

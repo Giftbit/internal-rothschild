@@ -1,14 +1,14 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import * as testUtils from "../../utils/testUtils";
-import {generateFullcode, generateId, setCodeCryptographySecrets} from "../../utils/testUtils";
-import {Value} from "../../model/Value";
-import {installRestRoutes} from "./installRestRoutes";
-import {createCurrency} from "./currencies";
-import {Contact} from "../../model/Contact";
-import {LightrailTransactionStep, Transaction} from "../../model/Transaction";
-import {CheckoutRequest, CreditRequest, ReverseRequest} from "../../model/TransactionRequest";
-import {GenericCodePerContact} from "./genericCodePerContact";
+import * as testUtils from "../../../utils/testUtils/index";
+import {generateFullcode, generateId, setCodeCryptographySecrets} from "../../../utils/testUtils/index";
+import {Value} from "../../../model/Value";
+import {installRestRoutes} from "../installRestRoutes";
+import {createCurrency} from "../currencies";
+import {Contact} from "../../../model/Contact";
+import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {CheckoutRequest, CreditRequest, ReverseRequest} from "../../../model/TransactionRequest";
+import {generateIdForNewAttachedValue} from "../genericCodeWithPerContactOptions";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -36,7 +36,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             currency: "USD",
             isGenericCode: true,
             code: generateFullcode(),
-            genericCodeProperties: {
+            genericCodeOptions: {
                 perContact: {
                     balance: null,
                     usesRemaining: 2
@@ -57,7 +57,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             isGenericCode: true,
             code: generateFullcode(),
             balance: null,
-            genericCodeProperties: {
+            genericCodeOptions: {
                 perContact: {
                     balance: 500,
                     usesRemaining: 2
@@ -78,7 +78,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             isGenericCode: true,
             code: generateFullcode(),
             balance: null,
-            genericCodeProperties: {
+            genericCodeOptions: {
                 perContact: {
                     balance: null,
                     usesRemaining: 2
@@ -89,7 +89,7 @@ describe("/v2/values - generic code with per contact properties", () => {
 
         const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericValue);
         chai.assert.equal(create.statusCode, 422);
-        chai.assert.equal(create.body.message, "Value must have a balanceRule, a balance, or a genericCodeProperties.perContact.balance.");
+        chai.assert.equal(create.body.message, "Value must have a balanceRule, a balance, or a genericCodeOptions.perContact.balance.");
     });
 
     it("can't attach generic code with contact usage limits to same contact twice", async () => {
@@ -98,7 +98,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             currency: "USD",
             isGenericCode: true,
             code: generateFullcode(),
-            genericCodeProperties: {
+            genericCodeOptions: {
                 perContact: {
                     balance: 500,
                     usesRemaining: 2
@@ -163,7 +163,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             currency: "USD",
             isGenericCode: true,
             code: generateFullcode(),
-            genericCodeProperties: {
+            genericCodeOptions: {
                 perContact: {
                     balance: 500,
                     usesRemaining: 2
@@ -262,7 +262,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             currency: "USD",
             isGenericCode: true,
             code: generateFullcode(),
-            genericCodeProperties: {
+            genericCodeOptions: {
                 perContact: {
                     balance: 500,
                     usesRemaining: 2
@@ -321,7 +321,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             currency: "USD",
             isGenericCode: true,
             code: generateFullcode(),
-            genericCodeProperties: {
+            genericCodeOptions: {
                 perContact: {
                     balance: 500,
                     usesRemaining: 2
@@ -389,7 +389,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             currency: "USD",
             isGenericCode: true,
             code: generateFullcode(),
-            genericCodeProperties: {
+            genericCodeOptions: {
                 perContact: {
                     balance: 500,
                     usesRemaining: 2
@@ -419,7 +419,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             currency: "USD",
             isGenericCode: true,
             code: generateFullcode(),
-            genericCodeProperties: {
+            genericCodeOptions: {
                 perContact: {
                     balance: null,
                     usesRemaining: 1
@@ -463,7 +463,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             isGenericCode: true,
             code: generateFullcode(),
             discount: true,
-            genericCodeProperties: {
+            genericCodeOptions: {
                 perContact: {
                     usesRemaining: 1,
                     balance: null
@@ -600,7 +600,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             };
             const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
             chai.assert.equal(checkout.statusCode, 201);
-            chai.assert.equal((checkout.body.steps[0] as LightrailTransactionStep).valueId, GenericCodePerContact.generateValueId(genericValue.id, contact3Id));
+            chai.assert.equal((checkout.body.steps[0] as LightrailTransactionStep).valueId, generateIdForNewAttachedValue(genericValue.id, contact3Id));
             chai.assert.equal((checkout.body.steps[0] as LightrailTransactionStep).balanceChange, -225);
         });
 
@@ -674,7 +674,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             id: generateId(),
             currency: "USD",
             balance: 400,
-            genericCodeProperties: {
+            genericCodeOptions: {
                 perContact: {
                     usesRemaining: 1,
                     balance: 100
@@ -761,7 +761,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             id: generateId(),
             currency: "USD",
             isGenericCode: true,
-            genericCodeProperties: {
+            genericCodeOptions: {
                 perContact: {
                     balance: 10,
                     usesRemaining: 1
