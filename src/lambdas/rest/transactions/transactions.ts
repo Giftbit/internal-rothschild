@@ -6,7 +6,7 @@ import {
     filterForUsedAttaches,
     getContactIdFromSources,
     getLightrailValues,
-    getTransactionPlanStepsFromLoadedSources
+    getTransactionPlanStepsFromSources
 } from "./resolveTransactionPlanSteps";
 import {
     CaptureRequest,
@@ -16,6 +16,7 @@ import {
     InternalTransactionParty,
     ReverseRequest,
     StripeTransactionParty,
+    TransactionParty,
     TransferRequest,
     VoidRequest
 } from "../../../model/TransactionRequest";
@@ -321,22 +322,13 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
             const valuesForCheckout: Value[] = fetchedValues.filter(v => valuesToAttach.indexOf(v) === -1);
             const attachTransactionPlans: TransactionPlan[] = [];
             if (valuesToAttach.length > 0) {
-                const contactId = await getContactIdFromSources(auth, checkout.sources);
-                if (!contactId) {
-                    throw new giftbitRoutes.GiftbitRestError(409, `Values cannot be transacted against because they must be attached to a Contact first. Alternatively, a contactId must be included a source in the checkout request.`, "ValueMustBeAttached");
-                }
-
-                for (const genericValue of valuesToAttach) {
-                    if (valuesForCheckout.find(v => v.attachedFromValueId === genericValue.id)) {
-                        log.debug(`Skipping attaching generic value ${genericValue.id} since it's already been attached.`);
-                    } else {
-                        const transactionPlan = getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth, contactId, genericValue);
-                        attachTransactionPlans.push(transactionPlan);
-                        valuesForCheckout.push((transactionPlan.steps.find(s => (s as LightrailTransactionPlanStep).action === "insert") as LightrailTransactionPlanStep).value);
-                    }
+                attachTransactionPlans.push(... await getAutoAttachTransactionPlans(auth, valuesToAttach, valuesForCheckout, checkout.sources));
+                for (const plan of attachTransactionPlans) {
+                    valuesForCheckout.push((plan.steps.find(s => (s as LightrailTransactionPlanStep).action === "insert") as LightrailTransactionPlanStep).value);
                 }
             }
-            const checkoutTransactionPlanSteps = getTransactionPlanStepsFromLoadedSources(checkout.id, valuesForCheckout,
+
+            const checkoutTransactionPlanSteps = getTransactionPlanStepsFromSources(checkout.id, valuesForCheckout,
                 checkout.sources.filter(src => src.rail !== "lightrail") as (StripeTransactionParty | InternalTransactionParty)[]);
 
             const checkoutTransactionPlan: TransactionPlan = getCheckoutTransactionPlan(checkout, checkoutTransactionPlanSteps);
@@ -345,8 +337,27 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
             const attachTransactionsToPersist: TransactionPlan[] = filterForUsedAttaches(attachTransactionPlans, checkoutTransactionPlan);
 
             return [...attachTransactionsToPersist, checkoutTransactionPlan];
-        });
+        }
+    );
     return Array.isArray(transaction) ? transaction.find(tx => tx.transactionType === "checkout") : transaction;
+}
+
+async function getAutoAttachTransactionPlans(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valuesToAttach: Value[], valuesForCheckout: Value[], sources: TransactionParty[]): Promise<TransactionPlan[]> {
+    const contactId = await getContactIdFromSources(auth, sources);
+    if (!contactId) {
+        throw new giftbitRoutes.GiftbitRestError(409, `Values cannot be transacted against because they must be attached to a Contact first. Alternatively, a contactId must be included a source in the checkout request.`, "ValueMustBeAttached");
+    }
+
+    const attachTransactionPlans: TransactionPlan[] = [];
+    for (const genericValue of valuesToAttach) {
+        if (valuesForCheckout.find(v => v.attachedFromValueId === genericValue.id)) {
+            log.debug(`Skipping attaching generic value ${genericValue.id} since it's already been attached.`);
+        } else {
+            const transactionPlan = getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth, contactId, genericValue);
+            attachTransactionPlans.push(transactionPlan);
+        }
+    }
+    return attachTransactionPlans;
 }
 
 async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: TransferRequest): Promise<Transaction> {

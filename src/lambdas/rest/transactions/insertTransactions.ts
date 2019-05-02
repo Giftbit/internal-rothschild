@@ -99,7 +99,6 @@ export async function insertValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 /*  Retrying twice is an arbitrary number. This may need to be increased if we're still seeing regular failures.
                  *  Unless users are using their own character set there are around 1 billion possible codes.
                  *  It seems unlikely for 3+ retry failures even if users have millions of codes. */
-                // value.code = generateCode(codeParamsForRetry);
                 return insertValue(auth, trx, value, generateCodeParameters, retryCount + 1);
             } else {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with the given code already exists.`, "ValueCodeExists");

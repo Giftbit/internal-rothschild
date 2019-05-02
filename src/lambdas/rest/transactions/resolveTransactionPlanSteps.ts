@@ -57,13 +57,17 @@ export interface ResolveTransactionPartiesOptions {
     includeZeroBalance: boolean;
 }
 
-export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions,): Promise<TransactionPlanStep[]> {
+export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions): Promise<TransactionPlanStep[]> {
     const fetchedValues = await getLightrailValues(auth, options);
-    return getTransactionPlanStepsFromLoadedSources(options.transactionId, fetchedValues,
+    return getTransactionPlanStepsFromSources(options.transactionId, fetchedValues,
         options.parties.filter(party => party.rail !== "lightrail") as (StripeTransactionParty | InternalTransactionParty)[]);
 }
 
-export function getTransactionPlanStepsFromLoadedSources(transactionId: string, lightrailSources: Value[], nonLightrailSources: (StripeTransactionParty | InternalTransactionParty)[]): TransactionPlanStep[] {
+/**
+ * Translates Values loaded from the database and non Lightrail sources into TransactionPlanSteps.
+ * Used when the Values have already been loaded from the DB.
+ */
+export function getTransactionPlanStepsFromSources(transactionId: string, lightrailSources: Value[], nonLightrailSources: (StripeTransactionParty | InternalTransactionParty)[]): TransactionPlanStep[] {
     const lightrailSteps = lightrailSources
         .map((v): LightrailTransactionPlanStep => ({
             rail: "lightrail",
