@@ -156,10 +156,4 @@ describe("values reports", () => {
             chai.assert.isNotNull(value.metadata);
         }
     });
-
-    describe.skip("limits results to 10,000 rows", () => {
-        it("succeeds when the query result is fewer than 10,000");
-
-        it("errors when the query result is more than 10,000");
-    });
 });

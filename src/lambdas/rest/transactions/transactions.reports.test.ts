@@ -105,6 +105,12 @@ describe("transactions reports", () => {
         }
     }).timeout(8000);
 
+    it("limits rows", async () => {
+        const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/transactions/reports?limit=1", "GET");
+        chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.length, 1, `resp.body=${JSON.stringify(resp.body)}`);
+    });
+
     describe("filtering by transactionType", () => {
         it("can download a csv of checkout Transactions", async () => {
             const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/transactions/reports?transactionType=checkout", "GET");
@@ -292,11 +298,5 @@ describe("transactions reports", () => {
         it("can download a csv of Transactions - filtered by month"); // todo one month, or 30days?
 
         // do we need to test for scenarios where request period is greater than one month? since this is a private endpoint?
-    });
-
-    describe.skip("limits results to 10,000 rows", () => {
-        it("succeeds when the query result is fewer than 10,000");
-
-        it("errors when the query result is more than 10,000");
     });
 });

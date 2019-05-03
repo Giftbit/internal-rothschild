@@ -296,6 +296,15 @@ async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.Authorizatio
         });
     }
 
+    const reportRowLimit = 10000;
+    if (pagination.limit && pagination.limit > reportRowLimit) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Requested limit of ${pagination.limit} is greater than the maximum of ${reportRowLimit}. Please specify a limit of 10000 or less.`);
+    } else if (pagination.limit && pagination.limit <= reportRowLimit) {
+        query.limit(pagination.limit);
+    } else {
+        query.limit(reportRowLimit);
+    }
+
     const res = await filterAndPaginateQuery<DbTransaction>(query, filterParams, {
         properties: {
             "transactionType": {
@@ -308,7 +317,10 @@ async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.Authorizatio
             },
         }
     }, pagination);
-    return {
+
+    if (res.body.length > reportRowLimit - 1 && pagination.limit !== reportRowLimit) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Report query returned too many rows: '${res.body.length}' is greater than the maximum of '${reportRowLimit}'. Please refine your request and try again.`);
+    } else return {
         transactions: await DbTransaction.formatForReports(res.body, auth),
         pagination: res.pagination
     };
