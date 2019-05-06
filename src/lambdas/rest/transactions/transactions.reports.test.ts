@@ -286,17 +286,9 @@ describe("transactions reports", () => {
         });
 
         it("Transactions by programId.in={id,id}", async () => {
-            const bothProgramsReport = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, `/v2/transactions/reports?programId.in=program1,program2`, "GET");
+            const bothProgramsReport = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, `/v2/reports/transactions?programId.in=program1,program2`, "GET");
             chai.assert.equal(bothProgramsReport.statusCode, 200, `bothProgramsReport.body=${JSON.stringify(bothProgramsReport.body)}`);
             chai.assert.equal(bothProgramsReport.body.length, 6, `transaction types in bothProgramsReport.body: ${bothProgramsReport.body.map(txn => txn.transactionType)}`);
         });
-    });
-
-    describe("date range limits", () => {
-        it("defaults to most recent month");
-
-        it("can download a csv of Transactions - filtered by month"); // todo one month, or 30days?
-
-        // do we need to test for scenarios where request period is greater than one month? since this is a private endpoint?
     });
 });
