@@ -124,6 +124,9 @@ export function checkValueProperties(value: Value, program: Program = null): voi
     }
 
     // generic value checks
+    if (value.genericCodeOptions && !value.isGenericCode) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value must have \`isGenericCode:true\` if setting genericCodeOptions.`);
+    }
     if (value.genericCodeOptions && value.genericCodeOptions.perContact.balance != null && value.balanceRule) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a genericCodeOptions.perContact.balance and balanceRule.`);
     }
