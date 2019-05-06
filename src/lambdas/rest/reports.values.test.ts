@@ -7,7 +7,7 @@ import {Value} from "../../model/Value";
 import {Program} from "../../model/Program";
 import * as chai from "chai";
 
-describe("values reports", () => {
+describe("/v2/reports/values/", () => {
     const router = new cassava.Router();
 
     before(async function () {
@@ -48,7 +48,7 @@ describe("values reports", () => {
     });
 
     it("can download a csv of Values", async () => {
-        const resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/values`, "GET");
+        const resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/reports/values`, "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.length, 4);
 
@@ -86,7 +86,7 @@ describe("values reports", () => {
     });
 
     it("can download a csv of Values - filtered by programId", async () => {
-        const resp1 = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/values?programId=program1`, "GET");
+        const resp1 = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/reports/values?programId=program1`, "GET");
         chai.assert.equal(resp1.statusCode, 200, `resp1.body=${JSON.stringify(resp1.body)}`);
         chai.assert.equal(resp1.body.length, 1, `resp1.body=${JSON.stringify(resp1.body)}`);
         chai.assert.deepEqualExcluding(resp1.body[0], {
@@ -119,7 +119,7 @@ describe("values reports", () => {
         chai.assert.isNotNull(resp1.body[0].updatedDate);
         chai.assert.isNotNull(resp1.body[0].metadata);
 
-        const resp2and3 = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/values?programId.in=program2,program3`, "GET");
+        const resp2and3 = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/reports/values?programId.in=program2,program3`, "GET");
         chai.assert.equal(resp2and3.statusCode, 200, `resp2and3.body=${JSON.stringify(resp2and3.body)}`);
         chai.assert.equal(resp2and3.body.length, 3);
         chai.assert.equal(resp2and3.body.filter(value => value.programId === "program2").length, 2, `resp2and3.body=${JSON.stringify(resp2and3.body)}`);

@@ -35,8 +35,6 @@ import {createVoidTransactionPlan} from "./transactions.void";
 import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {Value} from "../../../model/Value";
 import {getAttachTransactionPlanForGenericCodeWithPerContactOptions} from "../genericCodeWithPerContactOptions";
-import {csvSerializer} from "../../../serializers";
-import {filterQuery} from "../../../utils/dbUtils/filterQuery";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -48,22 +46,6 @@ export function installTransactionsRest(router: cassava.Router): void {
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:transactions:list");
             const res = await getTransactions(auth, evt.queryStringParameters, getPaginationParams(evt));
-            return {
-                headers: Pagination.toHeaders(evt, res.pagination),
-                body: res.transactions
-            };
-        });
-
-    router.route("/v2/transactions/reports")
-        .method("GET")
-        .serializers({"text/csv": csvSerializer})
-        .handler(async evt => {
-            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("userId");
-            auth.requireScopes("lightrailV2:transactions:list");
-
-            const res = await getTransactionsForReport(auth, evt.queryStringParameters, getPaginationParams(evt));
-
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.transactions
@@ -265,63 +247,6 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
     );
     return {
         transactions: await DbTransaction.toTransactions(res.body, auth.userId),
-        pagination: res.pagination
-    };
-}
-
-async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams) {
-    auth.requireIds("userId");
-
-    const knex = await getKnexRead();
-    let query = knex("Transactions")
-        .select("Transactions.*")
-        .where("Transactions.userId", "=", auth.userId);
-
-    if (filterParams["programId"] || filterParams["programId.eq"] || filterParams["programId.in"]) {
-        query.join("LightrailTransactionSteps", {
-            "Transactions.id": "LightrailTransactionSteps.transactionId",
-            "Transactions.userId": "LightrailTransactionSteps.userId"
-        })
-            .join("Values", {
-                "LightrailTransactionSteps.valueId": "Values.id"
-            });
-        query = filterQuery(query, filterParams, {
-            properties: {
-                "programId": {
-                    type: "string",
-                    operators: ["eq", "in"],
-                    columnName: "Values.programId",
-                }
-            }
-        });
-    }
-
-    const reportRowLimit = 10000;
-    if (pagination.limit && pagination.limit > reportRowLimit) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Requested limit of ${pagination.limit} is greater than the maximum of ${reportRowLimit}. Please specify a limit of 10000 or less.`);
-    } else if (pagination.limit && pagination.limit <= reportRowLimit) {
-        query.limit(pagination.limit);
-    } else {
-        query.limit(reportRowLimit);
-    }
-
-    const res = await filterAndPaginateQuery<DbTransaction>(query, filterParams, {
-        properties: {
-            "transactionType": {
-                type: "string",
-                operators: ["eq", "in"]
-            },
-            "createdDate": {
-                type: "Date",
-                operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
-            },
-        }
-    }, pagination);
-
-    if (res.body.length > reportRowLimit - 1 && pagination.limit !== reportRowLimit) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Report query returned too many rows: '${res.body.length}' is greater than the maximum of '${reportRowLimit}'. Please refine your request and try again.`);
-    } else return {
-        transactions: await DbTransaction.formatForReports(res.body, auth),
         pagination: res.pagination
     };
 }

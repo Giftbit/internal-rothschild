@@ -1,13 +1,14 @@
-import * as testUtils from "../../../utils/testUtils";
-import {createUSD, createUSDCheckout, createUSDValue, generateId, testAuthedRequest} from "../../../utils/testUtils";
-import * as chai from "chai";
+import {Transaction, TransactionForReports} from "../../model/Transaction";
+import {installRestRoutes} from "./installRestRoutes";
+import {createCurrency} from "./currencies";
 import * as cassava from "cassava";
-import {installRestRoutes} from "../installRestRoutes";
-import {createCurrency} from "../currencies";
-import {Transaction, TransactionForReports} from "../../../model/Transaction";
-import {Program} from "../../../model/Program";
+import * as testUtils from "../../utils/testUtils";
+import {createUSD, createUSDCheckout, createUSDValue, generateId, testAuthedRequest} from "../../utils/testUtils";
+import {Program} from "../../model/Program";
+import * as chai from "chai";
 
-describe("transactions reports", () => {
+
+describe("/v2/reports/transactions/", () => {
     const router = new cassava.Router();
 
     before(async function () {
@@ -50,7 +51,7 @@ describe("transactions reports", () => {
     });
 
     it("can download a csv of Transactions", async () => {
-        const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/transactions/reports", "GET");
+        const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/reports/transactions", "GET");
         chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.length, 9, `transactions in resp.body=${resp.body.map(txn => txn.transactionType)}`);
 
@@ -106,14 +107,14 @@ describe("transactions reports", () => {
     }).timeout(8000);
 
     it("limits rows", async () => {
-        const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/transactions/reports?limit=1", "GET");
+        const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/reports/transactions?limit=1", "GET");
         chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.length, 1, `resp.body=${JSON.stringify(resp.body)}`);
     });
 
     describe("filtering by transactionType", () => {
         it("can download a csv of checkout Transactions", async () => {
-            const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/transactions/reports?transactionType=checkout", "GET");
+            const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/reports/transactions?transactionType=checkout", "GET");
             chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
             chai.assert.equal(resp.body.length, 3, `transactions in resp.body=${resp.body.map(txn => txn.transactionType)}`);
             for (const [index, txn] of resp.body.entries()) {
@@ -141,7 +142,7 @@ describe("transactions reports", () => {
         });
 
         it("can download a csv of initialBalance Transactions", async () => {
-            const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/transactions/reports?transactionType=initialBalance", "GET");
+            const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/reports/transactions?transactionType=initialBalance", "GET");
             chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
             chai.assert.equal(resp.body.length, 4, `transactions in resp.body=${resp.body.map(txn => txn.transactionType)}`);
             for (const [index, txn] of resp.body.entries()) {
@@ -169,7 +170,7 @@ describe("transactions reports", () => {
         });
 
         it("can download a csv of credit and debit Transactions (two types)", async () => {
-            const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/transactions/reports?transactionType.in=credit,debit", "GET");
+            const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/reports/transactions?transactionType.in=credit,debit", "GET");
             chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
             chai.assert.equal(resp.body.length, 2, `transactions in resp.body=${resp.body.map(txn => txn.transactionType)}`);
 
@@ -269,7 +270,7 @@ describe("transactions reports", () => {
         });
 
         it("Transactions by programId={id}", async () => {
-            const program1report = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, `/v2/transactions/reports?programId=program1`, "GET");
+            const program1report = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, `/v2/reports/transactions?programId=program1`, "GET");
             chai.assert.equal(program1report.statusCode, 200, `program1report.body=${JSON.stringify(program1report.body)}`);
             chai.assert.equal(program1report.body.length, 4, `transaction types in program1report.body: ${program1report.body.map(txn => txn.transactionType)}`);
             chai.assert.equal(program1report.body.find(txn => txn.transactionType === "checkout").id, program1checkout.id, `program1report.body=${JSON.stringify(program1report.body)}`);
@@ -278,7 +279,7 @@ describe("transactions reports", () => {
         });
 
         it("Transactions by programId.eq={id}", async () => {
-            const program2report = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, `/v2/transactions/reports?programId.eq=program2`, "GET");
+            const program2report = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, `/v2/reports/transactions?programId.eq=program2`, "GET");
             chai.assert.equal(program2report.statusCode, 200, `program2report.body=${JSON.stringify(program2report.body)}`);
             chai.assert.equal(program2report.body.length, 2, `transaction types in program2report.body: ${program2report.body.map(txn => txn.transactionType)}`);
             chai.assert.equal(program2report.body.find(txn => txn.transactionType === "checkout").id, program2checkout.id, `program2report.body=${JSON.stringify(program2report.body)}`);
