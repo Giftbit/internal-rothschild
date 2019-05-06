@@ -154,6 +154,7 @@ export function generateStripeChargeResponse(options: GenerateStripeChargeRespon
             "type": "authorized"
         },
         "paid": true,
+        "receipt_url": null,
         "receipt_email": null,
         "receipt_number": null,
         "refunded": false,
@@ -294,7 +295,6 @@ export function getStripeCaptureStub(options: GetStripeCaptureStubOptions): sino
 }
 
 export interface GetStripeRefundStubOptions {
-    amount: number;
     stripeChargeId: string;
 }
 
@@ -493,7 +493,6 @@ export function stubStripeRefund(charge: stripe.charges.ICharge, additionalPrope
 
     const stub = getStripeRefundStub(
         {
-            amount: charge.amount,
             stripeChargeId: charge.id
         })
         .resolves(response);

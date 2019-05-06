@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as pendingTransactionUtils from "./pendingTransactionUtils";
-import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
+import {LightrailUpdateTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {DebitRequest} from "../../../model/TransactionRequest";
@@ -19,7 +19,7 @@ export async function createDebitTransactionPlan(auth: giftbitRoutes.jwtauth.Aut
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable Value.", "InvalidParty");
     }
 
-    const step = steps[0] as LightrailTransactionPlanStep;
+    const step = steps[0] as LightrailUpdateTransactionPlanStep;
     if (req.amount && step.value.balance == null) {
         throw new giftbitRoutes.GiftbitRestError(409, "Cannot debit amount from a Value with balance=null.", "NullBalance");
     }

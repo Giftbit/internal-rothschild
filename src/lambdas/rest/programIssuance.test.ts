@@ -140,7 +140,7 @@ describe("/v2/issuances", () => {
         chai.assert.equal(listIssuances.statusCode, 200, `body=${JSON.stringify(listIssuances.body)}`);
         chai.assert.equal(listIssuances.body.length, valuesToIssues.length);
         chai.assert.sameDeepMembers(listIssuances.body, issuances);
-    }).timeout(10000);
+    }).timeout(12000);
 
     it(`issuing from program that has a balanceRule`, async () => {
         let issuance: Partial<Issuance> = {

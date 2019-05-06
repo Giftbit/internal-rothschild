@@ -1,6 +1,6 @@
 import * as cassava from "cassava";
 import {installContactsRest} from "./contacts";
-import {installValuesRest} from "./values";
+import {installValuesRest} from "./values/values";
 import {installCurrenciesRest} from "./currencies";
 import {installTransactionsRest} from "./transactions/transactions";
 import {installContactValuesRest} from "./contactValues";

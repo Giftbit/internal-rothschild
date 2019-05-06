@@ -9,6 +9,7 @@ import {
     InternalTransactionPlanStep,
     LightrailTransactionPlanStep,
     StripeTransactionPlanStep,
+    TransactionPlan,
     TransactionPlanStep
 } from "./TransactionPlan";
 import {DbValue, Value} from "../../../model/Value";
@@ -16,6 +17,7 @@ import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {computeCodeLookupHash} from "../../../utils/codeCryptoUtils";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import * as knex from "knex";
+import {getContact} from "../contacts";
 
 /**
  * Options to resolving transaction parties.
@@ -56,16 +58,26 @@ export interface ResolveTransactionPartiesOptions {
 }
 
 export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions): Promise<TransactionPlanStep[]> {
-    const lightrailValues = await getLightrailValues(auth, options);
-    const lightrailSteps = lightrailValues
+    const fetchedValues = await getLightrailValues(auth, options);
+    return getTransactionPlanStepsFromSources(options.transactionId, fetchedValues,
+        options.parties.filter(party => party.rail !== "lightrail") as (StripeTransactionParty | InternalTransactionParty)[]);
+}
+
+/**
+ * Translates Values loaded from the database and non Lightrail sources into TransactionPlanSteps.
+ * Used when the Values have already been loaded from the DB.
+ */
+export function getTransactionPlanStepsFromSources(transactionId: string, lightrailSources: Value[], nonLightrailSources: (StripeTransactionParty | InternalTransactionParty)[]): TransactionPlanStep[] {
+    const lightrailSteps = lightrailSources
         .map((v): LightrailTransactionPlanStep => ({
             rail: "lightrail",
             value: v,
             amount: 0,
-            uses: null
+            uses: null,
+            action: "update"
         }));
 
-    const internalSteps = options.parties
+    const internalSteps = nonLightrailSources
         .filter(p => p.rail === "internal")
         .map((p: InternalTransactionParty): InternalTransactionPlanStep => ({
             rail: "internal",
@@ -76,12 +88,13 @@ export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.Au
             amount: 0
         }));
 
-    const stripeSteps = options.parties
+
+    const stripeSteps = nonLightrailSources
         .filter(p => p.rail === "stripe")
         .map((p: StripeTransactionParty, index): StripeTransactionPlanStep => ({
             rail: "stripe",
             type: "charge",
-            idempotentStepId: `${options.transactionId}-${index}`,
+            idempotentStepId: `${transactionId}-${index}`,
             source: p.source || null,
             customer: p.customer || null,
             maxAmount: p.maxAmount || null,
@@ -92,7 +105,7 @@ export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.Au
     return [...lightrailSteps, ...internalSteps, ...stripeSteps];
 }
 
-async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions): Promise<Value[]> {
+export async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions): Promise<Value[]> {
     const valueIds = options.parties.filter(p => p.rail === "lightrail" && p.valueId)
         .map(p => (p as LightrailTransactionParty).valueId);
 
@@ -184,6 +197,29 @@ async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             }
         }
     }
-
     return values;
+}
+
+export function filterForUsedAttaches(attachTransactionPlans: TransactionPlan[], transactionPlan: TransactionPlan) {
+    const attachTransactionsToPersist: TransactionPlan[] = [];
+    for (const attach of attachTransactionPlans) {
+        const newAttachedValue: LightrailTransactionPlanStep = attach.steps.find(s => (s as LightrailTransactionPlanStep).action === "insert") as LightrailTransactionPlanStep;
+        if (transactionPlan.steps.find(s => s.rail === "lightrail" && s.value.id === newAttachedValue.value.id)) {
+            // new attached value was used
+            attachTransactionsToPersist.push(attach);
+        }
+    }
+    return attachTransactionsToPersist;
+}
+
+export async function getContactIdFromSources(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[]): Promise<string> {
+    const contactPaymentSource = parties.find(p => p.rail === "lightrail" && p.contactId != null) as LightrailTransactionParty;
+    const contactId = contactPaymentSource ? contactPaymentSource.contactId : null;
+
+    if (contactId) {
+        const contact = await getContact(auth, contactId);
+        return contact.id;
+    } else {
+        return null;
+    }
 }

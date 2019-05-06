@@ -5,10 +5,10 @@ import {defaultTestUser} from "../../../utils/testUtils";
 import {DbValue} from "../../../model/Value";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {TransactionPlan} from "./TransactionPlan";
-import {executeTransactionPlan} from "./executeTransactionPlan";
 import {DbCurrency} from "../../../model/Currency";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
+import {executeTransactionPlan} from "./executeTransactionPlans";
 
 describe("rest/transactions/executeTransactionPlan", () => {
 
@@ -42,6 +42,9 @@ describe("rest/transactions/executeTransactionPlan", () => {
             issuanceId: null,
             codeLastFour: null,
             isGenericCode: false,
+            attachedFromValueId: null,
+            genericCodeOptions_perContact_balance: null,
+            genericCodeOptions_perContact_usesRemaining: null,
             codeEncrypted: null,
             codeHashed: null,
             contactId: null,
@@ -67,6 +70,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
         await knex("Currencies").insert(currency);
         await knex("Values").insert(value);
 
+        value.balance = 3500; // pretend there's enough value.
         const plan: TransactionPlan = {
             id: "xxx",
             transactionType: "debit",
@@ -76,7 +80,8 @@ describe("rest/transactions/executeTransactionPlan", () => {
                     rail: "lightrail",
                     value: await DbValue.toValue(value),
                     amount: -3500,    // more than is in the value
-                    uses: null
+                    uses: null,
+                    action: "update"
                 }
             ],
             totals: {remainder: 0},
@@ -89,7 +94,10 @@ describe("rest/transactions/executeTransactionPlan", () => {
 
         let err: TransactionPlanError;
         try {
-            await executeTransactionPlan(auth, plan);
+            const knex = await getKnexWrite();
+            await knex.transaction(async trx => {
+                await executeTransactionPlan(auth, trx, plan, {allowRemainder: false, simulate: false});
+            });
         } catch (e) {
             err = e;
         }
@@ -117,6 +125,9 @@ describe("rest/transactions/executeTransactionPlan", () => {
             issuanceId: null,
             codeLastFour: null,
             isGenericCode: false,
+            attachedFromValueId: null,
+            genericCodeOptions_perContact_balance: null,
+            genericCodeOptions_perContact_usesRemaining: null,
             codeEncrypted: null,
             codeHashed: null,
             contactId: null,
@@ -141,6 +152,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
         const knex = await getKnexWrite();
         await knex("Values").insert(value);
 
+        value.usesRemaining = 1;
         const plan: TransactionPlan = {
             id: "xxx",
             transactionType: "debit",
@@ -150,7 +162,8 @@ describe("rest/transactions/executeTransactionPlan", () => {
                     rail: "lightrail",
                     value: await DbValue.toValue(value),
                     amount: -1200,
-                    uses: -1
+                    uses: -1,
+                    action: "update"
                 }
             ],
             totals: {remainder: null},
@@ -163,7 +176,10 @@ describe("rest/transactions/executeTransactionPlan", () => {
 
         let err: TransactionPlanError;
         try {
-            await executeTransactionPlan(auth, plan);
+            const knex = await getKnexWrite();
+            await knex.transaction(async trx => {
+                await executeTransactionPlan(auth, trx, plan, {allowRemainder: false, simulate: false});
+            });
         } catch (e) {
             err = e;
         }

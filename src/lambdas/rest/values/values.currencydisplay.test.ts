@@ -1,10 +1,10 @@
 import * as chai from "chai";
-import * as testUtils from "../../utils/testUtils";
-import {defaultTestUser, generateId} from "../../utils/testUtils";
-import {Value} from "../../model/Value";
-import * as currencies from "./currencies";
+import * as testUtils from "../../../utils/testUtils/index";
+import {defaultTestUser, generateId} from "../../../utils/testUtils/index";
+import {Value} from "../../../model/Value";
+import * as currencies from "../currencies";
 import * as cassava from "cassava";
-import {installRestRoutes} from "./installRestRoutes";
+import {installRestRoutes} from "../installRestRoutes";
 
 
 describe("/v2/transactions/credit", () => {

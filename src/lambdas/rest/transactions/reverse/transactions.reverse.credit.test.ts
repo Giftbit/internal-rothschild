@@ -94,7 +94,7 @@ describe("/v2/transactions/reverse - credit", () => {
                 "createdBy": "default-test-user-TEST"
             }, ["createdDate"]
         );
-        chai.assert.deepEqualExcluding(simulate.body, postReverse.body, "simulated");
+        chai.assert.deepEqualExcluding(simulate.body, postReverse.body, ["simulated", "createdDate"] /* sometimes this is off by a second since the tx is inserted in the following second after the simulate*/);
         chai.assert.isTrue(simulate.body.simulated);
 
         // check value is same as before

@@ -13,14 +13,11 @@ import {
 } from "../../../model/Transaction";
 import {formatCodeForLastFourDisplay, Value} from "../../../model/Value";
 import {LineItemResponse} from "../../../model/LineItem";
-import {
-    AdditionalStripeChargeParams,
-    LightrailTransactionParty,
-    TransactionParty
-} from "../../../model/TransactionRequest";
+import {AdditionalStripeChargeParams, TransactionParty} from "../../../model/TransactionRequest";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {TaxRequestProperties} from "../../../model/TaxProperties";
+import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
 
 export interface TransactionPlan {
     id: string;
@@ -43,11 +40,21 @@ export type TransactionPlanStep =
     | StripeTransactionPlanStep
     | InternalTransactionPlanStep;
 
-export interface LightrailTransactionPlanStep {
+export type LightrailTransactionPlanStep = LightrailUpdateTransactionPlanStep | LightrailInsertTransactionPlanStep;
+
+export interface LightrailInsertTransactionPlanStep {
+    rail: "lightrail";
+    value: Value;
+    action: "insert";
+    generateCodeParameters?: GenerateCodeParameters;
+}
+
+export interface LightrailUpdateTransactionPlanStep {
     rail: "lightrail";
     value: Value;
     amount: number;
     uses: number | null;
+    action: "update";
 }
 
 export interface StripeChargeTransactionPlanStep {
@@ -64,6 +71,10 @@ export interface StripeChargeTransactionPlanStep {
      * Result of creating the charge in Stripe is only set if the plan is executed.
      */
     chargeResult?: stripe.charges.ICharge;
+}
+
+export function isStepWithAmount(step: TransactionPlanStep): step is LightrailUpdateTransactionPlanStep | StripeTransactionPlanStep | InternalTransactionPlanStep {
+    return (<any>step).amount !== undefined;
 }
 
 export interface StripeRefundTransactionPlanStep {
@@ -145,17 +156,36 @@ export namespace LightrailTransactionPlanStep {
     }
 
     function getSharedProperties(step: LightrailTransactionPlanStep) {
-        return {
+        let sharedProperties = {
             valueId: step.value.id,
             contactId: step.value.contactId,
             code: step.value.code,
-            balanceBefore: step.value.balance,
-            balanceAfter: step.value.balance != null ? step.value.balance + (step.amount || 0) : null,
-            balanceChange: step.value.balance != null || step.amount != null ? (step.amount || 0) : null,
-            usesRemainingBefore: step.value.usesRemaining != null ? step.value.usesRemaining : null,
-            usesRemainingAfter: step.value.usesRemaining != null ? step.value.usesRemaining + (step.uses || 0) : null,
-            usesRemainingChange: step.value.usesRemaining != null || step.uses != null ? (step.uses || 0) : null
         };
+
+        switch (step.action) {
+            case "insert":
+                return {
+                    ...sharedProperties,
+                    balanceBefore: step.value.balance != null ? 0 : null,
+                    balanceChange: step.value.balance,
+                    balanceAfter: step.value.balance,
+                    usesRemainingBefore: step.value.usesRemaining != null ? 0 : null,
+                    usesRemainingChange: step.value.usesRemaining,
+                    usesRemainingAfter: step.value.usesRemaining
+                };
+            case "update":
+                return {
+                    ...sharedProperties,
+                    balanceBefore: step.value.balance,
+                    balanceChange: step.value.balance != null || step.amount != null ? (step.amount || 0) : null,
+                    balanceAfter: step.value.balance != null ? step.value.balance + (step.amount || 0) : null,
+                    usesRemainingBefore: step.value.usesRemaining,
+                    usesRemainingChange: step.value.usesRemaining != null || step.uses != null ? (step.uses || 0) : null,
+                    usesRemainingAfter: step.value.usesRemaining != null ? step.value.usesRemaining + (step.uses || 0) : null
+                };
+            default:
+                throw new Error(`Unexpected step action received. This should not be possible.`)
+        }
     }
 }
 
@@ -277,25 +307,16 @@ export namespace TransactionPlan {
     }
 
     export function getSanitizedPaymentSources(plan: TransactionPlan): TransactionParty[] {
-        let cleanSources: TransactionParty[] = [];
-        for (let source of plan.paymentSources) {
+        return plan.paymentSources.map(source => {
             if (source.rail === "lightrail" && source.code) {
-                // checking whether the code is generic without pulling the Value from the db again:
-                // secret codes come back as lastFour, so if a step has a Value whose code matches the (full) code in the payment source, it means it's a generic code
-                const genericCodeStep: LightrailTransactionPlanStep = (plan.steps.find(step => step.rail === "lightrail" && step.value.code === (source as LightrailTransactionParty).code && step.value.isGenericCode) as LightrailTransactionPlanStep);
-                if (genericCodeStep) {
-                    cleanSources.push(source);
-                } else {
-                    cleanSources.push({
-                        rail: source.rail,
-                        code: formatCodeForLastFourDisplay(source.code)
-                    });
-                }
+                return {
+                    rail: source.rail,
+                    code: formatCodeForLastFourDisplay(source.code)
+                };
             } else {
-                cleanSources.push(source);
+                return source;
             }
-        }
-        return cleanSources;
+        });
     }
 
     function getSharedProperties(plan: TransactionPlan) {
@@ -317,6 +338,10 @@ export namespace TransactionPlan {
             case "internal":
                 return InternalTransactionPlanStep.toInternalTransactionStep(step);
         }
+    }
+
+    export function containsStripeSteps(plan: TransactionPlan): boolean {
+        return plan.steps.find(step => step.rail === "stripe") != null;
     }
 }
 

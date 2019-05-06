@@ -281,20 +281,6 @@ describe("/v2/contacts/values", () => {
                 chai.assert.equal(attach.statusCode, 409, `body=${JSON.stringify(attach.body)}`);
                 chai.assert.equal(attach.body.messageCode, "ValueExpired");
             });
-
-            it(`can attach if active=false isGeneric=${isGenericCode} Value`, async () => {
-                const value: Partial<Value> = {
-                    id: generateId(),
-                    currency: currency.code,
-                    isGenericCode: isGenericCode,
-                    active: false
-                };
-                const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
-                chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
-
-                const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value.id});
-                chai.assert.equal(attach.statusCode, 200, `body=${JSON.stringify(attach.body)}`);
-            });
         }
     });
 

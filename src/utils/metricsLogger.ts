@@ -52,6 +52,7 @@ export namespace MetricsLogger {
 export enum ValueAttachmentTypes {
     OnCreate = "onCreate",
     Generic = "generic",
+    GenericPerContactProps = "genericPerContactProps",
     GenericAsNew = "genericAsNew",
     Unique = "unique"
 }

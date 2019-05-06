@@ -1,10 +1,10 @@
-import {calculateCheckoutTransactionPlan} from "./calculateCheckoutTransactionPlan";
+import {calculateCheckoutTransactionPlanForOrderedSteps} from "./calculateCheckoutTransactionPlan";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "../TransactionPlan";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
 import log = require("loglevel");
 
-export function optimizeCheckout(checkout: CheckoutRequest, steps: TransactionPlanStep[]): TransactionPlan {
+export function getCheckoutTransactionPlan(checkout: CheckoutRequest, steps: TransactionPlanStep[]): TransactionPlan {
     log.info(`optimizing checkout transaction`);
 
     const now = nowInDbPrecision();
@@ -18,7 +18,7 @@ export function optimizeCheckout(checkout: CheckoutRequest, steps: TransactionPl
 
     log.info(`optimized checkout transaction\nsortedPretaxSteps: ${JSON.stringify(sortedPretaxSteps)}\nsortedPostTaxSteps: ${JSON.stringify(sortedPostTaxSteps)}`);
 
-    return calculateCheckoutTransactionPlan(checkout, sortedPretaxSteps, sortedPostTaxSteps, now);
+    return calculateCheckoutTransactionPlanForOrderedSteps(checkout, sortedPretaxSteps, sortedPostTaxSteps, now);
 }
 
 /**
@@ -46,7 +46,7 @@ function optimizeSteps(pretax: boolean, unsortedSteps: TransactionPlanStep[], ch
                 const step = lightrailStepBucket[stepIx];
                 const newPlanPretaxSteps = pretax ? [...sortedPretaxSteps, step] : sortedPretaxSteps;
                 const newPlanPostTaxSteps = pretax ? sortedPostTaxSteps : [...sortedPostTaxSteps, step];
-                const newPlan = calculateCheckoutTransactionPlan(checkout, newPlanPretaxSteps, newPlanPostTaxSteps, now);
+                const newPlan = calculateCheckoutTransactionPlanForOrderedSteps(checkout, newPlanPretaxSteps, newPlanPostTaxSteps, now);
 
                 log.info(`step ${step.value.id} has payable ${newPlan.totals.payable}`);
                 if (!bestPlan || (newPlan.totals.payable < bestPlan.totals.payable)) {

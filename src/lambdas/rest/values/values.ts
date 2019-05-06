@@ -1,30 +1,27 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import {Pagination, PaginationParams} from "../../model/Pagination";
-import {DbValue, formatCodeForLastFourDisplay, Rule, Value} from "../../model/Value";
-import {pick, pickOrDefault} from "../../utils/pick";
-import {csvSerializer} from "../../serializers";
+import {Pagination, PaginationParams} from "../../../model/Pagination";
+import {DbValue, formatCodeForLastFourDisplay, Value} from "../../../model/Value";
+import {pick} from "../../../utils/pick";
+import {csvSerializer} from "../../../serializers";
 import {
     dateInDbPrecision,
     filterAndPaginateQuery,
     getSqlErrorConstraintName,
     nowInDbPrecision
-} from "../../utils/dbUtils";
-import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
-import {DbTransaction, LightrailDbTransactionStep} from "../../model/Transaction";
-import {DbCode} from "../../model/DbCode";
-import {generateCode} from "../../utils/codeGenerator";
-import {computeCodeLookupHash} from "../../utils/codeCryptoUtils";
-import {getProgram} from "./programs";
-import {Program} from "../../model/Program";
-import * as Knex from "knex";
-import {GenerateCodeParameters} from "../../model/GenerateCodeParameters";
-import {getTransactions} from "./transactions/transactions";
-import {Currency, formatAmountForCurrencyDisplay} from "../../model/Currency";
-import {getCurrency} from "./currencies";
-import {getRuleFromCache} from "./transactions/getRuleFromCache";
-import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
+} from "../../../utils/dbUtils/index";
+import {getKnexRead, getKnexWrite} from "../../../utils/dbUtils/connection";
+import {DbCode} from "../../../model/DbCode";
+import {generateCode} from "../../../utils/codeGenerator";
+import {computeCodeLookupHash} from "../../../utils/codeCryptoUtils";
+import {getProgram} from "../programs";
+import {Program} from "../../../model/Program";
+import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
+import {getTransactions} from "../transactions/transactions";
+import {Currency, formatAmountForCurrencyDisplay} from "../../../model/Currency";
+import {getCurrency} from "../currencies";
+import {checkCodeParameters, checkValueProperties, createValue} from "./createValue";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -83,11 +80,13 @@ export function installValuesRest(router: cassava.Router): void {
                 value = await createValue(auth, {
                         partialValue: value,
                         generateCodeParameters: evt.body.generateCode,
-                        program: program,
-                        showCode: (evt.queryStringParameters.showCode === "true")
+                        program: program
                     },
                     trx);
             });
+            if (value.code && !value.isGenericCode && !(evt.queryStringParameters.showCode === "true")) {
+                value.code = formatCodeForLastFourDisplay(value.code);
+            }
 
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
@@ -273,6 +272,10 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                     type: "string",
                     operators: ["eq", "in"]
                 },
+                attachedFromValueId: {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
                 currency: {
                     type: "string",
                     operators: ["eq", "in"]
@@ -321,101 +324,6 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
         values: values,
         pagination: paginatedRes.pagination
     };
-}
-
-export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: CreateValueParameters, trx: Knex.Transaction, retryCount: number = 0): Promise<Value> {
-    auth.requireIds("userId", "teamMemberId");
-    let value: Value = initializeValue(auth, params.partialValue, params.program, params.generateCodeParameters);
-    log.info(`Create Value requested for user: ${auth.userId}. Value`, Value.toStringSanitized(value));
-
-    log.info(`Checking properties for ${value.id}.`);
-    checkValueProperties(value, params.program);
-
-    value.startDate = value.startDate ? dateInDbPrecision(new Date(value.startDate)) : null;
-    value.endDate = value.endDate ? dateInDbPrecision(new Date(value.endDate)) : null;
-
-    const dbValue = await Value.toDbValue(auth, value);
-
-    try {
-        await trx.into("Values")
-            .insert(dbValue);
-        if (value.balance || value.usesRemaining) {
-            if (value.balance < 0) {
-                throw new Error("balance cannot be negative");
-            }
-            if (value.usesRemaining < 0) {
-                throw new Error("usesRemaining cannot be negative");
-            }
-
-            const transactionId = value.id;
-            const initialBalanceTransaction: DbTransaction = {
-                userId: auth.userId,
-                id: transactionId,
-                transactionType: "initialBalance",
-                currency: value.currency,
-                totals_subtotal: null,
-                totals_tax: null,
-                totals_discountLightrail: null,
-                totals_paidLightrail: null,
-                totals_paidStripe: null,
-                totals_paidInternal: null,
-                totals_remainder: null,
-                totals_marketplace_sellerGross: null,
-                totals_marketplace_sellerDiscount: null,
-                totals_marketplace_sellerNet: null,
-                lineItems: null,
-                paymentSources: null,
-                pendingVoidDate: null,
-                metadata: null,
-                rootTransactionId: transactionId,
-                nextTransactionId: null,
-                createdDate: value.createdDate,
-                tax: null,
-                createdBy: auth.teamMemberId,
-            };
-            const initialBalanceTransactionStep: LightrailDbTransactionStep = {
-                userId: auth.userId,
-                id: `${value.id}-0`,
-                transactionId: transactionId,
-                valueId: value.id,
-                balanceBefore: value.balance != null ? 0 : null,
-                balanceAfter: value.balance,
-                balanceChange: value.balance,
-                usesRemainingBefore: value.usesRemaining != null ? 0 : null,
-                usesRemainingAfter: value.usesRemaining,
-                usesRemainingChange: value.usesRemaining
-            };
-            await trx.into("Transactions").insert(initialBalanceTransaction);
-            await trx.into("LightrailTransactionSteps").insert(initialBalanceTransactionStep);
-        }
-
-        if (value.contactId) {
-            MetricsLogger.valueAttachment(ValueAttachmentTypes.OnCreate, auth);
-        }
-
-        return DbValue.toValue(dbValue, params.showCode);
-    } catch (err) {
-        log.debug(err);
-        const constraint = getSqlErrorConstraintName(err);
-        if (constraint === "PRIMARY") {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with id '${value.id}' already exists.`, "ValueIdExists");
-        }
-        if (constraint === "uq_Values_codeHashed") {
-            if (params.generateCodeParameters && retryCount < 2 /* Retrying twice is an arbitrary number. This may need to be increased if we're still seeing regular failures. Unless users are using their own character set there are around 1 billion possible codes. It seems unlikely for 3+ retry failures even if users have millions of codes. */) {
-                log.info(`Retrying creating the Value because there was a code uniqueness constraint failure for a generated code. Retry number: ${retryCount}. ValueId: ${params.partialValue.id}.`);
-                return createValue(auth, params, trx, retryCount + 1);
-            } else {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Value with the given code already exists.`, "ValueCodeExists");
-            }
-        }
-        if (constraint === "fk_Values_Currencies") {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${value.currency}' does not exist. See the documentation on creating currencies.`, "CurrencyNotFound");
-        }
-        if (constraint === "fk_Values_Contacts") {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Contact '${value.contactId}' does not exist.`, "ContactNotFound");
-        }
-        throw err;
-    }
 }
 
 export async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, showCode: boolean = false): Promise<Value> {
@@ -635,10 +543,19 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
      * This will need to be updated once partial capture becomes a thing since joining to the last Transaction in the chain
      * will no longer give a complete picture regarding what happened.
      */
-    let query = knex("LightrailTransactionSteps as LTS")
+    let query = knex("Values as V")
         .where({
-            "LTS.userId": auth.userId,
-            "LTS.valueId": valueId,
+            "V.userId": auth.userId,
+
+        })
+        .andWhere(q => {
+            q.where("V.id", "=", valueId);
+            q.orWhere("V.attachedFromValueId", "=", valueId);
+            return q;
+        })
+        .join("LightrailTransactionSteps as LTS", {
+            "LTS.userId": "V.userId",
+            "LTS.valueId": "V.id"
         })
         .join("Transactions as T_ROOT", {
             "T_ROOT.userId": "LTS.userId",
@@ -676,7 +593,6 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
                                       // This is the transactionType of the last transaction in the chain.
                                       // If null, this means the root transaction is the only transaction in the chain.
     }[] = await query;
-
     for (const row of results) {
         if (row.rootTransactionType === "debit" && (row.finalTransactionType === null || row.finalTransactionType === "capture")) {
             stats.redeemed.balance += -row.balanceChange;
@@ -690,137 +606,31 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
         }
     }
 
-    const attachedStats = await knex("ContactValues")
+    // shared generic values stats
+    const attachedContactValues = await knex("ContactValues")
         .where({
             "userId": auth.userId,
             "valueId": valueId
         })
         .count({count: "*"});
-    stats.attachedContacts.count = attachedStats[0].count;
+    stats.attachedContacts.count = attachedContactValues[0].count;
 
+    // legacy attachGenericAsNewValueStats
+    const attachedFromGenericValueStats = await knex("Values")
+        .where({
+            "userId": auth.userId,
+            "attachedFromValueId": valueId
+        })
+        .count({count: "*"});
+    stats.attachedContacts.count += attachedFromGenericValueStats[0].count;
+
+    // unique code
     if (value.contactId) {
         stats.attachedContacts.count += 1;
     }
 
     log.info(`Calculating value stats finished and took ${Date.now() - startTime}ms`);
     return stats;
-}
-
-function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, partialValue: Partial<Value>, program: Program = null, generateCodeParameters: GenerateCodeParameters = null): Value {
-    const now = nowInDbPrecision();
-
-    let value: Value = pickOrDefault(partialValue, {
-        id: null,
-        currency: program ? program.currency : null,
-        balance: partialValue.balanceRule || (program && program.balanceRule) ? null : 0,
-        usesRemaining: null,
-        programId: program ? program.id : null,
-        issuanceId: null,
-        code: null,
-        isGenericCode: false,
-        contactId: null,
-        pretax: program ? program.pretax : false,
-        active: program ? program.active : true,
-        canceled: false,
-        frozen: false,
-        discount: program ? program.discount : false,
-        discountSellerLiability: program ? program.discountSellerLiability : null,
-        redemptionRule: program ? program.redemptionRule : null,
-        balanceRule: program ? program.balanceRule : null,
-        startDate: program ? program.startDate : null,
-        endDate: program ? program.endDate : null,
-        metadata: {},
-        createdDate: now,
-        updatedDate: now,
-        updatedContactIdDate: partialValue.contactId ? now : null,
-        createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
-    });
-
-    value.metadata = {...(program && program.metadata ? program.metadata : {}), ...value.metadata};
-
-    if (generateCodeParameters) {
-        checkCodeParameters(generateCodeParameters, value.code, value.isGenericCode);
-        value.code = generateCodeParameters ? generateCode(generateCodeParameters) : value.code;
-    }
-    if (value.code && value.isGenericCode == null) {
-        value.isGenericCode = false;
-    }
-    return value;
-}
-
-function checkValueProperties(value: Value, program: Program = null): void {
-    if (program) {
-        checkProgramConstraints(value, program);
-    }
-
-    if (value.balance != null && value.balanceRule) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a balance and balanceRule.`);
-    }
-    if (value.discountSellerLiability !== null && !value.discount) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have discountSellerLiability if it is not a discount.`);
-    }
-    if (value.contactId && value.isGenericCode) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "A Value with isGenericCode=true cannot have contactId set.");
-    }
-    if (value.endDate && value.startDate > value.endDate) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Property startDate cannot exceed endDate.");
-    }
-    if (!value.currency) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Property currency cannot be null. Please provide a currency or a programId.");
-    }
-
-    checkRulesSyntax(value, "Value");
-}
-
-export function checkRulesSyntax(holder: { redemptionRule?: Rule, balanceRule?: Rule }, holderType: "Value" | "Program"): void {
-    if (holder.balanceRule) {
-        const rule = getRuleFromCache(holder.balanceRule.rule);
-        if (rule.compileError) {
-            throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `${holderType} balanceRule has a syntax error.`, {
-                messageCode: "BalanceRuleSyntaxError",
-                syntaxErrorMessage: rule.compileError.msg,
-                row: rule.compileError.row,
-                column: rule.compileError.column
-            });
-        }
-    }
-    if (holder.redemptionRule) {
-        const rule = getRuleFromCache(holder.redemptionRule.rule);
-        if (rule.compileError) {
-            throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `${holderType} redemptionRule has a syntax error.`, {
-                messageCode: "RedemptionRuleSyntaxError",
-                syntaxErrorMessage: rule.compileError.msg,
-                row: rule.compileError.row,
-                column: rule.compileError.column
-            });
-        }
-    }
-}
-
-function checkProgramConstraints(value: Value, program: Program): void {
-    if (program.fixedInitialBalances && (program.fixedInitialBalances.indexOf(value.balance) === -1 || value.balance === null)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} is outside fixedInitialBalances defined by Program ${program.fixedInitialBalances}.`);
-    }
-    if (program.minInitialBalance !== null && (value.balance < program.minInitialBalance || value.balance === null)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} is less than minInitialBalance ${program.minInitialBalance}.`);
-    }
-    if (program.maxInitialBalance !== null && (value.balance > program.maxInitialBalance || value.balance === null)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} is greater than maxInitialBalance ${program.maxInitialBalance}.`);
-    }
-
-    if (program.fixedInitialUsesRemaining && (program.fixedInitialUsesRemaining.indexOf(value.usesRemaining) === -1 || !value.usesRemaining)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's usesRemaining ${value.usesRemaining} outside fixedInitialUsesRemaining defined by Program ${program.fixedInitialUsesRemaining}.`);
-    }
-
-    if (program.currency !== value.currency) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's currency ${value.currency} cannot differ from currency of Program ${program.currency}.`);
-    }
-}
-
-export function checkCodeParameters(generateCode: GenerateCodeParameters, code: string, isGenericCode: boolean): void {
-    if (generateCode && (code || isGenericCode)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Parameter generateCode is not allowed with parameters code or isGenericCode:true.`);
-    }
 }
 
 type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
@@ -892,6 +702,26 @@ const valueSchema: jsonschema.Schema = {
                 },
                 suffix: {
                     type: "string"
+                }
+            }
+        },
+        genericCodeOptions: {
+            title: "Generic Code Properties",
+            type: ["object", "null"],
+            additionalProperties: false,
+            properties: {
+                perContact: {
+                    title: "Value Properties Per Contact Params",
+                    type: ["object", "null"],
+                    additionalProperties: false,
+                    properties: {
+                        balance: {
+                            type: ["integer", "null"]
+                        },
+                        usesRemaining: {
+                            type: ["integer", "null"]
+                        }
+                    }
                 }
             }
         },
@@ -1004,5 +834,4 @@ export interface CreateValueParameters {
     partialValue: Partial<Value>;
     generateCodeParameters: GenerateCodeParameters | null;
     program: Program | null;
-    showCode: boolean;
 }
