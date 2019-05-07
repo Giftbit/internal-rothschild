@@ -12,8 +12,8 @@ import {
     nowInDbPrecision
 } from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
-import {checkRulesSyntax} from "./values";
 import {ProgramStats} from "../../model/ProgramStats";
+import {checkRulesSyntax} from "./transactions/rules/RuleContext";
 import log = require("loglevel");
 
 export function installProgramsRest(router: cassava.Router): void {

@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as transactions from "../transactions";
-import * as valueStores from "../../values";
+import * as valueStores from "../../values/values";
 import * as currencies from "../../currencies";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as sinon from "sinon";
@@ -808,6 +808,9 @@ describe("split tender checkout with Stripe", () => {
                 balance: 100
             };
 
+            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value4);
+            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
             const request: CheckoutRequest = {
                 id: generateId(),
                 sources: [
@@ -837,9 +840,6 @@ describe("split tender checkout with Stripe", () => {
                 .callsFake(err => log.debug("router.errorHandler", err));
             sinonSandbox.stub(insertTransaction, "insertLightrailTransactionSteps")
                 .throws(new TransactionPlanError("Error for tests: transaction step insertion error", {isReplanable: false}));
-
-            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value4);
-            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
 
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
             chai.assert.equal(postCheckoutResp.statusCode, 500, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);

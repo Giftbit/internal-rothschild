@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {getValue, getValueByCode, getValues, injectValueStats, updateValue} from "./values";
+import {getValue, getValueByCode, getValues, injectValueStats, updateValue} from "./values/values";
 import {csvSerializer} from "../../serializers";
 import {Pagination} from "../../model/Pagination";
 import {DbValue, Value} from "../../model/Value";
@@ -13,6 +13,7 @@ import {DbContactValue} from "../../model/DbContactValue";
 import {AttachValueParameters} from "../../model/internal/AttachValueParameters";
 import {ValueIdentifier} from "../../model/internal/ValueIdentifier";
 import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
+import {attachGenericCodeWithPerContactOptions} from "./genericCodeWithPerContactOptions";
 import log = require("loglevel");
 
 export function installContactValuesRest(router: cassava.Router): void {
@@ -157,6 +158,9 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     const contact = await getContact(auth, params.contactId);
     const value = await getValueByIdentifier(auth, params.valueIdentifier);
 
+    if (!value.active) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value cannot be attached because it is inactive.`, "ValueInactive");
+    }
     if (value.frozen) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value cannot be attached because it is frozen.`, "ValueFrozen");
     }
@@ -168,12 +172,16 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     }
 
     if (value.isGenericCode) {
-        if (params.attachGenericAsNewValue) {
+        if (Value.isGenericCodeWithPropertiesPerContact(value)) {
+            MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericPerContactProps, auth);
+            return await attachGenericCodeWithPerContactOptions(auth, contact.id, value);
+        }
+        else if (params.attachGenericAsNewValue) /* legacy case to eventually be removed */ {
             MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, auth);
             return await attachGenericValueAsNewValue(auth, contact.id, value);
         } else {
             MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, auth);
-            await attachGenericValue(auth, contact.id, value);
+            await attachSharedGenericValue(auth, contact.id, value);
             return value;
         }
     } else {
@@ -222,7 +230,7 @@ export async function detachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     }
 }
 
-async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, value: Value): Promise<DbContactValue> {
+async function attachSharedGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, value: Value): Promise<DbContactValue> {
     const dbContactValue: DbContactValue = {
         userId: auth.userId,
         valueId: value.id,
@@ -254,13 +262,14 @@ async function attachGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 }
 
 /**
- * Legacy functionality. This makes a new Value and attaches it to the Contact. Yervana is using this.
+ * Legacy functionality. This makes a new Value and attaches it to the Contact. Yervana as well as others are using this.
  */
 async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, originalValue: Value): Promise<Value> {
     const now = nowInDbPrecision();
     const newAttachedValue: Value = {
         ...originalValue,
         id: getIdForNewAttachedValue({contactId: contactId, valueId: originalValue.id}),
+        attachedFromValueId: originalValue.id,
         code: null,
         isGenericCode: false,
         contactId: contactId,

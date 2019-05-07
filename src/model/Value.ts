@@ -12,6 +12,8 @@ export interface Value {
     issuanceId: string | null;
     code: string | null;
     isGenericCode: boolean | null;
+    genericCodeOptions?: GenericCodeOptions | undefined;
+    attachedFromValueId: string | undefined;
     contactId: string | null;
     pretax: boolean;
     active: boolean;
@@ -28,6 +30,13 @@ export interface Value {
     updatedDate: Date;
     updatedContactIdDate: Date | null;
     createdBy: string;
+}
+
+export interface GenericCodeOptions {
+    perContact: {
+        balance: number | null;
+        usesRemaining: number | null;
+    };
 }
 
 export interface Rule {
@@ -69,6 +78,11 @@ export namespace Value {
             updatedDate: v.updatedDate,
             updatedContactIdDate: v.updatedContactIdDate,
             createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
+
+            // generic code properties
+            genericCodeOptions_perContact_balance: v.genericCodeOptions ? v.genericCodeOptions.perContact.balance : null,
+            genericCodeOptions_perContact_usesRemaining: v.genericCodeOptions ? v.genericCodeOptions.perContact.usesRemaining : null,
+            attachedFromValueId: v.attachedFromValueId
         };
     }
 
@@ -100,6 +114,10 @@ export namespace Value {
             code: v.code && !v.isGenericCode ? formatCodeForLastFourDisplay(v.code) : v.code
         });
     }
+
+    export function isGenericCodeWithPropertiesPerContact(v: Value): boolean {
+        return v.isGenericCode != null && v.genericCodeOptions != null && v.genericCodeOptions.perContact != null;
+    }
 }
 
 export interface DbValue {
@@ -111,7 +129,6 @@ export interface DbValue {
     programId: string | null;
     issuanceId: string | null;
     codeLastFour: string | null;
-    isGenericCode: boolean | null;
     codeHashed: string | null;
     codeEncrypted: string | null;
     contactId: string | null;
@@ -130,6 +147,10 @@ export interface DbValue {
     updatedDate: Date;
     updatedContactIdDate: Date | null;
     createdBy: string;
+    isGenericCode: boolean | null;
+    genericCodeOptions_perContact_balance: number | null;
+    genericCodeOptions_perContact_usesRemaining: number | null;
+    attachedFromValueId: string | null;
 }
 
 export namespace DbValue {
@@ -144,6 +165,13 @@ export namespace DbValue {
             contactId: v.contactId,
             code: await dbValueCodeToValueCode(v, showCode),
             isGenericCode: v.isGenericCode,
+            genericCodeOptions: v.genericCodeOptions_perContact_balance != null || v.genericCodeOptions_perContact_usesRemaining != null ? {
+                perContact: {
+                    balance: v.genericCodeOptions_perContact_balance,
+                    usesRemaining: v.genericCodeOptions_perContact_usesRemaining
+                }
+            } : undefined,
+            attachedFromValueId: v.attachedFromValueId != null ? v.attachedFromValueId : undefined,
             pretax: v.pretax,
             active: v.active,
             canceled: v.canceled,

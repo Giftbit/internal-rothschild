@@ -1,4 +1,4 @@
-import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
+import {LightrailUpdateTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
@@ -18,7 +18,7 @@ export async function createCreditTransactionPlan(auth: giftbitRoutes.jwtauth.Au
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable Value.", "InvalidParty");
     }
 
-    const step = steps[0] as LightrailTransactionPlanStep;
+    const step = steps[0] as LightrailUpdateTransactionPlanStep;
     if (req.amount && step.value.balance == null) {
         throw new giftbitRoutes.GiftbitRestError(409, "Cannot credit amount to a Value with balance=null.", "NullBalance");
     }

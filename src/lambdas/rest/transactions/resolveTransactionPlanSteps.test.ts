@@ -116,7 +116,7 @@ describe("resolveTransactionPlanSteps", () => {
             };
             const contactLightrailValues = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, contactAsTransactionSource);
 
-            const distinctValues = [...data.valuesAttachedToContactA, ...data.valuesAttachedToContactB.filter(v => v.id !== data.genVal2.id)];
+            const distinctValues = [...data.valuesAttachedToContactA, ...data.valuesAttachedToContactB.filter(v => v.id !== data.genVal2_sharedGenericValue.id)];
             chai.assert.sameMembers(contactLightrailValues.map(v => (v as LightrailTransactionPlanStep).value.id), distinctValues.map(v => v.id));
         });
     });

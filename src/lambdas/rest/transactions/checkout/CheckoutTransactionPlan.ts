@@ -1,6 +1,8 @@
 import {
     getDiscountSellerLiability,
-    LightrailTransactionPlanStep,
+    InternalTransactionPlanStep,
+    LightrailUpdateTransactionPlanStep,
+    StripeTransactionPlanStep,
     TransactionPlan,
     TransactionPlanStep
 } from "../TransactionPlan";
@@ -65,10 +67,10 @@ export class CheckoutTransactionPlan implements TransactionPlan {
             discount: 0,
             payable: 0,
             remainder: 0,
-            discountLightrail: this.steps.filter(step => step.rail === "lightrail" && step.value.discount === true).reduce((prev, step) => prev + step.amount, 0) * -1,
-            paidLightrail: this.steps.filter(step => step.rail === "lightrail" && step.value.discount === false).reduce((prev, step) => prev + step.amount, 0) * -1,
-            paidStripe: this.steps.filter(step => step.rail === "stripe").reduce((prev, step) => prev + step.amount, 0) * -1,
-            paidInternal: this.steps.filter(step => step.rail === "internal").reduce((prev, step) => prev + step.amount, 0) * -1,
+            discountLightrail: this.steps.filter(step => step.rail === "lightrail" && step.value.discount === true).reduce((prev, step) => prev + (<LightrailUpdateTransactionPlanStep> step).amount, 0) * -1,
+            paidLightrail: this.steps.filter(step => step.rail === "lightrail" && step.value.discount === false).reduce((prev, step) => prev + (<LightrailUpdateTransactionPlanStep> step).amount, 0) * -1,
+            paidStripe: this.steps.filter(step => step.rail === "stripe").reduce((prev, step) => prev + (<StripeTransactionPlanStep> step).amount, 0) * -1,
+            paidInternal: this.steps.filter(step => step.rail === "internal").reduce((prev, step) => prev + (<InternalTransactionPlanStep>step).amount, 0) * -1,
         };
         for (const item of this.lineItems) {
             item.lineTotal.payable = item.lineTotal.subtotal + item.lineTotal.tax - item.lineTotal.discount;
@@ -102,7 +104,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
         let sellerDiscount = 0;
         for (const step of this.steps) {
             if (getDiscountSellerLiability(step) !== 0) {
-                sellerDiscount -= (step as LightrailTransactionPlanStep).amount * (step as LightrailTransactionPlanStep).value.discountSellerLiability;
+                sellerDiscount -= (step as LightrailUpdateTransactionPlanStep).amount * (step as LightrailUpdateTransactionPlanStep).value.discountSellerLiability;
             }
         }
 

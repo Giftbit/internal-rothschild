@@ -20,7 +20,7 @@ import {GiftbitRestError} from "giftbit-cassava-routes";
 import {getDbTransaction, getTransaction} from "../transactions";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
 import {Value} from "../../../../model/Value";
-import {getValues} from "../../values";
+import {getValues} from "../../values/values";
 import log = require("loglevel");
 
 export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: ReverseRequest, transactionIdToReverse: string): Promise<TransactionPlan> {
@@ -106,7 +106,8 @@ function getReverseForLightrailTransactionStep(auth: giftbitRoutes.jwtauth.Autho
         rail: "lightrail",
         value: value,
         amount: step.balanceChange != null ? -step.balanceChange : null,
-        uses: step.usesRemainingChange != null ? -step.usesRemainingChange : null
+        uses: step.usesRemainingChange != null ? -step.usesRemainingChange : null,
+        action: "update"
     };
 }
 

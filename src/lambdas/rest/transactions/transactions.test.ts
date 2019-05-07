@@ -114,17 +114,18 @@ describe("/v2/transactions", () => {
 
         const resp = await testUtils.testAuthedRequest<Transaction[]>(router, "/v2/transactions", "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.equal(resp.body.length, 2);
+        chai.assert.equal(resp.body.length, 3);
+        chai.assert.sameMembers(resp.body.map(tx => tx.transactionType), ["initialBalance", "initialBalance", "transfer"]);
         chai.assert.deepInclude(resp.body, transferResp.body, `resp.body=${JSON.stringify(resp.body, null, 4)}`);
     });
 
-    it("can retrieve 3 transactions (1 or 2 steps)", async () => {
+    it("can retrieve 4 transactions (1 or 2 steps)", async () => {
         const debitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", debit1);
         chai.assert.equal(debitResp.statusCode, 201, `body=${JSON.stringify(debitResp.body)}`);
 
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions", "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.equal(resp.body.length, 3);
+        chai.assert.equal(resp.body.length, 4);
         chai.assert.deepInclude(resp.body, debitResp.body, `resp.body=${JSON.stringify(resp.body, null, 4)}`);
     });
 
@@ -146,7 +147,7 @@ describe("/v2/transactions", () => {
     it("orders transactions by date created", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions", "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.equal(resp.body.length, 4);  // TODO 6 once filter tests are back in: transfer2 first, transfer3 second
+        chai.assert.equal(resp.body.length, 5);
 
         const ids = resp.body.map(t => t.id);
         chai.assert.include(ids, transfer1.id);
