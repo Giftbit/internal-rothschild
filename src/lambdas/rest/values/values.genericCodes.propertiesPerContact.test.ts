@@ -411,7 +411,7 @@ describe("/v2/values - generic code with per contact properties", () => {
 
         chai.assert.equal(createValue.body.id, "dontChangeValueId", "This should equal setValueId. Don't change this. This test checks for a consistent hash which prevents a Contact from attaching a generic code twice.");
         chai.assert.equal(createContact.body.id, "dontChangeContactId", "This should equal setValueId. Don't change this. This test checks for a consistent hash which prevents a Contact from attaching a generic code twice.");
-        chai.assert.equal(attach.body.id, "3BzqT3K3VueDcNW7QGRXT+BJ0q4=", "The id should equal the expected hash of the contactId and valueId. It's important that this doesn't change since this prevents a Contact from attaching a generic code twice.");
+        chai.assert.equal(attach.body.id, "3BzqT3K3VueDcNW7QGRXTBJ0q4", "The id should equal the expected hash of the contactId and valueId. It's important that this doesn't change since this prevents a Contact from attaching a generic code twice.");
     });
 
     it("can list values associated with generic value", async () => {

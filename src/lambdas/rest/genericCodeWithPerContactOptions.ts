@@ -92,5 +92,5 @@ export function getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth
 }
 
 export function generateIdForNewAttachedValue(genericValueId: string, contactId: string) {
-    return crypto.createHash("sha1").update(genericValueId + "/" + contactId).digest("base64").replace(/\//g, "-");
+    return crypto.createHash("sha1").update(genericValueId + "/" + contactId).digest("base64").replace(/\/|\+|=/g, "");
 }
