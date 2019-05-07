@@ -158,7 +158,7 @@ describe("/v2/values - generic code with per contact properties", () => {
         chai.assert.equal(attachAgain.body["messageCode"], "ValueAlreadyAttached");
     });
 
-    it.only("insufficient balance will cause attach to fail. can credit balance and then attach another contact", async () => {
+    it("insufficient balance will cause attach to fail. can credit balance and then attach another contact", async () => {
         const genericValue: Partial<Value> = {
             id: generateId(),
             currency: "USD",
