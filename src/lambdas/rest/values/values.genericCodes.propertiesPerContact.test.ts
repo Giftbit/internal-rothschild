@@ -825,4 +825,33 @@ describe("/v2/values - generic code with per contact properties", () => {
             chai.assert.equal(attach.body.messageCode, "ValueCanceled");
         });
     });
+
+    it("can't create generic code with genericCodeOptions and isGenericCode:false", async () => {
+        const genericCode: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            isGenericCode: false,
+            genericCodeOptions: {
+                perContact: {
+                    balance: 10,
+                    usesRemaining: 1
+                }
+            }
+        };
+        const create = await testUtils.testAuthedRequest(router, "/v2/values", "POST", genericCode)
+        chai.assert.equal(create.statusCode, 422);
+    });
+
+    it("can't create generic code with genericCodeOptions.perContact = null and isGenericCode:false", async () => {
+        const genericCode: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            isGenericCode: false,
+            genericCodeOptions: {
+                perContact: null
+            }
+        };
+        const create = await testUtils.testAuthedRequest(router, "/v2/values", "POST", genericCode)
+        chai.assert.equal(create.statusCode, 422);
+    });
 });
