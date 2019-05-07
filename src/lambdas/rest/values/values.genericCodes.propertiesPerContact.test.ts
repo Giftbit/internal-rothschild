@@ -415,6 +415,7 @@ describe("/v2/values - generic code with per contact properties", () => {
     });
 
     it("test hashed id for attach - test encoding: + replace with -, / replace with _ and the trailing = dropped", () => {
+        // Important: The assertions these tests make should not be changed. If changed, Contacts will be able to attach a generic code they've already attached!
         chai.assert.equal(generateIdForNewAttachedValue("123", "456"), "vi_tcnr5gak5ZKguoofIlgj59yo");
         chai.assert.equal(generateIdForNewAttachedValue("se46ds", "6rdtfs4"), "QrSrg2mt3qeBfh47G1sqnGHOGe4");
         chai.assert.equal(generateIdForNewAttachedValue("/1ar,3a4/3aw4efsredfgs%a3as", "2353a4sadfsert5_2a=dfg"), "mXeuDmmVxP-V_-3K5s_QJIW3hoI");
