@@ -144,6 +144,7 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         query.andWhere(q => {
             q.where("ContactValues.valueId", "=", valueId);
             q.orWhere("Values.id", "=", valueId);
+            q.orWhere("Values.attachedFromValueId", "=", valueId);
             return q;
         });
 
