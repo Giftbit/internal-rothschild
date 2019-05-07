@@ -178,6 +178,7 @@ describe("/v2/values - generic code with per contact properties", () => {
 
         // try attaching to 3 contacts
         const contacts: Contact[] = [];
+        const values: Value[] = [];
         for (let i = 0; i < 3; i++) {
             const contact: Partial<Contact> = {
                 id: generateId()
@@ -190,6 +191,7 @@ describe("/v2/values - generic code with per contact properties", () => {
                 // succeeds for first 2 contacts
                 const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: genericValue.code});
                 chai.assert.equal(attach.statusCode, 200);
+                values.push(attach.body);
             } else {
                 // fails. insufficient funds
                 const attach = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: genericValue.code});
@@ -213,6 +215,7 @@ describe("/v2/values - generic code with per contact properties", () => {
 
         const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contacts[2].id}/values/attach`, "POST", {code: genericValue.code});
         chai.assert.equal(attach.statusCode, 200);
+        values.push(attach.body);
 
         const getTx = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/values/${attach.body.id}/transactions?transactionType=attach`, "GET");
         chai.assert.deepEqualExcluding(getTx.body[0],
@@ -255,6 +258,11 @@ describe("/v2/values - generic code with per contact properties", () => {
                 "createdDate": null,
                 "createdBy": "default-test-user-TEST"
             }, ["id", "createdDate"]);
+
+        const getNewAttachedValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?attachedFromValueId=${genericValue.id}`, "GET");
+        chai.assert.sameDeepMembers(getNewAttachedValues.body, values);
+        const getAttachedContacts = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?valueId=${genericValue.id}`, "GET");
+        chai.assert.sameDeepMembers(getAttachedContacts.body, contacts);
     });
 
     it("generic code with per contact properties will fail to attach if insufficient usesRemaining. can credit usesRemaining and then attach another contact", async () => {
