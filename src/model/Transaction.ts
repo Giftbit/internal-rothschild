@@ -53,7 +53,7 @@ export interface DbTransaction {
 export interface TransactionForReports {
     id: string;
     createdDate: Date;
-    transactionType: string;
+    transactionType: TransactionType;
     subtotal: number | null;
     tax: number | null;
     discountLightrail: number | null;
@@ -175,13 +175,29 @@ export namespace DbTransaction {
             .where("userId", auth.userId)
             .whereIn("transactionId", txIds));
 
-        const reportsTxns: TransactionForReports[] = await Promise.all(txns.map(async dbT => {
+        return await toTransactionsForReports(txns, dbSteps, auth, {
+            includeRules: true,
+            includeTransactionAmount: true,
+            includeNonNullTotals: true,
+            includeMarketplace: true
+        });
+    }
+
+    interface ToTransactionsForReportsOptions {
+        includeRules?: boolean;
+        includeTransactionAmount?: boolean;
+        includeNonNullTotals?: boolean;
+        includeMarketplace?: boolean;
+    }
+
+    async function toTransactionsForReports(dbTxns: DbTransaction[], dbSteps: DbTransactionStep[], auth: giftbitRoutes.jwtauth.AuthorizationBadge, options?: ToTransactionsForReportsOptions): Promise<TransactionForReports[]> {
+        return await Promise.all(dbTxns.map(async dbT => {
             const steps = dbSteps.filter(step => step.transactionId === dbT.id);
             let t: TransactionForReports = {
                 id: dbT.id,
                 createdDate: dbT.createdDate,
                 transactionType: dbT.transactionType,
-                transactionAmount: addStepAmounts(steps),
+                transactionAmount: null,
                 subtotal: null,
                 tax: null,
                 discountLightrail: null,
@@ -198,7 +214,11 @@ export namespace DbTransaction {
                 metadata: dbT.metadata && dbT.metadata.replace(",", ";"), // don't create column breaks
             };
 
-            if (hasNonNullTotals(dbT)) {
+            if (options && options.includeTransactionAmount) {
+                t.transactionAmount = addStepAmounts(steps);
+            }
+
+            if (options && options.includeNonNullTotals && hasNonNullTotals(dbT)) {
                 t.subtotal = dbT.totals_subtotal !== null ? dbT.totals_subtotal : undefined;
                 t.tax = dbT.totals_tax !== null ? dbT.totals_tax : undefined;
                 t.discountLightrail = dbT.totals_discountLightrail !== null ? dbT.totals_discountLightrail : undefined;
@@ -208,22 +228,20 @@ export namespace DbTransaction {
                 t.remainder = dbT.totals_remainder !== null ? dbT.totals_remainder : undefined;
             }
 
-            if (dbT.totals_marketplace_sellerNet !== null) {
+            if (options && options.includeMarketplace && dbT.totals_marketplace_sellerNet !== null) {
                 t.sellerGross = dbT.totals_marketplace_sellerGross;
                 t.sellerDiscount = dbT.totals_marketplace_sellerDiscount;
                 t.sellerNet = dbT.totals_marketplace_sellerNet;
             }
 
-            if (dbT.transactionType === "initialBalance") {
-                const value = await getValue(auth, steps[0].valueId);
+            if (options && options.includeRules && dbT.transactionType === "initialBalance") {
+                const value = await getValue(auth, (steps[0] as LightrailDbTransactionStep).valueId);
                 t.balanceRule = value.balanceRule && value.balanceRule.toString().replace(",", ";"); // don't create column breaks
                 t.redemptionRule = value.redemptionRule && value.redemptionRule.toString().replace(",", ";"); // don't create column breaks
             }
 
             return t;
         }));
-
-        return reportsTxns;
     }
 }
 
