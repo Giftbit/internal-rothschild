@@ -91,6 +91,9 @@ export function getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth
     };
 }
 
+/**
+ * This function encodes to the RFC 4648 Spec where '+' is encoded as '-' and '/' is encoded as '_'. The padding character '=' is removed.
+ */
 export function generateIdForNewAttachedValue(genericValueId: string, contactId: string) {
-    return crypto.createHash("sha1").update(genericValueId + "/" + contactId).digest("base64").replace(/\/|\+|=/g, "");
+    return crypto.createHash("sha1").update(genericValueId + "/" + contactId).digest("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }
