@@ -18,7 +18,7 @@ import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe("/v2/values/", () => {
+describe.only("/v2/values/", () => {
 
     const router = new cassava.Router();
     const sinonSandbox = sinon.createSandbox();
@@ -1614,6 +1614,6 @@ describe("/v2/values/", () => {
 
         const listUniqueValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?isGenericCode=false`, "GET");
         chai.assert.deepInclude(listUniqueValues.body, createValue.body);
-        chai.assert.isFalse(listUniqueValues.body.map(v => v.isGenericCode).reduce((prev, next) => prev && next));
+        chai.assert.isFalse(listUniqueValues.body.map(v => v.isGenericCode).reduce((prev, next) => prev || next));
     });
 });
