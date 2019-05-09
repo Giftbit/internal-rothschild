@@ -20,13 +20,13 @@ export function installReportsRest(router: cassava.Router): void {
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:transactions:list");
 
-            if (!requestedLimitIsAcceptable(evt.queryStringParameters)) {
+            if (!isRequestedLimitAcceptable(evt.queryStringParameters)) {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Requested report row limit is too high. Please specify a limit of ${reportRowLimit} or less.`);
 
             } else {
                 const res = await getTransactionsForReport(auth, evt.queryStringParameters, getPaginationParams(evt, {maxLimit: reportRowLimit}));
 
-                if (!responseSizeIsAcceptable(evt.queryStringParameters, res.transactions)) {
+                if (!isResponseSizeAcceptable(evt.queryStringParameters, res.transactions)) {
                     throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Report query returned too many rows (maximum: ${reportRowLimit}). Please refine your request and try again.`);
                 } else {
                     return {
@@ -45,13 +45,13 @@ export function installReportsRest(router: cassava.Router): void {
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:values:list");
 
-            if (!requestedLimitIsAcceptable(evt.queryStringParameters)) {
+            if (!isRequestedLimitAcceptable(evt.queryStringParameters)) {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Requested report row limit is too high. Please specify a limit of ${reportRowLimit} or less.`);
 
             } else {
                 const res = await getValues(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt, {maxLimit: reportRowLimit}));
 
-                if (!responseSizeIsAcceptable(evt.queryStringParameters, res.values)) {
+                if (!isResponseSizeAcceptable(evt.queryStringParameters, res.values)) {
                     throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Report query returned too many rows (maximum: ${reportRowLimit}). Please refine your request and try again.`);
 
                 } else {
@@ -111,13 +111,13 @@ async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.Authorizatio
     };
 }
 
-function requestedLimitIsAcceptable(queryStringParams: { [key: string]: string }): boolean {
+function isRequestedLimitAcceptable(queryStringParams: { [key: string]: string }): boolean {
     const requestedLimit = queryStringParams["limit"] && Number(queryStringParams["limit"]) || null;
     return !(requestedLimit && requestedLimit > reportRowLimit);
 }
 
 // response size is fine if it's less than the maximum, or if they requested exactly the maximum and got it
-function responseSizeIsAcceptable(queryStringParams: { [key: string]: string }, queryResult: any[]): boolean {
+function isResponseSizeAcceptable(queryStringParams: { [key: string]: string }, queryResult: any[]): boolean {
     const requestedLimit = queryStringParams["limit"] && Number(queryStringParams["limit"]) || null;
     return !(queryResult.length >= reportRowLimit && (!requestedLimit || (requestedLimit && requestedLimit > reportRowLimit)));
 }
