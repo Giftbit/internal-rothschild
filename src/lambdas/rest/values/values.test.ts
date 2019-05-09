@@ -1588,4 +1588,33 @@ describe("/v2/values/", () => {
         chai.assert.sameMembers(getValues.body.map(v => v.code), [code1, code2]);
         generateCodeStub.restore();
     });
+
+    it("can query on isGenericCode", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 10
+        };
+        const createValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+        chai.assert.equal(createValue.statusCode, 201);
+
+        const genericCode: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 10,
+            isGenericCode: true,
+            code: "GEN_CODE_123"
+        };
+        const createGenericCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", genericCode);
+        chai.assert.equal(createGenericCode.statusCode, 201);
+
+        const listGenericCodes = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?isGenericCode=true`, "GET");
+        console.log(JSON.stringify(listGenericCodes, null, 4));
+        chai.assert.deepInclude(listGenericCodes.body, createGenericCode.body);
+        chai.assert.isTrue(listGenericCodes.body.map(v => v.isGenericCode).reduce((prev, next) => prev && next));
+
+        const listUniqueValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?isGenericCode=false`, "GET");
+        chai.assert.deepInclude(listUniqueValues.body, createValue.body);
+        chai.assert.isFalse(listUniqueValues.body.map(v => v.isGenericCode).reduce((prev, next) => prev && next));
+    });
 });
