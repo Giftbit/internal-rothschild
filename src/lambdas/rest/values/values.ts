@@ -289,6 +289,9 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                 discount: {
                     type: "boolean"
                 },
+                isGenericCode: {
+                    type: "boolean"
+                },
                 active: {
                     type: "boolean"
                 },
