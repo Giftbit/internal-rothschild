@@ -1,6 +1,12 @@
 import * as cassava from "cassava";
 import * as testUtils from "../../utils/testUtils";
-import {createUSDValue, defaultTestUser, setCodeCryptographySecrets, testAuthedRequest} from "../../utils/testUtils";
+import {
+    createUSDValue,
+    defaultTestUser,
+    generateId,
+    setCodeCryptographySecrets,
+    testAuthedRequest
+} from "../../utils/testUtils";
 import {installRestRoutes} from "./installRestRoutes";
 import {createCurrency} from "./currencies";
 import {Value} from "../../model/Value";
@@ -9,6 +15,18 @@ import * as chai from "chai";
 
 describe("/v2/reports/values/", () => {
     const router = new cassava.Router();
+    const genericValue: Partial<Value> = {
+        id: generateId(),
+        isGenericCode: true,
+        genericCodeOptions: {
+            perContact: {
+                balance: 50,
+                usesRemaining: 3
+            }
+        },
+        balance: null
+    };
+    const contactId = generateId();
 
     before(async function () {
         await testUtils.resetDb();
@@ -45,43 +63,72 @@ describe("/v2/reports/values/", () => {
         await createUSDValue(router, {programId: "program2"});
         await createUSDValue(router, {programId: "program2"});
         await createUSDValue(router, {programId: "program3"});
+
+        await createUSDValue(router, genericValue);
+        const createContactResp = await testUtils.testAuthedRequest(router, "/v2/contacts", "POST", {id: contactId});
+        chai.assert.equal(createContactResp.statusCode, 201, `createContactResp.body=${JSON.stringify(createContactResp.body)}`);
+        const attachGenericValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {valueId: genericValue.id});
+        chai.assert.equal(attachGenericValueResp.statusCode, 200, `attachGenericValueResp.body=${JSON.stringify(attachGenericValueResp.body)}`);
     });
 
     it("can download a csv of Values", async () => {
         const resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/reports/values`, "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.equal(resp.body.length, 4);
+        chai.assert.equal(resp.body.length, 6);
 
-        for (const value of resp.body) {
-            chai.assert.deepEqualExcluding(value, {
-                id: "",
-                createdDate: null,
-                currency: "USD",
-                balance: 50,  // `balance` is in the sql query on the card twice: ?
-                usesRemaining: null,
-                balanceRule: null,
-                redemptionRule: null,
-                programId: null,
-                issuanceId: null,
-                code: null,  // current version of reports query uses codeLastFour; can we just call it `code` instead?
-                isGenericCode: false,
-                contactId: null,
-                pretax: false,
-                discount: false,
-                active: true,
-                canceled: false,
-                frozen: false,
-                discountSellerLiability: null,
-                startDate: null,
-                endDate: null,
-                metadata: null,
-                createdBy: defaultTestUser.userId,
-                updatedDate: null,
-                updatedContactIdDate: null,
-            }, ["id", "programId", "createdDate", "updatedDate", "metadata"]); // ignoring metadata: csv formatting turns the default {} into "{}" which doesn't work with the Value interface
-            chai.assert.isNotNull(value.createdDate);
-            chai.assert.isNotNull(value.updatedDate);
-            chai.assert.isNotNull(value.metadata);
+        chai.assert.isObject(resp.body.find(v => v.id === genericValue.id, `generic value not in results: ${JSON.stringify(resp.body)}`));
+        chai.assert.isObject(resp.body.find(v => v.attachedFromValueId === genericValue.id, `attached value from generic not in results: ${JSON.stringify(resp.body)}`));
+
+        const baseValueProperties: Value = {
+            id: "",
+            createdDate: null,
+            currency: "USD",
+            balance: 50,
+            attachedFromValueId: null,
+            genericCodeOptions: null,
+            usesRemaining: null,
+            balanceRule: null,
+            redemptionRule: null,
+            programId: null,
+            issuanceId: null,
+            code: null,
+            isGenericCode: false,
+            contactId: null,
+            pretax: false,
+            discount: false,
+            active: true,
+            canceled: false,
+            frozen: false,
+            discountSellerLiability: null,
+            startDate: null,
+            endDate: null,
+            metadata: null,
+            createdBy: defaultTestUser.userId,
+            updatedDate: null,
+            updatedContactIdDate: null,
+        };
+
+        for (const [index, value] of resp.body.entries()) {
+            if (value.id === genericValue.id) {
+                chai.assert.deepEqualExcluding(value, baseValueProperties, ["id", "createdDate", "updatedDate", "balance", "metadata", "isGenericCode", "genericCodeOptions"], `generic code value: ${JSON.stringify(value)}`);
+                chai.assert.isNull(value.balance, `generic code value: ${JSON.stringify(value)}`);
+                chai.assert.equal(value.isGenericCode, true, `generic code value: ${JSON.stringify(value)}`);
+                chai.assert.equal(value.genericCodeOptions as any, JSON.stringify(genericValue.genericCodeOptions), `generic code value: ${JSON.stringify(value)}`); // genericCodeOptions comes back stringified in this case
+                chai.assert.isNotNull(value.metadata, `generic code value: ${JSON.stringify(value)}`);
+
+            } else if (value.attachedFromValueId === genericValue.id) {
+                chai.assert.deepEqualExcluding(value, baseValueProperties, ["id", "createdDate", "updatedDate", "updatedContactIdDate", "metadata", "attachedFromValueId", "usesRemaining", "contactId"], `value attached from generic: ${JSON.stringify(value)}`);
+                chai.assert.equal(value.usesRemaining, 3, `attached value, from generic: ${JSON.stringify(value)}`);
+                chai.assert.equal(value.contactId, contactId, `attached value, from generic: ${JSON.stringify(value)}`);
+                chai.assert.isNotNull(value.metadata, `attached value, from generic: ${JSON.stringify(value)}`);
+
+            } else {
+                chai.assert.deepEqualExcluding(value, baseValueProperties, ["id", "programId", "createdDate", "updatedDate", "metadata"], `value in csv (index: )${index}) = ${JSON.stringify(value)}`);
+            }
+
+            chai.assert.isNotNull(value.createdDate, `value in csv (index: )${index}) = ${JSON.stringify(value)}`);
+            chai.assert.isNotNull(value.updatedDate, `value in csv (index: )${index}) = ${JSON.stringify(value)}`);
+            chai.assert.isNotNull(value.metadata, `value in csv (index: )${index}) = ${JSON.stringify(value)}`);
         }
     });
 
@@ -94,6 +141,8 @@ describe("/v2/reports/values/", () => {
             createdDate: null,
             currency: "USD",
             balance: 50,
+            attachedFromValueId: null,
+            genericCodeOptions: null,
             usesRemaining: null,
             balanceRule: null,
             redemptionRule: null,
@@ -124,12 +173,14 @@ describe("/v2/reports/values/", () => {
         chai.assert.equal(resp2and3.body.length, 3);
         chai.assert.equal(resp2and3.body.filter(value => value.programId === "program2").length, 2, `resp2and3.body=${JSON.stringify(resp2and3.body)}`);
         chai.assert.isObject(resp2and3.body.find(value => value.programId === "program3"), `resp2and3.body=${JSON.stringify(resp2and3.body)}`);
-        for (const value of resp2and3.body) {
+        for (const [index, value] of resp2and3.body.entries()) {
             chai.assert.deepEqualExcluding(value, {
                 id: "",
                 createdDate: null,
                 currency: "USD",
                 balance: 50,
+                attachedFromValueId: null,
+                genericCodeOptions: null,
                 usesRemaining: null,
                 balanceRule: null,
                 redemptionRule: null,
@@ -151,9 +202,9 @@ describe("/v2/reports/values/", () => {
                 updatedDate: null,
                 updatedContactIdDate: null,
             }, ["id", "programId", "createdDate", "updatedDate", "metadata"], `resp2and3.body=${JSON.stringify(resp2and3.body)}`);
-            chai.assert.isNotNull(value.createdDate);
-            chai.assert.isNotNull(value.updatedDate);
-            chai.assert.isNotNull(value.metadata);
+            chai.assert.isNotNull(value.createdDate, `value in csv (index: ${index}) = ${JSON.stringify(value)}`);
+            chai.assert.isNotNull(value.updatedDate, `value in csv (index: ${index}) = ${JSON.stringify(value)}`);
+            chai.assert.isNotNull(value.metadata, `value in csv (index: ${index}) = ${JSON.stringify(value)}`);
         }
     });
 });
