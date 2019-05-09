@@ -118,7 +118,6 @@ describe("/v2/values - generic code with per contact properties", () => {
         chai.assert.equal(createContact.statusCode, 201);
 
         const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {code: genericValue.code});
-        console.log(JSON.stringify(attach, null, 4));
         chai.assert.equal(attach.statusCode, 200);
         chai.assert.deepEqualExcluding(attach.body,
             {
@@ -853,7 +852,7 @@ describe("/v2/values - generic code with per contact properties", () => {
                 }
             }
         };
-        const create = await testUtils.testAuthedRequest(router, "/v2/values", "POST", genericCode)
+        const create = await testUtils.testAuthedRequest(router, "/v2/values", "POST", genericCode);
         chai.assert.equal(create.statusCode, 422);
     });
 
@@ -866,7 +865,7 @@ describe("/v2/values - generic code with per contact properties", () => {
                 perContact: null
             }
         };
-        const create = await testUtils.testAuthedRequest(router, "/v2/values", "POST", genericCode)
+        const create = await testUtils.testAuthedRequest(router, "/v2/values", "POST", genericCode);
         chai.assert.equal(create.statusCode, 422);
     });
 });

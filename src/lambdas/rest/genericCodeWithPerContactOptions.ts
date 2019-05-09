@@ -34,7 +34,7 @@ export async function attachGenericCodeWithPerContactOptions(auth: giftbitRoutes
 
 export function getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): TransactionPlan {
     if (!Value.isGenericCodeWithPropertiesPerContact(genericValue)) {
-        throw new Error(`Invalid value passed in. ${genericValue.id}`)
+        throw new Error(`Invalid value passed in. ${genericValue.id}`);
     }
 
     const now = nowInDbPrecision();
