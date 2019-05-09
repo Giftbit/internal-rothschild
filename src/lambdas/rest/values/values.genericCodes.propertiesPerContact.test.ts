@@ -9,6 +9,7 @@ import {Contact} from "../../../model/Contact";
 import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
 import {CheckoutRequest, CreditRequest, ReverseRequest} from "../../../model/TransactionRequest";
 import {generateIdForNewAttachedValue} from "../genericCodeWithPerContactOptions";
+import {Program} from "../../../model/Program";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -866,7 +867,62 @@ describe("/v2/values - generic code with per contact properties", () => {
                 perContact: null
             }
         };
-        const create = await testUtils.testAuthedRequest(router, "/v2/values", "POST", genericCode)
+        const create = await testUtils.testAuthedRequest(router, "/v2/values", "POST", genericCode);
         chai.assert.equal(create.statusCode, 422);
+    });
+
+    describe.only("program tests", () => {
+        const contactId = generateId();
+
+        before(async function () {
+            const createContact = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contactId});
+            chai.assert.equal(createContact.statusCode, 201);
+        });
+
+        it("program balance range tests", async () => {
+            const program: Partial<Program> = {
+                id: generateId(),
+                name: "name " + generateId(5),
+                currency: "USD",
+                minInitialBalance: 5,
+                maxInitialBalance: 10
+            };
+            const createProgram = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
+            chai.assert.equal(createProgram.statusCode, 201);
+
+            const genericCode: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                isGenericCode: false,
+                genericCodeOptions: {
+                    perContact: null
+                }
+            };
+            let createGenericCode = await testUtils.testAuthedRequest(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(createGenericCode.body, 422);
+
+            createGenericCode = await testUtils.testAuthedRequest(router, "/v2/values", "POST", {
+                ...genericCode,
+                genericCodeOptions: {perContact: {balance: 1}}
+            });
+            chai.assert.equal(createGenericCode.body, 422);
+
+            createGenericCode = await testUtils.testAuthedRequest(router, "/v2/values", "POST", {
+                ...genericCode,
+                genericCodeOptions: {perContact: {balance: 11}}
+            });
+            chai.assert.equal(createGenericCode.body, 422);
+
+            createGenericCode = await testUtils.testAuthedRequest(router, "/v2/values", "POST", {
+                ...genericCode,
+                genericCodeOptions: {perContact: {balance: 7}}
+            });
+            chai.assert.equal(createGenericCode.body, 201);
+
+            const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {
+                valueId: genericCode.id
+            });
+            chai.assert.equal(attach.statusCode, 200);
+        });
     });
 });

@@ -139,18 +139,26 @@ export function checkValueProperties(value: Value, program: Program = null): voi
 
 
 function checkProgramConstraints(value: Value, program: Program): void {
-    if (program.fixedInitialBalances && (program.fixedInitialBalances.indexOf(value.balance) === -1 || value.balance === null)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} is outside fixedInitialBalances defined by Program ${program.fixedInitialBalances}.`);
-    }
-    if (program.minInitialBalance !== null && (value.balance < program.minInitialBalance || value.balance === null)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} is less than minInitialBalance ${program.minInitialBalance}.`);
-    }
-    if (program.maxInitialBalance !== null && (value.balance > program.maxInitialBalance || value.balance === null)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${value.balance} is greater than maxInitialBalance ${program.maxInitialBalance}.`);
+    let balance = value.balance;
+    let usesRemaining = value.usesRemaining;
+
+    if (Value.isGenericCodeWithPropertiesPerContact(value)) {
+        balance = value.genericCodeOptions.perContact.balance;
+        usesRemaining = value.genericCodeOptions.perContact.usesRemaining;
     }
 
-    if (program.fixedInitialUsesRemaining && (program.fixedInitialUsesRemaining.indexOf(value.usesRemaining) === -1 || !value.usesRemaining)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's usesRemaining ${value.usesRemaining} outside fixedInitialUsesRemaining defined by Program ${program.fixedInitialUsesRemaining}.`);
+    if (program.fixedInitialBalances && (program.fixedInitialBalances.indexOf(balance) === -1 || balance === null)) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${balance} is outside fixedInitialBalances defined by Program ${program.fixedInitialBalances}.`);
+    }
+    if (program.minInitialBalance !== null && (balance < program.minInitialBalance || balance === null)) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${balance} is less than minInitialBalance ${program.minInitialBalance}.`);
+    }
+    if (program.maxInitialBalance !== null && (balance > program.maxInitialBalance || balance === null)) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${balance} is greater than maxInitialBalance ${program.maxInitialBalance}.`);
+    }
+
+    if (program.fixedInitialUsesRemaining && (program.fixedInitialUsesRemaining.indexOf(usesRemaining) === -1 || !usesRemaining)) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's usesRemaining ${usesRemaining} outside fixedInitialUsesRemaining defined by Program ${program.fixedInitialUsesRemaining}.`);
     }
 
     if (program.currency !== value.currency) {
