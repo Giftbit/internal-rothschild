@@ -292,4 +292,98 @@ describe("/v2/reports/transactions/", () => {
             chai.assert.equal(bothProgramsReport.body.length, 6, `transaction types in bothProgramsReport.body: ${bothProgramsReport.body.map(txn => txn.transactionType)}`);
         });
     });
+
+    describe("multiple transaction steps", () => {
+        before(async () => {
+            await testUtils.resetDb();
+            await testUtils.createUSD(router);
+        });
+
+        it("returns one row per Transaction regardless of number of steps", async () => {
+            const value1 = await testUtils.createUSDValue(router);
+            const value2 = await testUtils.createUSDValue(router);
+            const transferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
+                id: testUtils.generateId(),
+                amount: 1,
+                currency: "USD",
+                source: {
+                    rail: "lightrail",
+                    valueId: value1.id
+                },
+                destination: {
+                    rail: "lightrail",
+                    valueId: value2.id
+                }
+            });
+            chai.assert.equal(transferResp.statusCode, 201, `transferResp.body=${JSON.stringify(transferResp.body)}`);
+
+            const transferReportResp = await testUtils.testAuthedCsvRequest<TransactionForReports[]>(router, "/v2/reports/transactions?transactionType=transfer", "GET");
+            chai.assert.equal(transferReportResp.statusCode, 200, `transferReportResp.body=${JSON.stringify(transferReportResp.body)}`);
+            chai.assert.deepEqualExcluding(transferReportResp.body[0], {
+                id: "",
+                transactionType: "transfer",
+                createdDate: null,
+                transactionAmount: 1,
+                subtotal: 0,
+                tax: 0,
+                discountLightrail: 0,
+                paidLightrail: 0,
+                paidStripe: 0,
+                paidInternal: 0,
+                remainder: 0,
+                stepsCount: 2,
+                sellerNet: null,
+                sellerDiscount: null,
+                sellerGross: null,
+                metadata: null,
+                balanceRule: null,
+                redemptionRule: null
+            }, ["createdDate", "id", "metadata"], `transferReportResp.body[0]=${JSON.stringify(transferReportResp.body[0], null, 4)}`);
+
+
+            const value3 = await testUtils.createUSDValue(router);
+            await testUtils.createUSDCheckout(router, {
+                lineItems: [{unitPrice: 150}],
+                sources: [
+                    {
+                        rail: "lightrail",
+                        valueId: value1.id
+                    },
+                    {
+                        rail: "lightrail",
+                        valueId: value2.id
+                    },
+                    {
+                        rail: "lightrail",
+                        valueId: value3.id
+                    }
+                ]
+            }, false);
+
+            const checkoutReportResp = await testUtils.testAuthedCsvRequest<TransactionForReports[]>(router, "/v2/reports/transactions?transactionType=checkout", "GET");
+            chai.assert.equal(checkoutReportResp.statusCode, 200, `checkoutReportResp.body=${JSON.stringify(checkoutReportResp.body)}`);
+            chai.assert.deepEqualExcluding(checkoutReportResp.body[0], {
+                id: "",
+                transactionType: "checkout",
+                createdDate: null,
+                transactionAmount: -150,
+                subtotal: 150,
+                tax: 0,
+                discountLightrail: 0,
+                paidLightrail: 150,
+                paidStripe: 0,
+                paidInternal: 0,
+                remainder: 0,
+                stepsCount: 3,
+                sellerNet: null,
+                sellerDiscount: null,
+                sellerGross: null,
+                metadata: null,
+                balanceRule: null,
+                redemptionRule: null
+            }, ["createdDate", "id", "metadata"], `checkoutReportResp.body[0]=${JSON.stringify(checkoutReportResp.body[0], null, 4)}`);
+        });
+
+        it("handles Stripe steps");
+    });
 });

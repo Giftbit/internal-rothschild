@@ -175,66 +175,32 @@ export namespace DbTransaction {
             .where("userId", auth.userId)
             .whereIn("transactionId", txIds));
 
-        return await toTransactionsForReports(txns, dbSteps, auth, {
-            includeRules: true,
-            includeTransactionAmount: true,
-            includeNonNullTotals: true,
-            includeMarketplace: true
-        });
-    }
-
-    interface ToTransactionsForReportsOptions {
-        includeRules?: boolean;
-        includeTransactionAmount?: boolean;
-        includeNonNullTotals?: boolean;
-        includeMarketplace?: boolean;
-    }
-
-    async function toTransactionsForReports(dbTxns: DbTransaction[], dbSteps: DbTransactionStep[], auth: giftbitRoutes.jwtauth.AuthorizationBadge, options?: ToTransactionsForReportsOptions): Promise<TransactionForReports[]> {
-        return await Promise.all(dbTxns.map(async dbT => {
-            const steps = dbSteps.filter(step => step.transactionId === dbT.id);
+        return await Promise.all(txns.map(async txn => {
+            const steps = dbSteps.filter(step => step.transactionId === txn.id);
             let t: TransactionForReports = {
-                id: dbT.id,
-                createdDate: dbT.createdDate,
-                transactionType: dbT.transactionType,
+                id: txn.id,
+                createdDate: txn.createdDate,
+                transactionType: txn.transactionType,
                 transactionAmount: null,
-                subtotal: null,
-                tax: null,
-                discountLightrail: null,
-                paidLightrail: null,
-                paidStripe: null,
-                paidInternal: null,
-                remainder: null,
-                sellerNet: null,
-                sellerGross: null,
-                sellerDiscount: null,
+                subtotal: txn.totals_subtotal || 0,
+                tax: txn.totals_tax || 0,
+                discountLightrail: txn.totals_discountLightrail || 0,
+                paidLightrail: txn.totals_paidLightrail || 0,
+                paidStripe: txn.totals_paidStripe || 0,
+                paidInternal: txn.totals_paidInternal || 0,
+                remainder: txn.totals_remainder || 0,
+                sellerNet: txn.totals_marketplace_sellerNet,
+                sellerGross: txn.totals_marketplace_sellerGross,
+                sellerDiscount: txn.totals_marketplace_sellerDiscount,
                 stepsCount: steps.length,
                 balanceRule: null,
                 redemptionRule: null,
-                metadata: dbT.metadata && dbT.metadata.replace(",", ";"), // don't create column breaks
+                metadata: txn.metadata && txn.metadata.replace(",", ";"), // don't create column breaks
             };
 
-            if (options && options.includeTransactionAmount) {
-                t.transactionAmount = addStepAmounts(steps);
-            }
+            t.transactionAmount = addStepAmounts(txn, steps);
 
-            if (options && options.includeNonNullTotals && hasNonNullTotals(dbT)) {
-                t.subtotal = dbT.totals_subtotal !== null ? dbT.totals_subtotal : undefined;
-                t.tax = dbT.totals_tax !== null ? dbT.totals_tax : undefined;
-                t.discountLightrail = dbT.totals_discountLightrail !== null ? dbT.totals_discountLightrail : undefined;
-                t.paidLightrail = dbT.totals_paidLightrail !== null ? dbT.totals_paidLightrail : undefined;
-                t.paidStripe = dbT.totals_paidStripe !== null ? dbT.totals_paidStripe : undefined;
-                t.paidInternal = dbT.totals_paidInternal !== null ? dbT.totals_paidInternal : undefined;
-                t.remainder = dbT.totals_remainder !== null ? dbT.totals_remainder : undefined;
-            }
-
-            if (options && options.includeMarketplace && dbT.totals_marketplace_sellerNet !== null) {
-                t.sellerGross = dbT.totals_marketplace_sellerGross;
-                t.sellerDiscount = dbT.totals_marketplace_sellerDiscount;
-                t.sellerNet = dbT.totals_marketplace_sellerNet;
-            }
-
-            if (options && options.includeRules && dbT.transactionType === "initialBalance") {
+            if (txn.transactionType === "initialBalance") {
                 const value = await getValue(auth, (steps[0] as LightrailDbTransactionStep).valueId);
                 t.balanceRule = value.balanceRule && value.balanceRule.toString().replace(",", ";"); // don't create column breaks
                 t.redemptionRule = value.redemptionRule && value.redemptionRule.toString().replace(",", ";"); // don't create column breaks
@@ -242,14 +208,19 @@ export namespace DbTransaction {
 
             return t;
         }));
+
     }
 }
 
-function addStepAmounts(steps: DbTransactionStep[]): number {
-    const amounts = steps.map(step => getStepAmount(step));
-    return amounts.reduce((acc, amount) => {
-        return acc + amount;
-    }, 0);
+function addStepAmounts(txn: DbTransaction, steps: DbTransactionStep[]): number {
+    if (txn.transactionType === "transfer") {
+        return getStepAmount(steps.find(s => getStepAmount(s) > 0));
+    } else {
+        const amounts = steps.map(step => getStepAmount(step));
+        return amounts.reduce((acc, amount) => {
+            return acc + amount;
+        }, 0);
+    }
 }
 
 function getStepAmount(step: LightrailDbTransactionStep | StripeDbTransactionStep | InternalDbTransactionStep): number {
