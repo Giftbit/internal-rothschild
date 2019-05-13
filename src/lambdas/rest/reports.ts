@@ -21,11 +21,9 @@ export function installReportsRest(router: cassava.Router): void {
             auth.requireScopes("lightrailV2:transactions:list");
 
             if (!isRequestedLimitAcceptable(evt.queryStringParameters)) {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Requested report row limit is too high. Please specify a limit of ${reportRowLimit} or less.`);
-
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested report row limit is too high. Please specify a limit of ${reportRowLimit} or less.`);
             } else {
                 const res = await getTransactionsForReport(auth, evt.queryStringParameters, getPaginationParams(evt, {maxLimit: reportRowLimit}));
-
                 if (!isResponseSizeAcceptable(evt.queryStringParameters, res.transactions)) {
                     throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Report query returned too many rows (maximum: ${reportRowLimit}). Please refine your request and try again.`);
                 } else {
@@ -46,11 +44,9 @@ export function installReportsRest(router: cassava.Router): void {
             auth.requireScopes("lightrailV2:values:list");
 
             if (!isRequestedLimitAcceptable(evt.queryStringParameters)) {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Requested report row limit is too high. Please specify a limit of ${reportRowLimit} or less.`);
-
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested report row limit is too high. Please specify a limit of ${reportRowLimit} or less.`);
             } else {
                 const res = await getValues(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt, {maxLimit: reportRowLimit}));
-
                 if (!isResponseSizeAcceptable(evt.queryStringParameters, res.values)) {
                     throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Report query returned too many rows (maximum: ${reportRowLimit}). Please refine your request and try again.`);
 

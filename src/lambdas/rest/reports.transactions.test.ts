@@ -108,7 +108,7 @@ describe("/v2/reports/transactions/", () => {
 
         it("errors when requested limit is too high", async () => {
             const resp = await testUtils.testAuthedRequest<TransactionForReports>(router, "/v2/reports/transactions?limit=123456", "GET"); // not testAuthedCsvRequest() because an error is expected which comes back as json
-            chai.assert.equal(resp.statusCode, 409, `resp.body=${JSON.stringify(resp.body)}`);
+            chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
         });
     });
 
