@@ -54,13 +54,13 @@ export interface TransactionForReports {
     id: string;
     createdDate: Date;
     transactionType: TransactionType;
-    subtotal: number | null;
-    tax: number | null;
-    discountLightrail: number | null;
-    paidLightrail: number | null;
-    paidStripe: number | null;
-    paidInternal: number | null;
-    remainder: number | null;
+    checkout_subtotal: number | null;
+    checkout_tax: number | null;
+    checkout_discountLightrail: number | null;
+    checkout_paidLightrail: number | null;
+    checkout_paidStripe: number | null;
+    checkout_paidInternal: number | null;
+    checkout_remainder: number | null;
     transactionAmount: number;
     stepsCount: number;
     balanceRule: string | null;
@@ -182,13 +182,13 @@ export namespace DbTransaction {
                 createdDate: txn.createdDate,
                 transactionType: txn.transactionType,
                 transactionAmount: null,
-                subtotal: txn.totals_subtotal || 0,
-                tax: txn.totals_tax || 0,
-                discountLightrail: txn.totals_discountLightrail || 0,
-                paidLightrail: txn.totals_paidLightrail || 0,
-                paidStripe: txn.totals_paidStripe || 0,
-                paidInternal: txn.totals_paidInternal || 0,
-                remainder: txn.totals_remainder || 0,
+                checkout_subtotal: txn.totals_subtotal || 0,
+                checkout_tax: txn.totals_tax || 0,
+                checkout_discountLightrail: txn.totals_discountLightrail || 0,
+                checkout_paidLightrail: txn.totals_paidLightrail || 0,
+                checkout_paidStripe: txn.totals_paidStripe || 0,
+                checkout_paidInternal: txn.totals_paidInternal || 0,
+                checkout_remainder: txn.totals_remainder || 0,
                 sellerNet: txn.totals_marketplace_sellerNet,
                 sellerGross: txn.totals_marketplace_sellerGross,
                 sellerDiscount: txn.totals_marketplace_sellerDiscount,
