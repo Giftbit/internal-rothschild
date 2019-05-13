@@ -224,11 +224,11 @@ function addStepAmounts(txn: DbTransaction, steps: DbTransactionStep[]): number 
 }
 
 function getStepAmount(step: LightrailDbTransactionStep | StripeDbTransactionStep | InternalDbTransactionStep): number {
-    if ((step as LightrailDbTransactionStep).balanceChange !== null) {
+    if ((step as LightrailDbTransactionStep).balanceChange !== undefined) {
         return (step as LightrailDbTransactionStep).balanceChange;
-    } else if ((step as StripeDbTransactionStep).amount) {
+    } else if ((step as StripeDbTransactionStep).amount !== undefined) {
         return (step as StripeDbTransactionStep).amount;
-    } else if ((step as InternalDbTransactionStep).balanceChange !== null) {
+    } else if ((step as InternalDbTransactionStep).balanceChange !== undefined) {
         return (step as InternalDbTransactionStep).balanceChange;
     } else {
         return 0;

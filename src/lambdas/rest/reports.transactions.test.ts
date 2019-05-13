@@ -4,6 +4,8 @@ import * as cassava from "cassava";
 import * as testUtils from "../../utils/testUtils";
 import {Program} from "../../model/Program";
 import * as chai from "chai";
+import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
+import {after} from "mocha";
 
 
 describe("/v2/reports/transactions/", () => {
@@ -294,12 +296,14 @@ describe("/v2/reports/transactions/", () => {
     });
 
     describe("multiple transaction steps", () => {
-        before(async () => {
-            await testUtils.resetDb();
-            await testUtils.createUSD(router);
+        after(() => {
+            unsetStubsForStripeTests();
         });
 
         it("returns one row per Transaction regardless of number of steps", async () => {
+            await testUtils.resetDb();
+            await testUtils.createUSD(router);
+
             const value1 = await testUtils.createUSDValue(router);
             const value2 = await testUtils.createUSDValue(router);
             const transferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
@@ -384,6 +388,38 @@ describe("/v2/reports/transactions/", () => {
             }, ["createdDate", "id", "metadata"], `checkoutReportResp.body[0]=${JSON.stringify(checkoutReportResp.body[0], null, 4)}`);
         });
 
-        it("handles Stripe steps");
+        it("handles Stripe steps", async function () {
+            if (!testStripeLive()) {
+                this.skip();
+            }
+
+            await testUtils.resetDb();
+            await testUtils.createUSD(router);
+            setStubsForStripeTests();
+
+            await testUtils.createUSDCheckout(router, null, true);
+            const checkoutReportResp = await testUtils.testAuthedCsvRequest<TransactionForReports[]>(router, "/v2/reports/transactions?transactionType=checkout", "GET");
+            chai.assert.equal(checkoutReportResp.statusCode, 200, `checkoutReportResp.body=${JSON.stringify(checkoutReportResp.body)}`);
+            chai.assert.deepEqualExcluding(checkoutReportResp.body[0], {
+                id: "",
+                transactionType: "checkout",
+                createdDate: null,
+                transactionAmount: -1000,
+                subtotal: 1000,
+                tax: 0,
+                discountLightrail: 0,
+                paidLightrail: 50,
+                paidStripe: 950,
+                paidInternal: 0,
+                remainder: 0,
+                stepsCount: 2,
+                sellerNet: null,
+                sellerDiscount: null,
+                sellerGross: null,
+                metadata: null,
+                balanceRule: null,
+                redemptionRule: null
+            }, ["createdDate", "id", "metadata"], `checkoutReportResp.body=${JSON.stringify(checkoutReportResp.body)}`);
+        });
     });
 });
