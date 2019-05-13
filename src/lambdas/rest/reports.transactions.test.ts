@@ -69,8 +69,6 @@ describe("/v2/reports/transactions/", () => {
                 sellerNet: null,
                 sellerGross: null,
                 sellerDiscount: null,
-                balanceRule: null,
-                redemptionRule: null,
                 metadata: null
             }, ["id", "createdDate", "metadata"], `checkout transaction ${index} of ${checkouts.length}: ${JSON.stringify(txn)}`);
         }
@@ -94,8 +92,6 @@ describe("/v2/reports/transactions/", () => {
                 sellerNet: null,
                 sellerGross: null,
                 sellerDiscount: null,
-                balanceRule: null,
-                redemptionRule: null,
                 metadata: null
             }, ["id", "createdDate", "metadata"], `initialBalance transaction ${index} of ${initialBalances.length}: ${JSON.stringify(txn)}`);
         }
@@ -136,8 +132,6 @@ describe("/v2/reports/transactions/", () => {
                     sellerNet: null,
                     sellerGross: null,
                     sellerDiscount: null,
-                    balanceRule: null,
-                    redemptionRule: null,
                     metadata: null
                 }, ["id", "createdDate", "metadata"], `checkout transaction ${index} of ${resp.body.length}: ${JSON.stringify(txn)}`);
             }
@@ -164,8 +158,6 @@ describe("/v2/reports/transactions/", () => {
                     sellerNet: null,
                     sellerGross: null,
                     sellerDiscount: null,
-                    balanceRule: null,
-                    redemptionRule: null,
                     metadata: null
                 }, ["id", "createdDate", "metadata"], `initialBalance transaction ${index} of ${resp.body.length}: ${JSON.stringify(txn)}`);
             }
@@ -193,8 +185,6 @@ describe("/v2/reports/transactions/", () => {
                 sellerNet: null,
                 sellerGross: null,
                 sellerDiscount: null,
-                balanceRule: null,
-                redemptionRule: null,
                 metadata: null
             }, ["id", "createdDate", "metadata"], `credit transaction: ${JSON.stringify(credit)}`);
 
@@ -215,8 +205,6 @@ describe("/v2/reports/transactions/", () => {
                 sellerNet: null,
                 sellerGross: null,
                 sellerDiscount: null,
-                balanceRule: null,
-                redemptionRule: null,
                 metadata: null
             }, ["id", "createdDate", "metadata"], `debit transaction: ${JSON.stringify(debit)}`);
         });
@@ -340,8 +328,6 @@ describe("/v2/reports/transactions/", () => {
                 sellerDiscount: null,
                 sellerGross: null,
                 metadata: null,
-                balanceRule: null,
-                redemptionRule: null
             }, ["createdDate", "id", "metadata"], `transferReportResp.body[0]=${JSON.stringify(transferReportResp.body[0], null, 4)}`);
 
 
@@ -383,8 +369,6 @@ describe("/v2/reports/transactions/", () => {
                 sellerDiscount: null,
                 sellerGross: null,
                 metadata: null,
-                balanceRule: null,
-                redemptionRule: null
             }, ["createdDate", "id", "metadata"], `checkoutReportResp.body[0]=${JSON.stringify(checkoutReportResp.body[0], null, 4)}`);
         });
 
@@ -417,8 +401,6 @@ describe("/v2/reports/transactions/", () => {
                 sellerDiscount: null,
                 sellerGross: null,
                 metadata: null,
-                balanceRule: null,
-                redemptionRule: null
             }, ["createdDate", "id", "metadata"], `checkoutReportResp.body=${JSON.stringify(checkoutReportResp.body)}`);
         });
     });

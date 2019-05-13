@@ -5,7 +5,6 @@ import {LineItem} from "./LineItem";
 import {TransactionParty} from "./TransactionRequest";
 import {LightrailDbTransactionStep, TransactionType} from "./Transaction";
 import {TaxRequestProperties} from "./TaxProperties";
-import {getValue} from "../lambdas/rest/values/values";
 
 export interface Transaction {
     id: string;
@@ -63,8 +62,6 @@ export interface TransactionForReports {
     checkout_remainder: number | null;
     transactionAmount: number;
     stepsCount: number;
-    balanceRule: string | null;
-    redemptionRule: string | null;
     sellerNet: number | null;
     sellerGross: number | null;
     sellerDiscount: number | null;
@@ -193,18 +190,10 @@ export namespace DbTransaction {
                 sellerGross: txn.totals_marketplace_sellerGross,
                 sellerDiscount: txn.totals_marketplace_sellerDiscount,
                 stepsCount: steps.length,
-                balanceRule: null,
-                redemptionRule: null,
                 metadata: txn.metadata && txn.metadata.replace(",", ";"), // don't create column breaks
             };
 
             t.transactionAmount = addStepAmounts(txn, steps);
-
-            if (txn.transactionType === "initialBalance") {
-                const value = await getValue(auth, (steps[0] as LightrailDbTransactionStep).valueId);
-                t.balanceRule = value.balanceRule && value.balanceRule.toString().replace(",", ";"); // don't create column breaks
-                t.redemptionRule = value.redemptionRule && value.redemptionRule.toString().replace(",", ";"); // don't create column breaks
-            }
 
             return t;
         }));
