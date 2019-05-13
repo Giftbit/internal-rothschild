@@ -1,14 +1,6 @@
 import * as cassava from "cassava";
 import * as testUtils from "../../utils/testUtils";
-import {
-    createUSDValue,
-    defaultTestUser,
-    generateId,
-    setCodeCryptographySecrets,
-    testAuthedRequest
-} from "../../utils/testUtils";
 import {installRestRoutes} from "./installRestRoutes";
-import {createCurrency} from "./currencies";
 import {Value} from "../../model/Value";
 import {Program} from "../../model/Program";
 import * as chai from "chai";
@@ -16,7 +8,7 @@ import * as chai from "chai";
 describe("/v2/reports/values/", () => {
     const router = new cassava.Router();
     const genericValue: Partial<Value> = {
-        id: generateId(),
+        id: testUtils.generateId(),
         isGenericCode: true,
         genericCodeOptions: {
             perContact: {
@@ -26,45 +18,40 @@ describe("/v2/reports/values/", () => {
         },
         balance: null
     };
-    const contactId = generateId();
+    const contactId = testUtils.generateId();
 
     before(async function () {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-        await setCodeCryptographySecrets();
-        await createCurrency(testUtils.defaultTestUser.auth, {
-            code: "USD",
-            name: "The Big Bucks",
-            symbol: "$",
-            decimalPlaces: 2
-        });
+        await testUtils.setCodeCryptographySecrets();
+        await testUtils.createUSD(router);
 
-        const program1resp = await testAuthedRequest<Program>(router, "/v2/programs", "POST", {
+        const program1resp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
             id: "program1",
             currency: "USD",
             name: "program1"
         });
         chai.assert.equal(program1resp.statusCode, 201, `program1resp.body=${JSON.stringify(program1resp.body)}`);
-        const program2resp = await testAuthedRequest<Program>(router, "/v2/programs", "POST", {
+        const program2resp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
             id: "program2",
             currency: "USD",
             name: "program2"
         });
         chai.assert.equal(program2resp.statusCode, 201, `program2resp.body=${JSON.stringify(program2resp.body)}`);
-        const program3resp = await testAuthedRequest<Program>(router, "/v2/programs", "POST", {
+        const program3resp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
             id: "program3",
             currency: "USD",
             name: "program3"
         });
         chai.assert.equal(program3resp.statusCode, 201, `program1resp.body=${JSON.stringify(program3resp.body)}`);
 
-        await createUSDValue(router, {programId: "program1"});
-        await createUSDValue(router, {programId: "program2"});
-        await createUSDValue(router, {programId: "program2"});
-        await createUSDValue(router, {programId: "program3"});
+        await testUtils.createUSDValue(router, {programId: "program1"});
+        await testUtils.createUSDValue(router, {programId: "program2"});
+        await testUtils.createUSDValue(router, {programId: "program2"});
+        await testUtils.createUSDValue(router, {programId: "program3"});
 
-        await createUSDValue(router, genericValue);
+        await testUtils.createUSDValue(router, genericValue);
         const createContactResp = await testUtils.testAuthedRequest(router, "/v2/contacts", "POST", {id: contactId});
         chai.assert.equal(createContactResp.statusCode, 201, `createContactResp.body=${JSON.stringify(createContactResp.body)}`);
         const attachGenericValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {valueId: genericValue.id});
@@ -103,7 +90,7 @@ describe("/v2/reports/values/", () => {
             startDate: null,
             endDate: null,
             metadata: null,
-            createdBy: defaultTestUser.userId,
+            createdBy: testUtils.defaultTestUser.userId,
             updatedDate: null,
             updatedContactIdDate: null,
         };
@@ -160,7 +147,7 @@ describe("/v2/reports/values/", () => {
             startDate: null,
             endDate: null,
             metadata: null,
-            createdBy: defaultTestUser.userId,
+            createdBy: testUtils.defaultTestUser.userId,
             updatedDate: null,
             updatedContactIdDate: null,
         }, ["id", "createdDate", "updatedDate", "metadata"], `resp1.body=${JSON.stringify(resp1.body)}`);
@@ -198,7 +185,7 @@ describe("/v2/reports/values/", () => {
                 startDate: null,
                 endDate: null,
                 metadata: null,
-                createdBy: defaultTestUser.userId,
+                createdBy: testUtils.defaultTestUser.userId,
                 updatedDate: null,
                 updatedContactIdDate: null,
             }, ["id", "programId", "createdDate", "updatedDate", "metadata"], `resp2and3.body=${JSON.stringify(resp2and3.body)}`);

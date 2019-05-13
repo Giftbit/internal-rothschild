@@ -1,9 +1,7 @@
 import {Transaction, TransactionForReports} from "../../model/Transaction";
 import {installRestRoutes} from "./installRestRoutes";
-import {createCurrency} from "./currencies";
 import * as cassava from "cassava";
 import * as testUtils from "../../utils/testUtils";
-import {createUSD, createUSDCheckout, createUSDValue, generateId, testAuthedRequest} from "../../utils/testUtils";
 import {Program} from "../../model/Program";
 import * as chai from "chai";
 
@@ -16,20 +14,15 @@ describe("/v2/reports/transactions/", () => {
         router.route(testUtils.authRoute);
         installRestRoutes(router);
         await testUtils.setCodeCryptographySecrets();
-        await createCurrency(testUtils.defaultTestUser.auth, {
-            code: "USD",
-            name: "The Big Bucks",
-            symbol: "$",
-            decimalPlaces: 2
-        });
+        await testUtils.createUSD(router);
 
         await testUtils.createUSDCheckout(router, null, false);
         await testUtils.createUSDCheckout(router, null, false);
         await testUtils.createUSDCheckout(router, null, false);
 
-        const value = await createUSDValue(router, {balance: 1000});
-        const creditResp = await testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", {
-            id: generateId(),
+        const value = await testUtils.createUSDValue(router, {balance: 1000});
+        const creditResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", {
+            id: testUtils.generateId(),
             currency: "USD",
             amount: 500,
             destination: {
@@ -38,8 +31,8 @@ describe("/v2/reports/transactions/", () => {
             }
         });
         chai.assert.equal(creditResp.statusCode, 201, `creditResp.body=${JSON.stringify(creditResp.body)}`);
-        const debitResp = await testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
-            id: generateId(),
+        const debitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
+            id: testUtils.generateId(),
             currency: "USD",
             amount: 550,
             source: {
@@ -233,7 +226,7 @@ describe("/v2/reports/transactions/", () => {
         let program2checkout: Transaction;
 
         before(async () => {
-            await createUSD(router);
+            await testUtils.createUSD(router);
             const program1resp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
                 id: "program1",
                 name: "program1",
@@ -249,18 +242,18 @@ describe("/v2/reports/transactions/", () => {
             });
             chai.assert.equal(program2resp.statusCode, 201, `program1resp.body=${JSON.stringify(program2resp.body)}`);
 
-            const value1 = await createUSDValue(router, {balance: 5000, programId: "program1"});
-            const value2 = await createUSDValue(router, {balance: 5000, programId: "program1"});
-            const value3 = await createUSDValue(router, {balance: 5000, programId: "program2"});
+            const value1 = await testUtils.createUSDValue(router, {balance: 5000, programId: "program1"});
+            const value2 = await testUtils.createUSDValue(router, {balance: 5000, programId: "program1"});
+            const value3 = await testUtils.createUSDValue(router, {balance: 5000, programId: "program2"});
 
-            program1checkout = (await createUSDCheckout(router, {
+            program1checkout = (await testUtils.createUSDCheckout(router, {
                 sources: [{
                     rail: "lightrail",
                     valueId: value1.id
                 }]
             }, false)).checkout;
             const program1debitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
-                id: generateId(),
+                id: testUtils.generateId(),
                 amount: 200,
                 currency: "USD",
                 source: {rail: "lightrail", valueId: value2.id}
@@ -268,7 +261,7 @@ describe("/v2/reports/transactions/", () => {
             chai.assert.equal(program1debitResp.statusCode, 201, `debit3.body=${JSON.stringify(program1debitResp.body)}`);
             program1debit = program1debitResp.body;
 
-            program2checkout = (await createUSDCheckout(router, {
+            program2checkout = (await testUtils.createUSDCheckout(router, {
                 sources: [{
                     rail: "lightrail",
                     valueId: value3.id
