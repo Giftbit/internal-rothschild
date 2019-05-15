@@ -833,7 +833,7 @@ describe("/v2/values - generic code with per contact properties", () => {
                 }
             }
         };
-        const create = await testUtils.testAuthedRequest(router, "/v2/values", "POST", genericCode)
+        const create = await testUtils.testAuthedRequest(router, "/v2/values", "POST", genericCode);
         chai.assert.equal(create.statusCode, 422);
     });
 

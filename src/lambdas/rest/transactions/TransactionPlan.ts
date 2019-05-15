@@ -184,7 +184,7 @@ export namespace LightrailTransactionPlanStep {
                     usesRemainingAfter: step.value.usesRemaining != null ? step.value.usesRemaining + (step.uses || 0) : null
                 };
             default:
-                throw new Error(`Unexpected step action received. This should not be possible.`)
+                throw new Error(`Unexpected step action received. This should not be possible.`);
         }
     }
 }

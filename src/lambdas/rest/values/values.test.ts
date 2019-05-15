@@ -1609,12 +1609,11 @@ describe("/v2/values/", () => {
         chai.assert.equal(createGenericCode.statusCode, 201);
 
         const listGenericCodes = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?isGenericCode=true`, "GET");
-        console.log(JSON.stringify(listGenericCodes, null, 4));
         chai.assert.deepInclude(listGenericCodes.body, createGenericCode.body);
         chai.assert.isTrue(listGenericCodes.body.map(v => v.isGenericCode).reduce((prev, next) => prev && next));
 
         const listUniqueValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?isGenericCode=false`, "GET");
         chai.assert.deepInclude(listUniqueValues.body, createValue.body);
-        chai.assert.isFalse(listUniqueValues.body.map(v => v.isGenericCode).reduce((prev, next) => prev && next));
+        chai.assert.isFalse(listUniqueValues.body.map(v => v.isGenericCode).reduce((prev, next) => prev || next));
     });
 });
