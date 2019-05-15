@@ -52,7 +52,7 @@ describe("/v2/values - generic code with per contact properties", () => {
         chai.assert.isNull(create.body.balance);
     });
 
-    it("one of balance, perContact.balance, or balanceRule must be set", async () => {
+    it("perContact.balance or balanceRule must be set if using perContact properties", async () => {
         const genericValue: Partial<Value> = {
             id: generateId(),
             currency: "USD",
@@ -70,7 +70,7 @@ describe("/v2/values - generic code with per contact properties", () => {
 
         const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericValue);
         chai.assert.equal(create.statusCode, 422);
-        chai.assert.equal(create.body.message, "Value must have a balanceRule, a balance, or a genericCodeOptions.perContact.balance.");
+        chai.assert.equal(create.body.message, "If using a generic code with genericCodeOption.perContact properties either genericCodeOptions.perContact.balance or balanceRule must be set.");
     });
 
     it("can't attach generic code with contact usage limits to same contact twice", async () => {

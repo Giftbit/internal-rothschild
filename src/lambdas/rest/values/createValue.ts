@@ -130,8 +130,8 @@ export function checkValueProperties(value: Value, program: Program = null): voi
     if (value.genericCodeOptions && value.genericCodeOptions.perContact.balance != null && value.balanceRule) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have both a genericCodeOptions.perContact.balance and balanceRule.`);
     }
-    if (value.balance == null && value.balanceRule == null && (value.genericCodeOptions && value.genericCodeOptions.perContact.balance == null)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value must have a balanceRule, a balance, or a genericCodeOptions.perContact.balance.`);
+    if (Value.isGenericCodeWithPropertiesPerContact(value) && (value.genericCodeOptions.perContact.balance == null && value.balanceRule == null)) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `If using a generic code with genericCodeOption.perContact properties either genericCodeOptions.perContact.balance or balanceRule must be set.`);
     }
 
     checkRulesSyntax(value, "Value");
