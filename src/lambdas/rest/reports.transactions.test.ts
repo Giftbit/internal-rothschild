@@ -66,9 +66,9 @@ describe("/v2/reports/transactions/", () => {
                 checkout_paidInternal: 0,
                 checkout_remainder: 0,
                 stepsCount: 1,
-                sellerNet: null,
-                sellerGross: null,
-                sellerDiscount: null,
+                marketplace_sellerNet: null,
+                marketplace_sellerGross: null,
+                marketplace_sellerDiscount: null,
                 metadata: null
             }, ["id", "createdDate", "metadata"], `checkout transaction ${index} of ${checkouts.length}: ${JSON.stringify(txn)}`);
         }
@@ -89,9 +89,9 @@ describe("/v2/reports/transactions/", () => {
                 checkout_paidInternal: 0,
                 checkout_remainder: 0,
                 stepsCount: 1,
-                sellerNet: null,
-                sellerGross: null,
-                sellerDiscount: null,
+                marketplace_sellerNet: null,
+                marketplace_sellerGross: null,
+                marketplace_sellerDiscount: null,
                 metadata: null
             }, ["id", "createdDate", "metadata"], `initialBalance transaction ${index} of ${initialBalances.length}: ${JSON.stringify(txn)}`);
         }
@@ -129,9 +129,9 @@ describe("/v2/reports/transactions/", () => {
                     checkout_paidInternal: 0,
                     checkout_remainder: 0,
                     stepsCount: 1,
-                    sellerNet: null,
-                    sellerGross: null,
-                    sellerDiscount: null,
+                    marketplace_sellerNet: null,
+                    marketplace_sellerGross: null,
+                    marketplace_sellerDiscount: null,
                     metadata: null
                 }, ["id", "createdDate", "metadata"], `checkout transaction ${index} of ${resp.body.length}: ${JSON.stringify(txn)}`);
             }
@@ -155,9 +155,9 @@ describe("/v2/reports/transactions/", () => {
                     checkout_paidInternal: 0,
                     checkout_remainder: 0,
                     stepsCount: 1,
-                    sellerNet: null,
-                    sellerGross: null,
-                    sellerDiscount: null,
+                    marketplace_sellerNet: null,
+                    marketplace_sellerGross: null,
+                    marketplace_sellerDiscount: null,
                     metadata: null
                 }, ["id", "createdDate", "metadata"], `initialBalance transaction ${index} of ${resp.body.length}: ${JSON.stringify(txn)}`);
             }
@@ -182,9 +182,9 @@ describe("/v2/reports/transactions/", () => {
                 checkout_paidInternal: 0,
                 checkout_remainder: 0,
                 stepsCount: 1,
-                sellerNet: null,
-                sellerGross: null,
-                sellerDiscount: null,
+                marketplace_sellerNet: null,
+                marketplace_sellerGross: null,
+                marketplace_sellerDiscount: null,
                 metadata: null
             }, ["id", "createdDate", "metadata"], `credit transaction: ${JSON.stringify(credit)}`);
 
@@ -202,9 +202,9 @@ describe("/v2/reports/transactions/", () => {
                 checkout_paidInternal: 0,
                 checkout_remainder: 0,
                 stepsCount: 1,
-                sellerNet: null,
-                sellerGross: null,
-                sellerDiscount: null,
+                marketplace_sellerNet: null,
+                marketplace_sellerGross: null,
+                marketplace_sellerDiscount: null,
                 metadata: null
             }, ["id", "createdDate", "metadata"], `debit transaction: ${JSON.stringify(debit)}`);
         });
@@ -324,9 +324,9 @@ describe("/v2/reports/transactions/", () => {
                 checkout_paidInternal: 0,
                 checkout_remainder: 0,
                 stepsCount: 2,
-                sellerNet: null,
-                sellerDiscount: null,
-                sellerGross: null,
+                marketplace_sellerNet: null,
+                marketplace_sellerDiscount: null,
+                marketplace_sellerGross: null,
                 metadata: null,
             }, ["createdDate", "id", "metadata"], `transferReportResp.body[0]=${JSON.stringify(transferReportResp.body[0], null, 4)}`);
 
@@ -365,9 +365,9 @@ describe("/v2/reports/transactions/", () => {
                 checkout_paidInternal: 0,
                 checkout_remainder: 0,
                 stepsCount: 3,
-                sellerNet: null,
-                sellerDiscount: null,
-                sellerGross: null,
+                marketplace_sellerNet: null,
+                marketplace_sellerDiscount: null,
+                marketplace_sellerGross: null,
                 metadata: null,
             }, ["createdDate", "id", "metadata"], `checkoutReportResp.body[0]=${JSON.stringify(checkoutReportResp.body[0], null, 4)}`);
         });
@@ -397,9 +397,9 @@ describe("/v2/reports/transactions/", () => {
                 checkout_paidInternal: 0,
                 checkout_remainder: 0,
                 stepsCount: 2,
-                sellerNet: null,
-                sellerDiscount: null,
-                sellerGross: null,
+                marketplace_sellerNet: null,
+                marketplace_sellerDiscount: null,
+                marketplace_sellerGross: null,
                 metadata: null,
             }, ["createdDate", "id", "metadata"], `checkoutReportResp.body=${JSON.stringify(checkoutReportResp.body)}`);
         });

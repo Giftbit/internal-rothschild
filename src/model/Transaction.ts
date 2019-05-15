@@ -62,9 +62,9 @@ export interface TransactionForReports {
     checkout_remainder: number | null;
     transactionAmount: number;
     stepsCount: number;
-    sellerNet: number | null;
-    sellerGross: number | null;
-    sellerDiscount: number | null;
+    marketplace_sellerNet: number | null;
+    marketplace_sellerGross: number | null;
+    marketplace_sellerDiscount: number | null;
     metadata: string | null;
 }
 
