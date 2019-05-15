@@ -64,7 +64,7 @@ export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     let value: Value = pickOrDefault(partialValue, {
         id: null,
         currency: program ? program.currency : null,
-        balance: partialValue.balanceRule || (program && program.balanceRule) ? null : 0,
+        balance: partialValue.balanceRule || (program && program.balanceRule) || (Value.isGenericCodeWithPropertiesPerContact(partialValue)) ? null : 0,
         usesRemaining: null,
         programId: program ? program.id : null,
         issuanceId: null,

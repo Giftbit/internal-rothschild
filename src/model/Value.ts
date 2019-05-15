@@ -115,7 +115,7 @@ export namespace Value {
         });
     }
 
-    export function isGenericCodeWithPropertiesPerContact(v: Value): boolean {
+    export function isGenericCodeWithPropertiesPerContact(v: Partial<Value>): boolean {
         return v.isGenericCode != null && v.genericCodeOptions != null && v.genericCodeOptions.perContact != null;
     }
 }

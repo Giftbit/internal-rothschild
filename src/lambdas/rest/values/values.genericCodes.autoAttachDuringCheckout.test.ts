@@ -629,8 +629,52 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             chai.assert.equal(checkout.statusCode, 201);
             chai.assert.equal(checkout.body.steps.length, 1);
             chai.assert.equal((checkout.body.steps[0] as LightrailTransactionStep).contactId, contactId, "Expected to be auto attached to first contact in list.")
-
         });
+    });
+
+    it("doesn't auto attach expired generic code", async () => {
+        const contactId = generateId();
+        const createContact = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contactId});
+        chai.assert.equal(createContact.statusCode, 201);
+
+        const expiredGenericCode: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            isGenericCode: true,
+            code: generateFullcode(),
+            genericCodeOptions: {
+                perContact: {
+                    usesRemaining: 3,
+                    balance: 500
+                }
+            },
+            usesRemaining: null,
+            balance: null,
+            endDate: new Date("2011-01-01")
+        };
+        const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", expiredGenericCode);
+        chai.assert.equal(create.statusCode, 201);
+
+        // auto attach
+        const checkoutRequest: CheckoutRequest = {
+            id: generateId(),
+            currency: "USD",
+            sources: [
+                {rail: "lightrail", code: expiredGenericCode.code},
+                {rail: "lightrail", contactId: contactId},
+            ],
+            lineItems: [
+                {unitPrice: 500}
+            ],
+            allowRemainder: true
+        };
+        const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        chai.assert.equal(checkout.statusCode, 201);
+        chai.assert.equal(checkout.body.steps.length, 0);
+
+        // check for attach transactions.
+        const attachTx = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${expiredGenericCode.id}&transactionType=attach`, "GET");
+        chai.assert.equal(attachTx.body.length, 0);
     });
 
     describe("doesn't auto attach legacy generic code", () => {

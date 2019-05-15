@@ -31,26 +31,6 @@ describe("/v2/values - generic code with per contact properties", () => {
         });
     });
 
-    it("balance will default to 0 as it does with non generic Values", async () => {
-        const genericValue: Partial<Value> = {
-            id: generateId(),
-            currency: "USD",
-            isGenericCode: true,
-            code: generateFullcode(),
-            genericCodeOptions: {
-                perContact: {
-                    balance: null,
-                    usesRemaining: 2
-                }
-            }
-        };
-
-        const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
-        chai.assert.equal(create.statusCode, 201);
-        chai.assert.deepInclude(create.body, genericValue);
-        chai.assert.equal(create.body.balance, 0);
-    });
-
     it("balance can be set to null if perContact.balance is set", async () => {
         const genericValue: Partial<Value> = {
             id: generateId(),
@@ -119,7 +99,6 @@ describe("/v2/values - generic code with per contact properties", () => {
         chai.assert.equal(createContact.statusCode, 201);
 
         const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {code: genericValue.code});
-        console.log(JSON.stringify(attach, null, 4));
         chai.assert.equal(attach.statusCode, 200);
         chai.assert.deepEqualExcluding(attach.body,
             {
@@ -871,7 +850,7 @@ describe("/v2/values - generic code with per contact properties", () => {
         chai.assert.equal(create.statusCode, 422);
     });
 
-    describe.only("program tests", () => {
+    describe("program tests", () => {
         const contactId = generateId();
 
         before(async function () {
@@ -882,7 +861,7 @@ describe("/v2/values - generic code with per contact properties", () => {
         it("program balance range tests", async () => {
             const program: Partial<Program> = {
                 id: generateId(),
-                name: "name " + generateId(5),
+                name: generateId(10),
                 currency: "USD",
                 minInitialBalance: 5,
                 maxInitialBalance: 10
@@ -893,31 +872,134 @@ describe("/v2/values - generic code with per contact properties", () => {
             const genericCode: Partial<Value> = {
                 id: generateId(),
                 currency: "USD",
-                isGenericCode: false,
+                isGenericCode: true,
                 genericCodeOptions: {
-                    perContact: null
+                    perContact: {
+                        balance: null,
+                        usesRemaining: null
+                    }
+                },
+                programId: program.id
+            };
+
+            genericCode.genericCodeOptions.perContact.balance = null;
+            let createGenericCode = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(createGenericCode.statusCode, 409, `expected to fail since it is null`);
+            chai.assert.include(createGenericCode.body.message, "is less than minInitialBalance 5");
+
+            genericCode.genericCodeOptions.perContact.balance = 1;
+            createGenericCode = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(createGenericCode.statusCode, 409, `expected to fail since it is below allowed range`);
+            chai.assert.include(createGenericCode.body.message, "is less than minInitialBalance 5");
+
+            genericCode.genericCodeOptions.perContact.balance = 11;
+            createGenericCode = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(createGenericCode.statusCode, 409, `expected to fail since it is above allowed range`);
+            chai.assert.include(createGenericCode.body.message, "is greater than maxInitialBalance 10");
+
+            genericCode.genericCodeOptions.perContact.balance = 7;
+            createGenericCode = await testUtils.testAuthedRequest(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(createGenericCode.statusCode, 201, `expected to succeed since it is within allowed range`);
+
+            const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {
+                valueId: genericCode.id
+            });
+            chai.assert.equal(attach.statusCode, 200);
+        });
+
+        it("program fixedInitialBalance tests", async () => {
+            const program: Partial<Program> = {
+                id: generateId(),
+                name: generateId(10),
+                currency: "USD",
+                fixedInitialBalances: [5]
+            };
+            const createProgram = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
+            chai.assert.equal(createProgram.statusCode, 201);
+
+            const genericCode: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                isGenericCode: true,
+                genericCodeOptions: {
+                    perContact: {
+                        balance: null,
+                        usesRemaining: null
+                    }
+                },
+                programId: program.id
+            };
+
+            genericCode.genericCodeOptions.perContact.balance = null;
+            let createGenericCode = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(createGenericCode.statusCode, 409, `expected to fail since it is null`);
+            chai.assert.include(createGenericCode.body.message, "is outside fixedInitialBalances defined by Program");
+
+            genericCode.genericCodeOptions.perContact.balance = 4;
+            createGenericCode = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(createGenericCode.statusCode, 409, `expected to fail since it is below allowed range`);
+            chai.assert.include(createGenericCode.body.message, "is outside fixedInitialBalances defined by Program");
+
+            genericCode.genericCodeOptions.perContact.balance = 6;
+            createGenericCode = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(createGenericCode.statusCode, 409, `expected to fail since it is above allowed range`);
+            chai.assert.include(createGenericCode.body.message, "is outside fixedInitialBalances defined by Program");
+
+            genericCode.genericCodeOptions.perContact.balance = 5;
+            createGenericCode = await testUtils.testAuthedRequest(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(createGenericCode.statusCode, 201, `expected to succeed since it is within allowed range`);
+
+            const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {
+                valueId: genericCode.id
+            });
+            chai.assert.equal(attach.statusCode, 200);
+        });
+
+        it("program fixedInitialUsesRemaining tests", async () => {
+            const program: Partial<Program> = {
+                id: generateId(),
+                name: generateId(10),
+                currency: "USD",
+                fixedInitialUsesRemaining: [5],
+                balanceRule: {
+                    rule: "value.balanceChange + 500",
+                    explanation: "5$ off"
                 }
             };
-            let createGenericCode = await testUtils.testAuthedRequest(router, "/v2/values", "POST", genericCode);
-            chai.assert.equal(createGenericCode.body, 422);
+            const createProgram = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
+            chai.assert.equal(createProgram.statusCode, 201);
 
-            createGenericCode = await testUtils.testAuthedRequest(router, "/v2/values", "POST", {
-                ...genericCode,
-                genericCodeOptions: {perContact: {balance: 1}}
-            });
-            chai.assert.equal(createGenericCode.body, 422);
+            const genericCode: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                isGenericCode: true,
+                genericCodeOptions: {
+                    perContact: {
+                        balance: null,
+                        usesRemaining: null
+                    }
+                },
+                programId: program.id
+            };
 
-            createGenericCode = await testUtils.testAuthedRequest(router, "/v2/values", "POST", {
-                ...genericCode,
-                genericCodeOptions: {perContact: {balance: 11}}
-            });
-            chai.assert.equal(createGenericCode.body, 422);
+            genericCode.genericCodeOptions.perContact.usesRemaining = null;
+            let createGenericCode = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(createGenericCode.statusCode, 409, `expected to fail since it is null`);
+            chai.assert.include(createGenericCode.body.message, "outside fixedInitialUsesRemaining defined by Program");
 
-            createGenericCode = await testUtils.testAuthedRequest(router, "/v2/values", "POST", {
-                ...genericCode,
-                genericCodeOptions: {perContact: {balance: 7}}
-            });
-            chai.assert.equal(createGenericCode.body, 201);
+            genericCode.genericCodeOptions.perContact.usesRemaining = 4;
+            createGenericCode = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(createGenericCode.statusCode, 409, `expected to fail since it is below allowed range`);
+            chai.assert.include(createGenericCode.body.message, "outside fixedInitialUsesRemaining defined by Program");
+
+            genericCode.genericCodeOptions.perContact.usesRemaining = 6;
+            createGenericCode = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(createGenericCode.statusCode, 409, `expected to fail since it is above allowed range`);
+            chai.assert.include(createGenericCode.body.message, "outside fixedInitialUsesRemaining defined by Program");
+
+            genericCode.genericCodeOptions.perContact.usesRemaining = 5;
+            createGenericCode = await testUtils.testAuthedRequest(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(createGenericCode.statusCode, 201, `expected to succeed since it is within allowed range`);
 
             const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {
                 valueId: genericCode.id
