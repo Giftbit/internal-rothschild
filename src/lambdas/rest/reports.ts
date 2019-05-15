@@ -5,7 +5,13 @@ import {Pagination, PaginationParams} from "../../model/Pagination";
 import {getKnexRead} from "../../utils/dbUtils/connection";
 import {filterQuery} from "../../utils/dbUtils/filterQuery";
 import {filterAndPaginateQuery} from "../../utils/dbUtils";
-import {DbTransaction} from "../../model/Transaction";
+import {
+    DbTransaction,
+    InternalTransactionStep,
+    LightrailTransactionStep,
+    StripeTransactionStep,
+    Transaction
+} from "../../model/Transaction";
 import {getValues} from "./values/values";
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -101,8 +107,27 @@ async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.Authorizatio
         }
     }, pagination);
 
+    const transactions = await DbTransaction.toTransactions(res.body, auth.userId);
+
     return {
-        transactions: await DbTransaction.formatForReports(res.body, auth),
+        transactions: transactions.map(txn => ({
+            id: txn.id,
+            createdDate: txn.createdDate,
+            transactionType: txn.transactionType,
+            transactionAmount: addStepAmounts(txn),
+            checkout_subtotal: txn.totals && txn.totals.subtotal || 0,
+            checkout_tax: txn.totals && txn.totals.tax || 0,
+            checkout_discountLightrail: txn.totals && txn.totals.discountLightrail || 0,
+            checkout_paidLightrail: txn.totals && txn.totals.paidLightrail || 0,
+            checkout_paidStripe: txn.totals && txn.totals.paidStripe || 0,
+            checkout_paidInternal: txn.totals && txn.totals.paidInternal || 0,
+            checkout_remainder: txn.totals && txn.totals.remainder || 0,
+            sellerNet: txn.totals && txn.totals.marketplace && txn.totals.marketplace.sellerNet || null,
+            sellerGross: txn.totals && txn.totals.marketplace && txn.totals.marketplace.sellerGross || null,
+            sellerDiscount: txn.totals && txn.totals.marketplace && txn.totals.marketplace.sellerDiscount || null,
+            stepsCount: txn.steps.length,
+            metadata: txn.metadata && JSON.stringify(txn.metadata).replace(",", ";"), // don't create column breaks
+        })),
         pagination: res.pagination
     };
 }
@@ -116,4 +141,27 @@ function isRequestedLimitAcceptable(queryStringParams: { [key: string]: string }
 function isResponseSizeAcceptable(queryStringParams: { [key: string]: string }, queryResult: any[]): boolean {
     const requestedLimit = queryStringParams["limit"] && Number(queryStringParams["limit"]) || null;
     return !(queryResult.length >= reportRowLimit && (!requestedLimit || (requestedLimit && requestedLimit > reportRowLimit)));
+}
+
+function addStepAmounts(txn: Transaction): number {
+    if (txn.transactionType === "transfer") {
+        return getStepAmount(txn.steps.find(s => getStepAmount(s) > 0));
+    } else {
+        const amounts = txn.steps.map(step => getStepAmount(step));
+        return amounts.reduce((acc, amount) => {
+            return acc + amount;
+        }, 0);
+    }
+}
+
+function getStepAmount(step: LightrailTransactionStep | StripeTransactionStep | InternalTransactionStep): number {
+    if ((step as LightrailTransactionStep).balanceChange !== undefined) {
+        return (step as LightrailTransactionStep).balanceChange;
+    } else if ((step as StripeTransactionStep).amount !== undefined) {
+        return (step as StripeTransactionStep).amount;
+    } else if ((step as InternalTransactionStep).balanceChange !== undefined) {
+        return (step as InternalTransactionStep).balanceChange;
+    } else {
+        return 0;
+    }
 }
