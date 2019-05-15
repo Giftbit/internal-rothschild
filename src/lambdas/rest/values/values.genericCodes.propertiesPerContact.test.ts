@@ -92,7 +92,7 @@ describe("/v2/values - generic code with per contact properties", () => {
 
         const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericValue);
         chai.assert.equal(create.statusCode, 422);
-        chai.assert.equal(create.body.message, "Value can't have both a genericCodeOptions.perContact.balance and balanceRule");
+        chai.assert.equal(create.body.message, "Value can't have both a genericCodeOptions.perContact.balance and balanceRule.");
     });
 
     it("perContact.balance or balanceRule must be set if using perContact properties", async () => {
