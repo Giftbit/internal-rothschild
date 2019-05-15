@@ -31,6 +31,26 @@ describe("/v2/values - generic code with per contact properties", () => {
         });
     });
 
+    it("balance defaults to null if perContact.balance is set", async () => {
+        const genericValue: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            isGenericCode: true,
+            code: generateFullcode(),
+            genericCodeOptions: {
+                perContact: {
+                    balance: 500,
+                    usesRemaining: 2
+                }
+            }
+        };
+
+        const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
+        chai.assert.equal(create.statusCode, 201);
+        chai.assert.deepInclude(create.body, genericValue);
+        chai.assert.isNull(create.body.balance);
+    });
+
     it("balance can be set to null if perContact.balance is set", async () => {
         const genericValue: Partial<Value> = {
             id: generateId(),
@@ -50,6 +70,29 @@ describe("/v2/values - generic code with per contact properties", () => {
         chai.assert.equal(create.statusCode, 201);
         chai.assert.deepInclude(create.body, genericValue);
         chai.assert.isNull(create.body.balance);
+    });
+
+    it("can't set balanceRule and perContact.balance", async () => {
+        const genericValue: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            isGenericCode: true,
+            code: generateFullcode(),
+            genericCodeOptions: {
+                perContact: {
+                    balance: 500,
+                    usesRemaining: 2
+                }
+            },
+            balanceRule: {
+                rule: "500",
+                explanation: "$5 off each item!"
+            },
+        };
+
+        const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericValue);
+        chai.assert.equal(create.statusCode, 422);
+        chai.assert.equal(create.body.message, "Value can't have both a genericCodeOptions.perContact.balance and balanceRule");
     });
 
     it("perContact.balance or balanceRule must be set if using perContact properties", async () => {
