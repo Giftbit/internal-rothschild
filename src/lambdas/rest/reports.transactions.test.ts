@@ -98,15 +98,21 @@ describe("/v2/reports/transactions/", () => {
     }).timeout(8000);
 
     describe("row limiting", () => {
-        it("limits rows, <10000", async () => {
-            const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/reports/transactions?limit=1", "GET");
+        it("accepts a limit less than <10000 with errorOnLimit=false", async () => {
+            const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/reports/transactions?limit=1&errorOnLimit=false", "GET");
             chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
             chai.assert.equal(resp.body.length, 1, `resp.body=${JSON.stringify(resp.body)}`);
         });
 
-        it("errors when requested limit is too high", async () => {
-            const resp = await testUtils.testAuthedRequest<TransactionForReports>(router, "/v2/reports/transactions?limit=123456", "GET"); // not testAuthedCsvRequest() because an error is expected which comes back as json
+        it("accepts a limit less than <10000 with errorOnLimit=true", async () => {
+            const resp = await testUtils.testAuthedRequest<TransactionForReports>(router, "/v2/reports/transactions?limit=1&errorOnLimit=true", "GET");
             chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
+        });
+
+        it("'errorOnLimit' defaults to false", async () => {
+            const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/reports/transactions?limit=1", "GET");
+            chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
+            chai.assert.equal(resp.body.length, 1, `resp.body=${JSON.stringify(resp.body)}`);
         });
     });
 
@@ -370,7 +376,7 @@ describe("/v2/reports/transactions/", () => {
                 marketplace_sellerGross: null,
                 metadata: null,
             }, ["createdDate", "id", "metadata"], `checkoutReportResp.body[0]=${JSON.stringify(checkoutReportResp.body[0], null, 4)}`);
-        });
+        }).timeout(12000);
 
         it("handles Stripe steps", async function () {
             if (!testStripeLive()) {

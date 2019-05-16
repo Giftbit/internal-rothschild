@@ -26,18 +26,15 @@ export function installReportsRest(router: cassava.Router): void {
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:transactions:list");
 
-            if (!isRequestedLimitAcceptable(evt.queryStringParameters)) {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested report row limit is too high. Please specify a limit of ${reportRowLimit} or less.`);
+            const paginationParams = getPaginationParams(evt, {maxLimit: reportRowLimit});
+            const res = await getTransactionsForReport(auth, evt.queryStringParameters, paginationParams);
+            if (!isResponseSizeAcceptable(res.transactions.length, evt.queryStringParameters, paginationParams)) {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Report query returned too many rows (rows=${res.transactions.length}, limit=${paginationParams.limit}, maxLimit=${reportRowLimit}). Please refine your request and try again.`);
             } else {
-                const res = await getTransactionsForReport(auth, evt.queryStringParameters, getPaginationParams(evt, {maxLimit: reportRowLimit}));
-                if (!isResponseSizeAcceptable(evt.queryStringParameters, res.transactions)) {
-                    throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Report query returned too many rows (maximum: ${reportRowLimit}). Please refine your request and try again.`);
-                } else {
-                    return {
-                        headers: Pagination.toHeaders(evt, res.pagination),
-                        body: res.transactions
-                    };
-                }
+                return {
+                    headers: Pagination.toHeaders(evt, res.pagination),
+                    body: res.transactions
+                };
             }
         });
 
@@ -49,19 +46,15 @@ export function installReportsRest(router: cassava.Router): void {
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:values:list");
 
-            if (!isRequestedLimitAcceptable(evt.queryStringParameters)) {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested report row limit is too high. Please specify a limit of ${reportRowLimit} or less.`);
+            const paginationParams = Pagination.getPaginationParams(evt, {maxLimit: reportRowLimit});
+            const res = await getValues(auth, evt.queryStringParameters, paginationParams);
+            if (!isResponseSizeAcceptable(res.values.length, evt.queryStringParameters, paginationParams)) {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Report query returned too many rows (rows=${res.values.length}, limit=${paginationParams.limit}, maxLimit=${reportRowLimit}). Please refine your request and try again.`);
             } else {
-                const res = await getValues(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt, {maxLimit: reportRowLimit}));
-                if (!isResponseSizeAcceptable(evt.queryStringParameters, res.values)) {
-                    throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Report query returned too many rows (maximum: ${reportRowLimit}). Please refine your request and try again.`);
-
-                } else {
-                    return {
-                        headers: Pagination.toHeaders(evt, res.pagination),
-                        body: res.values
-                    };
-                }
+                return {
+                    headers: Pagination.toHeaders(evt, res.pagination),
+                    body: res.values
+                };
             }
 
         });
@@ -132,15 +125,8 @@ async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.Authorizatio
     };
 }
 
-function isRequestedLimitAcceptable(queryStringParams: { [key: string]: string }): boolean {
-    const requestedLimit = queryStringParams["limit"] && Number(queryStringParams["limit"]) || null;
-    return !(requestedLimit && requestedLimit > reportRowLimit);
-}
-
-// response size is fine if it's less than the maximum, or if they requested exactly the maximum and got it
-function isResponseSizeAcceptable(queryStringParams: { [key: string]: string }, queryResult: any[]): boolean {
-    const requestedLimit = queryStringParams["limit"] && Number(queryStringParams["limit"]) || null;
-    return !(queryResult.length >= reportRowLimit && (!requestedLimit || (requestedLimit && requestedLimit > reportRowLimit)));
+function isResponseSizeAcceptable(responseLength: number, queryStringParams: { [key: string]: string }, paginationParams: PaginationParams): boolean {
+    return !(responseLength === reportRowLimit || (queryStringParams["errorOnLimit"] === "true" && responseLength === paginationParams.limit));
 }
 
 function addStepAmounts(txn: Transaction): number {

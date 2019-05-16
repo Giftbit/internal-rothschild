@@ -194,4 +194,31 @@ describe("/v2/reports/values/", () => {
             chai.assert.isNotNull(value.metadata, `value in csv (index: ${index}) = ${JSON.stringify(value)}`);
         }
     });
+
+    describe("row limiting", () => {
+        before(async function () {
+            await testUtils.resetDb();
+            await testUtils.createUSD(router);
+            await testUtils.createUSDValue(router);
+            await testUtils.createUSDValue(router);
+            await testUtils.createUSDValue(router);
+        });
+
+        it("accepts a limit less than <10000 with errorOnLimit=false", async () => {
+            const resp = await testUtils.testAuthedCsvRequest<Value[]>(router, "/v2/reports/values?limit=1&errorOnLimit=false", "GET");
+            chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
+            chai.assert.equal(resp.body.length, 1, `resp.body=${JSON.stringify(resp.body)}`);
+        });
+
+        it("accepts a limit less than <10000 with errorOnLimit=true", async () => {
+            const resp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/reports/values?limit=1&errorOnLimit=true", "GET");
+            chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
+        });
+
+        it("'errorOnLimit' defaults to false", async () => {
+            const resp = await testUtils.testAuthedCsvRequest<Value[]>(router, "/v2/reports/values?limit=1", "GET");
+            chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
+            chai.assert.equal(resp.body.length, 1, `resp.body=${JSON.stringify(resp.body)}`);
+        });
+    });
 });
