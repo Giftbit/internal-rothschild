@@ -1616,4 +1616,19 @@ describe("/v2/values/", () => {
         chai.assert.deepInclude(listUniqueValues.body, createValue.body);
         chai.assert.isFalse(listUniqueValues.body.map(v => v.isGenericCode).reduce((prev, next) => prev || next));
     });
+
+    it.only("code is shortened to codeLastFour on both returned Value and LightrailTransactionStep", async () => {
+        const value = {
+            id: generateId(),
+            currency: "USD",
+            generateCode: {},
+            balance: 10
+        };
+
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        console.log(JSON.stringify(createValue, null, 4));
+
+        const getTransaction = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${value.id}`, "GET");
+        console.log(JSON.stringify(getTransaction, null, 4))
+    });
 });
