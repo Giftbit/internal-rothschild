@@ -43,7 +43,7 @@ describe("/v2/values/", () => {
             generateCode: {},
             balance: 10
         };
-        const fullcode = 'QWERASDFZXCV';
+        const fullcode = "QWERASDFZXCV";
 
         it("create value", async () => {
             const knex = await getKnexRead();
