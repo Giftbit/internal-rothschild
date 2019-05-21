@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as testUtils from "../../../../utils/testUtils";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../../utils/testUtils";
-import {Value} from "../../../../model/Value";
+import {formatCodeForLastFourDisplay, Value} from "../../../../model/Value";
 import {LightrailTransactionStep, Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import {getKnexRead} from "../../../../utils/dbUtils/connection";
@@ -716,7 +716,7 @@ describe("/v2/transactions/checkout - basics", () => {
                             "rail": "lightrail",
                             "valueId": genericValue.id,
                             "contactId": contact.id,
-                            "code": genericValue.code,
+                            "code": formatCodeForLastFourDisplay(genericValue.code),
                             "balanceBefore": null,
                             "balanceAfter": null,
                             "balanceChange": -75,
@@ -779,7 +779,7 @@ describe("/v2/transactions/checkout - basics", () => {
                     "rail": "lightrail",
                     "valueId": genericValue.id,
                     "contactId": null,
-                    "code": genericValue.code,
+                    "code": formatCodeForLastFourDisplay(genericValue.code),
                     "balanceBefore": null,
                     "balanceAfter": null,
                     "balanceChange": -75,
@@ -819,7 +819,7 @@ describe("/v2/transactions/checkout - basics", () => {
                     "rail": "lightrail",
                     "valueId": genericValue.id,
                     "contactId": null,
-                    "code": genericValue.code,
+                    "code": formatCodeForLastFourDisplay(genericValue.code),
                     "balanceBefore": null,
                     "balanceAfter": null,
                     "balanceChange": -75,

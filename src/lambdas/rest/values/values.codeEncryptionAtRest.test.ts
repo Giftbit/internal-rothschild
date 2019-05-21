@@ -43,15 +43,16 @@ describe("/v2/values/", () => {
             generateCode: {},
             balance: 10
         };
-        const generateCodeStub = sinonSandbox.stub(codeGenerator, "generateCode");
-        generateCodeStub.returns("ThisIsTheCode");
+        const fullcode = 'QWERASDFZXCV';
 
         it("create value", async () => {
             const knex = await getKnexRead();
+            const generateCodeStub = sinonSandbox.stub(codeGenerator, "generateCode");
+            generateCodeStub.returns(fullcode);
 
             const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
-            chai.assert.equal(createValue.body.code, "…Code");
-            chai.assert.notInclude(JSON.stringify(createValue.body), "ThisIsTheCode");
+            chai.assert.equal(createValue.body.code, "…ZXCV");
+            chai.assert.notInclude(JSON.stringify(createValue.body), fullcode);
             let valueQuery = knex("Values")
                 .select("*")
                 .where({
@@ -59,16 +60,18 @@ describe("/v2/values/", () => {
                     "id": value.id
                 });
             const dbValuesRes: DbValue[] = await valueQuery;
-            chai.assert.equal(dbValuesRes[0].codeLastFour, "Code");
-            chai.assert.notInclude(JSON.stringify(dbValuesRes), "ThisIsTheCode");
+            chai.assert.equal(dbValuesRes[0].codeLastFour, "ZXCV");
+            chai.assert.notInclude(JSON.stringify(dbValuesRes), fullcode);
+            generateCodeStub.restore();
         });
+
 
         it("initialBalance transaction", async () => {
             const knex = await getKnexRead();
 
             const getTransaction = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${value.id}`, "GET");
-            chai.assert.equal((getTransaction.body[0].steps[0] as LightrailTransactionStep).code, "…Code");
-            chai.assert.notInclude(JSON.stringify(getTransaction.body), "ThisIsTheCode");
+            chai.assert.equal((getTransaction.body[0].steps[0] as LightrailTransactionStep).code, "…ZXCV");
+            chai.assert.notInclude(JSON.stringify(getTransaction.body), fullcode);
             let transactionQuery = knex("Transactions")
                 .select("*")
                 .where({
@@ -76,7 +79,7 @@ describe("/v2/values/", () => {
                     "id": value.id
                 });
             const dbTrx: DbTransaction[] = await transactionQuery;
-            chai.assert.notInclude(JSON.stringify(dbTrx), "ThisIsTheCode");
+            chai.assert.notInclude(JSON.stringify(dbTrx), fullcode);
 
             let stepQuery = knex("LightrailTransactionSteps")
                 .select("*")
@@ -85,8 +88,8 @@ describe("/v2/values/", () => {
                     "transactionId": value.id
                 });
             const dbStep: LightrailTransactionStep[] = await stepQuery;
-            chai.assert.equal(dbStep[0].code, "…Code");
-            chai.assert.notInclude(JSON.stringify(dbStep), "ThisIsTheCode");
+            chai.assert.equal(dbStep[0].code, "…ZXCV");
+            chai.assert.notInclude(JSON.stringify(dbStep), fullcode);
         });
 
         it("checkout transaction", async () => {
@@ -98,7 +101,7 @@ describe("/v2/values/", () => {
                 sources: [
                     {
                         rail: "lightrail",
-                        code: "ThisIsTheCode"
+                        code: fullcode
                     }
                 ],
                 lineItems: [
@@ -108,9 +111,9 @@ describe("/v2/values/", () => {
                 ]
             };
             const createCheckout = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/checkout`, "POST", checkout);
-            chai.assert.equal((createCheckout.body.paymentSources[0] as LightrailTransactionParty).code, "…Code");
-            chai.assert.equal((createCheckout.body.steps[0] as LightrailTransactionStep).code, "…Code");
-            chai.assert.notInclude(JSON.stringify(createCheckout), "ThisIsTheCode");
+            chai.assert.equal((createCheckout.body.paymentSources[0] as LightrailTransactionParty).code, "…ZXCV");
+            chai.assert.equal((createCheckout.body.steps[0] as LightrailTransactionStep).code, "…ZXCV");
+            chai.assert.notInclude(JSON.stringify(createCheckout), fullcode);
 
             let transactionQuery = knex("Transactions")
                 .select("*")
@@ -119,7 +122,7 @@ describe("/v2/values/", () => {
                     "id": checkout.id
                 });
             const dbTrx: DbTransaction[] = await transactionQuery;
-            chai.assert.notInclude(JSON.stringify(dbTrx), "ThisIsTheCode");
+            chai.assert.notInclude(JSON.stringify(dbTrx), fullcode);
 
             let stepQuery = knex("LightrailTransactionSteps")
                 .select("*")
@@ -128,8 +131,8 @@ describe("/v2/values/", () => {
                     "transactionId": checkout.id
                 });
             const dbStep: LightrailTransactionStep[] = await stepQuery;
-            chai.assert.equal(dbStep[0].code, "…Code");
-            chai.assert.notInclude(JSON.stringify(dbStep), "ThisIsTheCode");
+            chai.assert.equal(dbStep[0].code, "…ZXCV");
+            chai.assert.notInclude(JSON.stringify(dbStep), fullcode);
         });
     });
 });

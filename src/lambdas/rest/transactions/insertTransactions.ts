@@ -7,7 +7,7 @@ import {
     TransactionPlan
 } from "./TransactionPlan";
 import {TransactionPlanError} from "./TransactionPlanError";
-import {DbValue, formatCodeForLastFourDisplay, Value} from "../../../model/Value";
+import {DbValue, Value} from "../../../model/Value";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {executeStripeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
 import {LightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/StripeConfig";
@@ -113,9 +113,6 @@ export async function insertValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         throw err;
     }
 
-    if (value.code) {
-        value.code = formatCodeForLastFourDisplay(value.code); // or here
-    }
     return dbValue;
 }
 

@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as testUtils from "../../../utils/testUtils/index";
 import {generateFullcode, generateId, setCodeCryptographySecrets} from "../../../utils/testUtils/index";
-import {Value} from "../../../model/Value";
+import {formatCodeForLastFourDisplay, Value} from "../../../model/Value";
 import {installRestRoutes} from "../installRestRoutes";
 import {createCurrency} from "../currencies";
 import {Contact} from "../../../model/Contact";
@@ -254,7 +254,7 @@ describe("/v2/values - generic code with per contact properties", () => {
                         "rail": "lightrail",
                         "valueId": genericValue.id,
                         "contactId": null,
-                        "code": genericValue.code,
+                        "code": formatCodeForLastFourDisplay(genericValue.code),
                         "balanceBefore": 500,
                         "balanceAfter": 0,
                         "balanceChange": -500,
@@ -386,7 +386,7 @@ describe("/v2/values - generic code with per contact properties", () => {
                         "rail": "lightrail",
                         "valueId": genericValue.id,
                         "contactId": null,
-                        "code": genericValue.code,
+                        "code": formatCodeForLastFourDisplay(genericValue.code),
                         "balanceBefore": null,
                         "balanceAfter": null,
                         "balanceChange": null,
@@ -545,7 +545,7 @@ describe("/v2/values - generic code with per contact properties", () => {
                             "rail": "lightrail",
                             "valueId": genericValue.id,
                             "contactId": null,
-                            "code": genericValue.code,
+                            "code": formatCodeForLastFourDisplay(genericValue.code),
                             "balanceBefore": null,
                             "balanceAfter": null,
                             "balanceChange": null,
