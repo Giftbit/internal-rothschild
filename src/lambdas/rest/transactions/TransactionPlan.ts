@@ -159,7 +159,7 @@ export namespace LightrailTransactionPlanStep {
         let sharedProperties = {
             valueId: step.value.id,
             contactId: step.value.contactId,
-            code: step.value.code ? formatCodeForLastFourDisplay(step.value.code) : null, // here
+            code: step.value.code ? formatCodeForLastFourDisplay(step.value.code) : null,
         };
 
         switch (step.action) {

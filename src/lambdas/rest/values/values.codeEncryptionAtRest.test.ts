@@ -65,7 +65,6 @@ describe("/v2/values/", () => {
             generateCodeStub.restore();
         });
 
-
         it("initialBalance transaction", async () => {
             const knex = await getKnexRead();
 
