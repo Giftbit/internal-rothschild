@@ -398,7 +398,7 @@ describe("/v2/transactions/checkout - mixed sources", () => {
                 rail: "lightrail",
                 valueId: valueGenericCode.id,
                 contactId: null,
-                code: valueGenericCode.code,
+                code: formatCodeForLastFourDisplay(valueGenericCode.code),
                 balanceBefore: 2000,
                 balanceAfter: 0,
                 balanceChange: -2000,

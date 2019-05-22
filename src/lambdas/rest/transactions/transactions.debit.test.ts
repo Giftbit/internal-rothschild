@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as testUtils from "../../../utils/testUtils";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../utils/testUtils";
-import {Value} from "../../../model/Value";
+import {formatCodeForLastFourDisplay, Value} from "../../../model/Value";
 import {Transaction} from "../../../model/Transaction";
 import * as currencies from "../currencies";
 import {installRestRoutes} from "../installRestRoutes";
@@ -220,7 +220,7 @@ describe("/v2/transactions/debit", () => {
                 {
                     rail: "lightrail",
                     valueId: valueWithGenericCode.id,
-                    code: valueWithGenericCode.code,
+                    code: formatCodeForLastFourDisplay(valueWithGenericCode.code),
                     contactId: null,
                     balanceBefore: 1000,
                     balanceAfter: 999,
