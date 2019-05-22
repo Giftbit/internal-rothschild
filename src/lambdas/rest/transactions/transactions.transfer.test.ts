@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as testUtils from "../../../utils/testUtils";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../utils/testUtils";
-import {Value} from "../../../model/Value";
+import {formatCodeForLastFourDisplay, Value} from "../../../model/Value";
 import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../model/Transaction";
 import {Currency} from "../../../model/Currency";
 import {installRestRoutes} from "../installRestRoutes";
@@ -439,7 +439,7 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.deepEqual(sourceStep, {
             rail: "lightrail",
             valueId: valueGenericCode.id,
-            code: valueGenericCode.code,
+            code: formatCodeForLastFourDisplay(valueGenericCode.code),
             contactId: null,
             balanceBefore: 100,
             balanceAfter: 0,
@@ -547,7 +547,7 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.deepEqual(destStep, {
             rail: "lightrail",
             valueId: valueGenericCode.id,
-            code: valueGenericCode.code,
+            code: formatCodeForLastFourDisplay(valueGenericCode.code),
             contactId: null,
             balanceBefore: 100,
             balanceAfter: 200,
