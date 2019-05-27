@@ -13,7 +13,7 @@ export interface Value {
     code: string | null;
     isGenericCode: boolean | null;
     genericCodeOptions?: GenericCodeOptions | undefined;
-    attachedFromValueId: string | undefined;
+    attachedFromValueId: string | null;
     contactId: string | null;
     pretax: boolean;
     active: boolean;
@@ -115,7 +115,7 @@ export namespace Value {
         });
     }
 
-    export function isGenericCodeWithPropertiesPerContact(v: Value): boolean {
+    export function isGenericCodeWithPropertiesPerContact(v: Partial<Value>): boolean {
         return v.isGenericCode != null && v.genericCodeOptions != null && v.genericCodeOptions.perContact != null;
     }
 }

@@ -339,7 +339,7 @@ describe("/v2/contacts/values", () => {
 
             const detach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/detach`, "POST", {valueId: value.id});
             chai.assert.equal(detach.statusCode, 200, `body=${JSON.stringify(detach.body)}`);
-            chai.assert.deepEqualExcluding(detach.body, createValue.body, ["updatedContactIdDate"]);
+            chai.assert.deepEqualExcluding(detach.body, createValue.body, ["updatedContactIdDate", "updatedDate"]);
 
             const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
             chai.assert.equal(getValue.statusCode, 200);
@@ -474,12 +474,20 @@ export async function setupAttachedContactValueScenario(router: cassava.Router, 
         genVal1_attachGenericAsNewValue: {
             id: generateId(5) + "-GEN1",
             currency: currency.code,
-            isGenericCode: true
+            isGenericCode: true,
+            balanceRule: {
+                rule: "500 + value.balanceChange",
+                explanation: "$5 off"
+            }
         },
         genVal2_sharedGenericValue: {
             id: generateId(5) + "-GEN2",
             currency: currency.code,
-            isGenericCode: true
+            isGenericCode: true,
+            balanceRule: {
+                rule: "500 + value.balanceChange",
+                explanation: "$5 off"
+            }
         },
         genVal3_perContactProperties: {
             id: generateId(5) + "-GEN3",
@@ -490,6 +498,10 @@ export async function setupAttachedContactValueScenario(router: cassava.Router, 
                     balance: null,
                     usesRemaining: 1
                 }
+            },
+            balanceRule: {
+                rule: "500 + value.balanceChange",
+                explanation: "$5 off"
             }
         }
     };
