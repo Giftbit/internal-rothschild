@@ -4,7 +4,7 @@ export namespace MapUtils {
      * Example usage:
      * const obj = {
      *   prop1: "abc",
-     *   nested: {prop2: "c}
+     *   nested: {prop2: "c"}
      * }
      *
      * get(obj, "nested.prop2")
@@ -25,7 +25,7 @@ export namespace MapUtils {
      * Example usage:
      * const obj = {
      *   prop1: "abc",
-     *   nested: {prop2: "c}
+     *   nested: {prop2: "c"}
      * }
      *
      * set(obj, "nested.prop2", "d")
