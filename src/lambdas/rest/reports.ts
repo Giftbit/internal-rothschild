@@ -13,6 +13,7 @@ import {
     Transaction
 } from "../../model/Transaction";
 import {getValues} from "./values/values";
+import {formatCurrencyForDisplay} from "./currencies";
 import getPaginationParams = Pagination.getPaginationParams;
 
 const reportRowLimit = 10000;
@@ -31,10 +32,30 @@ export function installReportsRest(router: cassava.Router): void {
             if (!isResponseSizeAcceptable(res.transactions.length, evt.queryStringParameters, paginationParams)) {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Report query returned too many rows (rows=${res.transactions.length}, limit=${paginationParams.limit}, maxLimit=${reportRowLimit}). Please refine your request and try again.`);
             } else {
-                return {
-                    headers: Pagination.toHeaders(evt, res.pagination),
-                    body: res.transactions
-                };
+
+                if (evt.queryStringParameters.formatCurrencies === "true") {
+                    return {
+                        headers: Pagination.toHeaders(evt, res.pagination),
+                        body: await formatCurrencyForDisplay(auth, res.transactions, [
+                            "transactionAmount",
+                            "checkout_subtotal",
+                            "checkout_tax",
+                            "checkout_discountLightrail",
+                            "checkout_paidLightrail",
+                            "checkout_paidStripe",
+                            "checkout_paidInternal",
+                            "checkout_remainder",
+                            "marketplace_sellerNet",
+                            "marketplace_sellerGross",
+                            "marketplace_sellerDiscount",
+                        ])
+                    };
+                } else {
+                    return {
+                        headers: Pagination.toHeaders(evt, res.pagination),
+                        body: res.transactions
+                    };
+                }
             }
         });
 
@@ -51,16 +72,27 @@ export function installReportsRest(router: cassava.Router): void {
             if (!isResponseSizeAcceptable(res.values.length, evt.queryStringParameters, paginationParams)) {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Report query returned too many rows (rows=${res.values.length}, limit=${paginationParams.limit}, maxLimit=${reportRowLimit}). Please refine your request and try again.`);
             } else {
-                return {
-                    headers: Pagination.toHeaders(evt, res.pagination),
-                    body: res.values
-                };
+
+                if (evt.queryStringParameters.formatCurrencies === "true") {
+                    return {
+                        headers: Pagination.toHeaders(evt, res.pagination),
+                        body: await formatCurrencyForDisplay(auth, res.values, [
+                            "balance",
+                            "genericCodeOptions.perContact.balance"
+                        ])
+                    };
+                } else {
+                    return {
+                        headers: Pagination.toHeaders(evt, res.pagination),
+                        body: res.values
+                    };
+                }
             }
 
         });
 }
 
-async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams) {
+async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ transactions: TransactionForReport[], pagination: Pagination }> {
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
@@ -107,6 +139,7 @@ async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.Authorizatio
             id: txn.id,
             createdDate: txn.createdDate,
             transactionType: txn.transactionType,
+            currency: txn.currency,
             transactionAmount: addStepAmounts(txn),
             checkout_subtotal: txn.totals && txn.totals.subtotal || 0,
             checkout_tax: txn.totals && txn.totals.tax || 0,
@@ -120,7 +153,7 @@ async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.Authorizatio
             marketplace_sellerDiscount: txn.totals && txn.totals.marketplace && txn.totals.marketplace.sellerDiscount || null,
             stepsCount: txn.steps.length,
             metadata: txn.metadata && JSON.stringify(txn.metadata).replace(",", ";"), // don't create column breaks
-        })),
+        }) as TransactionForReport),
         pagination: res.pagination
     };
 }
@@ -150,4 +183,24 @@ function getStepAmount(step: LightrailTransactionStep | StripeTransactionStep | 
     } else {
         return 0;
     }
+}
+
+export interface TransactionForReport {
+    id: string;
+    createdDate: Date;
+    transactionType: string;
+    currency: string;
+    transactionAmount: number | string;
+    checkout_subtotal: number | string;
+    checkout_tax: number | string;
+    checkout_discountLightrail: number | string;
+    checkout_paidLightrail: number | string;
+    checkout_paidStripe: number | string;
+    checkout_paidInternal: number | string;
+    checkout_remainder: number | string;
+    marketplace_sellerNet: number | string | null;
+    marketplace_sellerGross: number | string | null;
+    marketplace_sellerDiscount: number | string | null;
+    stepsCount: number;
+    metadata: string | null;
 }

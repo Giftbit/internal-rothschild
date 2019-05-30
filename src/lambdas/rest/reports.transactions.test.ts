@@ -1,4 +1,4 @@
-import {Transaction, TransactionForReports} from "../../model/Transaction";
+import {Transaction} from "../../model/Transaction";
 import {installRestRoutes} from "./installRestRoutes";
 import * as cassava from "cassava";
 import * as testUtils from "../../utils/testUtils";
@@ -6,11 +6,13 @@ import {Program} from "../../model/Program";
 import * as chai from "chai";
 import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
+import {TransactionForReport} from "./reports";
 
 
 describe("/v2/reports/transactions/", () => {
     const router = new cassava.Router();
 
+    let initialBalanceId: string;
     before(async function () {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
@@ -23,6 +25,7 @@ describe("/v2/reports/transactions/", () => {
         await testUtils.createUSDCheckout(router, null, false);
 
         const value = await testUtils.createUSDValue(router, {balance: 1000});
+        initialBalanceId = value.id;
         const creditResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", {
             id: testUtils.generateId(),
             currency: "USD",
@@ -46,7 +49,7 @@ describe("/v2/reports/transactions/", () => {
     });
 
     it("can download a csv of Transactions", async () => {
-        const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/reports/transactions", "GET");
+        const resp = await testUtils.testAuthedCsvRequest<TransactionForReport>(router, "/v2/reports/transactions", "GET");
         chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.length, 9, `transactions in resp.body=${resp.body.map(txn => txn.transactionType)}`);
 
@@ -57,6 +60,7 @@ describe("/v2/reports/transactions/", () => {
                 id: "",
                 createdDate: null,
                 transactionType: "checkout",
+                currency: "USD",
                 transactionAmount: -1000,
                 checkout_subtotal: 1000,
                 checkout_tax: 0,
@@ -80,6 +84,7 @@ describe("/v2/reports/transactions/", () => {
                 id: "",
                 createdDate: null,
                 transactionType: "initialBalance",
+                currency: "USD",
                 transactionAmount: 1000,
                 checkout_subtotal: 0,
                 checkout_tax: 0,
@@ -99,18 +104,18 @@ describe("/v2/reports/transactions/", () => {
 
     describe("row limiting", () => {
         it("accepts a limit less than <10000 with errorOnLimit=false", async () => {
-            const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/reports/transactions?limit=1&errorOnLimit=false", "GET");
+            const resp = await testUtils.testAuthedCsvRequest<TransactionForReport>(router, "/v2/reports/transactions?limit=1&errorOnLimit=false", "GET");
             chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
             chai.assert.equal(resp.body.length, 1, `resp.body=${JSON.stringify(resp.body)}`);
         });
 
         it("accepts a limit less than <10000 with errorOnLimit=true", async () => {
-            const resp = await testUtils.testAuthedRequest<TransactionForReports>(router, "/v2/reports/transactions?limit=1&errorOnLimit=true", "GET");
+            const resp = await testUtils.testAuthedRequest<TransactionForReport>(router, "/v2/reports/transactions?limit=1&errorOnLimit=true", "GET");
             chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
         });
 
         it("'errorOnLimit' defaults to false", async () => {
-            const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/reports/transactions?limit=1", "GET");
+            const resp = await testUtils.testAuthedCsvRequest<TransactionForReport>(router, "/v2/reports/transactions?limit=1", "GET");
             chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
             chai.assert.equal(resp.body.length, 1, `resp.body=${JSON.stringify(resp.body)}`);
         });
@@ -118,7 +123,7 @@ describe("/v2/reports/transactions/", () => {
 
     describe("filtering by transactionType", () => {
         it("can download a csv of checkout Transactions", async () => {
-            const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/reports/transactions?transactionType=checkout", "GET");
+            const resp = await testUtils.testAuthedCsvRequest<TransactionForReport>(router, "/v2/reports/transactions?transactionType=checkout", "GET");
             chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
             chai.assert.equal(resp.body.length, 3, `transactions in resp.body=${resp.body.map(txn => txn.transactionType)}`);
             for (const [index, txn] of resp.body.entries()) {
@@ -126,6 +131,7 @@ describe("/v2/reports/transactions/", () => {
                     id: "",
                     createdDate: null,
                     transactionType: "checkout",
+                    currency: "USD",
                     transactionAmount: -1000,
                     checkout_subtotal: 1000,
                     checkout_tax: 0,
@@ -144,7 +150,7 @@ describe("/v2/reports/transactions/", () => {
         });
 
         it("can download a csv of initialBalance Transactions", async () => {
-            const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/reports/transactions?transactionType=initialBalance", "GET");
+            const resp = await testUtils.testAuthedCsvRequest<TransactionForReport>(router, "/v2/reports/transactions?transactionType=initialBalance", "GET");
             chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
             chai.assert.equal(resp.body.length, 4, `transactions in resp.body=${resp.body.map(txn => txn.transactionType)}`);
             for (const [index, txn] of resp.body.entries()) {
@@ -152,6 +158,7 @@ describe("/v2/reports/transactions/", () => {
                     id: "",
                     createdDate: null,
                     transactionType: "initialBalance",
+                    currency: "USD",
                     transactionAmount: 1000,
                     checkout_subtotal: 0,
                     checkout_tax: 0,
@@ -170,7 +177,7 @@ describe("/v2/reports/transactions/", () => {
         });
 
         it("can download a csv of credit and debit Transactions (two types)", async () => {
-            const resp = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, "/v2/reports/transactions?transactionType.in=credit,debit", "GET");
+            const resp = await testUtils.testAuthedCsvRequest<TransactionForReport>(router, "/v2/reports/transactions?transactionType.in=credit,debit", "GET");
             chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
             chai.assert.equal(resp.body.length, 2, `transactions in resp.body=${resp.body.map(txn => txn.transactionType)}`);
 
@@ -179,6 +186,7 @@ describe("/v2/reports/transactions/", () => {
                 id: "",
                 createdDate: null,
                 transactionType: "credit",
+                currency: "USD",
                 transactionAmount: 500,
                 checkout_subtotal: 0,
                 checkout_tax: 0,
@@ -199,6 +207,7 @@ describe("/v2/reports/transactions/", () => {
                 id: "",
                 createdDate: null,
                 transactionType: "debit",
+                currency: "USD",
                 transactionAmount: -550,
                 checkout_subtotal: 0,
                 checkout_tax: 0,
@@ -266,7 +275,7 @@ describe("/v2/reports/transactions/", () => {
         });
 
         it("Transactions by programId={id}", async () => {
-            const program1report = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, `/v2/reports/transactions?programId=program1`, "GET");
+            const program1report = await testUtils.testAuthedCsvRequest<TransactionForReport>(router, `/v2/reports/transactions?programId=program1`, "GET");
             chai.assert.equal(program1report.statusCode, 200, `program1report.body=${JSON.stringify(program1report.body)}`);
             chai.assert.equal(program1report.body.length, 4, `transaction types in program1report.body: ${program1report.body.map(txn => txn.transactionType)}`);
             chai.assert.equal(program1report.body.find(txn => txn.transactionType === "checkout").id, program1checkout.id, `program1report.body=${JSON.stringify(program1report.body)}`);
@@ -275,7 +284,7 @@ describe("/v2/reports/transactions/", () => {
         });
 
         it("Transactions by programId.eq={id}", async () => {
-            const program2report = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, `/v2/reports/transactions?programId.eq=program2`, "GET");
+            const program2report = await testUtils.testAuthedCsvRequest<TransactionForReport>(router, `/v2/reports/transactions?programId.eq=program2`, "GET");
             chai.assert.equal(program2report.statusCode, 200, `program2report.body=${JSON.stringify(program2report.body)}`);
             chai.assert.equal(program2report.body.length, 2, `transaction types in program2report.body: ${program2report.body.map(txn => txn.transactionType)}`);
             chai.assert.equal(program2report.body.find(txn => txn.transactionType === "checkout").id, program2checkout.id, `program2report.body=${JSON.stringify(program2report.body)}`);
@@ -283,7 +292,7 @@ describe("/v2/reports/transactions/", () => {
         });
 
         it("Transactions by programId.in={id,id}", async () => {
-            const bothProgramsReport = await testUtils.testAuthedCsvRequest<TransactionForReports>(router, `/v2/reports/transactions?programId.in=program1,program2`, "GET");
+            const bothProgramsReport = await testUtils.testAuthedCsvRequest<TransactionForReport>(router, `/v2/reports/transactions?programId.in=program1,program2`, "GET");
             chai.assert.equal(bothProgramsReport.statusCode, 200, `bothProgramsReport.body=${JSON.stringify(bothProgramsReport.body)}`);
             chai.assert.equal(bothProgramsReport.body.length, 6, `transaction types in bothProgramsReport.body: ${bothProgramsReport.body.map(txn => txn.transactionType)}`);
         });
@@ -315,11 +324,12 @@ describe("/v2/reports/transactions/", () => {
             });
             chai.assert.equal(transferResp.statusCode, 201, `transferResp.body=${JSON.stringify(transferResp.body)}`);
 
-            const transferReportResp = await testUtils.testAuthedCsvRequest<TransactionForReports[]>(router, "/v2/reports/transactions?transactionType=transfer", "GET");
+            const transferReportResp = await testUtils.testAuthedCsvRequest<TransactionForReport[]>(router, "/v2/reports/transactions?transactionType=transfer", "GET");
             chai.assert.equal(transferReportResp.statusCode, 200, `transferReportResp.body=${JSON.stringify(transferReportResp.body)}`);
             chai.assert.deepEqualExcluding(transferReportResp.body[0], {
                 id: "",
                 transactionType: "transfer",
+                currency: "USD",
                 createdDate: null,
                 transactionAmount: 1,
                 checkout_subtotal: 0,
@@ -356,11 +366,12 @@ describe("/v2/reports/transactions/", () => {
                 ]
             }, false);
 
-            const checkoutReportResp = await testUtils.testAuthedCsvRequest<TransactionForReports[]>(router, "/v2/reports/transactions?transactionType=checkout", "GET");
+            const checkoutReportResp = await testUtils.testAuthedCsvRequest<TransactionForReport[]>(router, "/v2/reports/transactions?transactionType=checkout", "GET");
             chai.assert.equal(checkoutReportResp.statusCode, 200, `checkoutReportResp.body=${JSON.stringify(checkoutReportResp.body)}`);
             chai.assert.deepEqualExcluding(checkoutReportResp.body[0], {
                 id: "",
                 transactionType: "checkout",
+                currency: "USD",
                 createdDate: null,
                 transactionAmount: -150,
                 checkout_subtotal: 150,
@@ -388,11 +399,12 @@ describe("/v2/reports/transactions/", () => {
             setStubsForStripeTests();
 
             await testUtils.createUSDCheckout(router, null, true);
-            const checkoutReportResp = await testUtils.testAuthedCsvRequest<TransactionForReports[]>(router, "/v2/reports/transactions?transactionType=checkout", "GET");
+            const checkoutReportResp = await testUtils.testAuthedCsvRequest<TransactionForReport[]>(router, "/v2/reports/transactions?transactionType=checkout", "GET");
             chai.assert.equal(checkoutReportResp.statusCode, 200, `checkoutReportResp.body=${JSON.stringify(checkoutReportResp.body)}`);
             chai.assert.deepEqualExcluding(checkoutReportResp.body[0], {
                 id: "",
                 transactionType: "checkout",
+                currency: "USD",
                 createdDate: null,
                 transactionAmount: -1000,
                 checkout_subtotal: 1000,
@@ -409,5 +421,28 @@ describe("/v2/reports/transactions/", () => {
                 metadata: null,
             }, ["createdDate", "id", "metadata"], `checkoutReportResp.body=${JSON.stringify(checkoutReportResp.body)}`);
         });
+    });
+
+    it("can format currencies", async () => {
+        const resp = await testUtils.testAuthedCsvRequest<TransactionForReport>(router, "/v2/reports/transactions?transactionType=initialBalance&formatCurrencies=true", "GET");
+        chai.assert.deepEqualExcluding(resp.body.find(tx => tx.id === initialBalanceId), {
+            id: "",
+            createdDate: null,
+            transactionType: "initialBalance",
+            currency: "USD",
+            transactionAmount: "$10.00",
+            checkout_subtotal: "$0.00",
+            checkout_tax: "$0.00",
+            checkout_discountLightrail: "$0.00",
+            checkout_paidLightrail: "$0.00",
+            checkout_paidStripe: "$0.00",
+            checkout_paidInternal: "$0.00",
+            checkout_remainder: "$0.00",
+            stepsCount: 1,
+            marketplace_sellerNet: null,
+            marketplace_sellerGross: null,
+            marketplace_sellerDiscount: null,
+            metadata: null
+        }, ["id", "createdDate", "metadata"]);
     });
 });
