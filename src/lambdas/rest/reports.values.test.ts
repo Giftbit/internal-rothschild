@@ -212,7 +212,6 @@ describe("/v2/reports/values/", () => {
         chai.assert.equal(createValue.statusCode, 201);
 
         const resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/reports/values?id=${genericValue.id}&formatCurrencies=true`, "GET");
-        console.log(JSON.stringify(resp, null, 4))
         chai.assert.deepInclude(resp.body[0], {
             balance: "$1.50",
             genericCodeOptions: "{\"perContact\":{\"balance\":\"$0.50\",\"usesRemaining\":3}}"
