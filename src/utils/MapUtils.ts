@@ -9,7 +9,7 @@ export namespace MapUtils {
      *
      * get(obj, "nested.prop2")
      */
-    export function get(obj: any, path: string): any {
+    export function get(obj: object, path: string): any {
         let current = obj;
         const paths = path.split('.');
         while (paths.length) {
@@ -30,12 +30,14 @@ export namespace MapUtils {
      *
      * set(obj, "nested.prop2", "d")
      */
-    export function set(obj: any, path: string, value: any): void {
-        let current = obj;  // a moving reference to internal objects within obj
+    export function set(obj: object, path: string, value: any): object {
+        let objClone = {...obj}; // avoids mutating obj
+        let current = objClone;  // a moving reference to internal objects within obj
         const paths = path.split('.');
         while (paths.length > 1) {
             current = current[paths.shift()] || {};
         }
         current[paths[0] /* paths is a single element array at this point */] = value;
+        return objClone;
     }
 }

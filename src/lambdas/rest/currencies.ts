@@ -206,11 +206,11 @@ export async function formatCurrencyForDisplay(auth: giftbitRoutes.jwtauth.Autho
             retrievedCurrencies[currency] = await getCurrency(auth, currency);
         }
 
-        const objectClone = {...object};
+        let objectClone = {...object};
         for (const path of objectPaths) {
             let valueAtPath = MapUtils.get(object, path);
             if (valueAtPath != null) {
-                MapUtils.set(objectClone, path, formatAmountForCurrencyDisplay(valueAtPath, retrievedCurrencies[currency]));
+                objectClone = MapUtils.set(objectClone, path, formatAmountForCurrencyDisplay(valueAtPath, retrievedCurrencies[currency]));
             }
         }
         results.push(objectClone);
