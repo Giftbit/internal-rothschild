@@ -1,5 +1,14 @@
 export namespace MapUtils {
 
+    /**
+     * Example usage:
+     * const obj = {
+     *   prop1: "abc",
+     *   nested: {prop2: "c}
+     * }
+     *
+     * get(obj, "nested.prop2")
+     */
     export function get(obj: any, path: string): any {
         let current = obj;
         const paths = path.split('.');
@@ -12,6 +21,15 @@ export namespace MapUtils {
         return current;
     }
 
+    /**
+     * Example usage:
+     * const obj = {
+     *   prop1: "abc",
+     *   nested: {prop2: "c}
+     * }
+     *
+     * set(obj, "nested.prop2", "d")
+     */
     export function set(obj: any, path: string, value: any): void {
         let current = obj;  // a moving reference to internal objects within obj
         const paths = path.split('.');
