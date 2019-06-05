@@ -1,5 +1,7 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {pick} from "../utils/pick";
+import {mapUtils} from "../utils/mapUtils";
+import {getCurrency} from "../lambdas/rest/currencies";
 
 export interface Currency {
     code: string;
@@ -46,4 +48,36 @@ export namespace DbCurrency {
 export function formatAmountForCurrencyDisplay(amountInSmallestUnits: number, c: Currency) {
     const converted = amountInSmallestUnits / (Math.pow(10, c.decimalPlaces));
     return c.symbol + converted.toFixed(c.decimalPlaces);
+}
+
+/**
+ * params:
+ * - objects:
+ *   - must be an object that has a 'currency' property.
+ * - pathsToAmountProperties
+ *   - paths to object properties that contain an amount that should be formatted for currency display.
+ *   - nested properties can be accessed by adding a '.' within the property path string. ie "nestedProp.amountInCents"
+ */
+export async function formatObjectsForCurrencyDisplay(auth: giftbitRoutes.jwtauth.AuthorizationBadge, objects: any[], pathsToAmountProperties: string[]): Promise<any[]> {
+    const retrievedCurrencies: { [key: string]: Currency } = {};
+    const results: any[] = [];
+    for (const object of objects) {
+        const currency: string = mapUtils.get(object, "currency");
+        if (!currency) {
+            throw new Error("Invalid usage. All objects passed in must have a currency defined by the currencyPath")
+        }
+        if (!retrievedCurrencies[currency]) {
+            retrievedCurrencies[currency] = await getCurrency(auth, currency);
+        }
+
+        let objectClone = JSON.parse(JSON.stringify(object));
+        for (const path of pathsToAmountProperties) {
+            let valueAtPath = mapUtils.get(object, path);
+            if (valueAtPath != null) {
+                objectClone = mapUtils.set(objectClone, path, formatAmountForCurrencyDisplay(valueAtPath, retrievedCurrencies[currency]));
+            }
+        }
+        results.push(objectClone);
+    }
+    return results;
 }

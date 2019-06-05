@@ -19,8 +19,8 @@ import {getProgram} from "../programs";
 import {Program} from "../../../model/Program";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
 import {getTransactions} from "../transactions/transactions";
-import {Currency, formatAmountForCurrencyDisplay} from "../../../model/Currency";
-import {formatCurrencyForDisplay, getCurrency} from "../currencies";
+import {Currency, formatAmountForCurrencyDisplay, formatObjectsForCurrencyDisplay} from "../../../model/Currency";
+import {getCurrency} from "../currencies";
 import {checkCodeParameters, checkValueProperties, createValue} from "./createValue";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
@@ -48,7 +48,7 @@ export function installValuesRest(router: cassava.Router): void {
             if (evt.queryStringParameters.formatCurrencies === "true") {
                 return {
                     headers: Pagination.toHeaders(evt, res.pagination),
-                    body: await formatCurrencyForDisplay(auth, res.values, [
+                    body: await formatObjectsForCurrencyDisplay(auth, res.values, [
                         "balance",
                         "genericCodeOptions.perContact.balance"
                     ])

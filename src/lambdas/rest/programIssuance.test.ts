@@ -16,7 +16,7 @@ import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe("/v2/issuances", () => {
+describe.only("/v2/issuances", () => {
 
     const router = new cassava.Router();
     const sinonSandbox = sinon.createSandbox();
