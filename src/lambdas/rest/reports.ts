@@ -14,6 +14,7 @@ import {
 } from "../../model/Transaction";
 import {getValues} from "./values/values";
 import {formatCurrencyForDisplay} from "./currencies";
+import {ReportTransaction} from "./transactions/ReportTransaction";
 import getPaginationParams = Pagination.getPaginationParams;
 
 const reportRowLimit = 10000;
@@ -92,7 +93,7 @@ export function installReportsRest(router: cassava.Router): void {
         });
 }
 
-async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ transactions: TransactionForReport[], pagination: Pagination }> {
+async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ transactions: ReportTransaction[], pagination: Pagination }> {
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
@@ -153,7 +154,7 @@ async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.Authorizatio
             marketplace_sellerDiscount: txn.totals && txn.totals.marketplace && txn.totals.marketplace.sellerDiscount || null,
             stepsCount: txn.steps.length,
             metadata: txn.metadata && JSON.stringify(txn.metadata).replace(",", ";"), // don't create column breaks
-        }) as TransactionForReport),
+        }) as ReportTransaction),
         pagination: res.pagination
     };
 }
@@ -183,24 +184,4 @@ function getStepAmount(step: LightrailTransactionStep | StripeTransactionStep | 
     } else {
         return 0;
     }
-}
-
-export interface TransactionForReport {
-    id: string;
-    createdDate: Date;
-    transactionType: string;
-    currency: string;
-    transactionAmount: number | string;
-    checkout_subtotal: number | string;
-    checkout_tax: number | string;
-    checkout_discountLightrail: number | string;
-    checkout_paidLightrail: number | string;
-    checkout_paidStripe: number | string;
-    checkout_paidInternal: number | string;
-    checkout_remainder: number | string;
-    marketplace_sellerNet: number | string | null;
-    marketplace_sellerGross: number | string | null;
-    marketplace_sellerDiscount: number | string | null;
-    stepsCount: number;
-    metadata: string | null;
 }

@@ -5,7 +5,7 @@ import {Currency, DbCurrency, formatAmountForCurrencyDisplay} from "../../model/
 import {pick} from "../../utils/pick";
 import {csvSerializer} from "../../serializers";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
-import {MapUtils} from "../../utils/mapUtils";
+import {mapUtils} from "../../utils/mapUtils";
 
 export function installCurrenciesRest(router: cassava.Router): void {
     router.route("/v2/currencies")
@@ -198,7 +198,7 @@ export async function formatCurrencyForDisplay(auth: giftbitRoutes.jwtauth.Autho
     const retrievedCurrencies: { [key: string]: Currency } = {};
     const results: any[] = [];
     for (const object of objects) {
-        const currency: string = MapUtils.get(object, currencyPath);
+        const currency: string = mapUtils.get(object, currencyPath);
         if (!currency) {
             throw new Error("Invalid usage. All objects passed in must have a currency defined by the currencyPath")
         }
@@ -206,11 +206,11 @@ export async function formatCurrencyForDisplay(auth: giftbitRoutes.jwtauth.Autho
             retrievedCurrencies[currency] = await getCurrency(auth, currency);
         }
 
-        let objectClone = {...object};
+        let objectClone = JSON.parse(JSON.stringify(object));
         for (const path of objectPaths) {
-            let valueAtPath = MapUtils.get(object, path);
+            let valueAtPath = mapUtils.get(object, path);
             if (valueAtPath != null) {
-                objectClone = MapUtils.set(objectClone, path, formatAmountForCurrencyDisplay(valueAtPath, retrievedCurrencies[currency]));
+                objectClone = mapUtils.set(objectClone, path, formatAmountForCurrencyDisplay(valueAtPath, retrievedCurrencies[currency]));
             }
         }
         results.push(objectClone);

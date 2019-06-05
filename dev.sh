@@ -5,7 +5,7 @@
 
 # The name of your CloudFormation stack.  Two developers can share a stack by
 # sharing this value, or have their own with different values.
-STACK_NAME="dev-Rothschild"
+STACK_NAME="production-Rothschild"
 
 # The name of an S3 bucket on your account to hold deployment artifacts.
 BUILD_ARTIFACT_BUCKET="dev-lightrailrothschild-deploymentartifactbucket-16sqvi4mh78ei"
