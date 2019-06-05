@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as testUtils from "../../utils/testUtils";
 import {generateId} from "../../utils/testUtils";
-import {Currency, formatObjectsForCurrencyDisplay} from "../../model/Currency";
+import {Currency, formatObjectsAmountPropertiesForCurrencyDisplay} from "../../model/Currency";
 import {Value} from "../../model/Value";
 import {installRestRoutes} from "./installRestRoutes";
 import {DebitRequest} from "../../model/TransactionRequest";
@@ -239,7 +239,7 @@ describe("/v2/currencies", () => {
         });
         chai.assert.equal(twoDecimalCurrency.statusCode, 201, `body=${JSON.stringify(twoDecimalCurrency.body)}`);
 
-        const res = await formatObjectsForCurrencyDisplay(testUtils.defaultTestUser.auth, [{
+        const res = await formatObjectsAmountPropertiesForCurrencyDisplay(testUtils.defaultTestUser.auth, [{
             currency: "ONE",
             level: 1,
             nested: {

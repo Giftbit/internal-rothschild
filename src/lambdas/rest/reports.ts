@@ -14,7 +14,7 @@ import {
 } from "../../model/Transaction";
 import {getValues} from "./values/values";
 import {ReportTransaction} from "./transactions/ReportTransaction";
-import {formatObjectsForCurrencyDisplay} from "../../model/Currency";
+import {formatObjectsAmountPropertiesForCurrencyDisplay} from "../../model/Currency";
 import getPaginationParams = Pagination.getPaginationParams;
 
 const reportRowLimit = 10000;
@@ -37,7 +37,7 @@ export function installReportsRest(router: cassava.Router): void {
                 if (evt.queryStringParameters.formatCurrencies === "true") {
                     return {
                         headers: Pagination.toHeaders(evt, res.pagination),
-                        body: await formatObjectsForCurrencyDisplay(auth, res.transactions, [
+                        body: await formatObjectsAmountPropertiesForCurrencyDisplay(auth, res.transactions, [
                             "transactionAmount",
                             "checkout_subtotal",
                             "checkout_tax",
@@ -77,7 +77,7 @@ export function installReportsRest(router: cassava.Router): void {
                 if (evt.queryStringParameters.formatCurrencies === "true") {
                     return {
                         headers: Pagination.toHeaders(evt, res.pagination),
-                        body: await formatObjectsForCurrencyDisplay(auth, res.values, [
+                        body: await formatObjectsAmountPropertiesForCurrencyDisplay(auth, res.values, [
                             "balance",
                             "genericCodeOptions.perContact.balance"
                         ])

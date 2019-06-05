@@ -58,7 +58,7 @@ export function formatAmountForCurrencyDisplay(amountInSmallestUnits: number, c:
  *   - paths to object properties that contain an amount that should be formatted for currency display.
  *   - nested properties can be accessed by adding a '.' within the property path string. ie "nestedProp.amountInCents"
  */
-export async function formatObjectsForCurrencyDisplay(auth: giftbitRoutes.jwtauth.AuthorizationBadge, objects: any[], pathsToAmountProperties: string[]): Promise<any[]> {
+export async function formatObjectsAmountPropertiesForCurrencyDisplay(auth: giftbitRoutes.jwtauth.AuthorizationBadge, objects: any[], pathsToAmountProperties: string[]): Promise<any[]> {
     const retrievedCurrencies: { [key: string]: Currency } = {};
     const results: any[] = [];
     for (const object of objects) {
