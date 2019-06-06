@@ -85,7 +85,7 @@ function stripeTransactionPlanStepToStripeChargeRequest(auth: giftbitRoutes.jwta
     if (step.additionalStripeParams) {
         // Only copy these keys on to the charge request.  We don't want to accidentally
         // expose some kind of attack vector.
-        const paramKeys: (keyof AdditionalStripeChargeParams)[] = Object.keys(transactionPartySchema.stripePartySchema.properties.additionalStripeParams.properties) as (keyof AdditionalStripeChargeParams)[];
+        const paramKeys: (keyof AdditionalStripeChargeParams)[] = Object.keys(transactionPartySchema.stripe.properties.additionalStripeParams.properties) as (keyof AdditionalStripeChargeParams)[];
         for (const key of paramKeys) {
             if (step.additionalStripeParams[key]) {
                 stripeChargeParams[key] = step.additionalStripeParams[key];

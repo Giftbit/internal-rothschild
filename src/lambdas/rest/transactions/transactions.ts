@@ -449,7 +449,7 @@ const creditSchema: jsonschema.Schema = {
             maxLength: 64,
             pattern: "^[ -~]*$"
         },
-        destination: transactionPartySchema.lightrailUniquePartySchema,
+        destination: transactionPartySchema.lightrailUnique,
         amount: {
             type: "integer",
             minimum: 1
@@ -494,7 +494,7 @@ const debitSchema: jsonschema.Schema = {
             maxLength: 64,
             pattern: "^[ -~]*$"
         },
-        source: transactionPartySchema.lightrailUniquePartySchema,
+        source: transactionPartySchema.lightrailUnique,
         amount: {
             type: "integer",
             minimum: 1
@@ -548,11 +548,11 @@ const transferSchema: jsonschema.Schema = {
         },
         source: {
             oneOf: [
-                transactionPartySchema.lightrailPartySchema,
-                transactionPartySchema.stripePartySchema
+                transactionPartySchema.lightrail,
+                transactionPartySchema.stripe
             ]
         },
-        destination: transactionPartySchema.lightrailUniquePartySchema,
+        destination: transactionPartySchema.lightrailUnique,
         amount: {
             type: "integer",
             minimum: 1
@@ -629,9 +629,9 @@ const checkoutSchema: jsonschema.Schema = {
             type: "array",
             items: {
                 oneOf: [
-                    transactionPartySchema.lightrailPartySchema,
-                    transactionPartySchema.stripePartySchema,
-                    transactionPartySchema.internalPartySchema
+                    transactionPartySchema.lightrail,
+                    transactionPartySchema.stripe,
+                    transactionPartySchema.internal
                 ]
             }
         },

@@ -107,7 +107,7 @@ export interface InternalTransactionParty {
 }
 
 export namespace transactionPartySchema {
-    export const lightrailPartySchema: jsonschema.Schema = {
+    export const lightrail: jsonschema.Schema = {
         title: "lightrail",
         type: "object",
         additionalProperties: false,
@@ -146,7 +146,7 @@ export namespace transactionPartySchema {
     /**
      * Can only refer to a single value store.
      */
-    export const lightrailUniquePartySchema: jsonschema.Schema = {
+    export const lightrailUnique: jsonschema.Schema = {
         title: "lightrail",
         type: "object",
         additionalProperties: false,
@@ -175,7 +175,7 @@ export namespace transactionPartySchema {
         required: ["rail"]
     };
 
-    export const stripePartySchema: jsonschema.Schema = {
+    export const stripe: jsonschema.Schema = {
         title: "stripe",
         type: "object",
         additionalProperties: false,
@@ -276,7 +276,7 @@ export namespace transactionPartySchema {
         required: ["rail"]
     };
 
-    export const internalPartySchema: jsonschema.Schema = {
+    export const internal: jsonschema.Schema = {
         title: "internal",
         type: "object",
         additionalProperties: false,
