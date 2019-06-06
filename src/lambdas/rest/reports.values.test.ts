@@ -195,6 +195,29 @@ describe("/v2/reports/values/", () => {
         }
     });
 
+    it("can format currencies", async () => {
+        const genericValue: Partial<Value> = {
+            id: testUtils.generateId(),
+            currency: "USD",
+            isGenericCode: true,
+            genericCodeOptions: {
+                perContact: {
+                    balance: 50,
+                    usesRemaining: 3
+                }
+            },
+            balance: 150
+        };
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
+        chai.assert.equal(createValue.statusCode, 201);
+
+        const resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/reports/values?id=${genericValue.id}&formatCurrencies=true`, "GET");
+        chai.assert.deepInclude(resp.body[0], {
+            balance: "$1.50",
+            genericCodeOptions: "{\"perContact\":{\"balance\":\"$0.50\",\"usesRemaining\":3}}"
+        });
+    });
+
     describe("row limiting", () => {
         before(async function () {
             await testUtils.resetDb();

@@ -49,25 +49,6 @@ export interface DbTransaction {
     pendingVoidDate: Date | null;
 }
 
-export interface TransactionForReports {
-    id: string;
-    createdDate: Date;
-    transactionType: TransactionType;
-    checkout_subtotal: number | null;
-    checkout_tax: number | null;
-    checkout_discountLightrail: number | null;
-    checkout_paidLightrail: number | null;
-    checkout_paidStripe: number | null;
-    checkout_paidInternal: number | null;
-    checkout_remainder: number | null;
-    transactionAmount: number;
-    stepsCount: number;
-    marketplace_sellerNet: number | null;
-    marketplace_sellerGross: number | null;
-    marketplace_sellerDiscount: number | null;
-    metadata: string | null;
-}
-
 export namespace Transaction {
     export function toDbTransaction
     (auth: giftbitRoutes.jwtauth.AuthorizationBadge, t: Transaction): DbTransaction {
