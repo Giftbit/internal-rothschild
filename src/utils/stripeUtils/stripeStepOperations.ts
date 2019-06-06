@@ -8,9 +8,9 @@ import {captureCharge, createCharge, createRefund, updateCharge} from "./stripeT
 import {LightrailAndMerchantStripeConfig} from "./StripeConfig";
 import {StripeRestError} from "./StripeRestError";
 import {TransactionPlanError} from "../../lambdas/rest/transactions/TransactionPlanError";
-import {AdditionalStripeChargeParams} from "../../model/TransactionRequest";
 import * as Stripe from "stripe";
 import {MetricsLogger} from "../metricsLogger";
+import {AdditionalStripeChargeParams, transactionPartySchema} from "../../model/TransactionRequest";
 import log = require("loglevel");
 
 export async function executeStripeSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, stripeConfig: LightrailAndMerchantStripeConfig, plan: TransactionPlan): Promise<void> {
@@ -85,16 +85,7 @@ function stripeTransactionPlanStepToStripeChargeRequest(auth: giftbitRoutes.jwta
     if (step.additionalStripeParams) {
         // Only copy these keys on to the charge request.  We don't want to accidentally
         // expose some kind of attack vector.
-        const paramKeys: (keyof AdditionalStripeChargeParams)[] = [
-            "application_fee",
-            "application_fee_amount",
-            "description",
-            "on_behalf_of",
-            "receipt_email",
-            "shipping",
-            "statement_descriptor",
-            "transfer_group"
-        ];
+        const paramKeys: (keyof AdditionalStripeChargeParams)[] = Object.keys(transactionPartySchema.stripePartySchema.properties.additionalStripeParams.properties) as (keyof AdditionalStripeChargeParams)[];
         for (const key of paramKeys) {
             if (step.additionalStripeParams[key]) {
                 stripeChargeParams[key] = step.additionalStripeParams[key];
