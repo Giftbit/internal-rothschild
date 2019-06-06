@@ -577,11 +577,14 @@ describe("split tender checkout with Stripe", () => {
                                 city: "Beverly Hills",
                                 country: "US",
                                 line1: "1675 E. Altadena Drive",
+                                line2: null,
                                 postal_code: "90210",
                                 state: "CA"
 
                             },
+                            carrier: null,
                             name: "Henrietta",
+                            phone: null,
                             tracking_number: "abc123"
                         },
                         statement_descriptor: "ccc",
@@ -608,11 +611,14 @@ describe("split tender checkout with Stripe", () => {
                     city: "Beverly Hills",
                     country: "US",
                     line1: "1675 E. Altadena Drive",
+                    line2: null,
                     postal_code: "90210",
                     state: "CA"
 
                 },
+                carrier: null,
                 name: "Henrietta",
+                phone: null,
                 tracking_number: "abc123"
             },
             statement_descriptor: "ccc",
