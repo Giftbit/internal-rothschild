@@ -17,6 +17,7 @@ import {
     ReverseRequest,
     StripeTransactionParty,
     TransactionParty,
+    transactionPartySchema,
     TransferRequest,
     VoidRequest
 } from "../../../model/TransactionRequest";
@@ -437,154 +438,6 @@ export function isCaptured(transaction: Transaction, transactionChain: Transacti
     return !!transactionChain.find(txn => txn.transactionType === "capture");
 }
 
-const lightrailPartySchema: jsonschema.Schema = {
-    title: "lightrail",
-    type: "object",
-    additionalProperties: false,
-    properties: {
-        rail: {
-            type: "string",
-            enum: ["lightrail"]
-        },
-        contactId: {
-            type: "string"
-        },
-        code: {
-            type: "string"
-        },
-        valueId: {
-            type: "string"
-        }
-    },
-    oneOf: [
-        {
-            title: "lightrail specifies contactId",
-            required: ["contactId"]
-        },
-        {
-            title: "lightrail specifies code",
-            required: ["code"]
-        },
-        {
-            title: "lightrail specifies valueId",
-            required: ["valueId"]
-        }
-    ],
-    required: ["rail"]
-};
-
-/**
- * Can only refer to a single value store.
- */
-const lightrailUniquePartySchema: jsonschema.Schema = {
-    title: "lightrail",
-    type: "object",
-    additionalProperties: false,
-    properties: {
-        rail: {
-            type: "string",
-            enum: ["lightrail"]
-        },
-        code: {
-            type: "string"
-        },
-        valueId: {
-            type: "string"
-        }
-    },
-    oneOf: [
-        {
-            title: "lightrail specifies code",
-            required: ["code"]
-        },
-        {
-            title: "lightrail specifies valueId",
-            required: ["valueId"]
-        }
-    ],
-    required: ["rail"]
-};
-
-const stripePartySchema: jsonschema.Schema = {
-    title: "stripe",
-    type: "object",
-    additionalProperties: false,
-    properties: {
-        rail: {
-            type: "string",
-            enum: ["stripe"]
-        },
-        source: {
-            type: "string"
-        },
-        customer: {
-            type: "string"
-        },
-        maxAmount: {
-            type: "integer"
-        },
-        additionalStripeParams: {
-            type: "object",
-            properties: {
-                description: {
-                    type: ["string", "null"]
-                },
-                on_behalf_of: {
-                    type: ["string", "null"]
-                },
-                receipt_email: {
-                    type: ["string", "null"]
-                },
-                statement_descriptor: {
-                    type: ["string", "null"]
-                },
-                transfer_group: {
-                    type: ["string", "null"]
-                }
-            }
-        }
-    },
-    anyOf: [
-        {
-            title: "stripe specifies source",
-            required: ["source"]
-        },
-        {
-            title: "stripe specifies customer",
-            required: ["customer"]
-        },
-    ],
-    required: ["rail"]
-};
-
-const internalPartySchema: jsonschema.Schema = {
-    title: "internal",
-    type: "object",
-    additionalProperties: false,
-    properties: {
-        rail: {
-            type: "string",
-            enum: ["internal"]
-        },
-        internalId: {
-            type: "string",
-            minLength: 1,
-            maxLength: 64
-        },
-        balance: {
-            type: "integer",
-            minimum: 0
-        },
-        beforeLightrail: {
-            type: "boolean"
-        },
-        pretax: {
-            type: "boolean"
-        }
-    },
-    required: ["rail", "internalId", "balance"]
-};
-
 const creditSchema: jsonschema.Schema = {
     title: "credit",
     type: "object",
@@ -596,7 +449,7 @@ const creditSchema: jsonschema.Schema = {
             maxLength: 64,
             pattern: "^[ -~]*$"
         },
-        destination: lightrailUniquePartySchema,
+        destination: transactionPartySchema.lightrailUnique,
         amount: {
             type: "integer",
             minimum: 1
@@ -641,7 +494,7 @@ const debitSchema: jsonschema.Schema = {
             maxLength: 64,
             pattern: "^[ -~]*$"
         },
-        source: lightrailUniquePartySchema,
+        source: transactionPartySchema.lightrailUnique,
         amount: {
             type: "integer",
             minimum: 1
@@ -695,11 +548,11 @@ const transferSchema: jsonschema.Schema = {
         },
         source: {
             oneOf: [
-                lightrailPartySchema,
-                stripePartySchema
+                transactionPartySchema.lightrail,
+                transactionPartySchema.stripe
             ]
         },
-        destination: lightrailUniquePartySchema,
+        destination: transactionPartySchema.lightrailUnique,
         amount: {
             type: "integer",
             minimum: 1
@@ -776,9 +629,9 @@ const checkoutSchema: jsonschema.Schema = {
             type: "array",
             items: {
                 oneOf: [
-                    lightrailPartySchema,
-                    stripePartySchema,
-                    internalPartySchema
+                    transactionPartySchema.lightrail,
+                    transactionPartySchema.stripe,
+                    transactionPartySchema.internal
                 ]
             }
         },
