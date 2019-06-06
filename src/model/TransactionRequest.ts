@@ -74,9 +74,25 @@ export interface StripeTransactionParty {
 }
 
 export interface AdditionalStripeChargeParams {
+    application_fee?: string;
+    application_fee_amount?: number;
     description?: string;
     on_behalf_of?: string;
     receipt_email?: string;
+    shipping?: {
+        address?: {
+            city?: string;
+            country?: string;
+            line1?: string;
+            line2?: string;
+            postal_code?: string;
+            state?: string;
+        }
+        carrier?: string;
+        name?: string;
+        phone?: string;
+        tracking_number?: string;
+    };
     statement_descriptor?: string;
     transfer_group?: string;
 }

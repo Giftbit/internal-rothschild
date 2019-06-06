@@ -572,6 +572,18 @@ describe("split tender checkout with Stripe", () => {
                         description: "eee",
                         on_behalf_of: onBehalfOf,
                         receipt_email: "bbb@example.com",
+                        shipping: {
+                            address: {
+                                city: "Beverly Hills",
+                                country: "US",
+                                line1: "1675 E. Altadena Drive",
+                                postal_code: "90210",
+                                state: "CA"
+
+                            },
+                            name: "Henrietta",
+                            tracking_number: "abc123"
+                        },
                         statement_descriptor: "ccc",
                         transfer_group: "ddd"
                     }
@@ -591,6 +603,18 @@ describe("split tender checkout with Stripe", () => {
             description: "eee",
             on_behalf_of: onBehalfOf,
             receipt_email: "bbb@example.com",
+            shipping: {
+                address: {
+                    city: "Beverly Hills",
+                    country: "US",
+                    line1: "1675 E. Altadena Drive",
+                    postal_code: "90210",
+                    state: "CA"
+
+                },
+                name: "Henrietta",
+                tracking_number: "abc123"
+            },
             statement_descriptor: "ccc",
             transfer_group: "ddd"
         });
@@ -606,6 +630,21 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.equal((stripeStep.charge as ICharge).receipt_email, "bbb@example.com");
         chai.assert.equal((stripeStep.charge as ICharge).statement_descriptor, "ccc");
         chai.assert.equal((stripeStep.charge as ICharge).transfer_group, "ddd");
+        chai.assert.deepEqual((stripeStep.charge as ICharge).shipping, {
+            address: {
+                city: "Beverly Hills",
+                country: "US",
+                line1: "1675 E. Altadena Drive",
+                line2: null,
+                postal_code: "90210",
+                state: "CA"
+
+            },
+            carrier: null,
+            name: "Henrietta",
+            phone: null,
+            tracking_number: "abc123"
+        });
 
         if (testStripeLive()) {
             const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);

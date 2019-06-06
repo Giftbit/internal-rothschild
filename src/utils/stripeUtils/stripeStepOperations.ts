@@ -86,9 +86,12 @@ function stripeTransactionPlanStepToStripeChargeRequest(auth: giftbitRoutes.jwta
         // Only copy these keys on to the charge request.  We don't want to accidentally
         // expose some kind of attack vector.
         const paramKeys: (keyof AdditionalStripeChargeParams)[] = [
+            "application_fee",
+            "application_fee_amount",
             "description",
             "on_behalf_of",
             "receipt_email",
+            "shipping",
             "statement_descriptor",
             "transfer_group"
         ];
