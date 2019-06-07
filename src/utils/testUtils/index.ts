@@ -230,6 +230,7 @@ export async function testAuthedCsvRequest<T>(router: cassava.Router, url: strin
         header: true,
         delimiter: ","
     });
+    console.log(JSON.stringify(resp));
     chai.assert.equal(resp.headers["Content-Type"], "text/csv");
     chai.assert.deepEqual(parseRes.errors, [], "csv parsing 0 errors");
 

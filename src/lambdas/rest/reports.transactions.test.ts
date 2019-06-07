@@ -2,11 +2,13 @@ import {Transaction} from "../../model/Transaction";
 import {installRestRoutes} from "./installRestRoutes";
 import * as cassava from "cassava";
 import * as testUtils from "../../utils/testUtils";
+import {generateId} from "../../utils/testUtils";
 import {Program} from "../../model/Program";
 import * as chai from "chai";
 import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
 import {ReportTransaction} from "./transactions/ReportTransaction";
+import {Value} from "../../model/Value";
 
 
 describe("/v2/reports/transactions/", () => {
@@ -444,5 +446,27 @@ describe("/v2/reports/transactions/", () => {
             marketplace_sellerDiscount: null,
             metadata: null
         }, ["id", "createdDate", "metadata"]);
+    });
+
+    it("can query by programId and createdDate", async () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            currency: "USD",
+            name: "test program"
+        };
+        const createProgram = await testUtils.testAuthedRequest(router, "/v2/programs", "POST", program);
+        chai.assert.equal(createProgram.statusCode, 201);
+
+        const value: Partial<Value> = {
+            id: generateId(),
+            programId: program.id,
+            balance: 5
+        };
+        const createValue = await testUtils.testAuthedRequest(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValue.statusCode, 201);
+
+        const queryReports = await testUtils.testAuthedCsvRequest(router, `/v2/reports/transactions?programId=${program.id}&createdDate.gte=2007-04-05T14:30:00.000Z`, "GET");
+        chai.assert.equal(queryReports.statusCode, 200);
+        chai.assert.include(JSON.stringify(queryReports.body), value.id);
     });
 });

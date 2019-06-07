@@ -128,7 +128,8 @@ async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.Authorizatio
             },
             "createdDate": {
                 type: "Date",
-                operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
+                operators: ["eq", "gt", "gte", "lt", "lte", "ne"],
+                columnName: "Transactions.createdDate"
             },
         }
     }, pagination);
