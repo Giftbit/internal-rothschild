@@ -8,13 +8,17 @@ import * as chai from "chai";
 import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
 import {ReportTransaction} from "./transactions/ReportTransaction";
-import {Value} from "../../model/Value";
 
 
 describe("/v2/reports/transactions/", () => {
     const router = new cassava.Router();
 
     let initialBalanceId: string;
+    const program: Partial<Program> = {
+        id: generateId(),
+        currency: "USD",
+        name: "test program"
+    };
     before(async function () {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
@@ -26,7 +30,9 @@ describe("/v2/reports/transactions/", () => {
         await testUtils.createUSDCheckout(router, null, false);
         await testUtils.createUSDCheckout(router, null, false);
 
-        const value = await testUtils.createUSDValue(router, {balance: 1000});
+        const createProgram = await testUtils.testAuthedRequest(router, "/v2/programs", "POST", program);
+        chai.assert.equal(createProgram.statusCode, 201);
+        const value = await testUtils.createUSDValue(router, {balance: 1000, programId: program.id});
         initialBalanceId = value.id;
         const creditResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", {
             id: testUtils.generateId(),
@@ -449,24 +455,8 @@ describe("/v2/reports/transactions/", () => {
     });
 
     it("can query by programId and createdDate", async () => {
-        const program: Partial<Program> = {
-            id: generateId(),
-            currency: "USD",
-            name: "test program"
-        };
-        const createProgram = await testUtils.testAuthedRequest(router, "/v2/programs", "POST", program);
-        chai.assert.equal(createProgram.statusCode, 201);
-
-        const value: Partial<Value> = {
-            id: generateId(),
-            programId: program.id,
-            balance: 5
-        };
-        const createValue = await testUtils.testAuthedRequest(router, "/v2/values", "POST", value);
-        chai.assert.equal(createValue.statusCode, 201);
-
         const queryReports = await testUtils.testAuthedCsvRequest(router, `/v2/reports/transactions?programId=${program.id}&createdDate.gte=2007-04-05T14:30:00.000Z`, "GET");
         chai.assert.equal(queryReports.statusCode, 200);
-        chai.assert.include(JSON.stringify(queryReports.body), value.id);
+        chai.assert.include(JSON.stringify(queryReports.body), initialBalanceId);
     });
 });

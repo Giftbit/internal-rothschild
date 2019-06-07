@@ -1,6 +1,5 @@
 import * as cassava from "cassava";
 import * as testUtils from "../../utils/testUtils";
-import {generateId} from "../../utils/testUtils";
 import {installRestRoutes} from "./installRestRoutes";
 import {Value} from "../../model/Value";
 import {Program} from "../../model/Program";
@@ -21,6 +20,8 @@ describe("/v2/reports/values/", () => {
     };
     const contactId = testUtils.generateId();
 
+    const program1Id = "program1";
+    let valueFromProgram1: Value;
     before(async function () {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
@@ -29,7 +30,7 @@ describe("/v2/reports/values/", () => {
         await testUtils.createUSD(router);
 
         const program1resp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
-            id: "program1",
+            id: program1Id,
             currency: "USD",
             name: "program1"
         });
@@ -47,7 +48,7 @@ describe("/v2/reports/values/", () => {
         });
         chai.assert.equal(program3resp.statusCode, 201, `program1resp.body=${JSON.stringify(program3resp.body)}`);
 
-        await testUtils.createUSDValue(router, {programId: "program1"});
+        valueFromProgram1 = await testUtils.createUSDValue(router, {programId: "program1"});
         await testUtils.createUSDValue(router, {programId: "program2"});
         await testUtils.createUSDValue(router, {programId: "program2"});
         await testUtils.createUSDValue(router, {programId: "program3"});
@@ -247,24 +248,8 @@ describe("/v2/reports/values/", () => {
     });
 
     it("can query by programId and createdDate", async () => {
-        const program: Partial<Program> = {
-            id: generateId(),
-            currency: "USD",
-            name: "test program"
-        };
-        const createProgram = await testUtils.testAuthedRequest(router, "/v2/programs", "POST", program);
-        chai.assert.equal(createProgram.statusCode, 201);
-
-        const value: Partial<Value> = {
-            id: generateId(),
-            programId: program.id,
-            balance: 5
-        };
-        const createValue = await testUtils.testAuthedRequest(router, "/v2/values", "POST", value);
-        chai.assert.equal(createValue.statusCode, 201);
-
-        const queryReports = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values?programId=${program.id}&createdDate.gte=2007-04-05T14:30:00.000Z`, "GET");
+        const queryReports = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values?programId=program1&createdDate.gte=2007-04-05T14:30:00.000Z`, "GET");
         chai.assert.equal(queryReports.statusCode, 200);
-        chai.assert.include(JSON.stringify(queryReports.body), value.id);
+        chai.assert.include(JSON.stringify(queryReports.body), valueFromProgram1.id);
     });
 });
