@@ -7,7 +7,7 @@ import * as cassava from "cassava";
 import {installRestRoutes} from "../installRestRoutes";
 
 
-describe("/v2/transactions/credit", () => {
+describe("values currency display tests", () => {
 
     const router = new cassava.Router();
 
@@ -174,6 +174,42 @@ describe("/v2/transactions/credit", () => {
         chai.assert.equal(resp.body.find(v => v.id === valueBalance549.id).balance.toString(), "$5.49");
         chai.assert.equal(resp.body.find(v => v.id === valueBalance1549.id).balance.toString(), "$15.49");
         chai.assert.equal(resp.body.find(v => v.id === valueBalance15490.id).balance.toString(), "$154.90");
+    });
+
+    it("can format nested property genericCodeOptions.perContact.balance", async () => {
+        const currency = await currencies.createCurrency(defaultTestUser.auth, {
+            code: "CAD",
+            name: "Canadian Dollars",
+            symbol: "$",
+            decimalPlaces: 2
+        });
+
+        const genericValue: Partial<Value> = {
+            id: generateId(),
+            currency: currency.code,
+            isGenericCode: true,
+            genericCodeOptions: {
+                perContact: {
+                    balance: 500,
+                    usesRemaining: null
+                }
+            },
+            balance: 1000
+        };
+        const createGenericCode = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
+        chai.assert.equal(createGenericCode.statusCode, 201);
+        chai.assert.deepNestedInclude(createGenericCode.body, genericValue);
+
+        const list = await testUtils.testAuthedRequest<any[]>(router, `/v2/values?id=${genericValue.id}&formatCurrencies=true`, "GET");
+        chai.assert.deepNestedInclude(list.body[0], {
+            balance: "$10.00",
+            genericCodeOptions: {
+                perContact: {
+                    balance: "$5.00",
+                    usesRemaining: null
+                }
+            }
+        })
     });
 });
 

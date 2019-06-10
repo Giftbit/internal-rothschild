@@ -19,7 +19,7 @@ import {getProgram} from "../programs";
 import {Program} from "../../../model/Program";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
 import {getTransactions} from "../transactions/transactions";
-import {Currency, formatAmountForCurrencyDisplay} from "../../../model/Currency";
+import {Currency, formatAmountForCurrencyDisplay, formatObjectsAmountPropertiesForCurrencyDisplay} from "../../../model/Currency";
 import {getCurrency} from "../currencies";
 import {checkCodeParameters, checkValueProperties, createValue} from "./createValue";
 import log = require("loglevel");
@@ -45,15 +45,21 @@ export function installValuesRest(router: cassava.Router): void {
                 await injectValueStats(auth, res.values);
             }
 
-            let values: Value[] | StringBalanceValue[] = res.values;
             if (evt.queryStringParameters.formatCurrencies === "true") {
-                values = await formatValueForCurrencyDisplay(auth, res.values);
-            }
+                return {
+                    headers: Pagination.toHeaders(evt, res.pagination),
+                    body: await formatObjectsAmountPropertiesForCurrencyDisplay(auth, res.values, [
+                        "balance",
+                        "genericCodeOptions.perContact.balance"
+                    ])
+                };
 
-            return {
-                headers: Pagination.toHeaders(evt, res.pagination),
-                body: values
-            };
+            } else {
+                return {
+                    headers: Pagination.toHeaders(evt, res.pagination),
+                    body: res.values
+                };
+            }
         });
 
     router.route("/v2/values")
