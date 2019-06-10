@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as testUtils from "../../utils/testUtils";
 import {generateId} from "../../utils/testUtils";
-import {Currency} from "../../model/Currency";
+import {Currency, formatObjectsAmountPropertiesForCurrencyDisplay} from "../../model/Currency";
 import {Value} from "../../model/Value";
 import {installRestRoutes} from "./installRestRoutes";
 import {DebitRequest} from "../../model/TransactionRequest";
@@ -212,5 +212,75 @@ describe("/v2/currencies", () => {
                 chai.assert.equal(postTransaction.body.currency, currency.code);
             });
         }
+    });
+
+    it("currency formatting", async () => {
+        const zero = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", {
+            code: "ZERO",
+            name: "Zero Decimals",
+            symbol: "zero",
+            decimalPlaces: 0
+        });
+        chai.assert.equal(zero.statusCode, 201, `body=${JSON.stringify(zero.body)}`);
+
+        const oneDecimalCurrency = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", {
+            code: "ONE",
+            name: "One Decimal",
+            symbol: "one",
+            decimalPlaces: 1
+        });
+        chai.assert.equal(oneDecimalCurrency.statusCode, 201, `body=${JSON.stringify(oneDecimalCurrency.body)}`);
+
+        const twoDecimalCurrency = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", {
+            code: "TWO",
+            name: "Two Decimals",
+            symbol: "two",
+            decimalPlaces: 2
+        });
+        chai.assert.equal(twoDecimalCurrency.statusCode, 201, `body=${JSON.stringify(twoDecimalCurrency.body)}`);
+
+        const res = await formatObjectsAmountPropertiesForCurrencyDisplay(testUtils.defaultTestUser.auth, [{
+            currency: "ONE",
+            level: 1,
+            nested: {
+                level: 2,
+                nested: {
+                    level: 3
+                }
+            }
+        }, {
+            currency: "TWO",
+            level: 1,
+            nested: {
+                level: 2
+            }
+        }, {
+            currency: "ZERO",
+            level: 1
+        }
+        ], ["level", "nested.level", "nested.nested.level"]);
+        chai.assert.deepEqual(res, [
+            {
+                "currency": "ONE",
+                "level": "one0.1",
+                "nested": {
+                    "level": "one0.2",
+                    "nested": {
+                        "level": "one0.3"
+                    }
+                }
+            },
+            {
+                "currency": "TWO",
+                "level": "two0.01",
+                "nested": {
+                    "level": "two0.02"
+                }
+            },
+            {
+                "currency": "ZERO",
+                "level": "zero1"
+            }
+        ])
     });
 });
