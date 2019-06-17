@@ -19,9 +19,14 @@ import {getProgram} from "../programs";
 import {Program} from "../../../model/Program";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
 import {getTransactions} from "../transactions/transactions";
-import {Currency, formatAmountForCurrencyDisplay, formatObjectsAmountPropertiesForCurrencyDisplay} from "../../../model/Currency";
+import {
+    Currency,
+    formatAmountForCurrencyDisplay,
+    formatObjectsAmountPropertiesForCurrencyDisplay
+} from "../../../model/Currency";
 import {getCurrency} from "../currencies";
 import {checkCodeParameters, checkValueProperties, createValue} from "./createValue";
+import {hasContactValues} from "../contactValues";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -142,7 +147,7 @@ export function installValuesRest(router: cassava.Router): void {
 
             const now = nowInDbPrecision();
             const value = {
-                ...pick<Value>(evt.body, "pretax", "active", "canceled", "frozen", "pretax", "discount", "discountSellerLiability", "redemptionRule", "balanceRule", "startDate", "endDate", "metadata"),
+                ...pick<Value>(evt.body, "pretax", "active", "canceled", "frozen", "pretax", "discount", "discountSellerLiability", "redemptionRule", "balanceRule", "startDate", "endDate", "metadata", "genericCodeOptions"),
                 updatedDate: now
             };
             if (value.startDate) {
@@ -395,10 +400,28 @@ export async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             throw new Error(`Illegal SELECT query.  Returned ${selectValueRes.length} values.`);
         }
         const existingValue = await DbValue.toValue(selectValueRes[0]);
-        const updatedValue = {
+        const updatedValue: Value = {
             ...existingValue,
             ...valueUpdates
         };
+
+        if (valueUpdates.genericCodeOptions && valueUpdates.genericCodeOptions.perContact) {
+            updatedValue.genericCodeOptions = {
+                perContact: {
+                    ...(existingValue.genericCodeOptions && existingValue.genericCodeOptions.perContact ? existingValue.genericCodeOptions.perContact : {}),
+                    ...valueUpdates.genericCodeOptions.perContact
+                }
+            }
+        }
+
+        if (!Value.isGenericCodeWithPropertiesPerContact(existingValue) && Value.isGenericCodeWithPropertiesPerContact(updatedValue)) {
+            if (await hasContactValues(auth, existingValue.id)) {
+                throw new giftbitRoutes.GiftbitRestError(422, "A shared generic value without genericCodeOptions cannot be updated to have genericCodeOptions.");
+            }
+        }
+        if (Value.isGenericCodeWithPropertiesPerContact(existingValue) && !Value.isGenericCodeWithPropertiesPerContact(updatedValue)) {
+            throw new giftbitRoutes.GiftbitRestError(422, "A value with genericCodeOptions cannot be updated to no longer have genericCodeOptions.");
+        }
 
         checkValueProperties(updatedValue);
 
@@ -415,7 +438,6 @@ export async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         if (updateRes > 1) {
             throw new Error(`Illegal UPDATE query.  Updated ${updateRes} values.`);
         }
-
         return updatedValue;
     });
 }
@@ -822,7 +844,7 @@ const valueUpdateSchema: jsonschema.Schema = {
     type: "object",
     additionalProperties: false,
     properties: {
-        ...pick(valueSchema.properties, "id", "active", "frozen", "pretax", "redemptionRule", "balanceRule", "discount", "discountSellerLiability", "startDate", "endDate", "metadata"),
+        ...pick(valueSchema.properties, "id", "active", "frozen", "pretax", "redemptionRule", "balanceRule", "discount", "discountSellerLiability", "startDate", "endDate", "metadata", "genericCodeOptions"),
         canceled: {
             type: "boolean"
         }

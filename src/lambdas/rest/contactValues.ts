@@ -13,7 +13,10 @@ import {DbContactValue} from "../../model/DbContactValue";
 import {AttachValueParameters} from "../../model/internal/AttachValueParameters";
 import {ValueIdentifier} from "../../model/internal/ValueIdentifier";
 import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
-import {attachGenericCodeWithPerContactOptions} from "./genericCodeWithPerContactOptions";
+import {
+    attachGenericCodeWithPerContactOptions,
+    generateUrlSafeHashFromValueIdContactId
+} from "./genericCodeWithPerContactOptions";
 import log = require("loglevel");
 
 export function installContactValuesRest(router: cassava.Router): void {
@@ -268,7 +271,7 @@ async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.Authoriz
     const now = nowInDbPrecision();
     const newAttachedValue: Value = {
         ...originalValue,
-        id: getIdForNewAttachedValue({contactId: contactId, valueId: originalValue.id}),
+        id: await getIdForAttachingGenericValue(auth, contactId, originalValue),
         attachedFromValueId: originalValue.id,
         code: null,
         isGenericCode: false,
@@ -368,10 +371,36 @@ async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.Authoriz
     return DbValue.toValue(dbNewAttachedValue);
 }
 
+export async function getIdForAttachingGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<string> {
+    if (genericValue.createdDate < new Date("2019-06-25")) {
+        // As of June 25, 2019, all attaches will use the updated hash method for generating ids for attaching generic codes.
+        // This code checks for whether the generic code has already been attached using the legacy id hash.
+        const legacyHashId = await generateLegacyIdForNewAttachedValue({
+            contactId: contactId,
+            valueId: genericValue.id
+        });
+        try {
+            const existingValue = await getValue(auth, legacyHashId);
+            if (existingValue) {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${genericValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
+            }
+            throw new Error("This isn't a possible execution path. If existingValue doesn't exist the call will return a 404 error.")
+        } catch (err) {
+            if ((err as giftbitRoutes.GiftbitRestError).statusCode === 404) {
+                return generateUrlSafeHashFromValueIdContactId(genericValue.id, contactId);
+            } else {
+                throw err;
+            }
+        }
+    } else {
+        return generateUrlSafeHashFromValueIdContactId(genericValue.id, contactId);
+    }
+}
+
 /**
  * Legacy function for the id of the newly created Value that results from attachNewValue.
  */
-function getIdForNewAttachedValue(params: { contactId: string, valueId: string }): string {
+export function generateLegacyIdForNewAttachedValue(params: { contactId: string, valueId: string }): string {
     // Constructing the ID this way prevents the same contactId attaching
     // the Value twice and thus should not be changed.
     // Note, a problem was found that the base64 character set includes slashes which is not ideal of IDs.
@@ -453,4 +482,15 @@ export async function getContactValue(auth: giftbitRoutes.jwtauth.AuthorizationB
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
     return res[0];
+}
+
+export async function hasContactValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueId: string): Promise<boolean> {
+    const knex = await getKnexRead();
+    const res: { count: number } = await knex("ContactValues")
+        .count({count: "*"})
+        .where({
+            userId: auth.userId,
+            valueId: valueId
+        });
+    return res.count >= 1;
 }

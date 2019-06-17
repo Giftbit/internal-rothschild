@@ -714,6 +714,7 @@ describe("/v2/values/", () => {
                     userId: defaultTestUser.userId,
                     id: `paging-${i}`,
                     currency: "USD",
+                    isGenericCode: false,
                     balance: Math.max((Math.sin(i) * 1000) | 0, 0),
                     pretax: true,
                     active: true,
@@ -798,6 +799,7 @@ describe("/v2/values/", () => {
         chai.assert.equal(post.statusCode, 201, `body=${JSON.stringify(post.body)}`);
         chai.assert.equal(post.body.code, publicCode.code);
         chai.assert.isTrue(post.body.isGenericCode);
+        chai.assert.isNull(post.body.genericCodeOptions);
 
         const get = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${publicCode.id}`, "GET");
         chai.assert.equal(get.statusCode, 200, `body=${JSON.stringify(get.body)}`);

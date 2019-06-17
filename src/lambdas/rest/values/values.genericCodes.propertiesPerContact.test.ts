@@ -8,8 +8,11 @@ import {createCurrency} from "../currencies";
 import {Contact} from "../../../model/Contact";
 import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
 import {CheckoutRequest, CreditRequest, ReverseRequest} from "../../../model/TransactionRequest";
-import {generateIdForNewAttachedValue} from "../genericCodeWithPerContactOptions";
+import {generateUrlSafeHashFromValueIdContactId} from "../genericCodeWithPerContactOptions";
 import {Program} from "../../../model/Program";
+import {generateCode} from "../../../utils/codeGenerator";
+import {generateLegacyIdForNewAttachedValue} from "../contactValues";
+import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -447,9 +450,9 @@ describe("/v2/values - generic code with per contact properties", () => {
 
     it("test hashed id for attach - test encoding: + replace with -, / replace with _ and the trailing = dropped", () => {
         // Important: The assertions these tests make should not be changed. If changed, Contacts will be able to attach a generic code they've already attached!
-        chai.assert.equal(generateIdForNewAttachedValue("123", "456"), "vi_tcnr5gak5ZKguoofIlgj59yo");
-        chai.assert.equal(generateIdForNewAttachedValue("se46ds", "6rdtfs4"), "QrSrg2mt3qeBfh47G1sqnGHOGe4");
-        chai.assert.equal(generateIdForNewAttachedValue("/1ar,3a4/3aw4efsredfgs%a3as", "2353a4sadfsert5_2a=dfg"), "mXeuDmmVxP-V_-3K5s_QJIW3hoI");
+        chai.assert.equal(generateUrlSafeHashFromValueIdContactId("123", "456"), "vi_tcnr5gak5ZKguoofIlgj59yo");
+        chai.assert.equal(generateUrlSafeHashFromValueIdContactId("se46ds", "6rdtfs4"), "QrSrg2mt3qeBfh47G1sqnGHOGe4");
+        chai.assert.equal(generateUrlSafeHashFromValueIdContactId("/1ar,3a4/3aw4efsredfgs%a3as", "2353a4sadfsert5_2a=dfg"), "mXeuDmmVxP-V_-3K5s_QJIW3hoI");
     });
 
     it("can list values associated with generic value", async () => {
@@ -639,7 +642,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             };
             const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
             chai.assert.equal(checkout.statusCode, 201);
-            chai.assert.equal((checkout.body.steps[0] as LightrailTransactionStep).valueId, generateIdForNewAttachedValue(genericValue.id, contact3Id));
+            chai.assert.equal((checkout.body.steps[0] as LightrailTransactionStep).valueId, generateUrlSafeHashFromValueIdContactId(genericValue.id, contact3Id));
             chai.assert.equal((checkout.body.steps[0] as LightrailTransactionStep).balanceChange, -225);
         });
 
@@ -1048,6 +1051,358 @@ describe("/v2/values - generic code with per contact properties", () => {
                 valueId: genericCode.id
             });
             chai.assert.equal(attach.statusCode, 200);
+        });
+    });
+
+    describe("PATCH genericCodeOptions tests", () => {
+        it("can update genericCodeOptions", async () => {
+            const genericCode: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                isGenericCode: true,
+                genericCodeOptions: {
+                    perContact: {
+                        balance: 100,
+                        usesRemaining: 1
+                    }
+                },
+            };
+
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(create.statusCode, 201);
+            chai.assert.equal(create.body.genericCodeOptions.perContact.balance, 100);
+
+            const updateRequest: Partial<Value> = {
+                genericCodeOptions: {
+                    perContact: {
+                        balance: 200,
+                        usesRemaining: 2
+                    }
+                }
+            };
+            const update = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${genericCode.id}`, "PATCH", updateRequest);
+            chai.assert.equal(update.statusCode, 200);
+            chai.assert.equal(update.body.genericCodeOptions.perContact.balance, 200);
+            chai.assert.equal(update.body.genericCodeOptions.perContact.usesRemaining, 2);
+
+            const get = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${genericCode.id}`, "GET");
+            chai.assert.equal(get.statusCode, 200);
+            chai.assert.equal(get.body.genericCodeOptions.perContact.balance, 200);
+            chai.assert.equal(get.body.genericCodeOptions.perContact.usesRemaining, 2);
+        });
+
+        it("can update with undefined property which won't change other value", async () => {
+            const genericCode: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                isGenericCode: true,
+                genericCodeOptions: {
+                    perContact: {
+                        balance: 100,
+                        usesRemaining: 1
+                    }
+                },
+            };
+
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(create.statusCode, 201);
+
+            // usesRemaining not defined in genericCodeOptions.perContact
+            const update = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${genericCode.id}`, "PATCH", {
+                genericCodeOptions: {
+                    perContact: {
+                        balance: 250
+                    }
+                }
+            });
+            chai.assert.equal(update.statusCode, 200);
+            chai.assert.deepEqual(update.body.genericCodeOptions, {
+                perContact: {
+                    balance: 250,
+                    usesRemaining: 1
+                }
+            });
+
+            const get = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${genericCode.id}`, "GET");
+            chai.assert.equal(get.statusCode, 200);
+            chai.assert.deepEqual(get.body.genericCodeOptions, {
+                perContact: {
+                    balance: 250,
+                    usesRemaining: 1
+                }
+            });
+        });
+
+        it("can't update to invalid property combination (balanceRule + perContact.balance)", async () => {
+            const genericCode: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                isGenericCode: true,
+                genericCodeOptions: {
+                    perContact: {
+                        balance: null,
+                        usesRemaining: 1
+                    }
+                },
+                balanceRule: {
+                    rule: "500 + value.balanceChange",
+                    explanation: "five bucks"
+                }
+            };
+
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(create.statusCode, 201);
+            chai.assert.isNotNull(create.body.balanceRule);
+
+            const updateRequest: Partial<Value> = {
+                genericCodeOptions: {
+                    perContact: {
+                        balance: 200,
+                        usesRemaining: 2
+                    }
+                }
+            };
+            const update = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/values/${genericCode.id}`, "PATCH", updateRequest);
+            chai.assert.equal(update.statusCode, 422);
+            chai.assert.equal(update.body.message, "Value can't have both a genericCodeOptions.perContact.balance and balanceRule.");
+        });
+
+        it("can't update to invalid property combination (no balanceRule, balance or perContact.balance)", async () => {
+            const genericCode: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                isGenericCode: true,
+                genericCodeOptions: {
+                    perContact: {
+                        balance: 100,
+                        usesRemaining: null
+                    }
+                }
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(create.statusCode, 201);
+
+            const updateRequest: Partial<Value> = {
+                genericCodeOptions: {
+                    perContact: {
+                        balance: null,
+                        usesRemaining: null
+                    }
+                }
+            };
+            const update = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/values/${genericCode.id}`, "PATCH", updateRequest);
+            chai.assert.equal(update.statusCode, 422);
+            chai.assert.equal(update.body.message, "If using a generic code with genericCodeOption.perContact properties either genericCodeOptions.perContact.balance or balanceRule must be set.");
+        });
+
+        it("can drop perContact.usesRemaining from a generic code that has perContact.balance", async () => {
+            const genericCode: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                isGenericCode: true,
+                genericCodeOptions: {
+                    perContact: {
+                        balance: 100,
+                        usesRemaining: 1
+                    }
+                },
+            };
+
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(create.statusCode, 201);
+
+            const update = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${genericCode.id}`, "PATCH", {
+                genericCodeOptions: {
+                    perContact: {
+                        usesRemaining: null
+                    }
+                }
+            });
+            chai.assert.equal(update.statusCode, 200);
+            chai.assert.deepEqual(update.body.genericCodeOptions, {
+                perContact: {
+                    balance: 100,
+                    usesRemaining: null
+                }
+            });
+
+            const get = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${genericCode.id}`, "GET");
+            chai.assert.equal(get.statusCode, 200);
+            chai.assert.deepEqual(get.body.genericCodeOptions, {
+                perContact: {
+                    balance: 100,
+                    usesRemaining: null
+                }
+            });
+        });
+
+        it("can't remove genericCodeOptions from a Value", async () => {
+            const genericCode: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                isGenericCode: true,
+                genericCodeOptions: {
+                    perContact: {
+                        balance: null,
+                        usesRemaining: 1
+                    }
+                },
+                balanceRule: {
+                    rule: "500 + value.balanceChange",
+                    explanation: "five bucks"
+                }
+            };
+
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(create.statusCode, 201);
+            chai.assert.isNotNull(create.body.balanceRule);
+
+            const updateRequest: Partial<Value> = {
+                genericCodeOptions: null
+            };
+            const update = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/values/${genericCode.id}`, "PATCH", updateRequest);
+            chai.assert.equal(update.statusCode, 422);
+            chai.assert.equal(update.body.message, "A value with genericCodeOptions cannot be updated to no longer have genericCodeOptions.");
+        });
+    });
+
+    describe("migrate legacy generic code that used attachGenericAsNewValue param to perContact.usesRemaining=1", () => {
+        const genericCode: Partial<Value> = {
+            id: "genericCodeId54321",
+            currency: "USD",
+            code: generateCode({}),
+            isGenericCode: true,
+            balanceRule: {
+                rule: "500 + value.balanceChange",
+                explanation: "five bucks"
+            }
+        };
+        const contact: Partial<Contact> = {
+            id: "contactId54321"
+        };
+
+        before(async function () {
+            const createCode = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(createCode.statusCode, 201);
+
+            const createContact = await testUtils.testAuthedRequest<Value>(router, "/v2/contacts", "POST", contact);
+            chai.assert.equal(createContact.statusCode, 201);
+
+            // replicate how codes used to be attached. once this release goes live, all attached generic codes will use the generateUrlSafeHashFromValueIdContactId
+            const attachedValue: Partial<Value> = {
+                id: generateLegacyIdForNewAttachedValue({contactId: contact.id, valueId: genericCode.id}),
+                currency: genericCode.currency,
+                balanceRule: genericCode.balanceRule,
+                contactId: contact.id,
+                usesRemaining: 1
+            };
+            const attach = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", attachedValue);
+            chai.assert.equal(attach.statusCode, 201);
+
+            // manually set attachedFromValueId
+            const knex = await getKnexWrite();
+            await knex.transaction(async trx => {
+                const updateRes: number = await trx("Values")
+                    .where({
+                        userId: testUtils.defaultTestUser.userId,
+                        id: attachedValue.id
+                    })
+                    .update({
+                        attachedFromValueId: genericCode.id,
+                        createdDate: "2019-06-15 00:00:00.000"
+                    });
+                if (updateRes === 0) {
+                    throw new cassava.RestError(404);
+                }
+                if (updateRes > 1) {
+                    throw new Error(`Illegal UPDATE query.  Updated ${updateRes} values.`);
+                }
+            });
+
+            const get = await testUtils.testAuthedRequest<any>(router, `/v2/values/${encodeURI(attachedValue.id)}`, "GET");
+            chai.assert.equal(get.statusCode, 200);
+            chai.assert.equal(get.body.createdDate, "2019-06-15T00:00:00.000Z");
+        });
+
+        it("attach with attachGenericAsNewValue: true fails (already attached)", async () => {
+            //can attach the generic code using the legacy attachGenericAsNewValue=true param
+            const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+                code: genericCode.code,
+                attachGenericAsNewValue: true
+            });
+            chai.assert.equal(attach.statusCode, 409);
+            chai.assert.equal(attach.body.messageCode, "ValueAlreadyAttached");
+        });
+
+        it("can migrate code to have genericCodeOptions and attach still 409s", async () => {
+            const updateRequest: Partial<Value> = {
+                genericCodeOptions: {
+                    perContact: {
+                        balance: null,
+                        usesRemaining: 1
+                    }
+                }
+            };
+
+            const update = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${genericCode.id}`, "PATCH", updateRequest);
+            chai.assert.equal(update.statusCode, 200);
+            chai.assert.isNull(update.body.genericCodeOptions.perContact.balance);
+            chai.assert.equal(update.body.genericCodeOptions.perContact.usesRemaining, 1);
+
+            const get = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${genericCode.id}`, "GET");
+            chai.assert.equal(get.body.genericCodeOptions.perContact.usesRemaining, 1);
+            chai.assert.isNull(get.body.genericCodeOptions.perContact.balance);
+
+            //can't attach migrated generic code to same contact
+            const attachAgain = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+                code: genericCode.code,
+                attachGenericAsNewValue: true
+            });
+            chai.assert.equal(attachAgain.statusCode, 409);
+        });
+    });
+
+    describe("can't add generic code options to a shared generic code that's been attached to a contact", () => {
+        const genericCode: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            code: generateCode({}),
+            isGenericCode: true,
+            balanceRule: {
+                rule: "500 + value.balanceChange",
+                explanation: "five bucks"
+            }
+        };
+        const contact: Partial<Contact> = {
+            id: generateId()
+        };
+
+        before(async function () {
+            const createCode = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(createCode.statusCode, 201);
+
+            const createContact = await testUtils.testAuthedRequest<Value>(router, "/v2/contacts", "POST", contact);
+            chai.assert.equal(createContact.statusCode, 201);
+
+            const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+                code: genericCode.code
+            });
+            chai.assert.equal(attach.statusCode, 200);
+        });
+
+        it("can't add generic code options", async () => {
+            const updateRequest: Partial<Value> = {
+                genericCodeOptions: {
+                    perContact: {
+                        balance: null,
+                        usesRemaining: 1
+                    }
+                }
+            };
+
+            const update = await testUtils.testAuthedRequest<any>(router, `/v2/values/${genericCode.id}`, "PATCH", updateRequest);
+            chai.assert.equal(update.statusCode, 422);
+            chai.assert.equal(update.body.message, "A shared generic value without genericCodeOptions cannot be updated to have genericCodeOptions.")
         });
     });
 });

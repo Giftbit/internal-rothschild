@@ -8,6 +8,8 @@ import {createCurrency} from "./currencies";
 import * as chai from "chai";
 import {Value} from "../../model/Value";
 import {Transaction} from "../../model/Transaction";
+import {getKnexWrite} from "../../utils/dbUtils/connection";
+import {generateUrlSafeHashFromValueIdContactId} from "./genericCodeWithPerContactOptions";
 
 describe("/v2/contacts/values - attachNewValue=true", () => {
 
@@ -111,6 +113,59 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
             metadata: null,
             tax: null
         });
+    });
+
+    it("can attach a generic code using attachGenericAsNewValue flag, uses url safe hash if created date > 2019-06-25", async () => {
+        const genericCode: Partial<Value> = {
+            id: "324arwesf342aw",
+            currency: currency.code,
+            balanceRule: {
+                rule: "500",
+                explanation: "$5 done the hard way"
+            },
+            code: generateFullcode(),
+            isGenericCode: true
+        };
+        const createValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericCode);
+        chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
+
+        const contact: Partial<Contact> = {
+            id: "aw4rd4arwefd",
+        };
+        const createContactA = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact);
+        chai.assert.equal(createContactA.statusCode, 201);
+
+        // manually set createdDate
+        const knex = await getKnexWrite();
+        await knex.transaction(async trx => {
+            const updateRes: number = await trx("Values")
+                .where({
+                    userId: testUtils.defaultTestUser.userId,
+                    id: genericCode.id
+                })
+                .update({
+                    createdDate: "2019-06-25 00:00:01.000" // first second
+                });
+            if (updateRes === 0) {
+                throw new cassava.RestError(404);
+            }
+            if (updateRes > 1) {
+                throw new Error(`Illegal UPDATE query.  Updated ${updateRes} values.`);
+            }
+        });
+
+        const get = await testUtils.testAuthedRequest<any>(router, `/v2/values/${genericCode.id}`, "GET");
+        chai.assert.equal(get.statusCode, 200);
+        chai.assert.equal(get.body.createdDate, "2019-06-25T00:00:01.000Z");
+
+        // Should return a new Value.
+        const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+            valueId: createValueResp.body.id,
+            attachGenericAsNewValue: true
+        });
+        chai.assert.equal(attachResp.statusCode, 200, `body=${JSON.stringify(attachResp.body)}`);
+        chai.assert.equal(attachResp.body.id, generateUrlSafeHashFromValueIdContactId(genericCode.id, contact.id));
+        chai.assert.equal(attachResp.body.id, "F6GljQ2EJiGZAFkHKXuJNPtOkOc");
     });
 
     it("can attach a generic-code Value by code using attachNewValue=true to create a new Value", async () => {
