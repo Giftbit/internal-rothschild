@@ -11,7 +11,7 @@ import {CheckoutRequest, CreditRequest, ReverseRequest} from "../../../model/Tra
 import {generateUrlSafeHashFromValueIdContactId} from "../genericCodeWithPerContactOptions";
 import {Program} from "../../../model/Program";
 import {generateCode} from "../../../utils/codeGenerator";
-import {generateLegacyIdForNewAttachedValue} from "../contactValues";
+import {generateLegacyHashForContactIdValueId} from "../contactValues";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import chaiExclude = require("chai-exclude");
 
@@ -1290,7 +1290,7 @@ describe("/v2/values - generic code with per contact properties", () => {
 
             // replicate how codes used to be attached. once this release goes live, all attached generic codes will use the generateUrlSafeHashFromValueIdContactId
             const attachedValue: Partial<Value> = {
-                id: generateLegacyIdForNewAttachedValue({contactId: contact.id, valueId: genericCode.id}),
+                id: generateLegacyHashForContactIdValueId(genericCode.id, contact.id),
                 currency: genericCode.currency,
                 balanceRule: genericCode.balanceRule,
                 contactId: contact.id,
@@ -1322,6 +1322,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             const get = await testUtils.testAuthedRequest<any>(router, `/v2/values/${encodeURI(attachedValue.id)}`, "GET");
             chai.assert.equal(get.statusCode, 200);
             chai.assert.equal(get.body.createdDate, "2019-06-15T00:00:00.000Z");
+            chai.assert.equal(get.body.attachedFromValueId, genericCode.id);
         });
 
         it("attach with attachGenericAsNewValue: true fails (already attached)", async () => {

@@ -13,7 +13,7 @@ export interface Value {
     code: string | null;
     isGenericCode: boolean;
     genericCodeOptions?: GenericCodeOptions | undefined;
-    attachedFromValueId: string | null;
+    attachedFromValueId?: string | undefined;
     contactId: string | null;
     pretax: boolean;
     active: boolean;

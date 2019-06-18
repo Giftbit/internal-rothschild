@@ -360,6 +360,8 @@ describe("/v2/values/", () => {
         chai.assert.isNull(resp.body.updatedContactIdDate);
         chai.assert.equal((resp.body as any).startDate, value.startDate.toISOString());
         chai.assert.equal((resp.body as any).endDate, value.endDate.toISOString());
+        chai.assert.isUndefined(resp.body.attachedFromValueId);
+        chai.assert.isUndefined(resp.body.genericCodeOptions);
 
         const intitialBalanceTx = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${value.id}`, "GET");
         chai.assert.equal(intitialBalanceTx.statusCode, 200, `body=${JSON.stringify(intitialBalanceTx.body)}`);
