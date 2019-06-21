@@ -400,29 +400,9 @@ export async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             throw new Error(`Illegal SELECT query.  Returned ${selectValueRes.length} values.`);
         }
         const existingValue = await DbValue.toValue(selectValueRes[0]);
-        const updatedValue: Value = {
-            ...existingValue,
-            ...valueUpdates
-        };
+        const updatedValue: Value = setValueUpdates(existingValue, valueUpdates);
 
-        if (valueUpdates.genericCodeOptions && valueUpdates.genericCodeOptions.perContact) {
-            updatedValue.genericCodeOptions = {
-                perContact: {
-                    ...(existingValue.genericCodeOptions && existingValue.genericCodeOptions.perContact ? existingValue.genericCodeOptions.perContact : {}),
-                    ...valueUpdates.genericCodeOptions.perContact
-                }
-            }
-        }
-
-        if (!Value.isGenericCodeWithPropertiesPerContact(existingValue) && Value.isGenericCodeWithPropertiesPerContact(updatedValue)) {
-            if (await hasContactValues(auth, existingValue.id)) {
-                throw new giftbitRoutes.GiftbitRestError(422, "A shared generic value without genericCodeOptions cannot be updated to have genericCodeOptions.");
-            }
-        }
-        if (Value.isGenericCodeWithPropertiesPerContact(existingValue) && !Value.isGenericCodeWithPropertiesPerContact(updatedValue)) {
-            throw new giftbitRoutes.GiftbitRestError(422, "A value with genericCodeOptions cannot be updated to no longer have genericCodeOptions.");
-        }
-
+        await checkForRestrictedUpdates(auth, existingValue, updatedValue);
         checkValueProperties(updatedValue);
 
         const dbValue = Value.toDbValueUpdate(auth, valueUpdates);
@@ -440,6 +420,34 @@ export async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         }
         return updatedValue;
     });
+}
+
+function setValueUpdates(existingValue: Value, valueUpdates: Partial<Value>): Value {
+    const updatedValue: Value = {
+        ...existingValue,
+        ...valueUpdates
+    };
+
+    if (valueUpdates.genericCodeOptions && valueUpdates.genericCodeOptions.perContact) {
+        updatedValue.genericCodeOptions = {
+            perContact: {
+                ...(existingValue.genericCodeOptions && existingValue.genericCodeOptions.perContact ? existingValue.genericCodeOptions.perContact : {}),
+                ...valueUpdates.genericCodeOptions.perContact
+            }
+        }
+    }
+    return updatedValue;
+}
+
+async function checkForRestrictedUpdates(auth: giftbitRoutes.jwtauth.AuthorizationBadge, existingValue: Value, updatedValue: Value): Promise<void> {
+    if (!Value.isGenericCodeWithPropertiesPerContact(existingValue) && Value.isGenericCodeWithPropertiesPerContact(updatedValue)) {
+        if (await hasContactValues(auth, existingValue.id)) {
+            throw new giftbitRoutes.GiftbitRestError(422, "A shared generic value without genericCodeOptions cannot be updated to have genericCodeOptions.");
+        }
+    }
+    if (Value.isGenericCodeWithPropertiesPerContact(existingValue) && !Value.isGenericCodeWithPropertiesPerContact(updatedValue)) {
+        throw new giftbitRoutes.GiftbitRestError(422, "A value with genericCodeOptions cannot be updated to no longer have genericCodeOptions.");
+    }
 }
 
 async function updateDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, value: Partial<DbValue>): Promise<Value> {

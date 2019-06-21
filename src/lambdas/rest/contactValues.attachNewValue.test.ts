@@ -165,7 +165,7 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
         });
         chai.assert.equal(attachResp.statusCode, 200, `body=${JSON.stringify(attachResp.body)}`);
         chai.assert.equal(attachResp.body.id, generateUrlSafeHashFromValueIdContactId(genericCode.id, contact.id));
-        chai.assert.equal(attachResp.body.id, "F6GljQ2EJiGZAFkHKXuJNPtOkOc");
+        chai.assert.equal(attachResp.body.id, "F6GljQ2EJiGZAFkHKXuJNPtOkOc", "Specifically checking for string F6GljQ2EJiGZAFkHKXuJNPtOkOc since this is what the hash should return for contactId: aw4rd4arwefd, and valueId: 324arwesf342aw");
     });
 
     it("can attach a generic-code Value by code using attachNewValue=true to create a new Value", async () => {

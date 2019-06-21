@@ -520,7 +520,7 @@ export async function setupAttachedContactValueScenario(router: cassava.Router, 
     // create a genericVal2
     const createGenVal2 = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", data.genVal2_sharedGenericValue);
     chai.assert.equal(createGenVal2.statusCode, 201);
-    chai.assert.isNull(createGenVal2.body.genericCodeOptions, "Assert genericCodeOptions are null");
+    chai.assert.isNull(createGenVal2.body.genericCodeOptions);
 
     // create a genericVal3
     const createGenVal3 = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", data.genVal3_perContactProperties);

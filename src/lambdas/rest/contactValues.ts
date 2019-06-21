@@ -373,12 +373,21 @@ async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.Authoriz
 
 export async function getIdForAttachingGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<string> {
     if (genericValue.createdDate < new Date("2019-06-25")) {
-        // Arbitrary date set after the code for this change has been released.
-        // As of June 25, 2019, all attaches will use the updated hash method for generating ids for attaching generic codes.
-        // This code checks for whether the generic code has already been attached using the legacy id hash.
+        /* Arbitrary date set after the code for this change has been released.
+           As of June 25, 2019, all attaches will use the updated hash method for generating ids for attaching generic codes.
+           This code checks for whether the generic code has already been attached using the legacy id hash.
+
+           Ideally we'll eventually be able to remove this date check. It is included so that for generic codes
+           that could have used the old hashing method we can check for whether it was already attached. For generic codes
+           created since June 25, 2019, we know they'll be using the updated hashing method so this skips having to make an
+           additional lookup.
+         */
         const legacyHashId = await generateLegacyHashForContactIdValueId(genericValue.id, contactId);
         try {
             const existingValue = await getValue(auth, legacyHashId);
+
+            // If existingValue doesn't exist the 'getValue()' call will return a 404 error, otherwise:
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${genericValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
             if (existingValue) {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${genericValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
             }
