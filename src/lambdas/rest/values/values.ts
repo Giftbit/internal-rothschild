@@ -434,7 +434,7 @@ function setValueUpdates(existingValue: Value, valueUpdates: Partial<Value>): Va
                 ...(existingValue.genericCodeOptions && existingValue.genericCodeOptions.perContact ? existingValue.genericCodeOptions.perContact : {}),
                 ...valueUpdates.genericCodeOptions.perContact
             }
-        }
+        };
     }
     return updatedValue;
 }

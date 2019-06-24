@@ -64,7 +64,7 @@ export async function formatObjectsAmountPropertiesForCurrencyDisplay(auth: gift
     for (const object of objects) {
         const currency: string = mapUtils.get(object, "currency");
         if (!currency) {
-            throw new Error("Invalid usage. All objects passed in must have a currency defined by the currencyPath")
+            throw new Error("Invalid usage. All objects passed in must have a currency defined by the currencyPath");
         }
         if (!retrievedCurrencies[currency]) {
             retrievedCurrencies[currency] = await getCurrency(auth, currency);

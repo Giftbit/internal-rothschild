@@ -388,7 +388,7 @@ export async function getIdForAttachingGenericValue(auth: giftbitRoutes.jwtauth.
             if (existingValue) {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${genericValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
             }
-            throw new Error("This isn't a possible execution path. If existingValue doesn't exist the call will return a 404 error.")
+            throw new Error("This isn't a possible execution path. If existingValue doesn't exist the call will return a 404 error.");
         } catch (err) {
             if ((err as giftbitRoutes.GiftbitRestError).statusCode === 404) {
                 return generateUrlSafeHashFromValueIdContactId(genericValue.id, contactId);
