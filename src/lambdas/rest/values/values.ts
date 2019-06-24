@@ -359,6 +359,22 @@ export async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, i
     return DbValue.toValue(res[0], showCode);
 }
 
+export async function valueExists(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<boolean> {
+    try {
+        const existingValue = await getValue(auth, id);
+        if (existingValue) {
+            return true;
+        }
+        throw new Error("This isn't a possible execution path. If existingValue doesn't exist the call will return a 404 error.");
+    } catch (err) {
+        if ((err as giftbitRoutes.GiftbitRestError).statusCode === 404) {
+            return false;
+        } else {
+            throw err;
+        }
+    }
+}
+
 export async function getValueByCode(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string, showCode: boolean = false): Promise<Value> {
     auth.requireIds("userId");
 

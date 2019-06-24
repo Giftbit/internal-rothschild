@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {getValue, getValueByCode, getValues, injectValueStats, updateValue} from "./values/values";
+import {getValue, getValueByCode, getValues, injectValueStats, updateValue, valueExists} from "./values/values";
 import {csvSerializer} from "../../serializers";
 import {Pagination} from "../../model/Pagination";
 import {DbValue, Value} from "../../model/Value";
@@ -372,33 +372,25 @@ async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.Authoriz
 }
 
 export async function getIdForAttachingGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<string> {
-    if (genericValue.createdDate < new Date("2019-06-25")) {
-        /* Arbitrary date set after the code for this change has been released.
-           As of June 25, 2019, all attaches will use the updated hash method for generating ids for attaching generic codes.
-           This code checks for whether the generic code has already been attached using the legacy id hash.
+    /* Arbitrary date set after the code for this change has been released.
+       As of June 25, 2019, all attaches will use the updated hash method for generating ids for attaching generic codes.
+       This code checks for whether the generic code has already been attached using the legacy id hash.
 
-           Ideally we'll eventually be able to remove this date check. It is included so that for generic codes
-           that could have used the old hashing method we can check for whether it was already attached. For generic codes
-           created since June 25, 2019, we know they'll be using the updated hashing method so this skips having to make an
-           additional lookup.
-         */
+       Ideally we'll eventually be able to remove this date check. It is included so that for generic codes
+       that could have used the old hashing method we can check for whether it was already attached. For generic codes
+       created since June 25, 2019, we know they'll be using the updated hashing method so this skips having to make an
+       additional lookup.
+     */
+    const createdDateCutoffForCheckingLegacyHashes = new Date("2019-06-25");
+
+    if (genericValue.createdDate < createdDateCutoffForCheckingLegacyHashes) {
         const legacyHashId = await generateLegacyHashForContactIdValueId(genericValue.id, contactId);
-        try {
-            const existingValue = await getValue(auth, legacyHashId);
-            if (existingValue) {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${genericValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
-            }
-            throw new Error("This isn't a possible execution path. If existingValue doesn't exist the call will return a 404 error.");
-        } catch (err) {
-            if ((err as giftbitRoutes.GiftbitRestError).statusCode === 404) {
-                return generateUrlSafeHashFromValueIdContactId(genericValue.id, contactId);
-            } else {
-                throw err;
-            }
+
+        if (await valueExists(auth, legacyHashId)) {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${genericValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
         }
-    } else {
-        return generateUrlSafeHashFromValueIdContactId(genericValue.id, contactId);
     }
+    return generateUrlSafeHashFromValueIdContactId(genericValue.id, contactId);
 }
 
 /**
