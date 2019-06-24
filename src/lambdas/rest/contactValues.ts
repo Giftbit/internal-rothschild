@@ -385,9 +385,6 @@ export async function getIdForAttachingGenericValue(auth: giftbitRoutes.jwtauth.
         const legacyHashId = await generateLegacyHashForContactIdValueId(genericValue.id, contactId);
         try {
             const existingValue = await getValue(auth, legacyHashId);
-
-            // If existingValue doesn't exist the 'getValue()' call will return a 404 error, otherwise:
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${genericValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
             if (existingValue) {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${genericValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
             }
