@@ -31,7 +31,7 @@ export function installReportsRest(router: cassava.Router): void {
             const paginationParams = getPaginationParams(evt, {maxLimit: reportRowLimit});
             const res = await getTransactionsForReport(auth, evt.queryStringParameters, paginationParams);
             if (!isResponseSizeAcceptable(res.transactions.length, evt.queryStringParameters, paginationParams)) {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Report query returned too many rows (rows=${res.transactions.length}, limit=${paginationParams.limit}, maxLimit=${reportRowLimit}). Please refine your request and try again.`);
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Report query returned more than ${reportRowLimit} rows. Please modify your request and try again.`);
             } else {
 
                 if (evt.queryStringParameters.formatCurrencies === "true") {
@@ -71,7 +71,7 @@ export function installReportsRest(router: cassava.Router): void {
             const paginationParams = Pagination.getPaginationParams(evt, {maxLimit: reportRowLimit});
             const res = await getValues(auth, evt.queryStringParameters, paginationParams);
             if (!isResponseSizeAcceptable(res.values.length, evt.queryStringParameters, paginationParams)) {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Report query returned too many rows (rows=${res.values.length}, limit=${paginationParams.limit}, maxLimit=${reportRowLimit}). Please refine your request and try again.`);
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Report query returned more than ${reportRowLimit} rows. Please modify your request and try again`);
             } else {
 
                 if (evt.queryStringParameters.formatCurrencies === "true") {
