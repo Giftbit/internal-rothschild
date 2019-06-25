@@ -11,7 +11,7 @@ import {CheckoutRequest, CreditRequest, ReverseRequest} from "../../../model/Tra
 import {generateUrlSafeHashFromValueIdContactId} from "../genericCodeWithPerContactOptions";
 import {Program} from "../../../model/Program";
 import {generateCode} from "../../../utils/codeGenerator";
-import {generateLegacyHashForContactIdValueId} from "../contactValues";
+import {generateLegacyHashForValueIdContactId} from "../contactValues";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import chaiExclude = require("chai-exclude");
 
@@ -1290,7 +1290,7 @@ describe("/v2/values - generic code with per contact properties", () => {
 
             // replicate how codes used to be attached. once this release goes live, all attached generic codes will use the generateUrlSafeHashFromValueIdContactId
             const attachedValue: Partial<Value> = {
-                id: generateLegacyHashForContactIdValueId(genericCode.id, contact.id),
+                id: generateLegacyHashForValueIdContactId(genericCode.id, contact.id),
                 currency: genericCode.currency,
                 balanceRule: genericCode.balanceRule,
                 contactId: contact.id,

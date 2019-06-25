@@ -385,7 +385,7 @@ export async function getIdForAttachingGenericValue(auth: giftbitRoutes.jwtauth.
     console.log(createdDateCutoffForCheckingLegacyHashes);
 
     if (genericValue.createdDate < createdDateCutoffForCheckingLegacyHashes) {
-        const legacyHashId = await generateLegacyHashForContactIdValueId(genericValue.id, contactId);
+        const legacyHashId = await generateLegacyHashForValueIdContactId(genericValue.id, contactId);
 
         if (await valueExists(auth, legacyHashId)) {
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${genericValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
@@ -397,7 +397,7 @@ export async function getIdForAttachingGenericValue(auth: giftbitRoutes.jwtauth.
 /**
  * Legacy function for the id of the newly created Value that results from attachNewValue.
  */
-export function generateLegacyHashForContactIdValueId(valueId: string, contactId: string): string {
+export function generateLegacyHashForValueIdContactId(valueId: string, contactId: string): string {
     // Constructing the ID this way prevents the same contactId attaching
     // the Value twice and thus should not be changed.
     // Note, a problem was found that the base64 character set includes slashes which is not ideal of IDs.
