@@ -83,4 +83,20 @@ export namespace Pagination {
             last: (evt.queryStringParameters.last || "").toLowerCase() === "true"
         };
     }
+
+    export function getPaginationParamsForReports(evt: RouterEvent, options: PaginationParamOptions): PaginationParams {
+        const maxLimit = options.maxLimit || 10000;
+        const defaultSort = {
+            field: "createdDate",
+            asc: false
+        };
+        return {
+            limit: isNaN(+evt.queryStringParameters["limit"]) ? maxLimit : Math.min(+evt.queryStringParameters["limit"], maxLimit),
+            maxLimit,
+            sort: options.sort || defaultSort,
+            before: evt.queryStringParameters.before,
+            after: evt.queryStringParameters.after,
+            last: (evt.queryStringParameters.last || "").toLowerCase() === "true"
+        };
+    }
 }

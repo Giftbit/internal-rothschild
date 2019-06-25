@@ -8,6 +8,7 @@ import * as chai from "chai";
 import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
 import {ReportTransaction} from "./transactions/ReportTransaction";
+import {initializeReportRowLimit} from "./reports";
 
 
 describe("/v2/reports/transactions/", () => {
@@ -111,6 +112,16 @@ describe("/v2/reports/transactions/", () => {
     }).timeout(8000);
 
     describe("row limiting", () => {
+        const artificialRowLimit = 3;
+
+        before(() => {
+            initializeReportRowLimit(artificialRowLimit); // five transactions created in top-level before()
+        });
+
+        after(() => {
+            initializeReportRowLimit(10000);
+        });
+
         it("returns successfully when limit<maxLimit with errorOnOverLimit=false", async () => {
             const resp = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, "/v2/reports/transactions?limit=1&errorOnOverLimit=false", "GET");
             chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);

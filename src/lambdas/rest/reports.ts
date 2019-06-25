@@ -15,9 +15,11 @@ import {
 import {getValues} from "./values/values";
 import {ReportTransaction} from "./transactions/ReportTransaction";
 import {formatObjectsAmountPropertiesForCurrencyDisplay} from "../../model/Currency";
-import getPaginationParams = Pagination.getPaginationParams;
+import getPaginationParamsForReports = Pagination.getPaginationParamsForReports;
 
-const reportRowLimit = 10000;
+let reportRowLimit: number;
+
+initializeReportRowLimit(10000);
 
 export function installReportsRest(router: cassava.Router): void {
     router.route("/v2/reports/transactions")
@@ -28,7 +30,7 @@ export function installReportsRest(router: cassava.Router): void {
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:transactions:list");
 
-            const paginationParams = getPaginationParams(evt, {maxLimit: reportRowLimit});
+            const paginationParams = getPaginationParamsForReports(evt, {maxLimit: reportRowLimit});
             const res = await getTransactionsForReport(auth, evt.queryStringParameters, paginationParams);
             if (!isResponseSizeAcceptable(res.transactions.length, evt.queryStringParameters, paginationParams)) {
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Report query returned more than ${reportRowLimit} rows. Please modify your request and try again.`);
@@ -185,4 +187,8 @@ function getStepAmount(step: LightrailTransactionStep | StripeTransactionStep | 
     } else {
         return 0;
     }
+}
+
+export function initializeReportRowLimit(limit: number): void {
+    reportRowLimit = limit;
 }
