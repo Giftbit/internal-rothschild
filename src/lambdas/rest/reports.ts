@@ -161,7 +161,7 @@ async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.Authorizatio
 }
 
 function isResponseSizeAcceptable(responseLength: number, queryStringParams: { [key: string]: string }, paginationParams: PaginationParams): boolean {
-    return !(responseLength === reportRowLimit || (queryStringParams["errorOnLimit"] === "true" && responseLength === paginationParams.limit));
+    return !(responseLength === reportRowLimit || (queryStringParams["errorOnOverLimit"] === "true" && responseLength === paginationParams.limit));
 }
 
 function addStepAmounts(txn: Transaction): number {

@@ -111,21 +111,41 @@ describe("/v2/reports/transactions/", () => {
     }).timeout(8000);
 
     describe("row limiting", () => {
-        it("accepts a limit less than <10000 with errorOnLimit=false", async () => {
-            const resp = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, "/v2/reports/transactions?limit=1&errorOnLimit=false", "GET");
+        it("returns successfully when limit<maxLimit with errorOnOverLimit=false", async () => {
+            const resp = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, "/v2/reports/transactions?limit=1&errorOnOverLimit=false", "GET");
             chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
             chai.assert.equal(resp.body.length, 1, `resp.body=${JSON.stringify(resp.body)}`);
         });
 
-        it("accepts a limit less than <10000 with errorOnLimit=true", async () => {
-            const resp = await testUtils.testAuthedRequest<ReportTransaction>(router, "/v2/reports/transactions?limit=1&errorOnLimit=true", "GET");
+        it("returns error when limit<maxLimit with errorOnOverLimit=true", async () => {
+            const resp = await testUtils.testAuthedRequest<ReportTransaction>(router, "/v2/reports/transactions?limit=1&errorOnOverLimit=true", "GET");
             chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
         });
 
-        it("'errorOnLimit' defaults to false", async () => {
+        it("'errorOnOverLimit' defaults to false", async () => {
             const resp = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, "/v2/reports/transactions?limit=1", "GET");
             chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
             chai.assert.equal(resp.body.length, 1, `resp.body=${JSON.stringify(resp.body)}`);
+        });
+
+        it("returns error when limit not specified and query returns more than maxLimit rows", async () => {
+            const resp = await testUtils.testAuthedRequest(router, "/v2/reports/transactions", "GET");
+            chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
+        });
+
+        it("returns error when limit=maxLimit and errorOnOverLimit=true and query returns more than maxLimit rows", async () => {
+            const resp = await testUtils.testAuthedRequest(router, `/v2/reports/transactions?limit=${artificialRowLimit}&errorOnOverLimit=true`, "GET");
+            chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
+        });
+
+        it("returns successfully when requested limit=maxLimit (errorOnOverLimit=false or not set)", async () => {
+            const resp1 = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, `/v2/reports/transactions?limit=${artificialRowLimit}&errorOnOverLimit=false`, "GET");
+            chai.assert.equal(resp1.statusCode, 200, `resp1.body=${JSON.stringify(resp1.body)}`);
+            chai.assert.equal(resp1.body.length, artificialRowLimit, `resp1.body=${JSON.stringify(resp1.body)}`);
+
+            const resp2 = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, `/v2/reports/transactions?limit=${artificialRowLimit}`, "GET");
+            chai.assert.equal(resp2.statusCode, 200, `resp2.body=${JSON.stringify(resp2.body)}`);
+            chai.assert.equal(resp2.body.length, artificialRowLimit, `resp2.body=${JSON.stringify(resp2.body)}`);
         });
     });
 
