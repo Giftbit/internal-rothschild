@@ -13,7 +13,7 @@ import {
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../../utils/testUtils/stripeTestUtils";
-import {generateIdForNewAttachedValue} from "../genericCodeWithPerContactOptions";
+import {generateUrlSafeHashFromValueIdContactId} from "../genericCodeWithPerContactOptions";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -120,7 +120,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
                     "steps": [
                         {
                             "rail": "lightrail",
-                            "valueId": generateIdForNewAttachedValue(genericValue.id, contactId),
+                            "valueId": generateUrlSafeHashFromValueIdContactId(genericValue.id, contactId),
                             "contactId": contactId,
                             "code": null,
                             "balanceBefore": 500,
@@ -418,7 +418,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
             chai.assert.equal(checkout.statusCode, 200);
             chai.assert.isTrue(checkout.body.simulated);
-            chai.assert.equal(checkout.body.steps[0]["valueId"], generateIdForNewAttachedValue(genericValue.id, contactId));
+            chai.assert.equal(checkout.body.steps[0]["valueId"], generateUrlSafeHashFromValueIdContactId(genericValue.id, contactId));
             chai.assert.equal(checkout.body.steps[0]["balanceChange"], -500);
             chai.assert.equal(checkout.body.steps[0]["usesRemainingAfter"], 0);
         });
@@ -512,7 +512,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             chai.assert.isTrue(checkout.body.simulated);
             chai.assert.sameMembers(
                 checkout.body.steps.map(step => (step as LightrailTransactionStep).valueId),
-                [genericValue1.id, genericValue2.id].map(gcId => generateIdForNewAttachedValue(gcId, contactId))
+                [genericValue1.id, genericValue2.id].map(gcId => generateUrlSafeHashFromValueIdContactId(gcId, contactId))
             );
             chai.assert.equal(checkout.body.totals.paidLightrail, 300);
         });
@@ -524,7 +524,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             chai.assert.equal(checkout.statusCode, 201);
             chai.assert.sameMembers(
                 checkout.body.steps.map(step => (step as LightrailTransactionStep).valueId),
-                [genericValue1.id, genericValue2.id].map(gcId => generateIdForNewAttachedValue(gcId, contactId))
+                [genericValue1.id, genericValue2.id].map(gcId => generateUrlSafeHashFromValueIdContactId(gcId, contactId))
             );
             chai.assert.equal(checkout.body.totals.paidLightrail, 300);
 

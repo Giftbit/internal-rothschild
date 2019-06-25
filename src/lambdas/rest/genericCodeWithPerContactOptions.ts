@@ -13,6 +13,7 @@ import {executeTransactionPlanner} from "./transactions/executeTransactionPlans"
 import {Transaction} from "../../model/Transaction";
 import * as cassava from "cassava";
 import {initializeValue} from "./values/createValue";
+import {getIdForAttachingGenericValue} from "./contactValues";
 
 export async function attachGenericCodeWithPerContactOptions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<Value> {
     let transaction: Transaction;
@@ -21,7 +22,7 @@ export async function attachGenericCodeWithPerContactOptions(auth: giftbitRoutes
         transaction = await executeTransactionPlanner(auth, {
             allowRemainder: false,
             simulate: false
-        }, async () => transactionPlan = getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth, contactId, genericValue));
+        }, async () => transactionPlan = await getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth, contactId, genericValue));
     } catch (err) {
         if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "TransactionExists") {
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${genericValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
@@ -32,13 +33,13 @@ export async function attachGenericCodeWithPerContactOptions(auth: giftbitRoutes
     return (transactionPlan.steps.find((step: LightrailTransactionPlanStep) => step.action === "insert") as LightrailInsertTransactionPlanStep).value;
 }
 
-export function getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): TransactionPlan {
+export async function getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<TransactionPlan> {
     if (!Value.isGenericCodeWithPropertiesPerContact(genericValue)) {
         throw new Error(`Invalid value passed in. ${genericValue.id}`);
     }
 
     const now = nowInDbPrecision();
-    const newAttachedValueId = generateIdForNewAttachedValue(genericValue.id, contactId);
+    const newAttachedValueId = await getIdForAttachingGenericValue(auth, contactId, genericValue);
     const amount = genericValue.genericCodeOptions.perContact.balance;
     const uses = genericValue.genericCodeOptions.perContact.usesRemaining;
 
@@ -94,6 +95,6 @@ export function getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth
 /**
  * This function encodes to the RFC 4648 Spec where '+' is encoded as '-' and '/' is encoded as '_'. The padding character '=' is removed.
  */
-export function generateIdForNewAttachedValue(genericValueId: string, contactId: string) {
+export function generateUrlSafeHashFromValueIdContactId(genericValueId: string, contactId: string) {
     return crypto.createHash("sha1").update(genericValueId + "/" + contactId).digest("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }

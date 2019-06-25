@@ -11,9 +11,9 @@ export namespace mapUtils {
      */
     export function get(obj: object, path: string): any {
         let current = obj;
-        const paths = path.split('.');
+        const paths = path.split(".");
         while (paths.length) {
-            if (typeof current !== 'object') {
+            if (typeof current !== "object") {
                 return undefined;
             }
             current = current[paths.shift()];
@@ -33,7 +33,7 @@ export namespace mapUtils {
     export function set(obj: object, path: string, value: any): object {
         let objClone = JSON.parse(JSON.stringify(obj)); // avoids mutating obj
         let current = objClone;  // a moving reference to internal objects within obj
-        const paths = path.split('.');
+        const paths = path.split(".");
         while (paths.length > 1) {
             current = current[paths.shift()] || {};
         }
