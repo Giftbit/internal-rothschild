@@ -209,7 +209,7 @@ describe("values currency display tests", () => {
                     usesRemaining: null
                 }
             }
-        })
+        });
     });
 });
 

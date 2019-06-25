@@ -11,9 +11,9 @@ export interface Value {
     programId: string | null;
     issuanceId: string | null;
     code: string | null;
-    isGenericCode: boolean | null;
+    isGenericCode: boolean;
     genericCodeOptions?: GenericCodeOptions | undefined;
-    attachedFromValueId: string | null;
+    attachedFromValueId?: string | undefined;
     contactId: string | null;
     pretax: boolean;
     active: boolean;
@@ -104,7 +104,9 @@ export namespace Value {
             startDate: v.startDate,
             endDate: v.endDate,
             metadata: JSON.stringify(v.metadata),
-            updatedDate: v.updatedDate
+            updatedDate: v.updatedDate,
+            genericCodeOptions_perContact_balance: v.genericCodeOptions ? v.genericCodeOptions.perContact.balance : undefined,
+            genericCodeOptions_perContact_usesRemaining: v.genericCodeOptions ? v.genericCodeOptions.perContact.usesRemaining : undefined,
         });
     }
 
@@ -116,7 +118,7 @@ export namespace Value {
     }
 
     export function isGenericCodeWithPropertiesPerContact(v: Partial<Value>): boolean {
-        return v.isGenericCode != null && v.genericCodeOptions != null && v.genericCodeOptions.perContact != null;
+        return v.isGenericCode === true && v.genericCodeOptions != null && v.genericCodeOptions.perContact != null;
     }
 }
 
@@ -170,7 +172,7 @@ export namespace DbValue {
                     balance: v.genericCodeOptions_perContact_balance,
                     usesRemaining: v.genericCodeOptions_perContact_usesRemaining
                 }
-            } : undefined,
+            } : v.isGenericCode ? null : undefined,
             attachedFromValueId: v.attachedFromValueId != null ? v.attachedFromValueId : undefined,
             pretax: v.pretax,
             active: v.active,

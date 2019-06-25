@@ -166,7 +166,7 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
                 const partialValue: Partial<Value> = {
                     id: issuance.id + "-" + padValueIdForIssuance(i, issuancePaddingWidth) /* padding is for nice sorting in CSV lists */,
                     code: codeParameters.code,
-                    isGenericCode: codeParameters.isGenericCode,
+                    isGenericCode: codeParameters.isGenericCode ? codeParameters.isGenericCode : false,
                     issuanceId: issuance.id,
                     balance: (issuance.balance == null && issuance.balanceRule == null) ? 0 : issuance.balance,
                     redemptionRule: issuance.redemptionRule ? issuance.redemptionRule : null,
