@@ -115,7 +115,7 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
         });
     });
 
-    it("can attach a generic code using attachGenericAsNewValue flag, uses url safe hash if created date > 2019-06-25", async () => {
+    it("can attach a generic code using attachGenericAsNewValue flag, uses url safe hash if created date > 2019-06-26", async () => {
         const genericCode: Partial<Value> = {
             id: "324arwesf342aw",
             currency: currency.code,
@@ -144,7 +144,7 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
                     id: genericCode.id
                 })
                 .update({
-                    createdDate: "2019-06-25 00:00:01.000" // first second
+                    createdDate: "2019-06-26 00:00:01.000" // first second
                 });
             if (updateRes === 0) {
                 throw new cassava.RestError(404);
@@ -156,7 +156,7 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
 
         const get = await testUtils.testAuthedRequest<any>(router, `/v2/values/${genericCode.id}`, "GET");
         chai.assert.equal(get.statusCode, 200);
-        chai.assert.equal(get.body.createdDate, "2019-06-25T00:00:01.000Z", "Assert createdDate was updated.");
+        chai.assert.equal(get.body.createdDate, "2019-06-26T00:00:01.000Z", "Assert createdDate was updated.");
 
         // Should return a new Value.
         const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
