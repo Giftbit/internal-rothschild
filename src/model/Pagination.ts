@@ -1,6 +1,7 @@
 import * as cassava from "cassava";
 import * as querystring from "querystring";
 import {RouterEvent} from "cassava/dist/RouterEvent";
+import * as giftbitRoutes from "giftbit-cassava-routes";
 
 export interface PaginationParams {
     limit: number;
@@ -85,8 +86,13 @@ export namespace Pagination {
     }
 
     export function getPaginationParamsForReports(evt: RouterEvent, options: PaginationParamOptions): PaginationParams {
-        const maxLimit = options.maxLimit || 10000;
         const defaultSort = {field: "createdDate", asc: false};
+        const maxLimit = options.maxLimit || 10000;
+
+        if (+evt.queryStringParameters["limit"] && +evt.queryStringParameters["limit"] > maxLimit) {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested limit '${+evt.queryStringParameters["limit"]}' is greater than maxLimit '${maxLimit}'. Please modify your request and try again.`);
+        }
+
         return {
             limit: (isNaN(+evt.queryStringParameters["limit"]) ? maxLimit : Math.min(+evt.queryStringParameters["limit"], maxLimit)) + 1, // +1 so that we can optionally throw an error if query result is greater than the requested limit
             maxLimit: maxLimit + 1, // +1 so that we can optionally throw an error if query result is greater than the requested limit
