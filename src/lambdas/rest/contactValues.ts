@@ -382,7 +382,6 @@ export async function getIdForAttachingGenericValue(auth: giftbitRoutes.jwtauth.
        additional lookup.
      */
     const createdDateCutoffForCheckingLegacyHashes = new Date("2019-06-26");
-    console.log(createdDateCutoffForCheckingLegacyHashes);
 
     if (genericValue.createdDate < createdDateCutoffForCheckingLegacyHashes) {
         const legacyHashId = await generateLegacyHashForValueIdContactId(genericValue.id, contactId);
