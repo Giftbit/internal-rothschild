@@ -166,7 +166,7 @@ export namespace DbValue {
             issuanceId: v.issuanceId,
             contactId: v.contactId,
             code: await dbValueCodeToValueCode(v, showCode),
-            isGenericCode: v.isGenericCode,
+            isGenericCode: v.isGenericCode ? true : false,
             genericCodeOptions: v.genericCodeOptions_perContact_balance != null || v.genericCodeOptions_perContact_usesRemaining != null ? {
                 perContact: {
                     balance: v.genericCodeOptions_perContact_balance,
@@ -174,11 +174,11 @@ export namespace DbValue {
                 }
             } : v.isGenericCode ? null : undefined,
             attachedFromValueId: v.attachedFromValueId != null ? v.attachedFromValueId : undefined,
-            pretax: v.pretax,
-            active: v.active,
-            canceled: v.canceled,
-            frozen: v.frozen,
-            discount: v.discount,
+            pretax: v.pretax ? true : false,
+            active: v.active ? true : false,
+            canceled: v.canceled ? true : false,
+            frozen: v.frozen ? true : false,
+            discount: v.discount ? true : false,
             discountSellerLiability: v.discountSellerLiability,
             redemptionRule: JSON.parse(v.redemptionRule),
             balanceRule: JSON.parse(v.balanceRule),
