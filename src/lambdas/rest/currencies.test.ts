@@ -281,6 +281,6 @@ describe("/v2/currencies", () => {
                 "currency": "ZERO",
                 "level": "zero1"
             }
-        ])
+        ]);
     });
 });

@@ -354,7 +354,7 @@ async function getAutoAttachTransactionPlans(auth: giftbitRoutes.jwtauth.Authori
         if (valuesForCheckout.find(v => v.attachedFromValueId === genericValue.id)) {
             log.debug(`Skipping attaching generic value ${genericValue.id} since it's already been attached.`);
         } else {
-            const transactionPlan = getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth, contactId, genericValue);
+            const transactionPlan = await getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth, contactId, genericValue);
             attachTransactionPlans.push(transactionPlan);
         }
     }
