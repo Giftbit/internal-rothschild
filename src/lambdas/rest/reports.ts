@@ -21,6 +21,14 @@ let reportRowLimit: number;
 
 initializeReportRowLimit(10000);
 
+/**
+ * The reports endpoints currently only return text/csv responses: reporting data is typically
+ * expected to be in csv format. Also, in order to return Transactions & Values in csv format
+ * the objects need to be flattened which means they are structured differently from the json
+ * returned by the main list endpoints (GET /v2/transactions, /v2/values).
+ * Returning json from the reports endpoints would either mean duplication of the main list
+ * endpoints or returning differently structured data which would be inconsistent/confusing.
+ */
 export function installReportsRest(router: cassava.Router): void {
     router.route("/v2/reports/transactions")
         .method("GET")
