@@ -40,33 +40,31 @@ export function installReportsRest(router: cassava.Router): void {
 
             const paginationParams = getPaginationParamsForReports(evt, {maxLimit: reportRowLimit});
             const res = await getTransactionsForReport(auth, evt.queryStringParameters, paginationParams);
-            if (!isResponseSizeAcceptable(res.transactions.length, evt.queryStringParameters, paginationParams)) {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Report query returned too many rows. Please modify your request and try again.`);
-            } else {
 
-                if (evt.queryStringParameters.formatCurrencies === "true") {
-                    return {
-                        headers: Pagination.toHeaders(evt, res.pagination),
-                        body: await formatObjectsAmountPropertiesForCurrencyDisplay(auth, res.transactions, [
-                            "transactionAmount",
-                            "checkout_subtotal",
-                            "checkout_tax",
-                            "checkout_discountLightrail",
-                            "checkout_paidLightrail",
-                            "checkout_paidStripe",
-                            "checkout_paidInternal",
-                            "checkout_remainder",
-                            "marketplace_sellerNet",
-                            "marketplace_sellerGross",
-                            "marketplace_sellerDiscount",
-                        ])
-                    };
-                } else {
-                    return {
-                        headers: Pagination.toHeaders(evt, res.pagination),
-                        body: res.transactions
-                    };
-                }
+            const transactions = limitReportSize<ReportTransaction>(res.transactions, evt.queryStringParameters, paginationParams);
+
+            if (evt.queryStringParameters.formatCurrencies === "true") {
+                return {
+                    headers: Pagination.toHeaders(evt, res.pagination),
+                    body: await formatObjectsAmountPropertiesForCurrencyDisplay(auth, transactions, [
+                        "transactionAmount",
+                        "checkout_subtotal",
+                        "checkout_tax",
+                        "checkout_discountLightrail",
+                        "checkout_paidLightrail",
+                        "checkout_paidStripe",
+                        "checkout_paidInternal",
+                        "checkout_remainder",
+                        "marketplace_sellerNet",
+                        "marketplace_sellerGross",
+                        "marketplace_sellerDiscount",
+                    ])
+                };
+            } else {
+                return {
+                    headers: Pagination.toHeaders(evt, res.pagination),
+                    body: transactions
+                };
             }
         });
 
@@ -172,6 +170,22 @@ async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.Authorizatio
 
 function isResponseSizeAcceptable(responseLength: number, queryStringParams: { [key: string]: string }, paginationParams: PaginationParams): boolean {
     return !(responseLength === reportRowLimit || (queryStringParams["errorOnOverLimit"] === "true" && responseLength === paginationParams.limit));
+}
+
+function limitReportSize<T>(response: T[], queryParams: { [key: string]: string }, pagination: PaginationParams): T[] {
+    const responseOverLimit = response.length > reportRowLimit || response.length > pagination.limit - 1; // subtract 1 because getPaginationParamsForReports() adds one to the requested limit
+    const responseOverMaxLimit = response.length > reportRowLimit;
+    const errorOnOverLimit = queryParams["errorOnOverLimit"] === "true";
+
+    if ((responseOverLimit && errorOnOverLimit) || (!queryParams["limit"] && responseOverMaxLimit && (errorOnOverLimit || !queryParams["errorOnOverLimit"]))) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Report query returned too many rows. Please modify your request and try again.`);
+    } else if (responseOverLimit && !errorOnOverLimit) {
+        return response.slice(0, response.length - 1); // subtract 1 because getPaginationParamsForReports() adds one to the requested limit
+    } else {
+        // response size is under limit so nothing to change
+        return response;
+    }
+
 }
 
 function addStepAmounts(txn: Transaction): number {

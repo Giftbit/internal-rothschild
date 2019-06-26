@@ -86,17 +86,14 @@ export namespace Pagination {
 
     export function getPaginationParamsForReports(evt: RouterEvent, options: PaginationParamOptions): PaginationParams {
         const maxLimit = options.maxLimit || 10000;
-        const defaultSort = {
-            field: "createdDate",
-            asc: false
-        };
+        const defaultSort = {field: "createdDate", asc: false};
         return {
-            limit: isNaN(+evt.queryStringParameters["limit"]) ? maxLimit : Math.min(+evt.queryStringParameters["limit"], maxLimit),
-            maxLimit,
+            limit: (isNaN(+evt.queryStringParameters["limit"]) ? maxLimit : Math.min(+evt.queryStringParameters["limit"], maxLimit)) + 1, // +1 so that we can optionally throw an error if query result is greater than the requested limit
+            maxLimit: maxLimit + 1, // +1 so that we can optionally throw an error if query result is greater than the requested limit
             sort: options.sort || defaultSort,
-            before: evt.queryStringParameters.before,
-            after: evt.queryStringParameters.after,
-            last: (evt.queryStringParameters.last || "").toLowerCase() === "true"
+            before: null,
+            after: null,
+            last: null
         };
     }
 }

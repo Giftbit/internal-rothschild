@@ -133,13 +133,13 @@ describe("/v2/reports/transactions/", () => {
             chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
         });
 
-        it("'errorOnOverLimit' defaults to false", async () => {
+        it("'errorOnOverLimit' defaults to false for results below maxLimit", async () => {
             const resp = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, "/v2/reports/transactions?limit=1", "GET");
             chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
             chai.assert.equal(resp.body.length, 1, `resp.body=${JSON.stringify(resp.body)}`);
         });
 
-        it("returns error when limit not specified and query returns more than maxLimit rows", async () => {
+        it("'errorOnOverLimit' defaults to true for results over maxLimit", async () => {
             const resp = await testUtils.testAuthedRequest(router, "/v2/reports/transactions", "GET");
             chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
         });
