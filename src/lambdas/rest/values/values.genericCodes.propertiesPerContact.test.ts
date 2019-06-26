@@ -1296,6 +1296,7 @@ describe("/v2/values - generic code with per contact properties", () => {
                 contactId: contact.id,
                 usesRemaining: 1
             };
+            console.log("attached value " + JSON.stringify(attachedValue, null, 4));
             const attach = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", attachedValue);
             chai.assert.equal(attach.statusCode, 201);
 
@@ -1326,6 +1327,9 @@ describe("/v2/values - generic code with per contact properties", () => {
         });
 
         it("attach with attachGenericAsNewValue: true fails (already attached)", async () => {
+            const listValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${contact.id}/values`, "GET");
+
+
             // can attach the generic code using the legacy attachGenericAsNewValue=true param
             const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
                 code: genericCode.code,
