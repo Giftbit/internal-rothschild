@@ -243,7 +243,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 
     let query: QueryBuilder;
     const contactId = filterParams["contactId"] || filterParams["contactId.eq"];
-    const unionTableAlias = "UnionTempTable";
+    const unionContactIdTempTable = "UnionTempTable";
     if (contactId) {
         query = knex.select("*").from(knex.raw(`
               (
@@ -257,7 +257,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                          left join ContactValues
                            on \`Values\`.userId = ContactValues.userId and \`Values\`.id = ContactValues.valueId
                   where \`Values\`.userId = ? and ContactValues.contactId = ?
-              ) as ${unionTableAlias}`, [auth.userId, contactId, auth.userId, contactId]));
+              ) as ${unionContactIdTempTable}`, [auth.userId, contactId, auth.userId, contactId]));
     } else {
         query = knex("Values")
             .select("*")
@@ -266,11 +266,11 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 
     // Manually handle code, code.eq and code.in because computeCodeLookupHash must be done async.
     if (filterParams.code) {
-        query = query.where((contactId ? unionTableAlias + "." : "") + "codeHashed", await computeCodeLookupHash(filterParams.code, auth));
+        query = query.where((contactId ? unionContactIdTempTable + "." : "") + "codeHashed", await computeCodeLookupHash(filterParams.code, auth));
     } else if (filterParams["code.eq"]) {
-        query = query.where((contactId ? unionTableAlias + "." : "") + "codeHashed", await computeCodeLookupHash(filterParams["code.eq"], auth));
+        query = query.where((contactId ? unionContactIdTempTable + "." : "") + "codeHashed", await computeCodeLookupHash(filterParams["code.eq"], auth));
     } else if (filterParams["code.in"]) {
-        query = query.whereIn((contactId ? unionTableAlias + "." : "") + "codeHashed", await Promise.all(filterParams["code.in"].split(",").map(v => computeCodeLookupHash(v, auth))));
+        query = query.whereIn((contactId ? unionContactIdTempTable + "." : "") + "codeHashed", await Promise.all(filterParams["code.in"].split(",").map(v => computeCodeLookupHash(v, auth))));
     }
 
     const paginatedRes = await filterAndPaginateQuery<DbValue>(
@@ -335,111 +335,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                     type: "Date"
                 }
             },
-            tableName: contactId ? unionTableAlias + "." : undefined
-        },
-        pagination
-    );
-
-    const values = await Promise.all(paginatedRes.body.map(v => DbValue.toValue(v, showCode)));
-    return {
-        values: values,
-        pagination: paginatedRes.pagination
-    };
-}
-
-export async function getValuesLegacy(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams, showCode: boolean = false): Promise<{ values: Value[], pagination: Pagination }> {
-    auth.requireIds("userId");
-
-    const knex = await getKnexRead();
-
-    let query = knex("Values")
-        .select("Values.*")
-        .where("Values.userId", "=", auth.userId);
-    const contactId = filterParams["contactId"] || filterParams["contactId.eq"];
-    if (contactId) {
-        // union approach
-        // query = query.union(knex.raw(`
-        //       select \`Values\`.*
-        //       from \`Values\`
-        //              left join ContactValues on Values.id = ContactValues.valueId
-        //                                           and \`Values\`.userId = ContactValues.userId
-        //       where \`Values\`.userId = ?
-        //         and ContactValues.contactId = ?
-        //     `, [auth.userId, contactId])
-        // );
-    }
-
-    // Manually handle code, code.eq and code.in because computeCodeLookupHash must be done async.
-    if (filterParams.code) {
-        query = query.where({codeHashed: await computeCodeLookupHash(filterParams.code, auth)});
-    } else if (filterParams["code.eq"]) {
-        query = query.where({codeHashed: await computeCodeLookupHash(filterParams["code.eq"], auth)});
-    } else if (filterParams["code.in"]) {
-        query = query.whereIn("codeHashed", await Promise.all(filterParams["code.in"].split(",").map(v => computeCodeLookupHash(v, auth))));
-    }
-
-    const paginatedRes = await filterAndPaginateQuery<DbValue>(
-        query,
-        filterParams,
-        {
-            properties: {
-                id: {
-                    type: "string",
-                    operators: ["eq", "in"]
-                },
-                programId: {
-                    type: "string",
-                    operators: ["eq", "in"]
-                },
-                issuanceId: {
-                    type: "string",
-                    operators: ["eq", "in"]
-                },
-                attachedFromValueId: {
-                    type: "string",
-                    operators: ["eq", "in"]
-                },
-                currency: {
-                    type: "string",
-                    operators: ["eq", "in"]
-                },
-                balance: {
-                    type: "number"
-                },
-                usesRemaining: {
-                    type: "number"
-                },
-                discount: {
-                    type: "boolean"
-                },
-                isGenericCode: {
-                    type: "boolean"
-                },
-                active: {
-                    type: "boolean"
-                },
-                frozen: {
-                    type: "boolean"
-                },
-                canceled: {
-                    type: "boolean"
-                },
-                pretax: {
-                    type: "boolean"
-                },
-                startDate: {
-                    type: "Date"
-                },
-                endDate: {
-                    type: "Date"
-                },
-                createdDate: {
-                    type: "Date"
-                },
-                updatedDate: {
-                    type: "Date"
-                }
-            }
+            tableName: contactId ? unionContactIdTempTable + "." : undefined
         },
         pagination
     );

@@ -314,7 +314,6 @@ describe("/v2/contacts/values", () => {
 
             const listValuesByContactAndIsCode = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?contactId=${data.contactA.id}&code=${data.genVal1_attachGenericAsNewValue.code}`, "GET");
             chai.assert.sameDeepMembers(listValuesByContactAndIsCode.body, data.valuesAttachedToContactA.filter(v => v.id === data.genVal1_attachGenericAsNewValue.id));
-
         });
 
         it("can list values attached to contactB", async () => {
