@@ -15,7 +15,7 @@ import {
 import {getValues} from "./values/values";
 import {ReportTransaction} from "./transactions/ReportTransaction";
 import {formatObjectsAmountPropertiesForCurrencyDisplay} from "../../model/Currency";
-import getPaginationParamsForReports = Pagination.getPaginationParamsForReports;
+import {Value} from "../../model/Value";
 
 let reportRowLimit: number;
 
@@ -38,7 +38,7 @@ export function installReportsRest(router: cassava.Router): void {
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:transactions:list");
 
-            const paginationParams = getPaginationParamsForReports(evt, {maxLimit: reportRowLimit});
+            const paginationParams = Pagination.getPaginationParamsForReports(evt, {maxLimit: reportRowLimit});
             const res = await getTransactionsForReport(auth, evt.queryStringParameters, paginationParams);
 
             const transactions = limitReportSize<ReportTransaction>(res.transactions, evt.queryStringParameters, paginationParams);
@@ -76,28 +76,25 @@ export function installReportsRest(router: cassava.Router): void {
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:values:list");
 
-            const paginationParams = Pagination.getPaginationParams(evt, {maxLimit: reportRowLimit});
+            const paginationParams = Pagination.getPaginationParamsForReports(evt, {maxLimit: reportRowLimit});
             const res = await getValues(auth, evt.queryStringParameters, paginationParams);
-            if (!isResponseSizeAcceptable(res.values.length, evt.queryStringParameters, paginationParams)) {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Report query returned too many rows. Please modify your request and try again`);
+
+            const values = limitReportSize<Value>(res.values, evt.queryStringParameters, paginationParams);
+
+            if (evt.queryStringParameters.formatCurrencies === "true") {
+                return {
+                    headers: Pagination.toHeaders(evt, res.pagination),
+                    body: await formatObjectsAmountPropertiesForCurrencyDisplay(auth, values, [
+                        "balance",
+                        "genericCodeOptions.perContact.balance"
+                    ])
+                };
             } else {
-
-                if (evt.queryStringParameters.formatCurrencies === "true") {
-                    return {
-                        headers: Pagination.toHeaders(evt, res.pagination),
-                        body: await formatObjectsAmountPropertiesForCurrencyDisplay(auth, res.values, [
-                            "balance",
-                            "genericCodeOptions.perContact.balance"
-                        ])
-                    };
-                } else {
-                    return {
-                        headers: Pagination.toHeaders(evt, res.pagination),
-                        body: res.values
-                    };
-                }
+                return {
+                    headers: Pagination.toHeaders(evt, res.pagination),
+                    body: values
+                };
             }
-
         });
 }
 
