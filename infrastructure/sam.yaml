@@ -327,6 +327,7 @@ Resources:
       Family: aurora5.6
       Parameters:
         sql_mode: IGNORE_SPACE,STRICT_TRANS_TABLES
+        slow_query_log: 1
       Tags:
         - Key: Service
           Value: Rothschild
