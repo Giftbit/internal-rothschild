@@ -27,6 +27,7 @@ import {
 import {getCurrency} from "../currencies";
 import {checkCodeParameters, checkValueProperties, createValue} from "./createValue";
 import {hasContactValues} from "../contactValues";
+import {QueryBuilder} from "knex";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -240,30 +241,36 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 
     const knex = await getKnexRead();
 
-    let query = knex("Values")
-        .select("Values.*")
-        .where("Values.userId", "=", auth.userId);
+    let query: QueryBuilder;
     const contactId = filterParams["contactId"] || filterParams["contactId.eq"];
+    const unionContactIdTempTable = "UnionTempTable";
     if (contactId) {
-        query.leftJoin("ContactValues", {
-            "Values.id": "ContactValues.valueId",
-            "Values.userId": "ContactValues.userId"
-        });
-        query.andWhere(q => {
-                q.where("Values.contactId", "=", contactId);
-                q.orWhere("ContactValues.contactId", "=", contactId);
-                return q;
-            }
-        );
+        query = knex.select("*").from(knex.raw(`
+              (
+                  select *
+                  from \`Values\`
+                  where userId = ?
+                    and contactId = ?
+                  union
+                  select \`Values\`.*
+                  from \`Values\`
+                         left join ContactValues
+                           on \`Values\`.userId = ContactValues.userId and \`Values\`.id = ContactValues.valueId
+                  where \`Values\`.userId = ? and ContactValues.contactId = ?
+              ) as ${unionContactIdTempTable}`, [auth.userId, contactId, auth.userId, contactId]));
+    } else {
+        query = knex("Values")
+            .select("*")
+            .where("Values.userId", "=", auth.userId);
     }
 
     // Manually handle code, code.eq and code.in because computeCodeLookupHash must be done async.
     if (filterParams.code) {
-        query = query.where({codeHashed: await computeCodeLookupHash(filterParams.code, auth)});
+        query = query.where((contactId ? unionContactIdTempTable + "." : "") + "codeHashed", await computeCodeLookupHash(filterParams.code, auth));
     } else if (filterParams["code.eq"]) {
-        query = query.where({codeHashed: await computeCodeLookupHash(filterParams["code.eq"], auth)});
+        query = query.where((contactId ? unionContactIdTempTable + "." : "") + "codeHashed", await computeCodeLookupHash(filterParams["code.eq"], auth));
     } else if (filterParams["code.in"]) {
-        query = query.whereIn("codeHashed", await Promise.all(filterParams["code.in"].split(",").map(v => computeCodeLookupHash(v, auth))));
+        query = query.whereIn((contactId ? unionContactIdTempTable + "." : "") + "codeHashed", await Promise.all(filterParams["code.in"].split(",").map(v => computeCodeLookupHash(v, auth))));
     }
 
     const paginatedRes = await filterAndPaginateQuery<DbValue>(
@@ -328,7 +335,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                     type: "Date"
                 }
             },
-            tableName: "Values"
+            tableName: contactId ? unionContactIdTempTable + "." : undefined
         },
         pagination
     );

@@ -9,6 +9,7 @@ import {createContact} from "./contacts";
 import {Currency} from "../../model/Currency";
 import {createCurrency} from "./currencies";
 import {Value} from "../../model/Value";
+import {generateCode} from "../../utils/codeGenerator";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -304,6 +305,15 @@ describe("/v2/contacts/values", () => {
 
             const listValuesByContactUsingDotEq = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?contactId.eq=${data.contactA.id}`, "GET");
             chai.assert.sameDeepMembers(listValuesByContactUsingDotEq.body, data.valuesAttachedToContactA);
+
+            const listValuesByContactAndIsGenericCodeFalse = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?contactId=${data.contactA.id}&isGenericCode=false`, "GET");
+            chai.assert.sameDeepMembers(listValuesByContactAndIsGenericCodeFalse.body, data.valuesAttachedToContactA.filter(v => v.isGenericCode === false));
+
+            const listValuesByContactAndIsGenericCodeTrue = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?contactId=${data.contactA.id}&isGenericCode=true`, "GET");
+            chai.assert.sameDeepMembers(listValuesByContactAndIsGenericCodeTrue.body, data.valuesAttachedToContactA.filter(v => v.isGenericCode === true));
+
+            const listValuesByContactAndIsCode = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?contactId=${data.contactA.id}&code=${data.genVal1_attachGenericAsNewValue.code}`, "GET");
+            chai.assert.sameDeepMembers(listValuesByContactAndIsCode.body, data.valuesAttachedToContactA.filter(v => v.id === data.genVal1_attachGenericAsNewValue.id));
         });
 
         it("can list values attached to contactB", async () => {
@@ -474,6 +484,7 @@ export async function setupAttachedContactValueScenario(router: cassava.Router, 
         genVal1_attachGenericAsNewValue: {
             id: generateId(5) + "-GEN1",
             currency: currency.code,
+            code: generateCode({}),
             isGenericCode: true,
             balanceRule: {
                 rule: "500 + value.balanceChange",
