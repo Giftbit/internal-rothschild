@@ -1285,6 +1285,28 @@ describe("/v2/values - generic code with per contact properties", () => {
             const createCode = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericCode);
             chai.assert.equal(createCode.statusCode, 201);
 
+            const knex = await getKnexWrite();
+            await knex.transaction(async trx => {
+                const updateRes: number = await trx("Values")
+                    .where({
+                        userId: testUtils.defaultTestUser.userId,
+                        id: genericCode.id
+                    })
+                    .update({
+                        createdDate: "2019-06-15 00:00:00.000"
+                    });
+                if (updateRes === 0) {
+                    throw new cassava.RestError(404);
+                }
+                if (updateRes > 1) {
+                    throw new Error(`Illegal UPDATE query.  Updated ${updateRes} values.`);
+                }
+            });
+
+            const getGenericCode = await testUtils.testAuthedRequest<any>(router, `/v2/values/${encodeURI(genericCode.id)}`, "GET");
+            chai.assert.equal(getGenericCode.statusCode, 200);
+            chai.assert.equal(getGenericCode.body.createdDate, "2019-06-15T00:00:00.000Z");
+
             const createContact = await testUtils.testAuthedRequest<Value>(router, "/v2/contacts", "POST", contact);
             chai.assert.equal(createContact.statusCode, 201);
 
@@ -1300,7 +1322,6 @@ describe("/v2/values - generic code with per contact properties", () => {
             chai.assert.equal(attach.statusCode, 201);
 
             // manually set attachedFromValueId
-            const knex = await getKnexWrite();
             await knex.transaction(async trx => {
                 const updateRes: number = await trx("Values")
                     .where({
@@ -1326,6 +1347,8 @@ describe("/v2/values - generic code with per contact properties", () => {
         });
 
         it("attach with attachGenericAsNewValue: true fails (already attached)", async () => {
+            const listValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${contact.id}/values`, "GET");
+
             // can attach the generic code using the legacy attachGenericAsNewValue=true param
             const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
                 code: genericCode.code,
