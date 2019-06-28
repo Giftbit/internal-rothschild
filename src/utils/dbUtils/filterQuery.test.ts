@@ -126,7 +126,7 @@ describe("filterQuery()", () => {
             .orderBy("id");
         chai.assert.isAtLeast(expected.length, 1, "at least 1 row expected");
 
-        const actual: FilterTestDb[] = await filterQuery(
+        const [query] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
@@ -136,6 +136,7 @@ describe("filterQuery()", () => {
             },
             filterTestFilterOptions
         );
+        const actual: FilterTestDb[] = await query;
 
         chai.assert.deepEqual(actual, expected);
     });
@@ -151,7 +152,7 @@ describe("filterQuery()", () => {
             .orderBy("id");
         chai.assert.isAtLeast(expected.length, 1, "at least 1 row expected");
 
-        const actual: FilterTestDb[] = await filterQuery(
+        const [query] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
@@ -160,6 +161,7 @@ describe("filterQuery()", () => {
             },
             filterTestFilterOptions
         );
+        const actual: FilterTestDb[] = await query;
 
         chai.assert.deepEqual(actual, expected);
     });
@@ -175,7 +177,7 @@ describe("filterQuery()", () => {
             .orderBy("id");
         chai.assert.isAtLeast(expected.length, 1, "at least 1 row expected");
 
-        const actual: FilterTestDb[] = await filterQuery(
+        const [query] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
@@ -184,6 +186,7 @@ describe("filterQuery()", () => {
             },
             filterTestFilterOptions
         );
+        const actual: FilterTestDb[] = await query;
 
         chai.assert.deepEqual(actual, expected);
     });
@@ -199,7 +202,7 @@ describe("filterQuery()", () => {
             .orderBy("id");
         chai.assert.isAtLeast(expected.length, 1, "at least 1 row expected");
 
-        const actual: FilterTestDb[] = await filterQuery(
+        const [query] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
@@ -208,6 +211,7 @@ describe("filterQuery()", () => {
             },
             filterTestFilterOptions
         );
+        const actual: FilterTestDb[] = await query;
 
         chai.assert.deepEqual(actual, expected);
     });
@@ -223,7 +227,7 @@ describe("filterQuery()", () => {
             .orderBy("id");
         chai.assert.isAtLeast(expected.length, 1, "at least 1 row expected");
 
-        const actual: FilterTestDb[] = await filterQuery(
+        const [query] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
@@ -232,6 +236,7 @@ describe("filterQuery()", () => {
             },
             filterTestFilterOptions
         );
+        const actual: FilterTestDb[] = await query;
 
         chai.assert.deepEqual(actual, expected);
     });
@@ -247,7 +252,7 @@ describe("filterQuery()", () => {
             .orderBy("id");
         chai.assert.isAtLeast(expected.length, 1, "at least 1 row expected");
 
-        const actual: FilterTestDb[] = await filterQuery(
+        const [query] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
@@ -256,6 +261,7 @@ describe("filterQuery()", () => {
             },
             filterTestFilterOptions
         );
+        const actual: FilterTestDb[] = await query;
 
         chai.assert.deepEqual(actual, expected);
     });
@@ -270,7 +276,7 @@ describe("filterQuery()", () => {
             .whereIn("id", ["id-1", "id-2", "id-3", "id-5", "id-8", "id-13", "id-21", "id-34", "id-55", "id-89", "id-144", "id-233", "id-377", "id-610", "id-987"])
             .orderBy("id");
 
-        const actual: FilterTestDb[] = await filterQuery(
+        const [query] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
@@ -279,6 +285,7 @@ describe("filterQuery()", () => {
             },
             filterTestFilterOptions
         );
+        const actual: FilterTestDb[] = await query;
 
         chai.assert.deepEqual(actual, expected);
     });
@@ -294,7 +301,7 @@ describe("filterQuery()", () => {
             .orderBy("id");
         chai.assert.isAtLeast(expected.length, 1, "at least 1 row expected");
 
-        const actual: FilterTestDb[] = await filterQuery(
+        const [query] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
@@ -303,6 +310,7 @@ describe("filterQuery()", () => {
             },
             filterTestFilterOptions
         );
+        const actual: FilterTestDb[] = await query;
 
         chai.assert.deepEqual(actual, expected);
     });
@@ -320,7 +328,7 @@ describe("filterQuery()", () => {
             .orderBy("id");
         chai.assert.isAtLeast(expected.length, 1, "at least 1 row expected");
 
-        const actual: FilterTestDb[] = await filterQuery(
+        const [query] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
@@ -331,6 +339,7 @@ describe("filterQuery()", () => {
             },
             filterTestFilterOptions
         );
+        const actual: FilterTestDb[] = await query;
 
         chai.assert.deepEqual(actual, expected);
     });
@@ -346,7 +355,7 @@ describe("filterQuery()", () => {
         chai.assert.lengthOf(expected, 1, "expected exactly 1 row");
         chai.assert.equal(expected[0].id, "id-623", "expected id=id-623");
 
-        const actual: FilterTestDb[] = await filterQuery(
+        const [query] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
@@ -355,6 +364,7 @@ describe("filterQuery()", () => {
             },
             filterTestFilterOptions
         );
+        const actual: FilterTestDb[] = await query;
         chai.assert.deepEqual(actual, expected);
     });
 
@@ -370,7 +380,7 @@ describe("filterQuery()", () => {
         chai.assert.lengthOf(expected, 1, "expected exactly 1 row");
         chai.assert.equal(expected[0].id, "id-623", "expected id=id-623");
 
-        const actual: FilterTestDb[] = await filterQuery(
+        const [query] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
@@ -379,6 +389,7 @@ describe("filterQuery()", () => {
             },
             filterTestFilterOptions
         );
+        const actual: FilterTestDb[] = await query;
         chai.assert.deepEqual(actual, expected);
     });
 
@@ -395,7 +406,7 @@ describe("filterQuery()", () => {
             chai.assert.lengthOf(expected, 1);
             chai.assert.equal(expected[0].id, "id-50");
 
-            const actual: FilterTestDb[] = await filterQuery(
+            const [query] = await filterQuery(
                 knex("FilterTest")
                     .where({userId: "user1"})
                     .orderBy("id"),
@@ -404,6 +415,7 @@ describe("filterQuery()", () => {
                 },
                 filterTestFilterOptions
             );
+            const actual: FilterTestDb[] = await query;
             chai.assert.deepEqual(actual, expected);
         });
 
@@ -420,7 +432,7 @@ describe("filterQuery()", () => {
             chai.assert.equal(expected[0].id, "id-50");
             chai.assert.equal(expected[1].id, "id-51");
 
-            const actual: FilterTestDb[] = await filterQuery(
+            const [query] = await filterQuery(
                 knex("FilterTest")
                     .where({userId: "user1"})
                     .orderBy("id"),
@@ -429,6 +441,7 @@ describe("filterQuery()", () => {
                 },
                 filterTestFilterOptions
             );
+            const actual: FilterTestDb[] = await query;
             chai.assert.deepEqual(actual, expected);
         });
 
@@ -443,7 +456,7 @@ describe("filterQuery()", () => {
                 .orderBy("id");
             chai.assert.lengthOf(expected, 4);
 
-            const actual: FilterTestDb[] = await filterQuery(
+            const [query] = await filterQuery(
                 knex("FilterTest")
                     .where({userId: "user1"})
                     .orderBy("id"),
@@ -452,6 +465,7 @@ describe("filterQuery()", () => {
                 },
                 filterTestFilterOptions
             );
+            const actual: FilterTestDb[] = await query;
             chai.assert.deepEqual(actual, expected);
         });
 
@@ -467,7 +481,7 @@ describe("filterQuery()", () => {
                 .orderBy("id");
             chai.assert.lengthOf(expected, 5);
 
-            const actual: FilterTestDb[] = await filterQuery(
+            const [query] = await filterQuery(
                 knex("FilterTest")
                     .where({userId: "user1"})
                     .orderBy("id"),
@@ -476,6 +490,7 @@ describe("filterQuery()", () => {
                 },
                 filterTestFilterOptions
             );
+            const actual: FilterTestDb[] = await query;
             chai.assert.deepEqual(actual, expected);
         });
 
@@ -490,7 +505,7 @@ describe("filterQuery()", () => {
                 .orderBy("id");
             chai.assert.lengthOf(expected, 4);
 
-            const actual: FilterTestDb[] = await filterQuery(
+            const [query] = await filterQuery(
                 knex("FilterTest")
                     .where({userId: "user1"})
                     .orderBy("id"),
@@ -499,6 +514,7 @@ describe("filterQuery()", () => {
                 },
                 filterTestFilterOptions
             );
+            const actual: FilterTestDb[] = await query;
             chai.assert.deepEqual(actual, expected);
         });
 
@@ -513,7 +529,7 @@ describe("filterQuery()", () => {
                 .orderBy("id");
             chai.assert.lengthOf(expected, 5);
 
-            const actual: FilterTestDb[] = await filterQuery(
+            const [query] = await filterQuery(
                 knex("FilterTest")
                     .where({userId: "user1"})
                     .orderBy("id"),
@@ -522,6 +538,7 @@ describe("filterQuery()", () => {
                 },
                 filterTestFilterOptions
             );
+            const actual: FilterTestDb[] = await query;
             chai.assert.deepEqual(actual, expected);
         });
 
@@ -536,7 +553,7 @@ describe("filterQuery()", () => {
                 .orderBy("id");
             chai.assert.lengthOf(expected, 999);
 
-            const actual: FilterTestDb[] = await filterQuery(
+            const [query] = await filterQuery(
                 knex("FilterTest")
                     .where({userId: "user1"})
                     .orderBy("id"),
@@ -545,6 +562,7 @@ describe("filterQuery()", () => {
                 },
                 filterTestFilterOptions
             );
+            const actual: FilterTestDb[] = await query;
             chai.assert.deepEqual(actual, expected);
         });
     });
@@ -560,7 +578,7 @@ describe("filterQuery()", () => {
         chai.assert.equal(expected[0].id, "id-623", "expected id=id-623");
         chai.assert.equal(expected[1].id, "id-821", "expected id=id-821");
 
-        const actual: FilterTestDb[] = await filterQuery(
+        const [query] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
@@ -569,6 +587,7 @@ describe("filterQuery()", () => {
             },
             filterTestFilterOptions
         );
+        const actual: FilterTestDb[] = await query;
         chai.assert.deepEqual(actual, expected);
     });
 
@@ -584,7 +603,7 @@ describe("filterQuery()", () => {
             .orderBy("id");
         chai.assert.isAtLeast(expected.length, 1, "at least 1 row expected");
 
-        const actual: FilterTestDb[] = await filterQuery(
+        const [query] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
@@ -599,6 +618,7 @@ describe("filterQuery()", () => {
             },
             filterTestFilterOptions
         );
+        const actual: FilterTestDb[] = await query;
 
         chai.assert.deepEqual(actual, expected);
     });
@@ -608,7 +628,7 @@ describe("filterQuery()", () => {
         let ex: giftbitRoutes.GiftbitRestError;
 
         try {
-            filterQuery(
+            await filterQuery(
                 knex("FilterTest")
                     .where({userId: "user1"})
                     .orderBy("id"),
@@ -630,7 +650,7 @@ describe("filterQuery()", () => {
         let ex: giftbitRoutes.GiftbitRestError;
 
         try {
-            filterQuery(
+            await filterQuery(
                 knex("FilterTest")
                     .where({userId: "user1"})
                     .orderBy("id"),
@@ -652,7 +672,7 @@ describe("filterQuery()", () => {
         let ex: giftbitRoutes.GiftbitRestError;
 
         try {
-            filterQuery(
+            await filterQuery(
                 knex("FilterTest")
                     .where({userId: "user1"})
                     .orderBy("id"),
@@ -674,7 +694,7 @@ describe("filterQuery()", () => {
         let ex: giftbitRoutes.GiftbitRestError;
 
         try {
-            filterQuery(
+            await filterQuery(
                 knex("FilterTest")
                     .where({userId: "user1"})
                     .orderBy("id"),

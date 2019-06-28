@@ -109,7 +109,7 @@ async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.Authorizatio
             .join("Values", {
                 "LightrailTransactionSteps.valueId": "Values.id"
             });
-        query = filterQuery(query, filterParams, {
+        [query] = await filterQuery(query, filterParams, {
             properties: {
                 "programId": {
                     type: "string",
