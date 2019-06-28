@@ -68,8 +68,8 @@ export namespace Pagination {
     }
 
     export function getPaginationParams(evt: RouterEvent, options?: PaginationParamOptions): PaginationParams {
-        const defaultLimit = options.defaultLimit || 100;
-        const maxLimit = options.maxLimit || evt.headers["Accept"] === "text/csv" ? 10000 : 1000;
+        const defaultLimit = options && options.defaultLimit || 100;
+        const maxLimit = options && options.maxLimit || evt.headers["Accept"] === "text/csv" ? 10000 : 1000;
         const defaultSort = {
             field: "createdDate",
             asc: false
@@ -78,7 +78,7 @@ export namespace Pagination {
         return {
             limit: Math.min(Math.max(+evt.queryStringParameters["limit"] || defaultLimit, 1), maxLimit),
             maxLimit,
-            sort: options.sort || defaultSort,
+            sort: options && options.sort || defaultSort,
             before: evt.queryStringParameters.before,
             after: evt.queryStringParameters.after,
             last: (evt.queryStringParameters.last || "").toLowerCase() === "true"
@@ -87,7 +87,7 @@ export namespace Pagination {
 
     export function getPaginationParamsForReports(evt: RouterEvent, options: PaginationParamOptions): PaginationParams {
         const defaultSort = {field: "createdDate", asc: false};
-        const maxLimit = options.maxLimit || 10000;
+        const maxLimit = options && options.maxLimit || 10000;
 
         if (+evt.queryStringParameters["limit"] && +evt.queryStringParameters["limit"] > maxLimit) {
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested limit '${+evt.queryStringParameters["limit"]}' is greater than maxLimit '${maxLimit}'. Please modify your request and try again.`);
@@ -96,7 +96,7 @@ export namespace Pagination {
         return {
             limit: (isNaN(+evt.queryStringParameters["limit"]) ? maxLimit : Math.min(+evt.queryStringParameters["limit"], maxLimit)) + 1, // +1 so that we can optionally throw an error if query result is greater than the requested limit
             maxLimit: maxLimit + 1, // +1 so that we can optionally throw an error if query result is greater than the requested limit
-            sort: options.sort || defaultSort,
+            sort: options && options.sort || defaultSort,
             before: null,
             after: null,
             last: null
