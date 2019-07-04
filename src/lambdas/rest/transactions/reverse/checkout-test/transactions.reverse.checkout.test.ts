@@ -406,6 +406,52 @@ describe("/v2/transactions/reverse - checkout", () => {
         chai.assert.deepEqualExcluding(postValue.body, getValue.body, "updatedDate");
     }).timeout(8000);
 
+    it("can not reverse checkout when Stripe charge has been disputed", async function () {
+        if (!testStripeLive()) {
+            log.warn("This test verifies an interaction with Stripe we don't have mocks for.");
+            this.skip();
+            return;
+        }
+
+        // create value
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 110
+        };
+        const postValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+        chai.assert.equal(postValue.statusCode, 201);
+
+        // create checkout
+        const checkout: CheckoutRequest = {
+            id: generateId(),
+            lineItems: [{
+                unitPrice: 2000,
+            }],
+            currency: "USD",
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: value.id
+                },
+                {
+                    rail: "stripe",
+                    source: "tok_createDispute"
+                }
+            ]
+        };
+        const postCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
+        chai.assert.equal(postCheckout.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
+        chai.assert.equal((postCheckout.body.steps[0] as LightrailTransactionStep).balanceChange, -110, `body=${JSON.stringify(postCheckout.body)}`);
+
+        // create reverse
+        const reverse: Partial<ReverseRequest> = {
+            id: generateId()
+        };
+        const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.id}/reverse`, "POST", reverse);
+        chai.assert.equal(postReverse.statusCode, 409, `body=${JSON.stringify(postCheckout.body)}`);
+    }).timeout(8000);
+
     function verifyCheckoutReverseTotals(checkout: Transaction, reverse: Transaction): void {
         for (const key of Object.keys(checkout.totals)) {
             if (key !== "marketplace") {
