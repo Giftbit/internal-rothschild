@@ -28,9 +28,12 @@ export interface FilterQueryProperty {
     operators?: FilterQueryOperator[];
 
     /**
-     * Allows you to pass in a function to be able to query by properties that are stored after a computation.
+     * Maps the value passed in through the query param to a value that will
+     * be used in the SQL query.  The type of the value passed in will match the
+     * `type` property of this object.  The type of the value returned by
+     * this function must match the SQL column type.
      */
-    valueMap?: Function;
+    valueMap?: (value: any) => number | string | boolean | Date | Promise<number | string | boolean | Date>;
 }
 
 export type FilterQueryOperator = "lt" | "lte" | "gt" | "gte" | "eq" | "ne" | "in" | "like";
@@ -40,9 +43,9 @@ export type FilterQueryOperator = "lt" | "lte" | "gt" | "gte" | "eq" | "ne" | "i
  * @param query The SQL query to filter.
  * @param filterParams A map of string filter values.  Most likely the URL query.
  * @param options Specifies the filterable values.
- * @returns The filtered SQL query.
+ * @returns The filtered SQL query in a tuple.
  */
-export function filterQuery(query: knex.QueryBuilder, filterParams: { [key: string]: string }, options: FilterQueryOptions): knex.QueryBuilder {
+export async function filterQuery(query: knex.QueryBuilder, filterParams: { [key: string]: string }, options: FilterQueryOptions): Promise<[knex.QueryBuilder]> {
     for (const queryKey of Object.keys(filterParams)) {
         const {filterKey, op} = splitFilterKeyAndOp(queryKey);
         const filterValue = filterParams[queryKey];
@@ -57,7 +60,7 @@ export function filterQuery(query: knex.QueryBuilder, filterParams: { [key: stri
             throw new giftbitRoutes.GiftbitRestError(400, `Query filter key '${filterKey}' does not support operator '${op}'.`);
         }
 
-        query = addFilterToQuery(
+        [query] = await addFilterToQuery(
             query,
             property,
             filterKey,
@@ -67,7 +70,9 @@ export function filterQuery(query: knex.QueryBuilder, filterParams: { [key: stri
         );
     }
 
-    return query;
+    // We have to return the query in an array (or object or something) because the query is
+    // itself awaitable so awaiting this function would execute the query.
+    return [query];
 }
 
 function splitFilterKeyAndOp(filterKey: string): { filterKey: string, op: string } {
@@ -96,7 +101,7 @@ function filterQueryPropertyAllowsOperator(prop: FilterQueryProperty, op: string
     return false;
 }
 
-function addFilterToQuery(query: knex.QueryBuilder, prop: FilterQueryProperty, key: string, op: FilterQueryOperator, value: string, options: FilterQueryOptions): knex.QueryBuilder {
+async function addFilterToQuery(query: knex.QueryBuilder, prop: FilterQueryProperty, key: string, op: FilterQueryOperator, value: string, options: FilterQueryOptions): Promise<[knex.QueryBuilder]> {
     let columnIdentifier = key;
     if (prop.columnName) {
         columnIdentifier = prop.columnName;
@@ -107,25 +112,25 @@ function addFilterToQuery(query: knex.QueryBuilder, prop: FilterQueryProperty, k
 
     switch (op) {
         case "lt":
-            return query.where(columnIdentifier, "<", convertValue(prop, value));
+            return [query.where(columnIdentifier, "<", await convertValue(prop, value))];
         case "lte":
-            return query.where(columnIdentifier, "<=", convertValue(prop, value));
+            return [query.where(columnIdentifier, "<=", await convertValue(prop, value))];
         case "gt":
-            return query.where(columnIdentifier, ">", convertValue(prop, value));
+            return [query.where(columnIdentifier, ">", await convertValue(prop, value))];
         case "gte":
-            return query.where(columnIdentifier, ">=", convertValue(prop, value));
+            return [query.where(columnIdentifier, ">=", await convertValue(prop, value))];
         case "eq":
-            return query.where(columnIdentifier, "=", convertValue(prop, value));
+            return [query.where(columnIdentifier, "=", await convertValue(prop, value))];
         case "ne":
-            return query.where(columnIdentifier, "!=", convertValue(prop, value));
+            return [query.where(columnIdentifier, "!=", await convertValue(prop, value))];
         case "in":
-            return query.whereIn(columnIdentifier, value.split(",").map(v => convertValue(prop, v)));
+            return [query.whereIn(columnIdentifier, await Promise.all(value.split(",").map(v => convertValue(prop, v))))];
         case "like":
-            return query.where(columnIdentifier, "LIKE", convertValue(prop, value));
+            return [query.where(columnIdentifier, "LIKE", await convertValue(prop, value))];
     }
 }
 
-function convertValue(prop: FilterQueryProperty, value: string): number | string | boolean | Date {
+async function convertValue(prop: FilterQueryProperty, value: string): Promise<number | string | boolean | Date> {
     let result: number | string | boolean | Date;
     switch (prop.type) {
         case "number":
@@ -151,7 +156,7 @@ function convertValue(prop: FilterQueryProperty, value: string): number | string
             break;
     }
     if (prop.valueMap) {
-        result = prop.valueMap(result);
+        result = await prop.valueMap(result);
     }
     return result;
 }
