@@ -448,8 +448,9 @@ describe("/v2/transactions/reverse - checkout", () => {
         const reverse: Partial<ReverseRequest> = {
             id: generateId()
         };
-        const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.id}/reverse`, "POST", reverse);
+        const postReverse = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${checkout.id}/reverse`, "POST", reverse);
         chai.assert.equal(postReverse.statusCode, 409, `body=${JSON.stringify(postCheckout.body)}`);
+        chai.assert.equal(postReverse.body.messageCode, "StripeChargeDisputed");
     }).timeout(8000);
 
     function verifyCheckoutReverseTotals(checkout: Transaction, reverse: Transaction): void {
