@@ -160,13 +160,9 @@ async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.Authorizatio
             marketplace_sellerDiscount: txn.totals && txn.totals.marketplace && txn.totals.marketplace.sellerDiscount || null,
             stepsCount: txn.steps.length,
             metadata: txn.metadata && JSON.stringify(txn.metadata).replace(",", ";"), // don't create column breaks
-        }) as ReportTransaction),
+        })),
         pagination: res.pagination
     };
-}
-
-function isResponseSizeAcceptable(responseLength: number, queryStringParams: { [key: string]: string }, paginationParams: PaginationParams): boolean {
-    return !(responseLength === reportRowLimit || (queryStringParams["errorOnOverLimit"] === "true" && responseLength === paginationParams.limit));
 }
 
 function limitReportSize<T>(response: T[], queryParams: { [key: string]: string }, pagination: PaginationParams): T[] {
