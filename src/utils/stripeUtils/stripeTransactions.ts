@@ -60,6 +60,12 @@ export async function createRefund(params: Stripe.refunds.IRefundCreationOptions
                 return refunds.data[0];
             }
         }
+        if ((err as Stripe.IStripeError).code === "charge_disputed") {
+            // We could change this behaviour in the future.  For example it seems safe that if the
+            // dispute is settled we go ahead with the reverse.  Reversing with an unsettled dispute is
+            // less clear.  Accepting the dispute and then reversing is riskier still.
+            throw new StripeRestError(409, `Stripe charge '${params.charge}' cannot be refunded because it is disputed.`, "StripeChargeDisputed", err);
+        }
 
         giftbitRoutes.sentry.sendErrorNotification(err);
         throw err;
