@@ -74,23 +74,20 @@ export function installReportsRest(router: cassava.Router): void {
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:values:list");
 
-            const paginationParams = Pagination.getPaginationParamsForReports(evt, {maxLimit: reportRowLimit});
-            const res = await getValues(auth, evt.queryStringParameters, paginationParams);
-
-            const values = limitReportSize<Value>(res.values, evt.queryStringParameters, paginationParams);
+            const valueResults = await getReportResults<Value>(auth, evt, getValuesForReport);
 
             if (evt.queryStringParameters.formatCurrencies === "true") {
                 return {
-                    headers: Pagination.toHeaders(evt, res.pagination),
-                    body: await formatObjectsAmountPropertiesForCurrencyDisplay(auth, values, [
+                    headers: Pagination.toHeaders(evt, valueResults.pagination),
+                    body: await formatObjectsAmountPropertiesForCurrencyDisplay(auth, valueResults.results, [
                         "balance",
                         "genericCodeOptions.perContact.balance"
                     ])
                 };
             } else {
                 return {
-                    headers: Pagination.toHeaders(evt, res.pagination),
-                    body: values
+                    headers: Pagination.toHeaders(evt, valueResults.pagination),
+                    body: valueResults.results
                 };
             }
         });
@@ -118,13 +115,13 @@ async function getReportResults<T>(auth: giftbitRoutes.jwtauth.AuthorizationBadg
     };
 }
 
-async function getValuesForReport(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams, showCode: boolean = false): Promise<{ results: Value[], pagination: Pagination }> {
+const getValuesForReport: ReportCallbackFunction<Value> = async (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams, showCode: boolean = false): Promise<{ results: Value[], pagination: Pagination }> => {
     const res = await getValues(auth, filterParams, pagination, showCode);
     return {
         results: res.values,
         pagination: res.pagination
     };
-}
+};
 
 const getTransactionsForReport: ReportCallbackFunction<ReportTransaction> = async (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ results: ReportTransaction[], pagination: Pagination }> => {
     auth.requireIds("userId");

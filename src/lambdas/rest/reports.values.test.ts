@@ -4,7 +4,6 @@ import {installRestRoutes} from "./installRestRoutes";
 import {Value} from "../../model/Value";
 import {Program} from "../../model/Program";
 import * as chai from "chai";
-import {initializeReportRowLimit} from "./reports";
 
 describe("/v2/reports/values/", () => {
     const router = new cassava.Router();
@@ -222,69 +221,53 @@ describe("/v2/reports/values/", () => {
     });
 
     describe("row limiting", () => {
-        const artificialRowLimit = 3;
+        let valueCount: number;
 
         before(async function () {
-            await testUtils.resetDb();
-            await testUtils.createUSD(router);
-            await testUtils.createUSDValue(router);
-            await testUtils.createUSDValue(router);
-            await testUtils.createUSDValue(router);
-            await testUtils.createUSDValue(router);
-            await testUtils.createUSDValue(router);
-
-            initializeReportRowLimit(artificialRowLimit);
+            const valueRes = await testUtils.testAuthedRequest<Value[]>(router, "/v2/values", "GET");
+            chai.assert.equal(valueRes.statusCode, 200, `valueRes.body=${JSON.stringify(valueRes.body)}`);
+            valueCount = valueRes.body.length;
         });
 
-        after(() => {
-            initializeReportRowLimit(10000);
-        });
-
-        describe("'limit' parameter set", () => {
-            it("'errorOnOverLimit' defaults to 'false'", async () => {
-                const resp = await testUtils.testAuthedCsvRequest<Value[]>(router, "/v2/reports/values?limit=1", "GET");
+        describe("default behaviour: error if more results than limit/default limit", () => {
+            it("returns success if results count <= limit", async () => {
+                const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values?limit=${valueCount}`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.equal(resp.body.length, 1, `resp.body=${JSON.stringify(resp.body)}`);
+                chai.assert.equal(resp.body.length, valueCount, `resp.body=${JSON.stringify(resp.body)}`);
             });
 
-            it("returns error when 'errorOnOverLimit=true' and query returns more than 'limit' rows", async () => {
-                const resp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/reports/values?limit=1&errorOnOverLimit=true", "GET");
+            it("returns error if results count > limit", async () => {
+                const resp = await testUtils.testAuthedRequest(router, `/v2/reports/values?limit=${valueCount - 1}`, "GET");
+                chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
+            });
+
+            it("returns success if results count < default limit", async () => {
+                const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values`, "GET");
+                chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
+                chai.assert.equal(resp.body.length, valueCount, `resp.body=${JSON.stringify(resp.body)}`);
+            });
+
+            it.skip("returns error if results count > default limit", async () => {
+                // TODO - set mock
+                const resp = await testUtils.testAuthedRequest(router, `/v2/reports/values`, "GET");
                 chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
             });
         });
 
-        describe("'limit' parameter not set (ie request constrained only by API maxLimit)", () => {
-            it("'errorOnOverLimit' defaults to 'true'", async () => {
-                const resp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/reports/values", "GET");
-                chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
+        describe("'suppressLimitError=true'", () => {
+            it("returns success if results count > limit", async () => {
+                const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values?limit=${valueCount - 1}&suppressLimitError=true`, "GET");
+                chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
+                chai.assert.equal(resp.body.length, valueCount - 1, `resp.body=${JSON.stringify(resp.body)}`);
             });
 
-            it("returns success when 'errorOnOverLimit=false' and query returns more than 'maxLimit' rows", async () => {
-                const resp = await testUtils.testAuthedCsvRequest<Value[]>(router, "/v2/reports/values?errorOnOverLimit=false", "GET");
+            it.skip("returns success if results count > default limit", async () => {
+                // TODO - set mock
+                const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values?suppressLimitError=true`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.equal(resp.body.length, artificialRowLimit, `resp.body=${JSON.stringify(resp.body)}`);
+                chai.assert.equal(resp.body.length, valueCount, `resp.body=${JSON.stringify(resp.body)}`);
             });
         });
-
-        describe("handling 'limit' parameter values", () => {
-            it("accepts limit if set to same number as maxLimit and returns that number of rows successfully", async () => {
-                const resp = await testUtils.testAuthedCsvRequest<Value[]>(router, `/v2/reports/values?limit=${artificialRowLimit}`, "GET");
-                chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.equal(resp.body.length, artificialRowLimit, `resp.body=${JSON.stringify(resp.body)}`);
-            });
-
-            it("accepts limit if set lower than maxLimit and returns limit number of rows successfully", async () => {
-                const resp = await testUtils.testAuthedCsvRequest<Value[]>(router, `/v2/reports/values?limit=${artificialRowLimit - 1}`, "GET");
-                chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.equal(resp.body.length, artificialRowLimit - 1, `resp.body=${JSON.stringify(resp.body)}`);
-            });
-
-            it("returns error if limit value > maxLimit (10k)", async () => {
-                const resp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/reports/values?limit=10001", "GET");
-                chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
-            });
-        });
-
     });
 
     it("can query by programId and createdDate", async () => {
