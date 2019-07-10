@@ -63,6 +63,13 @@ export async function executeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
 }
 
 function stripeTransactionPlanStepToStripeChargeRequest(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: StripeChargeTransactionPlanStep, plan: TransactionPlan): Stripe.charges.IChargeCreationOptions {
+    if (step.minAmount && step.minAmount > -step.amount) {
+        throw new Error(`StripeTransactionPlanStep amount ${-step.amount} < minAmount ${step.minAmount}`);
+    }
+    if (step.maxAmount && step.maxAmount < -step.amount) {
+        throw new Error(`StripeTransactionPlanStep amount ${-step.amount} > maxAmount ${step.maxAmount}`);
+    }
+
     const stripeChargeParams: Stripe.charges.IChargeCreationOptions = {
         amount: -step.amount /* Lightrail treats debits as negative amounts on Steps but Stripe requires a positive amount when charging a credit card. */,
         currency: plan.currency,

@@ -70,6 +70,7 @@ export interface StripeTransactionParty {
     source?: string;
     customer?: string;
     maxAmount?: number;
+    minAmount?: number;
     priority?: number;
     additionalStripeParams?: AdditionalStripeChargeParams;
 }
@@ -191,7 +192,12 @@ export namespace transactionPartySchema {
                 type: "string"
             },
             maxAmount: {
-                type: "integer"
+                type: "integer",
+                minimum: 1
+            },
+            minAmount: {
+                type: "integer",
+                minimum: 0
             },
             additionalStripeParams: {
                 type: "object",

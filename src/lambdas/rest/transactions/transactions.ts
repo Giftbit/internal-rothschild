@@ -329,8 +329,12 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
                 }
             }
 
-            const checkoutTransactionPlanSteps = getTransactionPlanStepsFromSources(checkout.id, valuesForCheckout,
-                checkout.sources.filter(src => src.rail !== "lightrail") as (StripeTransactionParty | InternalTransactionParty)[]);
+            const checkoutTransactionPlanSteps = getTransactionPlanStepsFromSources(
+                checkout.id,
+                checkout.currency,
+                valuesForCheckout,
+                checkout.sources.filter(src => src.rail !== "lightrail") as (StripeTransactionParty | InternalTransactionParty)[]
+            );
 
             const checkoutTransactionPlan: TransactionPlan = getCheckoutTransactionPlan(checkout, checkoutTransactionPlanSteps);
 
