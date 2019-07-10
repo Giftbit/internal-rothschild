@@ -243,34 +243,34 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 
     let query: QueryBuilder;
     const contactId = filterParams["contactId"] || filterParams["contactId.eq"];
-    const unionContactIdTempTable = "UnionTempTable";
     if (contactId) {
-        query = knex.select("*").from(knex.raw(`
-              (
-                  select *
-                  from \`Values\`
-                  where userId = ?
-                    and contactId = ?
-                  union
-                  select \`Values\`.*
-                  from \`Values\`
-                         left join ContactValues
-                           on \`Values\`.userId = ContactValues.userId and \`Values\`.id = ContactValues.valueId
-                  where \`Values\`.userId = ? and ContactValues.contactId = ?
-              ) as ${unionContactIdTempTable}`, [auth.userId, contactId, auth.userId, contactId]));
+        // Wrap the UNION query in another select so we can apply WHERE clauses to it below.
+        query = knex.select("*").from(
+            // This UNION query has two parts that each use a different index.  It replaces an earlier
+            // OR query that could only use one of the two indexes and was thus slow.
+            knex.select("*")
+                .from("Values")
+                .where({
+                    "Values.userId": auth.userId,
+                    "Values.contactId": contactId
+                })
+                .union(k => k.select("Values.*")
+                    .from("Values")
+                    .leftJoin("ContactValues", {
+                        "Values.userId": "ContactValues.userId",
+                        "Values.id": "ContactValues.valueId"
+                    })
+                    .where({
+                        "Values.userId": auth.userId,
+                        "ContactValues.contactId": contactId
+                    })
+                )
+                .as("UnionTempTable")
+        );
     } else {
         query = knex("Values")
             .select("*")
             .where("Values.userId", "=", auth.userId);
-    }
-
-    // Manually handle code, code.eq and code.in because computeCodeLookupHash must be done async.
-    if (filterParams.code) {
-        query = query.where((contactId ? unionContactIdTempTable + "." : "") + "codeHashed", await computeCodeLookupHash(filterParams.code, auth));
-    } else if (filterParams["code.eq"]) {
-        query = query.where((contactId ? unionContactIdTempTable + "." : "") + "codeHashed", await computeCodeLookupHash(filterParams["code.eq"], auth));
-    } else if (filterParams["code.in"]) {
-        query = query.whereIn((contactId ? unionContactIdTempTable + "." : "") + "codeHashed", await Promise.all(filterParams["code.in"].split(",").map(v => computeCodeLookupHash(v, auth))));
     }
 
     const paginatedRes = await filterAndPaginateQuery<DbValue>(
@@ -310,6 +310,12 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                 isGenericCode: {
                     type: "boolean"
                 },
+                code: {
+                    type: "string",
+                    operators: ["eq", "in"],
+                    columnName: "codeHashed",
+                    valueMap: code => computeCodeLookupHash(code, auth)
+                },
                 active: {
                     type: "boolean"
                 },
@@ -334,8 +340,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                 updatedDate: {
                     type: "Date"
                 }
-            },
-            tableName: contactId ? unionContactIdTempTable + "." : undefined
+            }
         },
         pagination
     );

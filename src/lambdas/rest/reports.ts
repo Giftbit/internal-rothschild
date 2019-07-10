@@ -139,7 +139,7 @@ export const getTransactionsForReport: ReportCallbackFunction<ReportTransaction>
             .join("Values", {
                 "LightrailTransactionSteps.valueId": "Values.id"
             });
-        query = filterQuery(query, filterParams, {
+        [query] = await filterQuery(query, filterParams, {
             properties: {
                 "programId": {
                     type: "string",
