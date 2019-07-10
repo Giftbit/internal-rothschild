@@ -104,6 +104,7 @@ export function getTransactionPlanStepsFromSources(transactionId: string, curren
             customer: p.customer || null,
             maxAmount: p.maxAmount || null,
             minAmount: p.minAmount != null ? p.minAmount : getStripeMinCharge(currency),
+            forgiveSubMinCharges: !!p.forgiveSubMinCharges,
             additionalStripeParams: p.additionalStripeParams || null,
             amount: 0
         }));

@@ -1,3 +1,4 @@
+import * as cassava from "cassava";
 import {
     InternalTransactionPlanStep,
     isStepWithAmount,
@@ -34,6 +35,7 @@ export function calculateCheckoutTransactionPlanForOrderedSteps(checkout: Checko
     transactionPlan.calculateTaxAndSetOnLineItems();
     calculateAmountsForTransactionSteps(postTaxSteps, transactionPlan);
     transactionPlan.calculateTotalsFromLineItemsAndSteps();
+    adjustStripeSubMinChargeSteps(checkout, transactionPlan);
 
     transactionPlan.steps = transactionPlan.steps.filter(s => isStepWithAmount(s) && s.amount !== 0);
     return transactionPlan;
@@ -156,4 +158,33 @@ function getRuleContext(transactionPlan: TransactionPlan, value: Value, step: Li
             metadata: step.value.metadata
         }
     });
+}
+
+function adjustStripeSubMinChargeSteps(checkoutRequest: CheckoutRequest, transactionPlan: TransactionPlan): void {
+    for (const step of transactionPlan.steps) {
+        if (step.rail === "stripe" && step.type === "charge") {
+            if (-step.amount < step.minAmount) {
+                // This Stripe charge step is below the min amount that can be charged.
+                if (checkoutRequest.allowRemainder) {
+                    // allowRemainder takes the highest priority and converts the amount to remainder.
+                    transactionPlan.totals.remainder -= step.amount;
+                    step.amount = 0;
+                } else if (step.forgiveSubMinCharges) {
+                    // forgiveSubMinCharges takes second priority and converts the amount to forgiven.
+                    transactionPlan.totals.forgiven -= step.amount;
+                    step.amount = 0;
+                } else {
+                    throw new cassava.RestError(
+                        409,
+                        `The transaction cannot be processed because it contains a Stripe charge below the minimum (${step.minAmount}).  Please see the documentation on allowRemainder and source.forgiveSubMinCharges or create a fee to raise the total charge.`,
+                        {
+                            messageCode: "StripeAmountTooSmall",
+                            amount: -step.amount,
+                            minAmount: step.minAmount
+                        }
+                    );
+                }
+            }
+        }
+    }
 }

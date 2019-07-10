@@ -203,6 +203,7 @@ export interface TransactionTotals {
     paidStripe?: number;
     paidInternal?: number;
     remainder?: number;
+    forgiven?: number;
     marketplace?: MarketplaceTransactionTotals;
     discount?: number; // deprecated
     payable?: number; // deprecated
