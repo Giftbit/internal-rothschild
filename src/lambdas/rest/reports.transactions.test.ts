@@ -493,7 +493,7 @@ describe("/v2/reports/transactions/", () => {
             }, ["createdDate", "id", "metadata"], `checkoutReportResp.body=${JSON.stringify(checkoutReportResp.body)}`);
 
             unsetStubsForStripeTests();
-        });
+        }).timeout(10000);
     });
 
     it("can format currencies", async () => {

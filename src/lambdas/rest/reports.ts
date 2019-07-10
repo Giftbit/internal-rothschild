@@ -18,9 +18,7 @@ import {ReportTransaction} from "./transactions/ReportTransaction";
 import {formatObjectsAmountPropertiesForCurrencyDisplay} from "../../model/Currency";
 import {Value} from "../../model/Value";
 
-let reportRowLimit: number;
-
-initializeReportRowLimit(10000);
+const reportRowLimit = 10000;
 
 /**
  * The reports endpoints currently only return text/csv responses: reporting data is typically
@@ -223,8 +221,4 @@ function getStepAmount(step: LightrailTransactionStep | StripeTransactionStep | 
     } else {
         return 0;
     }
-}
-
-export function initializeReportRowLimit(limit: number): void {
-    reportRowLimit = limit;
 }
