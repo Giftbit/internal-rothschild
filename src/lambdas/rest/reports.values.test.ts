@@ -4,6 +4,9 @@ import {installRestRoutes} from "./installRestRoutes";
 import {Value} from "../../model/Value";
 import {Program} from "../../model/Program";
 import * as chai from "chai";
+import sinon from "sinon";
+import * as Reports from "./reports";
+
 
 describe("/v2/reports/values/", () => {
     const router = new cassava.Router();
@@ -221,12 +224,46 @@ describe("/v2/reports/values/", () => {
     });
 
     describe("row limiting", () => {
+        const sinonSandbox = sinon.createSandbox();
         let valueCount: number;
+        let mockOverLimitReportResult: Value[];
 
         before(async function () {
             const valueRes = await testUtils.testAuthedRequest<Value[]>(router, "/v2/values", "GET");
             chai.assert.equal(valueRes.statusCode, 200, `valueRes.body=${JSON.stringify(valueRes.body)}`);
+            chai.assert.isTrue(valueRes.body.length >= 2); // need at least two so we can request one less than the actual count in tests below
             valueCount = valueRes.body.length;
+            mockOverLimitReportResult = Array(10001).fill({
+                id: "mock",
+                currency: "USD",
+                balance: 50,
+                usesRemaining: 3,
+                programId: null,
+                issuanceId: null,
+                contactId: "mock",
+                code: null,
+                isGenericCode: false,
+                attachedFromValueId: "mock",
+                pretax: false,
+                active: true,
+                canceled: false,
+                frozen: false,
+                discount: false,
+                discountSellerLiability: null,
+                redemptionRule: null,
+                balanceRule: null,
+                startDate: null,
+                endDate: null,
+                metadata: "",
+                createdDate: "2019-07-10T18:56:13.000Z",
+                updatedDate: "2019-07-10T18:56:13.000Z",
+                updatedContactIdDate: "2019-07-10T18:56:13.000Z",
+                createdBy: "default-test-user-TEST"
+            });
+        });
+
+        afterEach(() => {
+            sinonSandbox.restore();
         });
 
         describe("default behaviour: error if more results than limit/default limit", () => {
@@ -247,8 +284,10 @@ describe("/v2/reports/values/", () => {
                 chai.assert.equal(resp.body.length, valueCount, `resp.body=${JSON.stringify(resp.body)}`);
             });
 
-            it.skip("returns error if results count > default limit", async () => {
-                // TODO - set mock
+            it("returns error if results count > default limit", async () => {
+                sinonSandbox.stub(Reports, "getValuesForReport")
+                    .resolves({results: (mockOverLimitReportResult), pagination: null});
+
                 const resp = await testUtils.testAuthedRequest(router, `/v2/reports/values`, "GET");
                 chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
             });
@@ -261,11 +300,13 @@ describe("/v2/reports/values/", () => {
                 chai.assert.equal(resp.body.length, valueCount - 1, `resp.body=${JSON.stringify(resp.body)}`);
             });
 
-            it.skip("returns success if results count > default limit", async () => {
-                // TODO - set mock
+            it("returns success if results count > default limit", async () => {
+                sinonSandbox.stub(Reports, "getValuesForReport")
+                    .resolves({results: (mockOverLimitReportResult), pagination: null});
+
                 const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values?suppressLimitError=true`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.equal(resp.body.length, valueCount, `resp.body=${JSON.stringify(resp.body)}`);
+                chai.assert.equal(resp.body.length, 10000, `resp.body.length=${resp.body.length}`);
             });
         });
     });

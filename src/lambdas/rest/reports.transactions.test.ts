@@ -8,7 +8,8 @@ import * as chai from "chai";
 import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
 import {ReportTransaction} from "./transactions/ReportTransaction";
-
+import sinon from "sinon";
+import * as Reports from "./reports";
 
 describe("/v2/reports/transactions/", () => {
     const router = new cassava.Router();
@@ -111,13 +112,40 @@ describe("/v2/reports/transactions/", () => {
     }).timeout(8000);
 
     describe("row limiting", () => {
+        const sinonSandbox = sinon.createSandbox();
         let transactionCount: number;
+        let mockOverLimitReportResult: ReportTransaction[];
 
         before(async () => {
             const transactionRes = await testUtils.testAuthedRequest<Transaction[]>(router, "/v2/transactions", "GET");
             chai.assert.equal(transactionRes.statusCode, 200);
+            chai.assert.isTrue(transactionRes.body.length >= 2); // need at least two so we can request one less than the actual count in tests below
             transactionCount = transactionRes.body.length;
+            mockOverLimitReportResult = Array(10001).fill({
+                id: "mock",
+                createdDate: new Date(),
+                transactionType: "checkout",
+                currency: "USD",
+                transactionAmount: 100,
+                checkout_subtotal: 100,
+                checkout_tax: 0,
+                checkout_discountLightrail: 0,
+                checkout_paidLightrail: 100,
+                checkout_paidStripe: 0,
+                checkout_paidInternal: 0,
+                checkout_remainder: 0,
+                marketplace_sellerNet: null,
+                marketplace_sellerGross: null,
+                marketplace_sellerDiscount: null,
+                stepsCount: 1,
+                metadata: "",
+            });
         });
+
+        afterEach(() => {
+            sinonSandbox.restore();
+        });
+
 
         describe("default behaviour: error if more results than limit/default limit", () => {
             it("returns success if results count <= limit", async () => {
@@ -137,8 +165,10 @@ describe("/v2/reports/transactions/", () => {
                 chai.assert.equal(resp.body.length, transactionCount, `resp.body=${JSON.stringify(resp.body)}`);
             });
 
-            it.skip("returns error if results count > default limit", async () => {
-                // TODO - set mock
+            it("returns error if results count > default limit", async () => {
+                sinonSandbox.stub(Reports, "getTransactionsForReport")
+                    .resolves({results: (mockOverLimitReportResult), pagination: null});
+
                 const resp = await testUtils.testAuthedRequest(router, `/v2/reports/transactions?limit=${transactionCount}`, "GET");
                 chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
             });
@@ -151,11 +181,13 @@ describe("/v2/reports/transactions/", () => {
                 chai.assert.equal(resp.body.length, transactionCount - 1, `resp.body=${JSON.stringify(resp.body)}`);
             });
 
-            it.skip("returns success if results count > default limit", async () => {
-                // TODO - set mock
+            it("returns success if results count > default limit", async () => {
+                sinonSandbox.stub(Reports, "getTransactionsForReport")
+                    .resolves({results: (mockOverLimitReportResult), pagination: null});
+
                 const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/transactions?suppressLimitError=true`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.equal(resp.body.length, transactionCount, `resp.body=${JSON.stringify(resp.body)}`);
+                chai.assert.equal(resp.body.length, 10000, `resp.body.length=${JSON.stringify(resp.body.length)}`);
             });
         });
     });
@@ -459,6 +491,8 @@ describe("/v2/reports/transactions/", () => {
                 marketplace_sellerGross: null,
                 metadata: null,
             }, ["createdDate", "id", "metadata"], `checkoutReportResp.body=${JSON.stringify(checkoutReportResp.body)}`);
+
+            unsetStubsForStripeTests();
         });
     });
 

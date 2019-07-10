@@ -115,7 +115,7 @@ async function getReportResults<T>(auth: giftbitRoutes.jwtauth.AuthorizationBadg
     };
 }
 
-const getValuesForReport: ReportCallbackFunction<Value> = async (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams, showCode: boolean = false): Promise<{ results: Value[], pagination: Pagination }> => {
+export const getValuesForReport: ReportCallbackFunction<Value> = async (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams, showCode: boolean = false): Promise<{ results: Value[], pagination: Pagination }> => {
     const res = await getValues(auth, filterParams, pagination, showCode);
     return {
         results: res.values,
@@ -123,7 +123,7 @@ const getValuesForReport: ReportCallbackFunction<Value> = async (auth: giftbitRo
     };
 };
 
-const getTransactionsForReport: ReportCallbackFunction<ReportTransaction> = async (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ results: ReportTransaction[], pagination: Pagination }> => {
+export const getTransactionsForReport: ReportCallbackFunction<ReportTransaction> = async (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ results: ReportTransaction[], pagination: Pagination }> => {
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
