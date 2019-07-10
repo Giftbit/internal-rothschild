@@ -119,25 +119,18 @@ function calculateAmountForLightrailTransactionStep(step: LightrailUpdateTransac
 }
 
 function calculateAmountForStripeTransactionStep(step: StripeChargeTransactionPlanStep, transactionPlan: TransactionPlan): void {
-    let amount: number = 0;
+    let stepAmount: number = 0;
 
     for (const item of transactionPlan.lineItems) {
-        if (step.maxAmount) {
-            if (amount + item.lineTotal.remainder <= step.maxAmount) {
-                amount += item.lineTotal.remainder;
-                item.lineTotal.remainder = 0;
-            } else {
-                const difference: number = step.maxAmount - amount;
-                amount = step.maxAmount;
-                item.lineTotal.remainder -= difference;
-            }
-        } else {  // charge full remainder for each line item to Stripe
-            amount += item.lineTotal.remainder;
-            item.lineTotal.remainder = 0;
+        let stepItemAmount = item.lineTotal.remainder;
+        if (step.maxAmount && stepAmount + stepItemAmount > step.maxAmount) {
+            stepItemAmount = step.maxAmount - stepAmount;
         }
+        stepAmount += stepItemAmount;
+        item.lineTotal.remainder -= stepItemAmount;
     }
 
-    step.amount -= amount;
+    step.amount -= stepAmount;
 }
 
 function calculateAmountForInternalTransactionStep(step: InternalTransactionPlanStep, transactionPlan: TransactionPlan): void {
