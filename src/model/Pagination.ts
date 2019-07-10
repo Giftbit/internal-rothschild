@@ -69,7 +69,7 @@ export namespace Pagination {
 
     export function getPaginationParams(evt: RouterEvent, options?: PaginationParamOptions): PaginationParams {
         const defaultLimit = options && options.defaultLimit || 100;
-        const maxLimit = options && options.maxLimit || evt.headers["Accept"] === "text/csv" ? 10000 : 1000;
+        const maxLimit = (options && options.maxLimit) || (evt.headers["Accept"] === "text/csv" ? 10000 : 1000);
         const defaultSort = {
             field: "createdDate",
             asc: false
