@@ -8,7 +8,6 @@ import * as chai from "chai";
 import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
 import {ReportTransaction} from "./transactions/ReportTransaction";
-import {initializeReportRowLimit} from "./reports";
 
 
 describe("/v2/reports/transactions/", () => {
@@ -112,58 +111,51 @@ describe("/v2/reports/transactions/", () => {
     }).timeout(8000);
 
     describe("row limiting", () => {
-        const artificialRowLimit = 3;
+        let transactionCount: number;
 
-        before(() => {
-            initializeReportRowLimit(artificialRowLimit); // five transactions created in top-level before()
+        before(async () => {
+            const transactionRes = await testUtils.testAuthedRequest<Transaction[]>(router, "/v2/transactions", "GET");
+            chai.assert.equal(transactionRes.statusCode, 200);
+            transactionCount = transactionRes.body.length;
         });
 
-        after(() => {
-            initializeReportRowLimit(10000);
-        });
-
-        describe("'limit' parameter set", () => {
-            it("'errorOnOverLimit' defaults to 'false'", async () => {
-                const resp = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, "/v2/reports/transactions?limit=1", "GET");
+        describe("default behaviour: error if more results than limit/default limit", () => {
+            it("returns success if results count <= limit", async () => {
+                const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/transactions?limit=${transactionCount}`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.equal(resp.body.length, 1, `resp.body=${JSON.stringify(resp.body)}`);
+                chai.assert.equal(resp.body.length, transactionCount, `resp.body=${JSON.stringify(resp.body)}`);
             });
 
-            it("returns error when 'errorOnOverLimit=true' and query returns more than 'limit' rows", async () => {
-                const resp = await testUtils.testAuthedRequest<ReportTransaction>(router, "/v2/reports/transactions?limit=1&errorOnOverLimit=true", "GET");
+            it("returns error if results count > limit", async () => {
+                const resp = await testUtils.testAuthedRequest(router, `/v2/reports/transactions?limit=${transactionCount - 1}`, "GET");
+                chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
+            });
+
+            it("returns success if results count < default limit", async () => {
+                const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/transactions`, "GET");
+                chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
+                chai.assert.equal(resp.body.length, transactionCount, `resp.body=${JSON.stringify(resp.body)}`);
+            });
+
+            it.skip("returns error if results count > default limit", async () => {
+                // TODO - set mock
+                const resp = await testUtils.testAuthedRequest(router, `/v2/reports/transactions?limit=${transactionCount}`, "GET");
                 chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
             });
         });
 
-        describe("'limit' parameter not set (ie request constrained only by API maxLimit)", () => {
-            it("'errorOnOverLimit' defaults to 'true'", async () => {
-                const resp = await testUtils.testAuthedRequest(router, "/v2/reports/transactions", "GET");
-                chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
-            });
-
-            it("returns success when 'errorOnOverLimit=false' and query returns more than 'maxLimit' rows", async () => {
-                const resp = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, "/v2/reports/transactions?errorOnOverLimit=false", "GET");
+        describe("'suppressLimitError=true'", () => {
+            it("returns success if results count > limit", async () => {
+                const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/transactions?limit=${transactionCount - 1}&suppressLimitError=true`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.equal(resp.body.length, artificialRowLimit, `resp.body=${JSON.stringify(resp.body)}`);
+                chai.assert.equal(resp.body.length, transactionCount - 1, `resp.body=${JSON.stringify(resp.body)}`);
             });
-        });
 
-        describe("handling 'limit' parameter values", () => {
-            it("accepts limit if set to same number as maxLimit and returns that number of rows successfully", async () => {
-                const resp = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, `/v2/reports/transactions?limit=${artificialRowLimit}`, "GET");
+            it.skip("returns success if results count > default limit", async () => {
+                // TODO - set mock
+                const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/transactions?suppressLimitError=true`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.equal(resp.body.length, artificialRowLimit, `resp.body=${JSON.stringify(resp.body)}`);
-            });
-
-            it("accepts limit if set lower than maxLimit and returns limit number of rows successfully", async () => {
-                const resp = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, "/v2/reports/transactions?limit=1", "GET");
-                chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.equal(resp.body.length, 1, `resp.body=${JSON.stringify(resp.body)}`);
-            });
-
-            it("returns error if limit value > maxLimit (10k)", async () => {
-                const resp = await testUtils.testAuthedRequest<ReportTransaction>(router, "/v2/reports/transactions?limit=10001", "GET");
-                chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
+                chai.assert.equal(resp.body.length, transactionCount, `resp.body=${JSON.stringify(resp.body)}`);
             });
         });
     });

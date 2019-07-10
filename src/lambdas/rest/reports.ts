@@ -1,4 +1,5 @@
 import * as cassava from "cassava";
+import {RouterEvent} from "cassava";
 import {csvSerializer} from "../../serializers";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {Pagination, PaginationParams} from "../../model/Pagination";
@@ -38,15 +39,12 @@ export function installReportsRest(router: cassava.Router): void {
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:transactions:list");
 
-            const paginationParams = Pagination.getPaginationParamsForReports(evt, {maxLimit: reportRowLimit});
-            const res = await getTransactionsForReport(auth, evt.queryStringParameters, paginationParams);
-
-            const transactions = limitReportSize<ReportTransaction>(res.transactions, evt.queryStringParameters, paginationParams);
+            const transactionResults = await getReportResults<ReportTransaction>(auth, evt, getTransactionsForReport);
 
             if (evt.queryStringParameters.formatCurrencies === "true") {
                 return {
-                    headers: Pagination.toHeaders(evt, res.pagination),
-                    body: await formatObjectsAmountPropertiesForCurrencyDisplay(auth, transactions, [
+                    headers: Pagination.toHeaders(evt, transactionResults.pagination),
+                    body: await formatObjectsAmountPropertiesForCurrencyDisplay(auth, transactionResults.results, [
                         "transactionAmount",
                         "checkout_subtotal",
                         "checkout_tax",
@@ -62,8 +60,8 @@ export function installReportsRest(router: cassava.Router): void {
                 };
             } else {
                 return {
-                    headers: Pagination.toHeaders(evt, res.pagination),
-                    body: transactions
+                    headers: Pagination.toHeaders(evt, transactionResults.pagination),
+                    body: transactionResults.results
                 };
             }
         });
@@ -98,7 +96,37 @@ export function installReportsRest(router: cassava.Router): void {
         });
 }
 
-async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ transactions: ReportTransaction[], pagination: Pagination }> {
+type ReportCallbackFunction<T> = (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams) => Promise<{ results: T[], pagination: Pagination }>;
+
+async function getReportResults<T>(auth: giftbitRoutes.jwtauth.AuthorizationBadge, evt: RouterEvent, fetchObjectsCallback: ReportCallbackFunction<T>): Promise<{ results: T[], pagination: Pagination }> {
+    let paginationParams = Pagination.getPaginationParams(evt, {defaultLimit: reportRowLimit});
+    paginationParams.limit += 1;
+    paginationParams.maxLimit = reportRowLimit + 1;
+
+    const res = await fetchObjectsCallback(auth, evt.queryStringParameters, paginationParams);
+
+    const requestedLimit = +evt.queryStringParameters["limit"] || reportRowLimit;
+    const suppressLimitError = evt.queryStringParameters["suppressLimitError"] === "true";
+    const limitedResult = await limitReportSize<T>(res.results, suppressLimitError, requestedLimit);
+
+    paginationParams.limit -= 1;
+    paginationParams.maxLimit = reportRowLimit;
+
+    return {
+        results: limitedResult as T[],
+        pagination: paginationParams
+    };
+}
+
+async function getValuesForReport(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams, showCode: boolean = false): Promise<{ results: Value[], pagination: Pagination }> {
+    const res = await getValues(auth, filterParams, pagination, showCode);
+    return {
+        results: res.values,
+        pagination: res.pagination
+    };
+}
+
+const getTransactionsForReport: ReportCallbackFunction<ReportTransaction> = async (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ results: ReportTransaction[], pagination: Pagination }> => {
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
@@ -142,7 +170,7 @@ async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.Authorizatio
     const transactions = await DbTransaction.toTransactions(res.body, auth.userId);
 
     return {
-        transactions: transactions.map(txn => ({
+        results: transactions.map(txn => ({
             id: txn.id,
             createdDate: txn.createdDate,
             transactionType: txn.transactionType,
@@ -163,22 +191,18 @@ async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.Authorizatio
         })),
         pagination: res.pagination
     };
-}
+};
 
-function limitReportSize<T>(response: T[], queryParams: { [key: string]: string }, pagination: PaginationParams): T[] {
-    const responseOverLimit = response.length > reportRowLimit || response.length > pagination.limit - 1; // subtract 1 because getPaginationParamsForReports() adds one to the requested limit
-    const responseOverMaxLimit = response.length > reportRowLimit;
-    const errorOnOverLimit = queryParams["errorOnOverLimit"] === "true";
-
-    if ((responseOverLimit && errorOnOverLimit) || (!queryParams["limit"] && responseOverMaxLimit && (errorOnOverLimit || !queryParams["errorOnOverLimit"]))) {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Report query returned too many rows. Please modify your request and try again.`);
-    } else if (responseOverLimit && !errorOnOverLimit) {
-        return response.slice(0, response.length - 1); // subtract 1 because getPaginationParamsForReports() adds one to the requested limit
+function limitReportSize<T>(response: T[], suppressLimitError: boolean, requestedLimit: number): T[] {
+    if (response.length > requestedLimit) {
+        if (suppressLimitError) {
+            return response.slice(0, requestedLimit);
+        } else {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Report query returned too many rows. Please modify your request and try again.`);
+        }
     } else {
-        // response size is under limit so nothing to change
         return response;
     }
-
 }
 
 function addStepAmounts(txn: Transaction): number {
