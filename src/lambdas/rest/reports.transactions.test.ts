@@ -515,8 +515,6 @@ describe("/v2/reports/transactions/", () => {
                 marketplace_sellerGross: null,
                 metadata: null,
             }, ["createdDate", "id", "metadata"], `checkoutReportResp.body=${JSON.stringify(checkoutReportResp.body)}`);
-
-            unsetStubsForStripeTests();
         }).timeout(10000);
     });
 

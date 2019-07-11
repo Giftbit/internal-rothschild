@@ -91,14 +91,18 @@ export function installReportsRest(router: cassava.Router): void {
         });
 }
 
-type ReportCallbackFunction<T> = (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams) => Promise<{ results: T[], pagination: Pagination }>;
+type ReportDelegate<T> = (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams) => Promise<{ results: T[], pagination: Pagination }>;
 
-async function getReportResults<T>(auth: giftbitRoutes.jwtauth.AuthorizationBadge, evt: RouterEvent, fetchObjectsCallback: ReportCallbackFunction<T>): Promise<{ results: T[], pagination: Pagination }> {
+/**
+ * Uses a delegate to actually fetch the results so we can do reports-specific things with the pagination params used in the query.
+ * This supports us doing things like optionally throwing an error if there are more than 'limit' results available.
+ */
+async function getReportResults<T>(auth: giftbitRoutes.jwtauth.AuthorizationBadge, evt: RouterEvent, fetchObjectsDelegate: ReportDelegate<T>): Promise<{ results: T[], pagination: Pagination }> {
     let paginationParams = Pagination.getPaginationParams(evt, {defaultLimit: reportRowLimit});
     paginationParams.limit += 1;
     paginationParams.maxLimit = reportRowLimit + 1;
 
-    const res = await fetchObjectsCallback(auth, evt.queryStringParameters, paginationParams);
+    const res = await fetchObjectsDelegate(auth, evt.queryStringParameters, paginationParams);
 
     const requestedLimit = +evt.queryStringParameters["limit"] || reportRowLimit;
     const suppressLimitError = evt.queryStringParameters["suppressLimitError"] === "true";
@@ -113,7 +117,8 @@ async function getReportResults<T>(auth: giftbitRoutes.jwtauth.AuthorizationBadg
     };
 }
 
-export const getValuesForReport: ReportCallbackFunction<Value> = async (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams, showCode: boolean = false): Promise<{ results: Value[], pagination: Pagination }> => {
+// exported for testing
+export const getValuesForReport: ReportDelegate<Value> = async (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams, showCode: boolean = false): Promise<{ results: Value[], pagination: Pagination }> => {
     const res = await getValues(auth, filterParams, pagination, showCode);
     return {
         results: res.values,
@@ -121,7 +126,8 @@ export const getValuesForReport: ReportCallbackFunction<Value> = async (auth: gi
     };
 };
 
-export const getTransactionsForReport: ReportCallbackFunction<ReportTransaction> = async (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ results: ReportTransaction[], pagination: Pagination }> => {
+// exported for testing
+export const getTransactionsForReport: ReportDelegate<ReportTransaction> = async (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ results: ReportTransaction[], pagination: Pagination }> => {
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
