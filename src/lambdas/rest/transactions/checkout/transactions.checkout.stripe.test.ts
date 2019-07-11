@@ -131,7 +131,8 @@ describe("split tender checkout with Stripe", () => {
             paidInternal: 0,
             paidLightrail: 0,
             paidStripe: 123,
-            remainder: 0
+            remainder: 0,
+            forgiven: 0
         }, `body.totals=${JSON.stringify(postCheckoutResp.body.totals)}`);
         chai.assert.deepEqual(postCheckoutResp.body.lineItems, [
             {
@@ -205,7 +206,8 @@ describe("split tender checkout with Stripe", () => {
             paidInternal: 0,
             paidLightrail: 0,
             paidStripe: 123,
-            remainder: 0
+            remainder: 0,
+            forgiven: 0
         }, `body.totals=${JSON.stringify(postCheckoutResp.body.totals)}`);
         chai.assert.deepEqual(postCheckoutResp.body.lineItems, [
             {
@@ -316,7 +318,8 @@ describe("split tender checkout with Stripe", () => {
             paidInternal: 0,
             paidLightrail: 100,
             paidStripe: 400,
-            remainder: 0
+            remainder: 0,
+            forgiven: 0
         }, `body.totals=${JSON.stringify(postCheckoutResp.body.totals)}`);
         chai.assert.deepEqual(postCheckoutResp.body.lineItems, [
             {
@@ -420,7 +423,8 @@ describe("split tender checkout with Stripe", () => {
             paidInternal: 0,
             paidLightrail: 500,
             paidStripe: 0,
-            remainder: 0
+            remainder: 0,
+            forgiven: 0
         }, `body.totals=${JSON.stringify(postCheckoutResp.body.totals)}`);
         chai.assert.deepEqual(postCheckoutResp.body.lineItems, [
             {
@@ -695,7 +699,8 @@ describe("split tender checkout with Stripe", () => {
             paidInternal: 0,
             paidLightrail: 100,
             paidStripe: 400,
-            remainder: 0
+            remainder: 0,
+            forgiven: 0
         }, `body.totals=${JSON.stringify(postCheckoutResp.body.totals)}`);
         chai.assert.deepEqual(postCheckoutResp.body.lineItems, [
             {
@@ -1031,7 +1036,8 @@ describe("split tender checkout with Stripe", () => {
             paidInternal: 0,
             paidLightrail: 100,
             paidStripe: 400,
-            remainder: 0
+            remainder: 0,
+            forgiven: 0
         }, `body.totals=${JSON.stringify(postCheckoutResp.body.totals)}`);
         chai.assert.deepEqual(postCheckoutResp.body.lineItems, [
             {
@@ -1157,77 +1163,21 @@ describe("split tender checkout with Stripe", () => {
                 currency: "CAD"
             };
 
-            const exampleStripeError = {
-                "type": "StripeInvalidRequestError",
-                "stack": "Error: Amount must be at least 50 cents\n    at Constructor._Error (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/Error.js:12:17)\n    at Constructor (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/utils.js:124:13)\n    at Constructor (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/utils.js:124:13)\n    at Function.StripeError.generate (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/Error.js:57:12)\n    at IncomingMessage.<anonymous> (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/StripeResource.js:170:39)\n    at emitNone (events.js:110:20)\n    at IncomingMessage.emit (events.js:207:7)\n    at endReadableNT (_stream_readable.js:1059:12)\n    at _combinedTickCallback (internal/process/next_tick.js:138:11)\n    at process._tickDomainCallback (internal/process/next_tick.js:218:9)",
-                "rawType": "invalid_request_error",
-                "code": "amount_too_small",
-                "param": "amount",
-                "message": "Amount must be at least 50 cents",
-                "raw": {
-                    "code": "amount_too_small",
-                    "doc_url": "https://stripe.com/docs/error-codes/amount-too-small",
-                    "message": "Amount must be at least 50 cents",
-                    "param": "amount",
-                    "type": "invalid_request_error",
-                    "headers": {
-                        "server": "nginx",
-                        "date": "Fri, 27 Jul 2018 16:46:00 GMT",
-                        "content-type": "application/json",
-                        "content-length": "234",
-                        "connection": "close",
-                        "access-control-allow-credentials": "true",
-                        "access-control-allow-methods": "GET, POST, HEAD, OPTIONS, DELETE",
-                        "access-control-allow-origin": "*",
-                        "access-control-expose-headers": "Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required",
-                        "access-control-max-age": "300",
-                        "cache-control": "no-cache, no-store",
-                        "idempotency-key": "checkout-w-stripe-2-sources-0",
-                        "original-request": "req_aNgELeJU4iIOu9",
-                        "request-id": "req_TiojpYyiiKcPYA",
-                        "stripe-account": "acct_1CfBBRG3cz9DRdBt",
-                        "stripe-version": "2018-05-21",
-                        "strict-transport-security": "max-age=31556926; includeSubDomains; preload"
-                    },
-                    "statusCode": 400,
-                    "requestId": "req_TiojpYyiiKcPYA"
-                },
-                "headers": {
-                    "server": "nginx",
-                    "date": "Fri, 27 Jul 2018 16:46:00 GMT",
-                    "content-type": "application/json",
-                    "content-length": "234",
-                    "connection": "close",
-                    "access-control-allow-credentials": "true",
-                    "access-control-allow-methods": "GET, POST, HEAD, OPTIONS, DELETE",
-                    "access-control-allow-origin": "*",
-                    "access-control-expose-headers": "Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required",
-                    "access-control-max-age": "300",
-                    "cache-control": "no-cache, no-store",
-                    "idempotency-key": "checkout-w-stripe-2-sources-0",
-                    "original-request": "req_aNgELeJU4iIOu9",
-                    "request-id": "req_TiojpYyiiKcPYA",
-                    "stripe-account": "acct_1CfBBRG3cz9DRdBt",
-                    "stripe-version": "2018-05-21",
-                    "strict-transport-security": "max-age=31556926; includeSubDomains; preload"
-                },
-                "requestId": "req_TiojpYyiiKcPYA",
-                "statusCode": 400
-            };
-            const exampleErrorResponse = new StripeRestError(422, "Error for tests", null, exampleStripeError);
-            stubCheckoutStripeError(request, 1, exampleErrorResponse);
-
             const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value3);
             chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
 
-            const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
-            chai.assert.equal(postCheckoutResp.statusCode, 422, `body=${JSON.stringify(postCheckoutResp.body)}`);
+            const postSimulateCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                ...request,
+                simulate: true
+            });
+            chai.assert.equal(postSimulateCheckoutResp.statusCode, 409, `body=${JSON.stringify(postSimulateCheckoutResp.body)}`);
 
-            if (!testStripeLive()) {
-                chai.assert.deepEqual((postCheckoutResp.body as any).stripeError, exampleStripeError);
-            } else {
-                chai.assert.isNotNull((postCheckoutResp.body as any).stripeError);
-            }
+            const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+            chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body)}`);
+        });
+
+        it.skip("can be configured to forgive the amount", async () => {
+            // TODO
         });
     });
 

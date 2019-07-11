@@ -35,6 +35,7 @@ export interface DbTransaction {
     totals_paidStripe: number | null;
     totals_paidInternal: number | null;
     totals_remainder: number | null;
+    totals_forgiven: number | null;
     totals_marketplace_sellerGross: number | null;
     totals_marketplace_sellerDiscount: number | null;
     totals_marketplace_sellerNet: number | null;
@@ -64,6 +65,7 @@ export namespace Transaction {
             totals_paidStripe: t.totals && t.totals.paidStripe,
             totals_paidInternal: t.totals && t.totals.paidInternal,
             totals_remainder: t.totals && t.totals.remainder,
+            totals_forgiven: t.totals && t.totals.forgiven,
             totals_marketplace_sellerGross: t.totals && t.totals.marketplace && t.totals.marketplace.sellerGross,
             totals_marketplace_sellerDiscount: t.totals && t.totals.marketplace && t.totals.marketplace.sellerDiscount,
             totals_marketplace_sellerNet: t.totals && t.totals.marketplace && t.totals.marketplace.sellerNet,
@@ -125,6 +127,7 @@ export namespace DbTransaction {
                     paidStripe: dbT.totals_paidStripe !== null ? dbT.totals_paidStripe : undefined,
                     paidInternal: dbT.totals_paidInternal !== null ? dbT.totals_paidInternal : undefined,
                     remainder: dbT.totals_remainder !== null ? dbT.totals_remainder : undefined,
+                    forgiven: dbT.totals_forgiven !== null ? dbT.totals_forgiven : undefined,
                     marketplace: undefined
                 };
 
@@ -149,6 +152,7 @@ function hasNonNullTotals(dbT: DbTransaction): boolean {
         dbT.totals_paidStripe !== null ||
         dbT.totals_paidInternal !== null ||
         dbT.totals_remainder !== null ||
+        dbT.totals_forgiven !== null ||
         dbT.totals_marketplace_sellerGross !== null ||
         dbT.totals_marketplace_sellerDiscount !== null ||
         dbT.totals_marketplace_sellerNet !== null;

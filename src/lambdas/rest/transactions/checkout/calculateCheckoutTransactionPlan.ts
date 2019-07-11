@@ -163,7 +163,7 @@ function getRuleContext(transactionPlan: TransactionPlan, value: Value, step: Li
 function adjustStripeSubMinChargeSteps(checkoutRequest: CheckoutRequest, transactionPlan: TransactionPlan): void {
     for (const step of transactionPlan.steps) {
         if (step.rail === "stripe" && step.type === "charge") {
-            if (-step.amount < step.minAmount) {
+            if (step.amount !== 0 && -step.amount < step.minAmount) {
                 // This Stripe charge step is below the min amount that can be charged.
                 if (checkoutRequest.allowRemainder) {
                     // allowRemainder takes the highest priority and converts the amount to remainder.
@@ -174,9 +174,10 @@ function adjustStripeSubMinChargeSteps(checkoutRequest: CheckoutRequest, transac
                     transactionPlan.totals.forgiven -= step.amount;
                     step.amount = 0;
                 } else {
+                    // It's a 409 to be consistent with the InsufficientBalance error.
                     throw new cassava.RestError(
                         409,
-                        `The transaction cannot be processed because it contains a Stripe charge below the minimum (${step.minAmount}).  Please see the documentation on allowRemainder and source.forgiveSubMinCharges or create a fee to raise the total charge.`,
+                        `The transaction cannot be processed because it contains a Stripe charge (${-step.amount}) below the minimum (${step.minAmount}).  Please see the documentation on \`allowRemainder\` and \`source.forgiveSubMinCharges\` or create a fee to raise the total charge.`,
                         {
                             messageCode: "StripeAmountTooSmall",
                             amount: -step.amount,

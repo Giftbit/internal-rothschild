@@ -29,8 +29,11 @@ export async function resolveTransferTransactionPlanSteps(auth: giftbitRoutes.jw
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable Value.", "InvalidParty");
     }
     const sourceStep = sourceSteps[0] as LightrailUpdateTransactionPlanStep | StripeChargeTransactionPlanStep;
-    if (sourceStep.rail === "stripe" && !req.allowRemainder && sourceStep.maxAmount != null && sourceStep.maxAmount < req.amount) {
-        throw new giftbitRoutes.GiftbitRestError(409, `Stripe source 'maxAmount' of ${sourceStep.maxAmount} is less than transfer amount ${req.amount}.`);
+    if (sourceStep.rail === "stripe" && !req.allowRemainder && sourceStep.maxAmount != null && req.amount > sourceStep.maxAmount) {
+        throw new giftbitRoutes.GiftbitRestError(409, `The transfer amount ${req.amount} is greater than the Stripe source 'maxAmount' of ${sourceStep.maxAmount}.`, "StripeAmountTooLarge");
+    }
+    if (sourceStep.rail === "stripe" && sourceStep.minAmount != null && req.amount < sourceStep.minAmount) {
+        throw new giftbitRoutes.GiftbitRestError(409, `The transfer amount ${req.amount} is less than the Stripe source 'minAmount' of ${sourceStep.minAmount}.`, "StripeAmountTooSmall");
     }
 
     const destSteps = await resolveTransactionPlanSteps(auth, {

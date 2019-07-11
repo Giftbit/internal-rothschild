@@ -106,7 +106,8 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                 "paidInternal": 0,
                 "paidLightrail": 0,
                 "paidStripe": 0,
-                "remainder": 550
+                "remainder": 550,
+                "forgiven": 0
             },
             "lineItems": [
                 {
@@ -231,7 +232,8 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                 "paidInternal": 0,
                 "paidLightrail": 0,
                 "paidStripe": 0,
-                "remainder": 963
+                "remainder": 963,
+                "forgiven": 0
             },
             "lineItems": [
                 {
@@ -378,7 +380,8 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                 "paidInternal": 0,
                 "paidLightrail": 0,
                 "paidStripe": 0,
-                "remainder": 687
+                "remainder": 687,
+                "forgiven": 0
             },
             "lineItems": [
                 {
@@ -559,6 +562,7 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                 "discount": 85,
                 "payable": 790,
                 "remainder": 0,
+                "forgiven": 0,
                 "discountLightrail": 85,
                 "paidLightrail": 790,
                 "paidStripe": 0,
@@ -721,7 +725,8 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                 "paidInternal": 0,
                 "paidLightrail": 0,
                 "paidStripe": 0,
-                "remainder": 1796
+                "remainder": 1796,
+                "forgiven": 0
             },
             "lineItems": [
                 {
@@ -807,7 +812,8 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                 "paidInternal": 0,
                 "paidLightrail": 0,
                 "paidStripe": 0,
-                "remainder": 2640
+                "remainder": 2640,
+                "forgiven": 0
             },
             "lineItems": [
                 {
@@ -928,7 +934,8 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                 "paidInternal": 0,
                 "paidLightrail": 0,
                 "paidStripe": 0,
-                "remainder": 1679
+                "remainder": 1679,
+                "forgiven": 0
             },
             "lineItems": [
                 {
@@ -1070,6 +1077,7 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                 "discount": 400,
                 "payable": 3959,
                 "remainder": 3959,
+                "forgiven": 0,
                 "discountLightrail": 400,
                 "paidLightrail": 0,
                 "paidStripe": 0,
@@ -1179,6 +1187,7 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                 "discount": 800,
                 "payable": 100,
                 "remainder": 100,
+                "forgiven": 0,
                 "discountLightrail": 800,
                 "paidLightrail": 0,
                 "paidStripe": 0,
@@ -1295,6 +1304,7 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                 "discount": 0,
                 "payable": 200,
                 "remainder": 200,
+                "forgiven": 0,
                 "discountLightrail": 0,
                 "paidLightrail": 0,
                 "paidStripe": 0,
@@ -1374,6 +1384,7 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                 "discount": 0,
                 "payable": 200,
                 "remainder": 200,
+                "forgiven": 0,
                 "discountLightrail": 0,
                 "paidLightrail": 0,
                 "paidStripe": 0,

@@ -19,6 +19,14 @@ export async function executeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
         for (const step of stripeSteps) {
             MetricsLogger.stripeCall(step, auth);
             if (step.type === "charge") {
+                // These are internal errors for setups that should not get this far.
+                if (step.minAmount && step.minAmount > -step.amount) {
+                    throw new Error(`The transaction cannot be processed because it contains a Stripe charge (${-step.amount}) below the minimum (${step.minAmount}).`);
+                }
+                if (step.maxAmount && step.maxAmount < -step.amount) {
+                    throw new Error(`The transaction cannot be processed because it contains a Stripe charge (${-step.amount}) above the minimum (${step.maxAmount}).`);
+                }
+
                 const stripeChargeParams = stripeTransactionPlanStepToStripeChargeRequest(auth, step, plan);
                 step.chargeResult = await createCharge(stripeChargeParams, stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, step.idempotentStepId);
             } else if (step.type === "refund") {
@@ -63,13 +71,6 @@ export async function executeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
 }
 
 function stripeTransactionPlanStepToStripeChargeRequest(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: StripeChargeTransactionPlanStep, plan: TransactionPlan): Stripe.charges.IChargeCreationOptions {
-    if (step.minAmount && step.minAmount > -step.amount) {
-        throw new Error(`StripeTransactionPlanStep amount ${-step.amount} < minAmount ${step.minAmount}`);
-    }
-    if (step.maxAmount && step.maxAmount < -step.amount) {
-        throw new Error(`StripeTransactionPlanStep amount ${-step.amount} > maxAmount ${step.maxAmount}`);
-    }
-
     const stripeChargeParams: Stripe.charges.IChargeCreationOptions = {
         amount: -step.amount /* Lightrail treats debits as negative amounts on Steps but Stripe requires a positive amount when charging a credit card. */,
         currency: plan.currency,

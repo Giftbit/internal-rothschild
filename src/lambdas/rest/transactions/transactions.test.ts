@@ -258,7 +258,8 @@ describe("/v2/transactions", () => {
                     paidInternal: 0,
                     paidLightrail: 50,
                     paidStripe: 0,
-                    remainder: 0
+                    remainder: 0,
+                    forgiven: 0
                 },
                 lineItems: [
                     {

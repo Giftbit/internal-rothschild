@@ -12,12 +12,10 @@ import {
     stripeLiveMerchantConfig,
     stubNoStripeCharge,
     stubTransferStripeCharge,
-    stubTransferStripeError,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../../utils/testUtils/stripeTestUtils";
 import {createCurrency} from "../currencies";
-import {StripeRestError} from "../../../utils/stripeUtils/StripeRestError";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {stripeApiVersion} from "../../../utils/stripeUtils/StripeConfig";
 import {TransferRequest} from "../../../model/TransactionRequest";
@@ -189,6 +187,7 @@ describe("/v2/transactions/transfer", () => {
                 "totals_paidStripe": null,
                 "totals_paidInternal": null,
                 "totals_remainder": 0,
+                "totals_forgiven": null,
                 "totals_marketplace_sellerGross": null,
                 "totals_marketplace_sellerDiscount": null,
                 "totals_marketplace_sellerNet": null
@@ -1175,7 +1174,7 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.equal(postTransferResp.statusCode, 422, `body=${JSON.stringify(postTransferResp.body)}`);
         });
 
-        it("respects maxAmount on Stripe source with allowRemainder", async () => {
+        it("respects maxAmount on Stripe source with allowRemainder=true", async () => {
             const request: TransferRequest = {
                 id: generateId(),
                 source: {
@@ -1323,69 +1322,16 @@ describe("/v2/transactions/transfer", () => {
                         valueId: valueCadForStripeTests.id
                     }
                 };
-                const exampleStripeError = {
-                    "type": "StripeInvalidRequestError",
-                    "stack": "Error: Amount must be at least 50 cents\n    at Constructor._Error (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/Error.js:12:17)\n    at Constructor (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/utils.js:124:13)\n    at Constructor (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/utils.js:124:13)\n    at Function.StripeError.generate (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/Error.js:57:12)\n    at IncomingMessage.<anonymous> (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/StripeResource.js:170:39)\n    at emitNone (events.js:110:20)\n    at IncomingMessage.emit (events.js:207:7)\n    at endReadableNT (_stream_readable.js:1059:12)\n    at _combinedTickCallback (internal/process/next_tick.js:138:11)\n    at process._tickDomainCallback (internal/process/next_tick.js:218:9)",
-                    "rawType": "invalid_request_error",
-                    "code": "amount_too_small",
-                    "param": "amount",
-                    "message": "Amount must be at least 50 cents",
-                    "raw": {
-                        "code": "amount_too_small",
-                        "doc_url": "https://stripe.com/docs/error-codes/amount-too-small",
-                        "message": "Amount must be at least 50 cents",
-                        "param": "amount",
-                        "type": "invalid_request_error",
-                        "headers": {
-                            "server": "nginx",
-                            "date": "Tue, 31 Jul 2018 18:20:40 GMT",
-                            "content-type": "application/json",
-                            "content-length": "234",
-                            "connection": "close",
-                            "access-control-allow-credentials": "true",
-                            "access-control-allow-methods": "GET, POST, HEAD, OPTIONS, DELETE",
-                            "access-control-allow-origin": "*",
-                            "access-control-expose-headers": "Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required",
-                            "access-control-max-age": "300",
-                            "cache-control": "no-cache, no-store",
-                            "idempotency-key": request.id + "-0",
-                            "original-request": "req_EOTu9MIhTiAogt",
-                            "request-id": "req_8nO7UdD8hP3DAv",
-                            "stripe-account": "acct_1CfBBRG3cz9DRdBt",
-                            "stripe-version": "2018-05-21",
-                            "strict-transport-security": "max-age=31556926; includeSubDomains; preload"
-                        },
-                        "statusCode": 400,
-                        "requestId": "req_8nO7UdD8hP3DAv"
-                    },
-                    "headers": {
-                        "server": "nginx",
-                        "date": "Tue, 31 Jul 2018 18:20:40 GMT",
-                        "content-type": "application/json",
-                        "content-length": "234",
-                        "connection": "close",
-                        "access-control-allow-credentials": "true",
-                        "access-control-allow-methods": "GET, POST, HEAD, OPTIONS, DELETE",
-                        "access-control-allow-origin": "*",
-                        "access-control-expose-headers": "Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required",
-                        "access-control-max-age": "300",
-                        "cache-control": "no-cache, no-store",
-                        "idempotency-key": request.id + "-0",
-                        "original-request": "req_EOTu9MIhTiAogt",
-                        "request-id": "req_8nO7UdD8hP3DAv",
-                        "stripe-account": "acct_1CfBBRG3cz9DRdBt",
-                        "stripe-version": "2018-05-21",
-                        "strict-transport-security": "max-age=31556926; includeSubDomains; preload"
-                    },
-                    "requestId": "req_8nO7UdD8hP3DAv",
-                    "statusCode": 400
-                };
-                const exampleErrorResponse = new StripeRestError(422, "Error for tests: Stripe minimum not met", "StripeAmountTooSmall", exampleStripeError);
-                stubTransferStripeError(request, exampleErrorResponse);
+
+                const postSimulateTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
+                    ...request,
+                    simulate: true
+                });
+                chai.assert.equal(postSimulateTransferResp.statusCode, 409, `body=${JSON.stringify(postSimulateTransferResp.body)}`);
+                chai.assert.equal((postSimulateTransferResp.body as any).messageCode, "StripeAmountTooSmall", `body=${JSON.stringify(postSimulateTransferResp.body)}`);
 
                 const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
-                chai.assert.equal(postTransferResp.statusCode, 422, `body=${JSON.stringify(postTransferResp.body)}`);
-                chai.assert.isNotNull((postTransferResp.body as any).messageCode, `body=${JSON.stringify(postTransferResp.body)}`);
+                chai.assert.equal(postTransferResp.statusCode, 409, `body=${JSON.stringify(postTransferResp.body)}`);
                 chai.assert.equal((postTransferResp.body as any).messageCode, "StripeAmountTooSmall", `body=${JSON.stringify(postTransferResp.body)}`);
             });
         });
