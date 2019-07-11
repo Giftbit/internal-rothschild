@@ -25,6 +25,16 @@ describe("/v2/reports/values/", () => {
 
     const program1Id = "program1";
     let valueFromProgram1: Value;
+
+    function getValueReportHeadersForAssertions(limit: number = 10000) {
+        return {
+            "Limit": limit.toString(),
+            "Max-Limit": "10000",
+            "Content-Type": "text/csv",
+            "Link": ""
+        };
+    }
+
     before(async function () {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
@@ -66,6 +76,7 @@ describe("/v2/reports/values/", () => {
     it("can download a csv of Values", async () => {
         const resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/reports/values`, "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.deepEqual(resp.headers as any, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
         chai.assert.equal(resp.body.length, 6);
 
         chai.assert.isObject(resp.body.find(v => v.id === genericValue.id, `generic value not in results: ${JSON.stringify(resp.body)}`));
@@ -127,6 +138,7 @@ describe("/v2/reports/values/", () => {
     it("can download a csv of Values - filtered by programId", async () => {
         const resp1 = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/reports/values?programId=program1`, "GET");
         chai.assert.equal(resp1.statusCode, 200, `resp1.body=${JSON.stringify(resp1.body)}`);
+        chai.assert.deepEqual(resp1.headers as any, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp1.headers)}`);
         chai.assert.equal(resp1.body.length, 1, `resp1.body=${JSON.stringify(resp1.body)}`);
         chai.assert.deepEqualExcluding(resp1.body[0], {
             id: "",
@@ -162,6 +174,7 @@ describe("/v2/reports/values/", () => {
 
         const resp2and3 = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/reports/values?programId.in=program2,program3`, "GET");
         chai.assert.equal(resp2and3.statusCode, 200, `resp2and3.body=${JSON.stringify(resp2and3.body)}`);
+        chai.assert.deepEqual(resp2and3.headers as any, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp2and3.headers)}`);
         chai.assert.equal(resp2and3.body.length, 3);
         chai.assert.equal(resp2and3.body.filter(value => value.programId === "program2").length, 2, `resp2and3.body=${JSON.stringify(resp2and3.body)}`);
         chai.assert.isObject(resp2and3.body.find(value => value.programId === "program3"), `resp2and3.body=${JSON.stringify(resp2and3.body)}`);
@@ -217,6 +230,8 @@ describe("/v2/reports/values/", () => {
         chai.assert.equal(createValue.statusCode, 201);
 
         const resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/reports/values?id=${genericValue.id}&formatCurrencies=true`, "GET");
+        chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
+        chai.assert.deepEqual(resp.headers as any, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
         chai.assert.deepInclude(resp.body[0], {
             balance: "$1.50",
             genericCodeOptions: "{\"perContact\":{\"balance\":\"$0.50\",\"usesRemaining\":3}}"
@@ -270,6 +285,7 @@ describe("/v2/reports/values/", () => {
             it("returns success if results count <= limit", async () => {
                 const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values?limit=${valueCount}`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
+                chai.assert.deepEqual(resp.headers as any, getValueReportHeadersForAssertions(valueCount), `resp.headers=${JSON.stringify(resp.headers)}`);
                 chai.assert.equal(resp.body.length, valueCount, `resp.body=${JSON.stringify(resp.body)}`);
             });
 
@@ -281,6 +297,7 @@ describe("/v2/reports/values/", () => {
             it("returns success if results count < default limit", async () => {
                 const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
+                chai.assert.deepEqual(resp.headers as any, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
                 chai.assert.equal(resp.body.length, valueCount, `resp.body=${JSON.stringify(resp.body)}`);
             });
 
@@ -297,6 +314,7 @@ describe("/v2/reports/values/", () => {
             it("returns success if results count > limit", async () => {
                 const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values?limit=${valueCount - 1}&suppressLimitError=true`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
+                chai.assert.deepEqual(resp.headers as any, getValueReportHeadersForAssertions(valueCount - 1), `resp.headers=${JSON.stringify(resp.headers)}`);
                 chai.assert.equal(resp.body.length, valueCount - 1, `resp.body=${JSON.stringify(resp.body)}`);
             });
 
@@ -306,6 +324,7 @@ describe("/v2/reports/values/", () => {
 
                 const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values?suppressLimitError=true`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
+                chai.assert.deepEqual(resp.headers as any, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
                 chai.assert.equal(resp.body.length, 10000, `resp.body.length=${resp.body.length}`);
             });
         });
@@ -314,6 +333,7 @@ describe("/v2/reports/values/", () => {
     it("can query by programId and createdDate", async () => {
         const queryReports = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values?programId=program1&createdDate.gte=2007-04-05T14:30:00.000Z`, "GET");
         chai.assert.equal(queryReports.statusCode, 200);
+        chai.assert.deepEqual(queryReports.headers as any, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(queryReports.headers)}`);
         chai.assert.include(JSON.stringify(queryReports.body), valueFromProgram1.id);
     });
 });
