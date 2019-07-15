@@ -157,7 +157,6 @@ describe("/v2/reports/transactions/", () => {
             sinonSandbox.restore();
         });
 
-
         describe("default behaviour: error if more results than limit/default limit", () => {
             it("returns success if results count <= limit", async () => {
                 const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/transactions?limit=${transactionCount}`, "GET");
@@ -182,7 +181,7 @@ describe("/v2/reports/transactions/", () => {
                 sinonSandbox.stub(Reports, "getTransactionsForReport")
                     .resolves({results: (mockOverLimitReportResult), pagination: null});
 
-                const resp = await testUtils.testAuthedRequest(router, `/v2/reports/transactions?limit=${transactionCount}`, "GET");
+                const resp = await testUtils.testAuthedRequest(router, `/v2/reports/transactions`, "GET");
                 chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
             });
         });

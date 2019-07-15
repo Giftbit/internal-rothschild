@@ -106,7 +106,7 @@ async function getReportResults<T>(auth: giftbitRoutes.jwtauth.AuthorizationBadg
 
     const requestedLimit = +evt.queryStringParameters["limit"] || reportRowLimit;
     const suppressLimitError = evt.queryStringParameters["suppressLimitError"] === "true";
-    const limitedResult = await limitReportSize<T>(res.results, suppressLimitError, requestedLimit);
+    const limitedResult = limitReportSize<T>(res.results, suppressLimitError, requestedLimit);
 
     paginationParams.limit -= 1;
     paginationParams.maxLimit = reportRowLimit;
