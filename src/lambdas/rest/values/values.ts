@@ -892,7 +892,7 @@ const valueChangeCodeSchema: jsonschema.Schema = {
     type: "object",
     additionalProperties: false,
     properties: {
-        ...pick(valueSchema.properties, "code", "isGenericCode", "generateCode"),
+        ...pick(valueSchema.properties, "code", "generateCode"),
     },
     required: []
 };

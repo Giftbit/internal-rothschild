@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as testUtils from "../../../utils/testUtils/index";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../utils/testUtils/index";
-import {DbValue, Value} from "../../../model/Value";
+import {DbValue, formatCodeForLastFourDisplay, Value} from "../../../model/Value";
 import {Currency} from "../../../model/Currency";
 import {Contact} from "../../../model/Contact";
 import {getCodeLastFourNoPrefix} from "../../../model/DbCode";
@@ -821,6 +821,7 @@ describe("/v2/values/", () => {
         chai.assert.isNotNull(res[0].codeEncrypted);
         chai.assert.isNotNull(res[0].codeHashed);
         chai.assert.equal(res[0].codeHashed, await computeCodeLookupHash(publicCode.code, testUtils.defaultTestUser.auth));
+        chai.assert.equal(await decryptCode(res[0].codeEncrypted), "PUBLIC");
         chai.assert.equal(res[0].codeLastFour, "BLIC");
 
         const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
@@ -1066,64 +1067,87 @@ describe("/v2/values/", () => {
         chai.assert.equal(codeInListShowCodeTrue.code, "SECURE");
     });
 
-    it("can change a code", async () => {
-        let codesToTest: string[] = ["ABCDE", "ABCDEF12345", "FSSESFAWDWQCASAWD"];
+    it("can change a unique code", async () => {
+        const code = "ABCDEF12345";
 
-        for (let code of codesToTest) {
-            let value = {
-                id: "changeCodeTest1" + code,
-                currency: "USD",
-                code: "CODEONE",
-                isGenericCode: true,
-                balance: 0
-            };
+        let value = {
+            id: generateId(),
+            currency: "USD",
+            code: "CODEONE",
+            balance: 0
+        };
 
-            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
-            chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
-            chai.assert.equal(create.body.code, value.code);
-            chai.assert.isTrue(create.body.isGenericCode);
+        const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+        chai.assert.equal(create.body.code, value.code, `Expected only code last 4 to be returned. Received: ${create.body.code}`);
+        chai.assert.isFalse(create.body.isGenericCode);
 
-            const changeCodePublic = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}/changeCode`, "POST", {
-                isGenericCode: true,
-                code: code
+        const changeCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}/changeCode`, "POST", {
+            code: code
+        });
+        chai.assert.equal(changeCode.statusCode, 200, `body=${JSON.stringify(changeCode.body)}`);
+        chai.assert.isFalse(changeCode.body.isGenericCode);
+        chai.assert.equal(changeCode.body.code, formatCodeForLastFourDisplay(code), `Expected only code last 4 to be returned. Received: ${changeCode.body.code}`);
+
+        const get = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
+        chai.assert.equal(get.statusCode, 200, `body=${JSON.stringify(get.body)}`);
+        chai.assert.equal(get.body.code, formatCodeForLastFourDisplay(code));
+
+        const knex = await getKnexRead();
+        let res: DbValue[] = await knex("Values")
+            .select()
+            .where({
+                userId: testUtils.defaultTestUser.userId,
+                id: value.id
             });
-            chai.assert.equal(changeCodePublic.statusCode, 200, `body=${JSON.stringify(changeCodePublic.body)}`);
+        chai.assert.isNotNull(res[0].codeEncrypted);
+        chai.assert.isNotNull(res[0].codeHashed);
+        chai.assert.isFalse(res[0].isGenericCode);
+        chai.assert.equal(res[0].codeHashed, await computeCodeLookupHash(code, testUtils.defaultTestUser.auth));
+        chai.assert.equal(res[0].codeLastFour, getCodeLastFourNoPrefix(code));
+        chai.assert.equal(await decryptCode(res[0].codeEncrypted), code);
+    });
 
-            const getNewPublicCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
-            chai.assert.equal(getNewPublicCode.statusCode, 200, `body=${JSON.stringify(getNewPublicCode.body)}`);
-            chai.assert.equal(getNewPublicCode.body.code, code);
+    it("can change a generic code", async () => {
+        const code = "QWERTY12345";
 
-            const knex = await getKnexRead();
-            let res: DbValue[] = await knex("Values")
-                .select()
-                .where({
-                    userId: testUtils.defaultTestUser.userId,
-                    id: value.id
-                });
-            chai.assert.isNotNull(res[0].codeEncrypted);
-            chai.assert.isNotNull(res[0].codeHashed);
-            chai.assert.equal(res[0].codeHashed, await computeCodeLookupHash(code, testUtils.defaultTestUser.auth));
-            chai.assert.equal(res[0].codeLastFour, getCodeLastFourNoPrefix(code));
-            chai.assert.equal(await decryptCode(res[0].codeEncrypted), code);
+        let value = {
+            id: generateId(),
+            currency: "USD",
+            code: "CODETWO",
+            isGenericCode: true,
+            balance: 0
+        };
 
-            const changeCodeSecure = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}/changeCode`, "POST", {code: code});
-            chai.assert.equal(changeCodeSecure.statusCode, 200, `body=${JSON.stringify(changeCodeSecure.body)}`);
+        const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+        chai.assert.equal(create.body.code, value.code, `Expected fullcode to be returned. Received: ${create.body.code}`);
+        chai.assert.isTrue(create.body.isGenericCode);
 
-            const getNewSecureCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
-            chai.assert.equal(getNewSecureCode.statusCode, 200, `body=${JSON.stringify(getNewSecureCode.body)}`);
+        const changeCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}/changeCode`, "POST", {
+            code: code
+        });
+        chai.assert.equal(changeCode.statusCode, 200, `body=${JSON.stringify(changeCode.body)}`);
+        chai.assert.isTrue(changeCode.body.isGenericCode);
+        chai.assert.equal(changeCode.body.code, code, `Expected fullcode to be returned. Received: ${changeCode.body.code}`);
 
-            res = await knex("Values")
-                .select()
-                .where({
-                    userId: testUtils.defaultTestUser.userId,
-                    id: value.id
-                });
-            chai.assert.isNotNull(res[0].codeEncrypted);
-            chai.assert.isNotNull(res[0].codeHashed);
-            chai.assert.equal(res[0].codeHashed, await computeCodeLookupHash(code, testUtils.defaultTestUser.auth));
-            chai.assert.equal(res[0].codeLastFour, getCodeLastFourNoPrefix(code));
-            chai.assert.equal(await decryptCode(res[0].codeEncrypted), code);
-        }
+        const get = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
+        chai.assert.equal(get.statusCode, 200, `body=${JSON.stringify(get.body)}`);
+        chai.assert.equal(get.body.code, code, `Expected fullcode to be returned. Received: ${create.body.code}`);
+
+        const knex = await getKnexRead();
+        let res: DbValue[] = await knex("Values")
+            .select()
+            .where({
+                userId: testUtils.defaultTestUser.userId,
+                id: value.id
+            });
+        chai.assert.isNotNull(res[0].codeEncrypted);
+        chai.assert.isNotNull(res[0].codeHashed);
+        chai.assert.isTrue(res[0].isGenericCode);
+        chai.assert.equal(res[0].codeHashed, await computeCodeLookupHash(code, testUtils.defaultTestUser.auth));
+        chai.assert.equal(res[0].codeLastFour, getCodeLastFourNoPrefix(code));
+        chai.assert.equal(await decryptCode(res[0].codeEncrypted), code);
     });
 
     it("cannot change a code to one already in use", async () => {
@@ -1361,8 +1385,8 @@ describe("/v2/values/", () => {
         });
     });
 
-    describe("can't change a Value with disjoint code properties", () => {
-        it("cannot create a Value with code and generateCode", async () => {
+    describe("changeCode parameter tests", () => {
+        it("cannot supply both code and generateCode", async () => {
             let changeRequest = {
                 code: "SECURE",
                 generateCode: {length: 6},
@@ -1372,25 +1396,14 @@ describe("/v2/values/", () => {
             chai.assert.equal(res.statusCode, 422, `body=${JSON.stringify(res.body)}`);
         });
 
-        it("cannot create a Value with isGenericCode and generateCode", async () => {
+        it("isGenericCode is not allowed", async () => {
             let changeRequest = {
-                isGenericCode: true,
-                generateCode: {length: 6},
+                isGenericCode: true
             };
 
             const res = await testUtils.testAuthedRequest<Value>(router, "/v2/values/id/changeCode", "POST", changeRequest);
             chai.assert.equal(res.statusCode, 422, `body=${JSON.stringify(res.body)}`);
-        });
-
-        it("cannot create a Value with code, isGenericCode, and generateCode", async () => {
-            let changeRequest = {
-                code: "SECURE",
-                isGenericCode: true,
-                generateCode: {length: 6},
-            };
-
-            const res = await testUtils.testAuthedRequest<Value>(router, "/v2/values/id/changeCode", "POST", changeRequest);
-            chai.assert.equal(res.statusCode, 422, `body=${JSON.stringify(res.body)}`);
+            console.log(JSON.stringify(res, null, 4))
         });
 
         it("generateCode can't have unknown properties", async () => {
@@ -1402,7 +1415,7 @@ describe("/v2/values/", () => {
             chai.assert.equal(res.statusCode, 422, `body=${JSON.stringify(res.body)}`);
         });
 
-        it("changeCode can't have unknown properties", async () => {
+        it("can't have unknown properties", async () => {
             let changeRequest = {
                 something: "not defined in schema",
             };
@@ -1411,7 +1424,7 @@ describe("/v2/values/", () => {
             chai.assert.equal(res.statusCode, 422, `body=${JSON.stringify(res.body)}`);
         });
 
-        it("changeCode can't known and unknown properties", async () => {
+        it("can't known and unknown properties", async () => {
             let changeRequest = {
                 generateCode: {},
                 something: "not defined in schema",
