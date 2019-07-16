@@ -285,7 +285,6 @@ describe("/v2/reports/values/", () => {
         let mockResults1: Value[];
         let mockResults0: Value[];
 
-
         before(async function () {
             const valueRes = await testUtils.testAuthedRequest<Value[]>(router, "/v2/values", "GET");
             chai.assert.equal(valueRes.statusCode, 200, `valueRes.body=${JSON.stringify(valueRes.body)}`);
@@ -360,7 +359,6 @@ describe("/v2/reports/values/", () => {
                     pagination: {limit: 1, maxLimit: 1, after: "", before: null}
                 });
 
-
                 const resp = await testUtils.testAuthedRequest(router, `/v2/reports/values`, "GET");
                 chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
             });
@@ -379,7 +377,7 @@ describe("/v2/reports/values/", () => {
 
                 const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.equal(resp.body.length, 10000, `Expected 10000 results and got ${resp.body.length}.`)
+                chai.assert.equal(resp.body.length, 10000, `Expected 10000 results and got ${resp.body.length}.`);
             });
         });
 
