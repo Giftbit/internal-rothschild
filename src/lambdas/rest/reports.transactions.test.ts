@@ -446,6 +446,19 @@ describe("/v2/reports/transactions/", () => {
             chai.assert.deepInclude(bothProgramsReport.headers as any, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(bothProgramsReport.headers)}`);
             chai.assert.equal(bothProgramsReport.body.length, 6, `transaction types in bothProgramsReport.body: ${bothProgramsReport.body.map(txn => txn.transactionType)}`);
         });
+
+        it("can filter and limit at the same time", async () => {
+            const reportProgram1 = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, `/v2/reports/transactions?programId=program1`, "GET");
+            chai.assert.equal(reportProgram1.statusCode, 200, `reportProgram1.body=${JSON.stringify(reportProgram1.body)}`);
+            chai.assert.isAbove(reportProgram1.body.length, 2, `reportProgram1.body.length: ${reportProgram1.body.length}`);
+
+            const reportLimitedProgram1 = await testUtils.testAuthedRequest<ReportTransaction>(router, `/v2/reports/transactions?limit=2&programId=program1`, "GET");
+            chai.assert.equal(reportLimitedProgram1.statusCode, 422, `reportLimitedProgram1.body=${JSON.stringify(reportLimitedProgram1.body)}`);
+
+            const reportLimitedProgram1NoErrors = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, `/v2/reports/transactions?limit=2&programId=program1&suppressLimitError=true`, "GET");
+            chai.assert.equal(reportLimitedProgram1NoErrors.statusCode, 200, `reportLimitedProgram1NoErrors.body=${JSON.stringify(reportLimitedProgram1NoErrors.body)}`);
+            chai.assert.equal(reportLimitedProgram1NoErrors.body.length, 2, `reportLimitedProgram1NoErrors.body=${JSON.stringify(reportLimitedProgram1NoErrors.body)}`);
+        });
     });
 
     describe("multiple transaction steps", () => {

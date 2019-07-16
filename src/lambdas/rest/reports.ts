@@ -188,9 +188,10 @@ export const getTransactionsForReport: ReportDelegate<ReportTransaction> = async
             "createdDate": {
                 type: "Date",
                 operators: ["eq", "gt", "gte", "lt", "lte", "ne"],
-                columnName: "Transactions.createdDate"
+                columnName: "createdDate"
             },
-        }
+        },
+        tableName: "Transactions"
     }, pagination);
 
     const transactions = await DbTransaction.toTransactions(res.body, auth.userId);
