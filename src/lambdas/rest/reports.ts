@@ -208,20 +208,6 @@ export const getTransactionsForReport: ReportDelegate<ReportTransaction> = async
     };
 };
 
-function limitReportSize<T>(response: T[], suppressLimitError: boolean, requestedLimit: number): T[] {
-    log.info(`Report query returned ${response.length} rows. Params: requestedLimit=${requestedLimit}, suppressLimitError=${suppressLimitError}`);
-
-    if (response.length > requestedLimit) {
-        if (suppressLimitError) {
-            return response.slice(0, requestedLimit);
-        } else {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Report query returned too many rows. Please modify your request and try again.`);
-        }
-    } else {
-        return response;
-    }
-}
-
 function addStepAmounts(txn: Transaction): number {
     if (txn.transactionType === "transfer") {
         return getStepAmount(txn.steps.find(s => getStepAmount(s) > 0));
