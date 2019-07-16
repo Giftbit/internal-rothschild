@@ -6,6 +6,7 @@ import {Program} from "../../model/Program";
 import * as chai from "chai";
 import sinon from "sinon";
 import * as Reports from "./reports";
+import {ReportValue} from "./values/ReportValue";
 
 
 describe("/v2/reports/values/", () => {
@@ -214,7 +215,7 @@ describe("/v2/reports/values/", () => {
     });
 
     it("can format currencies", async () => {
-        const genericValue: Partial<Value> = {
+        const genericCode: Partial<Value> = {
             id: testUtils.generateId(),
             currency: "USD",
             isGenericCode: true,
@@ -226,15 +227,28 @@ describe("/v2/reports/values/", () => {
             },
             balance: 150
         };
-        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
-        chai.assert.equal(createValue.statusCode, 201);
+        const createGenericCode = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericCode);
+        chai.assert.equal(createGenericCode.statusCode, 201);
 
-        const resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/reports/values?id=${genericValue.id}&formatCurrencies=true`, "GET");
-        chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-        chai.assert.deepEqual(resp.headers as any, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
-        chai.assert.deepInclude(resp.body[0], {
+        const uniqueCode: Partial<Value> = {
+            id: testUtils.generateId(),
+            currency: "USD",
+            balance: 250
+        };
+        const createUniqueCode = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", uniqueCode);
+        chai.assert.equal(createUniqueCode.statusCode, 201);
+
+        const csv = await testUtils.testAuthedCsvRequest<ReportValue>(router, `/v2/reports/values?id.in=${uniqueCode.id + "," + genericCode.id}&formatCurrencies=true`, "GET");
+        const respGenericCode = csv.body.find(v => v.isGenericCode === true);
+        chai.assert.deepInclude(respGenericCode, {
             balance: "$1.50",
-            genericCodeOptions: "{\"perContact\":{\"balance\":\"$0.50\",\"usesRemaining\":3}}"
+            genericCodeOptions_perContact_balance: "$0.50"
+        });
+
+        const respUniqueCode = csv.body.find(v => v.isGenericCode === false);
+        chai.assert.deepInclude(respUniqueCode, {
+            balance: "$2.50",
+            genericCodeOptions_perContact_balance: null
         });
     });
 
