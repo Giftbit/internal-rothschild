@@ -17,7 +17,9 @@ import {getValues} from "./values/values";
 import {ReportTransaction} from "./transactions/ReportTransaction";
 import {formatObjectsAmountPropertiesForCurrencyDisplay} from "../../model/Currency";
 import {Value} from "../../model/Value";
+import {ReportValue} from "./values/ReportValue";
 import log = require("loglevel");
+import isGenericCodeWithPropertiesPerContact = Value.isGenericCodeWithPropertiesPerContact;
 
 const reportRowLimit = 10000;
 
@@ -80,7 +82,7 @@ export function installReportsRest(router: cassava.Router): void {
                     headers: Pagination.toHeaders(evt, valueResults.pagination),
                     body: await formatObjectsAmountPropertiesForCurrencyDisplay(auth, valueResults.results, [
                         "balance",
-                        "genericCodeOptions.perContact.balance"
+                        "genericCodeOptions_perContact_balance"
                     ])
                 };
             } else {
@@ -132,13 +134,22 @@ async function getReportResults<T>(auth: giftbitRoutes.jwtauth.AuthorizationBadg
 }
 
 // exported for testing
-export const getValuesForReport: ReportDelegate<Value> = async (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams, showCode: boolean = false): Promise<{ results: Value[], pagination: Pagination }> => {
+export const getValuesForReport: ReportDelegate<Value> = async (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams, showCode: boolean = false): Promise<{ results: ReportValue[], pagination: Pagination }> => {
     const res = await getValues(auth, filterParams, pagination, showCode);
     return {
-        results: res.values,
+        results: res.values.map((v): ReportValue => {
+            const results = {
+                ...v,
+                genericCodeOptions_perContact_balance: isGenericCodeWithPropertiesPerContact(v) ? v.genericCodeOptions.perContact.balance : null,
+                genericCodeOptions_perContact_usesRemaining: isGenericCodeWithPropertiesPerContact(v) ? v.genericCodeOptions.perContact.usesRemaining : null,
+            };
+            delete results.genericCodeOptions;
+            return results;
+        }),
         pagination: res.pagination
     };
 };
+
 
 // exported for testing
 export const getTransactionsForReport: ReportDelegate<ReportTransaction> = async (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ results: ReportTransaction[], pagination: Pagination }> => {

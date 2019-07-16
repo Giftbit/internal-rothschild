@@ -6,6 +6,7 @@ import {Program} from "../../model/Program";
 import * as chai from "chai";
 import sinon from "sinon";
 import * as Reports from "./reports";
+import {ReportValue} from "./values/ReportValue";
 import parseLinkHeader = require("parse-link-header");
 
 
@@ -74,7 +75,7 @@ describe.only("/v2/reports/values/", () => {
     });
 
     it("can download a csv of Values", async () => {
-        const resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/reports/values`, "GET");
+        const resp = await testUtils.testAuthedCsvRequest<ReportValue>(router, `/v2/reports/values`, "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
         chai.assert.deepInclude(resp.headers as any, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
         chai.assert.equal(resp.body.length, 6);
@@ -82,13 +83,14 @@ describe.only("/v2/reports/values/", () => {
         chai.assert.isObject(resp.body.find(v => v.id === genericValue.id, `generic value not in results: ${JSON.stringify(resp.body)}`));
         chai.assert.isObject(resp.body.find(v => v.attachedFromValueId === genericValue.id, `attached value from generic not in results: ${JSON.stringify(resp.body)}`));
 
-        const baseValueProperties: Value = {
+        const baseValueProperties: ReportValue = {
             id: "",
             createdDate: null,
             currency: "USD",
             balance: 50,
             attachedFromValueId: null,
-            genericCodeOptions: null,
+            genericCodeOptions_perContact_balance: null,
+            genericCodeOptions_perContact_usesRemaining: null,
             usesRemaining: null,
             balanceRule: null,
             redemptionRule: null,
@@ -113,12 +115,12 @@ describe.only("/v2/reports/values/", () => {
 
         for (const [index, value] of resp.body.entries()) {
             if (value.id === genericValue.id) {
-                chai.assert.deepEqualExcluding(value, baseValueProperties, ["id", "createdDate", "updatedDate", "balance", "metadata", "isGenericCode", "genericCodeOptions"], `generic code value: ${JSON.stringify(value)}`);
+                chai.assert.deepEqualExcluding(value, baseValueProperties, ["id", "createdDate", "updatedDate", "balance", "metadata", "isGenericCode", "genericCodeOptions_perContact_balance", "genericCodeOptions_perContact_usesRemaining"], `generic code value: ${JSON.stringify(value)}`);
                 chai.assert.isNull(value.balance, `generic code value: ${JSON.stringify(value)}`);
                 chai.assert.equal(value.isGenericCode, true, `generic code value: ${JSON.stringify(value)}`);
-                chai.assert.equal(value.genericCodeOptions as any, JSON.stringify(genericValue.genericCodeOptions), `generic code value: ${JSON.stringify(value)}`); // genericCodeOptions comes back stringified in this case
+                chai.assert.equal(value.genericCodeOptions_perContact_balance as any, genericValue.genericCodeOptions.perContact.balance, `generic code value: ${JSON.stringify(value)}`); // genericCodeOptions comes back stringified in this case
+                chai.assert.equal(value.genericCodeOptions_perContact_usesRemaining as any, genericValue.genericCodeOptions.perContact.usesRemaining, `generic code value: ${JSON.stringify(value)}`); // genericCodeOptions comes back stringified in this case
                 chai.assert.isNotNull(value.metadata, `generic code value: ${JSON.stringify(value)}`);
-
             } else if (value.attachedFromValueId === genericValue.id) {
                 chai.assert.deepEqualExcluding(value, baseValueProperties, ["id", "createdDate", "updatedDate", "updatedContactIdDate", "metadata", "attachedFromValueId", "usesRemaining", "contactId"], `value attached from generic: ${JSON.stringify(value)}`);
                 chai.assert.equal(value.usesRemaining, 3, `attached value, from generic: ${JSON.stringify(value)}`);
@@ -136,18 +138,18 @@ describe.only("/v2/reports/values/", () => {
     });
 
     it("can page through csv of Values", async () => {
-        const getAllValues = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/reports/values`, "GET");
+        const getAllValues = await testUtils.testAuthedCsvRequest<ReportValue>(router, `/v2/reports/values`, "GET");
         chai.assert.equal(getAllValues.statusCode, 200);
         chai.assert.isAbove(getAllValues.body.length, 3);
 
         let returnedValueIds = [];
-        let resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/reports/values?limit=3&suppressLimitError=true`, "GET");
+        let resp = await testUtils.testAuthedCsvRequest<ReportValue>(router, `/v2/reports/values?limit=3&suppressLimitError=true`, "GET");
         chai.assert.equal(resp.statusCode, 200);
         returnedValueIds.push(...resp.body.map(v => v.id));
         let linkHeaders = parseLinkHeader(resp.headers["Link"]);
         let nextLink = linkHeaders.next.url;
         while (nextLink) {
-            resp = await testUtils.testAuthedCsvRequest<Value>(router, nextLink, "GET");
+            resp = await testUtils.testAuthedCsvRequest<ReportValue>(router, nextLink, "GET");
             chai.assert.equal(resp.statusCode, 200);
             returnedValueIds.push(...resp.body.map(v => v.id));
             let linkHeaders = parseLinkHeader(resp.headers["Link"]);
@@ -159,7 +161,7 @@ describe.only("/v2/reports/values/", () => {
     });
 
     it("can download a csv of Values - filtered by programId", async () => {
-        const resp1 = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/reports/values?programId=program1`, "GET");
+        const resp1 = await testUtils.testAuthedCsvRequest<ReportValue>(router, `/v2/reports/values?programId=program1`, "GET");
         chai.assert.equal(resp1.statusCode, 200, `resp1.body=${JSON.stringify(resp1.body)}`);
         chai.assert.deepInclude(resp1.headers as any, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp1.headers)}`);
         chai.assert.equal(resp1.body.length, 1, `resp1.body=${JSON.stringify(resp1.body)}`);
@@ -169,7 +171,8 @@ describe.only("/v2/reports/values/", () => {
             currency: "USD",
             balance: 50,
             attachedFromValueId: null,
-            genericCodeOptions: null,
+            genericCodeOptions_perContact_balance: null,
+            genericCodeOptions_perContact_usesRemaining: null,
             usesRemaining: null,
             balanceRule: null,
             redemptionRule: null,
@@ -195,7 +198,7 @@ describe.only("/v2/reports/values/", () => {
         chai.assert.isNotNull(resp1.body[0].updatedDate);
         chai.assert.isNotNull(resp1.body[0].metadata);
 
-        const resp2and3 = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/reports/values?programId.in=program2,program3`, "GET");
+        const resp2and3 = await testUtils.testAuthedCsvRequest<ReportValue>(router, `/v2/reports/values?programId.in=program2,program3`, "GET");
         chai.assert.equal(resp2and3.statusCode, 200, `resp2and3.body=${JSON.stringify(resp2and3.body)}`);
         chai.assert.deepInclude(resp2and3.headers as any, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp2and3.headers)}`);
         chai.assert.equal(resp2and3.body.length, 3);
@@ -208,7 +211,8 @@ describe.only("/v2/reports/values/", () => {
                 currency: "USD",
                 balance: 50,
                 attachedFromValueId: null,
-                genericCodeOptions: null,
+                genericCodeOptions_perContact_balance: null,
+                genericCodeOptions_perContact_usesRemaining: null,
                 usesRemaining: null,
                 balanceRule: null,
                 redemptionRule: null,
@@ -237,7 +241,7 @@ describe.only("/v2/reports/values/", () => {
     });
 
     it("can format currencies", async () => {
-        const genericValue: Partial<Value> = {
+        const genericCode: Partial<Value> = {
             id: testUtils.generateId(),
             currency: "USD",
             isGenericCode: true,
@@ -249,15 +253,28 @@ describe.only("/v2/reports/values/", () => {
             },
             balance: 150
         };
-        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
-        chai.assert.equal(createValue.statusCode, 201);
+        const createGenericCode = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericCode);
+        chai.assert.equal(createGenericCode.statusCode, 201);
 
-        const resp = await testUtils.testAuthedCsvRequest<Value>(router, `/v2/reports/values?id=${genericValue.id}&formatCurrencies=true`, "GET");
-        chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-        chai.assert.deepInclude(resp.headers as any, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
-        chai.assert.deepInclude(resp.body[0], {
+        const uniqueCode: Partial<Value> = {
+            id: testUtils.generateId(),
+            currency: "USD",
+            balance: 250
+        };
+        const createUniqueCode = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", uniqueCode);
+        chai.assert.equal(createUniqueCode.statusCode, 201);
+
+        const csv = await testUtils.testAuthedCsvRequest<ReportValue>(router, `/v2/reports/values?id.in=${uniqueCode.id + "," + genericCode.id}&formatCurrencies=true`, "GET");
+        const respGenericCode = csv.body.find(v => v.isGenericCode === true);
+        chai.assert.deepInclude(respGenericCode, {
             balance: "$1.50",
-            genericCodeOptions: "{\"perContact\":{\"balance\":\"$0.50\",\"usesRemaining\":3}}"
+            genericCodeOptions_perContact_balance: "$0.50"
+        });
+
+        const respUniqueCode = csv.body.find(v => v.isGenericCode === false);
+        chai.assert.deepInclude(respUniqueCode, {
+            balance: "$2.50",
+            genericCodeOptions_perContact_balance: null
         });
     });
 
