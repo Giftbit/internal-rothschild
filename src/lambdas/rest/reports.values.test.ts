@@ -10,7 +10,7 @@ import {ReportValue} from "./values/ReportValue";
 import parseLinkHeader = require("parse-link-header");
 
 
-describe.only("/v2/reports/values/", () => {
+describe("/v2/reports/values/", () => {
     const router = new cassava.Router();
     const genericValue: Partial<Value> = {
         id: testUtils.generateId(),
