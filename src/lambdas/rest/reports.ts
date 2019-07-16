@@ -17,6 +17,7 @@ import {getValues} from "./values/values";
 import {ReportTransaction} from "./transactions/ReportTransaction";
 import {formatObjectsAmountPropertiesForCurrencyDisplay} from "../../model/Currency";
 import {Value} from "../../model/Value";
+import log = require("loglevel");
 
 const reportRowLimit = 10000;
 
@@ -98,14 +99,19 @@ type ReportDelegate<T> = (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filter
  * This supports us doing things like optionally throwing an error if there are more than 'limit' results available.
  */
 async function getReportResults<T>(auth: giftbitRoutes.jwtauth.AuthorizationBadge, evt: RouterEvent, fetchObjectsDelegate: ReportDelegate<T>): Promise<{ results: T[], pagination: Pagination }> {
-    let paginationParams = Pagination.getPaginationParams(evt, {defaultLimit: reportRowLimit});
+    const requestedLimit = +evt.queryStringParameters["limit"] || reportRowLimit;
+    const suppressLimitError = evt.queryStringParameters["suppressLimitError"] === "true";
+
+    let paginationParams = Pagination.getPaginationParams(evt, {
+        defaultLimit: requestedLimit,
+        maxLimit: reportRowLimit
+    });
+
     paginationParams.limit += 1;
     paginationParams.maxLimit = reportRowLimit + 1;
 
     const res = await fetchObjectsDelegate(auth, evt.queryStringParameters, paginationParams);
 
-    const requestedLimit = +evt.queryStringParameters["limit"] || reportRowLimit;
-    const suppressLimitError = evt.queryStringParameters["suppressLimitError"] === "true";
     const limitedResult = limitReportSize<T>(res.results, suppressLimitError, requestedLimit);
 
     paginationParams.limit -= 1;
@@ -195,6 +201,8 @@ export const getTransactionsForReport: ReportDelegate<ReportTransaction> = async
 };
 
 function limitReportSize<T>(response: T[], suppressLimitError: boolean, requestedLimit: number): T[] {
+    log.info(`Report query returned ${response.length} rows. Params: requestedLimit=${requestedLimit}, suppressLimitError=${suppressLimitError}`);
+
     if (response.length > requestedLimit) {
         if (suppressLimitError) {
             return response.slice(0, requestedLimit);
