@@ -9,8 +9,8 @@ export interface ReportValue {
     issuanceId: string | null;
     code: string | null;
     isGenericCode: boolean;
-    "genericCodeOptions_perContact_balance": number;
-    "genericCodeOptions_perContact_usesRemaining": number;
+    genericCodeOptions_perContact_balance: number;
+    genericCodeOptions_perContact_usesRemaining: number;
     attachedFromValueId?: string | undefined;
     contactId: string | null;
     pretax: boolean;
