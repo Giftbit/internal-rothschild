@@ -18,8 +18,8 @@ import {ReportTransaction} from "./transactions/ReportTransaction";
 import {formatObjectsAmountPropertiesForCurrencyDisplay} from "../../model/Currency";
 import {Value} from "../../model/Value";
 import {ReportValue} from "./values/ReportValue";
-import isGenericCodeWithPropertiesPerContact = Value.isGenericCodeWithPropertiesPerContact;
 import log = require("loglevel");
+import isGenericCodeWithPropertiesPerContact = Value.isGenericCodeWithPropertiesPerContact;
 
 const reportRowLimit = 10000;
 
