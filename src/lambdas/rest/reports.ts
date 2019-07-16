@@ -19,6 +19,7 @@ import {formatObjectsAmountPropertiesForCurrencyDisplay} from "../../model/Curre
 import {Value} from "../../model/Value";
 import {ReportValue} from "./values/ReportValue";
 import isGenericCodeWithPropertiesPerContact = Value.isGenericCodeWithPropertiesPerContact;
+import log = require("loglevel");
 
 const reportRowLimit = 10000;
 
@@ -100,22 +101,35 @@ type ReportDelegate<T> = (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filter
  * This supports us doing things like optionally throwing an error if there are more than 'limit' results available.
  */
 async function getReportResults<T>(auth: giftbitRoutes.jwtauth.AuthorizationBadge, evt: RouterEvent, fetchObjectsDelegate: ReportDelegate<T>): Promise<{ results: T[], pagination: Pagination }> {
-    let paginationParams = Pagination.getPaginationParams(evt, {defaultLimit: reportRowLimit});
-    paginationParams.limit += 1;
-    paginationParams.maxLimit = reportRowLimit + 1;
-
-    const res = await fetchObjectsDelegate(auth, evt.queryStringParameters, paginationParams);
-
     const requestedLimit = +evt.queryStringParameters["limit"] || reportRowLimit;
     const suppressLimitError = evt.queryStringParameters["suppressLimitError"] === "true";
-    const limitedResult = await limitReportSize<T>(res.results, suppressLimitError, requestedLimit);
 
-    paginationParams.limit -= 1;
-    paginationParams.maxLimit = reportRowLimit;
+    let paginationParams = Pagination.getPaginationParams(evt, {
+        defaultLimit: requestedLimit,
+        maxLimit: reportRowLimit
+    });
+    const res = await fetchObjectsDelegate(auth, evt.queryStringParameters, paginationParams);
+    const results = res.results;
 
+    log.info(`Report query returned ${results.length} rows. Params: requestedLimit=${requestedLimit}, suppressLimitError=${suppressLimitError}`);
+
+    // Default behaviour is to error if there are more results than requested.
+    // This behaviour can be overridden by passing in suppressLimitError=true.
+    if (results.length === requestedLimit && !suppressLimitError) {
+        // do extra call using after & limit 1.
+        let paginationParamsToCheckForMoreResults = {
+            ...paginationParams,
+            limit: 1,
+            after: res.pagination.after
+        };
+        const moreResults = await fetchObjectsDelegate(auth, evt.queryStringParameters, paginationParamsToCheckForMoreResults);
+        if (moreResults.results.length > 0) {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Report query returned too many rows. Please modify your request and try again.`);
+        }
+    }
     return {
-        results: limitedResult as T[],
-        pagination: paginationParams
+        results: results as T[],
+        pagination: res.pagination
     };
 }
 
@@ -223,18 +237,6 @@ export const getTransactionsForReport: ReportDelegate<ReportTransaction> = async
         pagination: res.pagination
     };
 };
-
-function limitReportSize<T>(response: T[], suppressLimitError: boolean, requestedLimit: number): T[] {
-    if (response.length > requestedLimit) {
-        if (suppressLimitError) {
-            return response.slice(0, requestedLimit);
-        } else {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Report query returned too many rows. Please modify your request and try again.`);
-        }
-    } else {
-        return response;
-    }
-}
 
 function addStepAmounts(txn: Transaction): number {
     if (txn.transactionType === "transfer") {
