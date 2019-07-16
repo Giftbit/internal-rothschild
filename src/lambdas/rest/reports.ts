@@ -106,20 +106,28 @@ async function getReportResults<T>(auth: giftbitRoutes.jwtauth.AuthorizationBadg
         defaultLimit: requestedLimit,
         maxLimit: reportRowLimit
     });
-
-    paginationParams.limit += 1;
-    paginationParams.maxLimit = reportRowLimit + 1;
-
     const res = await fetchObjectsDelegate(auth, evt.queryStringParameters, paginationParams);
+    const results = res.results;
 
-    const limitedResult = limitReportSize<T>(res.results, suppressLimitError, requestedLimit);
+    log.info(`Report query returned ${results.length} rows. Params: requestedLimit=${requestedLimit}, suppressLimitError=${suppressLimitError}`);
 
-    paginationParams.limit -= 1;
-    paginationParams.maxLimit = reportRowLimit;
-
+    // Default behaviour is to error if there are more results than requested.
+    // This behaviour can be overridden by passing in suppressLimitError=true.
+    if (results.length === requestedLimit && !suppressLimitError) {
+        // do extra call using after & limit 1.
+        let paginationParamsToCheckForMoreResults = {
+            ...paginationParams,
+            limit: 1,
+            after: res.pagination.after
+        };
+        const moreResults = await fetchObjectsDelegate(auth, evt.queryStringParameters, paginationParamsToCheckForMoreResults);
+        if (moreResults.results.length > 0) {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Report query returned too many rows. Please modify your request and try again.`);
+        }
+    }
     return {
-        results: limitedResult as T[],
-        pagination: paginationParams
+        results: results as T[],
+        pagination: res.pagination
     };
 }
 
