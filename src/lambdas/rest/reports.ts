@@ -210,9 +210,9 @@ export const getTransactionsForReport: ReportDelegate<ReportTransaction> = async
             checkout_paidStripe: txn.totals && txn.totals.paidStripe || 0,
             checkout_paidInternal: txn.totals && txn.totals.paidInternal || 0,
             checkout_remainder: txn.totals && txn.totals.remainder || 0,
-            marketplace_sellerNet: txn.totals && txn.totals.marketplace && txn.totals.marketplace.sellerNet || null,
-            marketplace_sellerGross: txn.totals && txn.totals.marketplace && txn.totals.marketplace.sellerGross || null,
-            marketplace_sellerDiscount: txn.totals && txn.totals.marketplace && txn.totals.marketplace.sellerDiscount || null,
+            marketplace_sellerNet: txn.totals && txn.totals.marketplace && txn.totals.marketplace.sellerNet || 0,
+            marketplace_sellerGross: txn.totals && txn.totals.marketplace && txn.totals.marketplace.sellerGross || 0,
+            marketplace_sellerDiscount: txn.totals && txn.totals.marketplace && txn.totals.marketplace.sellerDiscount || 0,
             stepsCount: txn.steps.length,
             metadata: txn.metadata && JSON.stringify(txn.metadata).replace(",", ";"), // don't create column breaks
         })),
