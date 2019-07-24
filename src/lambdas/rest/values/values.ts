@@ -30,6 +30,7 @@ import {hasContactValues} from "../contactValues";
 import {QueryBuilder} from "knex";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
+import isGenericCodeWithPropertiesPerContact = Value.isGenericCodeWithPropertiesPerContact;
 
 export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
@@ -616,7 +617,9 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
 
         })
         .andWhere(q => {
-            q.where("V.id", "=", valueId);
+            if (!isGenericCodeWithPropertiesPerContact(value)) {
+                q.where("V.id", "=", valueId);
+            }
             q.orWhere("V.attachedFromValueId", "=", valueId);
             return q;
         })
@@ -673,7 +676,6 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
         }
     }
 
-    // shared generic values stats
     const attachedContactValues = await knex("ContactValues")
         .where({
             "userId": auth.userId,
@@ -682,7 +684,6 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
         .count({count: "*"});
     stats.attachedContacts.count = attachedContactValues[0].count;
 
-    // legacy attachGenericAsNewValueStats
     const attachedFromGenericValueStats = await knex("Values")
         .where({
             "userId": auth.userId,
