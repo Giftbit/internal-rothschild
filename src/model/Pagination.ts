@@ -66,19 +66,18 @@ export namespace Pagination {
         return `<${path}?${querystring.stringify(queryString)}>; rel="${encodeURIComponent(rel)}"`;
     }
 
-    export function getPaginationParams(evt: RouterEvent, options: PaginationParamOptions = {
-        sort: {
+    export function getPaginationParams(evt: RouterEvent, options?: PaginationParamOptions): PaginationParams {
+        const defaultLimit = options && options.defaultLimit || 100;
+        const maxLimit = (options && options.maxLimit) || (evt.headers["Accept"] === "text/csv" ? 10000 : 1000);
+        const defaultSort = {
             field: "createdDate",
             asc: false
-        }
-    }): PaginationParams {
-        const defaultLimit = options.defaultLimit || 100;
-        const maxLimit = options.maxLimit || evt.headers["Accept"] === "text/csv" ? 10000 : 1000;
+        };
 
         return {
             limit: Math.min(Math.max(+evt.queryStringParameters["limit"] || defaultLimit, 1), maxLimit),
             maxLimit,
-            sort: options.sort || null,
+            sort: options && options.sort || defaultSort,
             before: evt.queryStringParameters.before,
             after: evt.queryStringParameters.after,
             last: (evt.queryStringParameters.last || "").toLowerCase() === "true"

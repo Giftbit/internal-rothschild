@@ -102,7 +102,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         await insertTransaction(trx, auth, plan);
     } catch (err) {
         log.warn("Error inserting transaction:", err);
-        if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "TransactionExists") {
+        if ((err as GiftbitRestError).isRestError) {
             throw err;
         } else {
             giftbitRoutes.sentry.sendErrorNotification(err);
@@ -121,7 +121,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         if ((err as StripeRestError).additionalParams && (err as StripeRestError).additionalParams.stripeError) {
             // Error was returned from Stripe. Passing original error along so that details of Stripe failure can be returned.
             throw err;
-        } else if ((err as TransactionPlanError).isTransactionPlanError || err instanceof GiftbitRestError) {
+        } else if ((err as TransactionPlanError).isTransactionPlanError || (err as GiftbitRestError).isRestError) {
             throw err;
         } else if (err.code === "ER_DUP_ENTRY") {
             log.error(err);
