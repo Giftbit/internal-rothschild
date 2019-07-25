@@ -30,7 +30,6 @@ import {hasContactValues} from "../contactValues";
 import {QueryBuilder} from "knex";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
-import isGenericCodeWithPropertiesPerContact = Value.isGenericCodeWithPropertiesPerContact;
 
 export function installValuesRest(router: cassava.Router): void {
     router.route("/v2/values")
@@ -606,6 +605,27 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
     };
 
     const knex = await getKnexRead();
+    const attachedContactValues = await knex("ContactValues")
+        .where({
+            "userId": auth.userId,
+            "valueId": valueId
+        })
+        .count({count: "*"});
+    stats.attachedContacts.count = attachedContactValues[0].count;
+
+    const attachedFromGenericValueStats = await knex("Values")
+        .where({
+            "userId": auth.userId,
+            "attachedFromValueId": valueId
+        })
+        .count({count: "*"});
+    stats.attachedContacts.count += attachedFromGenericValueStats[0].count;
+
+    // unique code
+    if (value.contactId) {
+        stats.attachedContacts.count += 1;
+    }
+
     /**
      * Note, this query joins from root Transactions involving the valueId to the last Transaction in the chain.
      * This will need to be updated once partial capture becomes a thing since joining to the last Transaction in the chain
@@ -617,10 +637,13 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
 
         })
         .andWhere(q => {
-            if (!isGenericCodeWithPropertiesPerContact(value)) {
+            if (attachedFromGenericValueStats[0].count > 0) {
+                // stats that are interesting are from the attached values, not the generic code itself
+                q.where("V.attachedFromValueId", "=", valueId);
+            } else {
+                // only pull stats for valueId in question.
                 q.where("V.id", "=", valueId);
             }
-            q.orWhere("V.attachedFromValueId", "=", valueId);
             return q;
         })
         .join("LightrailTransactionSteps as LTS", {
@@ -674,27 +697,6 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
             stats.checkout.transactionCount += row.transactionCount;
             stats.checkout.overspend += +row.paidStripe + +row.paidInternal + +row.remainder;
         }
-    }
-
-    const attachedContactValues = await knex("ContactValues")
-        .where({
-            "userId": auth.userId,
-            "valueId": valueId
-        })
-        .count({count: "*"});
-    stats.attachedContacts.count = attachedContactValues[0].count;
-
-    const attachedFromGenericValueStats = await knex("Values")
-        .where({
-            "userId": auth.userId,
-            "attachedFromValueId": valueId
-        })
-        .count({count: "*"});
-    stats.attachedContacts.count += attachedFromGenericValueStats[0].count;
-
-    // unique code
-    if (value.contactId) {
-        stats.attachedContacts.count += 1;
     }
 
     log.info(`Calculating value stats finished and took ${Date.now() - startTime}ms`);

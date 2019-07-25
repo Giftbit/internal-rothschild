@@ -10,6 +10,7 @@ import {Value} from "../../model/Value";
 import {Transaction} from "../../model/Transaction";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
 import {generateUrlSafeHashFromValueIdContactId} from "./genericCodeWithPerContactOptions";
+import {CheckoutRequest} from "../../model/TransactionRequest";
 
 describe("/v2/contacts/values - attachNewValue=true", () => {
 
@@ -353,5 +354,80 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
         });
         chai.assert.equal(attachResp2.statusCode, 409, `body=${JSON.stringify(attachResp2.body)}`);
         chai.assert.equal(attachResp2.body.messageCode, "ValueAlreadyAttached");
+    });
+
+    describe("stats on generic code with usesRemaining liability", () => {
+        const contactForStatsTest = generateId();
+
+        const genericValue: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            isGenericCode: true,
+            code: generateFullcode(),
+            discount: true,
+            balance: 400,
+            usesRemaining: 4 // can be attached 4 times
+        };
+
+        before(async function () {
+            const createContact1 = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contactForStatsTest});
+            chai.assert.equal(createContact1.statusCode, 201);
+
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
+            chai.assert.equal(create.statusCode, 201);
+            chai.assert.deepNestedInclude(create.body, genericValue);
+        });
+
+        it("debit balance to reduce attach liability then do checkout w/ auto-attach and check stats", async () => {
+            // debit balance
+            const debit = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
+                id: "debit-1",
+                source: {
+                    rail: "lightrail",
+                    valueId: genericValue.id
+                },
+                uses: 2, // effectively reduces attaches remaining by 2
+                currency: "USD"
+            });
+            chai.assert.equal(debit.statusCode, 201);
+
+            const attachResp1 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactForStatsTest}/values/attach`, "POST", {
+                code: genericValue.code,
+                attachGenericAsNewValue: true
+            });
+            chai.assert.equal(attachResp1.statusCode, 200, `body=${JSON.stringify(attachResp1.body)}`);
+
+            // do checkout (uses auto-attach)
+            const checkoutRequest: CheckoutRequest = {
+                id: generateId(),
+                currency: "USD",
+                sources: [
+                    {rail: "lightrail", contactId: contactForStatsTest}
+                ],
+                lineItems: [
+                    {unitPrice: 400}
+                ]
+            };
+            const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+            chai.assert.equal(checkout.statusCode, 201, `Response: ${JSON.stringify(checkout.body)}`);
+
+            const stats = await testUtils.testAuthedRequest(router, `/v2/values/${genericValue.id}/stats`, "GET");
+            chai.assert.equal(stats.statusCode, 200);
+            console.log(JSON.stringify(stats.body, null, 4));
+            chai.assert.deepEqual(stats.body, {
+                "redeemed": {
+                    "balance": 400, // debit should not be included.
+                    "transactionCount": 1
+                },
+                "checkout": {
+                    "lightrailSpend": 400,
+                    "overspend": 0,
+                    "transactionCount": 1
+                },
+                "attachedContacts": {
+                    "count": 1
+                }
+            });
+        });
     });
 });

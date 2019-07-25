@@ -710,7 +710,7 @@ describe("/v2/values - generic code with per contact properties", () => {
         });
     });
 
-    describe("stats on generic code with balance liablity", () => {
+    describe("stats on generic code with balance liability", () => {
         const contact1Id = generateId();
 
         const genericValue: Partial<Value> = {
