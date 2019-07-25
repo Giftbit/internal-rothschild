@@ -767,7 +767,6 @@ describe("/v2/values - generic code with per contact properties", () => {
 
             const stats = await testUtils.testAuthedRequest(router, `/v2/values/${genericValue.id}/stats`, "GET");
             chai.assert.equal(stats.statusCode, 200);
-            console.log(JSON.stringify(stats.body, null, 4));
             chai.assert.deepEqual(stats.body, {
                 "redeemed": {
                     "balance": 400, // debit should not be included.

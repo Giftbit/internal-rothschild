@@ -391,13 +391,14 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
             });
             chai.assert.equal(debit.statusCode, 201);
 
+            // attach to contact as new Value
             const attachResp1 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactForStatsTest}/values/attach`, "POST", {
                 code: genericValue.code,
                 attachGenericAsNewValue: true
             });
             chai.assert.equal(attachResp1.statusCode, 200, `body=${JSON.stringify(attachResp1.body)}`);
 
-            // do checkout (uses auto-attach)
+            // do checkout
             const checkoutRequest: CheckoutRequest = {
                 id: generateId(),
                 currency: "USD",
@@ -413,7 +414,6 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
 
             const stats = await testUtils.testAuthedRequest(router, `/v2/values/${genericValue.id}/stats`, "GET");
             chai.assert.equal(stats.statusCode, 200);
-            console.log(JSON.stringify(stats.body, null, 4));
             chai.assert.deepEqual(stats.body, {
                 "redeemed": {
                     "balance": 400, // debit should not be included.
