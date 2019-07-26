@@ -1137,7 +1137,7 @@ describe("split tender checkout with Stripe", () => {
     describe("respects Stripe minimum charge of $0.50", () => {
         it("fails the transaction by default", async () => {
             const value: Partial<Value> = {
-                id: "value-for-checkout3",
+                id: generateId(),
                 currency: "CAD",
                 balance: 100
             };
@@ -1178,7 +1178,7 @@ describe("split tender checkout with Stripe", () => {
 
         it("can be configured to forgive the amount", async () => {
             const value: Partial<Value> = {
-                id: "value-for-checkout3",
+                id: generateId(),
                 currency: "CAD",
                 balance: 100
             };
