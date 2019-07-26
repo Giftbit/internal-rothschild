@@ -160,6 +160,10 @@ function getRuleContext(transactionPlan: TransactionPlan, value: Value, step: Li
     });
 }
 
+/**
+ * Look for Stripe charges below the minAmount, adjusting steps and totals
+ * for any found.  Totals should already be calculated.
+ */
 function adjustStripeSubMinChargeSteps(checkoutRequest: CheckoutRequest, transactionPlan: TransactionPlan): void {
     for (const step of transactionPlan.steps) {
         if (step.rail === "stripe" && step.type === "charge") {
@@ -168,10 +172,12 @@ function adjustStripeSubMinChargeSteps(checkoutRequest: CheckoutRequest, transac
                 if (checkoutRequest.allowRemainder) {
                     // allowRemainder takes the highest priority and converts the amount to remainder.
                     transactionPlan.totals.remainder -= step.amount;
+                    transactionPlan.totals.paidStripe += step.amount;
                     step.amount = 0;
                 } else if (step.forgiveSubMinCharges) {
                     // forgiveSubMinCharges takes second priority and converts the amount to forgiven.
                     transactionPlan.totals.forgiven -= step.amount;
+                    transactionPlan.totals.paidStripe += step.amount;
                     step.amount = 0;
                 } else {
                     // It's a 409 to be consistent with the InsufficientBalance error.

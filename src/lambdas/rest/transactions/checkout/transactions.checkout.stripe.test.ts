@@ -1136,17 +1136,20 @@ describe("split tender checkout with Stripe", () => {
 
     describe("respects Stripe minimum charge of $0.50", () => {
         it("fails the transaction by default", async () => {
-            const value3: Partial<Value> = {
+            const value: Partial<Value> = {
                 id: "value-for-checkout3",
                 currency: "CAD",
                 balance: 100
             };
-            const request: CheckoutRequest = {
+            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+            const checkoutRequest: CheckoutRequest = {
                 id: generateId(),
                 sources: [
                     {
                         rail: "lightrail",
-                        valueId: value3.id
+                        valueId: value.id
                     },
                     {
                         rail: "stripe",
@@ -1163,21 +1166,84 @@ describe("split tender checkout with Stripe", () => {
                 currency: "CAD"
             };
 
-            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value3);
-            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
-
             const postSimulateCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
-                ...request,
+                ...checkoutRequest,
                 simulate: true
             });
             chai.assert.equal(postSimulateCheckoutResp.statusCode, 409, `body=${JSON.stringify(postSimulateCheckoutResp.body)}`);
 
-            const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+            const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
             chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body)}`);
         });
 
-        it.skip("can be configured to forgive the amount", async () => {
-            // TODO
+        it("can be configured to forgive the amount", async () => {
+            const value: Partial<Value> = {
+                id: "value-for-checkout3",
+                currency: "CAD",
+                balance: 100
+            };
+            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+            const checkoutRequest: CheckoutRequest = {
+                id: generateId(),
+                sources: [
+                    {
+                        rail: "lightrail",
+                        valueId: value.id
+                    },
+                    {
+                        rail: "stripe",
+                        source: source,
+                        forgiveSubMinCharges: true
+                    },
+                ],
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "xyz-123",
+                        unitPrice: 125
+                    }
+                ],
+                currency: "CAD"
+            };
+
+            const postSimulateCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                ...checkoutRequest,
+                simulate: true
+            });
+            chai.assert.equal(postSimulateCheckoutResp.statusCode, 200, `body=${JSON.stringify(postSimulateCheckoutResp.body)}`);
+            chai.assert.deepEqual(postSimulateCheckoutResp.body.totals, {
+                discount: 0,
+                discountLightrail: 0,
+                forgiven: 25,
+                paidInternal: 0,
+                paidLightrail: 100,
+                paidStripe: 0,
+                payable: 125,
+                remainder: 0,
+                subtotal: 125,
+                tax: 0
+            });
+            chai.assert.lengthOf(postSimulateCheckoutResp.body.steps, 1);
+            chai.assert.equal(postSimulateCheckoutResp.body.steps[0].rail, "lightrail");
+
+            const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+            chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
+            chai.assert.deepEqual(postCheckoutResp.body.totals, {
+                discount: 0,
+                discountLightrail: 0,
+                forgiven: 25,
+                paidInternal: 0,
+                paidLightrail: 100,
+                paidStripe: 0,
+                payable: 125,
+                remainder: 0,
+                subtotal: 125,
+                tax: 0
+            });
+            chai.assert.lengthOf(postCheckoutResp.body.steps, 1);
+            chai.assert.equal(postCheckoutResp.body.steps[0].rail, "lightrail");
         });
     });
 
