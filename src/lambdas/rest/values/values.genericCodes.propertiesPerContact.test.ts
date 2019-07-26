@@ -737,7 +737,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             chai.assert.deepNestedInclude(create.body, genericValue);
         });
 
-        it("debit balance to reduce attach liability then do checkout w/ auto-attach and check stats", async () => {
+        it("stats don't include debits on the generic code itself", async () => {
             // debit balance
             const debit = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
                 id: "debit-1",
