@@ -1454,6 +1454,6 @@ describe("/v2/values - generic code with per contact properties", () => {
 
         const get = await testUtils.testAuthedRequest<Value>(router, `/v2/values?code=${updatedFullcode}`, "GET");
         chai.assert.equal(get.statusCode, 200);
-        chai.assert.isTrue(get.body.isGenericCode);
+        chai.assert.isTrue(get.body[0].isGenericCode);
     });
 });

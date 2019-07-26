@@ -1079,7 +1079,7 @@ describe("/v2/values/", () => {
 
         const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
-        chai.assert.equal(create.body.code, value.code, `Expected only code last 4 to be returned. Received: ${create.body.code}`);
+        chai.assert.equal(create.body.code, formatCodeForLastFourDisplay(value.code), `Expected only code last 4 to be returned. Received: ${create.body.code}`);
         chai.assert.isFalse(create.body.isGenericCode);
 
         const changeCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}/changeCode`, "POST", {
@@ -1128,7 +1128,7 @@ describe("/v2/values/", () => {
             code: code
         });
         chai.assert.equal(changeCode.statusCode, 200, `body=${JSON.stringify(changeCode.body)}`);
-        chai.assert.isTrue(changeCode.body.isGenericCode);
+        chai.assert.isTrue(changeCode.body.isGenericCode, `body: ${JSON.stringify(changeCode.body)}`);
         chai.assert.equal(changeCode.body.code, code, `Expected fullcode to be returned. Received: ${changeCode.body.code}`);
 
         const get = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
@@ -1403,7 +1403,6 @@ describe("/v2/values/", () => {
 
             const res = await testUtils.testAuthedRequest<Value>(router, "/v2/values/id/changeCode", "POST", changeRequest);
             chai.assert.equal(res.statusCode, 422, `body=${JSON.stringify(res.body)}`);
-            console.log(JSON.stringify(res, null, 4))
         });
 
         it("generateCode can't have unknown properties", async () => {

@@ -216,10 +216,8 @@ export function installValuesRest(router: cassava.Router): void {
 
             const now = nowInDbPrecision();
             let code = evt.body.code;
-            let isGenericCode = evt.body.isGenericCode ? evt.body.isGenericCode : false;
             if (evt.body.generateCode) {
                 code = generateCode(evt.body.generateCode);
-                isGenericCode = false;
             }
 
             const dbCode = await DbCode.getDbCode(code, auth);
@@ -227,7 +225,6 @@ export function installValuesRest(router: cassava.Router): void {
                 codeLastFour: dbCode.lastFour,
                 codeEncrypted: dbCode.codeEncrypted,
                 codeHashed: dbCode.codeHashed,
-                isGenericCode: isGenericCode,
                 updatedDate: now
             };
             return {
