@@ -1429,31 +1429,4 @@ describe("/v2/values - generic code with per contact properties", () => {
             chai.assert.equal(update.body.message, "A shared generic value without genericCodeOptions cannot be updated to have genericCodeOptions.");
         });
     });
-
-    it("can changeCode for genericCode with perContact options", async () => {
-        const genericCode: Partial<Value> = {
-            id: generateId(),
-            currency: "USD",
-            code: generateCode({}),
-            isGenericCode: true,
-            genericCodeOptions: {
-                perContact: {
-                    balance: 100,
-                    usesRemaining: null
-                }
-            }
-        };
-        const createCode = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericCode);
-        chai.assert.equal(createCode.statusCode, 201);
-
-        const updatedFullcode = generateCode({});
-        const changeCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${genericCode.id}/changeCode`, "POST", {
-            code: updatedFullcode
-        });
-        chai.assert.equal(changeCode.statusCode, 200);
-
-        const get = await testUtils.testAuthedRequest<Value>(router, `/v2/values?code=${updatedFullcode}`, "GET");
-        chai.assert.equal(get.statusCode, 200);
-        chai.assert.isTrue(get.body[0].isGenericCode);
-    });
 });
