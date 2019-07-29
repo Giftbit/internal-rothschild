@@ -93,10 +93,7 @@ export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     value.metadata = {...(program && program.metadata ? program.metadata : {}), ...value.metadata};
 
     // code generation is done when the Value is inserted into the database.
-    checkCodeParameters(generateCodeParameters, value.code, value.isGenericCode);
-    if (value.code && !generateCodeParameters && value.isGenericCode == null) {
-        value.isGenericCode = false;
-    }
+    checkCodeParameters(generateCodeParameters, value.code);
 
     checkValueProperties(value, program);
     return value;
@@ -166,8 +163,8 @@ function checkProgramConstraints(value: Value, program: Program): void {
     }
 }
 
-export function checkCodeParameters(generateCode: GenerateCodeParameters, code: string, isGenericCode: boolean): void {
-    if (generateCode && (code || isGenericCode)) {
+export function checkCodeParameters(generateCode: GenerateCodeParameters, code: string): void {
+    if (generateCode && code) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Parameter generateCode is not allowed with parameters code or isGenericCode:true.`);
     }
 }
