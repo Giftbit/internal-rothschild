@@ -1307,7 +1307,7 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.equal(postTransferResp.statusCode, 422, `body=${JSON.stringify(postTransferResp.body)}`);
         });
 
-        describe("respects Stripe minimum of $0.50", () => {
+        describe("handling Stripe minimum of $0.50", () => {
             it("fails the transfer by default", async () => {
                 const request: TransferRequest = {
                     id: generateId(),
@@ -1333,6 +1333,48 @@ describe("/v2/transactions/transfer", () => {
                 const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
                 chai.assert.equal(postTransferResp.statusCode, 409, `body=${JSON.stringify(postTransferResp.body)}`);
                 chai.assert.equal((postTransferResp.body as any).messageCode, "StripeAmountTooSmall", `body=${JSON.stringify(postTransferResp.body)}`);
+            });
+
+            it("can be configured for a different minAmount", async () => {
+                const request: TransferRequest = {
+                    id: generateId(),
+                    currency: "CAD",
+                    amount: 25,
+                    source: {
+                        rail: "stripe",
+                        source: "tok_visa",
+                        minAmount: 20
+                    },
+                    destination: {
+                        rail: "lightrail",
+                        valueId: valueCadForStripeTests.id
+                    },
+                    simulate: true
+                };
+
+                const postSimulateTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
+                chai.assert.equal(postSimulateTransferResp.statusCode, 200, `body=${JSON.stringify(postSimulateTransferResp.body)}`);
+                chai.assert.equal((postSimulateTransferResp.body.steps.find(step => step.rail === "lightrail") as LightrailTransactionStep).balanceChange, 25);
+            });
+
+            it("does not support forgiveSubMinCharges=true", async () => {
+                const request: TransferRequest = {
+                    id: generateId(),
+                    currency: "CAD",
+                    amount: 25,
+                    source: {
+                        rail: "stripe",
+                        source: "tok_visa",
+                        forgiveSubMinCharges: true
+                    },
+                    destination: {
+                        rail: "lightrail",
+                        valueId: valueCadForStripeTests.id
+                    }
+                };
+
+                const postSimulateTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
+                chai.assert.equal(postSimulateTransferResp.statusCode, 422, `body=${JSON.stringify(postSimulateTransferResp.body)}`);
             });
         });
     });

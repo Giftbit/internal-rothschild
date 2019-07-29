@@ -10,6 +10,7 @@ import {
 } from "./TransactionPlan";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {TransactionType} from "../../../model/Transaction";
+import {getStripeMinCharge} from "../../../utils/stripeUtils/getStripeMinCharge";
 
 export interface TransferTransactionSteps {
     sourceStep: LightrailUpdateTransactionPlanStep | StripeTransactionPlanStep;
@@ -29,12 +30,6 @@ export async function resolveTransferTransactionPlanSteps(auth: giftbitRoutes.jw
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable Value.", "InvalidParty");
     }
     const sourceStep = sourceSteps[0] as LightrailUpdateTransactionPlanStep | StripeChargeTransactionPlanStep;
-    if (sourceStep.rail === "stripe" && !req.allowRemainder && sourceStep.maxAmount != null && req.amount > sourceStep.maxAmount) {
-        throw new giftbitRoutes.GiftbitRestError(409, `The transfer amount ${req.amount} is greater than the Stripe source 'maxAmount' of ${sourceStep.maxAmount}.`, "StripeAmountTooLarge");
-    }
-    if (sourceStep.rail === "stripe" && sourceStep.minAmount != null && req.amount < sourceStep.minAmount) {
-        throw new giftbitRoutes.GiftbitRestError(409, `The transfer amount ${req.amount} is less than the Stripe source 'minAmount' of ${sourceStep.minAmount}.`, "StripeAmountTooSmall");
-    }
 
     const destSteps = await resolveTransactionPlanSteps(auth, {
         currency: req.currency,
@@ -78,13 +73,27 @@ export function createTransferTransactionPlan(req: TransferRequest, steps: Trans
         steps.destStep.amount = amount;
         plan.totals.remainder = req.amount - amount;
     } else if (steps.sourceStep.rail === "stripe") {
-        steps.sourceStep = steps.sourceStep as StripeChargeTransactionPlanStep;
-        const amount = steps.sourceStep.maxAmount != null ? (Math.min(steps.sourceStep.maxAmount, req.amount)) : req.amount;
+        const sourceStep = steps.sourceStep as StripeChargeTransactionPlanStep;
+
+        if (sourceStep.forgiveSubMinCharges) {
+            throw new giftbitRoutes.GiftbitRestError(422, `The Stripe source parameter 'forgiveSubMinCharges' is not supported on transfer transactions.`);
+        }
+        if (!req.allowRemainder && sourceStep.maxAmount != null && req.amount > sourceStep.maxAmount) {
+            throw new giftbitRoutes.GiftbitRestError(409, `The transfer amount ${req.amount} is greater than the Stripe source 'maxAmount' of ${sourceStep.maxAmount}.`, "StripeAmountTooLarge");
+        }
+        if (sourceStep.minAmount != null && req.amount < sourceStep.minAmount) {
+            throw new giftbitRoutes.GiftbitRestError(409, `The transfer amount ${req.amount} is less than the Stripe source 'minAmount' of ${sourceStep.minAmount}.`, "StripeAmountTooSmall");
+        }
+        if (sourceStep.minAmount == null && req.amount < getStripeMinCharge(req.currency)) {
+            throw new giftbitRoutes.GiftbitRestError(409, `The transfer amount ${req.amount} is less than the Stripe minimum charge of ${getStripeMinCharge(req.currency)}.`, "StripeAmountTooSmall");
+        }
+
+        const amount = sourceStep.maxAmount != null ? (Math.min(sourceStep.maxAmount, req.amount)) : req.amount;
 
         steps.sourceStep.amount = -amount;
         steps.sourceStep.idempotentStepId = `${req.id}-src`;
         steps.destStep.amount = amount;
-        plan.totals.remainder = steps.sourceStep.maxAmount ? Math.max(req.amount - steps.sourceStep.maxAmount, 0) : 0;
+        plan.totals.remainder = sourceStep.maxAmount ? Math.max(req.amount - sourceStep.maxAmount, 0) : 0;
     }
 
     return plan;
