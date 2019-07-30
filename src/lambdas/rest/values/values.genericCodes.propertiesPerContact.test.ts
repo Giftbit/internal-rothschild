@@ -710,6 +710,80 @@ describe("/v2/values - generic code with per contact properties", () => {
         });
     });
 
+    describe("stats on generic code with balance liability", () => {
+        const contact1Id = generateId();
+
+        const genericValue: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            isGenericCode: true,
+            code: generateFullcode(),
+            discount: true,
+            genericCodeOptions: {
+                perContact: {
+                    usesRemaining: 1,
+                    balance: 400
+                }
+            },
+            balance: 1600
+        };
+
+        before(async function () {
+            const createContact1 = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contact1Id});
+            chai.assert.equal(createContact1.statusCode, 201);
+
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
+            chai.assert.equal(create.statusCode, 201);
+            chai.assert.deepNestedInclude(create.body, genericValue);
+        });
+
+        it("stats don't include debits on the generic code itself", async () => {
+            // debit balance
+            const debit = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
+                id: "debit-1",
+                source: {
+                    rail: "lightrail",
+                    valueId: genericValue.id
+                },
+                amount: 800, // effectively reduces attaches remaining by 2
+                currency: "USD"
+            });
+            chai.assert.equal(debit.statusCode, 201);
+
+            // do checkout (uses auto-attach)
+            const checkoutRequest: CheckoutRequest = {
+                id: generateId(),
+                currency: "USD",
+                sources: [
+                    {rail: "lightrail", code: genericValue.code},
+                    {rail: "lightrail", contactId: contact1Id}
+                ],
+                lineItems: [
+                    {unitPrice: 400}
+                ]
+            };
+            const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+            chai.assert.equal(checkout.statusCode, 201);
+
+            const stats = await testUtils.testAuthedRequest(router, `/v2/values/${genericValue.id}/stats`, "GET");
+            chai.assert.equal(stats.statusCode, 200);
+            chai.assert.deepEqual(stats.body, {
+                "redeemed": {
+                    "balance": 400, // debit should not be included.
+                    "transactionCount": 1
+                },
+                "checkout": {
+                    "lightrailSpend": 400,
+                    "overspend": 0,
+                    "transactionCount": 1
+                },
+                "attachedContacts": {
+                    "count": 1
+                }
+            });
+        });
+    });
+
     it("can reverse - the created value persists but the steps are reversed so it's effectively unusable", async () => {
         // create value
         const genericValue: Partial<Value> = {
