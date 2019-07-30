@@ -1300,7 +1300,8 @@ describe("split tender checkout with Stripe", () => {
             });
             chai.assert.equal(postSimulateCheckoutResp.statusCode, 200, `body=${JSON.stringify(postSimulateCheckoutResp.body)}`);
             chai.assert.lengthOf(postSimulateCheckoutResp.body.steps, 1);
-            chai.assert.equal(postSimulateCheckoutResp.body.steps[0].rail, "lightrail");
+            chai.assert.equal(postSimulateCheckoutResp.body.steps[0].rail, "stripe");
+            chai.assert.equal((postSimulateCheckoutResp.body.steps[0] as StripeTransactionStep).amount, -49);
 
             // Not sent to Stripe because it will treat CAD as the settlement currency so $0.50 min is actually correct.
         });
