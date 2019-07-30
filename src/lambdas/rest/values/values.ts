@@ -213,7 +213,7 @@ export function installValuesRest(router: cassava.Router): void {
             auth.requireScopes("lightrailV2:values:update");
             evt.validateBody(valueChangeCodeSchema);
             checkCodeParameters(evt.body.generateCode, evt.body.code);
-            const showCode: boolean = (evt.queryStringParameters.showCode === "true");
+            const showCode: boolean = evt.queryStringParameters.showCode === "true";
 
             const now = nowInDbPrecision();
             let code = evt.body.code;
