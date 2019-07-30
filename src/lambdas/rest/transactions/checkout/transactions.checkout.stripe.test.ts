@@ -1136,14 +1136,6 @@ describe("split tender checkout with Stripe", () => {
 
     describe("handling Stripe minimum charge of $0.50", () => {
         it("fails for Stripe charges below the default minimum", async () => {
-            const value: Partial<Value> = {
-                id: generateId(),
-                currency: "CAD",
-                balance: 100
-            };
-            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
-            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
-
             const checkoutRequest: CheckoutRequest = {
                 id: generateId(),
                 sources: [
@@ -1160,7 +1152,7 @@ describe("split tender checkout with Stripe", () => {
                     {
                         type: "product",
                         productId: "xyz-123",
-                        unitPrice: 125
+                        unitPrice: 49
                     }
                 ],
                 currency: "CAD"
@@ -1177,14 +1169,6 @@ describe("split tender checkout with Stripe", () => {
         });
 
         it("accepts Stripe charges at the minimum", async () => {
-            const value: Partial<Value> = {
-                id: generateId(),
-                currency: "CAD",
-                balance: 100
-            };
-            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
-            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
-
             const checkoutRequest: CheckoutRequest = {
                 id: generateId(),
                 sources: [
@@ -1201,7 +1185,7 @@ describe("split tender checkout with Stripe", () => {
                     {
                         type: "product",
                         productId: "xyz-123",
-                        unitPrice: 150  // Leaves a Stripe charge of $0.50, the minimum in CAD.
+                        unitPrice: 50
                     }
                 ],
                 currency: "CAD"
@@ -1290,14 +1274,6 @@ describe("split tender checkout with Stripe", () => {
         });
 
         it("can be configured for a different minAmount", async () => {
-            const value: Partial<Value> = {
-                id: generateId(),
-                currency: "CAD",
-                balance: 100
-            };
-            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
-            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
-
             const checkoutRequest: CheckoutRequest = {
                 id: generateId(),
                 sources: [
@@ -1315,7 +1291,7 @@ describe("split tender checkout with Stripe", () => {
                     {
                         type: "product",
                         productId: "xyz-123",
-                        unitPrice: 225
+                        unitPrice: 125
                     }
                 ],
                 currency: "CAD"

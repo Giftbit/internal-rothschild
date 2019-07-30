@@ -24,7 +24,7 @@ export async function executeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
                     throw new Error(`The transaction cannot be processed because it contains a Stripe charge (${-step.amount}) below the minimum (${step.minAmount}).`);
                 }
                 if (step.maxAmount && step.maxAmount < -step.amount) {
-                    throw new Error(`The transaction cannot be processed because it contains a Stripe charge (${-step.amount}) above the minimum (${step.maxAmount}).`);
+                    throw new Error(`The transaction cannot be processed because it contains a Stripe charge (${-step.amount}) above the maximum (${step.maxAmount}).`);
                 }
 
                 const stripeChargeParams = stripeTransactionPlanStepToStripeChargeRequest(auth, step, plan);
