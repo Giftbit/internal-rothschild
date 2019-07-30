@@ -212,14 +212,13 @@ export function installValuesRest(router: cassava.Router): void {
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:values:update");
             evt.validateBody(valueChangeCodeSchema);
-            checkCodeParameters(evt.body.generateCode, evt.body.code, evt.body.isGenericCode);
+            checkCodeParameters(evt.body.generateCode, evt.body.code);
+            const showCode: boolean = evt.queryStringParameters.showCode === "true";
 
             const now = nowInDbPrecision();
             let code = evt.body.code;
-            let isGenericCode = evt.body.isGenericCode ? evt.body.isGenericCode : false;
             if (evt.body.generateCode) {
                 code = generateCode(evt.body.generateCode);
-                isGenericCode = false;
             }
 
             const dbCode = await DbCode.getDbCode(code, auth);
@@ -227,11 +226,10 @@ export function installValuesRest(router: cassava.Router): void {
                 codeLastFour: dbCode.lastFour,
                 codeEncrypted: dbCode.codeEncrypted,
                 codeHashed: dbCode.codeHashed,
-                isGenericCode: isGenericCode,
                 updatedDate: now
             };
             return {
-                body: await updateDbValue(auth, evt.pathParameters.id, partialValue)
+                body: await updateDbValue(auth, evt.pathParameters.id, partialValue, showCode)
             };
         });
 }
@@ -478,7 +476,7 @@ async function checkForRestrictedUpdates(auth: giftbitRoutes.jwtauth.Authorizati
     }
 }
 
-async function updateDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, value: Partial<DbValue>): Promise<Value> {
+async function updateDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, value: Partial<DbValue>, showCode: boolean): Promise<Value> {
     auth.requireIds("userId");
 
     try {
@@ -506,7 +504,7 @@ async function updateDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
         throw err;
     }
     return {
-        ...await getValue(auth, id)
+        ...await getValue(auth, id, showCode)
     };
 }
 
@@ -605,6 +603,27 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
     };
 
     const knex = await getKnexRead();
+    const attachedContactValues = await knex("ContactValues")
+        .where({
+            "userId": auth.userId,
+            "valueId": valueId
+        })
+        .count({count: "*"});
+    stats.attachedContacts.count = attachedContactValues[0].count;
+
+    const attachedFromGenericValueStats = await knex("Values")
+        .where({
+            "userId": auth.userId,
+            "attachedFromValueId": valueId
+        })
+        .count({count: "*"});
+    stats.attachedContacts.count += attachedFromGenericValueStats[0].count;
+
+    // unique code
+    if (value.contactId) {
+        stats.attachedContacts.count += 1;
+    }
+
     /**
      * Note, this query joins from root Transactions involving the valueId to the last Transaction in the chain.
      * This will need to be updated once partial capture becomes a thing since joining to the last Transaction in the chain
@@ -616,8 +635,13 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
 
         })
         .andWhere(q => {
-            q.where("V.id", "=", valueId);
-            q.orWhere("V.attachedFromValueId", "=", valueId);
+            if (attachedFromGenericValueStats[0].count > 0) {
+                // stats that are interesting are from the attached values, not the generic code itself
+                q.where("V.attachedFromValueId", "=", valueId);
+            } else {
+                // only pull stats for valueId in question.
+                q.where("V.id", "=", valueId);
+            }
             return q;
         })
         .join("LightrailTransactionSteps as LTS", {
@@ -671,29 +695,6 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
             stats.checkout.transactionCount += row.transactionCount;
             stats.checkout.overspend += +row.paidStripe + +row.paidInternal + +row.remainder;
         }
-    }
-
-    // shared generic values stats
-    const attachedContactValues = await knex("ContactValues")
-        .where({
-            "userId": auth.userId,
-            "valueId": valueId
-        })
-        .count({count: "*"});
-    stats.attachedContacts.count = attachedContactValues[0].count;
-
-    // legacy attachGenericAsNewValueStats
-    const attachedFromGenericValueStats = await knex("Values")
-        .where({
-            "userId": auth.userId,
-            "attachedFromValueId": valueId
-        })
-        .count({count: "*"});
-    stats.attachedContacts.count += attachedFromGenericValueStats[0].count;
-
-    // unique code
-    if (value.contactId) {
-        stats.attachedContacts.count += 1;
     }
 
     log.info(`Calculating value stats finished and took ${Date.now() - startTime}ms`);
@@ -892,7 +893,7 @@ const valueChangeCodeSchema: jsonschema.Schema = {
     type: "object",
     additionalProperties: false,
     properties: {
-        ...pick(valueSchema.properties, "code", "isGenericCode", "generateCode"),
+        ...pick(valueSchema.properties, "code", "generateCode"),
     },
     required: []
 };
