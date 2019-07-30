@@ -90,6 +90,7 @@ describe("/v2/transactions/checkout - pending", () => {
                 paidLightrail: 50,
                 paidStripe: 0,
                 remainder: 0,
+                forgiven: 0
             },
             lineItems: [
                 {
@@ -164,6 +165,7 @@ describe("/v2/transactions/checkout - pending", () => {
                 paidLightrail: -50,
                 paidStripe: 0,
                 remainder: 0,
+                forgiven: 0
             },
             lineItems: null,
             steps: [
@@ -241,6 +243,7 @@ describe("/v2/transactions/checkout - pending", () => {
                 paidLightrail: 50,
                 paidStripe: 0,
                 remainder: 0,
+                forgiven: 0
             },
             lineItems: [
                 {
@@ -375,6 +378,7 @@ describe("/v2/transactions/checkout - pending", () => {
                 paidLightrail: 1000,
                 paidStripe: 14000,
                 remainder: 0,
+                forgiven: 0
             },
             lineItems: [
                 {
@@ -471,6 +475,7 @@ describe("/v2/transactions/checkout - pending", () => {
                 paidLightrail: -1000,
                 paidStripe: -14000,
                 remainder: 0,
+                forgiven: 0
             },
             lineItems: null,
             steps: [],
@@ -563,6 +568,7 @@ describe("/v2/transactions/checkout - pending", () => {
                 paidLightrail: 1000,
                 paidStripe: 14000,
                 remainder: 0,
+                forgiven: 0
             },
             lineItems: [
                 {

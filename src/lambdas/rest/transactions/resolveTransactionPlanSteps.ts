@@ -18,6 +18,7 @@ import {computeCodeLookupHash} from "../../../utils/codeCryptoUtils";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import * as knex from "knex";
 import {getContact} from "../contacts";
+import {getStripeMinCharge} from "../../../utils/stripeUtils/getStripeMinCharge";
 
 /**
  * Options to resolving transaction parties.
@@ -59,15 +60,19 @@ export interface ResolveTransactionPartiesOptions {
 
 export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions): Promise<TransactionPlanStep[]> {
     const fetchedValues = await getLightrailValues(auth, options);
-    return getTransactionPlanStepsFromSources(options.transactionId, fetchedValues,
-        options.parties.filter(party => party.rail !== "lightrail") as (StripeTransactionParty | InternalTransactionParty)[]);
+    return getTransactionPlanStepsFromSources(
+        options.transactionId,
+        options.currency,
+        fetchedValues,
+        options.parties.filter(party => party.rail !== "lightrail") as (StripeTransactionParty | InternalTransactionParty)[]
+    );
 }
 
 /**
  * Translates Values loaded from the database and non Lightrail sources into TransactionPlanSteps.
  * Used when the Values have already been loaded from the DB.
  */
-export function getTransactionPlanStepsFromSources(transactionId: string, lightrailSources: Value[], nonLightrailSources: (StripeTransactionParty | InternalTransactionParty)[]): TransactionPlanStep[] {
+export function getTransactionPlanStepsFromSources(transactionId: string, currency: string, lightrailSources: Value[], nonLightrailSources: (StripeTransactionParty | InternalTransactionParty)[]): TransactionPlanStep[] {
     const lightrailSteps = lightrailSources
         .map((v): LightrailTransactionPlanStep => ({
             rail: "lightrail",
@@ -98,6 +103,8 @@ export function getTransactionPlanStepsFromSources(transactionId: string, lightr
             source: p.source || null,
             customer: p.customer || null,
             maxAmount: p.maxAmount || null,
+            minAmount: p.minAmount != null ? p.minAmount : getStripeMinCharge(currency),
+            forgiveSubMinCharges: !!p.forgiveSubMinCharges,
             additionalStripeParams: p.additionalStripeParams || null,
             amount: 0
         }));

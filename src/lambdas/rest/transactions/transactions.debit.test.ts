@@ -121,6 +121,7 @@ describe("/v2/transactions/debit", () => {
                 "totals_paidStripe": null,
                 "totals_paidInternal": null,
                 "totals_remainder": 0,
+                "totals_forgiven": null,
                 "totals_marketplace_sellerGross": null,
                 "totals_marketplace_sellerDiscount": null,
                 "totals_marketplace_sellerNet": null
@@ -653,7 +654,7 @@ describe("/v2/transactions/debit", () => {
             currency: "CAD"
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.equal(resp.body.messageCode, "InsufficientUses");
+        chai.assert.equal(resp.body.messageCode, "InsufficientUsesRemaining");
     });
 
     it("409s debiting balance on a Value with balance=null", async () => {

@@ -116,6 +116,7 @@ describe("/v2/transactions/credit", () => {
                 "totals_paidStripe": null,
                 "totals_paidInternal": null,
                 "totals_remainder": null,
+                "totals_forgiven": null,
                 "totals_marketplace_sellerGross": null,
                 "totals_marketplace_sellerDiscount": null,
                 "totals_marketplace_sellerNet": null

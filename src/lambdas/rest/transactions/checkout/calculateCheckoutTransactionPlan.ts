@@ -1,3 +1,4 @@
+import * as cassava from "cassava";
 import {
     InternalTransactionPlanStep,
     isStepWithAmount,
@@ -34,6 +35,7 @@ export function calculateCheckoutTransactionPlanForOrderedSteps(checkout: Checko
     transactionPlan.calculateTaxAndSetOnLineItems();
     calculateAmountsForTransactionSteps(postTaxSteps, transactionPlan);
     transactionPlan.calculateTotalsFromLineItemsAndSteps();
+    adjustStripeSubMinChargeSteps(checkout, transactionPlan);
 
     transactionPlan.steps = transactionPlan.steps.filter(s => isStepWithAmount(s) && s.amount !== 0);
     return transactionPlan;
@@ -119,25 +121,18 @@ function calculateAmountForLightrailTransactionStep(step: LightrailUpdateTransac
 }
 
 function calculateAmountForStripeTransactionStep(step: StripeChargeTransactionPlanStep, transactionPlan: TransactionPlan): void {
-    let amount: number = 0;
+    let stepAmount: number = 0;
 
     for (const item of transactionPlan.lineItems) {
-        if (step.maxAmount) {
-            if (amount + item.lineTotal.remainder <= step.maxAmount) {
-                amount += item.lineTotal.remainder;
-                item.lineTotal.remainder = 0;
-            } else {
-                const difference: number = step.maxAmount - amount;
-                amount = step.maxAmount;
-                item.lineTotal.remainder -= difference;
-            }
-        } else {  // charge full remainder for each line item to Stripe
-            amount += item.lineTotal.remainder;
-            item.lineTotal.remainder = 0;
+        let stepItemAmount = item.lineTotal.remainder;
+        if (step.maxAmount && stepAmount + stepItemAmount > step.maxAmount) {
+            stepItemAmount = step.maxAmount - stepAmount;
         }
+        stepAmount += stepItemAmount;
+        item.lineTotal.remainder -= stepItemAmount;
     }
 
-    step.amount -= amount;
+    step.amount -= stepAmount;
 }
 
 function calculateAmountForInternalTransactionStep(step: InternalTransactionPlanStep, transactionPlan: TransactionPlan): void {
@@ -163,4 +158,40 @@ function getRuleContext(transactionPlan: TransactionPlan, value: Value, step: Li
             metadata: step.value.metadata
         }
     });
+}
+
+/**
+ * Look for Stripe charges below the minAmount, adjusting steps and totals
+ * for any found.  Totals should already be calculated.
+ */
+function adjustStripeSubMinChargeSteps(checkoutRequest: CheckoutRequest, transactionPlan: TransactionPlan): void {
+    for (const step of transactionPlan.steps) {
+        if (step.rail === "stripe" && step.type === "charge") {
+            if (step.amount !== 0 && -step.amount < step.minAmount) {
+                // This Stripe charge step is below the min amount that can be charged.
+                if (checkoutRequest.allowRemainder) {
+                    // allowRemainder takes the highest priority and converts the amount to remainder.
+                    transactionPlan.totals.remainder -= step.amount;
+                    transactionPlan.totals.paidStripe += step.amount;
+                    step.amount = 0;
+                } else if (step.forgiveSubMinCharges) {
+                    // forgiveSubMinCharges takes second priority and converts the amount to forgiven.
+                    transactionPlan.totals.forgiven -= step.amount;
+                    transactionPlan.totals.paidStripe += step.amount;
+                    step.amount = 0;
+                } else {
+                    // It's a 409 to be consistent with the InsufficientBalance error.
+                    throw new cassava.RestError(
+                        409,
+                        `The transaction cannot be processed because it contains a Stripe charge (${-step.amount}) below the minimum (${step.minAmount}).  Please see the documentation on \`allowRemainder\` and \`source.forgiveSubMinCharges\` or create a fee to raise the total charge.`,
+                        {
+                            messageCode: "StripeAmountTooSmall",
+                            amount: -step.amount,
+                            minAmount: step.minAmount
+                        }
+                    );
+                }
+            }
+        }
+    }
 }
