@@ -212,14 +212,13 @@ export function installValuesRest(router: cassava.Router): void {
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:values:update");
             evt.validateBody(valueChangeCodeSchema);
-            checkCodeParameters(evt.body.generateCode, evt.body.code, evt.body.isGenericCode);
+            checkCodeParameters(evt.body.generateCode, evt.body.code);
+            const showCode: boolean = evt.queryStringParameters.showCode === "true";
 
             const now = nowInDbPrecision();
             let code = evt.body.code;
-            let isGenericCode = evt.body.isGenericCode ? evt.body.isGenericCode : false;
             if (evt.body.generateCode) {
                 code = generateCode(evt.body.generateCode);
-                isGenericCode = false;
             }
 
             const dbCode = await DbCode.getDbCode(code, auth);
@@ -227,11 +226,10 @@ export function installValuesRest(router: cassava.Router): void {
                 codeLastFour: dbCode.lastFour,
                 codeEncrypted: dbCode.codeEncrypted,
                 codeHashed: dbCode.codeHashed,
-                isGenericCode: isGenericCode,
                 updatedDate: now
             };
             return {
-                body: await updateDbValue(auth, evt.pathParameters.id, partialValue)
+                body: await updateDbValue(auth, evt.pathParameters.id, partialValue, showCode)
             };
         });
 }
@@ -478,7 +476,7 @@ async function checkForRestrictedUpdates(auth: giftbitRoutes.jwtauth.Authorizati
     }
 }
 
-async function updateDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, value: Partial<DbValue>): Promise<Value> {
+async function updateDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, value: Partial<DbValue>, showCode: boolean): Promise<Value> {
     auth.requireIds("userId");
 
     try {
@@ -506,7 +504,7 @@ async function updateDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
         throw err;
     }
     return {
-        ...await getValue(auth, id)
+        ...await getValue(auth, id, showCode)
     };
 }
 
@@ -892,7 +890,7 @@ const valueChangeCodeSchema: jsonschema.Schema = {
     type: "object",
     additionalProperties: false,
     properties: {
-        ...pick(valueSchema.properties, "code", "isGenericCode", "generateCode"),
+        ...pick(valueSchema.properties, "code", "generateCode"),
     },
     required: []
 };
