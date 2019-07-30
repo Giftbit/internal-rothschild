@@ -10,7 +10,6 @@ import {
 } from "./TransactionPlan";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {TransactionType} from "../../../model/Transaction";
-import {getStripeMinCharge} from "../../../utils/stripeUtils/getStripeMinCharge";
 
 export interface TransferTransactionSteps {
     sourceStep: LightrailUpdateTransactionPlanStep | StripeTransactionPlanStep;
@@ -81,11 +80,8 @@ export function createTransferTransactionPlan(req: TransferRequest, steps: Trans
         if (!req.allowRemainder && sourceStep.maxAmount != null && req.amount > sourceStep.maxAmount) {
             throw new giftbitRoutes.GiftbitRestError(409, `The transfer amount ${req.amount} is greater than the Stripe source 'maxAmount' of ${sourceStep.maxAmount}.`, "StripeAmountTooLarge");
         }
-        if (sourceStep.minAmount != null && req.amount < sourceStep.minAmount) {
+        if (req.amount < sourceStep.minAmount) {
             throw new giftbitRoutes.GiftbitRestError(409, `The transfer amount ${req.amount} is less than the Stripe source 'minAmount' of ${sourceStep.minAmount}.`, "StripeAmountTooSmall");
-        }
-        if (sourceStep.minAmount == null && req.amount < getStripeMinCharge(req.currency)) {
-            throw new giftbitRoutes.GiftbitRestError(409, `The transfer amount ${req.amount} is less than the Stripe minimum charge of ${getStripeMinCharge(req.currency)}.`, "StripeAmountTooSmall");
         }
 
         const amount = sourceStep.maxAmount != null ? (Math.min(sourceStep.maxAmount, req.amount)) : req.amount;

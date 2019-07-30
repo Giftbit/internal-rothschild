@@ -1135,7 +1135,7 @@ describe("split tender checkout with Stripe", () => {
     }).timeout(10000);
 
     describe("handling Stripe minimum charge of $0.50", () => {
-        it("fails the transaction by default", async () => {
+        it("fails for Stripe charges below the default minimum", async () => {
             const value: Partial<Value> = {
                 id: generateId(),
                 currency: "CAD",
@@ -1176,7 +1176,50 @@ describe("split tender checkout with Stripe", () => {
             chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body)}`);
         });
 
-        it("can be configured to forgive the amount", async () => {
+        it("accepts Stripe charges at the minimum", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "CAD",
+                balance: 100
+            };
+            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+            const checkoutRequest: CheckoutRequest = {
+                id: generateId(),
+                sources: [
+                    {
+                        rail: "lightrail",
+                        valueId: value.id
+                    },
+                    {
+                        rail: "stripe",
+                        source: source,
+                    }
+                ],
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "xyz-123",
+                        unitPrice: 150  // Leaves a Stripe charge of $0.50, the minimum in CAD.
+                    }
+                ],
+                currency: "CAD"
+            };
+
+            const postSimulateCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                ...checkoutRequest,
+                simulate: true
+            });
+            chai.assert.equal(postSimulateCheckoutResp.statusCode, 200, `body=${JSON.stringify(postSimulateCheckoutResp.body)}`);
+
+            if (testStripeLive()) {
+                const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+                chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
+            }
+        });
+
+        it("can be configured to forgive the charge amount", async () => {
             const value: Partial<Value> = {
                 id: generateId(),
                 currency: "CAD",

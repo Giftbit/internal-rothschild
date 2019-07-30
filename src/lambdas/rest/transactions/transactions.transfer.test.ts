@@ -1308,7 +1308,7 @@ describe("/v2/transactions/transfer", () => {
         });
 
         describe("handling Stripe minimum of $0.50", () => {
-            it("fails the transfer by default", async () => {
+            it("fails for Stripe charges below the default minimum", async () => {
                 const request: TransferRequest = {
                     id: generateId(),
                     currency: "CAD",
@@ -1335,26 +1335,60 @@ describe("/v2/transactions/transfer", () => {
                 chai.assert.equal((postTransferResp.body as any).messageCode, "StripeAmountTooSmall", `body=${JSON.stringify(postTransferResp.body)}`);
             });
 
-            it("can be configured for a different minAmount", async () => {
+            it("accepts Stripe charges at the minimum", async () => {
                 const request: TransferRequest = {
                     id: generateId(),
                     currency: "CAD",
-                    amount: 25,
+                    amount: 50,
                     source: {
                         rail: "stripe",
-                        source: "tok_visa",
-                        minAmount: 20
+                        source: "tok_visa"
                     },
                     destination: {
                         rail: "lightrail",
                         valueId: valueCadForStripeTests.id
-                    },
-                    simulate: true
+                    }
                 };
 
-                const postSimulateTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
+                const postSimulateTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
+                    ...request,
+                    simulate: true
+                });
                 chai.assert.equal(postSimulateTransferResp.statusCode, 200, `body=${JSON.stringify(postSimulateTransferResp.body)}`);
-                chai.assert.equal((postSimulateTransferResp.body.steps.find(step => step.rail === "lightrail") as LightrailTransactionStep).balanceChange, 25);
+                chai.assert.equal((postSimulateTransferResp.body.steps.find(step => step.rail === "lightrail") as LightrailTransactionStep).balanceChange, 50);
+
+                if (testStripeLive()) {
+                    const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
+                    chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
+                }
+            });
+
+            it("can be configured for a different minAmount", async () => {
+                const request: TransferRequest = {
+                    id: generateId(),
+                    currency: "CAD",
+                    amount: 75,
+                    source: {
+                        rail: "stripe",
+                        source: "tok_visa",
+                        minAmount: 100
+                    },
+                    destination: {
+                        rail: "lightrail",
+                        valueId: valueCadForStripeTests.id
+                    }
+                };
+
+                const postSimulateTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
+                    ...request,
+                    simulate: true
+                });
+                chai.assert.equal(postSimulateTransferResp.statusCode, 409, `body=${JSON.stringify(postSimulateTransferResp.body)}`);
+                chai.assert.equal((postSimulateTransferResp.body as any).messageCode, "StripeAmountTooSmall", `body=${JSON.stringify(postSimulateTransferResp.body)}`);
+
+                const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
+                chai.assert.equal(postTransferResp.statusCode, 409, `body=${JSON.stringify(postTransferResp.body)}`);
+                chai.assert.equal((postTransferResp.body as any).messageCode, "StripeAmountTooSmall", `body=${JSON.stringify(postTransferResp.body)}`);
             });
 
             it("does not support forgiveSubMinCharges=true", async () => {

@@ -1,6 +1,9 @@
 /**
  * Get the minimum charge Stripe will accept in the settlement currency
- * in Stripe's units.
+ * in Stripe's units.  The settlement currency isn't necessarily the transaction
+ * currency.  We can't actually know what the settlement currency is but
+ * the transaction currency is a good guess.  This value should be configurable
+ * where it's used in case the guess is wrong.
  */
 export function getStripeMinCharge(currency: string): number {
     return stripeMinCharges[currency.toLowerCase()] || 0;
