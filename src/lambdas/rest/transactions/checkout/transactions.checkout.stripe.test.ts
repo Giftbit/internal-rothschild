@@ -1274,6 +1274,77 @@ describe("split tender checkout with Stripe", () => {
             chai.assert.equal(postCheckoutResp.body.steps[0].rail, "lightrail");
         });
 
+        it("gives prescedence to allowRemainder=true over forgiveMinChange=true", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "CAD",
+                balance: 100
+            };
+            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+            const checkoutRequest: CheckoutRequest = {
+                id: generateId(),
+                sources: [
+                    {
+                        rail: "lightrail",
+                        valueId: value.id
+                    },
+                    {
+                        rail: "stripe",
+                        source: source,
+                        forgiveSubMinCharges: true
+                    }
+                ],
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "xyz-123",
+                        unitPrice: 125
+                    }
+                ],
+                currency: "CAD",
+                allowRemainder: true
+            };
+
+            const postSimulateCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                ...checkoutRequest,
+                simulate: true
+            });
+            chai.assert.equal(postSimulateCheckoutResp.statusCode, 200, `body=${JSON.stringify(postSimulateCheckoutResp.body)}`);
+            chai.assert.deepEqual(postSimulateCheckoutResp.body.totals, {
+                discount: 0,
+                discountLightrail: 0,
+                forgiven: 0,
+                paidInternal: 0,
+                paidLightrail: 100,
+                paidStripe: 0,
+                payable: 125,
+                remainder: 25,
+                subtotal: 125,
+                tax: 0
+            });
+            chai.assert.lengthOf(postSimulateCheckoutResp.body.steps, 1);
+            chai.assert.equal(postSimulateCheckoutResp.body.steps[0].rail, "lightrail");
+
+            const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+            chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
+            chai.assert.deepEqual(postCheckoutResp.body.totals, {
+                discount: 0,
+                discountLightrail: 0,
+                forgiven: 0,
+                paidInternal: 0,
+                paidLightrail: 100,
+                paidStripe: 0,
+                payable: 125,
+                remainder: 25,
+                subtotal: 125,
+                tax: 0
+            });
+            chai.assert.lengthOf(postCheckoutResp.body.steps, 1);
+            chai.assert.equal(postCheckoutResp.body.steps[0].rail, "lightrail");
+        });
+
         it("can be configured for a lower minAmount (which Stripe may actually accept depending upon the settlement currency)", async () => {
             const checkoutRequest: CheckoutRequest = {
                 id: generateId(),
