@@ -273,6 +273,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             discount: 500,
             payable: 500,
             remainder: 500,
+            forgiven: 0,
             discountLightrail: 500,
             paidLightrail: 0,
             paidStripe: 0,

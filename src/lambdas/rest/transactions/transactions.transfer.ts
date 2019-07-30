@@ -29,9 +29,6 @@ export async function resolveTransferTransactionPlanSteps(auth: giftbitRoutes.jw
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable Value.", "InvalidParty");
     }
     const sourceStep = sourceSteps[0] as LightrailUpdateTransactionPlanStep | StripeChargeTransactionPlanStep;
-    if (sourceStep.rail === "stripe" && !req.allowRemainder && sourceStep.maxAmount != null && sourceStep.maxAmount < req.amount) {
-        throw new giftbitRoutes.GiftbitRestError(409, `Stripe source 'maxAmount' of ${sourceStep.maxAmount} is less than transfer amount ${req.amount}.`);
-    }
 
     const destSteps = await resolveTransactionPlanSteps(auth, {
         currency: req.currency,
@@ -75,13 +72,24 @@ export function createTransferTransactionPlan(req: TransferRequest, steps: Trans
         steps.destStep.amount = amount;
         plan.totals.remainder = req.amount - amount;
     } else if (steps.sourceStep.rail === "stripe") {
-        steps.sourceStep = steps.sourceStep as StripeChargeTransactionPlanStep;
-        const amount = steps.sourceStep.maxAmount != null ? (Math.min(steps.sourceStep.maxAmount, req.amount)) : req.amount;
+        const sourceStep = steps.sourceStep as StripeChargeTransactionPlanStep;
+
+        if (sourceStep.forgiveSubMinCharges) {
+            throw new giftbitRoutes.GiftbitRestError(422, `The Stripe source parameter 'forgiveSubMinCharges' is not supported on transfer transactions.`);
+        }
+        if (!req.allowRemainder && sourceStep.maxAmount != null && req.amount > sourceStep.maxAmount) {
+            throw new giftbitRoutes.GiftbitRestError(409, `The transfer amount ${req.amount} is greater than the Stripe source 'maxAmount' of ${sourceStep.maxAmount}.`, "StripeAmountTooLarge");
+        }
+        if (req.amount < sourceStep.minAmount) {
+            throw new giftbitRoutes.GiftbitRestError(409, `The transfer amount ${req.amount} is less than the Stripe source 'minAmount' of ${sourceStep.minAmount}.`, "StripeAmountTooSmall");
+        }
+
+        const amount = sourceStep.maxAmount != null ? (Math.min(sourceStep.maxAmount, req.amount)) : req.amount;
 
         steps.sourceStep.amount = -amount;
         steps.sourceStep.idempotentStepId = `${req.id}-src`;
         steps.destStep.amount = amount;
-        plan.totals.remainder = steps.sourceStep.maxAmount ? Math.max(req.amount - steps.sourceStep.maxAmount, 0) : 0;
+        plan.totals.remainder = sourceStep.maxAmount ? Math.max(req.amount - sourceStep.maxAmount, 0) : 0;
     }
 
     return plan;

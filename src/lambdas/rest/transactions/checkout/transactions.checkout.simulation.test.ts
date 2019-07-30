@@ -96,7 +96,8 @@ describe("/v2/transactions/checkout - simulation tests", () => {
                 "paidInternal": 0,
                 "paidLightrail": 4000,
                 "paidStripe": 0,
-                "remainder": 36400
+                "remainder": 36400,
+                "forgiven": 0
             },
             "lineItems": [
                 {
