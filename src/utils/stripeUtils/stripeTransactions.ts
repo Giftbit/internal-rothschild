@@ -28,7 +28,7 @@ export async function createCharge(params: Stripe.charges.IChargeCreationOptions
                 throw new StripeRestError(cassava.httpStatusCode.clientError.CONFLICT, "Card declined.", "StripeCardDeclined", err);
             case "StripeInvalidRequestError":
                 if (err.code === "amount_too_small") {
-                    throw new StripeRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Failed to charge credit card: amount '${params.amount}' for Stripe was too small.`, "StripeAmountTooSmall", err);
+                    throw new StripeRestError(cassava.httpStatusCode.clientError.CONFLICT, `Failed to charge credit card: amount '${params.amount}' for Stripe was too small.`, "StripeAmountTooSmall", err);
                 }
                 throw new StripeRestError(cassava.httpStatusCode.clientError.CONFLICT, "The stripeCardToken was invalid.", "StripeInvalidRequestError", err);
             default:

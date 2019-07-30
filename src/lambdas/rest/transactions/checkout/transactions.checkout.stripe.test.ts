@@ -1164,8 +1164,9 @@ describe("split tender checkout with Stripe", () => {
             });
             chai.assert.equal(postSimulateCheckoutResp.statusCode, 409, `body=${JSON.stringify(postSimulateCheckoutResp.body)}`);
 
-            const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+            const postCheckoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
             chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body)}`);
+            chai.assert.equal(postCheckoutResp.body.messageCode, "StripeAmountTooSmall");
         });
 
         it("accepts Stripe charges at the minimum", async () => {
@@ -1273,14 +1274,70 @@ describe("split tender checkout with Stripe", () => {
             chai.assert.equal(postCheckoutResp.body.steps[0].rail, "lightrail");
         });
 
-        it("can be configured for a different minAmount", async () => {
+        it("can be configured for a lower minAmount (which Stripe may actually accept depending upon the settlement currency)", async () => {
             const checkoutRequest: CheckoutRequest = {
                 id: generateId(),
                 sources: [
                     {
-                        rail: "lightrail",
-                        valueId: value.id
-                    },
+                        rail: "stripe",
+                        source: source,
+                        minAmount: 48
+                    }
+                ],
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "xyz-123",
+                        unitPrice: 49
+                    }
+                ],
+                currency: "CAD"
+            };
+
+            const postSimulateCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                ...checkoutRequest,
+                simulate: true
+            });
+            chai.assert.equal(postSimulateCheckoutResp.statusCode, 200, `body=${JSON.stringify(postSimulateCheckoutResp.body)}`);
+            chai.assert.lengthOf(postSimulateCheckoutResp.body.steps, 1);
+            chai.assert.equal(postSimulateCheckoutResp.body.steps[0].rail, "lightrail");
+
+            // Not sent to Stripe because it will treat CAD as the settlement currency so $0.50 min is actually correct.
+        });
+
+        it("returns 409 for simulate=false transactions and minAmount is lower than Stripe will accept", async function () {
+            if (!testStripeLive()) {
+                this.skip();
+            }
+
+            const checkoutRequest: CheckoutRequest = {
+                id: generateId(),
+                sources: [
+                    {
+                        rail: "stripe",
+                        source: source,
+                        minAmount: 48
+                    }
+                ],
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "xyz-123",
+                        unitPrice: 49
+                    }
+                ],
+                currency: "CAD"
+            };
+
+            const postCheckoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+            chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body)}`);
+            chai.assert.equal(postCheckoutResp.body.messageCode, "StripeAmountTooSmall");
+        });
+
+        it("can be configured for a higher minAmount", async () => {
+            const checkoutRequest: CheckoutRequest = {
+                id: generateId(),
+                sources: [
                     {
                         rail: "stripe",
                         source: source,
@@ -1303,8 +1360,9 @@ describe("split tender checkout with Stripe", () => {
             });
             chai.assert.equal(postSimulateCheckoutResp.statusCode, 409, `body=${JSON.stringify(postSimulateCheckoutResp.body)}`);
 
-            const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+            const postCheckoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
             chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body)}`);
+            chai.assert.equal(postCheckoutResp.body.messageCode, "StripeAmountTooSmall");
         });
     });
 

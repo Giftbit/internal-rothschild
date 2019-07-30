@@ -1330,9 +1330,9 @@ describe("/v2/transactions/transfer", () => {
                 chai.assert.equal(postSimulateTransferResp.statusCode, 409, `body=${JSON.stringify(postSimulateTransferResp.body)}`);
                 chai.assert.equal((postSimulateTransferResp.body as any).messageCode, "StripeAmountTooSmall", `body=${JSON.stringify(postSimulateTransferResp.body)}`);
 
-                const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
+                const postTransferResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", request);
                 chai.assert.equal(postTransferResp.statusCode, 409, `body=${JSON.stringify(postTransferResp.body)}`);
-                chai.assert.equal((postTransferResp.body as any).messageCode, "StripeAmountTooSmall", `body=${JSON.stringify(postTransferResp.body)}`);
+                chai.assert.equal(postTransferResp.body.messageCode, "StripeAmountTooSmall", `body=${JSON.stringify(postTransferResp.body)}`);
             });
 
             it("accepts Stripe charges at the minimum", async () => {
@@ -1363,7 +1363,33 @@ describe("/v2/transactions/transfer", () => {
                 }
             });
 
-            it("can be configured for a different minAmount", async () => {
+            it("can be configured for a lower minAmount (which Stripe may actually accept depending upon the settlement currency)", async () => {
+                const request: TransferRequest = {
+                    id: generateId(),
+                    currency: "CAD",
+                    amount: 49,
+                    source: {
+                        rail: "stripe",
+                        source: "tok_visa",
+                        minAmount: 48
+                    },
+                    destination: {
+                        rail: "lightrail",
+                        valueId: valueCadForStripeTests.id
+                    }
+                };
+
+                const postSimulateTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
+                    ...request,
+                    simulate: true
+                });
+                chai.assert.equal(postSimulateTransferResp.statusCode, 200, `body=${JSON.stringify(postSimulateTransferResp.body)}`);
+                chai.assert.equal((postSimulateTransferResp.body.steps.find(step => step.rail === "lightrail") as LightrailTransactionStep).balanceChange, 49);
+
+                // Not sent to Stripe because it will treat CAD as the settlement currency so $0.50 min is actually correct.
+            });
+
+            it("can be configured for a higher minAmount", async () => {
                 const request: TransferRequest = {
                     id: generateId(),
                     currency: "CAD",
@@ -1386,9 +1412,9 @@ describe("/v2/transactions/transfer", () => {
                 chai.assert.equal(postSimulateTransferResp.statusCode, 409, `body=${JSON.stringify(postSimulateTransferResp.body)}`);
                 chai.assert.equal((postSimulateTransferResp.body as any).messageCode, "StripeAmountTooSmall", `body=${JSON.stringify(postSimulateTransferResp.body)}`);
 
-                const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
+                const postTransferResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", request);
                 chai.assert.equal(postTransferResp.statusCode, 409, `body=${JSON.stringify(postTransferResp.body)}`);
-                chai.assert.equal((postTransferResp.body as any).messageCode, "StripeAmountTooSmall", `body=${JSON.stringify(postTransferResp.body)}`);
+                chai.assert.equal(postTransferResp.body.messageCode, "StripeAmountTooSmall", `body=${JSON.stringify(postTransferResp.body)}`);
             });
 
             it("does not support forgiveSubMinCharges=true", async () => {
