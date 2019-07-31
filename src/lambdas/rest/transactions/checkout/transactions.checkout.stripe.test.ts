@@ -1223,7 +1223,7 @@ describe("split tender checkout with Stripe", () => {
                     {
                         rail: "stripe",
                         source: source,
-                        forgiveSubMinCharges: true
+                        forgiveSubMinAmount: true
                     }
                 ],
                 lineItems: [
@@ -1293,7 +1293,7 @@ describe("split tender checkout with Stripe", () => {
                     {
                         rail: "stripe",
                         source: source,
-                        forgiveSubMinCharges: true
+                        forgiveSubMinAmount: true
                     }
                 ],
                 lineItems: [

@@ -74,8 +74,8 @@ export function createTransferTransactionPlan(req: TransferRequest, steps: Trans
     } else if (steps.sourceStep.rail === "stripe") {
         const sourceStep = steps.sourceStep as StripeChargeTransactionPlanStep;
 
-        if (sourceStep.forgiveSubMinCharges) {
-            throw new giftbitRoutes.GiftbitRestError(422, `The Stripe source parameter 'forgiveSubMinCharges' is not supported on transfer transactions.`);
+        if (sourceStep.forgiveSubMinAmount) {
+            throw new giftbitRoutes.GiftbitRestError(422, `The Stripe source parameter 'forgiveSubMinAmount' is not supported on transfer transactions.`);
         }
         if (!req.allowRemainder && sourceStep.maxAmount != null && req.amount > sourceStep.maxAmount) {
             throw new giftbitRoutes.GiftbitRestError(409, `The transfer amount ${req.amount} is greater than the Stripe source 'maxAmount' of ${sourceStep.maxAmount}.`, "StripeAmountTooLarge");
