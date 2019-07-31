@@ -65,7 +65,7 @@ export interface StripeChargeTransactionPlanStep {
     customer?: string;
     maxAmount: number | null;
     minAmount: number;
-    forgiveSubMinCharges: boolean;
+    forgiveSubMinAmount: boolean;
     amount: number;
     additionalStripeParams: AdditionalStripeChargeParams | null;
 

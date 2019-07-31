@@ -1417,7 +1417,7 @@ describe("/v2/transactions/transfer", () => {
                 chai.assert.equal(postTransferResp.body.messageCode, "StripeAmountTooSmall", `body=${JSON.stringify(postTransferResp.body)}`);
             });
 
-            it("does not support forgiveSubMinCharges=true", async () => {
+            it("does not support forgiveSubMinAmount=true", async () => {
                 const request: TransferRequest = {
                     id: generateId(),
                     currency: "CAD",
@@ -1425,7 +1425,7 @@ describe("/v2/transactions/transfer", () => {
                     source: {
                         rail: "stripe",
                         source: "tok_visa",
-                        forgiveSubMinCharges: true
+                        forgiveSubMinAmount: true
                     },
                     destination: {
                         rail: "lightrail",

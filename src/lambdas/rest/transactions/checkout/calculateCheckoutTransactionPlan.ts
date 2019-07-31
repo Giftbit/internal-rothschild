@@ -174,8 +174,8 @@ function adjustStripeSubMinChargeSteps(checkoutRequest: CheckoutRequest, transac
                     transactionPlan.totals.remainder -= step.amount;
                     transactionPlan.totals.paidStripe += step.amount;
                     step.amount = 0;
-                } else if (step.forgiveSubMinCharges) {
-                    // forgiveSubMinCharges takes second priority and converts the amount to forgiven.
+                } else if (step.forgiveSubMinAmount) {
+                    // forgiveSubMinAmount takes second priority and converts the amount to forgiven.
                     transactionPlan.totals.forgiven -= step.amount;
                     transactionPlan.totals.paidStripe += step.amount;
                     step.amount = 0;
@@ -183,7 +183,7 @@ function adjustStripeSubMinChargeSteps(checkoutRequest: CheckoutRequest, transac
                     // It's a 409 to be consistent with the InsufficientBalance error.
                     throw new cassava.RestError(
                         409,
-                        `The transaction cannot be processed because it contains a Stripe charge (${-step.amount}) below the minimum (${step.minAmount}).  Please see the documentation on \`allowRemainder\` and \`source.forgiveSubMinCharges\` or create a fee to raise the total charge.`,
+                        `The transaction cannot be processed because it contains a Stripe charge (${-step.amount}) below the minimum (${step.minAmount}).  Please see the documentation on \`allowRemainder\` and \`source.forgiveSubMinAmount\` or create a fee to raise the total charge.`,
                         {
                             messageCode: "StripeAmountTooSmall",
                             amount: -step.amount,
