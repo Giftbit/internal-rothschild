@@ -71,7 +71,7 @@ export interface StripeTransactionParty {
     customer?: string;
     maxAmount?: number;
     minAmount?: number;
-    forgiveSubMinCharges?: boolean;
+    forgiveSubMinAmount?: boolean;
     additionalStripeParams?: AdditionalStripeChargeParams;
 }
 
@@ -199,7 +199,7 @@ export namespace transactionPartySchema {
                 type: "integer",
                 minimum: 0
             },
-            forgiveSubMinCharges: {
+            forgiveSubMinAmount: {
                 type: "boolean"
             },
             additionalStripeParams: {
