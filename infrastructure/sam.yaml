@@ -57,52 +57,52 @@ Resources:
       CidrBlock: !Sub "10.${VpcUniqueNumber}.0.0/16"
       EnableDnsHostnames: true
       Tags:
-        # A lot of these resources have Name tags because they show up in the web console
-        - Key: Name
-          Value: !Sub "${AWS::StackName}"
-        - Key: Service
-          Value: Rothschild
+      # A lot of these resources have Name tags because they show up in the web console
+      - Key: Name
+        Value: !Sub "${AWS::StackName}"
+      - Key: Service
+        Value: Rothschild
   DbSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Database ingress
       VpcId: !Ref VPC
       SecurityGroupIngress:
-        - # Listen to lambdas on the default port
-          IpProtocol: tcp
-          FromPort: 3306
-          ToPort: 3306
-          SourceSecurityGroupId: !GetAtt LambdaSecurityGroup.GroupId
-        - # Listen to bastion host on the default port
-          IpProtocol: tcp
-          FromPort: 3306
-          ToPort: 3306
-          SourceSecurityGroupId: !GetAtt BastionHostSecurityGroup.GroupId
+      - # Listen to lambdas on the default port
+        IpProtocol: tcp
+        FromPort: 3306
+        ToPort: 3306
+        SourceSecurityGroupId: !GetAtt LambdaSecurityGroup.GroupId
+      - # Listen to bastion host on the default port
+        IpProtocol: tcp
+        FromPort: 3306
+        ToPort: 3306
+        SourceSecurityGroupId: !GetAtt BastionHostSecurityGroup.GroupId
       SecurityGroupEgress:
-        # No outgoing traffic except localhost
-        - CidrIp: 127.0.0.1/32
-          IpProtocol: "-1"
+      # No outgoing traffic except localhost
+      - CidrIp: 127.0.0.1/32
+        IpProtocol: "-1"
       Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName} db security group"
-        - Key: Service
-          Value: Rothschild
+      - Key: Name
+        Value: !Sub "${AWS::StackName} db security group"
+      - Key: Service
+        Value: Rothschild
   LambdaSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Lambda egress
       VpcId: !Ref VPC
       SecurityGroupEgress:
-        # All outgoing TCP traffic is ok
-        - FromPort: 0
-          ToPort: 65535
-          IpProtocol: tcp
-          CidrIp: 0.0.0.0/0
+      # All outgoing TCP traffic is ok
+      - FromPort: 0
+        ToPort: 65535
+        IpProtocol: tcp
+        CidrIp: 0.0.0.0/0
       Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName} lambda security group"
-        - Key: Service
-          Value: Rothschild
+      - Key: Name
+        Value: !Sub "${AWS::StackName} lambda security group"
+      - Key: Service
+        Value: Rothschild
 
   # Private subnet is where our DB and lambdas live
   SubnetPrivateA:
@@ -112,10 +112,10 @@ Resources:
       CidrBlock: !Sub "10.${VpcUniqueNumber}.11.0/24"
       AvailabilityZone: !Sub "${AWS::Region}a"
       Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName} private a"
-        - Key: Service
-          Value: Rothschild
+      - Key: Name
+        Value: !Sub "${AWS::StackName} private a"
+      - Key: Service
+        Value: Rothschild
   SubnetPrivateB:
     Type: AWS::EC2::Subnet
     Properties:
@@ -123,10 +123,10 @@ Resources:
       CidrBlock: !Sub "10.${VpcUniqueNumber}.12.0/24"
       AvailabilityZone: !Sub "${AWS::Region}b"
       Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName} private b"
-        - Key: Service
-          Value: Rothschild
+      - Key: Name
+        Value: !Sub "${AWS::StackName} private b"
+      - Key: Service
+        Value: Rothschild
   SubnetPrivateC:
     Type: AWS::EC2::Subnet
     Properties:
@@ -134,25 +134,25 @@ Resources:
       CidrBlock: !Sub "10.${VpcUniqueNumber}.13.0/24"
       AvailabilityZone: !Sub "${AWS::Region}c"
       Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName} private c"
-        - Key: Service
-          Value: Rothschild
+      - Key: Name
+        Value: !Sub "${AWS::StackName} private c"
+      - Key: Service
+        Value: Rothschild
   PrivateSubnetRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
       Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName} private"
-        - Key: Service
-          Value: Rothschild
+      - Key: Name
+        Value: !Sub "${AWS::StackName} private"
+      - Key: Service
+        Value: Rothschild
   PrivateSubnetRouting:
     Type: AWS::EC2::Route
     DependsOn:
-      - PrivateSubnetARouteTableAssociation
-      - PrivateSubnetBRouteTableAssociation
-      - PrivateSubnetCRouteTableAssociation
+    - PrivateSubnetARouteTableAssociation
+    - PrivateSubnetBRouteTableAssociation
+    - PrivateSubnetCRouteTableAssociation
     Properties:
       RouteTableId: !Ref PrivateSubnetRouteTable
       DestinationCidrBlock: 0.0.0.0/0
@@ -178,10 +178,10 @@ Resources:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName}"
-        - Key: Service
-          Value: Rothschild
+      - Key: Name
+        Value: !Sub "${AWS::StackName}"
+      - Key: Service
+        Value: Rothschild
   InternetGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
@@ -197,10 +197,10 @@ Resources:
       AllocationId: !GetAtt NatElasticIP.AllocationId
       SubnetId: !Ref NatExitSubnet  # <- the nat goes out through NatExitSubnet
       Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName}"
-        - Key: Service
-          Value: Rothschild
+      - Key: Name
+        Value: !Sub "${AWS::StackName}"
+      - Key: Service
+        Value: Rothschild
   NatExitSubnet:
     Type: AWS::EC2::Subnet
     Properties:
@@ -209,23 +209,23 @@ Resources:
       AvailabilityZone: !Sub "${AWS::Region}b"
       MapPublicIpOnLaunch: true
       Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName} nat exit"
-        - Key: Service
-          Value: Rothschild
+      - Key: Name
+        Value: !Sub "${AWS::StackName} nat exit"
+      - Key: Service
+        Value: Rothschild
   NatExitRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
       Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName} nat exit"
-        - Key: Service
-          Value: Rothschild
+      - Key: Name
+        Value: !Sub "${AWS::StackName} nat exit"
+      - Key: Service
+        Value: Rothschild
   NatExitRouting:
     Type: AWS::EC2::Route
     DependsOn:
-      - NatExitRouteTableAssociation
+    - NatExitRouteTableAssociation
     Properties:
       RouteTableId: !Ref NatExitRouteTable
       DestinationCidrBlock: 0.0.0.0/0
@@ -246,22 +246,22 @@ Resources:
       MemorySize: 128
       Timeout: 60 # seconds, 300 max
       Policies:
-        - AWSLambdaBasicExecutionRole
-        - Version: 2012-10-17
-          Statement:
-            - Effect: Allow
-              Action:
-                - ssm:PutParameter
-                - ssm:DeleteParameter
-                - ssm:DeleteParameters
-              Resource:
-                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}-*"
-            - Effect: Allow
-              Action:
-                - kms:DescribeKey
-                - kms:Encrypt
-              Resource:
-                - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
+      - AWSLambdaBasicExecutionRole
+      - Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action:
+          - ssm:PutParameter
+          - ssm:DeleteParameter
+          - ssm:DeleteParameters
+          Resource:
+          - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}-*"
+        - Effect: Allow
+          Action:
+          - kms:DescribeKey
+          - kms:Encrypt
+          Resource:
+          - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
       Tags:
         ShortName: CredentialGenFunction
         Service: Rothschild
@@ -284,12 +284,12 @@ Resources:
     Properties:
       DBSubnetGroupDescription: !Sub "${AWS::StackName} database subnet group"
       SubnetIds:
-        - !Ref SubnetPrivateA
-        - !Ref SubnetPrivateB
-        - !Ref SubnetPrivateC
+      - !Ref SubnetPrivateA
+      - !Ref SubnetPrivateB
+      - !Ref SubnetPrivateC
       Tags:
-        - Key: Service
-          Value: Rothschild
+      - Key: Service
+        Value: Rothschild
   DbClusterParameterGroup:
     Type: AWS::RDS::DBClusterParameterGroup
     Properties:
@@ -298,8 +298,8 @@ Resources:
       Parameters:
         innodb_strict_mode: 1
       Tags:
-        - Key: Service
-          Value: Rothschild
+      - Key: Service
+        Value: Rothschild
   DbCluster:
     Type: AWS::RDS::DBCluster
     Properties:
@@ -315,10 +315,10 @@ Resources:
       DBSubnetGroupName: !Ref DbSubnetGroup
       DBClusterParameterGroupName: !Ref DbClusterParameterGroup
       VpcSecurityGroupIds:
-        - !Ref DbSecurityGroup
+      - !Ref DbSecurityGroup
       Tags:
-        - Key: Service
-          Value: Rothschild
+      - Key: Service
+        Value: Rothschild
     DeletionPolicy: Snapshot
   DbInstanceParameterGroup:
     Type: AWS::RDS::DBParameterGroup
@@ -329,19 +329,19 @@ Resources:
         sql_mode: IGNORE_SPACE,STRICT_TRANS_TABLES
         slow_query_log: 1
       Tags:
-        - Key: Service
-          Value: Rothschild
+      - Key: Service
+        Value: Rothschild
   DbPrimaryInstance:
     Type: AWS::RDS::DBInstance
     Properties:
       Engine: aurora
       DBClusterIdentifier: !Ref DbCluster
-      DBInstanceClass: !If [HighCapacity, db.r4.large, db.t2.medium]
+      DBInstanceClass: !If [HighCapacity, db.r4.xlarge, db.t2.medium]
       DBSubnetGroupName: !Ref DbSubnetGroup
       DBParameterGroupName: !Ref DbInstanceParameterGroup
       Tags:
-        - Key: Service
-          Value: Rothschild
+      - Key: Service
+        Value: Rothschild
 
   # Bastion host access to RDS
   BastionHostInstance:
@@ -352,7 +352,7 @@ Resources:
       InstanceType: t2.nano
       SubnetId: !Ref NatExitSubnet
       SecurityGroupIds:
-        - !Ref BastionHostSecurityGroup
+      - !Ref BastionHostSecurityGroup
       IamInstanceProfile: !Ref BastionHostInstanceProfile
       UserData: !Base64 |
         #!/bin/bash
@@ -373,44 +373,44 @@ Resources:
           ./install.sh
         fi
       Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName} Bastion Host"
-        - Key: Service
-          Value: Rothschild
-        - Key: AuthorizedUsersGroup # SSH IAM Login scripts will use this to grant or deny access
-          Value: !Ref BastionHostAuthorizedUsersGroup
+      - Key: Name
+        Value: !Sub "${AWS::StackName} Bastion Host"
+      - Key: Service
+        Value: Rothschild
+      - Key: AuthorizedUsersGroup # SSH IAM Login scripts will use this to grant or deny access
+        Value: !Ref BastionHostAuthorizedUsersGroup
   BastionHostRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
+        - Effect: Allow
+          Action:
+          - sts:AssumeRole
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+      Policies:
+      - PolicyName: ReadGroupsAndSSHPublicKeys
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
           - Effect: Allow
             Action:
-              - sts:AssumeRole
-            Principal:
-              Service:
-                - ec2.amazonaws.com
-      Policies:
-        - PolicyName: ReadGroupsAndSSHPublicKeys
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Effect: Allow
-                Action:
-                  - iam:GetGroup
-                  - iam:ListSSHPublicKeys
-                  - iam:GetSSHPublicKey
-                  - ec2:DescribeTags
-                Resource: "*"
+            - iam:GetGroup
+            - iam:ListSSHPublicKeys
+            - iam:GetSSHPublicKey
+            - ec2:DescribeTags
+            Resource: "*"
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM
+      - arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM
   BastionHostInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Path: /
       Roles:
-        - !Ref BastionHostRole
+      - !Ref BastionHostRole
   BastionHostElasticIP:
     Type: AWS::EC2::EIP
     Properties:
@@ -423,20 +423,20 @@ Resources:
       GroupDescription: !Sub "${AWS::StackName} Bastion Host for VPC ${VPC}"
       VpcId: !Ref VPC
       SecurityGroupIngress:
-        - # Access from the Giftbit office
-          FromPort: 22
-          ToPort: 22
-          IpProtocol: tcp
-          CidrIp: 184.69.186.114/32
+      - # Access from the Giftbit office
+        FromPort: 22
+        ToPort: 22
+        IpProtocol: tcp
+        CidrIp: 184.69.186.114/32
       SecurityGroupEgress:
-        - # Outgoing TCP internet access
-          FromPort: 0
-          ToPort: 65535
-          IpProtocol: tcp
-          CidrIp: 0.0.0.0/0
+      - # Outgoing TCP internet access
+        FromPort: 0
+        ToPort: 65535
+        IpProtocol: tcp
+        CidrIp: 0.0.0.0/0
       Tags:
-        - Key: Name
-          Value: !Sub "${AWS::StackName} bastion host security group"
+      - Key: Name
+        Value: !Sub "${AWS::StackName} bastion host security group"
 
   StripeEventWebhookFunction:
     Type: AWS::Serverless::Function
@@ -461,47 +461,47 @@ Resources:
           SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY: code_cryptography_secrets.json
       VpcConfig:
         SecurityGroupIds:
-          - !GetAtt LambdaSecurityGroup.GroupId
+        - !GetAtt LambdaSecurityGroup.GroupId
         SubnetIds:
-          - !Ref SubnetPrivateA
-          - !Ref SubnetPrivateB
-          - !Ref SubnetPrivateC
+        - !Ref SubnetPrivateA
+        - !Ref SubnetPrivateB
+        - !Ref SubnetPrivateC
       Policies:
-        - AWSLambdaVPCAccessExecutionRole
-        - Version: 2012-10-17
-          Statement:
-            - Effect: Allow
-              Action:
-                - ssm:GetParameter
-                - ssm:GetParameters
-              Resource:
-                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DbCredentials.PasswordParameter}"
-            - Effect: Allow
-              Action:
-                - kms:Decrypt
-                - kms:DescribeKey
-              Resource:
-                - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
-            - Effect: Allow
-              Action:
-                - s3:GetObject
-              Resource:
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/stripe_connect.json"
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeRetrieveStripeAuth.json"
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/code_cryptography_secrets.json"
-            - Effect: Allow
-              Action:
-                - kms:Decrypt
-                - kms:DescribeKey
-              Resource:
-                - !Ref SecureConfigKmsArn
-              Condition:
-                StringLike:
-                  "kms:ViaService":
-                    !Sub "s3.${AWS::Region}.amazonaws.com"
-                  "kms:EncryptionContext:aws:s3:arn":
-                    !Sub "arn:aws:s3:::${SecureConfigBucket}/*"
+      - AWSLambdaVPCAccessExecutionRole
+      - Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action:
+          - ssm:GetParameter
+          - ssm:GetParameters
+          Resource:
+          - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DbCredentials.PasswordParameter}"
+        - Effect: Allow
+          Action:
+          - kms:Decrypt
+          - kms:DescribeKey
+          Resource:
+          - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
+        - Effect: Allow
+          Action:
+          - s3:GetObject
+          Resource:
+          - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
+          - !Sub "arn:aws:s3:::${SecureConfigBucket}/stripe_connect.json"
+          - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeRetrieveStripeAuth.json"
+          - !Sub "arn:aws:s3:::${SecureConfigBucket}/code_cryptography_secrets.json"
+        - Effect: Allow
+          Action:
+          - kms:Decrypt
+          - kms:DescribeKey
+          Resource:
+          - !Ref SecureConfigKmsArn
+          Condition:
+            StringLike:
+              "kms:ViaService":
+                !Sub "s3.${AWS::Region}.amazonaws.com"
+              "kms:EncryptionContext:aws:s3:arn":
+                !Sub "arn:aws:s3:::${SecureConfigBucket}/*"
       Tags:
         ShortName: StripeEventWebhookFunction
         Service: Rothschild
@@ -520,7 +520,7 @@ Resources:
       Runtime: nodejs8.10
       MemorySize: 512
       Timeout: 180 # seconds, 900 max
-      ReservedConcurrentExecutions: 100
+      ReservedConcurrentExecutions: 150
       Environment:
         Variables:
           DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
@@ -540,51 +540,51 @@ Resources:
           SECURE_CONFIG_KEY_STRIPE: stripe_connect.json
       VpcConfig:
         SecurityGroupIds:
-          - !GetAtt LambdaSecurityGroup.GroupId
+        - !GetAtt LambdaSecurityGroup.GroupId
         SubnetIds:
-          - !Ref SubnetPrivateA
-          - !Ref SubnetPrivateB
-          - !Ref SubnetPrivateC
+        - !Ref SubnetPrivateA
+        - !Ref SubnetPrivateB
+        - !Ref SubnetPrivateC
       Policies:
-        - AWSLambdaVPCAccessExecutionRole
-        - Version: 2012-10-17
-          Statement:
-            - Effect: Allow
-              Action:
-                - ssm:GetParameter
-                - ssm:GetParameters
-              Resource:
-                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DbCredentials.PasswordParameter}"
-            - Effect: Allow
-              Action:
-                - kms:Decrypt
-                - kms:DescribeKey
-              Resource:
-                - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
-            - Effect: Allow
-              Action:
-                - s3:GetObject
-              Resource:
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/authentication_badge_key.json"
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/RoleDefinitions.json"
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/code_cryptography_secrets.json"
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/intercom_secrets.json"
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/stripe_connect.json"
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeRetrieveStripeAuth.json"
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeStorageScopeToken.json"
-            - Effect: Allow
-              Action:
-                - kms:Decrypt
-                - kms:DescribeKey
-              Resource:
-                - !Ref SecureConfigKmsArn
-              Condition:
-                StringLike:
-                  "kms:ViaService":
-                    !Sub "s3.${AWS::Region}.amazonaws.com"
-                  "kms:EncryptionContext:aws:s3:arn":
-                    !Sub "arn:aws:s3:::${SecureConfigBucket}/*"
+      - AWSLambdaVPCAccessExecutionRole
+      - Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action:
+          - ssm:GetParameter
+          - ssm:GetParameters
+          Resource:
+          - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DbCredentials.PasswordParameter}"
+        - Effect: Allow
+          Action:
+          - kms:Decrypt
+          - kms:DescribeKey
+          Resource:
+          - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
+        - Effect: Allow
+          Action:
+          - s3:GetObject
+          Resource:
+          - !Sub "arn:aws:s3:::${SecureConfigBucket}/authentication_badge_key.json"
+          - !Sub "arn:aws:s3:::${SecureConfigBucket}/RoleDefinitions.json"
+          - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
+          - !Sub "arn:aws:s3:::${SecureConfigBucket}/code_cryptography_secrets.json"
+          - !Sub "arn:aws:s3:::${SecureConfigBucket}/intercom_secrets.json"
+          - !Sub "arn:aws:s3:::${SecureConfigBucket}/stripe_connect.json"
+          - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeRetrieveStripeAuth.json"
+          - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeStorageScopeToken.json"
+        - Effect: Allow
+          Action:
+          - kms:Decrypt
+          - kms:DescribeKey
+          Resource:
+          - !Ref SecureConfigKmsArn
+          Condition:
+            StringLike:
+              "kms:ViaService":
+                !Sub "s3.${AWS::Region}.amazonaws.com"
+              "kms:EncryptionContext:aws:s3:arn":
+                !Sub "arn:aws:s3:::${SecureConfigBucket}/*"
       Tags:
         ShortName: RestFunction
         Service: Rothschild
@@ -620,45 +620,45 @@ Resources:
           SECURE_CONFIG_KEY_SENTRY: sentry_lambda_services.json
       VpcConfig:
         SecurityGroupIds:
-          - !GetAtt LambdaSecurityGroup.GroupId
+        - !GetAtt LambdaSecurityGroup.GroupId
         SubnetIds:
-          - !Ref SubnetPrivateA
-          - !Ref SubnetPrivateB
-          - !Ref SubnetPrivateC
+        - !Ref SubnetPrivateA
+        - !Ref SubnetPrivateB
+        - !Ref SubnetPrivateC
       Policies:
-        - AWSLambdaVPCAccessExecutionRole
-        - Version: 2012-10-17
-          Statement:
-            - Effect: Allow
-              Action:
-                - ssm:GetParameter
-                - ssm:GetParameters
-              Resource:
-                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DbCredentials.PasswordParameter}"
-            - Effect: Allow
-              Action:
-                - kms:Decrypt
-                - kms:DescribeKey
-              Resource:
-                - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
-            - Effect: Allow
-              Action:
-                - s3:GetObject
-              Resource:
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/code_cryptography_secrets.json"
-            - Effect: Allow
-              Action:
-                - kms:Decrypt
-                - kms:DescribeKey
-              Resource:
-                - !Ref SecureConfigKmsArn
-              Condition:
-                StringLike:
-                  "kms:ViaService":
-                    !Sub "s3.${AWS::Region}.amazonaws.com"
-                  "kms:EncryptionContext:aws:s3:arn":
-                    !Sub "arn:aws:s3:::${SecureConfigBucket}/*"
+      - AWSLambdaVPCAccessExecutionRole
+      - Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action:
+          - ssm:GetParameter
+          - ssm:GetParameters
+          Resource:
+          - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DbCredentials.PasswordParameter}"
+        - Effect: Allow
+          Action:
+          - kms:Decrypt
+          - kms:DescribeKey
+          Resource:
+          - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
+        - Effect: Allow
+          Action:
+          - s3:GetObject
+          Resource:
+          - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
+          - !Sub "arn:aws:s3:::${SecureConfigBucket}/code_cryptography_secrets.json"
+        - Effect: Allow
+          Action:
+          - kms:Decrypt
+          - kms:DescribeKey
+          Resource:
+          - !Ref SecureConfigKmsArn
+          Condition:
+            StringLike:
+              "kms:ViaService":
+                !Sub "s3.${AWS::Region}.amazonaws.com"
+              "kms:EncryptionContext:aws:s3:arn":
+                !Sub "arn:aws:s3:::${SecureConfigBucket}/*"
       Tags:
         ShortName: AutomaticVoidFunction
         Service: Rothschild
@@ -672,8 +672,8 @@ Resources:
   PostDeployFunction:
     Type: AWS::Serverless::Function
     DependsOn:
-      - DbPrimaryInstance
-      - PrivateSubnetRouting
+    - DbPrimaryInstance
+    - PrivateSubnetRouting
     Properties:
       CodeUri: ../dist/postDeploy/postDeploy.zip
       Handler: index.handler
@@ -692,45 +692,45 @@ Resources:
           SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH: assumeRetrieveStripeAuth.json
       VpcConfig:
         SecurityGroupIds:
-          - !GetAtt LambdaSecurityGroup.GroupId
+        - !GetAtt LambdaSecurityGroup.GroupId
         SubnetIds:
-          - !Ref SubnetPrivateA
-          - !Ref SubnetPrivateB
-          - !Ref SubnetPrivateC
+        - !Ref SubnetPrivateA
+        - !Ref SubnetPrivateB
+        - !Ref SubnetPrivateC
       Policies:
-        - AWSLambdaVPCAccessExecutionRole
-        - Version: 2012-10-17
-          Statement:
-            - Effect: Allow
-              Action:
-                - ssm:GetParameter
-                - ssm:GetParameters
-              Resource:
-                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DbCredentials.PasswordParameter}"
-            - Effect: Allow
-              Action:
-                - kms:Decrypt
-                - kms:DescribeKey
-              Resource:
-                - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
-            - Effect: Allow
-              Action:
-                - kms:Decrypt
-                - kms:DescribeKey
-              Resource:
-                - !Ref SecureConfigKmsArn
-              Condition:
-                StringLike:
-                  "kms:ViaService":
-                    !Sub "s3.${AWS::Region}.amazonaws.com"
-                  "kms:EncryptionContext:aws:s3:arn":
-                    !Sub "arn:aws:s3:::${SecureConfigBucket}/*"
-            - Effect: Allow
-              Action:
-                - s3:GetObject
-              Resource:
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/stripe_connect.json"
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeRetrieveStripeAuth.json"
+      - AWSLambdaVPCAccessExecutionRole
+      - Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action:
+          - ssm:GetParameter
+          - ssm:GetParameters
+          Resource:
+          - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DbCredentials.PasswordParameter}"
+        - Effect: Allow
+          Action:
+          - kms:Decrypt
+          - kms:DescribeKey
+          Resource:
+          - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
+        - Effect: Allow
+          Action:
+          - kms:Decrypt
+          - kms:DescribeKey
+          Resource:
+          - !Ref SecureConfigKmsArn
+          Condition:
+            StringLike:
+              "kms:ViaService":
+                !Sub "s3.${AWS::Region}.amazonaws.com"
+              "kms:EncryptionContext:aws:s3:arn":
+                !Sub "arn:aws:s3:::${SecureConfigBucket}/*"
+        - Effect: Allow
+          Action:
+          - s3:GetObject
+          Resource:
+          - !Sub "arn:aws:s3:::${SecureConfigBucket}/stripe_connect.json"
+          - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeRetrieveStripeAuth.json"
       Tags:
         ShortName: PostDeployFunction
         Service: Rothschild
