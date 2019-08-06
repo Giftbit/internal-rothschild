@@ -336,7 +336,7 @@ Resources:
     Properties:
       Engine: aurora
       DBClusterIdentifier: !Ref DbCluster
-      DBInstanceClass: !If [HighCapacity, db.r4.large, db.t2.medium]
+      DBInstanceClass: !If [HighCapacity, db.r4.xlarge, db.t2.medium]
       DBSubnetGroupName: !Ref DbSubnetGroup
       DBParameterGroupName: !Ref DbInstanceParameterGroup
       Tags:
@@ -520,7 +520,7 @@ Resources:
       Runtime: nodejs8.10
       MemorySize: 512
       Timeout: 180 # seconds, 900 max
-      ReservedConcurrentExecutions: 100
+      ReservedConcurrentExecutions: 150
       Environment:
         Variables:
           DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
