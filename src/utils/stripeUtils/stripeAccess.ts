@@ -13,7 +13,6 @@ import {DbTransaction, Transaction} from "../../model/Transaction";
 import {getKnexRead} from "../dbUtils/connection";
 
 let assumeCheckoutToken: Promise<giftbitRoutes.secureConfig.AssumeScopeToken>;
-let lightrailMerchantAndStripeConfig: LightrailAndMerchantStripeConfig;
 
 export function initializeAssumeCheckoutToken(tokenPromise: Promise<giftbitRoutes.secureConfig.AssumeScopeToken>): void {
     assumeCheckoutToken = tokenPromise;
