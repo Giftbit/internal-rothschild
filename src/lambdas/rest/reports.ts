@@ -1,6 +1,6 @@
 import * as cassava from "cassava";
 import {RouterEvent} from "cassava";
-import {csvSerializer} from "../../serializers";
+import {csvSerializer} from "../../utils/serializers";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {getKnexRead} from "../../utils/dbUtils/connection";

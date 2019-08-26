@@ -4,7 +4,7 @@ import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../../model/Pagination";
 import {DbValue, formatCodeForLastFourDisplay, Value} from "../../../model/Value";
 import {pick} from "../../../utils/pick";
-import {csvSerializer} from "../../../serializers";
+import {csvSerializer} from "../../../utils/serializers";
 import {
     dateInDbPrecision,
     filterAndPaginateQuery,

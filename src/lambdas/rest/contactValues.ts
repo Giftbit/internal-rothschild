@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {getValue, getValueByCode, getValues, injectValueStats, updateValue, valueExists} from "./values/values";
-import {csvSerializer} from "../../serializers";
+import {csvSerializer} from "../../utils/serializers";
 import {Pagination} from "../../model/Pagination";
 import {DbValue, Value} from "../../model/Value";
 import {getContact, getContacts} from "./contacts";
@@ -178,8 +178,7 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         if (Value.isGenericCodeWithPropertiesPerContact(value)) {
             MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericPerContactProps, auth);
             return await attachGenericCodeWithPerContactOptions(auth, contact.id, value);
-        }
-        else if (params.attachGenericAsNewValue) /* legacy case to eventually be removed */ {
+        } else if (params.attachGenericAsNewValue) /* legacy case to eventually be removed */ {
             MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, auth);
             return await attachGenericValueAsNewValue(auth, contact.id, value);
         } else {

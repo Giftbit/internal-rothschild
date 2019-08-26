@@ -2,7 +2,7 @@ import * as awslambda from "aws-lambda";
 import * as childProcess from "child_process";
 import * as mysql from "mysql2/promise";
 import * as path from "path";
-import {sendCloudFormationResponse} from "../../sendCloudFormationResponse";
+import {sendCloudFormationResponse} from "../../utils/sendCloudFormationResponse";
 import {getDbCredentials} from "../../utils/dbUtils/connection";
 // Expands to an import of all files matching the glob using the import-glob-loader.
 // Copies the .sql files into the schema dir using the file-loader.

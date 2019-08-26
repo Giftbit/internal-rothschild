@@ -3,7 +3,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {DbProgram, Program} from "../../model/Program";
-import {csvSerializer} from "../../serializers";
+import {csvSerializer} from "../../utils/serializers";
 import {pick, pickOrDefault} from "../../utils/pick";
 import {
     dateInDbPrecision,
