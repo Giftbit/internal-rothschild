@@ -23,7 +23,6 @@ import {
 } from "../../../../utils/testUtils/stripeTestUtils";
 import {StripeRestError} from "../../../../utils/stripeUtils/StripeRestError";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
-import {getStripeClient} from "../../../../utils/stripeUtils/stripeAccess";
 import {createCustomer, retrieveCharge} from "../../../../utils/stripeUtils/stripeTransactions";
 import log = require("loglevel");
 import chaiExclude = require("chai-exclude");
@@ -32,7 +31,7 @@ import ICharge = Stripe.charges.ICharge;
 
 chai.use(chaiExclude);
 
-describe("split tender checkout with Stripe", () => {
+describe.only("split tender checkout with Stripe", () => {
     const router = new cassava.Router();
 
     const value: Partial<Value> = {
@@ -164,7 +163,7 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.deepEqual(getCheckoutResp.body, postCheckoutResp.body, `GET body=${JSON.stringify(getCheckoutResp.body, null, 4)}`);
     });
 
-    it.only("processes basic checkout with Stripe only - `customer` as payment source", async () => {
+    it("processes basic checkout with Stripe only - `customer` as payment source", async () => {
         const customer = await createCustomer({source: "tok_visa"}, true, stripeLiveMerchantConfig.stripeUserId);
 
         const request: CheckoutRequest = {
@@ -482,7 +481,7 @@ describe("split tender checkout with Stripe", () => {
         });
     });
 
-    it("writes metadata to both LR & Stripe transactions", async function () {   // oldschool function syntax: need 'this' in order to skip test if not running live
+    it("writes metadata to both LR & Stripe transactions", async function () {
         const request: CheckoutRequest = {
             id: generateId(),
             sources: [
@@ -524,7 +523,7 @@ describe("split tender checkout with Stripe", () => {
         });
 
         const stripeChargeId = (postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId;
-        const stripeCharge = await (await getStripeClient(true)).charges.retrieve(stripeChargeId);
+        const stripeCharge = await retrieveCharge(stripeChargeId, true, stripeLiveMerchantConfig.stripeUserId);
         chai.assert.deepEqual(stripeCharge.metadata, stripeStep.charge.metadata);
     }).timeout(10000);
 

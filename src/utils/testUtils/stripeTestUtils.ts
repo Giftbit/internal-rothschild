@@ -55,14 +55,8 @@ export function setStubsForStripeTests() {
         assumeToken: "this-is-an-assume-token"
     };
 
-    console.log("calling initializeAssumeCheckoutToken");
     initializeAssumeCheckoutToken(Promise.resolve(testAssumeToken));
 
-    console.log("calling initializeLightrailStripeConfig", {
-        email: "test@example.com",
-        test: stripeLiveLightrailConfig,
-        live: stripeLiveLightrailConfig
-    });
     initializeLightrailStripeConfig(Promise.resolve({
         email: "test@example.com",
         test: stripeLiveLightrailConfig,
