@@ -1,13 +1,11 @@
 import {StripeRestError} from "./StripeRestError";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {stripeApiVersion} from "./StripeConfig";
 import * as cassava from "cassava";
 import log = require("loglevel");
 import Stripe = require("stripe");
 
 export async function createCharge(params: Stripe.charges.IChargeCreationOptions, lightrailStripeSecretKey: string, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<Stripe.charges.ICharge> {
-    const lightrailStripe = new Stripe(lightrailStripeSecretKey);
-    lightrailStripe.setApiVersion(stripeApiVersion);
+    const lightrailStripe = getStripeClient(lightrailStripeSecretKey);
     log.info("Creating Stripe charge", params);
 
     try {
@@ -39,6 +37,8 @@ export async function createCharge(params: Stripe.charges.IChargeCreationOptions
                     throw new StripeRestError(cassava.httpStatusCode.clientError.CONFLICT, `Failed to charge credit card: amount '${params.amount}' for Stripe was too small.`, "StripeAmountTooSmall", err);
                 }
                 throw new StripeRestError(cassava.httpStatusCode.clientError.CONFLICT, "The stripeCardToken was invalid.", "StripeInvalidRequestError", err);
+            case "StripeRateLimitError":
+                throw new StripeRestError(cassava.httpStatusCode.clientError.TOO_MANY_REQUESTS, err.message, "StripeRateLimitError", err);
             default:
                 throw err;
         }
@@ -46,8 +46,7 @@ export async function createCharge(params: Stripe.charges.IChargeCreationOptions
 }
 
 export async function createRefund(params: Stripe.refunds.IRefundCreationOptionsWithCharge, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<Stripe.refunds.IRefund> {
-    const lightrailStripe = new Stripe(lightrailStripeSecretKey);
-    lightrailStripe.setApiVersion(stripeApiVersion);
+    const lightrailStripe = getStripeClient(lightrailStripeSecretKey);
     log.info("Creating refund for Stripe charge", params.charge);
     try {
         const refund = await lightrailStripe.refunds.create(params, {
@@ -81,8 +80,7 @@ export async function createRefund(params: Stripe.refunds.IRefundCreationOptions
 }
 
 export async function captureCharge(chargeId: string, options: Stripe.charges.IChargeCaptureOptions, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<Stripe.charges.ICharge> {
-    const lightrailStripe = new Stripe(lightrailStripeSecretKey);
-    lightrailStripe.setApiVersion(stripeApiVersion);
+    const lightrailStripe = getStripeClient(lightrailStripeSecretKey);
     log.info("Creating capture for Stripe charge", chargeId);
     try {
         const capturedCharge = await lightrailStripe.charges.capture(chargeId, options, {
@@ -107,8 +105,7 @@ export async function captureCharge(chargeId: string, options: Stripe.charges.IC
 }
 
 export async function updateCharge(chargeId: string, params: Stripe.charges.IChargeUpdateOptions, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<any> {
-    const lightrailStripe = new Stripe(lightrailStripeSecretKey);
-    lightrailStripe.setApiVersion(stripeApiVersion);
+    const lightrailStripe = getStripeClient(lightrailStripeSecretKey);
     log.info("Updating Stripe charge", params);
     try {
         const chargeUpdate = await lightrailStripe.charges.update(
@@ -128,8 +125,7 @@ export async function updateCharge(chargeId: string, params: Stripe.charges.ICha
 }
 
 export async function retrieveCharge(chargeId: string, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<Stripe.charges.ICharge> {
-    const lightrailStripe = new Stripe(lightrailStripeSecretKey);
-    lightrailStripe.setApiVersion(stripeApiVersion);
+    const lightrailStripe = getStripeClient(lightrailStripeSecretKey);
     log.info("Retrieving Stripe charge", chargeId);
     try {
         const charge = await lightrailStripe.charges.retrieve(chargeId, {stripe_account: merchantStripeAccountId});

@@ -2,7 +2,7 @@ import log = require("loglevel");
 import Stripe = require("stripe");
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
-import {LightrailAndMerchantStripeConfig, StripeConfig, StripeModeConfig} from "./StripeConfig";
+import {LightrailAndMerchantStripeConfig, stripeApiVersion, StripeConfig, StripeModeConfig} from "./StripeConfig";
 import {StripeAuth} from "./StripeAuth";
 import * as cassava from "cassava";
 import {httpStatusCode, RestError} from "cassava";
@@ -45,15 +45,26 @@ export function initializeLightrailStripeConfig(lightrailStripePromise: Promise<
 }
 
 /**
- * Get Stripe credentials for test or live mode.  Test mode credentials allow
+ * Get Stripe client for test or live mode.  Test mode clients allow
  * dummy credit cards and skip through stripe connect.
  * @param testMode whether to use test account credentials or live credentials
  */
-export async function getLightrailStripeModeConfig(testMode: boolean): Promise<StripeModeConfig> {
+export async function getStripeClient(testMode: boolean): Promise<Stripe> {
     if (!lightrailStripeConfig) {
         throw new Error("lightrailStripeConfig has not been initialized.");
     }
-    return testMode ? (await lightrailStripeConfig).test : (await lightrailStripeConfig).live;
+    const stripeConfig = process.env["TEST_ENV"] || testMode ? (await lightrailStripeConfig).test : (await lightrailStripeConfig).live;
+
+    let client: Stripe;
+    if (process.env["TEST_STRIPE_LOCAL"] === "true") {
+        log.debug("Using local Stripe server http://localhost:8000");
+        client = new Stripe(stripeConfig.secretKey);
+        client.setHost("localhost", 8000, "http");
+    } else {
+        client = new Stripe(stripeConfig.secretKey);
+    }
+    client.setApiVersion(stripeApiVersion);
+    return client;
 }
 
 function validateStripeConfig(merchantStripeConfig: StripeAuth, lightrailStripeConfig: StripeModeConfig) {

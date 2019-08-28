@@ -1,7 +1,6 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as kvsAccess from "../kvsAccess";
 import * as sinon from "sinon";
-import * as stripe from "stripe";
 import {createUSDCheckout, defaultTestUser} from "./index";
 import * as stripeTransactions from "../stripeUtils/stripeTransactions";
 import {
@@ -16,6 +15,7 @@ import {Transaction} from "../../model/Transaction";
 import * as chai from "chai";
 import * as cassava from "cassava";
 import {Value} from "../../model/Value";
+import stripe = require("stripe");
 import log = require("loglevel");
 
 if (testStripeLive()) {
@@ -102,7 +102,7 @@ export function unsetStubsForStripeTests() {
 }
 
 export function testStripeLive(): boolean {
-    return !!process.env["TEST_STRIPE_LIVE"];
+    return process.env["TEST_STRIPE_LOCAL"] !== "true";
 }
 
 export interface GenerateStripeChargeResponseOptions {
@@ -427,26 +427,6 @@ export function stubCheckoutStripeError(request: CheckoutRequest, stripeSourceIx
             capture: !request.pending,
             source: stripeSource.source,
             customer: stripeSource.customer
-        })
-        .rejects(error);
-}
-
-export function stubTransferStripeError(request: TransferRequest, error: StripeRestError): void {
-    if (testStripeLive()) {
-        return;
-    }
-
-    if (request.source.rail !== "stripe") {
-        throw new Error(`Checkout request source is not a stripe source.`);
-    }
-
-    getStripeChargeStub(
-        {
-            transactionId: request.id,
-            currency: request.currency,
-            capture: !request.pending,
-            source: request.source.source,
-            customer: request.source.customer
         })
         .rejects(error);
 }

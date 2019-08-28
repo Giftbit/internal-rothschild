@@ -17,15 +17,13 @@ import {
     setStubsForStripeTests,
     stripeLiveLightrailConfig,
     stripeLiveMerchantConfig,
-    stubCheckoutStripeCharge,
     stubCheckoutStripeError,
-    stubNoStripeCharge,
-    stubStripeRefund,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
 import {StripeRestError} from "../../../../utils/stripeUtils/StripeRestError";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
+import {getStripeClient, retrieveCharge} from "../../../../utils/stripeUtils/stripeTransactions";
 import log = require("loglevel");
 import chaiExclude = require("chai-exclude");
 import Stripe = require("stripe");
@@ -35,7 +33,7 @@ chai.use(chaiExclude);
 
 require("dotenv").config();
 
-describe("split tender checkout with Stripe", () => {
+describe.only("split tender checkout with Stripe", () => {
     const router = new cassava.Router();
 
     const value: Partial<Value> = {
@@ -117,7 +115,6 @@ describe("split tender checkout with Stripe", () => {
             currency: "CAD"
         };
 
-        const [stripeResponse] = stubCheckoutStripeCharge(request, 0, 123);
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
 
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
@@ -163,23 +160,23 @@ describe("split tender checkout with Stripe", () => {
             source: "tok_visa",
         }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
 
-        if (!testStripeLive()) {
-            chai.assert.equal((postCheckoutResp.body.steps[0] as StripeTransactionStep).chargeId, stripeResponse.id);
-            chai.assert.deepEqual((postCheckoutResp.body.steps[0] as StripeTransactionStep).charge, stripeResponse, `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
-        }
-
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
         chai.assert.deepEqual(getCheckoutResp.body, postCheckoutResp.body, `GET body=${JSON.stringify(getCheckoutResp.body, null, 4)}`);
     });
 
-    it("processes basic checkout with Stripe only - `customer` as payment source", async () => {
+    it.only("processes basic checkout with Stripe only - `customer` as payment source", async () => {
+        const customer = await getStripeClient("").customers.create({
+            source: "tok_visa"
+        });
+        const customerId = customer.id;
+
         const request: CheckoutRequest = {
             id: generateId(),
             sources: [
                 {
                     rail: "stripe",
-                    customer: stripeLiveMerchantConfig.customer.id
+                    customer: customerId
                 }
             ],
             lineItems: [
@@ -192,7 +189,6 @@ describe("split tender checkout with Stripe", () => {
             currency: "CAD"
         };
 
-        const [exampleStripeResponse] = stubCheckoutStripeCharge(request, 0, 123);
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
 
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
@@ -235,13 +231,8 @@ describe("split tender checkout with Stripe", () => {
         ], ["chargeId", "charge"], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
         chai.assert.deepEqual(postCheckoutResp.body.paymentSources[0], {
             rail: "stripe",
-            customer: stripeLiveMerchantConfig.customer.id,
+            customer: customerId,
         }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
-
-        if (!testStripeLive()) {
-            chai.assert.equal((postCheckoutResp.body.steps[0] as StripeTransactionStep).chargeId, exampleStripeResponse.id);
-            chai.assert.deepEqual((postCheckoutResp.body.steps[0] as StripeTransactionStep).charge, exampleStripeResponse, `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
-        }
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
@@ -305,7 +296,6 @@ describe("split tender checkout with Stripe", () => {
     });
 
     it("processes a basic split tender checkout", async () => {
-        const [exampleStripeResponse] = stubCheckoutStripeCharge(basicRequest, 1, 400);
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", basicRequest);
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.equal(postCheckoutResp.body.id, basicRequest.id);
@@ -366,11 +356,6 @@ describe("split tender checkout with Stripe", () => {
             source: "tok_visa",
         }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
 
-        if (!testStripeLive()) {
-            chai.assert.equal((postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId, exampleStripeResponse.id);
-            chai.assert.deepEqual((postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).charge, exampleStripeResponse, `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
-        }
-
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
         chai.assert.equal(getValueResp.body.balance, 0);
@@ -410,7 +395,6 @@ describe("split tender checkout with Stripe", () => {
             ],
             currency: "CAD"
         };
-        stubNoStripeCharge(request);
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.equal(postCheckoutResp.body.id, request.id);
@@ -522,7 +506,6 @@ describe("split tender checkout with Stripe", () => {
             metadata: {"meta": "data"}
         };
 
-        stubCheckoutStripeCharge(request, 0, 500);
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
 
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
@@ -537,29 +520,16 @@ describe("split tender checkout with Stripe", () => {
             "lightrailUserId": defaultTestUser.auth.userId
         });
 
-        if (testStripeLive()) {
-            chai.assert.deepEqual(stripeStep.charge.metadata, {
-                ...request.metadata,
-                lightrailTransactionId: request.id,
-                lightrailTransactionSources: "[]",
-                lightrailUserId: defaultTestUser.userId
-            });
-        } else {
-            chai.assert.deepEqualExcluding<Stripe.IMetadata>(stripeStep.charge.metadata, {
-                ...request.metadata,
-                lightrailTransactionSources: "[]",
-                lightrailUserId: defaultTestUser.userId
-            }, ["lightrailTransactionId"]);
-        }
+        chai.assert.deepEqual(stripeStep.charge.metadata, {
+            ...request.metadata,
+            lightrailTransactionId: request.id,
+            lightrailTransactionSources: "[]",
+            lightrailUserId: defaultTestUser.userId
+        });
 
-        if (testStripeLive()) {
-            const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
-            const stripeChargeId = (postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId;
-            const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                stripe_account: stripeLiveMerchantConfig.stripeUserId
-            });
-            chai.assert.deepEqual(stripeCharge.metadata, stripeStep.charge.metadata);
-        }
+        const stripeChargeId = (postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId;
+        const stripeCharge = await retrieveCharge(stripeChargeId, stripeLiveLightrailConfig.secretKey, stripeLiveMerchantConfig.stripeUserId);
+        chai.assert.deepEqual(stripeCharge.metadata, stripeStep.charge.metadata);
     }).timeout(10000);
 
     it("passes additionalStripeParams to Stripe", async () => {
@@ -606,28 +576,6 @@ describe("split tender checkout with Stripe", () => {
             currency: "CAD"
         };
 
-        stubCheckoutStripeCharge(request, 0, 500, {
-            description: "eee",
-            on_behalf_of: onBehalfOf,
-            receipt_email: "bbb@example.com",
-            shipping: {
-                address: {
-                    city: "Beverly Hills",
-                    country: "US",
-                    line1: "1675 E. Altadena Drive",
-                    line2: "",
-                    postal_code: "90210",
-                    state: "CA"
-
-                },
-                carrier: "",
-                name: "Henrietta",
-                phone: "",
-                tracking_number: "abc123"
-            },
-            statement_descriptor: "ccc",
-            transfer_group: "ddd"
-        });
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
 
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
@@ -656,14 +604,9 @@ describe("split tender checkout with Stripe", () => {
             tracking_number: "abc123"
         });
 
-        if (testStripeLive()) {
-            const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
-            const stripeChargeId = (postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId;
-            const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                stripe_account: stripeLiveMerchantConfig.stripeUserId
-            });
-            chai.assert.deepEqual(stripeCharge.metadata, stripeStep.charge.metadata);
-        }
+        const stripeChargeId = (postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId;
+        const stripeCharge = await retrieveCharge(stripeChargeId, stripeLiveLightrailConfig.secretKey, stripeLiveMerchantConfig.stripeUserId);
+        chai.assert.deepEqual(stripeCharge.metadata, stripeStep.charge.metadata);
     }).timeout(10000);
 
     it("does not charge Stripe when 'simulate: true'", async () => {
@@ -760,76 +703,19 @@ describe("split tender checkout with Stripe", () => {
         it("passes on the Stripe error", async () => {
             const request = {
                 ...basicRequest,
-                id: "bad_idempotent_key"
+                id: generateId()
             };
 
-            if (testStripeLive()) {
-                const stripeChargeRequest = {
-                    amount: 55,
-                    currency: "CAD",
-                    source: "tok_visa"
-                };
-                const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
-                await lightrailStripe.charges.create(stripeChargeRequest, {
-                    stripe_account: stripeLiveMerchantConfig.stripeUserId,
-                    idempotency_key: "bad_idempotent_key-0"
-                });
-            } else {
-                const exampleStripeError = {
-                    "type": "StripeIdempotencyError",
-                    "stack": "Error: Keys for idempotent requests can only be used with the same parameters they were first used with. Try using a key other than 'bad_idempotent_key-0' if you meant to execute a different request.\n    at Constructor._Error (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/Error.js:12:17)\n    at Constructor (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/utils.js:124:13)\n    at Constructor (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/utils.js:124:13)\n    at Function.StripeError.generate (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/Error.js:61:12)\n    at IncomingMessage.<anonymous> (/Users/tanajukes/code/v2/internal-rothschild/node_modules/stripe/lib/StripeResource.js:170:39)\n    at emitNone (events.js:110:20)\n    at IncomingMessage.emit (events.js:207:7)\n    at endReadableNT (_stream_readable.js:1059:12)\n    at _combinedTickCallback (internal/process/next_tick.js:138:11)\n    at process._tickDomainCallback (internal/process/next_tick.js:218:9)",
-                    "rawType": "idempotency_error",
-                    "message": "Keys for idempotent requests can only be used with the same parameters they were first used with. Try using a key other than 'bad_idempotent_key-0' if you meant to execute a different request.",
-                    "raw": {
-                        "message": "Keys for idempotent requests can only be used with the same parameters they were first used with. Try using a key other than 'bad_idempotent_key-0' if you meant to execute a different request.",
-                        "type": "idempotency_error",
-                        "headers": {
-                            "server": "nginx",
-                            "date": "Thu, 26 Jul 2018 23:46:18 GMT",
-                            "content-type": "application/json",
-                            "content-length": "243",
-                            "connection": "close",
-                            "access-control-allow-credentials": "true",
-                            "access-control-allow-methods": "GET, POST, HEAD, OPTIONS, DELETE",
-                            "access-control-allow-origin": "*",
-                            "access-control-expose-headers": "Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required",
-                            "access-control-max-age": "300",
-                            "cache-control": "no-cache, no-store",
-                            "idempotency-key": "bad_idempotent_key-0",
-                            "request-id": "req_pKaP2QTnOweLxJ",
-                            "stripe-account": "acct_1CfBBRG3cz9DRdBt",
-                            "stripe-version": "2018-05-21",
-                            "strict-transport-security": "max-age=31556926; includeSubDomains; preload"
-                        },
-                        "statusCode": 400,
-                        "requestId": "req_pKaP2QTnOweLxJ"
-                    },
-                    "headers": {
-                        "server": "nginx",
-                        "date": "Thu, 26 Jul 2018 23:46:18 GMT",
-                        "content-type": "application/json",
-                        "content-length": "243",
-                        "connection": "close",
-                        "access-control-allow-credentials": "true",
-                        "access-control-allow-methods": "GET, POST, HEAD, OPTIONS, DELETE",
-                        "access-control-allow-origin": "*",
-                        "access-control-expose-headers": "Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required",
-                        "access-control-max-age": "300",
-                        "cache-control": "no-cache, no-store",
-                        "idempotency-key": "bad_idempotent_key-0",
-                        "request-id": "req_pKaP2QTnOweLxJ",
-                        "stripe-account": "acct_1CfBBRG3cz9DRdBt",
-                        "stripe-version": "2018-05-21",
-                        "strict-transport-security": "max-age=31556926; includeSubDomains; preload"
-                    },
-                    "requestId": "req_pKaP2QTnOweLxJ",
-                    "statusCode": 400
-                };
-                const exampleErrorResponse = new StripeRestError(409, "Error for tests", null, exampleStripeError);
-
-                // getStripeChargeStub({transactionId: request.id}).rejects(exampleErrorResponse);
-                stubCheckoutStripeError(request, 1, exampleErrorResponse);
-            }
+            const stripeChargeRequest = {
+                amount: 55,
+                currency: "CAD",
+                source: "tok_visa"
+            };
+            const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
+            await lightrailStripe.charges.create(stripeChargeRequest, {
+                stripe_account: stripeLiveMerchantConfig.stripeUserId,
+                idempotency_key: "bad_idempotent_key-0"
+            });
 
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
             chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
@@ -846,7 +732,6 @@ describe("split tender checkout with Stripe", () => {
                 ...basicRequest,
                 id: generateId()
             };
-            stubNoStripeCharge(request);
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
             chai.assert.equal(postCheckoutResp.statusCode, 500, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
         }).timeout(10000);
@@ -882,8 +767,6 @@ describe("split tender checkout with Stripe", () => {
                 ],
                 currency: "CAD"
             };
-            const [exampleStripeCharge, stripeChargeStub] = stubCheckoutStripeCharge(request, 1, 400);
-            const [exampleStripeRefund, stripeRefundStub] = stubStripeRefund(exampleStripeCharge);
 
             // Non-replanable transaction errors bubble up to the router.
             sinonSandbox.stub(router, "errorHandler")
@@ -893,26 +776,6 @@ describe("split tender checkout with Stripe", () => {
 
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
             chai.assert.equal(postCheckoutResp.statusCode, 500, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
-
-            if (!testStripeLive()) {
-                chai.assert.deepEqual(stripeChargeStub.getCall(0).args[0], {
-                    "amount": 400,
-                    "currency": request.currency,
-                    "metadata": {
-                        "lightrailTransactionId": request.id,
-                        "lightrailTransactionSources": `[{\"rail\":\"lightrail\",\"valueId\":\"${value4.id}\"}]`,
-                        "lightrailUserId": "default-test-user-TEST"
-                    },
-                    "source": "tok_visa"
-                });
-                chai.assert.deepEqual(stripeRefundStub.getCall(0).args[0], {
-                    amount: 400,
-                    charge: exampleStripeCharge.id,
-                    metadata: {
-                        reason: "Refunded due to error on the Lightrail side."
-                    }
-                });
-            }
         }).timeout(10000);
 
         it("throws 409 'transaction already exists' if the Lightrail transaction fails for idempotency reasons", async () => {
@@ -923,7 +786,6 @@ describe("split tender checkout with Stripe", () => {
                 ...basicRequest,
                 id: generateId()  // needs to be generated for every test so the Stripe refund succeeds (charges use idempotency keys, refunds can't)
             };
-            stubNoStripeCharge(request);
 
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
             chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
@@ -1022,8 +884,6 @@ describe("split tender checkout with Stripe", () => {
             currency: "CAD"
         };
 
-        const [exampleStripeResponse1, stub0] = stubCheckoutStripeCharge(request, 1, 100);
-        const [exampleStripeResponse2, stub1] = stubCheckoutStripeCharge(request, 2, 300);
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.equal(postCheckoutResp.body.id, request.id);
@@ -1098,32 +958,6 @@ describe("split tender checkout with Stripe", () => {
             rail: "stripe",
             source: "tok_mastercard",
         }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
-
-        if (!testStripeLive()) {
-            chai.assert.deepEqual((postCheckoutResp.body.steps[1] as StripeTransactionStep).charge, exampleStripeResponse1);
-            chai.assert.deepEqual((postCheckoutResp.body.steps[2] as StripeTransactionStep).charge, exampleStripeResponse2);
-            // check that the stub was called with the right arguments, in the right order
-            chai.assert.deepEqual(stub0.getCall(0).args[0], {
-                "amount": 100,
-                "currency": request.currency,
-                "metadata": {
-                    "lightrailTransactionId": request.id,
-                    "lightrailTransactionSources": `[{\"rail\":\"lightrail\",\"valueId\":\"${value2.id}\"},{\"rail\":\"stripe\",\"source\":\"tok_mastercard\"}]`,
-                    "lightrailUserId": defaultTestUser.userId
-                },
-                "source": "tok_visa"
-            });
-            chai.assert.deepEqual(stub1.getCall(0).args[0], {
-                "amount": 300,
-                "currency": request.currency,
-                "metadata": {
-                    "lightrailTransactionId": request.id,
-                    "lightrailTransactionSources": `[{\"rail\":\"lightrail\",\"valueId\":\"${value2.id}\"},{\"rail\":\"stripe\",\"source\":\"tok_visa\"}]`,
-                    "lightrailUserId": defaultTestUser.userId
-                },
-                "source": "tok_mastercard"
-            });
-        }
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value2.id}`, "GET");
         chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body, null, 4)}`);
@@ -1529,14 +1363,19 @@ describe("split tender checkout with Stripe", () => {
             chai.assert.equal(checkout.statusCode, 424);
         });
 
-        it("returns 429 on Stripe RateLimitError", async () => {
+        it("returns 429 on Stripe RateLimitError (mock server only)", async function () {
+            if (testStripeLive()) {
+                // This test uses a special token only implemented in the mock server.
+                this.skip();
+            }
+
             const request: CheckoutRequest = {
                 id: generateId(),
                 allowRemainder: true,
                 sources: [
                     {
                         rail: "stripe",
-                        source: "tok_visa"
+                        source: "tok_429"
                     }
                 ],
                 lineItems: [
@@ -1547,23 +1386,6 @@ describe("split tender checkout with Stripe", () => {
                 ],
                 currency: "CAD"
             };
-            // Mocked error since I couldn't produce a real 429 error from stripe. This test doesn't run in live so it doesn't matter.
-            const exampleStripeError = {
-                "type": "RateLimitError",
-                "stack": "Mock",
-                "rawType": "Mock",
-                "message": "Mock - too many requests.",
-                "raw": {
-                    "message": "Mock.",
-                    "type": "invalid_request_error",
-                    "statusCode": 429
-                },
-                "headers": {},
-                "statusCode": 429
-            };
-            const exampleErrorResponse = new StripeRestError(429
-                , "Error for tests", null, exampleStripeError);
-            stubCheckoutStripeError(request, 0, exampleErrorResponse);
 
             const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
             chai.assert.equal(checkout.statusCode, 429);
