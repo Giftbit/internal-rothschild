@@ -15,18 +15,9 @@ import {Transaction} from "../../model/Transaction";
 import * as chai from "chai";
 import * as cassava from "cassava";
 import {Value} from "../../model/Value";
+import {StripeModeConfig} from "../stripeUtils/StripeConfig";
 import stripe = require("stripe");
 import log = require("loglevel");
-
-if (testStripeLive()) {
-    try {
-        require("dotenv-safe").config();
-    } catch (e) {
-        // tslint:disable-next-line:no-console
-        console.log(e.toString());
-        process.exit(1);
-    }
-}
 
 const sinonSandbox = sinon.createSandbox();
 let stripeChargeStub: sinon.SinonStub = null;
@@ -52,13 +43,11 @@ export const stripeLiveMerchantConfig = {
 /**
  * See .env.example for Stripe config details
  */
-export const stripeLiveLightrailConfig = {
+export const stripeLiveLightrailConfig: StripeModeConfig = {
+    clientId: null,
     secretKey: process.env["LIGHTRAIL_STRIPE_TEST_SECRET_KEY"] || "",
-};
-
-const stripeStubbedConfig = {
-    secretKey: "test",
-    stripeUserId: "test"
+    publishableKey: null,
+    connectWebhookSigningSecret: null
 };
 
 export function setStubsForStripeTests() {
@@ -66,22 +55,18 @@ export function setStubsForStripeTests() {
         assumeToken: "this-is-an-assume-token"
     };
 
+    console.log("calling initializeAssumeCheckoutToken");
     initializeAssumeCheckoutToken(Promise.resolve(testAssumeToken));
 
+    console.log("calling initializeLightrailStripeConfig", {
+        email: "test@example.com",
+        test: stripeLiveLightrailConfig,
+        live: stripeLiveLightrailConfig
+    });
     initializeLightrailStripeConfig(Promise.resolve({
-        email: "test@test.com",
-        test: {
-            clientId: "test-client-id",
-            secretKey: testStripeLive() ? stripeLiveLightrailConfig.secretKey : stripeStubbedConfig.secretKey,
-            publishableKey: "test-pk",
-            connectWebhookSigningSecret: "secret"
-        },
-        live: {
-            clientId: null,
-            secretKey: testStripeLive() ? stripeLiveLightrailConfig.secretKey : stripeStubbedConfig.secretKey,
-            publishableKey: null,
-            connectWebhookSigningSecret: "secret"
-        }
+        email: "test@example.com",
+        test: stripeLiveLightrailConfig,
+        live: stripeLiveLightrailConfig
     }));
 
     const stubKvsGet = sinonSandbox.stub(kvsAccess, "kvsGet");
@@ -89,7 +74,7 @@ export function setStubsForStripeTests() {
         .withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string)
         .resolves({
             token_type: "bearer",
-            stripe_user_id: testStripeLive() ? stripeLiveMerchantConfig.stripeUserId : stripeStubbedConfig.stripeUserId,
+            stripe_user_id: stripeLiveMerchantConfig.stripeUserId
         });
 }
 
@@ -240,35 +225,7 @@ export interface GetStripeChargeStubOptions {
 }
 
 export function getStripeChargeStub(options: GetStripeChargeStubOptions): sinon.SinonStub {
-    log.debug("stubbing stripe charge", options);
-    const stub = stripeChargeStub || (stripeChargeStub = sinonSandbox.stub(stripeTransactions, "createCharge").callThrough());
-
-    let param0Matcher = sinon.match.hasNested("metadata.lightrailTransactionId", options.transactionId);
-    if (options.amount) {
-        param0Matcher = param0Matcher.and(sinon.match.has("amount", options.amount));
-    }
-    if (options.currency) {
-        param0Matcher = param0Matcher.and(sinon.match.has("currency", options.currency));
-    }
-    if (options.capture === true) {
-        param0Matcher = param0Matcher.and(sinon.match(value => value.capture === true || value.capture == null));
-    }
-    if (options.capture === false) {
-        param0Matcher = param0Matcher.and(sinon.match.has("capture", false));
-    }
-    if (options.source) {
-        param0Matcher = param0Matcher.and(sinon.match.has("source", options.source));
-    }
-    if (options.customer) {
-        param0Matcher = param0Matcher.and(sinon.match.has("customer", options.customer));
-    }
-
-    return stub.withArgs(
-        param0Matcher,
-        sinon.match(stripeStubbedConfig.secretKey),
-        sinon.match(stripeStubbedConfig.stripeUserId),
-        sinon.match.any
-    );
+    throw new Error("delete me");
 }
 
 export function getStripeChargeRetrievalStub(chargeId: string): sinon.SinonStub {
@@ -283,15 +240,7 @@ export interface GetStripeCaptureStubOptions {
 }
 
 export function getStripeCaptureStub(options: GetStripeCaptureStubOptions): sinon.SinonStub {
-    log.debug("stubbing stripe capture", options);
-    const stub = stripeCaptureStub || (stripeCaptureStub = sinonSandbox.stub(stripeTransactions, "captureCharge").callThrough());
-
-    return stub.withArgs(
-        sinon.match.same(options.stripeChargeId),
-        sinon.match.any,
-        sinon.match(stripeStubbedConfig.secretKey),
-        sinon.match(stripeStubbedConfig.stripeUserId)
-    );
+    throw new Error("delete me");
 }
 
 export interface GetStripeRefundStubOptions {
@@ -299,14 +248,7 @@ export interface GetStripeRefundStubOptions {
 }
 
 export function getStripeRefundStub(options: GetStripeRefundStubOptions): sinon.SinonStub {
-    log.debug("stubbing stripe refund", options);
-    const stub = stripeRefundStub || (stripeRefundStub = sinonSandbox.stub(stripeTransactions, "createRefund").callThrough());
-
-    return stub.withArgs(
-        sinon.match.has("charge", options.stripeChargeId),
-        sinon.match(stripeStubbedConfig.secretKey),
-        sinon.match(stripeStubbedConfig.stripeUserId)
-    );
+    throw new Error("delete me");
 }
 
 export interface GetStripeUpdateChargeStubOptions {
@@ -314,15 +256,7 @@ export interface GetStripeUpdateChargeStubOptions {
 }
 
 export function getStripeUpdateChargeStub(options: GetStripeUpdateChargeStubOptions): sinon.SinonStub {
-    log.debug("stubbing stripe update charge", options);
-    const stub = stripeUpdateChargeStub || (stripeUpdateChargeStub = sinonSandbox.stub(stripeTransactions, "updateCharge").callThrough());
-
-    return stub.withArgs(
-        sinon.match.same(options.stripeChargeId),
-        sinon.match.any,
-        sinon.match(stripeStubbedConfig.secretKey),
-        sinon.match(stripeStubbedConfig.stripeUserId)
-    );
+    throw new Error("delete me");
 }
 
 export function stubStripeRetrieveCharge(charge: stripe.charges.ICharge): [stripe.charges.ICharge, sinon.SinonStub] {

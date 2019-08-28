@@ -23,9 +23,6 @@ import {StripeRestError} from "./stripeUtils/StripeRestError";
 import {Currency} from "../model/Currency";
 import log = require("loglevel");
 
-require("dotenv").config();
-
-
 describe("MetricsLogger", () => {
 
     let sandbox: sinon.SinonSandbox;

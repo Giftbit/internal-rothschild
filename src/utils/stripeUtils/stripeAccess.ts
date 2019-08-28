@@ -2,10 +2,9 @@ import log = require("loglevel");
 import Stripe = require("stripe");
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
-import {LightrailAndMerchantStripeConfig, stripeApiVersion, StripeConfig, StripeModeConfig} from "./StripeConfig";
+import {stripeApiVersion, StripeConfig, StripeModeConfig} from "./StripeConfig";
 import {StripeAuth} from "./StripeAuth";
 import * as cassava from "cassava";
-import {httpStatusCode, RestError} from "cassava";
 import * as kvsAccess from "../kvsAccess";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
 import {generateCode} from "../codeGenerator";
@@ -18,7 +17,19 @@ export function initializeAssumeCheckoutToken(tokenPromise: Promise<giftbitRoute
     assumeCheckoutToken = tokenPromise;
 }
 
-export async function setupLightrailAndMerchantStripeConfig(auth: giftbitRoutes.jwtauth.AuthorizationBadge): Promise<LightrailAndMerchantStripeConfig> {
+/**
+ * Cache the last used auth with its corresponding StripeAuth.
+ */
+const cachedMerchantStripeAuth = {
+    auth: null as giftbitRoutes.jwtauth.AuthorizationBadge,
+    merchantStripeAuth: null as StripeAuth
+};
+
+export async function getMerchantStripeAuth(auth: giftbitRoutes.jwtauth.AuthorizationBadge): Promise<StripeAuth> {
+    if (cachedMerchantStripeAuth.auth === auth) {   // referential equality
+        return cachedMerchantStripeAuth.merchantStripeAuth;
+    }
+
     const authorizeAs = auth.getAuthorizeAsPayload();
 
     if (!assumeCheckoutToken) {
@@ -28,14 +39,17 @@ export async function setupLightrailAndMerchantStripeConfig(auth: giftbitRoutes.
     const assumeToken = (await assumeCheckoutToken).assumeToken;
     log.info("got retrieve stripe auth assume token");
 
-    const lightrailStripeModeConfig = await getLightrailStripeModeConfig(auth.isTestUser());
-
     log.info("fetching merchant stripe auth");
-    const merchantStripeConfig: StripeAuth = await kvsAccess.kvsGet(assumeToken, "stripeAuth", authorizeAs);
+    const merchantStripeAuth: StripeAuth = await kvsAccess.kvsGet(assumeToken, "stripeAuth", authorizeAs);
     log.info("got merchant stripe auth");
-    validateStripeConfig(merchantStripeConfig, lightrailStripeModeConfig);
+    if (!merchantStripeAuth || !merchantStripeAuth.stripe_user_id) {
+        throw new GiftbitRestError(424, "Merchant stripe config stripe_user_id must be set.", "MissingStripeUserId");
+    }
 
-    return {merchantStripeConfig, lightrailStripeConfig: lightrailStripeModeConfig};
+    cachedMerchantStripeAuth.auth = auth;
+    cachedMerchantStripeAuth.merchantStripeAuth = merchantStripeAuth;
+
+    return merchantStripeAuth;
 }
 
 let lightrailStripeConfig: Promise<StripeConfig>;
@@ -45,36 +59,41 @@ export function initializeLightrailStripeConfig(lightrailStripePromise: Promise<
 }
 
 /**
+ * Get Stripe credentials for test or live mode.  Test mode credentials allow
+ * dummy credit cards and skip through stripe connect.
+ * @param testMode whether to use test account credentials or live credentials
+ */
+export async function getLightrailStripeModeConfig(testMode: boolean): Promise<StripeModeConfig> {
+    if (!lightrailStripeConfig) {
+        throw new Error("lightrailStripeConfig has not been initialized.");
+    }
+    return process.env["TEST_ENV"] || testMode ? (await lightrailStripeConfig).test : (await lightrailStripeConfig).live;
+}
+
+/**
  * Get Stripe client for test or live mode.  Test mode clients allow
  * dummy credit cards and skip through stripe connect.
  * @param testMode whether to use test account credentials or live credentials
  */
 export async function getStripeClient(testMode: boolean): Promise<Stripe> {
-    if (!lightrailStripeConfig) {
-        throw new Error("lightrailStripeConfig has not been initialized.");
+    const stripeModeConfig = await getLightrailStripeModeConfig(testMode);
+    if (!stripeModeConfig) {
+        throw new Error("Lightrail stripe secretKey could not be loaded from s3 secure config.  stripeModeConfig=null");
     }
-    const stripeConfig = process.env["TEST_ENV"] || testMode ? (await lightrailStripeConfig).test : (await lightrailStripeConfig).live;
+    if (!stripeModeConfig.secretKey) {
+        throw new Error("Lightrail stripe secretKey could not be loaded from s3 secure config.  stripeModeConfig.secretKey=null");
+    }
 
     let client: Stripe;
     if (process.env["TEST_STRIPE_LOCAL"] === "true") {
         log.debug("Using local Stripe server http://localhost:8000");
-        client = new Stripe(stripeConfig.secretKey);
+        client = new Stripe(stripeModeConfig.secretKey);
         client.setHost("localhost", 8000, "http");
     } else {
-        client = new Stripe(stripeConfig.secretKey);
+        client = new Stripe(stripeModeConfig.secretKey);
     }
     client.setApiVersion(stripeApiVersion);
     return client;
-}
-
-function validateStripeConfig(merchantStripeConfig: StripeAuth, lightrailStripeConfig: StripeModeConfig) {
-    if (!merchantStripeConfig || !merchantStripeConfig.stripe_user_id) {
-        throw new GiftbitRestError(424, "Merchant stripe config stripe_user_id must be set.", "MissingStripeUserId");
-    }
-    if (!lightrailStripeConfig || !lightrailStripeConfig.secretKey) {
-        log.debug("Lightrail stripe secretKey could not be loaded from s3 secure config.");
-        throw new RestError(httpStatusCode.serverError.INTERNAL_SERVER_ERROR);
-    }
 }
 
 /**

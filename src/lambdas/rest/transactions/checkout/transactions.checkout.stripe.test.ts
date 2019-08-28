@@ -23,7 +23,8 @@ import {
 } from "../../../../utils/testUtils/stripeTestUtils";
 import {StripeRestError} from "../../../../utils/stripeUtils/StripeRestError";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
-import {getStripeClient, retrieveCharge} from "../../../../utils/stripeUtils/stripeTransactions";
+import {getStripeClient} from "../../../../utils/stripeUtils/stripeAccess";
+import {createCustomer, retrieveCharge} from "../../../../utils/stripeUtils/stripeTransactions";
 import log = require("loglevel");
 import chaiExclude = require("chai-exclude");
 import Stripe = require("stripe");
@@ -31,9 +32,7 @@ import ICharge = Stripe.charges.ICharge;
 
 chai.use(chaiExclude);
 
-require("dotenv").config();
-
-describe.only("split tender checkout with Stripe", () => {
+describe("split tender checkout with Stripe", () => {
     const router = new cassava.Router();
 
     const value: Partial<Value> = {
@@ -166,17 +165,14 @@ describe.only("split tender checkout with Stripe", () => {
     });
 
     it.only("processes basic checkout with Stripe only - `customer` as payment source", async () => {
-        const customer = await getStripeClient("").customers.create({
-            source: "tok_visa"
-        });
-        const customerId = customer.id;
+        const customer = await createCustomer({source: "tok_visa"}, true, stripeLiveMerchantConfig.stripeUserId);
 
         const request: CheckoutRequest = {
             id: generateId(),
             sources: [
                 {
                     rail: "stripe",
-                    customer: customerId
+                    customer: customer.id
                 }
             ],
             lineItems: [
@@ -231,7 +227,7 @@ describe.only("split tender checkout with Stripe", () => {
         ], ["chargeId", "charge"], `body.steps=${JSON.stringify(postCheckoutResp.body.steps)}`);
         chai.assert.deepEqual(postCheckoutResp.body.paymentSources[0], {
             rail: "stripe",
-            customer: customerId,
+            customer: customer.id,
         }, `body.paymentSources=${JSON.stringify(postCheckoutResp.body.paymentSources)}`);
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
@@ -528,7 +524,7 @@ describe.only("split tender checkout with Stripe", () => {
         });
 
         const stripeChargeId = (postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId;
-        const stripeCharge = await retrieveCharge(stripeChargeId, stripeLiveLightrailConfig.secretKey, stripeLiveMerchantConfig.stripeUserId);
+        const stripeCharge = await (await getStripeClient(true)).charges.retrieve(stripeChargeId);
         chai.assert.deepEqual(stripeCharge.metadata, stripeStep.charge.metadata);
     }).timeout(10000);
 
@@ -605,7 +601,7 @@ describe.only("split tender checkout with Stripe", () => {
         });
 
         const stripeChargeId = (postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId;
-        const stripeCharge = await retrieveCharge(stripeChargeId, stripeLiveLightrailConfig.secretKey, stripeLiveMerchantConfig.stripeUserId);
+        const stripeCharge = await retrieveCharge(stripeChargeId, true, stripeLiveMerchantConfig.stripeUserId);
         chai.assert.deepEqual(stripeCharge.metadata, stripeStep.charge.metadata);
     }).timeout(10000);
 

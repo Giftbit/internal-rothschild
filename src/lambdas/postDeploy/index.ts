@@ -9,12 +9,12 @@ import {getDbCredentials} from "../../utils/dbUtils/connection";
 // Flyway will automatically load all .sql files it finds in that dir.
 import "./schema/*.sql";
 import {
-    getLightrailStripeModeConfig,
+    getStripeClient,
     initializeAssumeCheckoutToken,
     initializeLightrailStripeConfig
 } from "../../utils/stripeUtils/stripeAccess";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {StripeConfig, StripeModeConfig} from "../../utils/stripeUtils/StripeConfig";
+import {StripeConfig} from "../../utils/stripeUtils/StripeConfig";
 import log = require("loglevel");
 
 // Wrapping console.log instead of binding (default behaviour for loglevel)
@@ -171,16 +171,15 @@ async function setStripeWebhookEvents(event: awslambda.CloudFormationCustomResou
 }
 
 async function configureStripeWebhook(webhookEvents: string[], url: string, testMode: boolean): Promise<void> {
-    let lightrailStripeModeConfig: StripeModeConfig;
+    let lightrailStripe: any;
     try {
-        lightrailStripeModeConfig = await getLightrailStripeModeConfig(testMode);
+        lightrailStripe = await getStripeClient(testMode);
     } catch (err) {
-        log.error(`Error fetching Stripe credentials from secure config: enabled Stripe webhook events have not been updated. Secure config permissions may need to be set. \nError: ${JSON.stringify(err, null, 2)}`);
+        log.error(`Error creating Stripe client.  Enabled Stripe webhook events have not been updated. Secure config permissions may need to be set. \nError: ${JSON.stringify(err, null, 2)}`);
         return; // don't fail deployment if the function can't get the Stripe credentials (stack should be deployable in a new environment where function role name isn't known and can't have had permissions set)
     }
 
     log.info(`Fetching existing Stripe webhooks for testMode=${testMode}...`);
-    const lightrailStripe = require("stripe")(lightrailStripeModeConfig.secretKey);
     const webhooks = await lightrailStripe.webhookEndpoints.list();
     log.info(`Got existing webhooks: ${JSON.stringify(webhooks, null, 2)}`);
 

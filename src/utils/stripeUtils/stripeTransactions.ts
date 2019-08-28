@@ -1,11 +1,12 @@
 import {StripeRestError} from "./StripeRestError";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
+import {getStripeClient} from "./stripeAccess";
 import log = require("loglevel");
 import Stripe = require("stripe");
 
-export async function createCharge(params: Stripe.charges.IChargeCreationOptions, lightrailStripeSecretKey: string, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<Stripe.charges.ICharge> {
-    const lightrailStripe = getStripeClient(lightrailStripeSecretKey);
+export async function createCharge(params: Stripe.charges.IChargeCreationOptions, testMode: boolean, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<Stripe.charges.ICharge> {
+    const lightrailStripe = await getStripeClient(testMode);
     log.info("Creating Stripe charge", params);
 
     try {
@@ -21,7 +22,7 @@ export async function createCharge(params: Stripe.charges.IChargeCreationOptions
         checkForStandardStripeErrors(err);
         if (err.statusCode === 500 && isIdempotentReplayError(err)) {
             const nextStepIdempotencyKey = getRetryIdempotencyKey(stepIdempotencyKey, err);
-            return createCharge(params, lightrailStripeSecretKey, merchantStripeAccountId, nextStepIdempotencyKey);
+            return createCharge(params, testMode, merchantStripeAccountId, nextStepIdempotencyKey);
         }
         switch (err.type) {
             case "StripeIdempotencyError":
@@ -29,7 +30,7 @@ export async function createCharge(params: Stripe.charges.IChargeCreationOptions
             case "StripeCardError":
                 if (isIdempotentReplayError(err)) {
                     const nextStepIdempotencyKey = getRetryIdempotencyKey(stepIdempotencyKey, err);
-                    return createCharge(params, lightrailStripeSecretKey, merchantStripeAccountId, nextStepIdempotencyKey);
+                    return createCharge(params, testMode, merchantStripeAccountId, nextStepIdempotencyKey);
                 }
                 throw new StripeRestError(cassava.httpStatusCode.clientError.CONFLICT, "Card declined.", "StripeCardDeclined", err);
             case "StripeInvalidRequestError":
@@ -45,8 +46,8 @@ export async function createCharge(params: Stripe.charges.IChargeCreationOptions
     }
 }
 
-export async function createRefund(params: Stripe.refunds.IRefundCreationOptionsWithCharge, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<Stripe.refunds.IRefund> {
-    const lightrailStripe = getStripeClient(lightrailStripeSecretKey);
+export async function createRefund(params: Stripe.refunds.IRefundCreationOptionsWithCharge, testMode: boolean, merchantStripeAccountId: string): Promise<Stripe.refunds.IRefund> {
+    const lightrailStripe = await getStripeClient(testMode);
     log.info("Creating refund for Stripe charge", params.charge);
     try {
         const refund = await lightrailStripe.refunds.create(params, {
@@ -79,8 +80,8 @@ export async function createRefund(params: Stripe.refunds.IRefundCreationOptions
     }
 }
 
-export async function captureCharge(chargeId: string, options: Stripe.charges.IChargeCaptureOptions, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<Stripe.charges.ICharge> {
-    const lightrailStripe = getStripeClient(lightrailStripeSecretKey);
+export async function captureCharge(chargeId: string, options: Stripe.charges.IChargeCaptureOptions, testMode: boolean, merchantStripeAccountId: string): Promise<Stripe.charges.ICharge> {
+    const lightrailStripe = await getStripeClient(testMode);
     log.info("Creating capture for Stripe charge", chargeId);
     try {
         const capturedCharge = await lightrailStripe.charges.capture(chargeId, options, {
@@ -104,8 +105,8 @@ export async function captureCharge(chargeId: string, options: Stripe.charges.IC
     }
 }
 
-export async function updateCharge(chargeId: string, params: Stripe.charges.IChargeUpdateOptions, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<any> {
-    const lightrailStripe = getStripeClient(lightrailStripeSecretKey);
+export async function updateCharge(chargeId: string, params: Stripe.charges.IChargeUpdateOptions, testMode: boolean, merchantStripeAccountId: string): Promise<any> {
+    const lightrailStripe = await getStripeClient(testMode);
     log.info("Updating Stripe charge", params);
     try {
         const chargeUpdate = await lightrailStripe.charges.update(
@@ -124,8 +125,8 @@ export async function updateCharge(chargeId: string, params: Stripe.charges.ICha
     }
 }
 
-export async function retrieveCharge(chargeId: string, lightrailStripeSecretKey: string, merchantStripeAccountId: string): Promise<Stripe.charges.ICharge> {
-    const lightrailStripe = getStripeClient(lightrailStripeSecretKey);
+export async function retrieveCharge(chargeId: string, testMode: boolean, merchantStripeAccountId: string): Promise<Stripe.charges.ICharge> {
+    const lightrailStripe = await getStripeClient(testMode);
     log.info("Retrieving Stripe charge", chargeId);
     try {
         const charge = await lightrailStripe.charges.retrieve(chargeId, {stripe_account: merchantStripeAccountId});
@@ -140,6 +141,17 @@ export async function retrieveCharge(chargeId: string, lightrailStripeSecretKey:
         giftbitRoutes.sentry.sendErrorNotification(err);
         throw err;
     }
+}
+
+/**
+ * So far this has only been used in test code.  It's not clear there will ever be
+ * a need in production.
+ */
+export async function createCustomer(params: Stripe.customers.ICustomerCreationOptions, testMode: boolean, merchantStripeAccountId: string): Promise<Stripe.customers.ICustomer> {
+    const lightrailStripe = await getStripeClient(testMode);
+    log.info("Creating Stripe customer", params);
+
+    return await lightrailStripe.customers.create(params, {stripe_account: merchantStripeAccountId});
 }
 
 /**

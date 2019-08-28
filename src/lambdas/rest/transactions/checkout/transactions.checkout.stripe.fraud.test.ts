@@ -19,8 +19,6 @@ import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-require("dotenv").config();
-
 describe("handling fraudulent charges", () => {
     const router = new cassava.Router();
 

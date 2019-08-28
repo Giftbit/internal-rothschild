@@ -10,8 +10,6 @@ import {createCurrency} from "../../currencies";
 import {CaptureRequest, CheckoutRequest, VoidRequest} from "../../../../model/TransactionRequest";
 import {
     setStubsForStripeTests,
-    stripeLiveLightrailConfig,
-    stripeLiveMerchantConfig,
     stubCheckoutStripeCharge,
     stubStripeCapture,
     stubStripeRefund,
@@ -20,7 +18,7 @@ import {
 } from "../../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
 import * as Stripe from "stripe";
-import {captureCharge, createRefund} from "../../../../utils/stripeUtils/stripeTransactions";
+import {getStripeClient} from "../../../../utils/stripeUtils/stripeAccess";
 import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
@@ -726,14 +724,8 @@ describe("/v2/transactions/checkout - pending", () => {
         const valuePendingRes = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(valuePendingRes.body.balance, 0);
 
-        let refund: Stripe.refunds.IRefund;
-        if (testStripeLive()) {
-            // Refund the charge manually first.  Executing the void should pick up this refund.
-            refund = await createRefund({charge: (pendingTxRes.body.steps[1] as StripeTransactionStep).chargeId}, stripeLiveLightrailConfig.secretKey, stripeLiveMerchantConfig.stripeUserId);
-        } else {
-            // This is what effectively happens.  This mock kinda defeats the purpose of the test though.
-            [refund] = stubStripeRefund(pendingStripeCharge);
-        }
+        // Refund the charge manually
+        const refund = await (await getStripeClient(true)).refunds.create({charge: (pendingTxRes.body.steps[1] as StripeTransactionStep).chargeId});
 
         const voidRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingTx.id}/void`, "POST", {
             id: generateId()
@@ -805,14 +797,8 @@ describe("/v2/transactions/checkout - pending", () => {
         const valuePendingRes = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(valuePendingRes.body.balance, 0);
 
-        let capture: Stripe.charges.ICharge;
-        if (testStripeLive()) {
-            // Capture the charge manually first.  Executing the capture should pick up this object.
-            capture = await captureCharge((pendingTxRes.body.steps[1] as StripeTransactionStep).chargeId, {}, stripeLiveLightrailConfig.secretKey, stripeLiveMerchantConfig.stripeUserId);
-        } else {
-            // This is what effectively happens.  This mock kinda defeats the purpose of the test though.
-            [capture] = stubStripeCapture(pendingStripeCharge);
-        }
+        // Capture the charge manually.
+        const capture = await (await getStripeClient(true)).charges.capture((pendingTxRes.body.steps[1] as StripeTransactionStep).chargeId);
 
         const captureRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingTx.id}/capture`, "POST", {
             id: generateId()

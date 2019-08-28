@@ -24,8 +24,6 @@ import {
 } from "../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
 
-require("dotenv").config();
-
 describe("/v2/values/ - secret stats capability", () => {
 
     const router = new cassava.Router();

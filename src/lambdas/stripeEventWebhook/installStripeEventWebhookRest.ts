@@ -4,7 +4,8 @@ import * as cassava from "cassava";
 import {
     getAuthBadgeFromStripeCharge,
     getLightrailStripeModeConfig,
-    getRootTransactionFromStripeCharge
+    getRootTransactionFromStripeCharge,
+    getStripeClient
 } from "../../utils/stripeUtils/stripeAccess";
 import {StripeModeConfig} from "../../utils/stripeUtils/StripeConfig";
 import * as giftbitRoutes from "giftbit-cassava-routes";
@@ -31,14 +32,13 @@ export function installStripeEventWebhookRest(router: cassava.Router): void {
     router.route("/v2/stripeEventWebhook")
         .method("POST")
         .handler(async evt => {
-            const isTestMode: boolean = !evt.body.livemode;
-            const lightrailStripeConfig: StripeModeConfig = await getLightrailStripeModeConfig(isTestMode);
-            const stripe = new Stripe(lightrailStripeConfig.secretKey);
+            const lightrailStripeModeConfig = await getLightrailStripeModeConfig(!evt.body.livemode);
+            const stripe = await getStripeClient(!evt.body.livemode);
 
             let event: Stripe.events.IEvent & { account?: string };
             log.info(`Verifying Stripe signature for eventId '${evt.body.id}' from account '${evt.body.account}'`);
             try {
-                event = stripe.webhooks.constructEvent(evt.bodyRaw, evt.headersLowerCase["stripe-signature"], lightrailStripeConfig.connectWebhookSigningSecret);
+                event = stripe.webhooks.constructEvent(evt.bodyRaw, evt.headersLowerCase["stripe-signature"], lightrailStripeModeConfig.connectWebhookSigningSecret);
                 log.info(`Stripe signature verified. Event: ${JSON.stringify(event)}`);
             } catch (err) {
                 log.info(`Event '${evt.body.id}' could not be verified.`);
@@ -238,13 +238,13 @@ async function getStripeChargeFromEvent(event: Stripe.events.IEvent & { account:
         return event.data.object as Stripe.charges.ICharge;
     } else if (event.data.object.object === "refund") {
         const refund = event.data.object as Stripe.refunds.IRefund;
-        return typeof refund.charge === "string" ? await retrieveCharge(refund.charge, lightrailStripeConfig.secretKey, event.account) : refund.charge;
+        return typeof refund.charge === "string" ? await retrieveCharge(refund.charge, !event.livemode, event.account) : refund.charge;
     } else if (event.data.object.object === "review") {
         const review = event.data.object as Stripe.reviews.IReview;
-        return typeof review.charge === "string" ? await retrieveCharge(review.charge, lightrailStripeConfig.secretKey, event.account) : review.charge;
+        return typeof review.charge === "string" ? await retrieveCharge(review.charge, !event.livemode, event.account) : review.charge;
     } else if (event.data.object.object === "dispute") {
         const dispute = event.data.object as Stripe.disputes.IDispute;
-        return typeof dispute.charge === "string" ? await retrieveCharge(dispute.charge, lightrailStripeConfig.secretKey, event.account) : dispute.charge;
+        return typeof dispute.charge === "string" ? await retrieveCharge(dispute.charge, !event.livemode, event.account) : dispute.charge;
     } else {
         throw new Error(`Could not retrieve Stripe charge from event. Event=${JSON.stringify(event)}`);
     }

@@ -18,8 +18,6 @@ import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-require("dotenv").config();
-
 describe("/v2/transactions/checkout - mixed sources", () => {
 
     const router = new cassava.Router();

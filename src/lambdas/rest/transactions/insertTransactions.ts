@@ -9,12 +9,11 @@ import {
 import {TransactionPlanError} from "./TransactionPlanError";
 import {DbValue, Value} from "../../../model/Value";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
-import {executeStripeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
-import {LightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/StripeConfig";
 import {getSqlErrorConstraintName} from "../../../utils/dbUtils";
 import * as cassava from "cassava";
 import {generateCode} from "../../../utils/codeGenerator";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
+import {executeStripeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
 import Knex = require("knex");
 import log = require("loglevel");
 
@@ -175,8 +174,8 @@ async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.Authoriza
     }
 }
 
-export async function insertStripeTransactionSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan, stripeConfig: LightrailAndMerchantStripeConfig): Promise<TransactionPlan> {
-    await executeStripeSteps(auth, stripeConfig, plan);
+export async function insertStripeTransactionSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan): Promise<TransactionPlan> {
+    await executeStripeSteps(auth, plan);
     const stripeSteps = plan.steps.filter(step => step.rail === "stripe")
         .map(step => StripeTransactionPlanStep.toStripeDbTransactionStep(step as StripeTransactionPlanStep, plan, auth));
     await trx.into("StripeTransactionSteps")
