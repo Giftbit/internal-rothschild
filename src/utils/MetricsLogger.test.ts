@@ -10,13 +10,7 @@ import {Contact} from "../model/Contact";
 import {Transaction, TransactionType} from "../model/Transaction";
 import {StripeTransactionPlanStep, TransactionPlan} from "../lambdas/rest/transactions/TransactionPlan";
 import {CheckoutRequest} from "../model/TransactionRequest";
-import {
-    setStubsForStripeTests,
-    stubCheckoutStripeCharge,
-    stubStripeCapture,
-    stubStripeRefund,
-    unsetStubsForStripeTests
-} from "./testUtils/stripeTestUtils";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "./testUtils/stripeTestUtils";
 import {after} from "mocha";
 import {Currency} from "../model/Currency";
 import log = require("loglevel");
@@ -302,13 +296,10 @@ describe("MetricsLogger", () => {
             it("generates correct log statement for Stripe charge & refund", async () => {
                 const spy = sandbox.spy(log, "info");
 
-                const [stripeResponse] = stubCheckoutStripeCharge(checkoutRequest, 0, amount);
-
                 const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
                 chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
                 sinon.assert.calledWith(spy, sinon.match(getStripeCallLogMatcher(-amount, "charge")));
 
-                stubStripeRefund(stripeResponse);
                 const refundResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkoutRequest.id}/reverse`, "POST", {id: `reverse-${checkoutRequest.id}`});
                 chai.assert.equal(refundResp.statusCode, 201, `body=${JSON.stringify(refundResp.body)}`);
 
@@ -319,11 +310,9 @@ describe("MetricsLogger", () => {
                 const spy = sandbox.spy(log, "info");
                 const pendingCheckoutRequest: CheckoutRequest = {...checkoutRequest, id: generateId(), pending: true};
 
-                const [stripePending] = stubCheckoutStripeCharge(pendingCheckoutRequest, 0, amount);
                 const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/checkout`, "POST", pendingCheckoutRequest);
                 chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
 
-                stubStripeCapture(stripePending);
                 const captureResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingCheckoutRequest.id}/capture`, "POST", {id: `capture-${pendingCheckoutRequest.id}`});
                 chai.assert.equal(captureResp.statusCode, 201, `body=${JSON.stringify(captureResp.body)}`);
 

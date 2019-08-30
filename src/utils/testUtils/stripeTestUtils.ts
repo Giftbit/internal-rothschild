@@ -223,10 +223,6 @@ export function getStripeChargeStub(options: GetStripeChargeStubOptions): sinon.
     throw new Error("delete me");
 }
 
-export function getStripeChargeRetrievalStub(chargeId: string): sinon.SinonStub {
-    throw new Error("delete me");
-}
-
 export interface GetStripeCaptureStubOptions {
     stripeChargeId: string;
 }
@@ -249,17 +245,6 @@ export interface GetStripeUpdateChargeStubOptions {
 
 export function getStripeUpdateChargeStub(options: GetStripeUpdateChargeStubOptions): sinon.SinonStub {
     throw new Error("delete me");
-}
-
-export function stubStripeRetrieveCharge(charge: stripe.charges.ICharge): [stripe.charges.ICharge, sinon.SinonStub] {
-    if (testStripeLive()) {
-        return [null, null];
-    }
-
-    const response = charge;
-    const stub = getStripeChargeRetrievalStub(charge.id).resolves(response);
-
-    return [response, stub];
 }
 
 export function stubCheckoutStripeCharge(request: CheckoutRequest, stripeSourceIx: number, amount: number, additionalProperties?: Partial<stripe.charges.ICharge>): [stripe.charges.ICharge, sinon.SinonStub] {
@@ -381,18 +366,6 @@ export function stubStripeUpdateCharge(charge: stripe.charges.ICharge, updates?:
             }));
         return [null, stub];
     }
-}
-
-/**
- * Throw an error if Stripe is charged for this transaction request.
- */
-export function stubNoStripeCharge(request: { id: string }): void {
-    if (testStripeLive()) {
-        return;
-    }
-
-    getStripeChargeStub({transactionId: request.id})
-        .rejects(new Error("The Stripe stub should never be called in this test"));
 }
 
 function getRandomChars(length: number): string {
