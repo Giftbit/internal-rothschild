@@ -15,7 +15,6 @@ import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {after} from "mocha";
 import {
     setStubsForStripeTests,
-    stripeLiveLightrailConfig,
     stripeLiveMerchantConfig,
     stubNextStripeAuthAccountId,
     testStripeLive,
@@ -23,6 +22,7 @@ import {
 } from "../../../../utils/testUtils/stripeTestUtils";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import {createCustomer, retrieveCharge} from "../../../../utils/stripeUtils/stripeTransactions";
+import {getStripeClient} from "../../../../utils/stripeUtils/stripeAccess";
 import log = require("loglevel");
 import chaiExclude = require("chai-exclude");
 import Stripe = require("stripe");
@@ -684,22 +684,25 @@ describe.only("split tender checkout with Stripe", () => {
 
     describe("rollback", () => {
         it("passes on the Stripe error", async () => {
-            const request = {
-                ...basicRequest,
-                id: generateId()
-            };
+            // This test relies upon Stripe transaction steps using <transactionId>-<stepIx>
+            // as the Stripe idempotency key to generate a conflict.
+            const idempotencyKey = generateId();
 
-            const stripeChargeRequest = {
+            const firstRequest = {
                 amount: 55,
                 currency: "CAD",
                 source: "tok_visa"
             };
-            const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
-            await lightrailStripe.charges.create(stripeChargeRequest, {
+            const lightrailStripe = await getStripeClient(true);
+            await lightrailStripe.charges.create(firstRequest, {
                 stripe_account: stripeLiveMerchantConfig.stripeUserId,
-                idempotency_key: "bad_idempotent_key-0"
+                idempotency_key: `${idempotencyKey}-0`
             });
 
+            const request = {
+                ...basicRequest,
+                id: idempotencyKey
+            };
             const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
             chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body, null, 4)}`);
         }).timeout(10000);
@@ -776,12 +779,6 @@ describe.only("split tender checkout with Stripe", () => {
         }).timeout(10000);
 
         it("handles idempotency errors: fails the repeated transaction but doesn't roll back the original Stripe charge", async function () {
-            if (!testStripeLive()) {
-                log.warn("Skipping test that currently requires live call to Stripe");
-                this.skip();
-                return;
-            }
-
             const request = {
                 id: "idempotency-check-7",
                 sources: [
@@ -807,11 +804,8 @@ describe.only("split tender checkout with Stripe", () => {
             chai.assert.equal(postCheckoutResp2.statusCode, 409, `body=${JSON.stringify(postCheckoutResp2.body)}`);
 
             // get the stripe charge and make sure that it hasn't been refunded
-            const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
             const stripeChargeId = (postCheckoutResp.body.steps.find(steps => steps.rail === "stripe") as StripeTransactionStep).charge.id;
-            const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                stripe_account: stripeLiveMerchantConfig.stripeUserId
-            });
+            const stripeCharge = await retrieveCharge(stripeChargeId, true, stripeLiveMerchantConfig.stripeUserId);
             chai.assert.equal(stripeCharge.refunded, false, `stripeCharge first GET: check 'refunded': ${JSON.stringify(stripeCharge)}`);
             chai.assert.equal(stripeCharge.amount_refunded, 0, `stripeCharge first GET: check 'amount_refunded': ${JSON.stringify(stripeCharge)}`);
 
@@ -820,11 +814,9 @@ describe.only("split tender checkout with Stripe", () => {
             chai.assert.equal(postCheckoutResp3.statusCode, 409, `body=${JSON.stringify(postCheckoutResp3.body)}`);
 
             // make sure the original stripe charge still hasn't been affected
-            const stripeCharge2 = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                stripe_account: stripeLiveMerchantConfig.stripeUserId
-            });
-            chai.assert.equal(stripeCharge2.refunded, 0, `stripeCharge second GET: check 'refunded': ${JSON.stringify(stripeCharge)}`);
-            chai.assert.equal(stripeCharge2.amount_refunded, false, `stripeCharge second GET: check 'amount_refunded': ${JSON.stringify(stripeCharge)}`);
+            const stripeCharge2 = await retrieveCharge(stripeChargeId, true, stripeLiveMerchantConfig.stripeUserId);
+            chai.assert.equal(stripeCharge2.refunded, false, `stripeCharge second GET: check 'refunded': ${JSON.stringify(stripeCharge)}`);
+            chai.assert.equal(stripeCharge2.amount_refunded, 0, `stripeCharge second GET: check 'amount_refunded': ${JSON.stringify(stripeCharge)}`);
         }).timeout(10000);
     });
 
@@ -1195,10 +1187,6 @@ describe.only("split tender checkout with Stripe", () => {
         });
 
         it("returns 409 for simulate=false transactions where minAmount is lower than Stripe will accept", async function () {
-            if (!testStripeLive()) {
-                this.skip();
-            }
-
             const checkoutRequest: CheckoutRequest = {
                 id: generateId(),
                 sources: [
@@ -1277,7 +1265,7 @@ describe.only("split tender checkout with Stripe", () => {
         chai.assert.equal(checkout.statusCode, 422);
     });
 
-    it("returns 403 on StripePermissionError", async () => {
+    it("returns 424 on StripePermissionError", async () => {
         // This connect account isn't valid in the mock server or the real thing.
         stubNextStripeAuthAccountId("acct_invalid");
 
