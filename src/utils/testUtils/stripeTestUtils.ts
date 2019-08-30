@@ -44,11 +44,11 @@ export const stripeLiveLightrailConfig: StripeModeConfig = {
     connectWebhookSigningSecret: null
 };
 
-const testAssumeToken: giftbitRoutes.secureConfig.AssumeScopeToken = {
-    assumeToken: "this-is-an-assume-token"
-};
-
 export function setStubsForStripeTests() {
+    const testAssumeToken: giftbitRoutes.secureConfig.AssumeScopeToken = {
+        assumeToken: "this-is-an-assume-token"
+    };
+    
     initializeAssumeCheckoutToken(Promise.resolve(testAssumeToken));
 
     initializeLightrailStripeConfig(Promise.resolve({
@@ -59,7 +59,6 @@ export function setStubsForStripeTests() {
 
     stubKvsGet = sinonSandbox.stub(kvsAccess, "kvsGet");
     stubKvsGet
-        .withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string)
         .resolves({
             token_type: "bearer",
             stripe_user_id: stripeLiveMerchantConfig.stripeUserId
@@ -74,13 +73,12 @@ export function stubNextStripeAuthAccountId(stripeAccountId: string): void {
     stubKvsGet.onFirstCall()
         .resolves({
             token_type: "bearer",
-            stripe_user_id: stripeLiveMerchantConfig.stripeUserId
+            stripe_user_id: stripeAccountId
         });
     stubKvsGet
-        .withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string)
         .resolves({
             token_type: "bearer",
-            stripe_user_id: stripeAccountId
+            stripe_user_id: stripeLiveMerchantConfig.stripeUserId
         });
 }
 
