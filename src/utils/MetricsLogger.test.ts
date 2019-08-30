@@ -13,13 +13,11 @@ import {CheckoutRequest} from "../model/TransactionRequest";
 import {
     setStubsForStripeTests,
     stubCheckoutStripeCharge,
-    stubCheckoutStripeError,
     stubStripeCapture,
     stubStripeRefund,
     unsetStubsForStripeTests
 } from "./testUtils/stripeTestUtils";
 import {after} from "mocha";
-import {StripeRestError} from "./stripeUtils/StripeRestError";
 import {Currency} from "../model/Currency";
 import log = require("loglevel");
 
@@ -340,7 +338,6 @@ describe("MetricsLogger", () => {
                     sources: [{rail: "stripe", source: "tok_chargeDeclined"}]
                 };
 
-                stubCheckoutStripeError(errorCheckoutReq, 0, new StripeRestError(409, "", "", {type: "StripeCardError"}));
                 const errorResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", errorCheckoutReq);
                 chai.assert.equal(errorResp.statusCode, 409, `body=${JSON.stringify(errorResp.body)}`);
 

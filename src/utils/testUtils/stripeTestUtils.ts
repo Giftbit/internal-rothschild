@@ -2,13 +2,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as kvsAccess from "../kvsAccess";
 import * as sinon from "sinon";
 import {createUSDCheckout, defaultTestUser} from "./index";
-import {
-    CheckoutRequest,
-    StripeTransactionParty,
-    TransactionParty,
-    TransferRequest
-} from "../../model/TransactionRequest";
-import {StripeRestError} from "../stripeUtils/StripeRestError";
+import {CheckoutRequest, StripeTransactionParty, TransactionParty} from "../../model/TransactionRequest";
 import {initializeAssumeCheckoutToken, initializeLightrailStripeConfig} from "../stripeUtils/stripeAccess";
 import {Transaction} from "../../model/Transaction";
 import * as chai from "chai";
@@ -48,7 +42,7 @@ export function setStubsForStripeTests() {
     const testAssumeToken: giftbitRoutes.secureConfig.AssumeScopeToken = {
         assumeToken: "this-is-an-assume-token"
     };
-    
+
     initializeAssumeCheckoutToken(Promise.resolve(testAssumeToken));
 
     initializeLightrailStripeConfig(Promise.resolve({
@@ -301,66 +295,6 @@ export function stubCheckoutStripeCharge(request: CheckoutRequest, stripeSourceI
         .resolves(response);
 
     return [response, stub];
-}
-
-export function stubTransferStripeCharge(request: TransferRequest, additionalProperties?: Partial<stripe.charges.ICharge>): [stripe.charges.ICharge, sinon.SinonStub] {
-    if (testStripeLive()) {
-        return [null, null];
-    }
-
-    if (request.source.rail !== "stripe") {
-        throw new Error(`Checkout request source is not a stripe source.`);
-    }
-
-    let amount = request.amount;
-    if (request.source.maxAmount && request.source.maxAmount < amount) {
-        amount = request.source.maxAmount;
-    }
-
-    const response = generateStripeChargeResponse({
-            transactionId: request.id,
-            amount: amount,
-            currency: request.currency,
-            pending: !!request.pending,
-            sources: [request.destination],
-            metadata: request.metadata,
-            additionalProperties
-        }
-    );
-
-    const stub = getStripeChargeStub(
-        {
-            transactionId: request.id,
-            amount: amount,
-            currency: request.currency,
-            capture: !request.pending,
-            source: request.source.source,
-            customer: request.source.customer
-        })
-        .resolves(response);
-
-    return [response, stub];
-}
-
-export function stubCheckoutStripeError(request: CheckoutRequest, stripeSourceIx: number, error: StripeRestError): void {
-    if (testStripeLive()) {
-        return;
-    }
-
-    if (request.sources[stripeSourceIx].rail !== "stripe") {
-        throw new Error(`Checkout request source ${stripeSourceIx} is not a stripe source.`);
-    }
-    const stripeSource = request.sources[stripeSourceIx] as StripeTransactionParty;
-
-    getStripeChargeStub(
-        {
-            transactionId: request.id,
-            currency: request.currency,
-            capture: !request.pending,
-            source: stripeSource.source,
-            customer: stripeSource.customer
-        })
-        .rejects(error);
 }
 
 export function stubStripeCapture(charge: stripe.charges.ICharge, amountCaptured?: number): [stripe.charges.ICharge, sinon.SinonStub] {

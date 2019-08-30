@@ -1,18 +1,13 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as testUtils from "../../../../../utils/testUtils/index";
-import {generateId} from "../../../../../utils/testUtils/index";
+import {generateId} from "../../../../../utils/testUtils";
 import {installRestRoutes} from "../../../installRestRoutes";
 import {createCurrency} from "../../../currencies";
 import {Value} from "../../../../../model/Value";
 import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../../../model/Transaction";
 import {CreditRequest, DebitRequest, ReverseRequest, TransferRequest} from "../../../../../model/TransactionRequest";
-import {
-    setStubsForStripeTests,
-    stubStripeRefund,
-    stubTransferStripeCharge,
-    unsetStubsForStripeTests
-} from "../../../../../utils/testUtils/stripeTestUtils";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
 import chaiExclude = require("chai-exclude");
 
@@ -165,7 +160,6 @@ describe("/v2/transactions/reverse - transfer", () => {
             amount: 75,
             currency: "USD"
         };
-        const [charge] = stubTransferStripeCharge(transfer);
         const postTransfer = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", transfer);
         chai.assert.equal(postTransfer.statusCode, 201, `body=${JSON.stringify(postTransfer.body)}`);
         chai.assert.equal((postTransfer.body.steps[0] as StripeTransactionStep).amount, -75);
@@ -175,12 +169,6 @@ describe("/v2/transactions/reverse - transfer", () => {
         const reverse: Partial<ReverseRequest> = {
             id: generateId()
         };
-        stubStripeRefund(charge, {
-            metadata: {
-                reason: `Being refunded as part of reverse transaction ${reverse.id}.`
-            },
-            source_transfer_reversal: null
-        } as any);  //  source_transfer_reversal is in the docs, but not d.ts and it's mysterious
         const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transfer.id}/reverse`, "POST", reverse);
         chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postTransfer.body)}`);
         const stripeStep: StripeTransactionStep = postReverse.body.steps[1] as StripeTransactionStep;

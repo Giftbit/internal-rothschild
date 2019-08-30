@@ -10,8 +10,6 @@ import {
     setStubsForStripeTests,
     stripeLiveLightrailConfig,
     stripeLiveMerchantConfig,
-    stubNoStripeCharge,
-    stubTransferStripeCharge,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../../utils/testUtils/stripeTestUtils";
@@ -1079,7 +1077,6 @@ describe("/v2/transactions/transfer", () => {
                 currency: "CAD"
             };
 
-            stubTransferStripeCharge(request);
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
             chai.assert.equal(postTransferResp.statusCode, 201, `body=${JSON.stringify(postTransferResp.body)}`);
             chai.assert.deepEqualExcluding(postTransferResp.body, {
@@ -1169,7 +1166,6 @@ describe("/v2/transactions/transfer", () => {
                 currency: "CAD"
             };
 
-            stubNoStripeCharge(request);
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
             chai.assert.equal(postTransferResp.statusCode, 422, `body=${JSON.stringify(postTransferResp.body)}`);
         });
@@ -1191,7 +1187,6 @@ describe("/v2/transactions/transfer", () => {
                 allowRemainder: true
             };
 
-            stubTransferStripeCharge(request);
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
             chai.assert.equal(postTransferResp.statusCode, 201, `body=${JSON.stringify(postTransferResp.body)}`);
             chai.assert.deepEqualExcluding(postTransferResp.body, {
@@ -1281,7 +1276,6 @@ describe("/v2/transactions/transfer", () => {
                 amount: 1000,
                 currency: "CAD",
             };
-            stubNoStripeCharge(request);
 
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
             chai.assert.equal(postTransferResp.statusCode, 409, `body=${JSON.stringify(postTransferResp.body)}`);
@@ -1302,7 +1296,6 @@ describe("/v2/transactions/transfer", () => {
                 currency: "CAD",
             };
 
-            stubNoStripeCharge(request);
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
             chai.assert.equal(postTransferResp.statusCode, 422, `body=${JSON.stringify(postTransferResp.body)}`);
         });
