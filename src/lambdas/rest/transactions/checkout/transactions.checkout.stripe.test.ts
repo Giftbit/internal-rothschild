@@ -17,11 +17,10 @@ import {
     setStubsForStripeTests,
     stripeLiveLightrailConfig,
     stripeLiveMerchantConfig,
-    stubCheckoutStripeError,
+    stubNextStripeAuthAccountId,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
-import {StripeRestError} from "../../../../utils/stripeUtils/StripeRestError";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import {createCustomer, retrieveCharge} from "../../../../utils/stripeUtils/stripeTransactions";
 import log = require("loglevel");
@@ -456,23 +455,12 @@ describe.only("split tender checkout with Stripe", () => {
 
     });
 
-    it("posts the LR transaction identifier as metadata on the Stripe charge", async function () {  // oldschool function syntax: need 'this' in order to skip test if not running live
-        // depends on first split tender test
-
-        if (!testStripeLive()) {
-            log.warn("this test verifies that Lightrail transaction information is saved to Stripe charges. Must be run live.");
-            this.skip();
-            return;
-        }
-
+    it("posts the LR transaction identifier as metadata on the Stripe charge", async () => {
         const lrCheckoutTransaction = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${basicRequest.id}`, "GET");  // created in first split tender test
         chai.assert.equal(lrCheckoutTransaction.statusCode, 200);
 
-        const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
         const stripeChargeId = (lrCheckoutTransaction.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).charge.id;
-        const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-            stripe_account: stripeLiveMerchantConfig.stripeUserId
-        });
+        const stripeCharge = await retrieveCharge(stripeChargeId, true, stripeLiveMerchantConfig.stripeUserId);
 
         chai.assert.deepEqual(stripeCharge.metadata, {
             lightrailTransactionId: basicRequest.id,
@@ -528,9 +516,7 @@ describe.only("split tender checkout with Stripe", () => {
     }).timeout(10000);
 
     it("passes additionalStripeParams to Stripe", async () => {
-        // This cannot be tested live with a dummy value.
-        const onBehalfOf = testStripeLive() ? null : "aaa";
-
+        const onBehalfOf = stripeLiveMerchantConfig.stripeUserId;
         const request: CheckoutRequest = {
             id: generateId(),
             sources: [
@@ -578,12 +564,14 @@ describe.only("split tender checkout with Stripe", () => {
 
         const stripeStep = postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep;
         chai.assert.isObject(stripeStep, "found stripe step");
-        chai.assert.equal(stripeStep.charge.description, "eee");
-        chai.assert.equal((stripeStep.charge as ICharge).on_behalf_of, onBehalfOf);
-        chai.assert.equal((stripeStep.charge as ICharge).receipt_email, "bbb@example.com");
-        chai.assert.equal((stripeStep.charge as ICharge).statement_descriptor, "ccc");
-        chai.assert.equal((stripeStep.charge as ICharge).transfer_group, "ddd");
-        chai.assert.deepEqual((stripeStep.charge as ICharge).shipping, {
+
+        const stripeCharge = stripeStep.charge as ICharge;
+        chai.assert.equal(stripeCharge.description, "eee");
+        chai.assert.equal(stripeCharge.on_behalf_of, onBehalfOf);
+        chai.assert.equal(stripeCharge.receipt_email, "bbb@example.com");
+        chai.assert.equal(stripeCharge.statement_descriptor, "ccc");
+        chai.assert.equal(stripeCharge.transfer_group, "ddd");
+        chai.assert.deepEqual(stripeCharge.shipping, {
             address: {
                 city: "Beverly Hills",
                 country: "US",
@@ -597,11 +585,11 @@ describe.only("split tender checkout with Stripe", () => {
             name: "Henrietta",
             phone: "",
             tracking_number: "abc123"
-        });
+        }, `stripeCharge.shipping=${JSON.stringify(stripeCharge.shipping)}`);
 
         const stripeChargeId = (postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId;
-        const stripeCharge = await retrieveCharge(stripeChargeId, true, stripeLiveMerchantConfig.stripeUserId);
-        chai.assert.deepEqual(stripeCharge.metadata, stripeStep.charge.metadata);
+        const stripeChargeRetrieved = await retrieveCharge(stripeChargeId, true, stripeLiveMerchantConfig.stripeUserId);
+        chai.assert.deepEqual(stripeChargeRetrieved.metadata, stripeCharge.metadata);
     }).timeout(10000);
 
     it("does not charge Stripe when 'simulate: true'", async () => {
@@ -1289,103 +1277,59 @@ describe.only("split tender checkout with Stripe", () => {
         chai.assert.equal(checkout.statusCode, 422);
     });
 
-    if (!testStripeLive()) {
-        it("returns 403 on StripePermissionError", async () => {
-            const request: CheckoutRequest = {
-                id: generateId(),
-                allowRemainder: true,
-                sources: [
-                    {
-                        rail: "stripe",
-                        source: "tok_visa"
-                    }
-                ],
-                lineItems: [
-                    {
-                        productId: "socks",
-                        unitPrice: 500
-                    }
-                ],
-                currency: "CAD"
-            };
-            const exampleStripeError = {
-                "type": "StripePermissionError",
-                "stack": "Error: Only Stripe Connect platforms can work with other accounts. If you specified a client_id parameter, make sure it's correct. If you need to setup a Stripe Connect platform, you can do so at https://dashboard.stripe.com/account/applications/settings.\n    at Constructor._Error (/Users/timothyjordison/Documents/work/repos/lightrail/internal-rothschild/node_modules/stripe/lib/Error.js:12:17)\n    at Constructor (/Users/timothyjordison/Documents/work/repos/lightrail/internal-rothschild/node_modules/stripe/lib/utils.js:134:13)\n    at new Constructor (/Users/timothyjordison/Documents/work/repos/lightrail/internal-rothschild/node_modules/stripe/lib/utils.js:134:13)\n    at IncomingMessage.<anonymous> (/Users/timothyjordison/Documents/work/repos/lightrail/internal-rothschild/node_modules/stripe/lib/StripeResource.js:151:21)\n    at emitNone (events.js:111:20)\n    at IncomingMessage.emit (events.js:208:7)\n    at endReadableNT (_stream_readable.js:1055:12)\n    at _combinedTickCallback (internal/process/next_tick.js:138:11)\n    at process._tickDomainCallback (internal/process/next_tick.js:218:9)",
-                "rawType": "invalid_request_error",
-                "message": "Only Stripe Connect platforms can work with other accounts. If you specified a client_id parameter, make sure it's correct. If you need to setup a Stripe Connect platform, you can do so at https://dashboard.stripe.com/account/applications/settings.",
-                "raw": {
-                    "message": "Only Stripe Connect platforms can work with other accounts. If you specified a client_id parameter, make sure it's correct. If you need to setup a Stripe Connect platform, you can do so at https://dashboard.stripe.com/account/applications/settings.",
-                    "type": "invalid_request_error",
-                    "headers": {
-                        "server": "nginx",
-                        "date": "Mon, 14 Jan 2019 19:45:23 GMT",
-                        "content-type": "application/json",
-                        "content-length": "324",
-                        "connection": "close",
-                        "access-control-allow-credentials": "true",
-                        "access-control-allow-methods": "GET, POST, HEAD, OPTIONS, DELETE",
-                        "access-control-allow-origin": "*",
-                        "access-control-expose-headers": "Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required",
-                        "access-control-max-age": "300",
-                        "cache-control": "no-cache, no-store",
-                        "stripe-version": "2018-05-21",
-                        "strict-transport-security": "max-age=31556926; includeSubDomains; preload"
-                    },
-                    "statusCode": 403
-                },
-                "headers": {
-                    "server": "nginx",
-                    "date": "Mon, 14 Jan 2019 19:45:23 GMT",
-                    "content-type": "application/json",
-                    "content-length": "324",
-                    "connection": "close",
-                    "access-control-allow-credentials": "true",
-                    "access-control-allow-methods": "GET, POST, HEAD, OPTIONS, DELETE",
-                    "access-control-allow-origin": "*",
-                    "access-control-expose-headers": "Request-Id, Stripe-Manage-Version, X-Stripe-External-Auth-Required, X-Stripe-Privileged-Session-Required",
-                    "access-control-max-age": "300",
-                    "cache-control": "no-cache, no-store",
-                    "stripe-version": "2018-05-21",
-                    "strict-transport-security": "max-age=31556926; includeSubDomains; preload"
-                },
-                "statusCode": 403
-            };
-            const exampleErrorResponse = new StripeRestError(424
-                , "Error for tests", null, exampleStripeError);
-            stubCheckoutStripeError(request, 0, exampleErrorResponse);
+    it("returns 403 on StripePermissionError", async () => {
+        // This connect account isn't valid in the mock server or the real thing.
+        stubNextStripeAuthAccountId("acct_invalid");
 
-            const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
-            chai.assert.equal(checkout.statusCode, 424);
-        });
+        const request: CheckoutRequest = {
+            id: generateId(),
+            allowRemainder: true,
+            sources: [
+                {
+                    rail: "stripe",
+                    source: "tok_visa"
+                }
+            ],
+            lineItems: [
+                {
+                    productId: "socks",
+                    unitPrice: 500
+                }
+            ],
+            currency: "CAD"
+        };
 
-        it("returns 429 on Stripe RateLimitError (mock server only)", async function () {
-            if (testStripeLive()) {
-                // This test uses a special token only implemented in the mock server.
-                this.skip();
-            }
+        const checkout = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", request);
+        chai.assert.equal(checkout.statusCode, 424);
+    });
 
-            const request: CheckoutRequest = {
-                id: generateId(),
-                allowRemainder: true,
-                sources: [
-                    {
-                        rail: "stripe",
-                        source: "tok_429"
-                    }
-                ],
-                lineItems: [
-                    {
-                        productId: "socks",
-                        unitPrice: 500
-                    }
-                ],
-                currency: "CAD"
-            };
+    it("returns 429 on Stripe RateLimitError (mock server only)", async function () {
+        if (testStripeLive()) {
+            // This test uses a special token only implemented in the mock server.
+            this.skip();
+        }
 
-            const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
-            chai.assert.equal(checkout.statusCode, 429);
-        });
-    }
+        const request: CheckoutRequest = {
+            id: generateId(),
+            allowRemainder: true,
+            sources: [
+                {
+                    rail: "stripe",
+                    source: "tok_429"
+                }
+            ],
+            lineItems: [
+                {
+                    productId: "socks",
+                    unitPrice: 500
+                }
+            ],
+            currency: "CAD"
+        };
+
+        const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+        chai.assert.equal(checkout.statusCode, 429);
+    });
 
     if (testStripeLive()) {
         describe("stripe customer + source tests", () => {

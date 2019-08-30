@@ -2,7 +2,6 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as kvsAccess from "../kvsAccess";
 import * as sinon from "sinon";
 import {createUSDCheckout, defaultTestUser} from "./index";
-import * as stripeTransactions from "../stripeUtils/stripeTransactions";
 import {
     CheckoutRequest,
     StripeTransactionParty,
@@ -17,14 +16,9 @@ import * as cassava from "cassava";
 import {Value} from "../../model/Value";
 import {StripeModeConfig} from "../stripeUtils/StripeConfig";
 import stripe = require("stripe");
-import log = require("loglevel");
 
 const sinonSandbox = sinon.createSandbox();
-let stripeChargeStub: sinon.SinonStub = null;
-let stripeCaptureStub: sinon.SinonStub = null;
-let stripeRefundStub: sinon.SinonStub = null;
-let stripeUpdateChargeStub: sinon.SinonStub = null;
-let stripeChargeRetrievalStub: sinon.SinonStub = null;
+let stubKvsGet: sinon.SinonStub;
 
 /**
  * See .env.example for Stripe config details
@@ -50,11 +44,11 @@ export const stripeLiveLightrailConfig: StripeModeConfig = {
     connectWebhookSigningSecret: null
 };
 
-export function setStubsForStripeTests() {
-    const testAssumeToken: giftbitRoutes.secureConfig.AssumeScopeToken = {
-        assumeToken: "this-is-an-assume-token"
-    };
+const testAssumeToken: giftbitRoutes.secureConfig.AssumeScopeToken = {
+    assumeToken: "this-is-an-assume-token"
+};
 
+export function setStubsForStripeTests() {
     initializeAssumeCheckoutToken(Promise.resolve(testAssumeToken));
 
     initializeLightrailStripeConfig(Promise.resolve({
@@ -63,7 +57,7 @@ export function setStubsForStripeTests() {
         live: stripeLiveLightrailConfig
     }));
 
-    const stubKvsGet = sinonSandbox.stub(kvsAccess, "kvsGet");
+    stubKvsGet = sinonSandbox.stub(kvsAccess, "kvsGet");
     stubKvsGet
         .withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string)
         .resolves({
@@ -72,12 +66,27 @@ export function setStubsForStripeTests() {
         });
 }
 
+/**
+ * A hacky way to change the stub and define what accountId should show up next.
+ */
+export function stubNextStripeAuthAccountId(stripeAccountId: string): void {
+    stubKvsGet.reset();
+    stubKvsGet.onFirstCall()
+        .resolves({
+            token_type: "bearer",
+            stripe_user_id: stripeLiveMerchantConfig.stripeUserId
+        });
+    stubKvsGet
+        .withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match.string)
+        .resolves({
+            token_type: "bearer",
+            stripe_user_id: stripeAccountId
+        });
+}
+
 export function unsetStubsForStripeTests() {
     sinonSandbox.restore();
-    stripeCaptureStub = null;
-    stripeChargeStub = null;
-    stripeRefundStub = null;
-    stripeUpdateChargeStub = null;
+    stubKvsGet = null;
 }
 
 export function testStripeLive(): boolean {
@@ -223,10 +232,7 @@ export function getStripeChargeStub(options: GetStripeChargeStubOptions): sinon.
 }
 
 export function getStripeChargeRetrievalStub(chargeId: string): sinon.SinonStub {
-    log.debug(`stubbing stripe charge retrieval, chargeId=${chargeId}`);
-    const stub = stripeChargeRetrievalStub || (stripeChargeRetrievalStub = sinonSandbox.stub(stripeTransactions, "retrieveCharge").callThrough());
-
-    return stub.withArgs(sinon.match(chargeId));
+    throw new Error("delete me");
 }
 
 export interface GetStripeCaptureStubOptions {
