@@ -86,7 +86,7 @@ export async function getStripeClient(testMode: boolean): Promise<Stripe> {
 
     let client: Stripe;
     if (process.env["TEST_STRIPE_LOCAL"] === "true") {
-        log.debug("Using local Stripe server http://localhost:8000");
+        log.warn("Using local Stripe server http://localhost:8000");
         client = new Stripe(stripeModeConfig.secretKey);
         client.setHost("localhost", 8000, "http");
     } else {

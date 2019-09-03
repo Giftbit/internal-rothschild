@@ -48,7 +48,7 @@ export async function createCharge(params: Stripe.charges.IChargeCreationOptions
 
 export async function createRefund(params: Stripe.refunds.IRefundCreationOptionsWithCharge, testMode: boolean, merchantStripeAccountId: string): Promise<Stripe.refunds.IRefund> {
     const lightrailStripe = await getStripeClient(testMode);
-    log.info("Creating refund for Stripe charge", params.charge);
+    log.info("Creating refund for Stripe charge", params);
     try {
         const refund = await lightrailStripe.refunds.create(params, {
             stripe_account: merchantStripeAccountId

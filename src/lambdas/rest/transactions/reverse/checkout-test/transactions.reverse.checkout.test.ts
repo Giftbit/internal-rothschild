@@ -23,7 +23,7 @@ import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
-describe.only("/v2/transactions/reverse - checkout", () => {
+describe("/v2/transactions/reverse - checkout", () => {
 
     const router = new cassava.Router();
 

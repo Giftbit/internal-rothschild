@@ -8,11 +8,7 @@ import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../.
 import {createCurrency} from "../../currencies";
 import {formatCodeForLastFourDisplay, Value} from "../../../../model/Value";
 import {after} from "mocha";
-import {
-    setStubsForStripeTests,
-    stubCheckoutStripeCharge,
-    unsetStubsForStripeTests
-} from "../../../../utils/testUtils/stripeTestUtils";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../utils/testUtils/stripeTestUtils";
 import {CheckoutRequest, InternalTransactionParty} from "../../../../model/TransactionRequest";
 import chaiExclude = require("chai-exclude");
 
@@ -120,7 +116,6 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             currency: "CAD"
         };
 
-        stubCheckoutStripeCharge(request, 0, 1360);
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(postCheckoutResp.body, {
@@ -443,7 +438,6 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             currency: "CAD"
         };
 
-        stubCheckoutStripeCharge(request, 0, 50);
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.equal(postCheckoutResp.body.id, request.id);

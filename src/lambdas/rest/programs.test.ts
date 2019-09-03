@@ -7,13 +7,7 @@ import {installRestRoutes} from "./installRestRoutes";
 import {createCurrency} from "./currencies";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
 import {CheckoutRequest} from "../../model/TransactionRequest";
-import {
-    setStubsForStripeTests,
-    stubCheckoutStripeCharge,
-    stubStripeCapture,
-    stubStripeRefund,
-    unsetStubsForStripeTests
-} from "../../utils/testUtils/stripeTestUtils";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
 import {Value} from "../../model/Value";
 import {Transaction} from "../../model/Transaction";
 import {ProgramStats} from "../../model/ProgramStats";
@@ -1146,8 +1140,7 @@ describe("/v2/programs", () => {
                             }
                         ]
                     };
-                    stubCheckoutStripeCharge(checkoutRequest, 0, 50);
-                    const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+                    await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
                 },
                 result: {
                     outstanding: {
@@ -1213,8 +1206,7 @@ describe("/v2/programs", () => {
                             }
                         ]
                     };
-                    stubCheckoutStripeCharge(checkoutRequest, 2, 50);
-                    const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+                    await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
                 },
                 result: {
                     outstanding: {
@@ -1272,9 +1264,7 @@ describe("/v2/programs", () => {
                         ],
                         pending: true
                     };
-                    const [charge] = stubCheckoutStripeCharge(checkoutRequest, 1, 50);
                     const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-                    stubStripeCapture(charge);
                     await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.body.id}/capture`, "POST", {id: generateId()});
                 },
                 result: {
@@ -1333,9 +1323,7 @@ describe("/v2/programs", () => {
                         ],
                         pending: true
                     };
-                    const [charge] = stubCheckoutStripeCharge(checkoutRequest, 1, 50);
                     const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-                    stubStripeRefund(charge);
                     await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.body.id}/void`, "POST", {id: generateId()});
                 },
                 result: {
@@ -1393,9 +1381,7 @@ describe("/v2/programs", () => {
                             }
                         ]
                     };
-                    const [charge] = stubCheckoutStripeCharge(checkoutRequest, 1, 50);
                     const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-                    stubStripeRefund(charge);
                     await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.body.id}/reverse`, "POST", {id: generateId()});
                 },
                 result: {
