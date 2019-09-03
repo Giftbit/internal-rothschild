@@ -18,7 +18,6 @@ let stubKvsGet: sinon.SinonStub;
  */
 export const stripeLiveMerchantConfig = {
     stripeUserId: "acct_1BOVE6CM9MOvFvZK",
-    connectWebhookSigningSecret: "",
     customer: {
         id: "cus_CP4Zd1Dddy4cOH",
         defaultCard: "card_1C0GSUCM9MOvFvZK8VB29qaz",
@@ -33,7 +32,7 @@ export const stripeLiveLightrailConfig: StripeModeConfig = {
     clientId: null,
     secretKey: process.env["LIGHTRAIL_STRIPE_TEST_SECRET_KEY"] || "",
     publishableKey: null,
-    connectWebhookSigningSecret: null
+    connectWebhookSigningSecret: "secret"
 };
 
 export function setStubsForStripeTests() {
