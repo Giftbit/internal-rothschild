@@ -52,7 +52,10 @@ export function generateConnectWebhookEventMock(eventType: string, eventObject: 
         api_version: stripeApiVersion,
         created: Date.now(),
         livemode: false,
-        pending_webhooks: 1
+        pending_webhooks: 1,
+        request: {
+            id: generateId()
+        }
     };
 }
 

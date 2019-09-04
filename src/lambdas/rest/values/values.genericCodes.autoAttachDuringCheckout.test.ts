@@ -8,11 +8,7 @@ import {createCurrency} from "../currencies";
 import {Contact} from "../../../model/Contact";
 import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
 import {CheckoutRequest} from "../../../model/TransactionRequest";
-import {
-    setStubsForStripeTests,
-    testStripeLive,
-    unsetStubsForStripeTests
-} from "../../../utils/testUtils/stripeTestUtils";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
 import {generateUrlSafeHashFromValueIdContactId} from "../genericCodeWithPerContactOptions";
 import chaiExclude = require("chai-exclude");
 
@@ -726,12 +722,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
         });
     });
 
-    it("checkout with stripe exception rolls back auto-attach. no value is inserted", async function () {
-        if (!testStripeLive()) {
-            this.skip();
-            return;
-        }
-
+    it("checkout with stripe exception rolls back auto-attach. no value is inserted", async () => {
         const contactId = generateId();
 
         const genericValue: Partial<Value> = {

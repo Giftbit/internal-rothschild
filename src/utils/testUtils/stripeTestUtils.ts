@@ -1,7 +1,7 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as kvsAccess from "../kvsAccess";
 import * as sinon from "sinon";
-import {CheckoutRequest, TransactionParty} from "../../model/TransactionRequest";
+import {CheckoutRequest} from "../../model/TransactionRequest";
 import {initializeAssumeCheckoutToken, initializeLightrailStripeConfig} from "../stripeUtils/stripeAccess";
 import {Transaction} from "../../model/Transaction";
 import * as cassava from "cassava";
@@ -80,20 +80,6 @@ export function unsetStubsForStripeTests() {
 
 export function testStripeLive(): boolean {
     return process.env["TEST_STRIPE_LOCAL"] !== "true";
-}
-
-export interface GenerateStripeChargeResponseOptions {
-    transactionId: string;
-    amount: number;
-    currency: string;
-    pending: boolean;
-    sources?: TransactionParty[];
-    metadata?: object;
-    additionalProperties?: Partial<stripe.charges.ICharge>;
-}
-
-export function generateStripeChargeResponse(options: GenerateStripeChargeResponseOptions): stripe.charges.ICharge {
-    throw new Error("delete me");
 }
 
 export interface GenerateStripeRefundResponseOptions {

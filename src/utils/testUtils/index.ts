@@ -129,9 +129,9 @@ export async function resetDb(): Promise<void> {
         }
 
         throw err;
+    } finally {
+        await connection.end();
     }
-
-    await connection.end();
 }
 
 async function runSqlMigrations(connection: any): Promise<void> {
