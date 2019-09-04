@@ -21,8 +21,7 @@ import {
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
-import {createCustomer, retrieveCharge} from "../../../../utils/stripeUtils/stripeTransactions";
-import {getStripeClient} from "../../../../utils/stripeUtils/stripeAccess";
+import {createCharge, createCustomer, retrieveCharge} from "../../../../utils/stripeUtils/stripeTransactions";
 import chaiExclude from "chai-exclude";
 import log = require("loglevel");
 import Stripe = require("stripe");
@@ -693,11 +692,7 @@ describe("split tender checkout with Stripe", () => {
                 currency: "CAD",
                 source: "tok_visa"
             };
-            const lightrailStripe = await getStripeClient(true);
-            await lightrailStripe.charges.create(firstRequest, {
-                stripe_account: stripeLiveMerchantConfig.stripeUserId,
-                idempotency_key: `${idempotencyKey}-0`
-            });
+            await createCharge(firstRequest, true, stripeLiveMerchantConfig.stripeUserId, `${idempotencyKey}-0`);
 
             const request = {
                 ...basicRequest,

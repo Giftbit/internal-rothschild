@@ -5,8 +5,8 @@ import {installRestRoutes} from "../rest/installRestRoutes";
 import {installStripeEventWebhookRest} from "./installStripeEventWebhookRest";
 import * as chai from "chai";
 import {
-    generateStripeRefundResponse,
     setStubsForStripeTests,
+    stripeLiveMerchantConfig,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../utils/testUtils/stripeTestUtils";
@@ -21,6 +21,7 @@ import {
 } from "../../utils/testUtils/webhookHandlerTestUtils";
 import {Value} from "../../model/Value";
 import {Transaction} from "../../model/Transaction";
+import {createRefund} from "../../utils/stripeUtils/stripeTransactions";
 
 describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
     const restRouter = new cassava.Router();
@@ -97,11 +98,10 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
 
         const webhookEventSetup = await setupForWebhookEvent(restRouter, {initialCheckoutReq: {pending: true}});
 
-        const stripeChargeMock = buildStripeFraudRefundedChargeMock(webhookEventSetup.finalStateStripeCharge, generateStripeRefundResponse({
-            stripeChargeId: webhookEventSetup.finalStateStripeCharge.id,
-            amount: webhookEventSetup.finalStateStripeCharge.amount,
-            currency: webhookEventSetup.finalStateStripeCharge.currency
-        }));
+        const refund = await createRefund({
+            charge: webhookEventSetup.stripeStep.charge.id
+        }, true, stripeLiveMerchantConfig.stripeUserId);
+        const stripeChargeMock = buildStripeFraudRefundedChargeMock(webhookEventSetup.finalStateStripeCharge, refund);
         const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", stripeChargeMock));
         chai.assert.equal(webhookResp.statusCode, 204);
 

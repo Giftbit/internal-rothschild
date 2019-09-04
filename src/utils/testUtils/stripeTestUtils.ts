@@ -1,13 +1,8 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as kvsAccess from "../kvsAccess";
 import * as sinon from "sinon";
-import {CheckoutRequest} from "../../model/TransactionRequest";
 import {initializeAssumeCheckoutToken, initializeLightrailStripeConfig} from "../stripeUtils/stripeAccess";
-import {Transaction} from "../../model/Transaction";
-import * as cassava from "cassava";
-import {Value} from "../../model/Value";
 import {StripeModeConfig} from "../stripeUtils/StripeConfig";
-import stripe = require("stripe");
 
 const sinonSandbox = sinon.createSandbox();
 let stubKvsGet: sinon.SinonStub;
@@ -80,20 +75,4 @@ export function unsetStubsForStripeTests() {
 
 export function testStripeLive(): boolean {
     return process.env["TEST_STRIPE_LOCAL"] !== "true";
-}
-
-export interface GenerateStripeRefundResponseOptions {
-    amount: number;
-    currency: string;
-    stripeChargeId: string;
-    reason?: string;
-    additionalProperties?: Partial<stripe.refunds.IRefund>;
-}
-
-export function generateStripeRefundResponse(options: GenerateStripeRefundResponseOptions): stripe.refunds.IRefund {
-    throw new Error("delete me");
-}
-
-export async function createStripeUSDCheckout(router: cassava.Router, checkoutProps?: Partial<CheckoutRequest>): Promise<{ checkout: Transaction, valuesCharged: Value[] }> {
-    throw new Error("delete me");
 }

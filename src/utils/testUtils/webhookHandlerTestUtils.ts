@@ -1,8 +1,7 @@
 import * as cassava from "cassava";
 import * as cryptojs from "crypto-js";
-import {generateId, testAuthedRequest} from "../../utils/testUtils";
+import {createUSDCheckout, generateId, testAuthedRequest} from "../../utils/testUtils";
 import {
-    createStripeUSDCheckout,
     stripeLiveLightrailConfig,
     stripeLiveMerchantConfig,
     testStripeLive
@@ -136,6 +135,13 @@ export async function setupForWebhookEvent(router: cassava.Router, lightrailOpti
         nextStripeStep,
         finalStateStripeCharge
     };
+}
+
+async function createStripeUSDCheckout(router: cassava.Router, checkoutProps?: Partial<CheckoutRequest>): Promise<{ checkout: Transaction, valuesCharged: Value[] }> {
+    const checkoutSetup = await createUSDCheckout(router, checkoutProps);
+    const checkout = checkoutSetup.checkout;
+    chai.assert.isNotNull(checkout.steps.find(step => step.rail === "stripe"));
+    return {checkout, valuesCharged: checkoutSetup.valuesCharged};
 }
 
 export async function refundInStripe(stripeStep: StripeTransactionStep, refundReason?: string): Promise<stripe.charges.ICharge> {
