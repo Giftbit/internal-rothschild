@@ -13,7 +13,6 @@ import {installRestRoutes} from "../rest/installRestRoutes";
 import * as stripeAccess from "../../utils/stripeUtils/stripeAccess";
 import * as chai from "chai";
 import {
-    generateStripeChargeResponse,
     setStubsForStripeTests,
     stripeLiveLightrailConfig,
     stripeLiveMerchantConfig,
@@ -39,6 +38,7 @@ import {generateCode} from "../../utils/codeGenerator";
 import {installStripeEventWebhookRest} from "./installStripeEventWebhookRest";
 import * as webhookUtils from "../../utils/stripeEventWebhookRouteUtils";
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import {createCharge} from "../../utils/stripeUtils/stripeTransactions";
 
 /**
  * Webhook handling tests follow this format:
@@ -131,12 +131,12 @@ describe("/v2/stripeEventWebhook", () => {
     }).timeout(8000);
 
     it("does nothing if event comes from our account instead of Connected account", async () => {
-        const platformWebhookEvent = generateConnectWebhookEventMock("nonsense.event.type", generateStripeChargeResponse({
-            transactionId: generateId(),
-            amount: 1234,
-            currency: "NIL",
-            pending: false,
-        }));
+        const charge = await createCharge({
+            source: "tok_visa",
+            currency: "USD",
+            amount: 5000
+        }, true, undefined, generateId());
+        const platformWebhookEvent = generateConnectWebhookEventMock("nonsense.event.type", charge);
         delete platformWebhookEvent.account;
 
         const webhookResp = await testSignedWebhookRequest(webhookEventRouter, platformWebhookEvent);
