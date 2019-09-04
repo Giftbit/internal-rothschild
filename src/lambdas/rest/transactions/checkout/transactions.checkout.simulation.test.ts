@@ -7,7 +7,7 @@ import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
 import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

@@ -6,7 +6,7 @@ import * as currencies from "../currencies";
 import {Transaction} from "../../../model/Transaction";
 import {Value} from "../../../model/Value";
 import {installRestRoutes} from "../installRestRoutes";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

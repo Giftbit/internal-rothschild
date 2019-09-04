@@ -17,7 +17,7 @@ import {createCurrency} from "../currencies";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {stripeApiVersion} from "../../../utils/stripeUtils/StripeConfig";
 import {TransferRequest} from "../../../model/TransactionRequest";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

@@ -8,7 +8,7 @@ import {DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
 import {Value} from "../../../model/Value";
 import {installRestRoutes} from "../installRestRoutes";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

@@ -16,7 +16,7 @@ import {
 import {after} from "mocha";
 import * as Stripe from "stripe";
 import {captureCharge, createRefund} from "../../../../utils/stripeUtils/stripeTransactions";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

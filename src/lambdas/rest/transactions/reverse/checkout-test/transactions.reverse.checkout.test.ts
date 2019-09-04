@@ -19,7 +19,7 @@ import {
     unsetStubsForStripeTests
 } from "../../../../../utils/testUtils/stripeTestUtils";
 import {createRefund} from "../../../../../utils/stripeUtils/stripeTransactions";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

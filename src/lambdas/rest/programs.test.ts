@@ -11,7 +11,7 @@ import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../utils/test
 import {Value} from "../../model/Value";
 import {Transaction} from "../../model/Transaction";
 import {ProgramStats} from "../../model/ProgramStats";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

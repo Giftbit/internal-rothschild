@@ -23,8 +23,8 @@ import {
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import {createCustomer, retrieveCharge} from "../../../../utils/stripeUtils/stripeTransactions";
 import {getStripeClient} from "../../../../utils/stripeUtils/stripeAccess";
+import chaiExclude from "chai-exclude";
 import log = require("loglevel");
-import chaiExclude = require("chai-exclude");
 import Stripe = require("stripe");
 import ICharge = Stripe.charges.ICharge;
 

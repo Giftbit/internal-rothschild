@@ -4,7 +4,7 @@ import * as chai from "chai";
 import {installRestRoutes} from "../installRestRoutes";
 import * as crypto from "crypto";
 import {initializeIntercomSecrets} from "../../../utils/intercomUtils";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

@@ -10,7 +10,7 @@ import * as sinon from "sinon";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import * as codeGenerator from "../../../utils/codeGenerator";
 import {CheckoutRequest, LightrailTransactionParty} from "../../../model/TransactionRequest";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

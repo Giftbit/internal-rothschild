@@ -10,7 +10,7 @@ import {formatCodeForLastFourDisplay, Value} from "../../../../model/Value";
 import {after} from "mocha";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../utils/testUtils/stripeTestUtils";
 import {CheckoutRequest, InternalTransactionParty} from "../../../../model/TransactionRequest";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

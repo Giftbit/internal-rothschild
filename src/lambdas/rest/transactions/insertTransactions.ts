@@ -120,7 +120,7 @@ async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.Authoriza
         updatedDate: plan.createdDate
     };
 
-    let query = trx.into("Values")
+    let query = trx<any, number>("Values")
         .where({
             userId: auth.userId,
             id: step.value.id,
@@ -142,7 +142,7 @@ async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.Authoriza
     }
     query = query.update(updateProperties);
 
-    const updateRes = await query;
+    const updateRes = (await query);
     if (updateRes !== 1) {
         throw new TransactionPlanError(`Transaction execution canceled because Value updated ${updateRes} rows.  userId=${auth.userId} value.id=${step.value.id} value.balance=${step.value.balance} value.usesRemaining=${step.value.usesRemaining} step.amount=${step.amount} step.uses=${step.uses}`, {
             isReplanable: updateRes === 0

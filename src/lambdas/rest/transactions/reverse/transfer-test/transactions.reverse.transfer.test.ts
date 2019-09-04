@@ -9,7 +9,7 @@ import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../.
 import {CreditRequest, DebitRequest, ReverseRequest, TransferRequest} from "../../../../../model/TransactionRequest";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

@@ -275,7 +275,7 @@ async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
             throw new cassava.RestError(404);
         }
         if (patchRes > 1) {
-            throw new Error(`Illegal UPDATE query.  Updated ${patchRes.length} values.`);
+            throw new Error(`Illegal UPDATE query.  Updated ${patchRes} values.`);
         }
         return updatedProgram;
     });

@@ -481,7 +481,7 @@ export async function getContactValue(auth: giftbitRoutes.jwtauth.AuthorizationB
 
 export async function hasContactValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueId: string): Promise<boolean> {
     const knex = await getKnexRead();
-    const res: [{ count: number }] = await knex("ContactValues")
+    const res: [{ count: number }] = await knex<any, { count: number }>("ContactValues")
         .count({count: "*"})
         .where({
             userId: auth.userId,

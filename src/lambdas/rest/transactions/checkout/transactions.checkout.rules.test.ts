@@ -9,7 +9,7 @@ import {getRuleFromCache} from "../getRuleFromCache";
 import {createCurrency} from "../../currencies";
 import {Transaction} from "../../../../model/Transaction";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

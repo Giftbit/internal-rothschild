@@ -10,7 +10,7 @@ import {LightrailTransactionStep, Transaction} from "../../../model/Transaction"
 import {CheckoutRequest} from "../../../model/TransactionRequest";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
 import {generateUrlSafeHashFromValueIdContactId} from "../genericCodeWithPerContactOptions";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

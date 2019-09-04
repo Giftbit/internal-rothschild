@@ -9,7 +9,7 @@ import {installRestRoutes} from "../../installRestRoutes";
 import {LineItem} from "../../../../model/LineItem";
 import * as stripe from "stripe";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

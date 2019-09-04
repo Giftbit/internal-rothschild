@@ -8,7 +8,7 @@ import {Value} from "../../../../model/Value";
 import {Transaction} from "../../../../model/Transaction";
 import {ReverseRequest} from "../../../../model/TransactionRequest";
 import {Contact} from "../../../../model/Contact";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

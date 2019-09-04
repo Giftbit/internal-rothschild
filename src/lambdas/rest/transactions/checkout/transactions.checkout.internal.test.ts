@@ -7,7 +7,7 @@ import {createCurrency} from "../../currencies";
 import {installRestRoutes} from "../../installRestRoutes";
 import {Value} from "../../../../model/Value";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 
