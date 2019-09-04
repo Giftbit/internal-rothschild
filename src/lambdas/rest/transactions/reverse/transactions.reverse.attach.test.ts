@@ -95,7 +95,7 @@ describe("/v2/transactions/reverse - attach", () => {
                 "createdBy": "default-test-user-TEST"
             } as Transaction, ["createdDate"]
         );
-        chai.assert.deepEqualExcluding(simulate.body, postReverse.body, "simulated", "createdDate");
+        chai.assert.deepEqualExcluding(simulate.body, postReverse.body, ["simulated", "createdDate"]);
         chai.assert.isTrue(simulate.body.simulated);
 
         // check value is same as before
