@@ -221,15 +221,22 @@ export function installValuesRest(router: cassava.Router): void {
                 code = generateCode(evt.body.generateCode);
             }
 
-            const dbCode = await DbCode.getDbCode(code, auth);
-            let partialValue: Partial<DbValue> = {
-                codeLastFour: dbCode.lastFour,
-                codeEncrypted: dbCode.codeEncrypted,
-                codeHashed: dbCode.codeHashed,
+            let valueUpdateProps: Partial<DbValue> = {
+                codeLastFour: null,
+                codeEncrypted: null,
+                codeHashed: null,
                 updatedDate: now
             };
+
+            if (code) {
+                const dbCode = await DbCode.getDbCode(code, auth);
+                valueUpdateProps.codeLastFour = dbCode.lastFour;
+                valueUpdateProps.codeEncrypted = dbCode.codeEncrypted;
+                valueUpdateProps.codeHashed = dbCode.codeHashed;
+            }
+
             return {
-                body: await updateDbValue(auth, evt.pathParameters.id, partialValue, showCode)
+                body: await updateDbValue(auth, evt.pathParameters.id, valueUpdateProps, showCode)
             };
         });
 }

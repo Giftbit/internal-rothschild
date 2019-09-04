@@ -1473,6 +1473,24 @@ describe("/v2/values/", () => {
                 });
                 await assertCodeIsStoredCorrectlyInDB(value.id, code);
             });
+
+            it("can change a code to null", async () => {
+                const changeCode = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}/changeCode?showCode=true`, "POST", {
+                    code: null
+                });
+                chai.assert.equal(changeCode.statusCode, 200, `resp: ${changeCode.body}`);
+
+                const knex = await getKnexRead();
+                let res: DbValue[] = await knex("Values")
+                    .select()
+                    .where({
+                        userId: testUtils.defaultTestUser.userId,
+                        id: value.id
+                    });
+                chai.assert.isNull(res[0].codeEncrypted);
+                chai.assert.isNull(res[0].codeHashed);
+                chai.assert.isNull(res[0].codeLastFour);
+            });
         });
 
         describe("generic value", () => {
