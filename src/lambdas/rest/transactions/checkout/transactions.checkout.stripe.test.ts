@@ -21,7 +21,12 @@ import {
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
-import {createCharge, createCustomer, retrieveCharge} from "../../../../utils/stripeUtils/stripeTransactions";
+import {
+    createCharge,
+    createCustomer,
+    createCustomerSource,
+    retrieveCharge
+} from "../../../../utils/stripeUtils/stripeTransactions";
 import chaiExclude from "chai-exclude";
 import log = require("loglevel");
 import Stripe = require("stripe");
@@ -1002,10 +1007,8 @@ describe("split tender checkout with Stripe", () => {
             });
             chai.assert.equal(postSimulateCheckoutResp.statusCode, 200, `body=${JSON.stringify(postSimulateCheckoutResp.body)}`);
 
-            if (testStripeLive()) {
-                const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-                chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
-            }
+            const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+            chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         });
 
         it("can be configured to forgive the charge amount", async () => {
@@ -1314,61 +1317,65 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.equal(checkout.statusCode, 429);
     });
 
-    if (testStripeLive()) {
-        describe("stripe customer + source tests", () => {
-            it("can charge a customer's default card", async () => {
-                const request: CheckoutRequest = {
-                    id: generateId(),
-                    allowRemainder: true,
-                    sources: [
-                        {
-                            rail: "stripe",
-                            customer: "cus_CP4Zd1Dddy4cOH"
-                        }
-                    ],
-                    lineItems: [
-                        {
-                            productId: "socks",
-                            unitPrice: 500
-                        }
-                    ],
-                    currency: "CAD"
-                };
+    describe("stripe customer + source tests", () => {
+        it("can charge a customer's default card", async () => {
+            const customer = await createCustomer({source: "tok_visa"}, true, stripeLiveMerchantConfig.stripeUserId);
 
-                chai.assert.equal(request.sources[0]["customer"], "cus_CP4Zd1Dddy4cOH", "Specific customer id in integrationtesting+merchant@giftbit.com. If changed test will fail");
-                const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
-                chai.assert.equal(checkout.statusCode, 201);
-                chai.assert.equal(checkout.body.steps[0]["amount"], -500);
-                chai.assert.equal(checkout.body.steps[0]["charge"]["source"]["id"], "card_1C0GSUCM9MOvFvZK8VB29qaz", "This is the customer's (cus_CP4Zd1Dddy4cOH in integrationtesting+merchant@giftbit.com) default card in. It should have been automatically charged.");
-            });
+            const request: CheckoutRequest = {
+                id: generateId(),
+                allowRemainder: true,
+                sources: [
+                    {
+                        rail: "stripe",
+                        customer: customer.id
+                    }
+                ],
+                lineItems: [
+                    {
+                        productId: "socks",
+                        unitPrice: 500
+                    }
+                ],
+                currency: "CAD"
+            };
 
-            it("can charge a customer's non-default card", async () => {
-                const request: CheckoutRequest = {
-                    id: generateId(),
-                    allowRemainder: true,
-                    sources: [
-                        {
-                            rail: "stripe",
-                            customer: "cus_CP4Zd1Dddy4cOH",
-                            source: "card_1C0ZH9CM9MOvFvZKyZZc2X4Z"
-                        }
-                    ],
-                    lineItems: [
-                        {
-                            productId: "socks",
-                            unitPrice: 500
-                        }
-                    ],
-                    currency: "CAD"
-                };
-
-                chai.assert.equal(request.sources[0]["customer"], "cus_CP4Zd1Dddy4cOH", "Specific customer id in integrationtesting+merchant@giftbit.com. If changed test will fail");
-                chai.assert.equal(request.sources[0]["source"], "card_1C0ZH9CM9MOvFvZKyZZc2X4Z", "Specific card id in integrationtesting+merchant@giftbit.com attached to customer. If changed test will fail");
-                const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
-                chai.assert.equal(checkout.statusCode, 201);
-                chai.assert.equal(checkout.body.steps[0]["amount"], -500);
-                chai.assert.equal(checkout.body.steps[0]["charge"]["source"]["id"], "card_1C0ZH9CM9MOvFvZKyZZc2X4Z");
-            });
+            chai.assert.equal(request.sources[0]["customer"], customer.id);
+            const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+            chai.assert.equal(checkout.statusCode, 201);
+            chai.assert.equal(checkout.body.steps[0]["amount"], -500);
+            chai.assert.equal(checkout.body.steps[0]["charge"]["source"]["id"], customer.default_source);
         });
-    }
+
+        it("can charge a customer's non-default card", async () => {
+            const customer = await createCustomer({source: "tok_visa"}, true, stripeLiveMerchantConfig.stripeUserId);
+            const source = await createCustomerSource(customer.id, {source: "tok_mastercard"}, true, stripeLiveMerchantConfig.stripeUserId);
+            chai.assert.notEqual(source.id, customer.default_source, "newly created source is not default source");
+
+            const request: CheckoutRequest = {
+                id: generateId(),
+                allowRemainder: true,
+                sources: [
+                    {
+                        rail: "stripe",
+                        customer: customer.id,
+                        source: source.id
+                    }
+                ],
+                lineItems: [
+                    {
+                        productId: "socks",
+                        unitPrice: 500
+                    }
+                ],
+                currency: "CAD"
+            };
+
+            chai.assert.equal(request.sources[0]["customer"], customer.id);
+            chai.assert.equal(request.sources[0]["source"], source.id);
+            const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+            chai.assert.equal(checkout.statusCode, 201);
+            chai.assert.equal(checkout.body.steps[0]["amount"], -500);
+            chai.assert.equal(checkout.body.steps[0]["charge"]["source"]["id"], source.id);
+        });
+    });
 }).timeout(10000);

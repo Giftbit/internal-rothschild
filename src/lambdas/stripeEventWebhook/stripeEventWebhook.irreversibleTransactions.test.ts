@@ -7,7 +7,6 @@ import * as chai from "chai";
 import {
     setStubsForStripeTests,
     stripeLiveMerchantConfig,
-    testStripeLive,
     unsetStubsForStripeTests
 } from "../../utils/testUtils/stripeTestUtils";
 import * as stripe from "stripe";
@@ -42,12 +41,7 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
         unsetStubsForStripeTests();
     });
 
-    it("uses existing 'reverse' Transaction", async function () {
-        if (!testStripeLive()) {
-            this.skip();
-            return;
-        }
-
+    it("uses existing 'reverse' Transaction", async () => {
         const webhookEventSetup = await setupForWebhookEvent(restRouter, {reversed: true});
 
         const stripeChargeMock = buildStripeFraudRefundedChargeMock(webhookEventSetup.finalStateStripeCharge, webhookEventSetup.nextStripeStep.charge as stripe.refunds.IRefund);
@@ -59,12 +53,7 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
         await assertValuesRestoredAndFrozen(restRouter, webhookEventSetup.valuesCharged, true);
     }).timeout(15000);
 
-    it("succeeds when Values already frozen and Transaction has been reversed", async function () {
-        if (!testStripeLive()) {
-            this.skip();
-            return;
-        }
-
+    it("succeeds when Values already frozen and Transaction has been reversed", async () => {
         const webhookEventSetup = await setupForWebhookEvent(restRouter, {reversed: true});
         const refundedCharge = buildStripeFraudRefundedChargeMock(webhookEventSetup.finalStateStripeCharge, webhookEventSetup.finalStateStripeCharge.refunds.data[0]);
 
@@ -90,12 +79,7 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
         }
     }).timeout(8000);
 
-    it("voids instead of reversing if original Transaction was pending", async function () {
-        if (!testStripeLive()) {
-            this.skip();
-            return;
-        }
-
+    it("voids instead of reversing if original Transaction was pending", async () => {
         const webhookEventSetup = await setupForWebhookEvent(restRouter, {initialCheckoutReq: {pending: true}});
 
         const refund = await createRefund({
@@ -109,12 +93,7 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
         await assertValuesRestoredAndFrozen(restRouter, webhookEventSetup.valuesCharged, true);
     }).timeout(12000);
 
-    it("uses existing 'void' Transaction if original Transaction was pending and has been voided", async function () {
-        if (!testStripeLive()) {
-            this.skip();
-            return;
-        }
-
+    it("uses existing 'void' Transaction if original Transaction was pending and has been voided", async () => {
         const webhookEventSetup = await setupForWebhookEvent(restRouter, {
             voided: true,
             initialCheckoutReq: {pending: true}
@@ -131,12 +110,7 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
         await assertValuesRestoredAndFrozen(restRouter, webhookEventSetup.valuesCharged, true);
     }).timeout(18000);
 
-    it("reverses 'capture' Transaction if original Transaction was pending and has been captured", async function () {
-        if (!testStripeLive()) {
-            this.skip();
-            return;
-        }
-
+    it("reverses 'capture' Transaction if original Transaction was pending and has been captured", async () => {
         const webhookEventSetup = await setupForWebhookEvent(restRouter, {
             captured: true,
             initialCheckoutReq: {pending: true}

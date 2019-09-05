@@ -155,6 +155,17 @@ export async function createCustomer(params: Stripe.customers.ICustomerCreationO
 }
 
 /**
+ * So far this has only been used in test code.  It's not clear there will ever be
+ * a need in production.
+ */
+export async function createCustomerSource(customerId: string, params: Stripe.customers.ICustomerSourceCreationOptions, testMode: boolean, merchantStripeAccountId: string): Promise<Stripe.IStripeSource> {
+    const lightrailStripe = await getStripeClient(testMode);
+    log.info("Creating Stripe card source", customerId, params);
+
+    return await lightrailStripe.customers.createSource(customerId, params, {stripe_account: merchantStripeAccountId});
+}
+
+/**
  * Returns true if the error is an idempotent replay from a previous call.
  */
 function isIdempotentReplayError(err: any): boolean {

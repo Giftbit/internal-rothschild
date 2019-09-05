@@ -7,7 +7,6 @@ import {
     getRootTransactionFromStripeCharge,
     getStripeClient
 } from "../../utils/stripeUtils/stripeAccess";
-import {StripeModeConfig} from "../../utils/stripeUtils/StripeConfig";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
 import {StripeTransactionStep, Transaction} from "../../model/Transaction";
@@ -81,7 +80,6 @@ async function handleConnectedAccountEvent(event: Stripe.events.IEvent & { accou
     logEvent(auth, event);
     if (isEventForLoggingOnly(event)) {
         return;
-
     } else if (isFraudActionEvent(event)) {
         try {
             await handleFraudReverseEvent(auth, event, stripeCharge);
@@ -232,8 +230,6 @@ function isFraudActionEvent(event: Stripe.events.IEvent & { account?: string }):
 }
 
 async function getStripeChargeFromEvent(event: Stripe.events.IEvent & { account: string }): Promise<Stripe.charges.ICharge> {
-    const lightrailStripeConfig: StripeModeConfig = await getLightrailStripeModeConfig(!event.livemode);
-
     if (event.data.object.object === "charge") {
         return event.data.object as Stripe.charges.ICharge;
     } else if (event.data.object.object === "refund") {

@@ -12,12 +12,7 @@ let stubKvsGet: sinon.SinonStub;
  * This is "merchant" (connected account) config from stripe test account//pass: integrationtesting+merchant@giftbit.com // x39Rlf4TH3pzn29hsb#
  */
 export const stripeLiveMerchantConfig = {
-    stripeUserId: "acct_1BOVE6CM9MOvFvZK",
-    customer: {
-        id: "cus_CP4Zd1Dddy4cOH",
-        defaultCard: "card_1C0GSUCM9MOvFvZK8VB29qaz",
-        nonDefaultCard: "card_1C0ZH9CM9MOvFvZKyZZc2X4Z"
-    }
+    stripeUserId: "acct_1BOVE6CM9MOvFvZK"
 };
 
 /**

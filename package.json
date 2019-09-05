@@ -70,7 +70,7 @@
     "rimraf": "^3.0.0",
     "sinon": "^7.4.2",
     "stripe": "^6.36.0",
-    "stripe-stateful-mock": "0.0.2",
+    "stripe-stateful-mock": "0.0.4",
     "ts-loader": "^6.0.4",
     "ts-node": "^8.3.0",
     "tslint": "^5.19.0",
