@@ -1479,6 +1479,7 @@ describe("/v2/values/", () => {
                     code: null
                 });
                 chai.assert.equal(changeCode.statusCode, 200, `resp: ${changeCode.body}`);
+                chai.assert.isNull(changeCode.body.code);
 
                 const knex = await getKnexRead();
                 let res: DbValue[] = await knex("Values")
