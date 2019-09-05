@@ -22,11 +22,13 @@ export function initializeAssumeCheckoutToken(tokenPromise: Promise<giftbitRoute
  */
 const cachedMerchantStripeAuth = {
     auth: null as giftbitRoutes.jwtauth.AuthorizationBadge,
+    userId: null as string,
     merchantStripeAuth: null as StripeAuth
 };
 
 export async function getMerchantStripeAuth(auth: giftbitRoutes.jwtauth.AuthorizationBadge): Promise<StripeAuth> {
-    if (cachedMerchantStripeAuth.auth === auth) {   // referential equality
+    if (cachedMerchantStripeAuth.auth === auth && cachedMerchantStripeAuth.userId === auth.userId) {
+        // Auth token is referentially the same and the userId has not changed.
         return cachedMerchantStripeAuth.merchantStripeAuth;
     }
 
@@ -47,6 +49,7 @@ export async function getMerchantStripeAuth(auth: giftbitRoutes.jwtauth.Authoriz
     }
 
     cachedMerchantStripeAuth.auth = auth;
+    cachedMerchantStripeAuth.userId = auth.userId;
     cachedMerchantStripeAuth.merchantStripeAuth = merchantStripeAuth;
 
     return merchantStripeAuth;
