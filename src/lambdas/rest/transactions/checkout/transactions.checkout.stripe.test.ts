@@ -943,6 +943,34 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.deepEqual(getCheckoutResp.body, postCheckoutResp.body, `body=${JSON.stringify(getCheckoutResp.body, null, 4)}`);
     });
 
+    it("throws a 502 if Stripe throws a 500", async function () {
+        if (testStripeLive()) {
+            // This test relies upon a special token not implemented in the official server.
+            this.skip();
+        }
+
+        const checkoutRequest: CheckoutRequest = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "stripe",
+                    source: "tok_500",
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "xyz-123",
+                    unitPrice: 2000
+                }
+            ],
+            currency: "CAD"
+        };
+
+        const checkoutResponse = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        chai.assert.equal(checkoutResponse.statusCode, 502);
+    });
+
     describe("handling Stripe minimum charge of $0.50", () => {
         it("fails for Stripe charges below the default minimum", async () => {
             const checkoutRequest: CheckoutRequest = {
