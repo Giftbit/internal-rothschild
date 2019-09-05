@@ -221,7 +221,7 @@ export function installValuesRest(router: cassava.Router): void {
                 code = generateCode(evt.body.generateCode);
             }
 
-            let valueUpdateProps: Partial<DbValue> = {
+            let updateProps: Partial<DbValue> = {
                 codeLastFour: null,
                 codeEncrypted: null,
                 codeHashed: null,
@@ -230,13 +230,13 @@ export function installValuesRest(router: cassava.Router): void {
 
             if (code) {
                 const dbCode = await DbCode.getDbCode(code, auth);
-                valueUpdateProps.codeLastFour = dbCode.lastFour;
-                valueUpdateProps.codeEncrypted = dbCode.codeEncrypted;
-                valueUpdateProps.codeHashed = dbCode.codeHashed;
+                updateProps.codeLastFour = dbCode.lastFour;
+                updateProps.codeEncrypted = dbCode.codeEncrypted;
+                updateProps.codeHashed = dbCode.codeHashed;
             }
 
             return {
-                body: await updateDbValue(auth, evt.pathParameters.id, valueUpdateProps, showCode)
+                body: await updateDbValue(auth, evt.pathParameters.id, updateProps, showCode)
             };
         });
 }
