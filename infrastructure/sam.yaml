@@ -328,11 +328,6 @@ Resources:
       Parameters:
         sql_mode: IGNORE_SPACE,STRICT_TRANS_TABLES
         slow_query_log: 1
-        performance_schema: !If [HighCapacity, 1, !Ref "AWS::NoValue"]
-        performance-schema-consumer-events_waits_current: !If [HighCapacity, ON, !Ref "AWS::NoValue"]
-        performance-schema-instrument: !If [HighCapacity, 'wait/%=ON', !Ref "AWS::NoValue"]
-        performance-schema-consumer-global_instrumentation: !If [HighCapacity, ON, !Ref "AWS::NoValue"]
-        performance-schema-consumer-thread_instrumentation: !If [HighCapacity, ON, !Ref "AWS::NoValue"]
       Tags:
         - Key: Service
           Value: Rothschild
@@ -344,9 +339,6 @@ Resources:
       DBInstanceClass: !If [HighCapacity, db.r4.xlarge, db.t2.medium]
       DBSubnetGroupName: !Ref DbSubnetGroup
       DBParameterGroupName: !Ref DbInstanceParameterGroup
-      EnablePerformanceInsights: !If [HighCapacity, true, !Ref "AWS::NoValue"]
-      PerformanceInsightsRetentionPeriod: !If [HighCapacity, 731, !Ref "AWS::NoValue"]
-      PerformanceInsightsKMSKeyId: !If [HighCapacity, !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}", !Ref "AWS::NoValue"]
       Tags:
         - Key: Service
           Value: Rothschild
