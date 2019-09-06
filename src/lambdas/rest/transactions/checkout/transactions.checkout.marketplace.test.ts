@@ -238,19 +238,19 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
         });
     });
 
-    it("floating point algorithm bug fix", async () => {
+    it("rounds off the sellerDiscount to 0 decimal points if it needs to be", async () => {
         const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
             id: "sep5bug",
             currency: "CAD",
             discount: true,
-            discountSellerLiability: 0.815,
+            discountSellerLiability: 0.815768,
             balance: 9200,
             pretax: true
         });
         chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
         sellerDiscountValue = postValueResp.body;
 
-        const checkoutRequest = {
+        const checkoutRequest: CheckoutRequest = {
             id: "checkout-4",
             sources: [
                 {
@@ -265,7 +265,6 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             lineItems: [
                 {
                     unitPrice: 46000,
-
                 }
             ],
             "simulate": true,
@@ -273,11 +272,9 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
         };
         const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
         chai.assert.deepEqual(checkoutResp.body.totals.marketplace, {
-
-            sellerDiscount: 7498,
+            sellerDiscount: 7505,
             sellerGross: 46000,
-            sellerNet: 38502
-
+            sellerNet: 38495
         });
     });
 
