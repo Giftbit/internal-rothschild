@@ -238,6 +238,49 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
         });
     });
 
+    it("floating point algorithm bug fix", async () => {
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: "sep5bug",
+            currency: "CAD",
+            discount: true,
+            discountSellerLiability: 0.815,
+            balance: 9200,
+            pretax: true
+        });
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
+        sellerDiscountValue = postValueResp.body;
+
+        const checkoutRequest = {
+            id: "checkout-4",
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: value.id
+                },
+                {
+                    rail: "lightrail",
+                    valueId: sellerDiscountValue.id
+                }
+            ],
+            lineItems: [
+                {
+                    unitPrice: 46000,
+
+                }
+            ],
+            "simulate": true,
+            currency: "CAD"
+        };
+        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        chai.assert.deepEqual(checkoutResp.body.totals.marketplace, {
+
+            sellerDiscount: 7498,
+            sellerGross: 46000,
+            sellerNet: 38502
+
+        });
+    });
+
     it("discountSellerLiability still works if marketplaceRate is not set in checkout", async () => {
         const value: Partial<Value> = {
             id: generateId(),
