@@ -328,8 +328,8 @@ Resources:
       Parameters:
         sql_mode: IGNORE_SPACE,STRICT_TRANS_TABLES
         slow_query_log: 1
-        performance_schema: !If [HighCapacity, 1, !Ref "AWS::NoValue"]
-        performance-schema-consumer-events-waits-current: !If [HighCapacity, ON, !Ref "AWS::NoValue"]
+        performance_schema: !If [HighCapacity, 1, 0]
+        performance-schema-consumer-events-waits-current: !If [HighCapacity, "ON", "OFF"]
         performance-schema-instrument: !If [HighCapacity, 'wait/%=ON', !Ref "AWS::NoValue"]
       Tags:
         - Key: Service
