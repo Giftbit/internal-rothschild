@@ -238,9 +238,9 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
         });
     });
 
-    it("rounds off the sellerDiscount to 0 decimal points if it needs to be", async () => {
+    it("can set discountSellerLiability to precise decimal and resulting sellerDiscount is properly rounded", async () => {
         const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
-            id: "sep5bug",
+            id: testUtils.generateId(),
             currency: "CAD",
             discount: true,
             discountSellerLiability: 0.815768,
@@ -267,7 +267,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
                     unitPrice: 46000,
                 }
             ],
-            "simulate": true,
+            simulate: true,
             currency: "CAD"
         };
         const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
