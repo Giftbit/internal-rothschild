@@ -240,7 +240,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
 
     it("can set discountSellerLiability to precise decimal and resulting sellerDiscount is properly rounded", async () => {
         const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
-            id: testUtils.generateId(),
+            id: generateId(),
             currency: "CAD",
             discount: true,
             discountSellerLiability: 0.815768,
