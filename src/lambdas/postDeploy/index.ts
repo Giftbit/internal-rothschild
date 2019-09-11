@@ -171,7 +171,7 @@ async function setStripeWebhookEvents(event: awslambda.CloudFormationCustomResou
 }
 
 async function configureStripeWebhook(webhookEvents: string[], url: string, isTestMode: boolean): Promise<void> {
-    let lightrailStripe: any;
+    let lightrailStripe: any;   // webhookEndpoints is not yet in the Stripe declaration file
     try {
         lightrailStripe = await getStripeClient(isTestMode);
     } catch (err) {

@@ -7,6 +7,7 @@ import {
 } from "../testUtils/stripeTestUtils";
 import {createCharge} from "./stripeTransactions";
 import {generateId} from "../testUtils";
+import {StripeRestError} from "./StripeRestError";
 
 describe("stripeTransactions", () => {
 
@@ -24,20 +25,31 @@ describe("stripeTransactions", () => {
             this.skip();
         }
 
+        // With this test token the Stripe mock server will return an error the
+        // first time and succeed the second time.  This simulates a card being
+        // topped up and the charge retried.
         const chargeParams = {
             currency: "usd",
             amount: 2000,
             source: "tok_chargeDeclinedInsufficientFunds|tok_visa"
         };
 
-        let firstFail: any = null;
+        const idempotentId = generateId() + "-0";
+        let firstFail: any;
         try {
-            await createCharge(chargeParams, true, stripeLiveMerchantConfig.stripeUserId, generateId() + "-0");
+            // This charge will fail.
+            await createCharge(chargeParams, true, stripeLiveMerchantConfig.stripeUserId, idempotentId);
         } catch (err) {
             firstFail = err;
         }
-        chai.assert.isDefined(firstFail);
+        chai.assert.isDefined(firstFail, "charge should fail the first time");
+        chai.assert.instanceOf(firstFail, StripeRestError);
 
-        const charge = await createCharge(chargeParams, true, stripeLiveMerchantConfig.stripeUserId, generateId() + "-0");
+        // On this attempt Lightrail will try the charge, get the fail response
+        // because it shares the idempotentId above, and then try again with the next
+        // idempotentId.  Because we retry these idempotentIds in sequence we don't
+        // risk double charging.
+        const charge = await createCharge(chargeParams, true, stripeLiveMerchantConfig.stripeUserId, idempotentId);
+        chai.assert.equal(charge.amount, 2000);
     });
 });
