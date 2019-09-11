@@ -64,22 +64,22 @@ export function initializeLightrailStripeConfig(lightrailStripePromise: Promise<
 /**
  * Get Stripe credentials for test or live mode.  Test mode credentials allow
  * dummy credit cards and skip through stripe connect.
- * @param testMode whether to use test account credentials or live credentials
+ * @param isTestMode whether to use test account credentials or live credentials
  */
-export async function getLightrailStripeModeConfig(testMode: boolean): Promise<StripeModeConfig> {
+export async function getLightrailStripeModeConfig(isTestMode: boolean): Promise<StripeModeConfig> {
     if (!lightrailStripeConfig) {
         throw new Error("lightrailStripeConfig has not been initialized.");
     }
-    return process.env["TEST_ENV"] || testMode ? (await lightrailStripeConfig).test : (await lightrailStripeConfig).live;
+    return process.env["TEST_ENV"] || isTestMode ? (await lightrailStripeConfig).test : (await lightrailStripeConfig).live;
 }
 
 /**
  * Get Stripe client for test or live mode.  Test mode clients allow
  * dummy credit cards and skip through stripe connect.
- * @param testMode whether to use test account credentials or live credentials
+ * @param isTestMode whether to use test account credentials or live credentials
  */
-export async function getStripeClient(testMode: boolean): Promise<Stripe> {
-    const stripeModeConfig = await getLightrailStripeModeConfig(testMode);
+export async function getStripeClient(isTestMode: boolean): Promise<Stripe> {
+    const stripeModeConfig = await getLightrailStripeModeConfig(isTestMode);
     if (!stripeModeConfig) {
         throw new Error("Lightrail stripe secretKey could not be loaded from s3 secure config.  stripeModeConfig=null");
     }
@@ -123,9 +123,9 @@ export async function getAuthBadgeFromStripeCharge(stripeAccountId: string, stri
  * When the new user service exists and provides a direct mapping from Stripe accountId to Lightrail userId, we'll be able to do a direct lookup without using the Stripe charge.
  * @param stripeAccountId
  * @param stripeCharge
- * @param testMode - currently not actually required (lightrailUserId will contain "-TEST" already) but will be for non-workaround method
+ * @param isTestMode - currently not actually required (lightrailUserId will contain "-TEST" already) but will be for non-workaround method
  */
-async function getLightrailUserIdFromStripeCharge(stripeAccountId: string, stripeCharge: Stripe.charges.ICharge, testMode: boolean): Promise<string> {
+async function getLightrailUserIdFromStripeCharge(stripeAccountId: string, stripeCharge: Stripe.charges.ICharge, isTestMode: boolean): Promise<string> {
     try {
         const rootTransaction: Transaction = await getRootTransactionFromStripeCharge(stripeCharge);
         return rootTransaction.createdBy;

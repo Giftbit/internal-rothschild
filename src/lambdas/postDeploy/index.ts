@@ -170,16 +170,16 @@ async function setStripeWebhookEvents(event: awslambda.CloudFormationCustomResou
     await configureStripeWebhook(webhookEventsToEnable, url, true);
 }
 
-async function configureStripeWebhook(webhookEvents: string[], url: string, testMode: boolean): Promise<void> {
+async function configureStripeWebhook(webhookEvents: string[], url: string, isTestMode: boolean): Promise<void> {
     let lightrailStripe: any;
     try {
-        lightrailStripe = await getStripeClient(testMode);
+        lightrailStripe = await getStripeClient(isTestMode);
     } catch (err) {
         log.error(`Error creating Stripe client.  Enabled Stripe webhook events have not been updated. Secure config permissions may need to be set. \nError: ${JSON.stringify(err, null, 2)}`);
         return; // don't fail deployment if the function can't get the Stripe credentials (stack should be deployable in a new environment where function role name isn't known and can't have had permissions set)
     }
 
-    log.info(`Fetching existing Stripe webhooks for testMode=${testMode}...`);
+    log.info(`Fetching existing Stripe webhooks for isTestMode=${isTestMode}...`);
     const webhooks = await lightrailStripe.webhookEndpoints.list();
     log.info(`Got existing webhooks: ${JSON.stringify(webhooks, null, 2)}`);
 
@@ -195,7 +195,7 @@ async function configureStripeWebhook(webhookEvents: string[], url: string, test
             connect: true
         });
     }
-    log.info(`Stripe webhook events configured: testMode=${testMode}. Endpoint: '${url}'; events: '${webhookEvents}'`);
+    log.info(`Stripe webhook events configured: isTestMode=${isTestMode}. Endpoint: '${url}'; events: '${webhookEvents}'`);
 }
 
 function buildStripeWebhookHandlerEndpoint(lightrailDomain: string): string {

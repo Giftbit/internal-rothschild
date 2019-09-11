@@ -5,8 +5,8 @@ import {getStripeClient} from "./stripeAccess";
 import log = require("loglevel");
 import Stripe = require("stripe");
 
-export async function createCharge(params: Stripe.charges.IChargeCreationOptions, testMode: boolean, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<Stripe.charges.ICharge> {
-    const lightrailStripe = await getStripeClient(testMode);
+export async function createCharge(params: Stripe.charges.IChargeCreationOptions, isTestMode: boolean, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<Stripe.charges.ICharge> {
+    const lightrailStripe = await getStripeClient(isTestMode);
     log.info("Creating Stripe charge", params);
 
     try {
@@ -28,7 +28,7 @@ export async function createCharge(params: Stripe.charges.IChargeCreationOptions
             case "StripeCardError":
                 if (isIdempotentReplayError(err)) {
                     const nextStepIdempotencyKey = getRetryIdempotencyKey(stepIdempotencyKey, err);
-                    return createCharge(params, testMode, merchantStripeAccountId, nextStepIdempotencyKey);
+                    return createCharge(params, isTestMode, merchantStripeAccountId, nextStepIdempotencyKey);
                 }
                 throw new StripeRestError(cassava.httpStatusCode.clientError.CONFLICT, "Card declined.", "StripeCardDeclined", err);
             case "StripeInvalidRequestError":
@@ -44,8 +44,8 @@ export async function createCharge(params: Stripe.charges.IChargeCreationOptions
     }
 }
 
-export async function createRefund(params: Stripe.refunds.IRefundCreationOptionsWithCharge, testMode: boolean, merchantStripeAccountId: string): Promise<Stripe.refunds.IRefund> {
-    const lightrailStripe = await getStripeClient(testMode);
+export async function createRefund(params: Stripe.refunds.IRefundCreationOptionsWithCharge, isTestMode: boolean, merchantStripeAccountId: string): Promise<Stripe.refunds.IRefund> {
+    const lightrailStripe = await getStripeClient(isTestMode);
     log.info("Creating refund for Stripe charge", params);
     try {
         const refund = await lightrailStripe.refunds.create(params, {
@@ -78,8 +78,8 @@ export async function createRefund(params: Stripe.refunds.IRefundCreationOptions
     }
 }
 
-export async function captureCharge(chargeId: string, options: Stripe.charges.IChargeCaptureOptions, testMode: boolean, merchantStripeAccountId: string): Promise<Stripe.charges.ICharge> {
-    const lightrailStripe = await getStripeClient(testMode);
+export async function captureCharge(chargeId: string, options: Stripe.charges.IChargeCaptureOptions, isTestMode: boolean, merchantStripeAccountId: string): Promise<Stripe.charges.ICharge> {
+    const lightrailStripe = await getStripeClient(isTestMode);
     log.info("Creating capture for Stripe charge", chargeId);
     try {
         const capturedCharge = await lightrailStripe.charges.capture(chargeId, options, {
@@ -103,8 +103,8 @@ export async function captureCharge(chargeId: string, options: Stripe.charges.IC
     }
 }
 
-export async function updateCharge(chargeId: string, params: Stripe.charges.IChargeUpdateOptions, testMode: boolean, merchantStripeAccountId: string): Promise<any> {
-    const lightrailStripe = await getStripeClient(testMode);
+export async function updateCharge(chargeId: string, params: Stripe.charges.IChargeUpdateOptions, isTestMode: boolean, merchantStripeAccountId: string): Promise<any> {
+    const lightrailStripe = await getStripeClient(isTestMode);
     log.info("Updating Stripe charge", params);
     try {
         const chargeUpdate = await lightrailStripe.charges.update(
@@ -123,8 +123,8 @@ export async function updateCharge(chargeId: string, params: Stripe.charges.ICha
     }
 }
 
-export async function retrieveCharge(chargeId: string, testMode: boolean, merchantStripeAccountId: string): Promise<Stripe.charges.ICharge> {
-    const lightrailStripe = await getStripeClient(testMode);
+export async function retrieveCharge(chargeId: string, isTestMode: boolean, merchantStripeAccountId: string): Promise<Stripe.charges.ICharge> {
+    const lightrailStripe = await getStripeClient(isTestMode);
     log.info("Retrieving Stripe charge", chargeId);
     try {
         const charge = await lightrailStripe.charges.retrieve(chargeId, {stripe_account: merchantStripeAccountId});
@@ -145,8 +145,8 @@ export async function retrieveCharge(chargeId: string, testMode: boolean, mercha
  * So far this has only been used in test code.  It's not clear there will ever be
  * a need in production.
  */
-export async function createCustomer(params: Stripe.customers.ICustomerCreationOptions, testMode: boolean, merchantStripeAccountId: string): Promise<Stripe.customers.ICustomer> {
-    const lightrailStripe = await getStripeClient(testMode);
+export async function createCustomer(params: Stripe.customers.ICustomerCreationOptions, isTestMode: boolean, merchantStripeAccountId: string): Promise<Stripe.customers.ICustomer> {
+    const lightrailStripe = await getStripeClient(isTestMode);
     log.info("Creating Stripe customer", params);
 
     return await lightrailStripe.customers.create(params, {stripe_account: merchantStripeAccountId});
@@ -156,8 +156,8 @@ export async function createCustomer(params: Stripe.customers.ICustomerCreationO
  * So far this has only been used in test code.  It's not clear there will ever be
  * a need in production.
  */
-export async function createCustomerSource(customerId: string, params: Stripe.customers.ICustomerSourceCreationOptions, testMode: boolean, merchantStripeAccountId: string): Promise<Stripe.IStripeSource> {
-    const lightrailStripe = await getStripeClient(testMode);
+export async function createCustomerSource(customerId: string, params: Stripe.customers.ICustomerSourceCreationOptions, isTestMode: boolean, merchantStripeAccountId: string): Promise<Stripe.IStripeSource> {
+    const lightrailStripe = await getStripeClient(isTestMode);
     log.info("Creating Stripe card source", customerId, params);
 
     return await lightrailStripe.customers.createSource(customerId, params, {stripe_account: merchantStripeAccountId});
