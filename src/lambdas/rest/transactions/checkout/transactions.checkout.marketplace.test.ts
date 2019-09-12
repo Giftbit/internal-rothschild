@@ -238,6 +238,42 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
         });
     });
 
+    it("can set discountSellerLiability to precise decimal and resulting sellerDiscount is properly rounded", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            discount: true,
+            discountSellerLiability: 0.815768,
+            balance: 9200,
+            pretax: true
+        };
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
+
+        const checkoutRequest: CheckoutRequest = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: value.id
+                }
+            ],
+            lineItems: [
+                {
+                    unitPrice: 46000,
+                }
+            ],
+            allowRemainder: true,
+            currency: "CAD"
+        };
+        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest );
+        chai.assert.deepEqual(checkoutResp.body.totals.marketplace, {
+            sellerDiscount: 7505,
+            sellerGross: 46000,
+            sellerNet: 38495
+        });
+    });
+
     it("discountSellerLiability still works if marketplaceRate is not set in checkout", async () => {
         const value: Partial<Value> = {
             id: generateId(),

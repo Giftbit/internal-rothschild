@@ -108,6 +108,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
                 sellerDiscount -= (step as LightrailUpdateTransactionPlanStep).amount * (step as LightrailUpdateTransactionPlanStep).value.discountSellerLiability;
             }
         }
+        sellerDiscount = bankersRounding(sellerDiscount, 0);
 
         this.totals.marketplace = {
             sellerGross: sellerGross,
