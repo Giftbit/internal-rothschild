@@ -18,6 +18,7 @@ import {
     generateUrlSafeHashFromValueIdContactId
 } from "./genericCodeWithPerContactOptions";
 import log = require("loglevel");
+import {GiftbitRestError} from "giftbit-cassava-routes";
 
 export function installContactValuesRest(router: cassava.Router): void {
     router.route("/v2/contacts/{id}/values")
@@ -102,7 +103,7 @@ export function installContactValuesRest(router: cassava.Router): void {
                     attachGenericAsNewValue: {
                         type: "boolean"
                     }
-                },
+                } ,
                 oneOf: [
                     {
                         title: "attach by `valueId`",
@@ -220,12 +221,30 @@ export async function detachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 contactId: contactId,
                 valueId: valueId
             })
-            .delete();
+            .delete()
 
-        if (res === 0) {
-            // if this object doesn't exist it implies the Value isn't attached.
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value ${valueId} is not Attached to the Contact ${contactId}.`, "AttachedValueNotFound");
+        if ( res === 0 ) {
+            // try catch
+            try {
+                const newvalue = await getIdForAttachingGenericValue(auth, contactId, value);
+                console.log("dfafaQQQQQQQQQQQQQQQ");
+                const theactualvalue = await getValue(auth, newvalue);
+
+                const now = nowInDbPrecision();
+                return await updateValue(auth, valueId, {
+                    contactId: null,
+                    updatedDate: now,
+                    updatedContactIdDate: now
+                });
+
+            } catch(err){
+                console.log("DFaffwfafa");
+                if (value.contactId !== contactId) {
+                    throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The  p po p o o p Value ${valueId} is not Attached to the Contact ${contactId}.`, "AttachedValueNotFound");
+                }
+            }
         }
+
         if (res > 1) {
             throw new Error(`Illegal DELETE query.  Deleted ${res} values.`);
         }
