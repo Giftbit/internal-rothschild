@@ -1,12 +1,14 @@
 import * as chai from "chai";
 import {TransactionPlanError} from "./TransactionPlanError";
-import * as testUtils from "../../../testUtils";
+import * as testUtils from "../../../utils/testUtils";
+import {defaultTestUser} from "../../../utils/testUtils";
 import {DbValue} from "../../../model/Value";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {TransactionPlan} from "./TransactionPlan";
-import {executeTransactionPlan} from "./executeTransactionPlan";
 import {DbCurrency} from "../../../model/Currency";
-import {getKnexWrite} from "../../../dbUtils/connection";
+import {getKnexWrite} from "../../../utils/dbUtils/connection";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
+import {executeTransactionPlan} from "./executeTransactionPlans";
 
 describe("rest/transactions/executeTransactionPlan", () => {
 
@@ -17,7 +19,8 @@ describe("rest/transactions/executeTransactionPlan", () => {
     const auth = new giftbitRoutes.jwtauth.AuthorizationBadge({
         g: {
             gui: "user",
-            gmi: "user"
+            gmi: "user",
+            tmi: "user"
         }
     });
 
@@ -34,10 +37,15 @@ describe("rest/transactions/executeTransactionPlan", () => {
             userId: "user",
             id: "v-1",
             currency: "CAD",
-            uses: null,
+            usesRemaining: null,
             programId: null,
-            code: null,
+            issuanceId: null,
             codeLastFour: null,
+            isGenericCode: false,
+            attachedFromValueId: null,
+            genericCodeOptions_perContact_balance: null,
+            genericCodeOptions_perContact_usesRemaining: null,
+            codeEncrypted: null,
             codeHashed: null,
             contactId: null,
             balance: 1500,
@@ -46,19 +54,23 @@ describe("rest/transactions/executeTransactionPlan", () => {
             canceled: false,
             frozen: false,
             redemptionRule: "null",
-            valueRule: "null",
+            balanceRule: "null",
             discount: false,
+            discountSellerLiability: null,
             startDate: null,
             endDate: null,
             metadata: "null",
             createdDate: new Date(),
-            updatedDate: new Date()
+            updatedDate: new Date(),
+            updatedContactIdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
         };
 
         const knex = await getKnexWrite();
         await knex("Currencies").insert(currency);
         await knex("Values").insert(value);
 
+        value.balance = 3500; // pretend there's enough value.
         const plan: TransactionPlan = {
             id: "xxx",
             transactionType: "debit",
@@ -66,19 +78,26 @@ describe("rest/transactions/executeTransactionPlan", () => {
             steps: [
                 {
                     rail: "lightrail",
-                    value: DbValue.toValue(value),
-                    amount: -3500    // more than is in the value
+                    value: await DbValue.toValue(value),
+                    amount: -3500,    // more than is in the value
+                    uses: null,
+                    action: "update"
                 }
             ],
             totals: {remainder: 0},
             lineItems: null,
             paymentSources: null,
-            metadata: null
+            createdDate: nowInDbPrecision(),
+            metadata: null,
+            tax: null
         };
 
         let err: TransactionPlanError;
         try {
-            await executeTransactionPlan(auth, plan);
+            const knex = await getKnexWrite();
+            await knex.transaction(async trx => {
+                await executeTransactionPlan(auth, trx, plan, {allowRemainder: false, simulate: false});
+            });
         } catch (e) {
             err = e;
         }
@@ -89,22 +108,27 @@ describe("rest/transactions/executeTransactionPlan", () => {
 
         const transactionsRes: any[] = await knex("Transactions")
             .where({
-                userId: auth.giftbitUserId,
+                userId: auth.userId,
                 id: plan.id
             });
         chai.assert.lengthOf(transactionsRes, 0);
     });
 
-    it("throws a replannable TransactionPlanError when there are 0 uses", async () => {
+    it("throws a replannable TransactionPlanError when there are 0 usesRemaining", async () => {
         const value: DbValue = {
             userId: "user",
             id: "v-2",
             currency: "CAD",
             balance: 1500,
-            uses: 0,
+            usesRemaining: 0,
             programId: null,
-            code: null,
+            issuanceId: null,
             codeLastFour: null,
+            isGenericCode: false,
+            attachedFromValueId: null,
+            genericCodeOptions_perContact_balance: null,
+            genericCodeOptions_perContact_usesRemaining: null,
+            codeEncrypted: null,
             codeHashed: null,
             contactId: null,
             pretax: false,
@@ -112,38 +136,50 @@ describe("rest/transactions/executeTransactionPlan", () => {
             canceled: false,
             frozen: false,
             redemptionRule: "null",
-            valueRule: "null",
+            balanceRule: "null",
             discount: false,
+            discountSellerLiability: null,
             startDate: null,
             endDate: null,
             metadata: "null",
             createdDate: new Date(),
-            updatedDate: new Date()
+            updatedDate: new Date(),
+            updatedContactIdDate: null,
+            createdBy: defaultTestUser.auth.userId
+            // createdBy: defaultTestUser.auth.teamMemberId  // require tmi again
         };
 
         const knex = await getKnexWrite();
         await knex("Values").insert(value);
 
+        value.usesRemaining = 1;
         const plan: TransactionPlan = {
             id: "xxx",
-            transactionType: "credit",
+            transactionType: "debit",
             currency: "CAD",
             steps: [
                 {
                     rail: "lightrail",
-                    value: DbValue.toValue(value),
-                    amount: 1200
+                    value: await DbValue.toValue(value),
+                    amount: -1200,
+                    uses: -1,
+                    action: "update"
                 }
             ],
             totals: {remainder: null},
             lineItems: null,
             paymentSources: null,
-            metadata: null
+            createdDate: nowInDbPrecision(),
+            metadata: null,
+            tax: null,
         };
 
         let err: TransactionPlanError;
         try {
-            await executeTransactionPlan(auth, plan);
+            const knex = await getKnexWrite();
+            await knex.transaction(async trx => {
+                await executeTransactionPlan(auth, trx, plan, {allowRemainder: false, simulate: false});
+            });
         } catch (e) {
             err = e;
         }
@@ -154,7 +190,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
 
         const transactionsRes: any[] = await knex("Transactions")
             .where({
-                userId: auth.giftbitUserId,
+                userId: auth.userId,
                 id: plan.id
             });
         chai.assert.lengthOf(transactionsRes, 0);

@@ -12,13 +12,15 @@ BUILD_ARTIFACT_BUCKET="dev-lightrailrothschild-deploymentartifactbucket-16sqvi4m
 
 # Parameter values for the sam template.  see: `aws cloudformation deploy help`
 PARAMETER_OVERRIDES="--parameter-overrides"
+PARAMETER_OVERRIDES+=" BastionHostAuthorizedUsersGroup=dev-Groups-10RXT1J8USNKW-BastionHostAccessGroup-3EJUXH6RLHV6"
 PARAMETER_OVERRIDES+=" BuildDate=`date +%s`"
 PARAMETER_OVERRIDES+=" Capacity=low"
 PARAMETER_OVERRIDES+=" DbEncryptionKeyId=9d52dd73-865a-4471-9ef3-bf2b762c0320"
+PARAMETER_OVERRIDES+=" LightrailDomain=api.lightraildev.net"
 PARAMETER_OVERRIDES+=" SecureConfigBucket=dev-lightrailsecureconfig-1q7bltwyiihpq-bucket-id162gq711cc"
 PARAMETER_OVERRIDES+=" SecureConfigKmsArn=arn:aws:kms:us-west-2:757264843183:key/5240d853-a89f-4510-82ba-386bf2b977dc"
 PARAMETER_OVERRIDES+=" VpcUniqueNumber=2"
-USAGE="usage: $0 <command name>\nvalid command names: build delete deploy invoke upload"
+USAGE="usage: $0 <command name>\nvalid command names: build delete deploy invoke rdstunnel upload"
 
 
 set -eu
@@ -96,11 +98,35 @@ elif [ "$COMMAND" = "invoke" ]; then
     FXN_UPPERCASE="$(tr '[:lower:]' '[:upper:]' <<< ${FXN:0:1})${FXN:1}"
     FXN_ID="$(aws cloudformation describe-stack-resources --stack-name $STACK_NAME --query "StackResources[?ResourceType==\`AWS::Lambda::Function\`&&starts_with(LogicalResourceId,\`$FXN_UPPERCASE\`)].PhysicalResourceId" --output text)"
     if [ $? -ne 0 ]; then
-        echo "Could not discover the LogicalResourceId of $FXN.  Check that there is a ${FXN_UPPER_CAMEL_CASE}Function Resource inside infrastructure/sam.yaml and check that it has been deployed."
+        echo "Could not discover the LogicalResourceId of $FXN.  Check that there is a ${FXN_UPPERCASE}Function Resource inside infrastructure/sam.yaml and check that it has been deployed."
         exit 1
     fi
 
     aws --cli-read-timeout 300 lambda invoke --function-name $FXN_ID --payload fileb://$JSON_FILE /dev/stdout
+
+elif [ "$COMMAND" = "rdstunnel" ]; then
+    # Establish a tunnel to the RDS instance through the bastion host
+
+    if [ ! -f /Volumes/credentials/ssh/AWSKey.pem ]; then
+        echo "/Volumes/credentials/ssh/AWSKey.pem not found.  See README.md on generating this file."
+        exit 1
+    fi
+
+    ssh-add /Volumes/credentials/ssh/AWSKey.pem
+
+    DATABASE_ID="$(aws cloudformation describe-stack-resources --stack-name $STACK_NAME --query "StackResources[?LogicalResourceId==\`DbPrimaryInstance\`].PhysicalResourceId" --output text)"
+    DATABASE_ADDRESS="$(aws rds describe-db-instances --db-instance-identifier $DATABASE_ID --query "DBInstances[].Endpoint.Address" --output text)"
+    echo "got database address $DATABASE_ADDRESS"
+
+    BASTION_HOST_INSTANCE_ID="$(aws cloudformation describe-stack-resources --stack-name $STACK_NAME --query "StackResources[?LogicalResourceId==\`BastionHostInstance\`].PhysicalResourceId" --output text)"
+    BASTION_HOST_EXTERNAL_IP="$(aws ec2 describe-instances --query "Reservations[].Instances[?InstanceId==\`$BASTION_HOST_INSTANCE_ID\`].PublicIpAddress" --output text)"
+    echo "got bastion host IP $BASTION_HOST_EXTERNAL_IP"
+
+    AWS_USER="$(aws sts get-caller-identity --query \"Arn\" --output text | sed 's/arn:.*:user\///')"
+
+    echo "establishing connection with tunnel on port 3306"
+
+    ssh -L localhost:3306:${DATABASE_ADDRESS}:3306 ${AWS_USER}@${BASTION_HOST_EXTERNAL_IP}
 
 elif [ "$COMMAND" = "upload" ]; then
     # Upload new lambda function code.
@@ -124,7 +150,7 @@ elif [ "$COMMAND" = "upload" ]; then
     FXN_UPPERCASE="$(tr '[:lower:]' '[:upper:]' <<< ${FXN:0:1})${FXN:1}"
     FXN_ID="$(aws cloudformation describe-stack-resources --stack-name $STACK_NAME --query "StackResources[?ResourceType==\`AWS::Lambda::Function\`&&starts_with(LogicalResourceId,\`$FXN_UPPERCASE\`)].PhysicalResourceId" --output text)"
     if [ $? -ne 0 ]; then
-        echo "Could not discover the LogicalResourceId of $FXN.  Check that there is a ${FXN_UPPER_CAMEL_CASE}Function Resource inside infrastructure/sam.yaml and check that it has been deployed."
+        echo "Could not discover the LogicalResourceId of $FXN.  Check that there is a ${FXN_UPPERCASE}Function Resource inside infrastructure/sam.yaml and check that it has been deployed."
         exit 1
     fi
 

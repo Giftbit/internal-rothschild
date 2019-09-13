@@ -4,12 +4,19 @@ import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {DbProgram, Program} from "../../model/Program";
 import {csvSerializer} from "../../serializers";
-import {pick, pickOrDefault} from "../../pick";
-import {nowInDbPrecision} from "../../dbUtils";
-import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
-import {paginateQuery} from "../../dbUtils/paginateQuery";
+import {pick, pickOrDefault} from "../../utils/pick";
+import {
+    dateInDbPrecision,
+    filterAndPaginateQuery,
+    getSqlErrorConstraintName,
+    nowInDbPrecision
+} from "../../utils/dbUtils";
+import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
+import {ProgramStats} from "../../model/ProgramStats";
+import {checkRulesSyntax} from "./transactions/rules/RuleContext";
+import log = require("loglevel");
 
-export function installValueTemplatesRest(router: cassava.Router): void {
+export function installProgramsRest(router: cassava.Router): void {
     router.route("/v2/programs")
         .method("GET")
         .serializers({
@@ -18,8 +25,10 @@ export function installValueTemplatesRest(router: cassava.Router): void {
         })
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
-            const res = await getPrograms(auth, Pagination.getPaginationParams(evt));
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:programs:list");
+
+            const res = await getPrograms(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.programs
@@ -30,7 +39,8 @@ export function installValueTemplatesRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId", "teamMemberId");
+            auth.requireScopes("lightrailV2:programs:create");
             evt.validateBody(programSchema);
 
             const now = nowInDbPrecision();
@@ -40,23 +50,28 @@ export function installValueTemplatesRest(router: cassava.Router): void {
                         id: "",
                         name: "",
                         currency: "",
-                        discount: true,
-                        pretax: true,
+                        discount: false,
+                        discountSellerLiability: null,
+                        pretax: false,
                         active: true,
                         redemptionRule: null,
-                        valueRule: null,
+                        balanceRule: null,
                         minInitialBalance: null,
                         maxInitialBalance: null,
                         fixedInitialBalances: null,
-                        fixedInitialUses: null,
+                        fixedInitialUsesRemaining: null,
                         startDate: null,
                         endDate: null,
                         metadata: null
                     }
                 ),
                 createdDate: now,
-                updatedDate: now
+                updatedDate: now,
+                createdBy: auth.teamMemberId,
             };
+
+            program.startDate = program.startDate ? dateInDbPrecision(new Date(program.startDate)) : null;
+            program.endDate = program.endDate ? dateInDbPrecision(new Date(program.endDate)) : null;
 
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
@@ -68,9 +83,12 @@ export function installValueTemplatesRest(router: cassava.Router): void {
         .method("GET")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:programs:read");
+
+            const program = await getProgram(auth, evt.pathParameters.id);
             return {
-                body: await getProgram(auth, evt.pathParameters.id)
+                body: program
             };
         });
 
@@ -78,12 +96,17 @@ export function installValueTemplatesRest(router: cassava.Router): void {
         .method("PATCH")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
-            evt.validateBody(programSchema);
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:programs:update");
+            evt.validateBody(updateProgramSchema);
+
+            if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
+                throw new giftbitRoutes.GiftbitRestError(422, `The body id '${evt.body.id}' does not match the path id '${evt.pathParameters.id}'.  The id cannot be updated.`);
+            }
 
             const now = nowInDbPrecision();
             const program: Partial<Program> = {
-                ...pick(evt.body as Program, "discount", "pretax", "active", "redemptionRule", "valueRule", "minInitialBalance", "maxInitialBalance", "fixedInitialBalances", "fixedInitialUses", "startDate", "endDate", "metadata"),
+                ...pick(evt.body as Program, "name", "discount", "pretax", "active", "redemptionRule", "balanceRule", "minInitialBalance", "maxInitialBalance", "fixedInitialBalances", "fixedInitialUsesRemaining", "startDate", "endDate", "metadata"),
                 updatedDate: now
             };
 
@@ -96,23 +119,68 @@ export function installValueTemplatesRest(router: cassava.Router): void {
         .method("DELETE")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:programs:delete");
             return {
                 body: await deleteProgram(auth, evt.pathParameters.id)
             };
         });
 
+    router.route("/v2/programs/{id}/stats")
+        .method("GET")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:programs:read");
+            return {
+                body: await getProgramStats(auth, evt.pathParameters.id)
+            };
+        });
 }
 
-async function getPrograms(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams): Promise<{ programs: Program[], pagination: Pagination }> {
-    auth.requireIds("giftbitUserId");
+async function getPrograms(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ programs: Program[], pagination: Pagination }> {
+    auth.requireIds("userId");
 
     const knex = await getKnexRead();
-    const res = await paginateQuery<DbProgram>(
+
+    const res = await filterAndPaginateQuery<DbProgram>(
         knex("Programs")
             .where({
-                userId: auth.giftbitUserId
+                userId: auth.userId
             }),
+        filterParams,
+        {
+            properties: {
+                "id": {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
+                "currency": {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
+                "name": {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
+                "startDate": {
+                    type: "Date",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
+                },
+                "endDate": {
+                    type: "Date",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
+                },
+                "createdDate": {
+                    type: "Date",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
+                },
+                "updatedDate": {
+                    type: "Date",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
+                }
+            }
+        },
         pagination
     );
 
@@ -123,29 +191,35 @@ async function getPrograms(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagin
 }
 
 async function createProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, program: Program): Promise<Program> {
-    auth.requireIds("giftbitUserId");
-
+    auth.requireIds("userId");
+    checkProgramProperties(program);
     try {
+        let dbProgram = Program.toDbProgram(auth, program);
         const knex = await getKnexWrite();
         await knex("Programs")
-            .insert(Program.toDbProgram(auth, program));
-        return program;
+            .insert(dbProgram);
+        return DbProgram.toProgram(dbProgram);
     } catch (err) {
-        if (err.code === "ER_DUP_ENTRY") {
-            throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `ValueTemplate with valueTemplateId '${program.id}' already exists.`);
+        log.debug(err);
+        const constraint = getSqlErrorConstraintName(err);
+        if (constraint === "PRIMARY") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `A Program with id '${program.id}' already exists.`, "ProgramIdExists");
+        }
+        if (constraint === "fk_Programs_Currencies") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${program.currency}' does not exist. See the documentation on creating currencies.`, "CurrencyNotFound");
         }
         throw err;
     }
 }
 
-async function getProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Program> {
-    auth.requireIds("giftbitUserId");
+export async function getProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Program> {
+    auth.requireIds("userId");
 
     const knex = await getKnexRead();
     const res: DbProgram[] = await knex("Programs")
         .select()
         .where({
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id: id
         });
     if (res.length === 0) {
@@ -157,46 +231,298 @@ async function getProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: st
     return DbProgram.toProgram(res[0]);
 }
 
-async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, program: Partial<Program>): Promise<Program> {
-    auth.requireIds("giftbitUserId");
+async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, programUpdates: Partial<Program>): Promise<Program> {
+    auth.requireIds("userId");
+
+    if (programUpdates.startDate) {
+        programUpdates.startDate = dateInDbPrecision(new Date(programUpdates.startDate));
+    }
+    if (programUpdates.endDate) {
+        programUpdates.endDate = dateInDbPrecision(new Date(programUpdates.endDate));
+    }
 
     const knex = await getKnexWrite();
-    const res = await knex("Programs")
-        .where({
-            userId: auth.giftbitUserId,
-            id: id
-        })
-        .update(program);
-    if (res[0] === 0) {
-        throw new cassava.RestError(404);
-    }
-    if (res[0] > 1) {
-        throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
-    }
-    return {
-        ...await getProgram(auth, id),
-        ...program
-    };
+    return await knex.transaction(async trx => {
+        // Get the master version of the Program and lock it.
+        const selectProgramRes: DbProgram[] = await trx("Programs")
+            .select()
+            .where({
+                userId: auth.userId,
+                id: id
+            })
+            .forUpdate();
+        if (selectProgramRes.length === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (selectProgramRes.length > 1) {
+            throw new Error(`Illegal SELECT query.  Returned ${selectProgramRes.length} values.`);
+        }
+        const existingProgram = DbProgram.toProgram(selectProgramRes[0]);
+        const updatedProgram = {
+            ...existingProgram,
+            ...programUpdates
+        };
+
+        checkProgramProperties(updatedProgram);
+
+        const patchRes = await trx("Programs")
+            .where({
+                userId: auth.userId,
+                id: id
+            })
+            .update(Program.toDbProgramUpdate(auth, programUpdates));
+        if (patchRes === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (patchRes > 1) {
+            throw new Error(`Illegal UPDATE query.  Updated ${patchRes.length} values.`);
+        }
+        return updatedProgram;
+    });
 }
 
-
 async function deleteProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<{ success: true }> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
-    const knex = await getKnexWrite();
-    const res = await knex("Programs")
+    try {
+        const knex = await getKnexWrite();
+        const res: number = await knex("Programs")
+            .where({
+                userId: auth.userId,
+                id: id
+            })
+            .delete();
+        if (res === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (res > 1) {
+            throw new Error(`Illegal DELETE query.  Deleted ${res} values.`);
+        }
+        return {success: true};
+    } catch (err) {
+        if (err.code === "ER_ROW_IS_REFERENCED_2") {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Program '${id}' is in use.`, "ProgramInUse");
+        }
+        throw err;
+    }
+}
+
+function checkProgramProperties(program: Program): void {
+    if (program.minInitialBalance != null && program.maxInitialBalance != null && program.minInitialBalance > program.maxInitialBalance) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Program's minInitialBalance cannot exceed maxInitialBalance.");
+    }
+
+    if (program.fixedInitialBalances && hasDuplicates(program.fixedInitialBalances)) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Program's fixedInitialBalances contains duplicates.");
+    }
+
+    if (program.fixedInitialUsesRemaining && hasDuplicates(program.fixedInitialUsesRemaining)) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Program's fixedInitialUsesRemaining contains duplicates.");
+    }
+
+    if (program.balanceRule && (program.minInitialBalance != null || program.maxInitialBalance != null || program.fixedInitialBalances)) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Program cannot have a balanceRule when also defining minInitialBalance, maxInitialBalance or fixedInitialBalances.");
+    }
+
+    if ((program.minInitialBalance != null || program.maxInitialBalance != null) && program.fixedInitialBalances) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Program cannot have fixedInitialBalances defined when also defining minInitialBalance or maxInitialBalance");
+    }
+
+    if (program.discountSellerLiability !== null && !program.discount) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Program can't have discountSellerLiability if it is not a discount.`);
+    }
+
+    if (program.endDate && program.startDate > program.endDate) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Property startDate cannot exceed endDate.");
+    }
+
+    checkRulesSyntax(program, "Program");
+}
+
+function hasDuplicates(array) {
+    return (new Set(array)).size !== array.length;
+}
+
+/**
+ * This is currently a secret operation only the web app knows about.
+ */
+export async function getProgramStats(auth: giftbitRoutes.jwtauth.AuthorizationBadge, programId: string): Promise<ProgramStats> {
+    auth.requireIds("userId");
+
+    const startTime = Date.now();
+    const stats: ProgramStats = {
+        outstanding: {
+            balance: 0,
+            count: 0
+        },
+        canceled: {
+            balance: 0,
+            count: 0
+        },
+        expired: {
+            balance: 0,
+            count: 0
+        },
+        redeemed: {
+            balance: 0,
+            count: 0,
+            transactionCount: 0
+        },
+        checkout: {
+            lightrailSpend: 0,
+            overspend: 0,
+            transactionCount: 0
+        }
+    };
+
+    const now = nowInDbPrecision();
+    const knex = await getKnexRead();
+    const valueStatsRes: { sumBalance: number, count: number, canceled: boolean, expired: boolean }[] = await knex("Values")
         .where({
-            userId: auth.giftbitUserId,
-            id: id
+            "userId": auth.userId,
+            "programId": programId,
+            "active": true
         })
-        .delete();
-    if (res[0] === 0) {
-        throw new cassava.RestError(404);
+        .where(query =>
+            query.where("balance", ">", 0)
+                .orWhereNull("balance")
+        )
+        .select("canceled")
+        .select(knex.raw("endDate IS NOT NULL AND endDate < ? AS expired", [now]))
+        .sum({sumBalance: "balance"})
+        .count({count: "*"})
+        .groupBy("canceled", "expired");
+    for (const valueStatsResLine of valueStatsRes) {
+        if (valueStatsResLine.canceled) {
+            // Includes canceled AND expired.
+            stats.canceled.balance += +valueStatsResLine.sumBalance;  // for some reason SUM() comes back as a string
+            stats.canceled.count += valueStatsResLine.count;
+        } else if (valueStatsResLine.expired) {
+            stats.expired.balance += +valueStatsResLine.sumBalance;
+            stats.expired.count += valueStatsResLine.count;
+        } else {
+            stats.outstanding.balance += +valueStatsResLine.sumBalance;
+            stats.outstanding.count += valueStatsResLine.count;
+        }
     }
-    if (res[0] > 1) {
-        throw new Error(`Illegal DELETE query.  Deleted ${res.length} values.`);
-    }
-    return {success: true};
+
+    log.info(`injectProgramStats got value stats ${Date.now() - startTime}ms`);
+
+    const redeemedStatsRes: {
+        balance: number,
+        transactionCount: number,
+        valueCount: number
+    }[] = await knex("Values")
+        .where({
+            "Values.userId": auth.userId,
+            "Values.programId": programId,
+            "Values.active": true
+        })
+        .join("LightrailTransactionSteps", {
+            "LightrailTransactionSteps.userId": "Values.userId",
+            "LightrailTransactionSteps.valueId": "Values.id"
+        })
+        .join("Transactions", {
+            "Transactions.userId": "LightrailTransactionSteps.userId",
+            "Transactions.id": "LightrailTransactionSteps.transactionId"
+        })
+        .join("Transactions as TransactionRoots", {
+            "TransactionRoots.userId": "Transactions.userId",
+            "TransactionRoots.id": "Transactions.rootTransactionId"
+        })
+        .whereIn("TransactionRoots.transactionType", ["checkout", "debit"])
+        .sum({balance: "LightrailTransactionSteps.balanceChange"})
+        .countDistinct({transactionCount: "TransactionRoots.id"})
+        .countDistinct({valueCount: "Values.id"});
+
+    stats.redeemed.count = redeemedStatsRes[0].valueCount;
+    stats.redeemed.balance = -redeemedStatsRes[0].balance;
+    stats.redeemed.transactionCount = redeemedStatsRes[0].transactionCount;
+
+    log.info(`injectProgramStats got redeemed stats ${Date.now() - startTime}ms`);
+
+    const overspendStatsRes: {
+        lrBalance: number,
+        iBalance: number,
+        sBalance: number,
+        remainder: number,
+        transactionCount: number
+    }[] = await knex
+        .from(knex.raw("? as Txs", [
+            // Get unique Transaction IDs of Transactions with a root checkout Transaction and steps with Values in this Program
+            knex("Values")
+                .where({
+                    "Values.userId": auth.userId,
+                    "Values.programId": programId,
+                    "Values.active": true
+                })
+                .join("LightrailTransactionSteps", {
+                    "LightrailTransactionSteps.userId": "Values.userId",
+                    "LightrailTransactionSteps.valueId": "Values.id"
+                })
+                .join("Transactions", {
+                    "Transactions.userId": "LightrailTransactionSteps.userId",
+                    "Transactions.id": "LightrailTransactionSteps.transactionId"
+                })
+                .join("Transactions as TransactionRoots", {
+                    "TransactionRoots.userId": "Transactions.userId",
+                    "TransactionRoots.id": "Transactions.rootTransactionId"
+                })
+                .where({"TransactionRoots.transactionType": "checkout"})
+                .select("Transactions.rootTransactionId")
+                .distinct("Transactions.id", "Transactions.totals_remainder")
+        ]))
+        .leftJoin(
+            // For each Transaction: sum LightrailTransactionSteps.balanceChange
+            knex.raw(
+                "? as LightrailBalances on LightrailBalances.transactionId = Txs.id",
+                [
+                    knex("LightrailTransactionSteps")
+                        .where({userId: auth.userId})
+                        .groupBy("transactionId")
+                        .sum("balanceChange as balanceChange")
+                        .select("transactionId")
+                ]
+            )
+        )
+        .leftJoin(
+            // For each Transaction: sum InternalTransactionSteps.balanceChange
+            knex.raw(
+                "? as InternalBalances on InternalBalances.transactionId = Txs.id",
+                [
+                    knex("InternalTransactionSteps")
+                        .where({userId: auth.userId})
+                        .groupBy("transactionId")
+                        .sum("balanceChange as balanceChange")
+                        .select("transactionId")
+                ]
+            )
+        )
+        .leftJoin(
+            // For each Transaction: sum StripeTransactionSteps.amount
+            knex.raw(
+                "? as StripeAmounts on StripeAmounts.transactionId = Txs.id",
+                [
+                    knex("StripeTransactionSteps")
+                        .where({userId: auth.userId})
+                        .groupBy("transactionId")
+                        .sum("amount as amount")
+                        .select("transactionId")
+                ]
+            )
+        )
+        .countDistinct({transactionCount: "Txs.rootTransactionId"})
+        .sum({remainder: "Txs.totals_remainder"})
+        .sum({lrBalance: "LightrailBalances.balanceChange"})
+        .sum({iBalance: "InternalBalances.balanceChange"})
+        .sum({sBalance: "StripeAmounts.amount"});
+    stats.checkout.transactionCount = overspendStatsRes[0].transactionCount;
+    stats.checkout.lightrailSpend = -overspendStatsRes[0].lrBalance;
+    stats.checkout.overspend = -overspendStatsRes[0].iBalance - overspendStatsRes[0].sBalance + +overspendStatsRes[0].remainder;
+
+    log.info(`injectProgramStats got overspend stats and done ${Date.now() - startTime}ms`);
+
+    return stats;
 }
 
 const programSchema: jsonschema.Schema = {
@@ -205,8 +531,9 @@ const programSchema: jsonschema.Schema = {
     properties: {
         id: {
             type: "string",
-            maxLength: 32,
-            minLength: 1
+            maxLength: 64,
+            minLength: 1,
+            pattern: "^[ -~]*$"
         },
         name: {
             type: "string",
@@ -220,6 +547,11 @@ const programSchema: jsonschema.Schema = {
         },
         discount: {
             type: "boolean"
+        },
+        discountSellerLiability: {
+            type: ["number", "null"],
+            minimum: 0,
+            maximum: 1
         },
         pretax: {
             type: "boolean"
@@ -246,13 +578,13 @@ const programSchema: jsonschema.Schema = {
                 }
             ]
         },
-        valueRule: {
+        balanceRule: {
             oneOf: [
                 {
                     type: "null"
                 },
                 {
-                    title: "Value rule",
+                    title: "Balance rule",
                     type: "object",
                     properties: {
                         rule: {
@@ -266,11 +598,11 @@ const programSchema: jsonschema.Schema = {
             ]
         },
         minInitialBalance: {
-            type: ["string", "null"],
+            type: ["number", "null"],
             minimum: 0
         },
         maxInitialBalance: {
-            type: ["string", "null"],
+            type: ["number", "null"],
             minimum: 0
         },
         fixedInitialBalances: {
@@ -280,7 +612,7 @@ const programSchema: jsonschema.Schema = {
                 minimum: 0
             }
         },
-        fixedInitialUses: {
+        fixedInitialUsesRemaining: {
             type: ["array", "null"],
             items: {
                 type: "number",
@@ -300,4 +632,8 @@ const programSchema: jsonschema.Schema = {
         }
     },
     required: ["id", "name", "currency"]
+};
+const updateProgramSchema: jsonschema.Schema = {
+    ...programSchema,
+    required: []
 };

@@ -1,13 +1,13 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import * as giftbitRoutes from "giftbit-cassava-routes";
-import * as testUtils from "../../testUtils";
-import {Currency} from "../../model/Currency";
-import {installRest} from ".";
-
-import chaiExclude = require("chai-exclude");
+import * as testUtils from "../../utils/testUtils";
+import {generateId} from "../../utils/testUtils";
+import {Currency, formatObjectsAmountPropertiesForCurrencyDisplay} from "../../model/Currency";
 import {Value} from "../../model/Value";
-import {Contact} from "../../model/Contact";
+import {installRestRoutes} from "./installRestRoutes";
+import {DebitRequest} from "../../model/TransactionRequest";
+import chaiExclude = require("chai-exclude");
+
 chai.use(chaiExclude);
 
 describe("/v2/currencies", () => {
@@ -16,8 +16,8 @@ describe("/v2/currencies", () => {
 
     before(async function () {
         await testUtils.resetDb();
-        router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
-        installRest(router);
+        router.route(testUtils.authRoute);
+        installRestRoutes(router);
     });
 
     it("can list 0 currencies", async () => {
@@ -29,7 +29,7 @@ describe("/v2/currencies", () => {
     const funbux: Currency = {
         code: "FUNBUX",
         name: "Fun bux",
-        symbol: "F$",
+        symbol: "⭐",
         decimalPlaces: 0
     };
 
@@ -55,6 +55,16 @@ describe("/v2/currencies", () => {
         const resp = await testUtils.testAuthedCsvRequest<Currency>(router, "/v2/currencies", "GET");
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.deepEqual(resp.body, [funbux]);
+    });
+
+    it("can't create a currency with non-ascii characters in the code", async () => {
+        const resp = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", {
+            code: "🐱",
+            name: "Kitties",
+            symbol: "K",
+            decimalPlaces: 0
+        });
+        chai.assert.equal(resp.statusCode, 422);
     });
 
     it("requires a code to create a currency", async () => {
@@ -130,5 +140,147 @@ describe("/v2/currencies", () => {
         const resp3 = await testUtils.testAuthedRequest<any>(router, `/v2/currencies/${funbux.code}`, "DELETE");
         chai.assert.equal(resp3.statusCode, 409);
         chai.assert.equal(resp3.body.messageCode, "CurrencyInUse");
+    });
+
+    describe("test common requests involving currency", () => {
+        const currencies: Currency[] = [
+            {
+                code: "NPR",
+                name: "Nepalese Rupee",
+                symbol: "npr",
+                decimalPlaces: 0
+            },
+            {
+                code: "A",
+                name: "A-Currency",
+                symbol: "ã",
+                decimalPlaces: 1
+            },
+            {
+                code: "AB",
+                name: "Two code currency",
+                symbol: "AB",
+                decimalPlaces: 2
+            },
+            {
+                code: "ABC",
+                name: "Three code currency",
+                symbol: "ABC",
+                decimalPlaces: 2
+            },
+            {
+                code: "BHD",
+                name: "Bahraini dinar",
+                symbol: "BD",
+                decimalPlaces: 3
+            }
+        ];
+
+        for (const currency of currencies) {
+            it(`can create currency ${currency.code}`, async () => {
+                const resp = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", currency);
+                chai.assert.equal(resp.statusCode, 201, `body=${JSON.stringify(resp.body)}`);
+                chai.assert.deepEqual(resp.body, currency);
+            });
+
+            let valueId: string;
+            it("can create value in currency", async () => {
+                const value: Partial<Value> = {
+                    id: generateId(),
+                    currency: currency.code,
+                    balance: 1
+                };
+
+                const postValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+                chai.assert.equal(postValue.statusCode, 201);
+                chai.assert.equal(postValue.body.currency, currency.code);
+                valueId = postValue.body.id;
+            });
+
+            it("can create a debit against value in currency", async () => {
+                const debit: Partial<DebitRequest> = {
+                    id: generateId(),
+                    currency: currency.code,
+                    amount: 1,
+                    source: {
+                        rail: "lightrail",
+                        valueId: valueId
+                    }
+                };
+                const postTransaction = await testUtils.testAuthedRequest<Value>(router, `/v2/transactions/debit`, "POST", debit);
+                chai.assert.equal(postTransaction.statusCode, 201);
+                chai.assert.equal(postTransaction.body.currency, currency.code);
+            });
+        }
+    });
+
+    it("currency formatting", async () => {
+        const zero = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", {
+            code: "ZERO",
+            name: "Zero Decimals",
+            symbol: "zero",
+            decimalPlaces: 0
+        });
+        chai.assert.equal(zero.statusCode, 201, `body=${JSON.stringify(zero.body)}`);
+
+        const oneDecimalCurrency = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", {
+            code: "ONE",
+            name: "One Decimal",
+            symbol: "one",
+            decimalPlaces: 1
+        });
+        chai.assert.equal(oneDecimalCurrency.statusCode, 201, `body=${JSON.stringify(oneDecimalCurrency.body)}`);
+
+        const twoDecimalCurrency = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", {
+            code: "TWO",
+            name: "Two Decimals",
+            symbol: "two",
+            decimalPlaces: 2
+        });
+        chai.assert.equal(twoDecimalCurrency.statusCode, 201, `body=${JSON.stringify(twoDecimalCurrency.body)}`);
+
+        const res = await formatObjectsAmountPropertiesForCurrencyDisplay(testUtils.defaultTestUser.auth, [{
+            currency: "ONE",
+            level: 1,
+            nested: {
+                level: 2,
+                nested: {
+                    level: 3
+                }
+            }
+        }, {
+            currency: "TWO",
+            level: 1,
+            nested: {
+                level: 2
+            }
+        }, {
+            currency: "ZERO",
+            level: 1
+        }
+        ], ["level", "nested.level", "nested.nested.level"]);
+        chai.assert.deepEqual(res, [
+            {
+                "currency": "ONE",
+                "level": "one0.1",
+                "nested": {
+                    "level": "one0.2",
+                    "nested": {
+                        "level": "one0.3"
+                    }
+                }
+            },
+            {
+                "currency": "TWO",
+                "level": "two0.01",
+                "nested": {
+                    "level": "two0.02"
+                }
+            },
+            {
+                "currency": "ZERO",
+                "level": "zero1"
+            }
+        ]);
     });
 });

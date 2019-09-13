@@ -1,16 +1,16 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import * as giftbitRoutes from "giftbit-cassava-routes";
-import * as parseLinkHeader from "parse-link-header";
-import * as testUtils from "../../testUtils";
+import * as testUtils from "../../utils/testUtils";
+import {defaultTestUser, generateId} from "../../utils/testUtils";
 import {Contact, DbContact} from "../../model/Contact";
-import {installRest} from "./index";
-import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
-import {defaultTestUser} from "../../testUtils";
+import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {Value} from "../../model/Value";
 import {Currency} from "../../model/Currency";
+import {installRestRoutes} from "./installRestRoutes";
+import chaiExclude = require("chai-exclude");
+import parseLinkHeader = require("parse-link-header");
 
-chai.use(require("chai-exclude"));
+chai.use(chaiExclude);
 
 describe("/v2/contacts", () => {
 
@@ -18,8 +18,8 @@ describe("/v2/contacts", () => {
 
     before(async function () {
         await testUtils.resetDb();
-        router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
-        installRest(router);
+        router.route(testUtils.authRoute);
+        installRestRoutes(router);
     });
 
     it("can list 0 contacts", async () => {
@@ -35,7 +35,7 @@ describe("/v2/contacts", () => {
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.deepEqual(resp.body, []);
         chai.assert.equal(resp.headers["Limit"], "100");
-        chai.assert.equal(resp.headers["Max-Limit"], "1000");
+        chai.assert.equal(resp.headers["Max-Limit"], "10000");
     });
 
     let contact1: Partial<Contact> = {
@@ -48,7 +48,10 @@ describe("/v2/contacts", () => {
     it("can create a contact", async () => {
         const resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact1);
         chai.assert.equal(resp.statusCode, 201);
-        chai.assert.deepEqualExcluding(resp.body, contact1, ["createdDate", "updatedDate", "metadata"]);
+        chai.assert.deepEqualExcluding(resp.body, {
+            ...contact1,
+            createdBy: defaultTestUser.auth.teamMemberId
+        }, ["createdDate", "updatedDate", "metadata", "createdBy"]);
         contact1 = resp.body;
     });
 
@@ -73,13 +76,23 @@ describe("/v2/contacts", () => {
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.deepEqualExcludingEvery(resp.body, [contact1], ["createdDate", "updatedDate"]);
         chai.assert.equal(resp.headers["Limit"], "100");
-        chai.assert.equal(resp.headers["Max-Limit"], "1000");
+        chai.assert.equal(resp.headers["Max-Limit"], "10000");
     });
 
     it("requires an id to create a contact", async () => {
         const resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {
             ...contact1,
             id: undefined
+        });
+        chai.assert.equal(resp.statusCode, 422);
+    });
+
+    it("can't create a contact with non-ascii characters in the ID", async () => {
+        const resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {
+            id: generateId() + "🐭",
+            firstName: "First",
+            lastName: "Last",
+            email: "email@example.com"
         });
         chai.assert.equal(resp.statusCode, 422);
     });
@@ -126,13 +139,14 @@ describe("/v2/contacts", () => {
             ...contact2,
             firstName: null,
             lastName: null,
-            email: null
-        }, ["createdDate", "updatedDate", "metadata"]);
+            email: null,
+            createdBy: defaultTestUser.auth.teamMemberId
+        }, ["createdDate", "updatedDate", "metadata", "createdBy"]);
         chai.assert.equal(resp.statusCode, 201);
         contact2 = resp.body;
     });
 
-    let contact3: Partial<Contact> & {userId: string} = {
+    let contact3: Partial<Contact> & { userId: string } = {
         id: "c3",
         userId: "malicious"
     };
@@ -156,13 +170,31 @@ describe("/v2/contacts", () => {
         chai.assert.deepEqual(resp.body, contact1);
     });
 
+    it("can't update contact id", async () => {
+        const resp = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/${contact1.id}`, "PATCH", {
+            id: generateId()
+        });
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
     it("409s on creating a duplicate contact", async () => {
-        const resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contact1.id, firstName: "Duplicate"});
+        const resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {
+            id: contact1.id,
+            firstName: "Duplicate"
+        });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
     });
 
     it("422s on creating a contact with an id that is too long", async () => {
         const resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: "01234567890123456789012345678901234567890123456789012345678901234567890123456789"});
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("422s on creating a contact with non-ascii characters in email address", async () => {
+        const resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {
+            id: generateId(),
+            email: "jon－paul@example.com"   // That's an em dash, not an ascii dash.
+        });
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 
@@ -179,10 +211,16 @@ describe("/v2/contacts", () => {
     it("can list 2 contacts", async () => {
         const resp = await testUtils.testAuthedRequest<Contact[]>(router, "/v2/contacts", "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.deepEqual(resp.body, [
-            contact1,
-            contact2
-        ]);
+        chai.assert.deepEqualExcluding(resp.body, [
+            {
+                ...contact2,
+                createdBy: defaultTestUser.auth.teamMemberId
+            },
+            {
+                ...contact1,
+                createdBy: defaultTestUser.auth.teamMemberId
+            }
+        ], ["createdBy"]);
         chai.assert.equal(resp.headers["Limit"], "100");
         chai.assert.equal(resp.headers["Max-Limit"], "1000");
     });
@@ -191,11 +229,17 @@ describe("/v2/contacts", () => {
         const resp = await testUtils.testAuthedCsvRequest<Contact>(router, "/v2/contacts", "GET");
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.deepEqualExcludingEvery(resp.body, [
-            contact1,
-            contact2
-        ], ["createdDate", "updatedDate"]); // TODO don't ignore dates if my issue gets resolved https://github.com/mholt/PapaParse/issues/502
+            {
+                ...contact2,
+                createdBy: defaultTestUser.auth.teamMemberId
+            },
+            {
+                ...contact1,
+                createdBy: defaultTestUser.auth.teamMemberId
+            }
+        ], ["createdDate", "updatedDate", "createdBy"]); // TODO don't ignore dates if my issue gets resolved https://github.com/mholt/PapaParse/issues/502
         chai.assert.equal(resp.headers["Limit"], "100");
-        chai.assert.equal(resp.headers["Max-Limit"], "1000");
+        chai.assert.equal(resp.headers["Max-Limit"], "10000");
     });
 
     let contact4: Partial<Contact> = {
@@ -218,15 +262,20 @@ describe("/v2/contacts", () => {
         chai.assert.deepEqualExcluding(resp.body, {
             ...contact4,
             lastName: null,
-            email: null
-        }, ["createdDate", "updatedDate"]);
+            email: null,
+            createdBy: defaultTestUser.auth.teamMemberId
+        }, ["createdDate", "updatedDate", "createdBy"]);
         contact4 = resp.body;
     });
 
     it("can get the contact with metadata", async () => {
         const resp = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/${contact4.id}`, "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.deepEqual(resp.body, contact4);
+        chai.assert.deepEqualExcluding(resp.body, {
+            ...contact4,
+            createdBy: defaultTestUser.auth.teamMemberId
+        }, ["createdBy"]);
+        chai.assert.deepEqual(resp.body, {...contact4, createdBy: defaultTestUser.auth.teamMemberId});
     });
 
     it("can delete a Contact that is not in use", async () => {
@@ -275,6 +324,30 @@ describe("/v2/contacts", () => {
 
         const resp3 = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact4.id}`, "DELETE");
         chai.assert.equal(resp3.statusCode, 409, `delete body=${JSON.stringify(resp3.body)}`);
+    });
+
+    it("can create a contact with unicode characters", async () => {
+        const contact: Partial<Contact> = {
+            id: "chinese-name",
+            firstName: "芷若",
+            lastName: "王",
+            email: null,
+            metadata: null
+        };
+
+        const resp1 = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact);
+        chai.assert.equal(resp1.statusCode, 201, `body=${JSON.stringify(resp1.body)}`);
+        chai.assert.deepEqualExcluding(resp1.body, {
+            ...contact,
+            createdBy: defaultTestUser.auth.teamMemberId
+        }, ["createdDate", "updatedDate", "createdBy"]);
+
+        const resp2 = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/${contact.id}`, "GET", contact);
+        chai.assert.equal(resp2.statusCode, 200, `body=${JSON.stringify(resp2.body)}`);
+        chai.assert.deepEqualExcluding(resp2.body, {
+            ...contact,
+            createdBy: defaultTestUser.auth.teamMemberId
+        }, ["createdDate", "updatedDate", "createdBy"]);
     });
 
     describe("filters and pagination", () => {
@@ -616,6 +689,7 @@ describe("/v2/contacts", () => {
                 contact.userId = defaultTestUser.userId;
                 contact.createdDate = new Date();
                 contact.updatedDate = new Date();
+                contact.createdBy = defaultTestUser.auth.teamMemberId;
             }
             const knex = await getKnexWrite();
             await knex("Contacts").insert(contacts);
@@ -628,13 +702,14 @@ describe("/v2/contacts", () => {
                     userId: defaultTestUser.userId
                 })
                 .where("firstName", "LIKE", "J%")
-                .orderBy("id");
+                .orderBy("createdDate", "desc")
+                .orderBy("id", "desc");
             chai.assert.isAtLeast(expected.length, 2, "expect results");
 
             const page1Size = Math.ceil(expected.length / 2);
             const page1 = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?firstName.like=${encodeURIComponent("J%")}&limit=${page1Size}`, "GET");
             chai.assert.equal(page1.statusCode, 200, `body=${JSON.stringify(page1.body)}`);
-            chai.assert.deepEqualExcludingEvery(page1.body, expected.slice(0, page1Size), ["userId", "createdDate", "updatedDate"]);
+            chai.assert.deepEqual(page1.body.map(c => c.id), expected.slice(0, page1Size).map(c => c.id), "the same ids in the same order");
             chai.assert.equal(page1.headers["Limit"], `${page1Size}`);
             chai.assert.equal(page1.headers["Max-Limit"], "1000");
             chai.assert.isDefined(page1.headers["Link"]);
@@ -642,7 +717,7 @@ describe("/v2/contacts", () => {
             const page1Link = parseLinkHeader(page1.headers["Link"]);
             const page2 = await testUtils.testAuthedRequest<Contact[]>(router, page1Link.next.url, "GET");
             chai.assert.equal(page2.statusCode, 200, `url=${page1Link.next.url} body=${JSON.stringify(page2.body)}`);
-            chai.assert.deepEqualExcludingEvery(page2.body, expected.slice(page1Size), ["userId", "createdDate", "updatedDate"]);
+            chai.assert.deepEqual(page2.body.map(c => c.id), expected.slice(page1Size).map(c => c.id), "the same ids in the same order");
             chai.assert.equal(page1.headers["Limit"], `${page1Size}`);
             chai.assert.equal(page1.headers["Max-Limit"], "1000");
             chai.assert.isDefined(page1.headers["Link"]);
@@ -662,11 +737,12 @@ describe("/v2/contacts", () => {
                     userId: defaultTestUser.userId
                 })
                 .whereIn("id", ids)
-                .orderBy("id");
+                .orderBy("createdDate", "desc")
+                .orderBy("id", "desc");
 
             const page1 = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?id.in=${ids.join(",")}`, "GET");
             chai.assert.equal(page1.statusCode, 200, `body=${JSON.stringify(page1.body)}`);
-            chai.assert.deepEqualExcludingEvery(page1.body, expected, ["userId", "createdDate", "updatedDate"]);
+            chai.assert.deepEqualExcludingEvery<any>(page1.body, expected, ["userId", "createdDate", "updatedDate"]);
             chai.assert.isDefined(page1.headers["Link"]);
         });
     });
@@ -702,5 +778,61 @@ describe("/v2/contacts", () => {
             }));
             chai.assert.equal(resp.statusCode, 404, `body=${JSON.stringify(resp.body)}`);
         });
+    });
+
+    it(`default sorting createdDate`, async () => {
+        const idAndDates = [
+            {id: generateId(), createdDate: new Date("3030-02-01")},
+            {id: generateId(), createdDate: new Date("3030-02-02")},
+            {id: generateId(), createdDate: new Date("3030-02-03")},
+            {id: generateId(), createdDate: new Date("3030-02-04")}
+        ];
+        for (let idAndDate of idAndDates) {
+            const response = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {
+                id: idAndDate.id,
+                email: "user@example.com"
+            });
+            chai.assert.equal(response.statusCode, 201);
+            const knex = await getKnexWrite();
+            const res: number = await knex("Contacts")
+                .where({
+                    userId: testUtils.defaultTestUser.userId,
+                    id: idAndDate.id,
+                })
+                .update(Contact.toDbContact(testUtils.defaultTestUser.auth, {
+                    ...response.body,
+                    createdDate: idAndDate.createdDate,
+                    updatedDate: idAndDate.createdDate
+                }));
+            if (res === 0) {
+                chai.assert.fail(`no row updated. test is broken`);
+            }
+        }
+        const resp = await testUtils.testAuthedRequest<Contact[]>(router, "/v2/contacts?createdDate.gt=3030-01-01", "GET");
+        chai.assert.equal(resp.statusCode, 200);
+        chai.assert.equal(resp.body.length, 4);
+        chai.assert.sameOrderedMembers(resp.body.map(tx => tx.id), idAndDates.reverse().map(tx => tx.id) /* reversed since createdDate desc */);
+    });
+
+    it("can create contact with maximum id length", async () => {
+        const contact: Partial<Contact> = {
+            id: generateId(64)
+        };
+        chai.assert.equal(contact.id.length, 64);
+
+        const createContact = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts`, "POST", contact);
+        chai.assert.equal(createContact.statusCode, 201);
+        chai.assert.equal(createContact.body.id, contact.id);
+    });
+
+    it("cannot create contact with id exceeding max length of 64 - returns 422", async () => {
+        const contact: Partial<Contact> = {
+            id: generateId(65)
+        };
+        chai.assert.equal(contact.id.length, 65);
+
+        const createContact = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/contacts`, "POST", contact);
+        chai.assert.equal(createContact.statusCode, 422);
+        chai.assert.include(createContact.body.message, "requestBody.id does not meet maximum length of 64");
     });
 });

@@ -1,22 +1,24 @@
-import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import * as chai from "chai";
-import * as testUtils from "../../../testUtils";
-import {alternateTestUser, defaultTestUser} from "../../../testUtils";
+import * as testUtils from "../../../utils/testUtils";
+import {alternateTestUser, defaultTestUser, generateId} from "../../../utils/testUtils";
 import * as currencies from "../currencies";
-import {DbTransaction, Transaction} from "../../../model/Transaction";
+import {Transaction} from "../../../model/Transaction";
 import {DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
-import {installRest} from "../index";
 import {Value} from "../../../model/Value";
-import {getKnexWrite} from "../../../dbUtils/connection";
+import {installRestRoutes} from "../installRestRoutes";
+import {getKnexWrite} from "../../../utils/dbUtils/connection";
+import chaiExclude = require("chai-exclude");
+
+chai.use(chaiExclude);
 
 describe("/v2/transactions", () => {
     const router = new cassava.Router();
 
     before(async function () {
         await testUtils.resetDb();
-        router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute(Promise.resolve({secretkey: "secret"})));
-        installRest(router);
+        router.route(testUtils.authRoute);
+        installRestRoutes(router);
 
         await currencies.createCurrency(defaultTestUser.auth, {
             code: "CAD",
@@ -70,30 +72,8 @@ describe("/v2/transactions", () => {
             "light": "rail"
         }
     };
-    const transfer2: DbTransaction = {
-        userId: "test-user-a",
-        id: "transfer-2",
-        transactionType: "transfer",
-        currency: "CAD",
-        totals: null,
-        lineItems: null,
-        paymentSources: null,
-        createdDate: new Date("01 January 2000"),
-        metadata: null
-    };
-    const transfer3: DbTransaction = {
-        userId: "test-user-a",
-        id: "transfer-3",
-        transactionType: "transfer",
-        currency: "CAD",
-        totals: null,
-        lineItems: null,
-        paymentSources: null,
-        createdDate: new Date("01 January 2005"),
-        metadata: null
-    };
-    const order1 = {
-        id: "order-1",
+    const checkout1 = {
+        id: "checkout-1",
         sources: [
             {
                 rail: "lightrail",
@@ -123,33 +103,30 @@ describe("/v2/transactions", () => {
         chai.assert.equal(resp.headers["Max-Limit"], "1000");
     });
 
-    it("can retrieve 1 transactions with 2 steps", async () => {
+    it("can retrieve 2 transactions with 2 steps", async () => {
         const postValueResp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
         chai.assert.equal(postValueResp1.statusCode, 201, `body=${JSON.stringify(postValueResp1.body)}`);
         const postValueResp2 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value2);
         chai.assert.equal(postValueResp2.statusCode, 201, `body=${JSON.stringify(postValueResp2.body)}`);
 
-        const transferResp = await testUtils.testAuthedRequest<Value>(router, "/v2/transactions/transfer", "POST", transfer1);
+        const transferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", transfer1);
         chai.assert.equal(transferResp.statusCode, 201, `body=${JSON.stringify(transferResp.body)}`);
 
-        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions", "GET");
+        const resp = await testUtils.testAuthedRequest<Transaction[]>(router, "/v2/transactions", "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.equal(resp.body.length, 1);
-        chai.assert.equal(resp.body[0].id, transfer1.id);
-        chai.assert.equal(resp.body[0].steps.length, 2);
+        chai.assert.equal(resp.body.length, 3);
+        chai.assert.sameMembers(resp.body.map(tx => tx.transactionType), ["initialBalance", "initialBalance", "transfer"]);
+        chai.assert.deepInclude(resp.body, transferResp.body, `resp.body=${JSON.stringify(resp.body, null, 4)}`);
     });
 
-    it("can retrieve 2 transactions (1 or 2 steps)", async () => {
+    it("can retrieve 4 transactions (1 or 2 steps)", async () => {
         const debitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", debit1);
         chai.assert.equal(debitResp.statusCode, 201, `body=${JSON.stringify(debitResp.body)}`);
 
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions", "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.equal(resp.body.length, 2);
-        chai.assert.equal(resp.body[0].id, transfer1.id);
-        chai.assert.equal(resp.body[0].steps.length, 2);
-        chai.assert.equal(resp.body[1].id, debit1.id);
-        chai.assert.equal(resp.body[1].steps.length, 1);
+        chai.assert.equal(resp.body.length, 4);
+        chai.assert.deepInclude(resp.body, debitResp.body, `resp.body=${JSON.stringify(resp.body, null, 4)}`);
     });
 
     it("can get a transaction by id", async () => {
@@ -167,48 +144,15 @@ describe("/v2/transactions", () => {
         chai.assert.equal(JSON.stringify(resp.body.metadata), JSON.stringify(debit2.metadata), `body=${JSON.stringify(resp.body)}`);
     });
 
-    describe.skip("filter transactions by query params", () => {
-        it("can filter by type", async () => {
-            const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions?transactionType=transfer", "GET");
-            chai.assert.equal(resp.statusCode, 200);
-            chai.assert.equal(resp.body.length, 1);
-            chai.assert.equal(resp.body[0].id, transfer1.id);
-        });
-
-        it("can filter by minCreatedDate", async () => {
-            const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions?minCreatedDate=2018-01-01", "GET");
-            chai.assert.equal(resp.statusCode, 200);
-            chai.assert.equal(resp.body.length, 3);
-            chai.assert.equal(resp.body[0].id, transfer1.id);
-            chai.assert.equal(resp.body[1].id, debit1.id);
-        });
-
-        it("can filter by maxCreatedDate", async () => {
-            const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions?maxCreatedDate=2018-01-01", "GET");
-            chai.assert.equal(resp.statusCode, 200);
-            chai.assert.equal(resp.body.length, 0);
-        });
-
-        it("can filter by three params", async () => {
-            const knex = await getKnexWrite();
-            await knex("Transactions").insert(transfer2);
-            await knex("Transactions").insert(transfer3);
-
-            const resp = await testUtils.testAuthedRequest<any>(router, `/v2/transactions?transactionType=transfer&minCreatedDate=${new Date("01 January 2002").toISOString()}&maxCreatedDate=${new Date("01 January 2006").toISOString()}`, "GET");
-
-            chai.assert.equal(resp.statusCode, 200);
-            chai.assert.equal(resp.body.length, 1);
-            chai.assert.include(resp.body[0].id, transfer3.id);
-        });
-    });
-
     it("orders transactions by date created", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions", "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.equal(resp.body.length, 3);  // TODO 5 once filter tests are back in: transfer2 first, transfer3 second
-        chai.assert.include(resp.body[0].id, transfer1.id);
-        chai.assert.include(resp.body[1].id, debit1.id);
-        chai.assert.include(resp.body[2].id, debit2.id);
+        chai.assert.equal(resp.body.length, 5);
+
+        const ids = resp.body.map(t => t.id);
+        chai.assert.include(ids, transfer1.id);
+        chai.assert.include(ids, debit1.id);
+        chai.assert.include(ids, debit2.id);
     });
 
     it("404s on getting an invalid id", async () => {
@@ -233,9 +177,9 @@ describe("/v2/transactions", () => {
 
     describe("userId isolation", () => {
         it("doesn't leak /transactions", async () => {
-            const resp1 = await testUtils.testAuthedRequest<any>(router, "/v2/transactions", "GET");
+            const resp1 = await testUtils.testAuthedRequest<Transaction[]>(router, "/v2/transactions", "GET");
             chai.assert.equal(resp1.statusCode, 200);
-            chai.assert.equal(resp1.body.length, 3);  // TODO 5 once filter tests are back in
+            chai.assert.isAtLeast(resp1.body.length, 1);
 
             const resp2 = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/transactions", "GET", {
                 headers: {
@@ -294,23 +238,28 @@ describe("/v2/transactions", () => {
         });
     });
 
-    describe("handles 'order' transactions", () => {
-        it("reads all order properties from from db", async () => {
-            const postOrderResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/order", "POST", order1);
-            chai.assert.equal(postOrderResp.statusCode, 201, `body=${JSON.stringify(postOrderResp.body)}`);
+    describe("handles 'checkout' transactions", () => {
+        it("reads all checkout properties from from db", async () => {
+            const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout1);
+            chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
 
-            const getOrderResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${order1.id}`, "GET");
-            chai.assert.equal(getOrderResp.statusCode, 200, `body=${JSON.stringify(getOrderResp.body)}`);
-            chai.assert.deepEqualExcluding(getOrderResp.body, {
-                id: "order-1",
-                transactionType: "order",
+            const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout1.id}`, "GET");
+            chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
+            chai.assert.deepEqualExcluding(getCheckoutResp.body, {
+                id: "checkout-1",
+                transactionType: "checkout",
                 currency: "CAD",
                 totals: {
-                    subTotal: 50,
+                    subtotal: 50,
                     tax: 0,
                     discount: 0,
+                    discountLightrail: 0,
                     payable: 50,
-                    remainder: 0
+                    paidInternal: 0,
+                    paidLightrail: 50,
+                    paidStripe: 0,
+                    remainder: 0,
+                    forgiven: 0
                 },
                 lineItems: [
                     {
@@ -331,12 +280,27 @@ describe("/v2/transactions", () => {
                 steps: [
                     {
                         rail: "lightrail",
+                        valueId: "vs-gc-2",
+                        code: null,
+                        contactId: null,
+                        balanceAfter: 0,
+                        balanceBefore: 1,
+                        balanceChange: -1,
+                        usesRemainingBefore: null,
+                        usesRemainingAfter: null,
+                        usesRemainingChange: null
+                    },
+                    {
+                        rail: "lightrail",
                         valueId: value1.id,
                         code: null,
                         contactId: null,
                         balanceBefore: 995,
-                        balanceAfter: 945,
-                        balanceChange: -50
+                        balanceAfter: 946,
+                        balanceChange: -49,
+                        usesRemainingBefore: null,
+                        usesRemainingAfter: null,
+                        usesRemainingChange: null
                     }
                 ],
                 paymentSources: [
@@ -349,9 +313,64 @@ describe("/v2/transactions", () => {
                         "valueId": "vs-gc-2"
                     }
                 ],
+                pending: false,
                 metadata: null,
-                createdDate: null
-            }, "createdDate");
+                tax: {
+                    "roundingMode": "HALF_EVEN"
+                },
+                createdDate: null,
+                createdBy: defaultTestUser.auth.teamMemberId,
+            }, ["createdDate", "createdBy"]);
         });
+    });
+
+    it(`default sorting createdDate`, async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balance: 50
+        };
+
+        const createValueResponse = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValueResponse.statusCode, 201);
+
+        const idAndDates = [
+            {id: generateId(), createdDate: new Date("3030-02-01")},
+            {id: generateId(), createdDate: new Date("3030-02-02")},
+            {id: generateId(), createdDate: new Date("3030-02-03")},
+            {id: generateId(), createdDate: new Date("3030-02-04")}
+        ];
+        for (let idAndDate of idAndDates) {
+            const response = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
+                id: idAndDate.id,
+                source: {
+                    rail: "lightrail",
+                    valueId: value.id
+                },
+                amount: 1,
+                currency: "CAD"
+            });
+            chai.assert.equal(response.statusCode, 201, `body=${JSON.stringify(response.body)}`);
+            const knex = await getKnexWrite();
+            const res: number = await knex("Transactions")
+                .where({
+                    userId: testUtils.defaultTestUser.userId,
+                    id: idAndDate.id,
+                })
+                .update({
+                    ...Transaction.toDbTransaction(testUtils.defaultTestUser.auth, {
+                        ...response.body,
+                        createdDate: idAndDate.createdDate
+                    }),
+                    rootTransactionId: response.body.id
+                });
+            if (res === 0) {
+                chai.assert.fail(`No row updated. Test data failed during setup..`);
+            }
+        }
+        const resp = await testUtils.testAuthedRequest<Transaction[]>(router, "/v2/transactions?transactionType=debit&createdDate.gt=3030-01-01", "GET");
+        chai.assert.equal(resp.statusCode, 200);
+        chai.assert.equal(resp.body.length, 4);
+        chai.assert.sameOrderedMembers(resp.body.map(tx => tx.id), idAndDates.reverse().map(tx => tx.id) /* reversed since createdDate desc*/);
     });
 });

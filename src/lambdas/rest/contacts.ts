@@ -3,10 +3,11 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Contact, DbContact} from "../../model/Contact";
 import {Pagination, PaginationParams} from "../../model/Pagination";
-import {pick, pickOrDefault} from "../../pick";
+import {pick, pickOrDefault} from "../../utils/pick";
 import {csvSerializer} from "../../serializers";
-import {filterAndPaginateQuery, nowInDbPrecision} from "../../dbUtils";
-import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
+import {filterAndPaginateQuery, nowInDbPrecision} from "../../utils/dbUtils";
+import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
+import * as knex from "knex";
 
 export function installContactsRest(router: cassava.Router): void {
     router.route("/v2/contacts")
@@ -17,7 +18,9 @@ export function installContactsRest(router: cassava.Router): void {
         })
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:contacts:list");
+
             const res = await getContacts(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
@@ -29,7 +32,12 @@ export function installContactsRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId", "teamMemberId");
+            if (auth.hasScope("lightrailV2:contacts:create:self") && evt.body && auth.contactId === evt.body.id) {
+                // Badge is signed specifically to create this Contact.
+            } else {
+                auth.requireScopes("lightrailV2:contacts:create");
+            }
             evt.validateBody(contactSchema);
 
             const now = nowInDbPrecision();
@@ -42,7 +50,8 @@ export function installContactsRest(router: cassava.Router): void {
                     metadata: null
                 }),
                 createdDate: now,
-                updatedDate: now
+                updatedDate: now,
+                createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
             };
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
@@ -54,7 +63,13 @@ export function installContactsRest(router: cassava.Router): void {
         .method("GET")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
+            if (auth.hasScope("lightrailV2:contacts:read:self") && auth.contactId === evt.pathParameters.id) {
+                // Badge is signed specifically to read this Contact.
+            } else {
+                auth.requireScopes("lightrailV2:contacts:read");
+            }
+
             return {
                 body: await getContact(auth, evt.pathParameters.id)
             };
@@ -64,9 +79,14 @@ export function installContactsRest(router: cassava.Router): void {
         .method("PATCH")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
-            evt.validateBody(contactUpdateSchema);
+            auth.requireIds("userId");
+            if (auth.hasScope("lightrailV2:contacts:update:self") && auth.contactId === evt.pathParameters.id) {
+                // Badge is signed specifically to update this Contact.
+            } else {
+                auth.requireScopes("lightrailV2:contacts:update");
+            }
 
+            evt.validateBody(contactUpdateSchema);
             if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
                 throw new giftbitRoutes.GiftbitRestError(422, `The body id '${evt.body.id}' does not match the path id '${evt.pathParameters.id}'.  The id cannot be updated.`);
             }
@@ -85,22 +105,53 @@ export function installContactsRest(router: cassava.Router): void {
         .method("DELETE")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
+            if (auth.hasScope("lightrailV2:contacts:delete:self") && auth.contactId === evt.pathParameters.id) {
+                // Badge is signed specifically to delete this Contact.
+            } else {
+                auth.requireScopes("lightrailV2:contacts:delete");
+            }
+
             return {
                 body: await deleteContact(auth, evt.pathParameters.id)
             };
         });
 }
 
-export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: {[key: string]: string}, pagination: PaginationParams): Promise<{ contacts: Contact[], pagination: Pagination }> {
-    auth.requireIds("giftbitUserId");
+export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ contacts: Contact[], pagination: Pagination }> {
+    auth.requireIds("userId");
 
     const knex = await getKnexRead();
+
+    let query: knex.QueryBuilder = knex("Contacts")
+        .select("Contacts.*")
+        .where("Contacts.userId", "=", auth.userId);
+    const valueId = filterParams["valueId"];
+    if (valueId) {
+
+        // join ContactValues
+        query.leftJoin("ContactValues", {
+            "Contacts.id": "ContactValues.contactId",
+            "Contacts.userId": "ContactValues.userId"
+        });
+
+        // also join Values
+        query.leftJoin("Values", {
+            "Contacts.id": "Values.contactId",
+            "Contacts.userId": "Values.userId"
+        });
+
+        query.andWhere(q => {
+            q.where("ContactValues.valueId", "=", valueId);
+            q.orWhere("Values.id", "=", valueId);
+            q.orWhere("Values.attachedFromValueId", "=", valueId);
+            return q;
+        });
+
+        query.groupBy("Contacts.id");
+    }
     const res = await filterAndPaginateQuery<DbContact>(
-        knex("Contacts")
-            .where({
-                userId: auth.giftbitUserId
-            }),
+        query,
         filterParams,
         {
             properties: {
@@ -116,8 +167,13 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 },
                 "email": {
                     type: "string"
-                }
-            }
+                },
+                "createdDate": {
+                    type: "Date",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
+                },
+            },
+            tableName: "Contacts"
         },
         pagination
     );
@@ -128,7 +184,7 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 }
 
 export async function createContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contact: Contact): Promise<Contact> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId", "teamMemberId");
 
     try {
         const knex = await getKnexWrite();
@@ -144,17 +200,17 @@ export async function createContact(auth: giftbitRoutes.jwtauth.AuthorizationBad
 }
 
 export async function getContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Contact> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     const knex = await getKnexRead();
     const res: DbContact[] = await knex("Contacts")
         .select()
         .where({
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id: id
         });
     if (res.length === 0) {
-        throw new cassava.RestError(404);
+        throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${id}' not found.`, "ContactNotFound");
     }
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
@@ -162,36 +218,55 @@ export async function getContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
     return DbContact.toContact(res[0]);
 }
 
-export async function updateContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, contact: Partial<Contact>): Promise<Contact> {
-    auth.requireIds("giftbitUserId");
+export async function updateContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, contactUpdates: Partial<Contact>): Promise<Contact> {
+    auth.requireIds("userId");
 
     const knex = await getKnexWrite();
-    const res = await knex("Contacts")
-        .where({
-            userId: auth.giftbitUserId,
-            id: id
-        })
-        .update(Contact.toDbContactUpdate(contact));
-    if (res[0] === 0) {
-        throw new cassava.RestError(404);
-    }
-    if (res[0] > 1) {
-        throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
-    }
-    return {
-        ...await getContact(auth, id),
-        ...contact
-    };
+    return await knex.transaction(async trx => {
+        // Get the master version of the Contact and lock it.
+        const selectContactRes: DbContact[] = await trx("Contacts")
+            .select()
+            .where({
+                userId: auth.userId,
+                id: id
+            })
+            .forUpdate();
+        if (selectContactRes.length === 0) {
+            throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${id}' not found.`, "ContactNotFound");
+        }
+        if (selectContactRes.length > 1) {
+            throw new Error(`Illegal SELECT query.  Returned ${selectContactRes.length} values.`);
+        }
+        const existingContact = DbContact.toContact(selectContactRes[0]);
+        const updatedContact = {
+            ...existingContact,
+            ...contactUpdates
+        };
+
+        const patchRes: number = await trx("Contacts")
+            .where({
+                userId: auth.userId,
+                id: id
+            })
+            .update(Contact.toDbContactUpdate(contactUpdates));
+        if (patchRes === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (patchRes > 1) {
+            throw new Error(`Illegal UPDATE query.  Updated ${patchRes} values.`);
+        }
+        return updatedContact;
+    });
 }
 
 export async function deleteContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<{ success: true }> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     try {
         const knex = await getKnexWrite();
         const res: number = await knex("Contacts")
             .where({
-                userId: auth.giftbitUserId,
+                userId: auth.userId,
                 id: id
             })
             .delete();
@@ -216,8 +291,9 @@ const contactSchema: jsonschema.Schema = {
     properties: {
         id: {
             type: "string",
-            maxLength: 32,
-            minLength: 1
+            maxLength: 64,
+            minLength: 1,
+            pattern: "^[ -~]*$"
         },
         firstName: {
             type: ["string", "null"],
@@ -229,7 +305,8 @@ const contactSchema: jsonschema.Schema = {
         },
         email: {
             type: ["string", "null"],
-            maxLength: 320
+            maxLength: 320,
+            pattern: "^[ -~]*$"
         },
         metadata: {
             type: ["object", "null"]
@@ -242,4 +319,3 @@ const contactUpdateSchema: jsonschema.Schema = {
     ...contactSchema,
     required: []
 };
-

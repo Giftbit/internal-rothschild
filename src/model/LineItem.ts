@@ -1,5 +1,5 @@
 export interface LineItemRequest {
-    type: "product" | "shipping" | "fee";
+    type?: "product" | "shipping" | "fee";
     productId?: string;
     shippingId?: string;
     feeId?: string;
@@ -8,6 +8,7 @@ export interface LineItemRequest {
     quantity?: number;
     tags?: string[];
     taxRate?: number;
+    marketplaceRate?: number;
     metadata?: any;
 }
 

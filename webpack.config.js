@@ -26,10 +26,11 @@ module.exports = function (env) {
                             {
                                 loader: 'babel-loader',
                                 options: {
-                                    presets: ['es2015'],
-                                    plugins: ["transform-async-to-generator"],
+                                    presets: [['@babel/env', {targets: {node: '8.10'}}]],
+                                    plugins: [],
                                     compact: false,
-                                    babelrc: false
+                                    babelrc: false,
+                                    cacheDirectory: true
                                 }
                             }
                         ]
@@ -40,13 +41,15 @@ module.exports = function (env) {
                             {
                                 loader: 'babel-loader',
                                 options: {
-                                    presets: ['es2015'],
-                                    plugins: ["transform-async-to-generator"],
+                                    presets: [['@babel/env', {targets: {node: '8.10'}}]],
+                                    plugins: [],
                                     compact: false,
-                                    babelrc: false
+                                    babelrc: false,
+                                    cacheDirectory: true
                                 }
                             },
-                            'ts-loader'
+                            'ts-loader',
+                            'import-glob-loader'    // enables globs in import statements
                         ]
                     },
                     {
@@ -92,15 +95,16 @@ module.exports = function (env) {
                 'imagemagick': 'imagemagick',
 
                 // Knex drivers we won't use.
-                'sqlite3': 'sqlite3',
-                'mariasql': 'mariasql',
                 'mssql': 'mssql',
+                'mssql/lib/base': 'mssql/lib/base',
+                'mssql/package.json': 'mssql/package.json',
                 'mysql': 'mysql',
                 'oracle': 'oracle',
-                'strong-oracle': 'strong-oracle',
                 'oracledb': 'oracledb',
                 'pg': 'pg',
-                'pg-query-stream': 'pg-query-stream'
+                'pg-query-stream': 'pg-query-stream',   // used by pg
+                'sqlite3': 'sqlite3',
+                'tedious': 'tedious',   // used by mssql
             },
             node: {
                 // Allow these globals.

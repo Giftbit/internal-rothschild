@@ -1,24 +1,34 @@
-import "babel-polyfill";
 import * as aws from "aws-sdk";
 import * as awslambda from "aws-lambda";
 import {sendCloudFormationResponse} from "../../sendCloudFormationResponse";
+import log = require("loglevel");
+
+// Wrapping console.log instead of binding (default behaviour for loglevel)
+// Otherwise all log calls are prefixed with the requestId from the first
+// request the lambda received (AWS modifies log calls, loglevel binds to the
+// version of console.log that exists when it is initialized).
+// See https://github.com/pimterry/loglevel/blob/master/lib/loglevel.js
+// tslint:disable-next-line:no-console
+log.methodFactory = () => (...args) => console.log(...args);
+
+log.setLevel(log.levels.DEBUG);
 
 /**
  * Handles a CloudFormationEvent and generates database credentials.
  */
 export function handler(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context, callback: awslambda.Callback): void {
-    console.log("event", JSON.stringify(evt, null, 2));
+    log.info("event", JSON.stringify(evt, null, 2));
     handlerAsync(evt, ctx)
         .then(data => {
             return sendCloudFormationResponse(evt, ctx, true, data);
         }, err => {
-            console.error(JSON.stringify(err, null, 2));
+            log.error(JSON.stringify(err, null, 2));
             return sendCloudFormationResponse(evt, ctx, false, null, err.message);
         })
         .then(() => {
             callback(undefined, {});
         }, err => {
-            console.error(JSON.stringify(err, null, 2));
+            log.error(JSON.stringify(err, null, 2));
             callback(err);
         });
 }
@@ -40,7 +50,7 @@ async function handlerAsync(evt: awslambda.CloudFormationCustomResourceEvent, ct
     const passwordParameter = `${evt.ResourceProperties.SsmPrefix}-password`;
 
     if (evt.RequestType === "Create" || evt.RequestType === "Update") {
-        console.log("setting credentials PasswordParameter=", passwordParameter, "KeyId=", evt.ResourceProperties.KmsKeyId);
+        log.info("setting credentials PasswordParameter=", passwordParameter, "KeyId=", evt.ResourceProperties.KmsKeyId);
 
         const password = generateString(36);
 

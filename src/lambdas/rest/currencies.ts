@@ -2,9 +2,9 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Currency, DbCurrency} from "../../model/Currency";
-import {pick} from "../../pick";
+import {pick} from "../../utils/pick";
 import {csvSerializer} from "../../serializers";
-import {getKnexRead, getKnexWrite} from "../../dbUtils/connection";
+import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 
 export function installCurrenciesRest(router: cassava.Router): void {
     router.route("/v2/currencies")
@@ -15,7 +15,8 @@ export function installCurrenciesRest(router: cassava.Router): void {
         })
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:currencies:list");
             return {
                 body: await getCurrencies(auth)
             };
@@ -25,7 +26,8 @@ export function installCurrenciesRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:currencies:create");
             evt.validateBody(currencySchema);
 
             const currency = pick(evt.body, "code", "name", "symbol", "decimalPlaces") as Currency;
@@ -39,7 +41,8 @@ export function installCurrenciesRest(router: cassava.Router): void {
         .method("GET")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:currencies:read");
             return {
                 body: await getCurrency(auth, evt.pathParameters.code)
             };
@@ -49,7 +52,8 @@ export function installCurrenciesRest(router: cassava.Router): void {
         .method("PATCH")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:currencies:update");
             evt.validateBody(currencyUpdateSchema);
 
             if (evt.body.code !== undefined && evt.body.code !== evt.pathParameters.code) {
@@ -66,7 +70,8 @@ export function installCurrenciesRest(router: cassava.Router): void {
         .method("DELETE")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:currencies:delete");
             return {
                 body: await deleteCurrency(auth, evt.pathParameters.code)
             };
@@ -74,20 +79,20 @@ export function installCurrenciesRest(router: cassava.Router): void {
 }
 
 export async function getCurrencies(auth: giftbitRoutes.jwtauth.AuthorizationBadge): Promise<Currency[]> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     const knex = await getKnexRead();
     const res: DbCurrency[] = await knex("Currencies")
         .select()
         .where({
-            userId: auth.giftbitUserId
+            userId: auth.userId
         })
         .orderBy("code");
     return res.map(DbCurrency.toCurrency);
 }
 
 export async function createCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge, currency: Currency): Promise<Currency> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     try {
         const knex = await getKnexWrite();
@@ -103,13 +108,13 @@ export async function createCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBa
 }
 
 export async function getCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string): Promise<Currency> {
-    auth.requireIds("giftbitUserId");
+    auth.requireIds("userId");
 
     const knex = await getKnexRead();
     const res: DbCurrency[] = await knex("Currencies")
         .select()
         .where({
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             code: code
         });
     if (res.length === 0) {
@@ -121,36 +126,55 @@ export async function getCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     return DbCurrency.toCurrency(res[0]);
 }
 
-export async function updateCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string, currency: Partial<Currency>): Promise<Currency> {
-    auth.requireIds("giftbitUserId");
+export async function updateCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string, currencyUpdates: Partial<Currency>): Promise<Currency> {
+    auth.requireIds("userId");
 
     const knex = await getKnexWrite();
-    const res: [number] = await knex("Currencies")
-        .where({
-            userId: auth.giftbitUserId,
-            code: code
-        })
-        .update(Currency.toDbCurrencyUpdate(currency));
-    if (res[0] === 0) {
-        throw new cassava.RestError(404);
-    }
-    if (res[0] > 1) {
-        throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
-    }
-    return {
-        ...await getCurrency(auth, code),
-        ...currency
-    };
+    return knex.transaction(async trx => {
+        // Get the master version of the Currency and lock it.
+        const currencyRes: DbCurrency[] = await trx("Currencies")
+            .select()
+            .where({
+                userId: auth.userId,
+                code: code
+            })
+            .forUpdate();
+        if (currencyRes.length === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (currencyRes.length > 1) {
+            throw new Error(`Illegal SELECT query.  Returned ${currencyRes.length} values.`);
+        }
+        const existingCurrency = DbCurrency.toCurrency(currencyRes[0]);
+        const updatedCurrency = {
+            ...existingCurrency,
+            ...currencyUpdates
+        };
+
+        const patchRes: number = await trx("Currencies")
+            .where({
+                userId: auth.userId,
+                code: code
+            })
+            .update(Currency.toDbCurrencyUpdate(currencyUpdates));
+        if (patchRes === 0) {
+            throw new cassava.RestError(404);
+        }
+        if (patchRes > 1) {
+            throw new Error(`Illegal UPDATE query.  Updated ${patchRes} values.`);
+        }
+        return updatedCurrency;
+    });
 }
 
-export async function deleteCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string): Promise<{success: true}> {
-    auth.requireIds("giftbitUserId");
+export async function deleteCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string): Promise<{ success: true }> {
+    auth.requireIds("userId");
 
     try {
         const knex = await getKnexWrite();
         const res: number = await knex("Currencies")
             .where({
-                userId: auth.giftbitUserId,
+                userId: auth.userId,
                 code: code
             })
             .delete();
@@ -165,6 +189,7 @@ export async function deleteCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBa
         if (err.code === "ER_ROW_IS_REFERENCED_2") {
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${code}' is in use.`, "CurrencyInUse");
         }
+        throw err;
     }
 }
 
@@ -174,7 +199,8 @@ const currencySchema: jsonschema.Schema = {
         code: {
             type: "string",
             maxLength: 16,
-            minLength: 1
+            minLength: 1,
+            pattern: "^[ -~]*$"
         },
         name: {
             type: "string",

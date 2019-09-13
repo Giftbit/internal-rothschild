@@ -1,29 +1,52 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import {compareTransactionPlanSteps} from "./compareTransactionPlanSteps";
-import {CreditRequest, DebitRequest, OrderRequest, TransferRequest} from "../../../model/TransactionRequest";
-import {resolveTransactionParties} from "./resolveTransactionParties";
-import {buildOrderTransactionPlan} from "./buildOrderTransactionPlan";
+import * as pendingTransactionUtils from "./pendingTransactionUtils";
+import {
+    filterForUsedAttaches,
+    getContactIdFromSources,
+    getLightrailValues,
+    getTransactionPlanStepsFromSources
+} from "./resolveTransactionPlanSteps";
+import {
+    CaptureRequest,
+    CheckoutRequest,
+    CreditRequest,
+    DebitRequest,
+    InternalTransactionParty,
+    ReverseRequest,
+    StripeTransactionParty,
+    TransactionParty,
+    transactionPartySchema,
+    TransferRequest,
+    VoidRequest
+} from "../../../model/TransactionRequest";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
-import {executeTransactionPlanner} from "./executeTransactionPlan";
+import {executeTransactionPlanner} from "./executeTransactionPlans";
 import {Pagination, PaginationParams} from "../../../model/Pagination";
-import {getKnexRead} from "../../../dbUtils/connection";
-import {Filters, TransactionFilterParams} from "../../../model/Filter";
-import {paginateQuery} from "../../../dbUtils/paginateQuery";
-import {LightrailTransactionPlanStep, TransactionPlanStep} from "./TransactionPlan";
+import {getKnexRead} from "../../../utils/dbUtils/connection";
+import {getCheckoutTransactionPlan} from "./checkout/checkoutTransactionPlanner";
+import {filterAndPaginateQuery} from "../../../utils/dbUtils";
+import {createTransferTransactionPlan, resolveTransferTransactionPlanSteps} from "./transactions.transfer";
+import {createCreditTransactionPlan} from "./transactions.credit";
+import {createDebitTransactionPlan} from "./transactions.debit";
+import {createReverseTransactionPlan} from "./reverse/transactions.reverse";
+import {createCaptureTransactionPlan} from "./transactions.capture";
+import {createVoidTransactionPlan} from "./transactions.void";
+import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
+import {Value} from "../../../model/Value";
+import {getAttachTransactionPlanForGenericCodeWithPerContactOptions} from "../genericCodeWithPerContactOptions";
+import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
-import getTransactionFilterParams = Filters.getTransactionFilterParams;
-
-const debug = false;
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions")
         .method("GET")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
-            const res = await getTransactions(auth, getPaginationParams(evt), getTransactionFilterParams(evt));
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:transactions:list");
+            const res = await getTransactions(auth, evt.queryStringParameters, getPaginationParams(evt));
             return {
                 headers: Pagination.toHeaders(evt, res.pagination),
                 body: res.transactions
@@ -34,7 +57,8 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("GET")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:transactions:read");
             return {
                 body: await getTransaction(auth, evt.pathParameters.id)
             };
@@ -44,7 +68,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("PATCH")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.FORBIDDEN, "Cannot modify transactions.", "CannotModifyTransaction");
         });
 
@@ -52,7 +76,7 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("DELETE")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId");
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.FORBIDDEN, "Cannot delete transactions.", "CannotDeleteTransaction");
         });
 
@@ -60,7 +84,8 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId", "teamMemberId");
+            auth.requireScopes("lightrailV2:transactions:credit");
             evt.validateBody(creditSchema);
             return {
                 statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
@@ -72,7 +97,8 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId", "teamMemberId");
+            auth.requireScopes("lightrailV2:transactions:debit");
             evt.validateBody(debitSchema);
             return {
                 statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
@@ -80,15 +106,16 @@ export function installTransactionsRest(router: cassava.Router): void {
             };
         });
 
-    router.route("/v2/transactions/order")
+    router.route("/v2/transactions/checkout")
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
-            evt.validateBody(orderSchema);
+            auth.requireIds("userId", "teamMemberId");
+            auth.requireScopes("lightrailV2:transactions:checkout");
+            evt.validateBody(checkoutSchema);
             return {
                 statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
-                body: await createOrder(auth, evt.body)
+                body: await createCheckout(auth, evt.body)
             };
         });
 
@@ -96,63 +123,143 @@ export function installTransactionsRest(router: cassava.Router): void {
         .method("POST")
         .handler(async evt => {
             const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            auth.requireIds("giftbitUserId");
+            auth.requireIds("userId", "teamMemberId");
+            auth.requireScopes("lightrailV2:transactions:transfer");
             evt.validateBody(transferSchema);
             return {
                 statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
                 body: await createTransfer(auth, evt.body)
             };
         });
-}
 
-async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pagination: PaginationParams, filter: TransactionFilterParams): Promise<{ transactions: Transaction[], pagination: Pagination }> {
-    auth.requireIds("giftbitUserId");
-    const knex = await getKnexRead();
-
-    let query = knex("Transactions")
-        .select()
-        .where({
-            userId: auth.giftbitUserId
+    router.route("/v2/transactions/{id}/reverse")
+        .method("POST")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("userId", "teamMemberId");
+            auth.requireScopes("lightrailV2:transactions:reverse");
+            evt.validateBody(reverseSchema);
+            return {
+                statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
+                body: await createReverse(auth, evt.body, evt.pathParameters.id)
+            };
         });
 
-    if (filter.transactionType) {
-        query.where("transactionType", filter.transactionType);
-    }
-    if (filter.minCreatedDate) {
-        query.where("createdDate", ">", filter.minCreatedDate);
-    }
-    if (filter.maxCreatedDate) {
-        query.where("createdDate", "<", filter.maxCreatedDate);
+    router.route("/v2/transactions/{id}/capture")
+        .method("POST")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("userId", "teamMemberId");
+            auth.requireScopes("lightrailV2:transactions:capture");
+            evt.validateBody(captureSchema);
+            return {
+                statusCode: cassava.httpStatusCode.success.CREATED,
+                body: await createCapture(auth, evt.body, evt.pathParameters.id)
+            };
+        });
+
+    router.route("/v2/transactions/{id}/void")
+        .method("POST")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("userId", "teamMemberId");
+            auth.requireScopes("lightrailV2:transactions:void");
+            evt.validateBody(voidSchema);
+            return {
+                statusCode: cassava.httpStatusCode.success.CREATED,
+                body: await createVoid(auth, evt.body, evt.pathParameters.id)
+            };
+        });
+
+    router.route("/v2/transactions/{id}/chain")
+        .method("GET")
+        .handler(async evt => {
+            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
+            auth.requireIds("userId");
+            auth.requireScopes("lightrailV2:transactions:read");
+            const dbTransaction = await getDbTransaction(auth, evt.pathParameters.id);
+            evt.queryStringParameters["rootTransactionId"] = dbTransaction.rootTransactionId;
+            const res = await getTransactions(auth, evt.queryStringParameters, getPaginationParams(evt, {
+                sort: {
+                    field: "createdDate",
+                    asc: true
+                }
+            }));
+
+            return {
+                headers: Pagination.toHeaders(evt, res.pagination),
+                body: res.transactions
+            };
+        });
+}
+
+export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ transactions: Transaction[], pagination: Pagination }> {
+    auth.requireIds("userId");
+
+    const knex = await getKnexRead();
+    const valueId = filterParams["valueId"];
+    const contactId = filterParams["contactId"];
+    let query = knex("Transactions")
+        .select("Transactions.*")
+        .where("Transactions.userId", "=", auth.userId);
+    if (valueId || contactId) {
+        query.join("LightrailTransactionSteps", {
+            "Transactions.id": "LightrailTransactionSteps.transactionId",
+            "Transactions.userId": "LightrailTransactionSteps.userId"
+        });
+        if (valueId) {
+            query.where("LightrailTransactionSteps.valueId", "=", valueId);
+        }
+        if (contactId) {
+            query.where("LightrailTransactionSteps.contactId", "=", contactId);
+            query.groupBy("Transactions.id"); // A Contact may have two steps in the same Transaction.
+        }
     }
 
-    if (!pagination.sort) {     // TODO should we be more prescriptive about this?
-        pagination.sort = {
-            field: "createdDate",
-            asc: true
-        };
-    }
-
-    const paginatedRes = await paginateQuery<DbTransaction>(
+    const res = await filterAndPaginateQuery<DbTransaction>(
         query,
+        filterParams,
+        {
+            properties: {
+                "id": {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
+                "transactionType": {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
+                "createdDate": {
+                    type: "Date",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
+                },
+                "currency": {
+                    type: "string",
+                    operators: ["eq", "in"]
+                },
+                "rootTransactionId": { // only used internally for looking up transaction chain and not exposed publicly
+                    type: "string",
+                    operators: ["eq", "in"]
+                }
+            },
+            tableName: "Transactions"
+        },
         pagination
     );
-
-    const transacs: Transaction[] = await Promise.all(await DbTransaction.toTransactions(paginatedRes.body, auth.giftbitUserId));
-
     return {
-        transactions: transacs,
-        pagination: paginatedRes.pagination
+        transactions: await DbTransaction.toTransactions(res.body, auth.userId),
+        pagination: res.pagination
     };
 }
 
-export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Transaction> {
-    auth.requireIds("giftbitUserId");
+export async function getDbTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<DbTransaction> {
+    auth.requireIds("userId");
 
     const knex = await getKnexRead();
     const res: DbTransaction[] = await knex("Transactions")
         .select()
         .where({
-            userId: auth.giftbitUserId,
+            userId: auth.userId,
             id
         });
     if (res.length === 0) {
@@ -161,8 +268,15 @@ export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBa
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
-    const transacs: Transaction[] = await Promise.all(await DbTransaction.toTransactions(res, auth.giftbitUserId));
-    return transacs[0];   // at this point there will only ever be one
+    return res[0];
+}
+
+export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Transaction> {
+    auth.requireIds("userId");
+    const dbTransaction = await getDbTransaction(auth, id);
+
+    const transactions: Transaction[] = await DbTransaction.toTransactions([dbTransaction], auth.userId);
+    return transactions[0];   // at this point there will only ever be one
 }
 
 async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CreditRequest): Promise<Transaction> {
@@ -172,29 +286,7 @@ async function createCredit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req:
             simulate: req.simulate,
             allowRemainder: false
         },
-        async () => {
-            const parties = await resolveTransactionParties(auth, req.currency, [req.destination]);
-            if (parties.length !== 1 || parties[0].rail !== "lightrail") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable Value.", "InvalidParty");
-            }
-
-            return {
-                id: req.id,
-                transactionType: "credit",
-                currency: req.currency,
-                steps: [
-                    {
-                        rail: "lightrail",
-                        value: (parties[0] as LightrailTransactionPlanStep).value,
-                        amount: req.amount
-                    }
-                ],
-                metadata: req.metadata,
-                totals: {remainder: 0},
-                lineItems: null,
-                paymentSources: null
-            };
-        }
+        async () => createCreditTransactionPlan(auth, req)
     );
 }
 
@@ -205,60 +297,72 @@ async function createDebit(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: 
             simulate: req.simulate,
             allowRemainder: req.allowRemainder
         },
-        async () => {
-            const parties = await resolveTransactionParties(auth, req.currency, [req.source]);
-            if (parties.length !== 1 || parties[0].rail !== "lightrail") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable Value.", "InvalidParty");
-            }
-
-            const amount = Math.min(req.amount, (parties[0] as LightrailTransactionPlanStep).value.balance);
-            return {
-                id: req.id,
-                transactionType: "debit",
-                currency: req.currency,
-                steps: [
-                    {
-                        rail: "lightrail",
-                        value: (parties[0] as LightrailTransactionPlanStep).value,
-                        amount: -amount
-                    }
-                ],
-                metadata: req.metadata,
-                totals: {remainder: req.amount - amount},
-                lineItems: null,
-                paymentSources: null  // TODO need to make sense of 'source' in req vs 'paymentSources' in db
-            };
-        }
+        async () => createDebitTransactionPlan(auth, req)
     );
 }
 
-async function createOrder(auth: giftbitRoutes.jwtauth.AuthorizationBadge, order: OrderRequest): Promise<Transaction> {
-    return executeTransactionPlanner(
+async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, checkout: CheckoutRequest): Promise<Transaction> {
+    const transaction = await executeTransactionPlanner(
         auth,
         {
-            simulate: order.simulate,
-            allowRemainder: order.allowRemainder
+            simulate: checkout.simulate,
+            allowRemainder: checkout.allowRemainder
         },
         async () => {
-            const steps = await resolveTransactionParties(auth, order.currency, order.sources);
-            let preTaxSteps: TransactionPlanStep[] = [];
-            let postTaxSteps: TransactionPlanStep[] = [];
+            const fetchedValues = await getLightrailValues(auth, {
+                currency: checkout.currency,
+                parties: checkout.sources,
+                transactionId: checkout.id,
+                nonTransactableHandling: "exclude",
+                includeZeroBalance: !!checkout.allowRemainder,
+                includeZeroUsesRemaining: !!checkout.allowRemainder,
+            });
 
-            for (const step of steps) {
-                if (step.rail === "lightrail" && step.value.pretax) {
-                    preTaxSteps.push(step);
-                } else {
-                    postTaxSteps.push(step);
+            // handle auto attach on generic codes
+            const valuesToAttach: Value[] = fetchedValues.filter(v => Value.isGenericCodeWithPropertiesPerContact(v));
+            const valuesForCheckout: Value[] = fetchedValues.filter(v => valuesToAttach.indexOf(v) === -1);
+            const attachTransactionPlans: TransactionPlan[] = [];
+            if (valuesToAttach.length > 0) {
+                attachTransactionPlans.push(...await getAutoAttachTransactionPlans(auth, valuesToAttach, valuesForCheckout, checkout.sources));
+                for (const plan of attachTransactionPlans) {
+                    valuesForCheckout.push((plan.steps.find(s => (s as LightrailTransactionPlanStep).action === "insert") as LightrailTransactionPlanStep).value);
                 }
             }
 
-            preTaxSteps = preTaxSteps.sort(compareTransactionPlanSteps);
-            postTaxSteps = postTaxSteps.sort(compareTransactionPlanSteps);
-            debug && console.log(`preTaxSteps: ${JSON.stringify(preTaxSteps)}`);
-            debug && console.log(`postTaxSteps: ${JSON.stringify(postTaxSteps)}`);
-            return buildOrderTransactionPlan(order, preTaxSteps, postTaxSteps);
+            const checkoutTransactionPlanSteps = getTransactionPlanStepsFromSources(
+                checkout.id,
+                checkout.currency,
+                valuesForCheckout,
+                checkout.sources.filter(src => src.rail !== "lightrail") as (StripeTransactionParty | InternalTransactionParty)[]
+            );
+
+            const checkoutTransactionPlan: TransactionPlan = getCheckoutTransactionPlan(checkout, checkoutTransactionPlanSteps);
+
+            // Only persist attach transactions that were used.
+            const attachTransactionsToPersist: TransactionPlan[] = filterForUsedAttaches(attachTransactionPlans, checkoutTransactionPlan);
+
+            return [...attachTransactionsToPersist, checkoutTransactionPlan];
         }
     );
+    return Array.isArray(transaction) ? transaction.find(tx => tx.transactionType === "checkout") : transaction;
+}
+
+async function getAutoAttachTransactionPlans(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valuesToAttach: Value[], valuesForCheckout: Value[], sources: TransactionParty[]): Promise<TransactionPlan[]> {
+    const contactId = await getContactIdFromSources(auth, sources);
+    if (!contactId) {
+        throw new giftbitRoutes.GiftbitRestError(409, `Values cannot be transacted against because they must be attached to a Contact first. Alternatively, a contactId must be included a source in the checkout request.`, "ValueMustBeAttached");
+    }
+
+    const attachTransactionPlans: TransactionPlan[] = [];
+    for (const genericValue of valuesToAttach) {
+        if (valuesForCheckout.find(v => v.attachedFromValueId === genericValue.id)) {
+            log.debug(`Skipping attaching generic value ${genericValue.id} since it's already been attached.`);
+        } else {
+            const transactionPlan = await getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth, contactId, genericValue);
+            attachTransactionPlans.push(transactionPlan);
+        }
+    }
+    return attachTransactionPlans;
 }
 
 async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: TransferRequest): Promise<Transaction> {
@@ -269,191 +373,143 @@ async function createTransfer(auth: giftbitRoutes.jwtauth.AuthorizationBadge, re
             allowRemainder: req.allowRemainder
         },
         async () => {
-            const sourceParties = await resolveTransactionParties(auth, req.currency, [req.source]);
-            if (sourceParties.length !== 1 || sourceParties[0].rail !== "lightrail") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the source to a transactable Value.", "InvalidParty");
-            }
-
-            const destParties = await resolveTransactionParties(auth, req.currency, [req.destination]);
-            if (destParties.length !== 1 || destParties[0].rail !== "lightrail") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "Could not resolve the destination to a transactable Value.", "InvalidParty");
-            }
-
-            const amount = Math.min(req.amount, (sourceParties[0] as LightrailTransactionPlanStep).value.balance);
-            return {
-                id: req.id,
-                transactionType: "transfer",
-                currency: req.currency,
-                steps: [
-                    {
-                        rail: "lightrail",
-                        value: (sourceParties[0] as LightrailTransactionPlanStep).value,
-                        amount: -amount
-                    },
-                    {
-                        rail: "lightrail",
-                        value: (destParties[0] as LightrailTransactionPlanStep).value,
-                        amount
-                    }
-                ],
-                metadata: req.metadata,
-                totals: {remainder: req.amount - amount},
-                lineItems: null,
-                paymentSources: null  // TODO need to make sense of 'source' in req vs 'paymentSources' in db
-            };
+            const parties = await resolveTransferTransactionPlanSteps(auth, req);
+            return await createTransferTransactionPlan(req, parties);
         }
     );
 }
 
-const lightrailPartySchema: jsonschema.Schema = {
-    title: "lightrail",
-    type: "object",
-    properties: {
-        rail: {
-            type: "string",
-            enum: ["lightrail"]
-        }
-    },
-    oneOf: [
+export async function createReverse(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: ReverseRequest, transactionIdToReverse: string): Promise<Transaction> {
+    return executeTransactionPlanner(
+        auth,
         {
-            properties: {
-                contactId: {
-                    type: "string"
-                }
-            },
-            required: ["contactId"]
+            simulate: req.simulate,
+            allowRemainder: true
         },
-        {
-            properties: {
-                code: {
-                    type: "string"
-                }
-            },
-            required: ["code"]
-        },
-        {
-            properties: {
-                valueId: {
-                    type: "string"
-                }
-            },
-            required: ["valueId"]
+        async () => {
+            return await createReverseTransactionPlan(auth, req, transactionIdToReverse);
         }
-    ],
-    required: ["rail"]
-};
+    );
+}
 
-/**
- * Can only refer to a single value store.
- */
-const lightrailUniquePartySchema: jsonschema.Schema = {
-    title: "lightrail",
-    type: "object",
-    properties: {
-        rail: {
-            type: "string",
-            enum: ["lightrail"]
-        }
-    },
-    oneOf: [
+async function createCapture(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CaptureRequest, transactionIdToCapture: string): Promise<Transaction> {
+    return executeTransactionPlanner(
+        auth,
         {
-            properties: {
-                code: {
-                    type: "string"
-                }
-            },
-            required: ["code"]
+            simulate: req.simulate,
+            allowRemainder: false
         },
+        async () => {
+            return await createCaptureTransactionPlan(auth, req, transactionIdToCapture);
+        }
+    );
+}
+
+export async function createVoid(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: VoidRequest, transactionIdToVoid: string): Promise<Transaction> {
+    return executeTransactionPlanner(
+        auth,
         {
-            properties: {
-                valueId: {
-                    type: "string"
-                }
-            },
-            required: ["valueId"]
+            simulate: req.simulate,
+            allowRemainder: true
+        },
+        async () => {
+            return await createVoidTransactionPlan(auth, req, transactionIdToVoid);
         }
-    ],
-    required: ["rail"]
-};
+    );
+}
 
-const stripePartySchema: jsonschema.Schema = {
-    title: "stripe",
-    type: "object",
-    properties: {
-        rail: {
-            type: "string",
-            enum: ["stripe"]
-        },
-        token: {
-            type: "string"
-        }
-    },
-    required: ["rail"]
-};
+export function isReversible(transaction: Transaction, transactionChain: Transaction[]): boolean {
+    return transaction.transactionType !== "reverse" &&
+        !transaction.pending &&
+        transaction.transactionType !== "void" &&
+        transaction.transactionType !== "capture" &&
+        !isReversed(transaction, transactionChain);
+}
 
-const internalPartySchema: jsonschema.Schema = {
-    title: "internal",
-    type: "object",
-    properties: {
-        rail: {
-            type: "string",
-            enum: ["internal"]
-        },
-        id: {
-            type: "string"
-        },
-        value: {
-            type: "integer",
-            minimum: 0
-        },
-        beforeLightrail: {
-            type: "boolean"
-        }
-    },
-    required: ["rail", "id", "value"]
-};
+export function isReversed(transaction: Transaction, transactionChain: Transaction[]): boolean {
+    return (!!transactionChain.find(txn => txn.transactionType === "reverse"));
+}
+
+export function isVoidable(transaction: Transaction, transactionChain: Transaction[]): boolean {
+    return !!transaction.pending && !isVoided(transaction, transactionChain);
+}
+
+export function isVoided(transaction: Transaction, transactionChain: Transaction[]): boolean {
+    return !!transaction.pending && !!transactionChain.find(txn => txn.transactionType === "void");
+}
+
+export function isCaptured(transaction: Transaction, transactionChain: Transaction[]): boolean {
+    return !!transactionChain.find(txn => txn.transactionType === "capture");
+}
 
 const creditSchema: jsonschema.Schema = {
     title: "credit",
     type: "object",
+    additionalProperties: false,
     properties: {
         id: {
             type: "string",
-            minLength: 1
+            minLength: 1,
+            maxLength: 64,
+            pattern: "^[ -~]*$"
         },
-        destination: lightrailUniquePartySchema,
+        destination: transactionPartySchema.lightrailUnique,
         amount: {
+            type: "integer",
+            minimum: 1
+        },
+        uses: {
             type: "integer",
             minimum: 1
         },
         currency: {
             type: "string",
-            minLength: 3,
+            minLength: 1,
             maxLength: 16
         },
         simulate: {
             type: "boolean"
+        },
+        metadata: {
+            type: ["object", "null"]
         }
     },
-    required: ["id", "destination", "amount", "currency"]
+    anyOf: [
+        {
+            title: "credit specifies amount",
+            required: ["amount"]
+        },
+        {
+            title: "credit specifies uses",
+            required: ["uses"]
+        }
+    ],
+    required: ["id", "destination", "currency"]
 };
 
 const debitSchema: jsonschema.Schema = {
     title: "credit",
     type: "object",
+    additionalProperties: false,
     properties: {
         id: {
             type: "string",
-            minLength: 1
+            minLength: 1,
+            maxLength: 64,
+            pattern: "^[ -~]*$"
         },
-        source: lightrailUniquePartySchema,
+        source: transactionPartySchema.lightrailUnique,
         amount: {
+            type: "integer",
+            minimum: 1
+        },
+        uses: {
             type: "integer",
             minimum: 1
         },
         currency: {
             type: "string",
-            minLength: 3,
+            minLength: 1,
             maxLength: 16
         },
         simulate: {
@@ -461,28 +517,53 @@ const debitSchema: jsonschema.Schema = {
         },
         allowRemainder: {
             type: "boolean"
+        },
+        pending: {
+            type: ["boolean", "string"],
+            format: pendingTransactionUtils.durationPatternString
+        },
+        metadata: {
+            type: ["object", "null"]
         }
     },
-    required: ["id", "source", "amount", "currency"]
+    anyOf: [
+        {
+            title: "debit specifies amount",
+            required: ["amount"]
+        },
+        {
+            title: "debit specifies uses",
+            required: ["uses"]
+        }
+    ],
+    required: ["id", "source", "currency"]
 };
 
 const transferSchema: jsonschema.Schema = {
     title: "credit",
     type: "object",
+    additionalProperties: false,
     properties: {
         id: {
             type: "string",
-            minLength: 1
+            minLength: 1,
+            maxLength: 64,
+            pattern: "^[ -~]*$"
         },
-        source: lightrailUniquePartySchema,
-        destination: lightrailUniquePartySchema,
+        source: {
+            oneOf: [
+                transactionPartySchema.lightrail,
+                transactionPartySchema.stripe
+            ]
+        },
+        destination: transactionPartySchema.lightrailUnique,
         amount: {
             type: "integer",
             minimum: 1
         },
         currency: {
             type: "string",
-            minLength: 3,
+            minLength: 1,
             maxLength: 16
         },
         simulate: {
@@ -490,18 +571,24 @@ const transferSchema: jsonschema.Schema = {
         },
         allowRemainder: {
             type: "boolean"
+        },
+        metadata: {
+            type: ["object", "null"]
         }
     },
     required: ["id", "source", "amount", "currency"]
 };
 
-const orderSchema: jsonschema.Schema = {
-    title: "order",
+const checkoutSchema: jsonschema.Schema = {
+    title: "checkout",
     type: "object",
+    additionalProperties: false,
     properties: {
         id: {
             type: "string",
-            minLength: 1
+            minLength: 1,
+            maxLength: 64,
+            pattern: "^[ -~]*$"
         },
         lineItems: {
             type: "array",
@@ -522,6 +609,15 @@ const orderSchema: jsonschema.Schema = {
                     quantity: {
                         type: "integer",
                         minimum: 1
+                    },
+                    taxRate: {
+                        type: "float",
+                        minimum: 0
+                    },
+                    marketplaceRate: {
+                        type: "float",
+                        minimum: 0,
+                        maximum: 1
                     }
                 },
                 required: ["unitPrice"],
@@ -530,16 +626,16 @@ const orderSchema: jsonschema.Schema = {
         },
         currency: {
             type: "string",
-            minLength: 3,
+            minLength: 1,
             maxLength: 16
         },
         sources: {
             type: "array",
             items: {
                 oneOf: [
-                    lightrailPartySchema,
-                    stripePartySchema,
-                    internalPartySchema
+                    transactionPartySchema.lightrail,
+                    transactionPartySchema.stripe,
+                    transactionPartySchema.internal
                 ]
             }
         },
@@ -548,7 +644,88 @@ const orderSchema: jsonschema.Schema = {
         },
         allowRemainder: {
             type: "boolean"
+        },
+        tax: {
+            title: "Tax Properties",
+            type: ["object", "null"],
+            additionalProperties: false,
+            properties: {
+                roundingMode: {
+                    type: "string",
+                    enum: ["HALF_EVEN", "HALF_UP"]
+                }
+            }
+        },
+        pending: {
+            type: ["boolean", "string"],
+            format: pendingTransactionUtils.durationPatternString
+        },
+        metadata: {
+            type: ["object", "null"]
         }
     },
     required: ["id", "lineItems", "currency", "sources"]
+};
+
+const reverseSchema: jsonschema.Schema = {
+    title: "reverse",
+    type: "object",
+    additionalProperties: false,
+    properties: {
+        id: {
+            type: "string",
+            minLength: 1,
+            maxLength: 64,
+            pattern: "^[ -~]*$"
+        },
+        simulate: {
+            type: "boolean"
+        },
+        metadata: {
+            type: ["object", "null"]
+        }
+    },
+    required: ["id"]
+};
+
+const captureSchema: jsonschema.Schema = {
+    title: "capture",
+    type: "object",
+    additionalProperties: false,
+    properties: {
+        id: {
+            type: "string",
+            minLength: 1,
+            maxLength: 64,
+            pattern: "^[ -~]*$"
+        },
+        simulate: {
+            type: "boolean"
+        },
+        metadata: {
+            type: ["object", "null"]
+        }
+    },
+    required: ["id"]
+};
+
+const voidSchema: jsonschema.Schema = {
+    title: "void",
+    type: "object",
+    additionalProperties: false,
+    properties: {
+        id: {
+            type: "string",
+            minLength: 1,
+            maxLength: 64,
+            pattern: "^[ -~]*$"
+        },
+        simulate: {
+            type: "boolean"
+        },
+        metadata: {
+            type: ["object", "null"]
+        }
+    },
+    required: ["id"]
 };

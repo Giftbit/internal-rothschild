@@ -245,9 +245,11 @@ Resources:
               - lambda:AddPermission
               - lambda:CreateFunction
               - lambda:DeleteFunction
+              - lambda:DeleteFunctionConcurrency
               - lambda:GetFunction
               - lambda:GetFunctionConfiguration
               - lambda:InvokeFunction
+              - lambda:PutFunctionConcurrency
               - lambda:RemovePermission
               - lambda:TagResource
               - lambda:UntagResource
@@ -295,6 +297,7 @@ Resources:
               - rds:RebootDBInstance
               - rds:RemoveTagsFromResource
               - rds:ResetDBClusterParameterGroup
+              - rds:ResetDBParameterGroup
               - rds:StartDBInstance
               - rds:StopDBInstance
             Resource:
@@ -313,6 +316,7 @@ Resources:
           - Effect: Allow
             Action:
               - ec2:AllocateAddress
+              - ec2:AssociateAddress
               - ec2:AssociateRouteTable
               - ec2:AttachInternetGateway
               - ec2:AuthorizeSecurityGroupIngress
@@ -343,23 +347,39 @@ Resources:
               - ec2:ReleaseAddress
               - ec2:RevokeSecurityGroupEgress
               - ec2:RevokeSecurityGroupIngress
+              - ec2:RunInstances
             Resource: "*"
+          # EC2 bastion host
+          - Effect: Allow
+            Action:
+              - iam:AddRoleToInstanceProfile
+              - iam:CreateInstanceProfile
+              - iam:DeleteInstanceProfile
+              - iam:RemoveRoleFromInstanceProfile
+            Resource: !Sub "arn:aws:iam::${AWS::AccountId}:instance-profile/${ProjectName}-*"
+          - Effect: Allow
+            Action:
+              - ec2:StopInstances
+              - ec2:StartInstances
+              - ec2:RebootInstances
+              - ec2:TerminateInstances
+            Resource: !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/${ProjectName}-*"
           # API Gateway (REST events)
           - Effect: Allow
             Action:
               - apigateway:*
             Resource: !Sub "arn:aws:apigateway:${AWS::Region}::/*"
           # CloudWatch event triggers
-#          - Effect: Allow
-#            Action:
-#              - events:DeleteRule
-#              - events:DescribeRule
-#              - events:DisableRule
-#              - events:EnableRule
-#              - events:PutRule
-#              - events:PutTargets
-#              - events:RemoveTargets
-#            Resource: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${ProjectName}-*"
+          - Effect: Allow
+            Action:
+              - events:DeleteRule
+              - events:DescribeRule
+              - events:DisableRule
+              - events:EnableRule
+              - events:PutRule
+              - events:PutTargets
+              - events:RemoveTargets
+            Resource: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/${ProjectName}-*"
           # Kinesis stream event mapping
 #          - Effect: Allow
 #            Action:

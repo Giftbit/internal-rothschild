@@ -1,4 +1,4 @@
-import * as LRU from "lru-cache";
+import LRU = require("lru-cache");
 import {Rule} from "giftbit-ruleslib/distjs/Rule";
 
 let cache: LRU.Cache<string, Rule> = null;
@@ -6,7 +6,7 @@ const cacheSize = parseInt(process.env["RULE_CACHE_SIZE"], 10) || 100;
 
 export function getRuleFromCache(expression: string): Rule {
     if (!cache) {
-        cache = LRU<string, Rule>({
+        cache = new LRU<string, Rule>({
             max: cacheSize,
             maxAge: Number.POSITIVE_INFINITY
         });
