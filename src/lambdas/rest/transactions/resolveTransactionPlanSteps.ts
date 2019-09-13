@@ -99,7 +99,7 @@ export function getTransactionPlanStepsFromSources(transactionId: string, curren
         .map((p: StripeTransactionParty, index): StripeTransactionPlanStep => ({
             rail: "stripe",
             type: "charge",
-            idempotentStepId: `${transactionId}-${index}`,
+            stepIdempotencyKey: `${transactionId}-${index}`,
             source: p.source || null,
             customer: p.customer || null,
             maxAmount: p.maxAmount || null,

@@ -87,7 +87,7 @@ export function createTransferTransactionPlan(req: TransferRequest, steps: Trans
         const amount = sourceStep.maxAmount != null ? (Math.min(sourceStep.maxAmount, req.amount)) : req.amount;
 
         steps.sourceStep.amount = -amount;
-        steps.sourceStep.idempotentStepId = `${req.id}-src`;
+        steps.sourceStep.stepIdempotencyKey = `${req.id}-src`;
         steps.destStep.amount = amount;
         plan.totals.remainder = sourceStep.maxAmount ? Math.max(req.amount - sourceStep.maxAmount, 0) : 0;
     }

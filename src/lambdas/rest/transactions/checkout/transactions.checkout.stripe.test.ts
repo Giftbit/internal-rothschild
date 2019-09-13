@@ -473,7 +473,7 @@ describe("split tender checkout with Stripe", () => {
         });
     });
 
-    it("writes metadata to both LR & Stripe transactions", async function () {
+    it("writes metadata to both LR & Stripe transactions", async () => {
         const request: CheckoutRequest = {
             id: generateId(),
             sources: [

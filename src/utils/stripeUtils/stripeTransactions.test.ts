@@ -34,11 +34,11 @@ describe("stripeTransactions", () => {
             source: "tok_chargeDeclinedInsufficientFunds|tok_visa"
         };
 
-        const idempotentId = generateId() + "-0";
+        const idempotencyKey = generateId() + "-0";
         let firstFail: any;
         try {
             // This charge will fail.
-            await createCharge(chargeParams, true, stripeLiveMerchantConfig.stripeUserId, idempotentId);
+            await createCharge(chargeParams, true, stripeLiveMerchantConfig.stripeUserId, idempotencyKey);
         } catch (err) {
             firstFail = err;
         }
@@ -46,10 +46,10 @@ describe("stripeTransactions", () => {
         chai.assert.instanceOf(firstFail, StripeRestError);
 
         // On this attempt Lightrail will try the charge, get the fail response
-        // because it shares the idempotentId above, and then try again with the next
-        // idempotentId.  Because we retry these idempotentIds in sequence we don't
+        // because it shares the idempotencyKey above, and then try again with the next
+        // idempotencyKey.  Because we retry these idempotencyKeys in sequence we don't
         // risk double charging.
-        const charge = await createCharge(chargeParams, true, stripeLiveMerchantConfig.stripeUserId, idempotentId);
+        const charge = await createCharge(chargeParams, true, stripeLiveMerchantConfig.stripeUserId, idempotencyKey);
         chai.assert.equal(charge.amount, 2000);
     });
 });

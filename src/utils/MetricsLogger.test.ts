@@ -8,7 +8,7 @@ import * as chai from "chai";
 import {Value} from "../model/Value";
 import {Contact} from "../model/Contact";
 import {Transaction, TransactionType} from "../model/Transaction";
-import {StripeTransactionPlanStep, TransactionPlan} from "../lambdas/rest/transactions/TransactionPlan";
+import {StripeChargeTransactionPlanStep, TransactionPlan} from "../lambdas/rest/transactions/TransactionPlan";
 import {CheckoutRequest} from "../model/TransactionRequest";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "./testUtils/stripeTestUtils";
 import {after} from "mocha";
@@ -245,15 +245,18 @@ describe("MetricsLogger", () => {
         describe("direct calls", () => {
             it("generates correct log statement - called directly - stripe call", () => {
                 const spy = sandbox.spy(log, "info");
-                const stripeStep = {
+                const stripeStep: StripeChargeTransactionPlanStep = {
                     rail: "stripe",
                     type: "charge",
-                    idempotentStepId: "",
+                    stepIdempotencyKey: "",
+                    amount: 0,
+                    minAmount: null,
                     maxAmount: null,
-                    amount: 0
+                    forgiveSubMinAmount: null,
+                    additionalStripeParams: {}
                 };
 
-                MetricsLogger.stripeCall(stripeStep as StripeTransactionPlanStep, defaultTestUser.auth);
+                MetricsLogger.stripeCall(stripeStep, defaultTestUser.auth);
                 chai.assert.match(spy.args[0][0], getStripeCallLogMatcher(stripeStep.amount, "charge"));
             });
 

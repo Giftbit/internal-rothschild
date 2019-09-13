@@ -60,7 +60,7 @@ export interface LightrailUpdateTransactionPlanStep {
 export interface StripeChargeTransactionPlanStep {
     rail: "stripe";
     type: "charge";
-    idempotentStepId: string;
+    stepIdempotencyKey: string;
     source?: string;
     customer?: string;
     maxAmount: number | null;
@@ -82,7 +82,7 @@ export function isStepWithAmount(step: TransactionPlanStep): step is LightrailUp
 export interface StripeRefundTransactionPlanStep {
     rail: "stripe";
     type: "refund";
-    idempotentStepId: string;
+    stepIdempotencyKey: string;
 
     /**
      * The ID of the charge to refund.
@@ -101,7 +101,7 @@ export interface StripeRefundTransactionPlanStep {
 export interface StripeCaptureTransactionPlanStep {
     rail: "stripe";
     type: "capture";
-    idempotentStepId: string;
+    stepIdempotencyKey: string;
 
     /**
      * The ID of the charge to capture.
@@ -197,7 +197,7 @@ export namespace StripeTransactionPlanStep {
             case "charge":
                 return {
                     userId: auth.userId,
-                    id: step.idempotentStepId,
+                    id: step.stepIdempotencyKey,
                     transactionId: plan.id,
                     chargeId: step.chargeResult.id,
                     amount: -step.chargeResult.amount /* Note, chargeResult.amount is positive in Stripe but Lightrail treats debits as negative amounts on Steps. */,
@@ -206,7 +206,7 @@ export namespace StripeTransactionPlanStep {
             case "refund":
                 return {
                     userId: auth.userId,
-                    id: step.idempotentStepId,
+                    id: step.stepIdempotencyKey,
                     transactionId: plan.id,
                     chargeId: step.chargeId,
                     amount: step.refundResult.amount,
@@ -215,7 +215,7 @@ export namespace StripeTransactionPlanStep {
             case "capture": // Capture steps aren't persisted to the DB.
                 return {
                     userId: auth.userId,
-                    id: step.idempotentStepId,
+                    id: step.stepIdempotencyKey,
                     transactionId: plan.id,
                     chargeId: step.captureResult.id,
                     amount: step.amount,

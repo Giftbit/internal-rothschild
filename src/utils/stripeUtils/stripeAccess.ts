@@ -70,7 +70,7 @@ export async function getLightrailStripeModeConfig(isTestMode: boolean): Promise
     if (!lightrailStripeConfig) {
         throw new Error("lightrailStripeConfig has not been initialized.");
     }
-    return process.env["TEST_ENV"] || isTestMode ? (await lightrailStripeConfig).test : (await lightrailStripeConfig).live;
+    return (process.env["TEST_ENV"] || isTestMode) ? (await lightrailStripeConfig).test : (await lightrailStripeConfig).live;
 }
 
 /**

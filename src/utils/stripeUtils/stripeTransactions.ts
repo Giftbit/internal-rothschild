@@ -182,6 +182,10 @@ function checkForStandardStripeErrors(err: any): void {
 }
 
 function getRetryIdempotencyKey(stepIdempotencyKey: string, originalErr: any): string {
+    if (!isIdempotentReplayError(originalErr)) {
+        throw new Error("Called with non idempotent replay error");
+    }
+
     let count = 1;
     let originalStepIdempotencyKey = stepIdempotencyKey;
     const retryCountMatcher = /^(.+)-retry-(\d)$/.exec(stepIdempotencyKey);

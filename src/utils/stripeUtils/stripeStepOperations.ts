@@ -34,7 +34,7 @@ export async function executeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
                 }
 
                 const stripeChargeParams = stripeTransactionPlanStepToStripeChargeRequest(auth, step, plan);
-                step.chargeResult = await createCharge(stripeChargeParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id, step.idempotentStepId);
+                step.chargeResult = await createCharge(stripeChargeParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id, step.stepIdempotencyKey);
             } else if (step.type === "refund") {
                 const stripeRefundParams: Stripe.refunds.IRefundCreationOptionsWithCharge = {
                     charge: step.chargeId,
@@ -158,7 +158,7 @@ function getRefundChargeId(refund: Stripe.refunds.IRefund): string {
 
 function getLightrailTransactionSourcesSummary(currentStep: StripeChargeTransactionPlanStep, plan: TransactionPlan): string {
     let summary = JSON.stringify(
-        plan.steps.filter(step => !(step.rail === "stripe" && step.idempotentStepId === currentStep.idempotentStepId))
+        plan.steps.filter(step => !(step.rail === "stripe" && step.stepIdempotencyKey === currentStep.stepIdempotencyKey))
             .map(step => {
                 switch (step.rail) {
                     case "lightrail":
