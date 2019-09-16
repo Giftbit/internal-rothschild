@@ -115,7 +115,6 @@ function getReverseForStripeTransactionStep(auth: giftbitRoutes.jwtauth.Authoriz
     return {
         rail: "stripe",
         type: "refund",
-        stepIdempotencyKey: stepIdempotencyKey,
         chargeId: step.chargeId,
         amount: -step.amount,
         reason: refundReason

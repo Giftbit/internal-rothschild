@@ -158,7 +158,7 @@ function getRefundChargeId(refund: Stripe.refunds.IRefund): string {
 
 function getLightrailTransactionSourcesSummary(currentStep: StripeChargeTransactionPlanStep, plan: TransactionPlan): string {
     let summary = JSON.stringify(
-        plan.steps.filter(step => !(step.rail === "stripe" && step.stepIdempotencyKey === currentStep.stepIdempotencyKey))
+        plan.steps.filter(step => !(step.rail === "stripe" && step.type === "charge" && step.stepIdempotencyKey === currentStep.stepIdempotencyKey))
             .map(step => {
                 switch (step.rail) {
                     case "lightrail":

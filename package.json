@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "POC banking implementation",
   "scripts": {
-    "build": "node --max_old_space_size=2048 node_modules/.bin/webpack",
+    "build": "node --max_old_space_size=3072 node_modules/.bin/webpack",
     "clean": "rimraf ./dist",
     "lint": "tslint --project tsconfig.json",
     "schema": "npm run test:startdb; TEST_ENV=true DB_USERNAME=root DB_PASSWORD=testpass DB_PORT=3306 DB_ENDPOINT=localhost DB_READ_ENDPOINT=localhost ts-node -e 'import {getDbSchema} from \"./src/utils/dbUtils/getDbSchema\"; import {resetDb} from \"./src/utils/testUtils\"; resetDb().then(() => getDbSchema()).then(s => {console.log(s); process.exit(0)});'; npm run test:stopdb",

@@ -467,7 +467,7 @@ describe("/v2/transactions/checkout - pending", () => {
         chai.assert.equal((voidRes.body.steps[0] as LightrailTransactionStep).balanceChange, 1000);
         chai.assert.equal((voidRes.body.steps[1] as StripeTransactionStep).amount, 14000);
         chai.assert.isString((voidRes.body.steps[1] as StripeTransactionStep).chargeId);
-        chai.assert.isObject((voidRes.body.steps[1] as StripeTransactionStep).charge);
+        chai.assert.isObject((voidRes.body.steps[1] as StripeTransactionStep).charge);  // Is actually the refund object.
 
         const getVoidRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${voidRes.body.id}`, "GET");
         chai.assert.equal(getVoidRes.statusCode, 200, `body=${JSON.stringify(getVoidRes.body)}`);

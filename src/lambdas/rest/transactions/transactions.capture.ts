@@ -64,7 +64,6 @@ function getCaptureTransactionPlanSteps(captureTransactionId: string, transactio
                     const stripeCapturePlanStep: StripeCaptureTransactionPlanStep = {
                         rail: "stripe",
                         type: "capture",
-                        stepIdempotencyKey: `${captureTransactionId}-${stepIx}`,
                         chargeId: step.chargeId,
                         pendingAmount: step.amount,
                         amount: 0
