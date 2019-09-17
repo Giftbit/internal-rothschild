@@ -333,7 +333,7 @@ describe("/v2/programs", () => {
         chai.assert.equal(resp.statusCode, 422);
     });
 
-    it("can't create a program with a negative of fixedInitialBalances", async () => {
+    it("can't create a program with a negative member of fixedInitialBalances", async () => {
         const createRequest: Partial<Program> = {
             id: generateId(),
             name: generateId(),

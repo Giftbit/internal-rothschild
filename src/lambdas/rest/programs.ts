@@ -619,7 +619,7 @@ const programSchema: jsonschema.Schema = {
             type: ["array", "null"],
             items: {
                 type: "number",
-                minimum: 1,
+                minimum: 0,
                 maximum: 2147483647
             }
         },
