@@ -857,6 +857,19 @@ describe("/v2/transactions/debit", () => {
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 
+    it("422s debiting a huge amount", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/debit", "POST", {
+            id: "debit-negative-amount",
+            destination: {
+                rail: "lightrail",
+                valueId: "idontexist"
+            },
+            amount: 999999999999,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
     it("422s debiting negative uses", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/debit", "POST", {
             id: "debit-negative-amount",

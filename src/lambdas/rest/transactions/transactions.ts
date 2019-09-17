@@ -456,11 +456,13 @@ const creditSchema: jsonschema.Schema = {
         destination: transactionPartySchema.lightrailUnique,
         amount: {
             type: "integer",
-            minimum: 1
+            minimum: 1,
+            maximum: 2147483647
         },
         uses: {
             type: "integer",
-            minimum: 1
+            minimum: 1,
+            maximum: 2147483647
         },
         currency: {
             type: "string",
@@ -501,11 +503,13 @@ const debitSchema: jsonschema.Schema = {
         source: transactionPartySchema.lightrailUnique,
         amount: {
             type: "integer",
-            minimum: 1
+            minimum: 1,
+            maximum: 2147483647
         },
         uses: {
             type: "integer",
-            minimum: 1
+            minimum: 1,
+            maximum: 2147483647
         },
         currency: {
             type: "string",
@@ -559,7 +563,8 @@ const transferSchema: jsonschema.Schema = {
         destination: transactionPartySchema.lightrailUnique,
         amount: {
             type: "integer",
-            minimum: 1
+            minimum: 1,
+            maximum: 2147483647
         },
         currency: {
             type: "string",
@@ -604,15 +609,18 @@ const checkoutSchema: jsonschema.Schema = {
                     },
                     unitPrice: {
                         type: "integer",
-                        minimum: 0
+                        minimum: 0,
+                        maximum: 2147483647
                     },
                     quantity: {
                         type: "integer",
-                        minimum: 1
+                        minimum: 1,
+                        maximum: 2147483647
                     },
                     taxRate: {
                         type: "float",
-                        minimum: 0
+                        minimum: 0,
+                        maximum: 1
                     },
                     marketplaceRate: {
                         type: "float",

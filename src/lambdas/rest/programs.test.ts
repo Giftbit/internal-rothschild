@@ -306,7 +306,7 @@ describe("/v2/programs", () => {
             currency: "USD",
             minInitialBalance: 999999999999
         };
-        const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${programRequest.id}`, "PATCH", createRequest);
+        const resp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", createRequest);
         chai.assert.equal(resp.statusCode, 422);
     });
 
@@ -318,7 +318,7 @@ describe("/v2/programs", () => {
             minInitialBalance: 5,
             maxInitialBalance: 999999999999
         };
-        const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${programRequest.id}`, "PATCH", createRequest);
+        const resp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", createRequest);
         chai.assert.equal(resp.statusCode, 422);
     });
 
@@ -329,7 +329,7 @@ describe("/v2/programs", () => {
             currency: "USD",
             fixedInitialBalances: [0, 1, 999999999999]
         };
-        const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${programRequest.id}`, "PATCH", createRequest);
+        const resp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", createRequest);
         chai.assert.equal(resp.statusCode, 422);
     });
 
@@ -340,7 +340,7 @@ describe("/v2/programs", () => {
             currency: "USD",
             fixedInitialBalances: [-1, 0]
         };
-        const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${programRequest.id}`, "PATCH", createRequest);
+        const resp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", createRequest);
         chai.assert.equal(resp.statusCode, 422);
     });
 
@@ -351,7 +351,7 @@ describe("/v2/programs", () => {
             currency: "USD",
             fixedInitialUsesRemaining: [0, 1, 999999999999]
         };
-        const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${programRequest.id}`, "PATCH", createRequest);
+        const resp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", createRequest);
         chai.assert.equal(resp.statusCode, 422);
     });
 
@@ -362,7 +362,7 @@ describe("/v2/programs", () => {
             currency: "USD",
             fixedInitialUsesRemaining: [-1, 0]
         };
-        const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${programRequest.id}`, "PATCH", createRequest);
+        const resp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", createRequest);
         chai.assert.equal(resp.statusCode, 422);
     });
 

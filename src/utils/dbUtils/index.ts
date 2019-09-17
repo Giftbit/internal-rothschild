@@ -57,6 +57,25 @@ export function getSqlErrorConstraintName(err: any): string {
     return null;
 }
 
+/**
+ * Get the name of the constraint that failed a check.  This only
+ * handles value out of range errors at the moment but could be expanded.
+ * Returns null if not an SQL error, or not a handled type of error.
+ */
+export function getSqlErrorColumnName(err: any): string {
+    if (!err || !err.code || !err.sqlMessage) {
+        return null;
+    }
+    if (err.code === "ER_WARN_DATA_OUT_OF_RANGE") {
+        const nameMatcher = /Out of range value for column '([^']+)'/.exec(err.sqlMessage);
+        if (!nameMatcher) {
+            throw new Error("SQL error did not match expected error message despite the correct code 'ER_WARN_DATA_OUT_OF_RANGE'.");
+        }
+        return nameMatcher[1];
+    }
+    return null;
+}
+
 export async function filterAndPaginateQuery<T extends { id: string }>(query: knex.QueryBuilder,
                                                                        filterParams: { [key: string]: string },
                                                                        filterOptions: FilterQueryOptions,
