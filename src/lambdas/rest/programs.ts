@@ -599,24 +599,28 @@ const programSchema: jsonschema.Schema = {
         },
         minInitialBalance: {
             type: ["number", "null"],
-            minimum: 0
+            minimum: 0,
+            maximum: 2147483647
         },
         maxInitialBalance: {
             type: ["number", "null"],
-            minimum: 0
+            minimum: 0,
+            maximum: 2147483647
         },
         fixedInitialBalances: {
             type: ["array", "null"],
             items: {
                 type: "number",
-                minimum: 0
+                minimum: 0,
+                maximum: 2147483647
             }
         },
         fixedInitialUsesRemaining: {
             type: ["array", "null"],
             items: {
                 type: "number",
-                minimum: 1
+                minimum: 1,
+                maximum: 2147483647
             }
         },
         startDate: {

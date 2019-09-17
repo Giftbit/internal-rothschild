@@ -86,6 +86,50 @@ describe("/v2/values/", () => {
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 
+    it("cannot create a value with huge balance", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 999999999999
+        };
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("cannot create a value with negative balance", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: -1
+        };
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("cannot create a value with negative usesRemaining", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: -1
+        };
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("cannot create a value with huge usesRemaining", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 999999999999
+        };
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
     it("cannot update valueId", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value1.id}`, "PATCH", {id: generateId()});
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);

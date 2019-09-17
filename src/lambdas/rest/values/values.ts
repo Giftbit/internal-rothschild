@@ -748,10 +748,13 @@ const valueSchema: jsonschema.Schema = {
         },
         balance: {
             type: ["integer", "null"],
-            minimum: 0
+            minimum: 0,
+            maximum: 2147483647
         },
         usesRemaining: {
-            type: ["integer", "null"]
+            type: ["integer", "null"],
+            minimum: 0,
+            maximum: 2147483647
         },
         code: {
             type: ["string", "null"],

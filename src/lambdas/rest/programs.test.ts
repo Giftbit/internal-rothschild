@@ -299,6 +299,73 @@ describe("/v2/programs", () => {
         chai.assert.equal(patchRes.statusCode, 422);
     });
 
+    it("can't create a program with a huge minInitialBalance", async () => {
+        const createRequest: Partial<Program> = {
+            id: generateId(),
+            name: generateId(),
+            currency: "USD",
+            minInitialBalance: 999999999999
+        };
+        const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${programRequest.id}`, "PATCH", createRequest);
+        chai.assert.equal(resp.statusCode, 422);
+    });
+
+    it("can't create a program with a huge maxInitialBalance", async () => {
+        const createRequest: Partial<Program> = {
+            id: generateId(),
+            name: generateId(),
+            currency: "USD",
+            minInitialBalance: 5,
+            maxInitialBalance: 999999999999
+        };
+        const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${programRequest.id}`, "PATCH", createRequest);
+        chai.assert.equal(resp.statusCode, 422);
+    });
+
+    it("can't create a program with a huge member of fixedInitialBalances", async () => {
+        const createRequest: Partial<Program> = {
+            id: generateId(),
+            name: generateId(),
+            currency: "USD",
+            fixedInitialBalances: [0, 1, 999999999999]
+        };
+        const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${programRequest.id}`, "PATCH", createRequest);
+        chai.assert.equal(resp.statusCode, 422);
+    });
+
+    it("can't create a program with a negative of fixedInitialBalances", async () => {
+        const createRequest: Partial<Program> = {
+            id: generateId(),
+            name: generateId(),
+            currency: "USD",
+            fixedInitialBalances: [-1, 0]
+        };
+        const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${programRequest.id}`, "PATCH", createRequest);
+        chai.assert.equal(resp.statusCode, 422);
+    });
+
+    it("can't create a program with a huge member of fixedInitialUsesRemaining", async () => {
+        const createRequest: Partial<Program> = {
+            id: generateId(),
+            name: generateId(),
+            currency: "USD",
+            fixedInitialUsesRemaining: [0, 1, 999999999999]
+        };
+        const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${programRequest.id}`, "PATCH", createRequest);
+        chai.assert.equal(resp.statusCode, 422);
+    });
+
+    it("can't create a program with a negative member of fixedInitialUsesRemaining", async () => {
+        const createRequest: Partial<Program> = {
+            id: generateId(),
+            name: generateId(),
+            currency: "USD",
+            fixedInitialUsesRemaining: [-1, 0]
+        };
+        const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${programRequest.id}`, "PATCH", createRequest);
+        chai.assert.equal(resp.statusCode, 422);
+    });
+
     it("creating a program with an unknown currency 409s", async () => {
         const request: Partial<Program> = {
             id: generateId(),
