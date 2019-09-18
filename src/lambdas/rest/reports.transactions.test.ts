@@ -5,7 +5,7 @@ import * as testUtils from "../../utils/testUtils";
 import {generateId} from "../../utils/testUtils";
 import {Program} from "../../model/Program";
 import * as chai from "chai";
-import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
 import {ReportTransaction} from "./transactions/ReportTransaction";
 import sinon from "sinon";
@@ -562,11 +562,7 @@ describe("/v2/reports/transactions/", () => {
             }, ["createdDate", "id", "metadata"], `checkoutReportResp.body[0]=${JSON.stringify(checkoutReportResp.body[0], null, 4)}`);
         }).timeout(12000);
 
-        it("handles Stripe steps", async function () {
-            if (!testStripeLive()) {
-                this.skip();
-            }
-
+        it("handles Stripe steps", async () => {
             await testUtils.resetDb();
             await testUtils.createUSD(router);
             setStubsForStripeTests();

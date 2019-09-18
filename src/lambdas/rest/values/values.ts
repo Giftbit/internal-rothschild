@@ -4,7 +4,7 @@ import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../../model/Pagination";
 import {DbValue, formatCodeForLastFourDisplay, Value} from "../../../model/Value";
 import {pick} from "../../../utils/pick";
-import {csvSerializer} from "../../../serializers";
+import {csvSerializer} from "../../../utils/serializers";
 import {
     dateInDbPrecision,
     filterAndPaginateQuery,
@@ -498,7 +498,7 @@ async function updateDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
             throw new cassava.RestError(404);
         }
         if (res > 1) {
-            throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
+            throw new Error(`Illegal UPDATE query.  Updated ${res} values.`);
         }
     } catch (err) {
         const constraint = getSqlErrorConstraintName(err);
@@ -639,7 +639,6 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
     let query = knex("Values as V")
         .where({
             "V.userId": auth.userId,
-
         })
         .andWhere(q => {
             if (attachedFromGenericValueStats[0].count > 0) {
@@ -679,13 +678,13 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
         .groupBy("T_ROOT.transactionType");
 
     const results: {
-        transactionCount: number;
-        balanceChange: string; // For some reason sums come back as strings.
-        discountLightrail: string;
-        paidLightrail: string;
-        paidStripe: string;
-        paidInternal: string;
-        remainder: string;
+        transactionCount?: number | string; // Knex thinks this might come back as a string. ¯\_(ツ)_/¯
+        balanceChange?: string; // For some reason sums come back as strings.
+        discountLightrail?: string;
+        paidLightrail?: string;
+        paidStripe?: string;
+        paidInternal?: string;
+        remainder?: string;
         rootTransactionType: string; // The transactionType of the root transaction. Restricted to checkout and debit.
         finalTransactionType: string; // A join is done from the root transaction to the last transaction in the chain.
                                       // This is the transactionType of the last transaction in the chain.
@@ -694,12 +693,12 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
     for (const row of results) {
         if (row.rootTransactionType === "debit" && (row.finalTransactionType === null || row.finalTransactionType === "capture")) {
             stats.redeemed.balance += -row.balanceChange;
-            stats.redeemed.transactionCount += row.transactionCount;
+            stats.redeemed.transactionCount += +row.transactionCount;
         } else if (row.rootTransactionType === "checkout" && (row.finalTransactionType === null || row.finalTransactionType === "capture")) {
-            stats.redeemed.transactionCount += row.transactionCount;
+            stats.redeemed.transactionCount += +row.transactionCount;
             stats.redeemed.balance += -row.balanceChange;
             stats.checkout.lightrailSpend += +row.paidLightrail + +row.discountLightrail;
-            stats.checkout.transactionCount += row.transactionCount;
+            stats.checkout.transactionCount += +row.transactionCount;
             stats.checkout.overspend += +row.paidStripe + +row.paidInternal + +row.remainder;
         }
     }
@@ -748,10 +747,13 @@ const valueSchema: jsonschema.Schema = {
         },
         balance: {
             type: ["integer", "null"],
-            minimum: 0
+            minimum: 0,
+            maximum: 2147483647
         },
         usesRemaining: {
-            type: ["integer", "null"]
+            type: ["integer", "null"],
+            minimum: 0,
+            maximum: 2147483647
         },
         code: {
             type: ["string", "null"],
@@ -791,10 +793,14 @@ const valueSchema: jsonschema.Schema = {
                     additionalProperties: false,
                     properties: {
                         balance: {
-                            type: ["integer", "null"]
+                            type: ["integer", "null"],
+                            minimum: 0,
+                            maximum: 2147483647
                         },
                         usesRemaining: {
-                            type: ["integer", "null"]
+                            type: ["integer", "null"],
+                            minimum: 0,
+                            maximum: 2147483647
                         }
                     }
                 }

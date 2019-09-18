@@ -8,7 +8,7 @@ import {Value} from "../../../../model/Value";
 import {Transaction} from "../../../../model/Transaction";
 import {ReverseRequest} from "../../../../model/TransactionRequest";
 import {Contact} from "../../../../model/Contact";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 
@@ -95,7 +95,7 @@ describe("/v2/transactions/reverse - attach", () => {
                 "createdBy": "default-test-user-TEST"
             } as Transaction, ["createdDate"]
         );
-        chai.assert.deepEqualExcluding(simulate.body, postReverse.body, "simulated", "createdDate");
+        chai.assert.deepEqualExcluding(simulate.body, postReverse.body, ["simulated", "createdDate"]);
         chai.assert.isTrue(simulate.body.simulated);
 
         // check value is same as before

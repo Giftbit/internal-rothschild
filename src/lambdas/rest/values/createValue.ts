@@ -10,7 +10,7 @@ import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
 import {pickOrDefault} from "../../../utils/pick";
 import {CreateValueParameters} from "./values";
 import {checkRulesSyntax} from "../transactions/rules/RuleContext";
-import {TransactionPlan} from "../transactions/TransactionPlan";
+import {LightrailInsertTransactionPlanStep, TransactionPlan} from "../transactions/TransactionPlan";
 import {executeTransactionPlan} from "../transactions/executeTransactionPlans";
 import log = require("loglevel");
 
@@ -22,6 +22,12 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     value.startDate = value.startDate ? dateInDbPrecision(new Date(value.startDate)) : null;
     value.endDate = value.endDate ? dateInDbPrecision(new Date(value.endDate)) : null;
 
+    const step: LightrailInsertTransactionPlanStep = {
+        rail: "lightrail",
+        value: value,
+        action: "insert",
+        generateCodeParameters: params.generateCodeParameters
+    };
     const plan: TransactionPlan = {
         id: value.id,
         transactionType: "initialBalance",
@@ -29,14 +35,7 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         totals: null,
         lineItems: null,
         paymentSources: null,
-        steps: [{
-            rail: "lightrail",
-            value: value,
-            amount: value.balance,
-            uses: value.usesRemaining,
-            action: "insert",
-            generateCodeParameters: params.generateCodeParameters
-        }],
+        steps: [step],
         tax: null,
         pendingVoidDate: null,
         createdDate: value.createdDate,

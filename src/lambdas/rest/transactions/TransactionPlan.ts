@@ -60,7 +60,7 @@ export interface LightrailUpdateTransactionPlanStep {
 export interface StripeChargeTransactionPlanStep {
     rail: "stripe";
     type: "charge";
-    idempotentStepId: string;
+    stepIdempotencyKey: string;
     source?: string;
     customer?: string;
     maxAmount: number | null;
@@ -82,7 +82,6 @@ export function isStepWithAmount(step: TransactionPlanStep): step is LightrailUp
 export interface StripeRefundTransactionPlanStep {
     rail: "stripe";
     type: "refund";
-    idempotentStepId: string;
 
     /**
      * The ID of the charge to refund.
@@ -101,7 +100,6 @@ export interface StripeRefundTransactionPlanStep {
 export interface StripeCaptureTransactionPlanStep {
     rail: "stripe";
     type: "capture";
-    idempotentStepId: string;
 
     /**
      * The ID of the charge to capture.
@@ -141,7 +139,7 @@ export interface InternalTransactionPlanStep {
 }
 
 export namespace LightrailTransactionPlanStep {
-    export function toLightrailDbTransactionStep(step: LightrailTransactionPlanStep, plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge, stepIndex: number): LightrailDbTransactionStep {
+    export function toLightrailDbTransactionStep(step: LightrailTransactionPlanStep, stepIndex: number, plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge): LightrailDbTransactionStep {
         return {
             userId: auth.userId,
             id: `${plan.id}-${stepIndex}`,
@@ -192,12 +190,12 @@ export namespace LightrailTransactionPlanStep {
 }
 
 export namespace StripeTransactionPlanStep {
-    export function toStripeDbTransactionStep(step: StripeTransactionPlanStep, plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge): StripeDbTransactionStep {
+    export function toStripeDbTransactionStep(step: StripeTransactionPlanStep, stepIndex: number, plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge): StripeDbTransactionStep {
         switch (step.type) {
             case "charge":
                 return {
                     userId: auth.userId,
-                    id: step.idempotentStepId,
+                    id: `${plan.id}-${stepIndex}`,
                     transactionId: plan.id,
                     chargeId: step.chargeResult.id,
                     amount: -step.chargeResult.amount /* Note, chargeResult.amount is positive in Stripe but Lightrail treats debits as negative amounts on Steps. */,
@@ -206,7 +204,7 @@ export namespace StripeTransactionPlanStep {
             case "refund":
                 return {
                     userId: auth.userId,
-                    id: step.idempotentStepId,
+                    id: `${plan.id}-${stepIndex}`,
                     transactionId: plan.id,
                     chargeId: step.chargeId,
                     amount: step.refundResult.amount,
@@ -215,7 +213,7 @@ export namespace StripeTransactionPlanStep {
             case "capture": // Capture steps aren't persisted to the DB.
                 return {
                     userId: auth.userId,
-                    id: step.idempotentStepId,
+                    id: `${plan.id}-${stepIndex}`,
                     transactionId: plan.id,
                     chargeId: step.captureResult.id,
                     amount: step.amount,

@@ -7,7 +7,7 @@ import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {Value} from "../../model/Value";
 import {Currency} from "../../model/Currency";
 import {installRestRoutes} from "./installRestRoutes";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 import parseLinkHeader = require("parse-link-header");
 
 chai.use(chaiExclude);
@@ -141,7 +141,7 @@ describe("/v2/contacts", () => {
             lastName: null,
             email: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "updatedDate", "metadata", "createdBy"]);
+        } as Contact, ["createdDate", "updatedDate", "metadata", "createdBy"]);
         chai.assert.equal(resp.statusCode, 201);
         contact2 = resp.body;
     });
@@ -264,7 +264,7 @@ describe("/v2/contacts", () => {
             lastName: null,
             email: null,
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "updatedDate", "createdBy"]);
+        } as Contact, ["createdDate", "updatedDate", "createdBy"]);
         contact4 = resp.body;
     });
 

@@ -8,18 +8,14 @@ import {Currency} from "../../../model/Currency";
 import {installRestRoutes} from "../installRestRoutes";
 import {
     setStubsForStripeTests,
-    stripeLiveLightrailConfig,
     stripeLiveMerchantConfig,
-    stubNoStripeCharge,
-    stubTransferStripeCharge,
-    testStripeLive,
     unsetStubsForStripeTests
 } from "../../../utils/testUtils/stripeTestUtils";
 import {createCurrency} from "../currencies";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
-import {stripeApiVersion} from "../../../utils/stripeUtils/StripeConfig";
 import {TransferRequest} from "../../../model/TransactionRequest";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
+import {retrieveCharge} from "../../../utils/stripeUtils/stripeTransactions";
 
 chai.use(chaiExclude);
 
@@ -1055,6 +1051,55 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 
+    it("422s transferring a huge amount", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
+            id: generateId(),
+            source: {
+                rail: "lightrail",
+                valueId: valueCad1.id
+            },
+            destination: {
+                rail: "lightrail",
+                valueId: valueCad2.id
+            },
+            amount: 999999999999,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("409s transferring so much that a Value has a balance greater than the max", async () => {
+        const value1Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: generateId(),
+            currency: "CAD",
+            balance: 0x7fffffff
+        });
+        chai.assert.equal(value1Resp.statusCode, 201);
+
+        const value2Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: generateId(),
+            currency: "CAD",
+            balance: 0x7fffffff
+        });
+        chai.assert.equal(value2Resp.statusCode, 201);
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
+            id: generateId(),
+            source: {
+                rail: "lightrail",
+                valueId: value1Resp.body.id
+            },
+            destination: {
+                rail: "lightrail",
+                valueId: value2Resp.body.id
+            },
+            amount: 0x7fffffff,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.messageCode, "ValueBalanceTooLarge");
+    });
+
     describe("stripe transfers", () => {
         before(function () {
             setStubsForStripeTests();
@@ -1079,7 +1124,6 @@ describe("/v2/transactions/transfer", () => {
                 currency: "CAD"
             };
 
-            stubTransferStripeCharge(request);
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
             chai.assert.equal(postTransferResp.statusCode, 201, `body=${JSON.stringify(postTransferResp.body)}`);
             chai.assert.deepEqualExcluding(postTransferResp.body, {
@@ -1143,15 +1187,9 @@ describe("/v2/transactions/transfer", () => {
             const destStepFromGet = getTransferResp.body.steps.find((s: LightrailTransactionStep) => s.rail === "lightrail");
             chai.assert.deepEqual(destStepFromGet, destStep);
 
-            if (testStripeLive()) {
-                const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
-                lightrailStripe.setApiVersion(stripeApiVersion);
-                const stripeChargeId = (postTransferResp.body.steps.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
-                const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                    stripe_account: stripeLiveMerchantConfig.stripeUserId
-                });
-                chai.assert.deepEqual(stripeCharge, sourceStep.charge);
-            }
+            const stripeChargeId = (postTransferResp.body.steps.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
+            const stripeCharge = await retrieveCharge(stripeChargeId, true, stripeLiveMerchantConfig.stripeUserId);
+            chai.assert.deepEqual(stripeCharge, sourceStep.charge);
         }).timeout(10000);
 
         it("422s transferring a negative amount from Stripe", async () => {
@@ -1169,7 +1207,6 @@ describe("/v2/transactions/transfer", () => {
                 currency: "CAD"
             };
 
-            stubNoStripeCharge(request);
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
             chai.assert.equal(postTransferResp.statusCode, 422, `body=${JSON.stringify(postTransferResp.body)}`);
         });
@@ -1191,7 +1228,6 @@ describe("/v2/transactions/transfer", () => {
                 allowRemainder: true
             };
 
-            stubTransferStripeCharge(request);
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
             chai.assert.equal(postTransferResp.statusCode, 201, `body=${JSON.stringify(postTransferResp.body)}`);
             chai.assert.deepEqualExcluding(postTransferResp.body, {
@@ -1255,15 +1291,9 @@ describe("/v2/transactions/transfer", () => {
             const destStepFromGet = getTransferResp.body.steps.find((s: LightrailTransactionStep) => s.rail === "lightrail");
             chai.assert.deepEqual(destStepFromGet, destStep);
 
-            if (testStripeLive()) {
-                const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
-                lightrailStripe.setApiVersion(stripeApiVersion);
-                const stripeChargeId = (postTransferResp.body.steps.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
-                const stripeCharge = await lightrailStripe.charges.retrieve(stripeChargeId, {
-                    stripe_account: stripeLiveMerchantConfig.stripeUserId
-                });
-                chai.assert.deepEqual(stripeCharge, sourceStep.charge);
-            }
+            const stripeChargeId = (postTransferResp.body.steps.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
+            const stripeCharge = await retrieveCharge(stripeChargeId, true, stripeLiveMerchantConfig.stripeUserId);
+            chai.assert.deepEqual(stripeCharge, sourceStep.charge);
         }).timeout(10000);
 
         it("409s transferring from Stripe with insufficient maxAmount and allowRemainder=false", async () => {
@@ -1281,7 +1311,6 @@ describe("/v2/transactions/transfer", () => {
                 amount: 1000,
                 currency: "CAD",
             };
-            stubNoStripeCharge(request);
 
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
             chai.assert.equal(postTransferResp.statusCode, 409, `body=${JSON.stringify(postTransferResp.body)}`);
@@ -1302,7 +1331,6 @@ describe("/v2/transactions/transfer", () => {
                 currency: "CAD",
             };
 
-            stubNoStripeCharge(request);
             const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
             chai.assert.equal(postTransferResp.statusCode, 422, `body=${JSON.stringify(postTransferResp.body)}`);
         });
@@ -1357,10 +1385,8 @@ describe("/v2/transactions/transfer", () => {
                 chai.assert.equal(postSimulateTransferResp.statusCode, 200, `body=${JSON.stringify(postSimulateTransferResp.body)}`);
                 chai.assert.equal((postSimulateTransferResp.body.steps.find(step => step.rail === "lightrail") as LightrailTransactionStep).balanceChange, 50);
 
-                if (testStripeLive()) {
-                    const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
-                    chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
-                }
+                const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", request);
+                chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
             });
 
             it("can be configured for a lower minAmount (which Stripe may actually accept depending upon the settlement currency)", async () => {

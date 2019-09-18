@@ -23,7 +23,7 @@ export function dateInDbPrecision(date: Date): Date {
  * update + insert = upsert.
  * This pattern is a MySQL extension.  Knex does not support it natively.
  */
-export async function upsert(table: string, update: { [key: string]: any }, insert?: { [key: string]: any }): Promise<[number]> {
+export async function upsert(table: string, update: { [key: string]: any }, insert?: { [key: string]: any }): Promise<number[]> {
     const knex = await getKnexWrite();
     const insertQuery = knex(table).insert(insert || update).toString();
     const updateQuery = knex(table).insert(update).toString();
@@ -51,6 +51,25 @@ export function getSqlErrorConstraintName(err: any): string {
         const nameMatcher = /Duplicate entry .* for key '([^']+)'/.exec(err.sqlMessage);
         if (!nameMatcher) {
             throw new Error("SQL error did not match expected error message despite the correct code 'ER_DUP_ENTRY'.");
+        }
+        return nameMatcher[1];
+    }
+    return null;
+}
+
+/**
+ * Get the name of the constraint that failed a check.  This only
+ * handles value out of range errors at the moment but could be expanded.
+ * Returns null if not an SQL error, or not a handled type of error.
+ */
+export function getSqlErrorColumnName(err: any): string {
+    if (!err || !err.code || !err.sqlMessage) {
+        return null;
+    }
+    if (err.code === "ER_WARN_DATA_OUT_OF_RANGE") {
+        const nameMatcher = /Out of range value for column '([^']+)'/.exec(err.sqlMessage);
+        if (!nameMatcher) {
+            throw new Error("SQL error did not match expected error message despite the correct code 'ER_WARN_DATA_OUT_OF_RANGE'.");
         }
         return nameMatcher[1];
     }

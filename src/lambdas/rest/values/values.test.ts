@@ -14,8 +14,8 @@ import {computeCodeLookupHash, decryptCode} from "../../../utils/codeCryptoUtils
 import * as codeGenerator from "../../../utils/codeGenerator";
 import {generateCode} from "../../../utils/codeGenerator";
 import * as sinon from "sinon";
+import chaiExclude from "chai-exclude";
 import parseLinkHeader = require("parse-link-header");
-import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
@@ -86,6 +86,50 @@ describe("/v2/values/", () => {
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 
+    it("cannot create a value with huge balance", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 999999999999
+        };
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("cannot create a value with negative balance", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: -1
+        };
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("cannot create a value with negative usesRemaining", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: -1
+        };
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("cannot create a value with huge usesRemaining", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 999999999999
+        };
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
     it("cannot update valueId", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value1.id}`, "PATCH", {id: generateId()});
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
@@ -115,7 +159,7 @@ describe("/v2/values/", () => {
             updatedContactIdDate: null,
             metadata: {},
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "updatedDate", "createdBy"]);
+        } as Value, ["createdDate", "updatedDate", "createdBy"]);
         value1 = resp2.body;
     });
 
@@ -154,7 +198,7 @@ describe("/v2/values/", () => {
             updatedContactIdDate: null,
             metadata: {},
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "updatedDate", "createdBy"]);
+        } as Value, ["createdDate", "updatedDate", "createdBy"]);
 
         const updateValueRequest: Partial<Value> = {
             balanceRule: {
@@ -190,7 +234,7 @@ describe("/v2/values/", () => {
             updatedContactIdDate: null,
             metadata: {},
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "updatedDate", "createdBy"]);
+        } as Value, ["createdDate", "updatedDate", "createdBy"]);
     });
 
     it("can get the value", async () => {

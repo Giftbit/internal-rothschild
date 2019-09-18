@@ -1,6 +1,6 @@
 import * as aws from "aws-sdk";
 import * as awslambda from "aws-lambda";
-import {sendCloudFormationResponse} from "../../sendCloudFormationResponse";
+import {sendCloudFormationResponse} from "../../utils/sendCloudFormationResponse";
 import log = require("loglevel");
 
 // Wrapping console.log instead of binding (default behaviour for loglevel)
