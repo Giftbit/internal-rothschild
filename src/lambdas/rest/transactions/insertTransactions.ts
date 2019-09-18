@@ -1,4 +1,5 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import * as cassava from "cassava";
 import {
     InternalTransactionPlanStep,
     LightrailTransactionPlanStep,
@@ -8,11 +9,9 @@ import {
 } from "./TransactionPlan";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {DbValue, Value} from "../../../model/Value";
-import {DbTransaction, Transaction} from "../../../model/Transaction";
+import {DbTransaction, StripeDbTransactionStep, Transaction} from "../../../model/Transaction";
 import {executeStripeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
-import {LightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/StripeConfig";
-import {getSqlErrorConstraintName} from "../../../utils/dbUtils";
-import * as cassava from "cassava";
+import {getSqlErrorColumnName, getSqlErrorConstraintName} from "../../../utils/dbUtils";
 import {generateCode} from "../../../utils/codeGenerator";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
 import Knex = require("knex");
@@ -66,7 +65,7 @@ export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtaut
         }
 
         await trx.into("LightrailTransactionSteps")
-            .insert(LightrailTransactionPlanStep.toLightrailDbTransactionStep(step, plan, auth, stepIx));
+            .insert(LightrailTransactionPlanStep.toLightrailDbTransactionStep(step, stepIx, plan, auth));
     }
     return plan;
 }
@@ -121,7 +120,7 @@ async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.Authoriza
         updatedDate: plan.createdDate
     };
 
-    let query = trx.into("Values")
+    let query = trx<any, number>("Values")
         .where({
             userId: auth.userId,
             id: step.value.id,
@@ -143,11 +142,24 @@ async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.Authoriza
     }
     query = query.update(updateProperties);
 
-    const updateRes = await query;
-    if (updateRes !== 1) {
-        throw new TransactionPlanError(`Transaction execution canceled because Value updated ${updateRes} rows.  userId=${auth.userId} value.id=${step.value.id} value.balance=${step.value.balance} value.usesRemaining=${step.value.usesRemaining} step.amount=${step.amount} step.uses=${step.uses}`, {
-            isReplanable: updateRes === 0
-        });
+    try {
+        const updateRes = await query;
+        if (updateRes !== 1) {
+            throw new TransactionPlanError(`Transaction execution canceled because Value updated ${updateRes} rows.  userId=${auth.userId} value.id=${step.value.id} value.balance=${step.value.balance} value.usesRemaining=${step.value.usesRemaining} step.amount=${step.amount} step.uses=${step.uses}`, {
+                isReplanable: updateRes === 0
+            });
+        }
+    } catch (err) {
+        if (err.code === "ER_WARN_DATA_OUT_OF_RANGE") {
+            const columnName = getSqlErrorColumnName(err);
+            if (columnName === "balance") {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "This transaction makes a Value's balance greater than the max of 2147483647.", "ValueBalanceTooLarge");
+            }
+            if (columnName === "usesRemaining") {
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, "This transaction makes a Value's usesRemaining greater than the max of 2147483647.", "ValueUsesRemainingTooLarge");
+            }
+        }
+        throw err;
     }
 
     const selectRes: DbValue[] = await trx.from("Values")
@@ -175,12 +187,17 @@ async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.Authoriza
     }
 }
 
-export async function insertStripeTransactionSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan, stripeConfig: LightrailAndMerchantStripeConfig): Promise<TransactionPlan> {
-    await executeStripeSteps(auth, stripeConfig, plan);
-    const stripeSteps = plan.steps.filter(step => step.rail === "stripe")
-        .map(step => StripeTransactionPlanStep.toStripeDbTransactionStep(step as StripeTransactionPlanStep, plan, auth));
-    await trx.into("StripeTransactionSteps")
-        .insert(stripeSteps);
+export async function insertStripeTransactionSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan): Promise<TransactionPlan> {
+    await executeStripeSteps(auth, plan);
+    const stripeSteps: StripeDbTransactionStep[] = [];
+    for (let stepIx = 0; stepIx < plan.steps.length; stepIx++) {
+        if (plan.steps[stepIx].rail === "stripe") {
+            stripeSteps.push(StripeTransactionPlanStep.toStripeDbTransactionStep(plan.steps[stepIx] as StripeTransactionPlanStep, stepIx, plan, auth));
+        }
+    }
+    if (stripeSteps.length) {
+        await trx.into("StripeTransactionSteps").insert(stripeSteps);
+    }
     return plan;
 }
 

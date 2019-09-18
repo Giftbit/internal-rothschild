@@ -11,7 +11,7 @@ import {TransactionPlan} from "./TransactionPlan";
 import {insertTransaction} from "./insertTransactions";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import {getDbTransaction} from "./transactions";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

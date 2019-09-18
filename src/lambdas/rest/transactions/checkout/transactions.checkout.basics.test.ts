@@ -9,7 +9,7 @@ import {getKnexRead} from "../../../../utils/dbUtils/connection";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import {Contact} from "../../../../model/Contact";
 import {installRestRoutes} from "../../installRestRoutes";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

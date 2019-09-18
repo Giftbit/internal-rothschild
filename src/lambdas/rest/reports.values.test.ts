@@ -281,9 +281,9 @@ describe("/v2/reports/values/", () => {
     describe("row limiting", () => {
         const sinonSandbox = sinon.createSandbox();
         let valueCount: number;
-        let mockResults10000: Value[];
-        let mockResults1: Value[];
-        let mockResults0: Value[];
+        let mockResults10000: ReportValue[];
+        let mockResults1: ReportValue[];
+        let mockResults0: ReportValue[];
 
         before(async function () {
             const valueRes = await testUtils.testAuthedRequest<Value[]>(router, "/v2/values", "GET");

@@ -1,6 +1,6 @@
 import * as cassava from "cassava";
 import {RouterEvent} from "cassava";
-import {csvSerializer} from "../../serializers";
+import {csvSerializer} from "../../utils/serializers";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {getKnexRead} from "../../utils/dbUtils/connection";
@@ -76,7 +76,7 @@ export function installReportsRest(router: cassava.Router): void {
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:values:list");
 
-            const valueResults = await getReportResults<Value>(auth, evt, getValuesForReport);
+            const valueResults = await getReportResults<ReportValue>(auth, evt, getValuesForReport);
 
             if (evt.queryStringParameters.formatCurrencies === "true") {
                 return {
@@ -135,7 +135,7 @@ async function getReportResults<T>(auth: giftbitRoutes.jwtauth.AuthorizationBadg
 }
 
 // exported for testing
-export const getValuesForReport: ReportDelegate<Value> = async (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams, showCode: boolean = false): Promise<{ results: ReportValue[], pagination: Pagination }> => {
+export const getValuesForReport: ReportDelegate<ReportValue> = async (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams, showCode: boolean = false): Promise<{ results: ReportValue[], pagination: Pagination }> => {
     const res = await getValues(auth, filterParams, pagination, showCode);
     return {
         results: res.values.map((v): ReportValue => {

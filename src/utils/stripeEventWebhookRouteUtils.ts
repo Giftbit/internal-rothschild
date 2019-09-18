@@ -57,7 +57,7 @@ async function freezeValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valu
         }
         const uniqueValuesToFreeze: Value[] = await Promise.all(uniqueDbValues.map(async dbValue => await DbValue.toValue(dbValue)));
 
-        const queries: QueryBuilder[] = [];
+        const queries: QueryBuilder<any, number>[] = [];
         for (const value of uniqueValuesToFreeze) {
             const perValueQuery = knex("Values")
                 .where({

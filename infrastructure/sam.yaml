@@ -329,10 +329,8 @@ Resources:
         sql_mode: IGNORE_SPACE,STRICT_TRANS_TABLES
         slow_query_log: 1
         performance_schema: !If [HighCapacity, 1, !Ref "AWS::NoValue"]
-        performance-schema-consumer-events-waits-current: !If [HighCapacity, ON, !Ref "AWS::NoValue"]
+        performance-schema-consumer-events-waits-current: !If [HighCapacity, "ON", !Ref "AWS::NoValue"]
         performance-schema-instrument: !If [HighCapacity, 'wait/%=ON', !Ref "AWS::NoValue"]
-        performance-schema-consumer-global-instrumentation: !If [HighCapacity, ON, !Ref "AWS::NoValue"]
-        performance-schema-consumer-thread-instrumentation: !If [HighCapacity, ON, !Ref "AWS::NoValue"]
       Tags:
         - Key: Service
           Value: Rothschild

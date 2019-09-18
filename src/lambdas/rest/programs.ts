@@ -3,7 +3,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {DbProgram, Program} from "../../model/Program";
-import {csvSerializer} from "../../serializers";
+import {csvSerializer} from "../../utils/serializers";
 import {pick, pickOrDefault} from "../../utils/pick";
 import {
     dateInDbPrecision,
@@ -275,7 +275,7 @@ async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
             throw new cassava.RestError(404);
         }
         if (patchRes > 1) {
-            throw new Error(`Illegal UPDATE query.  Updated ${patchRes.length} values.`);
+            throw new Error(`Illegal UPDATE query.  Updated ${patchRes} values.`);
         }
         return updatedProgram;
     });
@@ -599,24 +599,28 @@ const programSchema: jsonschema.Schema = {
         },
         minInitialBalance: {
             type: ["number", "null"],
-            minimum: 0
+            minimum: 0,
+            maximum: 2147483647
         },
         maxInitialBalance: {
             type: ["number", "null"],
-            minimum: 0
+            minimum: 0,
+            maximum: 2147483647
         },
         fixedInitialBalances: {
             type: ["array", "null"],
             items: {
                 type: "number",
-                minimum: 0
+                minimum: 0,
+                maximum: 2147483647
             }
         },
         fixedInitialUsesRemaining: {
             type: ["array", "null"],
             items: {
                 type: "number",
-                minimum: 1
+                minimum: 0,
+                maximum: 2147483647
             }
         },
         startDate: {
