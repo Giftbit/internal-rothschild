@@ -66,7 +66,7 @@ export async function insertLightrailTransactionSteps(auth: giftbitRoutes.jwtaut
         }
 
         await trx.into("LightrailTransactionSteps")
-            .insert(LightrailTransactionPlanStep.toLightrailDbTransactionStep(step, plan, auth, stepIx));
+            .insert(LightrailTransactionPlanStep.toLightrailDbTransactionStep(step, stepIx, plan, auth));
     }
     return plan;
 }
@@ -121,7 +121,7 @@ async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.Authoriza
         updatedDate: plan.createdDate
     };
 
-    let query = trx.into("Values")
+    let query = trx<any, number>("Values")
         .where({
             userId: auth.userId,
             id: step.value.id,
@@ -188,12 +188,17 @@ async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.Authoriza
     }
 }
 
-export async function insertStripeTransactionSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan, stripeConfig: LightrailAndMerchantStripeConfig): Promise<TransactionPlan> {
-    await executeStripeSteps(auth, stripeConfig, plan);
-    const stripeSteps = plan.steps.filter(step => step.rail === "stripe")
-        .map(step => StripeTransactionPlanStep.toStripeDbTransactionStep(step as StripeTransactionPlanStep, plan, auth));
-    await trx.into("StripeTransactionSteps")
-        .insert(stripeSteps);
+export async function insertStripeTransactionSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan): Promise<TransactionPlan> {
+    await executeStripeSteps(auth, plan);
+    const stripeSteps: StripeDbTransactionStep[] = [];
+    for (let stepIx = 0; stepIx < plan.steps.length; stepIx++) {
+        if (plan.steps[stepIx].rail === "stripe") {
+            stripeSteps.push(StripeTransactionPlanStep.toStripeDbTransactionStep(plan.steps[stepIx] as StripeTransactionPlanStep, stepIx, plan, auth));
+        }
+    }
+    if (stripeSteps.length) {
+        await trx.into("StripeTransactionSteps").insert(stripeSteps);
+    }
     return plan;
 }
 

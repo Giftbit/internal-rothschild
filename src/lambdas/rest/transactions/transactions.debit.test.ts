@@ -9,7 +9,7 @@ import {installRestRoutes} from "../installRestRoutes";
 import {getKnexRead, getKnexWrite} from "../../../utils/dbUtils/connection";
 import {DebitRequest} from "../../../model/TransactionRequest";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

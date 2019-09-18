@@ -13,7 +13,7 @@ import {Program} from "../../../model/Program";
 import {generateCode} from "../../../utils/codeGenerator";
 import {generateLegacyHashForValueIdContactId} from "../contactValues";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

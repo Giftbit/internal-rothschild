@@ -111,11 +111,10 @@ function getReverseForLightrailTransactionStep(auth: giftbitRoutes.jwtauth.Autho
     };
 }
 
-function getReverseForStripeTransactionStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: StripeTransactionStep, idempotentStepId: string, refundReason: string): StripeTransactionPlanStep {
+function getReverseForStripeTransactionStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: StripeTransactionStep, stepIdempotencyKey: string, refundReason: string): StripeTransactionPlanStep {
     return {
         rail: "stripe",
         type: "refund",
-        idempotentStepId: idempotentStepId,
         chargeId: step.chargeId,
         amount: -step.amount,
         reason: refundReason

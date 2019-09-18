@@ -2,19 +2,19 @@ import * as awslambda from "aws-lambda";
 import * as childProcess from "child_process";
 import * as mysql from "mysql2/promise";
 import * as path from "path";
-import {sendCloudFormationResponse} from "../../sendCloudFormationResponse";
+import {sendCloudFormationResponse} from "../../utils/sendCloudFormationResponse";
 import {getDbCredentials} from "../../utils/dbUtils/connection";
 // Expands to an import of all files matching the glob using the import-glob-loader.
 // Copies the .sql files into the schema dir using the file-loader.
 // Flyway will automatically load all .sql files it finds in that dir.
 import "./schema/*.sql";
 import {
-    getLightrailStripeModeConfig,
+    getStripeClient,
     initializeAssumeCheckoutToken,
     initializeLightrailStripeConfig
 } from "../../utils/stripeUtils/stripeAccess";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {StripeConfig, StripeModeConfig} from "../../utils/stripeUtils/StripeConfig";
+import {StripeConfig} from "../../utils/stripeUtils/StripeConfig";
 import log = require("loglevel");
 
 // Wrapping console.log instead of binding (default behaviour for loglevel)
@@ -170,17 +170,16 @@ async function setStripeWebhookEvents(event: awslambda.CloudFormationCustomResou
     await configureStripeWebhook(webhookEventsToEnable, url, true);
 }
 
-async function configureStripeWebhook(webhookEvents: string[], url: string, testMode: boolean): Promise<void> {
-    let lightrailStripeModeConfig: StripeModeConfig;
+async function configureStripeWebhook(webhookEvents: string[], url: string, isTestMode: boolean): Promise<void> {
+    let lightrailStripe: any;   // webhookEndpoints is not yet in the Stripe declaration file
     try {
-        lightrailStripeModeConfig = await getLightrailStripeModeConfig(testMode);
+        lightrailStripe = await getStripeClient(isTestMode);
     } catch (err) {
-        log.error(`Error fetching Stripe credentials from secure config: enabled Stripe webhook events have not been updated. Secure config permissions may need to be set. \nError: ${JSON.stringify(err, null, 2)}`);
+        log.error(`Error creating Stripe client.  Enabled Stripe webhook events have not been updated. Secure config permissions may need to be set. \nError: ${JSON.stringify(err, null, 2)}`);
         return; // don't fail deployment if the function can't get the Stripe credentials (stack should be deployable in a new environment where function role name isn't known and can't have had permissions set)
     }
 
-    log.info(`Fetching existing Stripe webhooks for testMode=${testMode}...`);
-    const lightrailStripe = require("stripe")(lightrailStripeModeConfig.secretKey);
+    log.info(`Fetching existing Stripe webhooks for isTestMode=${isTestMode}...`);
     const webhooks = await lightrailStripe.webhookEndpoints.list();
     log.info(`Got existing webhooks: ${JSON.stringify(webhooks, null, 2)}`);
 
@@ -196,7 +195,7 @@ async function configureStripeWebhook(webhookEvents: string[], url: string, test
             connect: true
         });
     }
-    log.info(`Stripe webhook events configured: testMode=${testMode}. Endpoint: '${url}'; events: '${webhookEvents}'`);
+    log.info(`Stripe webhook events configured: isTestMode=${isTestMode}. Endpoint: '${url}'; events: '${webhookEvents}'`);
 }
 
 function buildStripeWebhookHandlerEndpoint(lightrailDomain: string): string {

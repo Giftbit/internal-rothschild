@@ -7,7 +7,7 @@ import {createCurrency} from "../../currencies";
 import {Value} from "../../../../model/Value";
 import {LightrailTransactionStep, Transaction} from "../../../../model/Transaction";
 import {CaptureRequest, DebitRequest, ReverseRequest} from "../../../../model/TransactionRequest";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

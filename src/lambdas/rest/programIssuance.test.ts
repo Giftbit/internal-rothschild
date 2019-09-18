@@ -12,7 +12,7 @@ import {getKnexWrite} from "../../utils/dbUtils/connection";
 import {Transaction} from "../../model/Transaction";
 import * as sinon from "sinon";
 import * as codeGenerator from "../../utils/codeGenerator";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

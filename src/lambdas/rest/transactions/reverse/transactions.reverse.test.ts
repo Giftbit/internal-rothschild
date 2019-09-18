@@ -7,7 +7,7 @@ import {generateId} from "../../../../utils/testUtils";
 import * as testUtils from "../../../../utils/testUtils/index";
 import {Transaction} from "../../../../model/Transaction";
 import {DebitRequest, ReverseRequest} from "../../../../model/TransactionRequest";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

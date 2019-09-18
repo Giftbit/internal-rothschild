@@ -8,7 +8,7 @@ import * as currencies from "../currencies";
 import {installRestRoutes} from "../installRestRoutes";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {CreditRequest} from "../../../model/TransactionRequest";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 
