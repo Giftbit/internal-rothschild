@@ -9,9 +9,8 @@ import {
 } from "./TransactionPlan";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {DbValue, Value} from "../../../model/Value";
-import {DbTransaction, Transaction} from "../../../model/Transaction";
+import {DbTransaction, StripeDbTransactionStep, Transaction} from "../../../model/Transaction";
 import {executeStripeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
-import {LightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/StripeConfig";
 import {getSqlErrorColumnName, getSqlErrorConstraintName} from "../../../utils/dbUtils";
 import {generateCode} from "../../../utils/codeGenerator";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
