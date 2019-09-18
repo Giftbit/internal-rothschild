@@ -1051,6 +1051,55 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 
+    it("422s transferring a huge amount", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
+            id: generateId(),
+            source: {
+                rail: "lightrail",
+                valueId: valueCad1.id
+            },
+            destination: {
+                rail: "lightrail",
+                valueId: valueCad2.id
+            },
+            amount: 999999999999,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("409s transferring so much that a Value has a balance greater than the max", async () => {
+        const value1Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: generateId(),
+            currency: "CAD",
+            balance: 0x7fffffff
+        });
+        chai.assert.equal(value1Resp.statusCode, 201);
+
+        const value2Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+            id: generateId(),
+            currency: "CAD",
+            balance: 0x7fffffff
+        });
+        chai.assert.equal(value2Resp.statusCode, 201);
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/transfer", "POST", {
+            id: generateId(),
+            source: {
+                rail: "lightrail",
+                valueId: value1Resp.body.id
+            },
+            destination: {
+                rail: "lightrail",
+                valueId: value2Resp.body.id
+            },
+            amount: 0x7fffffff,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.messageCode, "ValueBalanceTooLarge");
+    });
+
     describe("stripe transfers", () => {
         before(function () {
             setStubsForStripeTests();

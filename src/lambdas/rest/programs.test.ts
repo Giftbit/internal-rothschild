@@ -201,18 +201,6 @@ describe("/v2/programs", () => {
         chai.assert.deepEqual(update3.body.balanceRule, request3.balanceRule);
     });
 
-    it("can't create a program with startDate > endDate", async () => {
-        const prog: Partial<Program> = {
-            id: generateId(),
-            currency: "USD",
-            name: "some program name",
-            startDate: new Date("2025-01-01"),
-            endDate: new Date("2024-01-01")
-        };
-        const createProgram = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", prog);
-        chai.assert.equal(createProgram.statusCode, 422);
-    });
-
     it("can update startDate and endDate", async () => {
         const prog: Partial<Program> = {
             id: generateId(),
@@ -238,14 +226,6 @@ describe("/v2/programs", () => {
         chai.assert.equal(update2.statusCode, 422);
     });
 
-    it("can't update a program id", async () => {
-        let request = {
-            id: generateId()
-        };
-        const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${programRequest.id}`, "PATCH", request);
-        chai.assert.equal(resp.statusCode, 422);
-    });
-
     it("can delete a program", async () => {
         const deleteResp = await testUtils.testAuthedRequest(router, `/v2/programs/${programRequest.id}`, "DELETE");
         chai.assert.equal(deleteResp.statusCode, 200);
@@ -254,69 +234,7 @@ describe("/v2/programs", () => {
         chai.assert.equal(getResp.statusCode, 404);
     });
 
-    it("can't create a program with non-ascii characters in the ID", async () => {
-        const request: Partial<Program> = {
-            id: generateId() + "🐶",
-            name: generateId(),
-            currency: "USD"
-        };
-        const res = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", request);
-        chai.assert.equal(res.statusCode, 422);
-    });
-
-    it("can't create a program with minInitialBalance > maxInitialBalance", async () => {
-        const request: Partial<Program> = {
-            id: generateId(),
-            name: generateId(),
-            currency: "USD",
-            minInitialBalance: 10,
-            maxInitialBalance: 5
-        };
-        const res = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", request);
-        chai.assert.equal(res.statusCode, 422);
-    });
-
-    it("can't update a program to have minInitialBalance > maxInitialBalance", async () => {
-        const createRequest: Partial<Program> = {
-            id: generateId(),
-            name: generateId(),
-            currency: "USD",
-            minInitialBalance: 5,
-            maxInitialBalance: 10
-        };
-        const createRes = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", createRequest);
-        chai.assert.equal(createRes.statusCode, 201);
-
-        const patchRes = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${createRequest.id}`, "PATCH", {
-            minInitialBalance: 15
-        });
-        chai.assert.equal(patchRes.statusCode, 422);
-    });
-
-    it("creating a program with an unknown currency 409s", async () => {
-        const request: Partial<Program> = {
-            id: generateId(),
-            name: generateId(),
-            currency: generateId().replace(/-/g, "").substring(0, 15)
-        };
-        const res = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", request);
-        chai.assert.equal(res.statusCode, 409);
-    });
-
-    it("creating a program with a duplicate id results in a 409", async () => {
-        const request: Partial<Program> = {
-            id: generateId(),
-            name: generateId(),
-            currency: "USD"
-        };
-        const res = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", request);
-        chai.assert.equal(res.statusCode, 201);
-
-        const res2 = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", request);
-        chai.assert.equal(res2.statusCode, 409);
-    });
-
-    it("default sorting createdDate", async () => {
+    it("lists programs with sorting on createdDate by default", async () => {
         const idAndDates = [
             {id: generateId(), createdDate: new Date("3030-02-01")},
             {id: generateId(), createdDate: new Date("3030-02-02")},
@@ -351,100 +269,312 @@ describe("/v2/programs", () => {
         chai.assert.sameOrderedMembers(resp.body.map(tx => tx.id), idAndDates.reverse().map(tx => tx.id) /* reversed since createdDate desc */);
     });
 
-    it("can't create a program with a balanceRule that does not compile", async () => {
-        const postBody: Partial<Program> = {
-            id: generateId(),
-            name: generateId(),
-            currency: "USD",
-            balanceRule: {
-                rule: "currentLineItem.lineTotal.subtotal * (0.1",
-                explanation: "unbalanced paranthesis"
-            }
-        };
-        const progResp = await testUtils.testAuthedRequest<any>(router, "/v2/programs", "POST", postBody);
-        chai.assert.equal(progResp.statusCode, 422, JSON.stringify(progResp.body));
-        chai.assert.equal(progResp.body.messageCode, "BalanceRuleSyntaxError", JSON.stringify(progResp.body));
-        chai.assert.isString(progResp.body.syntaxErrorMessage);
-        chai.assert.isNumber(progResp.body.row);
-        chai.assert.isNumber(progResp.body.column);
-    });
-
-    it("can't patch a program to have a balanceRule that does not compile", async () => {
-        const postBody: Partial<Program> = {
-            id: generateId(),
-            name: generateId(),
-            currency: "USD",
-            balanceRule: {
-                rule: "500",
-                explanation: "five hundy"
-            }
-        };
-        const progResp = await testUtils.testAuthedRequest<any>(router, "/v2/programs", "POST", postBody);
-        chai.assert.equal(progResp.statusCode, 201, JSON.stringify(progResp.body));
-
-        const patchResp = await testUtils.testAuthedRequest<any>(router, `/v2/programs/${postBody.id}`, "PATCH", {
-            balanceRule: {
-                rule: "currentLineItem.lineTotal.subtotal * (0.1",
-                explanation: "unbalanced paranthesis"
-            }
+    describe("create validation", () => {
+        it("422s creating a program with non-ascii characters in the ID", async () => {
+            const request: Partial<Program> = {
+                id: generateId() + "🐶",
+                name: generateId(),
+                currency: "USD"
+            };
+            const res = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", request);
+            chai.assert.equal(res.statusCode, 422);
         });
-        chai.assert.equal(patchResp.body.messageCode, "BalanceRuleSyntaxError", JSON.stringify(patchResp.body));
-        chai.assert.equal(patchResp.statusCode, 422, JSON.stringify(patchResp.body));
-        chai.assert.isString(patchResp.body.syntaxErrorMessage);
-        chai.assert.isNumber(patchResp.body.row);
-        chai.assert.isNumber(patchResp.body.column);
-    });
 
-    it("can't create a program with a redemptionRule that does not compile", async () => {
-        const postBody: Partial<Program> = {
-            id: generateId(),
-            name: generateId(),
-            currency: "USD",
-            balanceRule: {
-                rule: "currentLineItem.lineTotal.subtotal * (0.1)",
-                explanation: "this is fine"
-            },
-            redemptionRule: {
-                rule: "currentLineItem.lineTotal.subtotal > (0.1",
-                explanation: "unbalanced paranthesis"
-            }
-        };
-        const progResp = await testUtils.testAuthedRequest<any>(router, "/v2/programs", "POST", postBody);
-        chai.assert.equal(progResp.statusCode, 422, JSON.stringify(progResp.body));
-        chai.assert.equal(progResp.body.messageCode, "RedemptionRuleSyntaxError", JSON.stringify(progResp.body));
-        chai.assert.isString(progResp.body.syntaxErrorMessage);
-        chai.assert.isNumber(progResp.body.row);
-        chai.assert.isNumber(progResp.body.column);
-    });
-
-    it("can't patch a program to have a redemptionRule that does not compile", async () => {
-        const postBody: Partial<Program> = {
-            id: generateId(),
-            name: generateId(),
-            currency: "USD",
-            balanceRule: {
-                rule: "currentLineItem.lineTotal.subtotal * (0.1)",
-                explanation: "this is fine"
-            },
-            redemptionRule: {
-                rule: "1 == 1",
-                explanation: "true"
-            }
-        };
-        const progResp = await testUtils.testAuthedRequest<any>(router, "/v2/programs", "POST", postBody);
-        chai.assert.equal(progResp.statusCode, 201, JSON.stringify(progResp.body));
-
-        const patchResp = await testUtils.testAuthedRequest<any>(router, `/v2/programs/${postBody.id}`, "PATCH", {
-            redemptionRule: {
-                rule: "currentLineItem.lineTotal.subtotal * (0.1",
-                explanation: "unbalanced paranthesis"
-            }
+        it("422s creating a program with startDate > endDate", async () => {
+            const prog: Partial<Program> = {
+                id: generateId(),
+                currency: "USD",
+                name: "some program name",
+                startDate: new Date("2025-01-01"),
+                endDate: new Date("2024-01-01")
+            };
+            const createProgram = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", prog);
+            chai.assert.equal(createProgram.statusCode, 422);
         });
-        chai.assert.equal(patchResp.body.messageCode, "RedemptionRuleSyntaxError", JSON.stringify(patchResp.body));
-        chai.assert.equal(patchResp.statusCode, 422, JSON.stringify(patchResp.body));
-        chai.assert.isString(patchResp.body.syntaxErrorMessage);
-        chai.assert.isNumber(patchResp.body.row);
-        chai.assert.isNumber(patchResp.body.column);
+
+        it("422s creating a program with minInitialBalance > maxInitialBalance", async () => {
+            const request: Partial<Program> = {
+                id: generateId(),
+                name: generateId(),
+                currency: "USD",
+                minInitialBalance: 10,
+                maxInitialBalance: 5
+            };
+            const res = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", request);
+            chai.assert.equal(res.statusCode, 422);
+        });
+
+        it("422s creating a program with a huge minInitialBalance", async () => {
+            const createRequest: Partial<Program> = {
+                id: generateId(),
+                name: generateId(),
+                currency: "USD",
+                minInitialBalance: 999999999999
+            };
+            const resp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", createRequest);
+            chai.assert.equal(resp.statusCode, 422);
+        });
+
+        it("422s creating a program with a huge maxInitialBalance", async () => {
+            const createRequest: Partial<Program> = {
+                id: generateId(),
+                name: generateId(),
+                currency: "USD",
+                minInitialBalance: 5,
+                maxInitialBalance: 999999999999
+            };
+            const resp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", createRequest);
+            chai.assert.equal(resp.statusCode, 422);
+        });
+
+        it("422s creating a program with a huge member of fixedInitialBalances", async () => {
+            const createRequest: Partial<Program> = {
+                id: generateId(),
+                name: generateId(),
+                currency: "USD",
+                fixedInitialBalances: [0, 1, 999999999999]
+            };
+            const resp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", createRequest);
+            chai.assert.equal(resp.statusCode, 422);
+        });
+
+        it("422s creating a program with a negative member of fixedInitialBalances", async () => {
+            const createRequest: Partial<Program> = {
+                id: generateId(),
+                name: generateId(),
+                currency: "USD",
+                fixedInitialBalances: [-1, 0]
+            };
+            const resp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", createRequest);
+            chai.assert.equal(resp.statusCode, 422);
+        });
+
+        it("422s creating a program with a huge member of fixedInitialUsesRemaining", async () => {
+            const createRequest: Partial<Program> = {
+                id: generateId(),
+                name: generateId(),
+                currency: "USD",
+                fixedInitialUsesRemaining: [0, 1, 999999999999]
+            };
+            const resp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", createRequest);
+            chai.assert.equal(resp.statusCode, 422);
+        });
+
+        it("422s creating a program with a negative member of fixedInitialUsesRemaining", async () => {
+            const createRequest: Partial<Program> = {
+                id: generateId(),
+                name: generateId(),
+                currency: "USD",
+                fixedInitialUsesRemaining: [-1, 0]
+            };
+            const resp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", createRequest);
+            chai.assert.equal(resp.statusCode, 422);
+        });
+
+        it("409s creating a program with an unknown currency", async () => {
+            const request: Partial<Program> = {
+                id: generateId(),
+                name: generateId(),
+                currency: generateId().replace(/-/g, "").substring(0, 15)
+            };
+            const res = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", request);
+            chai.assert.equal(res.statusCode, 409);
+        });
+
+        it("409s creating a program with a duplicate id", async () => {
+            const request: Partial<Program> = {
+                id: generateId(),
+                name: generateId(),
+                currency: "USD"
+            };
+            const res = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", request);
+            chai.assert.equal(res.statusCode, 201);
+
+            const res2 = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", request);
+            chai.assert.equal(res2.statusCode, 409);
+        });
+
+        it("422s creating a program with a balanceRule that does not compile", async () => {
+            const postBody: Partial<Program> = {
+                id: generateId(),
+                name: generateId(),
+                currency: "USD",
+                balanceRule: {
+                    rule: "currentLineItem.lineTotal.subtotal * (0.1",
+                    explanation: "unbalanced paranthesis"
+                }
+            };
+            const progResp = await testUtils.testAuthedRequest<any>(router, "/v2/programs", "POST", postBody);
+            chai.assert.equal(progResp.statusCode, 422, JSON.stringify(progResp.body));
+            chai.assert.equal(progResp.body.messageCode, "BalanceRuleSyntaxError", JSON.stringify(progResp.body));
+            chai.assert.isString(progResp.body.syntaxErrorMessage);
+            chai.assert.isNumber(progResp.body.row);
+            chai.assert.isNumber(progResp.body.column);
+        });
+
+        it("422s creating a program with a redemptionRule that does not compile", async () => {
+            const postBody: Partial<Program> = {
+                id: generateId(),
+                name: generateId(),
+                currency: "USD",
+                balanceRule: {
+                    rule: "currentLineItem.lineTotal.subtotal * (0.1)",
+                    explanation: "this is fine"
+                },
+                redemptionRule: {
+                    rule: "currentLineItem.lineTotal.subtotal > (0.1",
+                    explanation: "unbalanced paranthesis"
+                }
+            };
+            const progResp = await testUtils.testAuthedRequest<any>(router, "/v2/programs", "POST", postBody);
+            chai.assert.equal(progResp.statusCode, 422, JSON.stringify(progResp.body));
+            chai.assert.equal(progResp.body.messageCode, "RedemptionRuleSyntaxError", JSON.stringify(progResp.body));
+            chai.assert.isString(progResp.body.syntaxErrorMessage);
+            chai.assert.isNumber(progResp.body.row);
+            chai.assert.isNumber(progResp.body.column);
+        });
+    });
+
+    describe("update validation", () => {
+        const updateableProgram: Partial<Program> = {
+            id: generateId(),
+            name: generateId(),
+            currency: "USD"
+        };
+
+        before(async () => {
+            const createRes = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", updateableProgram);
+            chai.assert.equal(createRes.statusCode, 201, `body=${JSON.stringify(createRes.body)}`);
+        });
+
+        it("422s updating a program id", async () => {
+            let request = {
+                id: generateId()
+            };
+            const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${updateableProgram.id}`, "PATCH", request);
+            chai.assert.equal(resp.statusCode, 422);
+        });
+
+        it("422s updating a program to have minInitialBalance > maxInitialBalance", async () => {
+            const createRequest: Partial<Program> = {
+                id: generateId(),
+                name: generateId(),
+                currency: "USD",
+                minInitialBalance: 5,
+                maxInitialBalance: 10
+            };
+            const createRes = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", createRequest);
+            chai.assert.equal(createRes.statusCode, 201);
+
+            const patchRes = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${createRequest.id}`, "PATCH", {
+                minInitialBalance: 15
+            });
+            chai.assert.equal(patchRes.statusCode, 422);
+        });
+
+        it("422s updating a program to a huge minInitialBalance", async () => {
+            const request: Partial<Program> = {
+                minInitialBalance: 999999999999
+            };
+            const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${updateableProgram.id}`, "PATCH", request);
+            chai.assert.equal(resp.statusCode, 422);
+        });
+
+        it("422s updating a program to a huge maxInitialBalance", async () => {
+            const request: Partial<Program> = {
+                maxInitialBalance: 999999999999
+            };
+            const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${updateableProgram.id}`, "PATCH", request);
+            chai.assert.equal(resp.statusCode, 422);
+        });
+
+        it("422s updating a program to a huge member of fixedInitialBalances", async () => {
+            const request: Partial<Program> = {
+                fixedInitialBalances: [0, 1, 999999999999]
+            };
+            const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${updateableProgram.id}`, "PATCH", request);
+            chai.assert.equal(resp.statusCode, 422);
+        });
+
+        it("422s updating a program to a negative member of fixedInitialBalances", async () => {
+            const request: Partial<Program> = {
+                fixedInitialBalances: [-1, 0]
+            };
+            const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${updateableProgram.id}`, "PATCH", request);
+            chai.assert.equal(resp.statusCode, 422);
+        });
+
+        it("422s updating a program to a huge member of fixedInitialUsesRemaining", async () => {
+            const request: Partial<Program> = {
+                fixedInitialUsesRemaining: [0, 1, 999999999999]
+            };
+            const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${updateableProgram.id}`, "PATCH", request);
+            chai.assert.equal(resp.statusCode, 422);
+        });
+
+        it("422s updating a program to a negative member of fixedInitialUsesRemaining", async () => {
+            const request: Partial<Program> = {
+                fixedInitialUsesRemaining: [-1, 0]
+            };
+            const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${updateableProgram.id}`, "PATCH", request);
+            chai.assert.equal(resp.statusCode, 422);
+        });
+
+        it("422s updating a program to have a balanceRule that does not compile", async () => {
+            const postBody: Partial<Program> = {
+                id: generateId(),
+                name: generateId(),
+                currency: "USD",
+                balanceRule: {
+                    rule: "500",
+                    explanation: "five hundy"
+                }
+            };
+            const progResp = await testUtils.testAuthedRequest<any>(router, "/v2/programs", "POST", postBody);
+            chai.assert.equal(progResp.statusCode, 201, JSON.stringify(progResp.body));
+
+            const patchResp = await testUtils.testAuthedRequest<any>(router, `/v2/programs/${postBody.id}`, "PATCH", {
+                balanceRule: {
+                    rule: "currentLineItem.lineTotal.subtotal * (0.1",
+                    explanation: "unbalanced paranthesis"
+                }
+            });
+            chai.assert.equal(patchResp.body.messageCode, "BalanceRuleSyntaxError", JSON.stringify(patchResp.body));
+            chai.assert.equal(patchResp.statusCode, 422, JSON.stringify(patchResp.body));
+            chai.assert.isString(patchResp.body.syntaxErrorMessage);
+            chai.assert.isNumber(patchResp.body.row);
+            chai.assert.isNumber(patchResp.body.column);
+        });
+
+        it("422s updating a program to have a redemptionRule that does not compile", async () => {
+            const postBody: Partial<Program> = {
+                id: generateId(),
+                name: generateId(),
+                currency: "USD",
+                balanceRule: {
+                    rule: "currentLineItem.lineTotal.subtotal * (0.1)",
+                    explanation: "this is fine"
+                },
+                redemptionRule: {
+                    rule: "1 == 1",
+                    explanation: "true"
+                }
+            };
+            const progResp = await testUtils.testAuthedRequest<any>(router, "/v2/programs", "POST", postBody);
+            chai.assert.equal(progResp.statusCode, 201, JSON.stringify(progResp.body));
+
+            const patchResp = await testUtils.testAuthedRequest<any>(router, `/v2/programs/${postBody.id}`, "PATCH", {
+                redemptionRule: {
+                    rule: "currentLineItem.lineTotal.subtotal * (0.1",
+                    explanation: "unbalanced paranthesis"
+                }
+            });
+            chai.assert.equal(patchResp.body.messageCode, "RedemptionRuleSyntaxError", JSON.stringify(patchResp.body));
+            chai.assert.equal(patchResp.statusCode, 422, JSON.stringify(patchResp.body));
+            chai.assert.isString(patchResp.body.syntaxErrorMessage);
+            chai.assert.isNumber(patchResp.body.row);
+            chai.assert.isNumber(patchResp.body.column);
+        });
     });
 
     describe("stats", () => {
