@@ -6,7 +6,7 @@ import {Currency, formatObjectsAmountPropertiesForCurrencyDisplay} from "../../m
 import {Value} from "../../model/Value";
 import {installRestRoutes} from "./installRestRoutes";
 import {DebitRequest} from "../../model/TransactionRequest";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

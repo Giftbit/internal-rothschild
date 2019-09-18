@@ -4,8 +4,6 @@ import {StripeChargeTransactionPlanStep, StripeRefundTransactionPlanStep, Transa
 import {Transaction} from "../../../model/Transaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
-import {setupLightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/stripeAccess";
-import {LightrailAndMerchantStripeConfig} from "../../../utils/stripeUtils/StripeConfig";
 import {
     insertInternalTransactionSteps,
     insertLightrailTransactionSteps,
@@ -93,11 +91,6 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         return TransactionPlan.toTransaction(auth, plan, options.simulate);
     }
 
-    let stripeConfig: LightrailAndMerchantStripeConfig = null;
-    if (TransactionPlan.containsStripeSteps(plan)) {
-        stripeConfig = await setupLightrailAndMerchantStripeConfig(auth);
-    }
-
     try {
         await insertTransaction(trx, auth, plan);
     } catch (err) {
@@ -111,12 +104,12 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
     }
 
     try {
-        plan = await insertStripeTransactionSteps(auth, trx, plan, stripeConfig);
+        plan = await insertStripeTransactionSteps(auth, trx, plan);
         plan = await insertLightrailTransactionSteps(auth, trx, plan);
         plan = await insertInternalTransactionSteps(auth, trx, plan);
     } catch (err) {
         log.error(`Error occurred while processing transaction steps: ${err}`);
-        await rollbackTransactionPlan(auth, plan, trx, err, stripeConfig);
+        await rollbackTransactionPlan(auth, plan, trx, err);
 
         if ((err as StripeRestError).additionalParams && (err as StripeRestError).additionalParams.stripeError) {
             // Error was returned from Stripe. Passing original error along so that details of Stripe failure can be returned.
@@ -141,13 +134,13 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
  * Rolls back any parts of the Transaction that won't be undone by rolling back the knex transaction. Primarily, it is just third party requests.
  * @stripeConfig (optional) - added as a small optimization so that stripeConfig doesn't always have to be re-fetched.
  */
-async function rollbackTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan, trx: Knex, err: Error, stripeConfig: LightrailAndMerchantStripeConfig = null): Promise<void> {
+async function rollbackTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan, trx: Knex, err: Error): Promise<void> {
     // rollback charges
     const stripeChargeSteps: StripeChargeTransactionPlanStep[] = plan.steps.filter(step => step.rail === "stripe" && step.type === "charge") as StripeChargeTransactionPlanStep[];
     if (stripeChargeSteps.length > 0) {
         const stripeChargeStepsToRefund = stripeChargeSteps.filter(step => step.chargeResult != null) as StripeChargeTransactionPlanStep[];
         if (stripeChargeStepsToRefund.length > 0) {
-            await rollbackStripeChargeSteps(stripeConfig.lightrailStripeConfig.secretKey, stripeConfig.merchantStripeConfig.stripe_user_id, stripeChargeStepsToRefund, "Refunded due to error on the Lightrail side.");
+            await rollbackStripeChargeSteps(auth, stripeChargeStepsToRefund, "Refunded due to error on the Lightrail side.");
             log.warn(`An error occurred while processing transaction '${plan.id}'. The Stripe charge(s) '${stripeChargeStepsToRefund.map(step => step.chargeResult.id)}' have been refunded.`);
         }
     }

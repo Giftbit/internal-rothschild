@@ -4,7 +4,7 @@ import {generateId, setCodeCryptographySecrets} from "../../utils/testUtils";
 import {installRestRoutes} from "../rest/installRestRoutes";
 import {installStripeEventWebhookRest} from "./installStripeEventWebhookRest";
 import * as chai from "chai";
-import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
 import * as stripe from "stripe";
 import {
     assertTransactionChainContainsTypes,
@@ -34,12 +34,7 @@ describe("/v2/stripeEventWebhook - Stripe Review events", () => {
         unsetStubsForStripeTests();
     });
 
-    it("reverses Lightrail transaction & freezes Values for Stripe event 'review.closed' with 'reason: refunded_as_fraud'", async function () {
-        if (!testStripeLive()) {
-            this.skip();
-            return;
-        }
-
+    it("reverses Lightrail transaction & freezes Values for Stripe event 'review.closed' with 'reason: refunded_as_fraud'", async () => {
         const webhookEventSetup = await setupForWebhookEvent(restRouter);
         const refundedCharge = await refundInStripe(webhookEventSetup.stripeStep, "fraudulent");
 

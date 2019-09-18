@@ -92,6 +92,8 @@ export const authRoute: cassava.routes.Route = new giftbitRoutes.jwtauth.JwtAuth
     errorLogFunction: log.error
 });
 
+let fullMigrationHasRun = false;
+
 export async function resetDb(): Promise<void> {
     const credentials = await getDbCredentials();
     const connection = await mysql.createConnection({
@@ -106,25 +108,11 @@ export async function resetDb(): Promise<void> {
     });
 
     try {
-        const [schemaRes] = await connection.query("SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?", ["rothschild"]);
-        if (schemaRes.length > 0) {
-            try {
-                await connection.query("DROP USER readonly");
-            } catch (err) {
-                // Can error because the user didn't exist. There isn't a great way to do `DROP USER IF EXISTS readonly` in mysql 5.6.
-            }
-            await connection.query("DROP DATABASE rothschild");
-        }
-
-        await connection.query("CREATE DATABASE rothschild");
-
-        for (const file of await getSqlMigrationFiles()) {
-            try {
-                await connection.query(file.sql);
-            } catch (err) {
-                log.error(`Error processing migration file ${file.filename}:`, err.message);
-                throw err;
-            }
+        if (!fullMigrationHasRun) {
+            await runSqlMigrations(connection);
+            fullMigrationHasRun = true;
+        } else {
+            await truncateTables(connection);
         }
     } catch (err) {
         log.error("Error setting up DB for test:", err.message);
@@ -141,9 +129,60 @@ export async function resetDb(): Promise<void> {
         }
 
         throw err;
+    } finally {
+        await connection.end();
+    }
+}
+
+async function runSqlMigrations(connection: any): Promise<void> {
+    const [schemaRes] = await connection.query("SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?", ["rothschild"]);
+    if (schemaRes.length > 0) {
+        try {
+            await connection.query("DROP USER readonly");
+        } catch (err) {
+            // Can error because the user didn't exist. There isn't a great way to do `DROP USER IF EXISTS readonly` in mysql 5.6.
+        }
+        await connection.query("DROP DATABASE rothschild");
     }
 
-    await connection.end();
+    await connection.query("CREATE DATABASE rothschild");
+
+    for (const file of await getSqlMigrationFiles()) {
+        try {
+            await connection.query(file.sql);
+        } catch (err) {
+            log.error(`Error processing migration file ${file.filename}:`, err.message);
+            throw err;
+        }
+    }
+}
+
+/**
+ * Cache the SQL to save time because we do this a lot.
+ */
+let truncateTablesSql: string = null;
+
+/**
+ * Truncate all data in all tables in the schema.  This is faster
+ * than running all migrations if we're sure the schema is correct
+ * (eg: 1:22 vs 2:40 on 721 tests)
+ */
+async function truncateTables(connection: any): Promise<void> {
+    if (!truncateTablesSql) {
+        const [tables] = await connection.query("SELECT table_name as tableName\n" +
+            "FROM   information_schema.tables\n" +
+            "WHERE  table_type   = 'BASE TABLE'\n" +
+            "  AND  table_schema  = ?;", ["rothschild"]);
+
+        // Manually gluing together SQL is dangerous and we never do it in production.
+        truncateTablesSql = "SET FOREIGN_KEY_CHECKS=0; ";
+        for (const row of tables) {
+            truncateTablesSql += `TRUNCATE rothschild.\`${row.tableName}\`; `;
+        }
+        truncateTablesSql += "SET FOREIGN_KEY_CHECKS=1;";
+    }
+
+    await connection.query(truncateTablesSql);
 }
 
 /**

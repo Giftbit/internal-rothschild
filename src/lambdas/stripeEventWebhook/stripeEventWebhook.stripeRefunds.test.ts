@@ -5,7 +5,7 @@ import {setCodeCryptographySecrets} from "../../utils/testUtils";
 import {installRestRoutes} from "../rest/installRestRoutes";
 import {installStripeEventWebhookRest} from "./installStripeEventWebhookRest";
 import * as chai from "chai";
-import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
 import {StripeTransactionStep} from "../../model/Transaction";
 import {
     assertTransactionChainContainsTypes,
@@ -36,12 +36,7 @@ describe("/v2/stripeEventWebhook - Stripe Refund events", () => {
         unsetStubsForStripeTests();
     });
 
-    it("reverses Lightrail transaction & freezes Values for Stripe refunds updated with 'reason: fraudulent'", async function () {
-        if (!testStripeLive()) {
-            this.skip();
-            return;
-        }
-
+    it("reverses Lightrail transaction & freezes Values for Stripe refunds updated with 'reason: fraudulent'", async () => {
         const webhookEventSetup = await setupForWebhookEvent(restRouter);
         const refundedCharge = await refundInStripe(webhookEventSetup.checkout.steps.find(step => step.rail === "stripe") as StripeTransactionStep, "fraudulent");
         const refund = refundedCharge.refunds.data[0];
@@ -54,12 +49,7 @@ describe("/v2/stripeEventWebhook - Stripe Refund events", () => {
         await assertValuesRestoredAndFrozen(restRouter, webhookEventSetup.valuesCharged, true);
     }).timeout(12000);
 
-    it("throws Sentry error for Stripe refunds with 'status: failed'", async function () {
-        if (!testStripeLive()) {
-            this.skip();
-            return;
-        }
-
+    it("throws Sentry error for Stripe refunds with 'status: failed'", async () => {
         let sandbox = sinon.createSandbox();
         (giftbitRoutes.sentry.sendErrorNotification as any).restore();
         const stub = sandbox.stub(giftbitRoutes.sentry, "sendErrorNotification");

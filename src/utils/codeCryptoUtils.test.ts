@@ -2,7 +2,7 @@ import * as chai from "chai";
 import * as codeCryptoUtils from "./codeCryptoUtils";
 import {initializeCodeCryptographySecrets} from "./codeCryptoUtils";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

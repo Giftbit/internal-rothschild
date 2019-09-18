@@ -23,7 +23,7 @@ export function dateInDbPrecision(date: Date): Date {
  * update + insert = upsert.
  * This pattern is a MySQL extension.  Knex does not support it natively.
  */
-export async function upsert(table: string, update: { [key: string]: any }, insert?: { [key: string]: any }): Promise<[number]> {
+export async function upsert(table: string, update: { [key: string]: any }, insert?: { [key: string]: any }): Promise<number[]> {
     const knex = await getKnexWrite();
     const insertQuery = knex(table).insert(insert || update).toString();
     const updateQuery = knex(table).insert(update).toString();

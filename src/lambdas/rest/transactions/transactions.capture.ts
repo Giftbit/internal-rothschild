@@ -1,4 +1,5 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import {GiftbitRestError} from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import * as log from "loglevel";
 import * as Stripe from "stripe";
@@ -6,7 +7,6 @@ import {CaptureRequest} from "../../../model/TransactionRequest";
 import {StripeCaptureTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "./TransactionPlan";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {getDbTransaction} from "./transactions";
-import {GiftbitRestError} from "giftbit-cassava-routes";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 
 export async function createCaptureTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CaptureRequest, transactionIdToCapture: string): Promise<TransactionPlan> {
@@ -64,7 +64,6 @@ function getCaptureTransactionPlanSteps(captureTransactionId: string, transactio
                     const stripeCapturePlanStep: StripeCaptureTransactionPlanStep = {
                         rail: "stripe",
                         type: "capture",
-                        idempotentStepId: `${captureTransactionId}-${stepIx}`,
                         chargeId: step.chargeId,
                         pendingAmount: step.amount,
                         amount: 0

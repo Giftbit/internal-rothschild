@@ -1,6 +1,6 @@
 import * as chai from "chai";
 import {generateCode} from "./codeGenerator";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 

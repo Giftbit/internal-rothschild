@@ -14,8 +14,8 @@ import {computeCodeLookupHash, decryptCode} from "../../../utils/codeCryptoUtils
 import * as codeGenerator from "../../../utils/codeGenerator";
 import {generateCode} from "../../../utils/codeGenerator";
 import * as sinon from "sinon";
+import chaiExclude from "chai-exclude";
 import parseLinkHeader = require("parse-link-header");
-import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
@@ -115,7 +115,7 @@ describe("/v2/values/", () => {
             updatedContactIdDate: null,
             metadata: {},
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "updatedDate", "createdBy"]);
+        } as Value, ["createdDate", "updatedDate", "createdBy"]);
         value1 = resp2.body;
     });
 
@@ -154,7 +154,7 @@ describe("/v2/values/", () => {
             updatedContactIdDate: null,
             metadata: {},
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "updatedDate", "createdBy"]);
+        } as Value, ["createdDate", "updatedDate", "createdBy"]);
 
         const updateValueRequest: Partial<Value> = {
             balanceRule: {
@@ -190,7 +190,7 @@ describe("/v2/values/", () => {
             updatedContactIdDate: null,
             metadata: {},
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "updatedDate", "createdBy"]);
+        } as Value, ["createdDate", "updatedDate", "createdBy"]);
     });
 
     it("can get the value", async () => {

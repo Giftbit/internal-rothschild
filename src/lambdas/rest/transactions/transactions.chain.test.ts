@@ -8,7 +8,7 @@ import * as testUtils from "../../../utils/testUtils/index";
 import {Transaction} from "../../../model/Transaction";
 import {getDbTransaction} from "./transactions";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 
