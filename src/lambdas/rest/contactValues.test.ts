@@ -438,6 +438,55 @@ describe("/v2/contacts/values", () => {
     });
 
     describe("detach", () => {
+        it("can detach using generic valueId for codes before june 26", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: currency.code,
+                isGenericCode: true,
+                genericCodeOptions: {
+                    perContact: {
+                        balance: null,
+                        usesRemaining: 1
+                    }
+                },
+                balanceRule: {
+                    rule: "500 + value.balanceChange",
+                    explanation: "$5.00 off order"
+                },
+            };
+            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+
+            const knex = await getKnexWrite();
+            const res: number = await knex("Values")
+                .where({
+                    userId: testUtils.defaultTestUser.userId,
+                    id: value.id,
+                })
+                .update(await Value.toDbValue(testUtils.defaultTestUser.auth, {
+                    ...createValue.body,
+                    createdDate: new Date("2019-04-04"),
+                    updatedDate: new Date("2019-04-04")
+                }));
+            if (res === 0) {
+                chai.assert.fail(`no row updated. test is broken`);
+            }
+
+            const updatedValue = await testUtils.testAuthedRequest<Value[]>(router, "/v2/values", "GET");
+            chai.assert.equal(updatedValue.statusCode, 200);
+
+            const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value.id});
+            chai.assert.equal(attach.statusCode, 200, `body=${JSON.stringify(attach.body)}`);
+
+            const detach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/detach`, "POST", {valueId: value.id});
+            chai.assert.equal(detach.statusCode, 200, `body=${JSON.stringify(detach.body)}`);
+            chai.assert.equal(detach.body.contactId, null);
+
+            const getContactValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${contact.id}/values`, "GET");
+            chai.assert.equal(getContactValues.statusCode, 200);
+            chai.assert.notInclude(getContactValues.body.map(v => v.id), value.id);
+        });
+
         it("can detach using generic valueId", async () => {
             const value: Partial<Value> = {
                 id: generateId(),
