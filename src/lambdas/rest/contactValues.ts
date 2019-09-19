@@ -176,45 +176,30 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     }
 
     if (value.isGenericCode) {
+        try {
             if (Value.isGenericCodeWithPropertiesPerContact(value)) {
-                try {
-                    MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericPerContactProps, auth);
-                    return await attachGenericCodeWithPerContactOptions(auth, contact.id, value);
-                } catch (err) {
-                    if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "ValueAlreadyAttached") {
-                        const createdValueId = await getIdForAttachingGenericValue(auth, contact.id, value);
-                        const now = nowInDbPrecision();
-                        return await updateValue(auth, createdValueId, {
-                            contactId: contact.id,
-                            updatedDate: now,
-                            updatedContactIdDate: now
-                        });
-                    } else {
-                        throw err;
-                    }
-                }
-            } else if (params.attachGenericAsNewValue) /* legacy case to eventually be removed */ {
-                try {
-                    MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, auth);
-                    return await attachGenericValueAsNewValue(auth, contact.id, value);
-                } catch (err) {
-                    if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "ValueAlreadyAttached") {
-                        const createdValueId = await getIdForAttachingGenericValue(auth, contact.id, value);
-                        const now = nowInDbPrecision();
-                        return await updateValue(auth, createdValueId, {
-                            contactId: contact.id,
-                            updatedDate: now,
-                            updatedContactIdDate: now
-                        });
-                    } else {
-                        throw err;
-                    }
-                }
-            } else {
-                MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, auth);
-                await attachSharedGenericValue(auth, contact.id, value);
-                return value;
+                MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericPerContactProps, auth);
+                return await attachGenericCodeWithPerContactOptions(auth, contact.id, value);
+            } else if (params.attachGenericAsNewValue)  {
+                MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, auth);
+                return await attachGenericValueAsNewValue(auth, contact.id, value);
             }
+        } catch (err) {
+            if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "ValueAlreadyAttached") {
+                const createdValueId = await getIdForAttachingGenericValue(auth, contact.id, value);
+                return await attachValue(auth, {
+                    contactId: params.contactId,
+                    valueIdentifier: {
+                        valueId: createdValueId,
+                        code: undefined
+                    },
+                    allowOverwrite: params.allowOverwrite,
+                });
+            }
+        }
+        MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, auth);
+        await attachSharedGenericValue(auth, contact.id, value);
+        return value;
     } else {
         MetricsLogger.valueAttachment(ValueAttachmentTypes.Unique, auth);
         return attachUniqueValue(auth, contact.id, value, params.allowOverwrite);
