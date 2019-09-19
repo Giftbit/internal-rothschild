@@ -1,12 +1,12 @@
 /*
- * This file sets the log level to DEBUG when referenced.  It should only be referenced
- * from the command line by the mocha runner.
+ * This file sets the log level to the contents of env var LOG_LEVEL when referenced.
+ * It should only be referenced from the command line by the mocha runner.
  */
 
 import * as sinon from "sinon";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import log = require("loglevel");
 import * as logPrefix from "loglevel-plugin-prefix";
+import log = require("loglevel");
 
 const colors = {
     "TRACE": "\u001b[0;32m",    // green
@@ -24,7 +24,7 @@ logPrefix.apply(log, {
     },
 });
 
-log.setLevel(log.levels.DEBUG);
+log.setLevel(process.env["LOG_LEVEL"] as any || log.levels.DEBUG);
 
 sinon.stub(giftbitRoutes.sentry, "sendErrorNotification")
     .callsFake(err => log.error("giftbitRoutes.sentry.sendErrorNotification:", err));
