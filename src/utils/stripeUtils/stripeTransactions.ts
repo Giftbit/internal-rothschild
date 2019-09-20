@@ -72,6 +72,11 @@ export async function createRefund(params: Stripe.refunds.IRefundCreationOptions
             // less clear.  Accepting the dispute and then reversing is riskier still.
             throw new StripeRestError(409, `Stripe charge '${params.charge}' cannot be refunded because it is disputed.`, "StripeChargeDisputed", err);
         }
+        if ((err as Stripe.IStripeError).code === "resource_missing" && (err as Stripe.IStripeError).param === "id") {
+            // The Stripe charge was not found.  In production mode this indicates a serious problem.
+            // In test mode this can be triggered by deleting Stripe test data so it isn't a problem.
+            throw new StripeRestError(isTestMode ? 409 : 500, `Stripe charge '${params.charge}' cannot be refunded because it does not exist.`, "StripeChargeNotFound", err);
+        }
 
         giftbitRoutes.sentry.sendErrorNotification(err);
         throw err;
