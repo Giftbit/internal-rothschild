@@ -1,15 +1,16 @@
 import * as chai from "chai";
+import * as cassava from "cassava";
 import * as testUtils from "../../utils/testUtils";
+import {generateId} from "../../utils/testUtils";
 import * as currencies from "../rest/currencies";
 import {Value} from "../../model/Value";
 import {nowInDbPrecision} from "../../utils/dbUtils";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
-import {generateId} from "../../utils/testUtils";
-import * as cassava from "cassava";
 import {installRestRoutes} from "../rest/installRestRoutes";
 import {Transaction} from "../../model/Transaction";
-import {DebitRequest} from "../../model/TransactionRequest";
+import {CheckoutRequest, DebitRequest} from "../../model/TransactionRequest";
 import {voidExpiredPending} from "./voidExpiredPending";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
 
 describe("voidExpiredPending()", () => {
 
@@ -18,6 +19,7 @@ describe("voidExpiredPending()", () => {
     const router = new cassava.Router();
 
     before(async () => {
+        setStubsForStripeTests();
         await testUtils.resetDb();
 
         router.route(testUtils.authRoute);
@@ -29,6 +31,10 @@ describe("voidExpiredPending()", () => {
             symbol: "$",
             decimalPlaces: 2
         });
+    });
+
+    after(() => {
+        unsetStubsForStripeTests();
     });
 
     it("voids pending transactions with passed pendingVoidDates", async () => {
@@ -73,6 +79,28 @@ describe("voidExpiredPending()", () => {
         const pastPendingDebitRes2 = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", pastPendingDebitTx2);
         chai.assert.equal(pastPendingDebitRes2.statusCode, 201);
         await updateTransactionPendingVoidDate(pastPendingDebitTx2.id, past);
+
+        const stripePendingCheckoutTx: CheckoutRequest = {
+            id: "stripePendingCheckoutTx",
+            currency: "cad",
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "butterfly_kisses",
+                    unitPrice: 1499
+                }
+            ],
+            sources: [
+                {
+                    rail: "stripe",
+                    source: "tok_visa"
+                }
+            ],
+            pending: true
+        };
+        const stripePendingCheckoutTxRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", stripePendingCheckoutTx);
+        chai.assert.equal(stripePendingCheckoutTxRes.statusCode, 201);
+        await updateTransactionPendingVoidDate(stripePendingCheckoutTx.id, past);
 
         const futurePendingDebitTx: DebitRequest = {
             id: "futurePendingDebitTx",
@@ -131,6 +159,7 @@ describe("voidExpiredPending()", () => {
 
         await assertTransactionVoided(router, pastPendingDebitTx1.id);
         await assertTransactionVoided(router, pastPendingDebitTx2.id);
+        await assertTransactionVoided(router, stripePendingCheckoutTx.id);
         await assertTransactionVoided(router, voidedPendingDebitTx.id);
         await assertTransactionNotVoided(router, futurePendingDebitTx.id);
         await assertTransactionNotVoided(router, capturedPendingDebitTx.id);

@@ -25,7 +25,7 @@ export const stripeLiveLightrailConfig: StripeModeConfig = {
     connectWebhookSigningSecret: "secret"
 };
 
-export function setStubsForStripeTests() {
+export function setStubsForStripeTests(): void {
     const testAssumeToken: giftbitRoutes.secureConfig.AssumeScopeToken = {
         assumeToken: "this-is-an-assume-token"
     };
