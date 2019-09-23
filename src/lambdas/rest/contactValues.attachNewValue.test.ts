@@ -329,6 +329,32 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
         });
     });
 
+    it("a Contact can attach a generic-code Value twice using attachNewValue=true to create a new Value", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: currency.code,
+            code: generateFullcode(),
+            balance: 500,
+            isGenericCode: true,
+            usesRemaining: 135
+        };
+
+        const createValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
+
+        const attachResp1 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+            code: value.code,
+            attachGenericAsNewValue: true
+        });
+        chai.assert.equal(attachResp1.statusCode, 200, `body=${JSON.stringify(attachResp1.body)}`);
+
+        const attachResp2 = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+            code: value.code,
+            attachGenericAsNewValue: true
+        });
+        chai.assert.equal(attachResp2.statusCode, 200, `body=${JSON.stringify(attachResp2.body)}`);
+    });
+
     describe("stats on generic code with usesRemaining liability", () => {
         const contactForStatsTest = generateId();
 

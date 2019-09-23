@@ -103,7 +103,7 @@ export function installContactValuesRest(router: cassava.Router): void {
                     attachGenericAsNewValue: {
                         type: "boolean"
                     }
-                } ,
+                },
                 oneOf: [
                     {
                         title: "attach by `valueId`",
@@ -176,30 +176,35 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     }
 
     if (value.isGenericCode) {
-        try {
-            if (Value.isGenericCodeWithPropertiesPerContact(value)) {
-                MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericPerContactProps, auth);
-                return await attachGenericCodeWithPerContactOptions(auth, contact.id, value);
-            } else if (params.attachGenericAsNewValue)  {
-                MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, auth);
-                return await attachGenericValueAsNewValue(auth, contact.id, value);
+        if (Value.isGenericCodeWithPropertiesPerContact(value) || params.attachGenericAsNewValue) {
+            try {
+                if (Value.isGenericCodeWithPropertiesPerContact(value)) {
+                    MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericPerContactProps, auth);
+                    return await attachGenericCodeWithPerContactOptions(auth, contact.id, value);
+                } else if (params.attachGenericAsNewValue) {
+                    MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, auth);
+                    return await attachGenericValueAsNewValue(auth, contact.id, value);
+                }
+            } catch (err) {
+                if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "ValueAlreadyExists") {
+                    const createdValueId = await getIdForAttachingGenericValue(auth, contact.id, value);
+                    return await attachValue(auth, {
+                        contactId: params.contactId,
+                        valueIdentifier: {
+                            valueId: createdValueId,
+                            code: undefined
+                        },
+                        allowOverwrite: params.allowOverwrite,
+                    });
+                } else {
+                    throw err;
+                }
             }
-        } catch (err) {
-            if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "ValueAlreadyAttached") {
-                const createdValueId = await getIdForAttachingGenericValue(auth, contact.id, value);
-                return await attachValue(auth, {
-                    contactId: params.contactId,
-                    valueIdentifier: {
-                        valueId: createdValueId,
-                        code: undefined
-                    },
-                    allowOverwrite: params.allowOverwrite,
-                });
-            }
+        } else {
+            MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, auth);
+            await attachSharedGenericValue(auth, contact.id, value);
+            return value;
         }
-        MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, auth);
-        await attachSharedGenericValue(auth, contact.id, value);
-        return value;
     } else {
         MetricsLogger.valueAttachment(ValueAttachmentTypes.Unique, auth);
         return attachUniqueValue(auth, contact.id, value, params.allowOverwrite);
@@ -378,7 +383,7 @@ async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.Authoriz
         } catch (err) {
             const constraint = getSqlErrorConstraintName(err);
             if (constraint === "PRIMARY") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${originalValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${originalValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyExists");
             }
             if (constraint === "fk_Values_Contacts") {
                 throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${contactId}' not found.`, "ContactNotFound");

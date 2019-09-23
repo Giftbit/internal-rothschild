@@ -1354,6 +1354,34 @@ describe("/v2/values - generic code with per contact properties", () => {
             chai.assert.equal(get.body.createdDate, "2019-06-15T00:00:00.000Z");
             chai.assert.equal(get.body.attachedFromValueId, genericCode.id);
         });
+
+        it("can migrate code to have genericCodeOptions and attach 200s", async () => {
+            const updateRequest: Partial<Value> = {
+                genericCodeOptions: {
+                    perContact: {
+                        balance: null,
+                        usesRemaining: 1
+                    }
+                }
+            };
+
+            const update = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${genericCode.id}`, "PATCH", updateRequest);
+            chai.assert.equal(update.statusCode, 200);
+            chai.assert.isNull(update.body.genericCodeOptions.perContact.balance);
+            chai.assert.equal(update.body.genericCodeOptions.perContact.usesRemaining, 1);
+
+            const get = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${genericCode.id}`, "GET");
+            chai.assert.equal(get.body.genericCodeOptions.perContact.usesRemaining, 1);
+            chai.assert.isNull(get.body.genericCodeOptions.perContact.balance);
+
+            // can attach migrated generic code to same contact
+            const attachAgain = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+                code: genericCode.code,
+                attachGenericAsNewValue: true
+            });
+            chai.assert.equal(attachAgain.statusCode, 200);
+            chai.assert.strictEqual(attachAgain.body.attachedFromValueId, genericCode.id);
+        });
     });
 
     describe("can't add generic code options to a shared generic code that's been attached to a contact", () => {
