@@ -79,7 +79,9 @@ export function getTransactionPlanStepsFromSources(transactionId: string, curren
             value: v,
             amount: 0,
             uses: null,
-            action: "update"
+            action: "update",
+            allowCanceled: false,
+            allowFrozen: true
         }));
 
     const internalSteps = nonLightrailSources

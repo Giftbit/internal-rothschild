@@ -61,10 +61,12 @@ async function voidPendingTransaction(dbTransaction: DbTransaction): Promise<voi
         "lightrailV2:transactions:void"
     ];
 
-
     await executeTransactionPlanner(
         auth,
-        {simulate: false, allowRemainder: false},
+        {
+            simulate: false,
+            allowRemainder: false
+        },
         async () => {
             return createVoidTransactionPlanForDbTransaction(
                 auth,

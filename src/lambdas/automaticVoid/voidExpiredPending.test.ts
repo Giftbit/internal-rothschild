@@ -11,9 +11,14 @@ import {installRestRoutes} from "../rest/installRestRoutes";
 import {Transaction} from "../../model/Transaction";
 import {CheckoutRequest, DebitRequest} from "../../model/TransactionRequest";
 import {voidExpiredPending} from "./voidExpiredPending";
-import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
+import {
+    setStubsForStripeTests,
+    stubNextStripeAuthAccountId,
+    testStripeLive,
+    unsetStubsForStripeTests
+} from "../../utils/testUtils/stripeTestUtils";
 
-describe.only("voidExpiredPending()", () => {
+describe("voidExpiredPending()", () => {
 
     const now = nowInDbPrecision();
     const past = new Date(now);
@@ -197,7 +202,7 @@ describe.only("voidExpiredPending()", () => {
         await assertTransactionVoided(router, txReq.id);
     });
 
-    it("does not choke when Stripe test data is deleted", async function () {
+    it.only("does not choke when Stripe test data is deleted", async function () {
         if (testStripeLive()) {
             // This test relies upon a test token only supported in the local mock server.
             this.skip();
@@ -225,6 +230,41 @@ describe.only("voidExpiredPending()", () => {
         chai.assert.equal(stripePendingCheckoutTxRes.statusCode, 201);
         await updateTransactionPendingVoidDate(stripeCheckoutTx.id, past);
 
+        await voidExpiredPending(getLambdaContext());
+
+        // TODO probably not the right outcome
+        await assertTransactionVoided(router, stripeCheckoutTx.id);
+    });
+
+    it.only("does not choke when the Stripe account becomes disconnected", async function () {
+        if (testStripeLive()) {
+            // This test relies upon a test token only supported in the local mock server.
+            this.skip();
+        }
+
+        const stripeCheckoutTx: CheckoutRequest = {
+            id: generateId(),
+            currency: "cad",
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "snake_hugs",
+                    unitPrice: 1499
+                }
+            ],
+            sources: [
+                {
+                    rail: "stripe",
+                    source: "tok_visa"
+                }
+            ],
+            pending: true
+        };
+        const stripePendingCheckoutTxRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", stripeCheckoutTx);
+        chai.assert.equal(stripePendingCheckoutTxRes.statusCode, 201);
+        await updateTransactionPendingVoidDate(stripeCheckoutTx.id, past);
+
+        stubNextStripeAuthAccountId("acct_invalid");
         await voidExpiredPending(getLambdaContext());
 
         // TODO probably not the right outcome

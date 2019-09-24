@@ -44,17 +44,19 @@ export type LightrailTransactionPlanStep = LightrailUpdateTransactionPlanStep | 
 
 export interface LightrailInsertTransactionPlanStep {
     rail: "lightrail";
-    value: Value;
     action: "insert";
+    value: Value;
     generateCodeParameters?: GenerateCodeParameters;
 }
 
 export interface LightrailUpdateTransactionPlanStep {
     rail: "lightrail";
+    action: "update";
     value: Value;
     amount: number;
     uses: number | null;
-    action: "update";
+    allowCanceled: boolean;
+    allowFrozen: boolean;
 }
 
 export interface StripeChargeTransactionPlanStep {

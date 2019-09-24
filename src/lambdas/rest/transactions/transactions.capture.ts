@@ -7,7 +7,9 @@ import {CaptureRequest} from "../../../model/TransactionRequest";
 import {StripeCaptureTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "./TransactionPlan";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {getDbTransaction} from "./transactions";
-import {DbTransaction, Transaction} from "../../../model/Transaction";
+import {DbTransaction, LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {DbValue} from "../../../model/Value";
+import {getKnexRead} from "../../../utils/dbUtils/connection";
 
 export async function createCaptureTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CaptureRequest, transactionIdToCapture: string): Promise<TransactionPlan> {
     log.info(`Creating capture transaction plan for user: ${auth.userId} and capture request:`, req);
@@ -38,6 +40,12 @@ export async function createCaptureTransactionPlan(auth: giftbitRoutes.jwtauth.A
     }
 
     const transactionToCapture: Transaction = (await DbTransaction.toTransactions([dbTransactionToCapture], auth.userId))[0];
+
+    const values = await getDbValuesFromTransaction(auth, transactionToCapture);
+    const frozenValue = values.find(value => value.frozen);
+    if (frozenValue) {
+        throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot capture Transaction because value. '${frozenValue.id}' is frozen.`, "ValueFrozen");
+    }
 
     return {
         id: req.id,
@@ -74,4 +82,19 @@ function getCaptureTransactionPlanSteps(captureTransactionId: string, transactio
             return null;
         })
         .filter(planStep => !!planStep);
+}
+
+async function getDbValuesFromTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, transaction: Transaction): Promise<DbValue[]> {
+    const valueIds = transaction.steps
+        .filter(step => step.rail === "lightrail")
+        .map(step => (step as LightrailTransactionStep).valueId);
+    if (!valueIds.length) {
+        return [];
+    }
+
+    const knex = await getKnexRead();
+    const dbValues: DbValue[] = await knex("Values")
+        .where({userId: auth.userId})
+        .whereIn("id", valueIds);
+    return dbValues;
 }
