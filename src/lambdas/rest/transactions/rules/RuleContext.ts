@@ -35,6 +35,10 @@ export class RuleContext {
     evaluateRedemptionRule(rule: Rule): boolean {
         return getRuleFromCache(rule.rule).evaluateToBoolean(this);
     }
+
+    evaluateDiscountSellerLiabilityRule(rule: string): number {
+        return getRuleFromCache(rule).evaluateToNumber(this);
+    }
 }
 
 export function checkRulesSyntax(holder: { redemptionRule?: Rule, balanceRule?: Rule }, holderType: "Value" | "Program"): void {

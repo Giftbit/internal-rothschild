@@ -105,7 +105,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
         let sellerDiscount = 0;
         for (const step of this.steps) {
             if (getDiscountSellerLiability(step) !== 0) {
-                sellerDiscount -= (step as LightrailUpdateTransactionPlanStep).amount * (step as LightrailUpdateTransactionPlanStep).value.discountSellerLiability;
+                sellerDiscount -= (step as LightrailUpdateTransactionPlanStep).amount * +(step as LightrailUpdateTransactionPlanStep).value.discountSellerLiability;
             }
         }
         sellerDiscount = bankersRounding(sellerDiscount, 0);

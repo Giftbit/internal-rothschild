@@ -1,5 +1,5 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {Rule} from "./Value";
+import {formatDiscountSellerLiability, Rule} from "./Value";
 import {pickDefined} from "../utils/pick";
 
 export interface Program {
@@ -7,7 +7,7 @@ export interface Program {
     name: string;
     currency: string;
     discount: boolean;
-    discountSellerLiability: number | null;
+    discountSellerLiability: number | string | null;
     pretax: boolean;
     active: boolean;
     redemptionRule: Rule | null;
@@ -32,7 +32,7 @@ export namespace Program {
             name: v.name,
             currency: v.currency,
             discount: v.discount,
-            discountSellerLiability: v.discountSellerLiability,
+            discountSellerLiabilityRule: !!v.discountSellerLiability ? v.discountSellerLiability.toString() : null,
             pretax: v.pretax,
             active: v.active,
             minInitialBalance: v.minInitialBalance,
@@ -55,7 +55,7 @@ export namespace Program {
             name: v.name,
             currency: v.currency,
             discount: v.discount,
-            discountSellerLiability: v.discountSellerLiability,
+            discountSellerLiability: !!v.discountSellerLiability ? v.discountSellerLiability.toString() : undefined,
             pretax: v.pretax,
             active: v.active,
             redemptionRule: JSON.stringify(v.redemptionRule),
@@ -78,7 +78,7 @@ export interface DbProgram {
     name: string;
     currency: string;
     discount: boolean;
-    discountSellerLiability: number | null;
+    discountSellerLiabilityRule: string | null;
     pretax: boolean;
     active: boolean;
     redemptionRule: string;
@@ -102,7 +102,7 @@ export namespace DbProgram {
             name: v.name,
             currency: v.currency,
             discount: v.discount,
-            discountSellerLiability: v.discountSellerLiability,
+            discountSellerLiability: formatDiscountSellerLiability(v.discountSellerLiabilityRule),
             pretax: v.pretax,
             active: v.active,
             minInitialBalance: v.minInitialBalance,

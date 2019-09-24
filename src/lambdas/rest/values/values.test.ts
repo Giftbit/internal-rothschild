@@ -829,7 +829,7 @@ describe("/v2/values/", () => {
 
             const page1 = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?id.in=${ids.join(",")}`, "GET");
             chai.assert.equal(page1.statusCode, 200, `body=${JSON.stringify(page1.body)}`);
-            chai.assert.deepEqualExcludingEvery<any>(page1.body, expected, ["userId", "codeHashed", "code", "codeLastFour", "startDate", "endDate", "createdDate", "updatedDate", "updatedContactIdDate", "codeEncrypted", "isGenericCode", "attachedFromValueId", "genericCodeOptions_perContact_usesRemaining", "genericCodeOptions_perContact_balance"]);
+            chai.assert.deepEqualExcludingEvery<any>(page1.body, expected, ["userId", "codeHashed", "code", "codeLastFour", "startDate", "endDate", "createdDate", "updatedDate", "updatedContactIdDate", "codeEncrypted", "isGenericCode", "attachedFromValueId", "genericCodeOptions_perContact_usesRemaining", "genericCodeOptions_perContact_balance", "discountSellerLiabilityRule", "discountSellerLiability"]);
             chai.assert.isDefined(page1.headers["Link"]);
         });
     });

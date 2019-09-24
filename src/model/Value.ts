@@ -20,7 +20,7 @@ export interface Value {
     canceled: boolean;
     frozen: boolean;
     discount: boolean;
-    discountSellerLiability: number | null;
+    discountSellerLiability: number | string | null;
     redemptionRule: Rule | null;
     balanceRule: Rule | null;
     startDate: Date | null;
@@ -68,7 +68,7 @@ export namespace Value {
             canceled: v.canceled,
             frozen: v.frozen,
             discount: v.discount,
-            discountSellerLiability: v.discountSellerLiability,
+            discountSellerLiabilityRule: !!v.discountSellerLiability ? v.discountSellerLiability.toString() : null,
             redemptionRule: JSON.stringify(v.redemptionRule),
             balanceRule: JSON.stringify(v.balanceRule),
             startDate: v.startDate,
@@ -98,7 +98,7 @@ export namespace Value {
             frozen: v.frozen,
             pretax: v.pretax,
             discount: v.discount,
-            discountSellerLiability: v.discountSellerLiability,
+            discountSellerLiabilityRule: !!v.discountSellerLiability ? v.discountSellerLiability.toString() : undefined,
             redemptionRule: JSON.stringify(v.redemptionRule),
             balanceRule: JSON.stringify(v.balanceRule),
             startDate: v.startDate,
@@ -139,7 +139,7 @@ export interface DbValue {
     canceled: boolean;
     frozen: boolean;
     discount: boolean;
-    discountSellerLiability: number | null;
+    discountSellerLiabilityRule: string | null;
     redemptionRule: string;
     balanceRule: string;
     startDate: Date | null;
@@ -183,7 +183,7 @@ export namespace DbValue {
             canceled: !!v.canceled,
             frozen: !!v.frozen,
             discount: !!v.discount,
-            discountSellerLiability: v.discountSellerLiability,
+            discountSellerLiability: formatDiscountSellerLiability(v.discountSellerLiabilityRule),
             redemptionRule: JSON.parse(v.redemptionRule),
             balanceRule: JSON.parse(v.balanceRule),
             startDate: v.startDate,
@@ -211,4 +211,19 @@ async function dbValueCodeToValueCode(v: DbValue, showCode: boolean): Promise<st
 
 export function formatCodeForLastFourDisplay(code: string): string {
     return "…" + getCodeLastFourNoPrefix(code);
+}
+
+/**
+ * If discountSellerLiability can directly correspond to a number this will return a number.
+ * This was done to not break existing integrations that are depending on that type being a number.
+ * Otherwise, returns discountSellerLiability as a string which will be a rule that needs to be evaluated.
+ */
+export function formatDiscountSellerLiability(discountSellerLiability: string | null): string | number | null {
+    if (!discountSellerLiability) {
+        return null
+    } else if (isNaN(+discountSellerLiability)) {
+        return discountSellerLiability as string;
+    } else {
+        return +discountSellerLiability;
+    }
 }
