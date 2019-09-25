@@ -1802,7 +1802,6 @@ describe("/v2/programs", () => {
         chai.assert.equal(create.statusCode, 201);
     });
 
-
     it("can create a program with discountSellerLiability as a rule if it's a discount", async () => {
         const program: Partial<Program> = {
             id: generateId(),

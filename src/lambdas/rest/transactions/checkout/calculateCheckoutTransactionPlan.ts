@@ -114,7 +114,7 @@ function calculateAmountForLightrailTransactionStep(step: LightrailUpdateTransac
             if (value.discount) {
                 item.lineTotal.discount += amount;
                 if (value.discountSellerLiability !== null) {
-                    item.lineTotal.sellerDiscount += (amount * getDiscountSellerLiability(transactionPlan, step, item));
+                    item.lineTotal.sellerDiscount += bankersRounding(amount * getDiscountSellerLiability(transactionPlan, step, item), 0);
                 }
             }
         } else {

@@ -220,7 +220,7 @@ export function formatCodeForLastFourDisplay(code: string): string {
  */
 export function formatDiscountSellerLiability(discountSellerLiability: string | null): string | number | null {
     if (!discountSellerLiability) {
-        return null
+        return null;
     } else if (isNaN(+discountSellerLiability)) {
         return discountSellerLiability as string;
     } else {
