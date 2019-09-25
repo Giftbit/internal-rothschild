@@ -1802,6 +1802,19 @@ describe("/v2/programs", () => {
         chai.assert.equal(create.statusCode, 201);
     });
 
+
+    it("can create a program with discountSellerLiability as a rule if it's a discount", async () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            name: "name " + generateId(5),
+            currency: "USD",
+            discountSellerLiability: "1 - currentLineItem.marketplaceRate",
+            discount: true
+        };
+        const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", program);
+        chai.assert.equal(create.statusCode, 201);
+    });
+
     it("can't create a program with duplicate fixedInitialUsesRemaining", async () => {
         const program: Partial<Program> = {
             id: generateId(),

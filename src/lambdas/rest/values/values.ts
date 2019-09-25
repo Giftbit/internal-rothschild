@@ -872,7 +872,6 @@ const valueSchema: jsonschema.Schema = {
                     type: "string"
                 }
             ]
-
         },
         startDate: {
             type: ["string", "null"],

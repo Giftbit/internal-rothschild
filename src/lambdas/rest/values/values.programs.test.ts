@@ -613,4 +613,27 @@ describe("/v2/values create from program", () => {
             chai.assert.notDeepEqual(valueResp.body.metadata, program.metadata);
         });
     });
+
+    it("can create value from program that uses discountSellerLiabilityRule", async () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            currency: "USD",
+            name: "example",
+            discount: true,
+            discountSellerLiability: "1 - currentLineItem.marketplaceRate"
+        };
+        const createProgram = await testUtils.testAuthedRequest<Value>(router, "/v2/programs", "POST", program);
+        chai.assert.equal(createProgram.statusCode, 201, JSON.stringify(createProgram.body));
+        chai.assert.equal(createProgram.body.discountSellerLiability, "1 - currentLineItem.marketplaceRate");
+
+        let value: Partial<Value> = {
+            id: generateId(),
+            programId: program.id,
+            balance: 100
+        };
+
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValue.statusCode, 201, JSON.stringify(createValue.body));
+        chai.assert.deepEqual(createValue.body.discountSellerLiability, "1 - currentLineItem.marketplaceRate");
+    });
 });

@@ -41,7 +41,7 @@ export class RuleContext {
     }
 }
 
-export function checkRulesSyntax(holder: { redemptionRule?: Rule, balanceRule?: Rule }, holderType: "Value" | "Program"): void {
+export function checkRulesSyntax(holder: { redemptionRule?: Rule, balanceRule?: Rule, discountSellerLiability?: string | number | null }, holderType: "Value" | "Program"): void {
     if (holder.balanceRule) {
         const rule = getRuleFromCache(holder.balanceRule.rule);
         if (rule.compileError) {
@@ -58,6 +58,17 @@ export function checkRulesSyntax(holder: { redemptionRule?: Rule, balanceRule?: 
         if (rule.compileError) {
             throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `${holderType} redemptionRule has a syntax error.`, {
                 messageCode: "RedemptionRuleSyntaxError",
+                syntaxErrorMessage: rule.compileError.msg,
+                row: rule.compileError.row,
+                column: rule.compileError.column
+            });
+        }
+    }
+    if (holder.discountSellerLiability) {
+        const rule = getRuleFromCache(holder.discountSellerLiability.toString());
+        if (rule.compileError) {
+            throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `${holderType} discountSellerLiability has a syntax error.`, {
+                messageCode: "DiscountSellerLiabilityRuleSyntaxError",
                 syntaxErrorMessage: rule.compileError.msg,
                 row: rule.compileError.row,
                 column: rule.compileError.column
