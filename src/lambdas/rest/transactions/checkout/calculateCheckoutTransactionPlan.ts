@@ -127,18 +127,11 @@ function calculateAmountForLightrailTransactionStep(step: LightrailUpdateTransac
  * Returns a number between 0 and 1.
  */
 function getDiscountSellerLiability(transactionPlan: TransactionPlan, step: LightrailUpdateTransactionPlanStep, item: LineItemResponse): number {
+    let discountSellerLiability: string | number = step.value.discountSellerLiability;
     if (typeof step.value.discountSellerLiability === "string") {
-        const result = getRuleContext(transactionPlan, step, item).evaluateDiscountSellerLiabilityRule(step.value.discountSellerLiability);
-        if (result > 1) {
-            return 1;
-        } else if (result < 0) {
-            return 0;
-        } else {
-            return result;
-        }
-    } else {
-        return step.value.discountSellerLiability; // already between 0 and 1 based on value creation schema.
+        discountSellerLiability = getRuleContext(transactionPlan, step, item).evaluateDiscountSellerLiabilityRule(step.value.discountSellerLiability);
     }
+    return Math.min(1, Math.max(0, <number>discountSellerLiability));
 }
 
 function calculateAmountForStripeTransactionStep(step: StripeChargeTransactionPlanStep, transactionPlan: TransactionPlan): void {
