@@ -201,9 +201,22 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 }
             }
         } else {
-            MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, auth);
-            await attachSharedGenericValue(auth, contact.id, value);
-            return value;
+            try {
+                MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, auth);
+                await attachSharedGenericValue(auth, contact.id, value);
+                return value;
+            } catch (err) {
+                if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "ValueAlreadyAttached") {
+                    const now = nowInDbPrecision();
+                    return await updateValue(auth, value.id, {
+                        code: value.code ,
+                        updatedDate: now,
+                        updatedContactIdDate: now,
+                    });
+                } else {
+                    throw err;
+                }
+            }
         }
     } else {
         MetricsLogger.valueAttachment(ValueAttachmentTypes.Unique, auth);
