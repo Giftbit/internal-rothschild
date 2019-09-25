@@ -329,10 +329,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             currency: "CAD",
             discount: true,
             discountSellerLiability: "1 - currentLineItem.marketplaceRate",
-            balanceRule: {
-                rule: "currentLineItem.lineTotal.subtotal * 0.40",
-                explanation: "40% off"
-            },
+            balance: 9200,
             pretax: true
         };
 
@@ -350,18 +347,25 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             ],
             lineItems: [
                 {
-                    type: "product",
-                    productId: "adventure",
-                    unitPrice: 20000,
-                    taxRate: 0.15,
-                    marketplaceRate: 0.2
+                    productId: "rental_items_total",
+                    unitPrice: 46000,
+                    taxRate: 0.084,
+                    marketplaceRate: 0.185,
+                    quantity: 1,
                 },
                 {
-                    type: "fee",
-                    productId: "commission-fee",
-                    unitPrice: 1200,
-                    taxRate: 0.15,
-                    marketplaceRate: 1
+                    productId: "delivery_total",
+                    unitPrice: 3500,
+                    taxRate: 0.084,
+                    marketplaceRate: 0.185,
+                    quantity: 1,
+                },
+                {
+                    productId: "service_fee_total",
+                    unitPrice: 2821,
+                    taxRate: 0.084,
+                    marketplaceRate: 1,
+                    quantity: 1,
                 }
             ],
             currency: "CAD",
@@ -369,56 +373,71 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
         };
         const createCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
         chai.assert.equal(createCheckout.statusCode, 201, `body=${JSON.stringify(createCheckout.body)}`);
+        console.log(JSON.stringify(createCheckout, null, 4));
         chai.assert.deepEqual(createCheckout.body.totals, {
-            "subtotal": 21200,
-            "tax": 1908,
-            "discount": 8480,
-            "payable": 14628,
-            "remainder": 14628,
+            "subtotal": 52321,
+            "tax": 3622,
+            "discount": 9200,
+            "payable": 46743,
+            "remainder": 46743,
             "forgiven": 0,
-            "discountLightrail": 8480,
+            "discountLightrail": 9200,
             "paidLightrail": 0,
             "paidStripe": 0,
             "paidInternal": 0,
             "marketplace": {
-                "sellerGross": 16000,
-                "sellerDiscount": 6400,
-                "sellerNet": 9600
+                "sellerGross": 40342,
+                "sellerDiscount": 7498,
+                "sellerNet": 32844
             }
         });
         chai.assert.deepEqual(createCheckout.body.lineItems, [
             {
-                "type": "product",
-                "productId": "adventure",
-                "unitPrice": 20000,
-                "taxRate": 0.15,
-                "marketplaceRate": 0.2,
+                "productId": "rental_items_total",
+                "unitPrice": 46000,
+                "taxRate": 0.084,
+                "marketplaceRate": 0.185,
                 "quantity": 1,
                 "lineTotal": {
-                    "subtotal": 20000,
-                    "taxable": 12000,
-                    "tax": 1800,
-                    "discount": 8000,
-                    "sellerDiscount": 6400,
-                    "remainder": 13800,
-                    "payable": 13800
+                    "subtotal": 46000,
+                    "taxable": 36800,
+                    "tax": 3091,
+                    "discount": 9200,
+                    "sellerDiscount": 7498,
+                    "remainder": 39891,
+                    "payable": 39891
                 }
             },
             {
-                "type": "fee",
-                "productId": "commission-fee",
-                "unitPrice": 1200,
-                "taxRate": 0.15,
+                "productId": "delivery_total",
+                "unitPrice": 3500,
+                "taxRate": 0.084,
+                "marketplaceRate": 0.185,
+                "quantity": 1,
+                "lineTotal": {
+                    "subtotal": 3500,
+                    "taxable": 3500,
+                    "tax": 294,
+                    "discount": 0,
+                    "sellerDiscount": 0,
+                    "remainder": 3794,
+                    "payable": 3794
+                }
+            },
+            {
+                "productId": "service_fee_total",
+                "unitPrice": 2821,
+                "taxRate": 0.084,
                 "marketplaceRate": 1,
                 "quantity": 1,
                 "lineTotal": {
-                    "subtotal": 1200,
-                    "taxable": 720,
-                    "tax": 108,
-                    "discount": 480,
+                    "subtotal": 2821,
+                    "taxable": 2821,
+                    "tax": 237,
+                    "discount": 0,
                     "sellerDiscount": 0,
-                    "remainder": 828,
-                    "payable": 828
+                    "remainder": 3058,
+                    "payable": 3058
                 }
             }
         ]);
