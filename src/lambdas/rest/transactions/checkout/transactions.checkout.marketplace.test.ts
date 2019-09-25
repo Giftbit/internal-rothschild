@@ -8,7 +8,7 @@ import * as chai from "chai";
 import {Transaction} from "../../../../model/Transaction";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
 
-describe("/v2/transactions/checkout - marketplaceRate", () => {
+describe.only("/v2/transactions/checkout - marketplaceRate", () => {
 
     const router = new cassava.Router();
 
@@ -320,5 +320,401 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
                 sellerNet: 800
             }
         });
+    });
+
+    it("can checkout against value that has discountSellerLiability: 1 - currentLineItem.marketplaceRate", async () => {
+        const partialValue: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            discount: true,
+            discountSellerLiability: "1 - currentLineItem.marketplaceRate",
+            balanceRule: {
+                rule: "currentLineItem.lineTotal.subtotal * 0.40",
+                explanation: "40% off"
+            },
+            pretax: true
+        };
+
+        const post = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", partialValue);
+        chai.assert.equal(post.statusCode, 201, `body=${JSON.stringify(post.body)}`);
+        chai.assert.deepEqual(post.body.discountSellerLiability, partialValue.discountSellerLiability);
+
+        const checkoutRequest = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: partialValue.id
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "adventure",
+                    unitPrice: 20000,
+                    taxRate: 0.15,
+                    marketplaceRate: 0.2
+                },
+                {
+                    type: "fee",
+                    productId: "commission-fee",
+                    unitPrice: 1200,
+                    taxRate: 0.15,
+                    marketplaceRate: 1
+                }
+            ],
+            currency: "CAD",
+            allowRemainder: true
+        };
+        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
+        chai.assert.deepEqual(checkoutResp.body.totals, {
+            "subtotal": 21200,
+            "tax": 1908,
+            "discount": 8480,
+            "payable": 14628,
+            "remainder": 14628,
+            "forgiven": 0,
+            "discountLightrail": 8480,
+            "paidLightrail": 0,
+            "paidStripe": 0,
+            "paidInternal": 0,
+            "marketplace": {
+                "sellerGross": 16000,
+                "sellerDiscount": 6400,
+                "sellerNet": 9600
+            }
+        });
+        chai.assert.deepEqual(checkoutResp.body.lineItems, [
+            {
+                "type": "product",
+                "productId": "adventure",
+                "unitPrice": 20000,
+                "taxRate": 0.15,
+                "marketplaceRate": 0.2,
+                "quantity": 1,
+                "lineTotal": {
+                    "subtotal": 20000,
+                    "taxable": 12000,
+                    "tax": 1800,
+                    "discount": 8000,
+                    "sellerDiscount": 6400,
+                    "remainder": 13800,
+                    "payable": 13800
+                }
+            },
+            {
+                "type": "fee",
+                "productId": "commission-fee",
+                "unitPrice": 1200,
+                "taxRate": 0.15,
+                "marketplaceRate": 1,
+                "quantity": 1,
+                "lineTotal": {
+                    "subtotal": 1200,
+                    "taxable": 720,
+                    "tax": 108,
+                    "discount": 480,
+                    "sellerDiscount": 0,
+                    "remainder": 828,
+                    "payable": 828
+                }
+            }
+        ]);
+    });
+
+    it("discountSellerLiability rules result in a maximum of 100% discountSellerLiability", async () => {
+        const partialValue: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            discount: true,
+            discountSellerLiability: "1 + 1",
+            balanceRule: {
+                rule: "currentLineItem.lineTotal.subtotal * 0.40",
+                explanation: "40% off"
+            },
+            pretax: true
+        };
+        const post = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", partialValue);
+        chai.assert.equal(post.statusCode, 201, `body=${JSON.stringify(post.body)}`);
+        chai.assert.deepEqual(post.body.discountSellerLiability, partialValue.discountSellerLiability);
+
+        const checkoutRequest = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: partialValue.id
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "adventure",
+                    unitPrice: 20000,
+                    marketplaceRate: 0.2
+                }
+            ],
+            currency: "CAD",
+            allowRemainder: true
+        };
+        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
+        chai.assert.deepEqual(checkoutResp.body.totals, {
+            "subtotal": 20000,
+            "tax": 0,
+            "discount": 8000,
+            "payable": 12000,
+            "remainder": 12000,
+            "forgiven": 0,
+            "discountLightrail": 8000,
+            "paidLightrail": 0,
+            "paidStripe": 0,
+            "paidInternal": 0,
+            "marketplace": {
+                "sellerGross": 16000,
+                "sellerDiscount": 8000,
+                "sellerNet": 8000
+            }
+        });
+        chai.assert.deepEqual(checkoutResp.body.lineItems, [
+            {
+                "type": "product",
+                "productId": "adventure",
+                "unitPrice": 20000,
+                "marketplaceRate": 0.2,
+                "quantity": 1,
+                "lineTotal": {
+                    "subtotal": 20000,
+                    "taxable": 12000,
+                    "tax": 0,
+                    "discount": 8000,
+                    "sellerDiscount": 8000,
+                    "remainder": 12000,
+                    "payable": 12000
+                }
+            }
+        ]);
+    });
+
+    it("discountSellerLiability rules result in a minimum of 0% discountSellerLiability", async () => {
+        const partialValue: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            discount: true,
+            discountSellerLiability: "0 - 0.50",
+            balanceRule: {
+                rule: "currentLineItem.lineTotal.subtotal * 0.40",
+                explanation: "40% off"
+            },
+            pretax: true
+        };
+        const post = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", partialValue);
+        chai.assert.equal(post.statusCode, 201, `body=${JSON.stringify(post.body)}`);
+        chai.assert.deepEqual(post.body.discountSellerLiability, partialValue.discountSellerLiability);
+
+        const checkoutRequest = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: partialValue.id
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "adventure",
+                    unitPrice: 20000,
+                    marketplaceRate: 0.2
+                }
+            ],
+            currency: "CAD",
+            allowRemainder: true
+        };
+        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
+        chai.assert.deepEqual(checkoutResp.body.totals, {
+            "subtotal": 20000,
+            "tax": 0,
+            "discount": 8000,
+            "payable": 12000,
+            "remainder": 12000,
+            "forgiven": 0,
+            "discountLightrail": 8000,
+            "paidLightrail": 0,
+            "paidStripe": 0,
+            "paidInternal": 0,
+            "marketplace": {
+                "sellerGross": 16000,
+                "sellerDiscount": 0,
+                "sellerNet": 16000
+            }
+        });
+        chai.assert.deepEqual(checkoutResp.body.lineItems, [
+            {
+                "type": "product",
+                "productId": "adventure",
+                "unitPrice": 20000,
+                "marketplaceRate": 0.2,
+                "quantity": 1,
+                "lineTotal": {
+                    "subtotal": 20000,
+                    "taxable": 12000,
+                    "tax": 0,
+                    "discount": 8000,
+                    "sellerDiscount": 0,
+                    "remainder": 12000,
+                    "payable": 12000
+                }
+            }
+        ]);
+    });
+
+    it("discountSellerLiability rules that don't evaluate to anything result in 0", async () => {
+        const partialValue: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            discount: true,
+            discountSellerLiability: "currentLineItem.nothingHere",
+            balanceRule: {
+                rule: "currentLineItem.lineTotal.subtotal * 0.40",
+                explanation: "40% off"
+            },
+            pretax: true
+        };
+        const post = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", partialValue);
+        chai.assert.equal(post.statusCode, 201, `body=${JSON.stringify(post.body)}`);
+        chai.assert.deepEqual(post.body.discountSellerLiability, partialValue.discountSellerLiability);
+
+        const checkoutRequest = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: partialValue.id
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "adventure",
+                    unitPrice: 20000,
+                    marketplaceRate: 0.2
+                }
+            ],
+            currency: "CAD",
+            allowRemainder: true
+        };
+        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
+        chai.assert.deepEqual(checkoutResp.body.totals, {
+            "subtotal": 20000,
+            "tax": 0,
+            "discount": 8000,
+            "payable": 12000,
+            "remainder": 12000,
+            "forgiven": 0,
+            "discountLightrail": 8000,
+            "paidLightrail": 0,
+            "paidStripe": 0,
+            "paidInternal": 0,
+            "marketplace": {
+                "sellerGross": 16000,
+                "sellerDiscount": 0,
+                "sellerNet": 16000
+            }
+        });
+        chai.assert.deepEqual(checkoutResp.body.lineItems, [
+            {
+                "type": "product",
+                "productId": "adventure",
+                "unitPrice": 20000,
+                "marketplaceRate": 0.2,
+                "quantity": 1,
+                "lineTotal": {
+                    "subtotal": 20000,
+                    "taxable": 12000,
+                    "tax": 0,
+                    "discount": 8000,
+                    "sellerDiscount": 0,
+                    "remainder": 12000,
+                    "payable": 12000
+                }
+            }
+        ]);
+    });
+
+    it("discountSellerLiability rules that partially evaluate can still work - missing marketplaceRate", async () => {
+        const partialValue: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            discount: true,
+            discountSellerLiability: "1 - currentLineItem.markpletaceRate",
+            balanceRule: {
+                rule: "currentLineItem.lineTotal.subtotal * 0.40",
+                explanation: "40% off"
+            },
+            pretax: true
+        };
+        const post = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", partialValue);
+        chai.assert.equal(post.statusCode, 201, `body=${JSON.stringify(post.body)}`);
+        chai.assert.deepEqual(post.body.discountSellerLiability, partialValue.discountSellerLiability);
+
+        const checkoutRequest = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "lightrail",
+                    valueId: partialValue.id
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "adventure",
+                    unitPrice: 20000
+                }
+            ],
+            currency: "CAD",
+            allowRemainder: true
+        };
+        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
+        chai.assert.deepEqual(checkoutResp.body.totals, {
+            "subtotal": 20000,
+            "tax": 0,
+            "discount": 8000,
+            "payable": 12000,
+            "remainder": 12000,
+            "forgiven": 0,
+            "discountLightrail": 8000,
+            "paidLightrail": 0,
+            "paidStripe": 0,
+            "paidInternal": 0,
+            "marketplace": {
+                "sellerGross": 20000,
+                "sellerDiscount": 8000,
+                "sellerNet": 12000
+            }
+        });
+        chai.assert.deepEqual(checkoutResp.body.lineItems, [
+            {
+                "type": "product",
+                "productId": "adventure",
+                "unitPrice": 20000,
+                "marketplaceRate": 0.2,
+                "quantity": 1,
+                "lineTotal": {
+                    "subtotal": 20000,
+                    "taxable": 12000,
+                    "tax": 0,
+                    "discount": 8000,
+                    "sellerDiscount": 8000,
+                    "remainder": 12000,
+                    "payable": 12000
+                }
+            }
+        ]);
     });
 });

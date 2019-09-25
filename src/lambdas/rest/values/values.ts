@@ -862,9 +862,17 @@ const valueSchema: jsonschema.Schema = {
             type: "boolean"
         },
         discountSellerLiability: {
-            type: ["number", "null"],
-            minimum: 0,
-            maximum: 1
+            oneOf: [
+                {
+                    type: ["number", "null"],
+                    minimum: 0,
+                    maximum: 1
+                },
+                {
+                    type: "string"
+                }
+            ]
+
         },
         startDate: {
             type: ["string", "null"],

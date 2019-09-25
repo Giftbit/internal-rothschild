@@ -89,7 +89,7 @@ function calculateAmountForLightrailTransactionStep(step: LightrailUpdateTransac
         const item = transactionPlan.lineItems[index];
         if (item.lineTotal.remainder > 0) {
             if (value.redemptionRule) {
-                if (!getRuleContext(transactionPlan, value, step, item).evaluateRedemptionRule(value.redemptionRule)) {
+                if (!getRuleContext(transactionPlan, step, item).evaluateRedemptionRule(value.redemptionRule)) {
                     log.info(`Value ${value.id} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
                     continue;
                 }
@@ -98,7 +98,7 @@ function calculateAmountForLightrailTransactionStep(step: LightrailUpdateTransac
             log.info(`Value ${value.id} CAN be applied to ${JSON.stringify(item)}.`);
             let amount: number;
             if (value.balanceRule) {
-                const evaluateBalanceRule = getRuleContext(transactionPlan, value, step, item).evaluateBalanceRule(value.balanceRule);
+                const evaluateBalanceRule = getRuleContext(transactionPlan, step, item).evaluateBalanceRule(value.balanceRule);
                 const amountFromRule: number = isNaN(evaluateBalanceRule) || evaluateBalanceRule < 0 ? 0 : evaluateBalanceRule;
                 const roundedAmountFromRule = bankersRounding(amountFromRule, 0);
                 amount = Math.min(item.lineTotal.remainder, roundedAmountFromRule);
@@ -113,10 +113,27 @@ function calculateAmountForLightrailTransactionStep(step: LightrailUpdateTransac
             item.lineTotal.remainder -= amount;
             if (value.discount) {
                 item.lineTotal.discount += amount;
+                if (value.discountSellerLiability !== null) {
+                    const sellerLibRate = getDiscountSellerLiability(transactionPlan, step, item);
+                    console.log("sellerLibRate: " + sellerLibRate + " . amount = " + amount);
+                    item.lineTotal.sellerDiscount += (amount * sellerLibRate);
+                    console.log("item.lineTotal.sellerDiscount: " + item.lineTotal.sellerDiscount);
+                }
             }
         } else {
             // The item has been paid for, skip.
         }
+    }
+}
+
+/**
+ * Returns a number between 0 and 1.
+ */
+function getDiscountSellerLiability(transactionPlan: TransactionPlan, step: LightrailUpdateTransactionPlanStep, item: LineItemResponse): number {
+    if (typeof step.value.discountSellerLiability === "string") {
+        return getRuleContext(transactionPlan, step, item).evaluateDiscountSellerLiabilityRule(step.value.discountSellerLiability);
+    } else {
+        return step.value.discountSellerLiability
     }
 }
 
@@ -147,7 +164,7 @@ function getAvailableBalance(balance: number, negativeStepAmount: number): numbe
     return balance + negativeStepAmount;
 }
 
-function getRuleContext(transactionPlan: TransactionPlan, value: Value, step: LightrailUpdateTransactionPlanStep, item: LineItemResponse): RuleContext {
+function getRuleContext(transactionPlan: TransactionPlan, step: LightrailUpdateTransactionPlanStep, item: LineItemResponse): RuleContext {
     return new RuleContext({
         totals: transactionPlan.totals,
         lineItems: transactionPlan.lineItems,

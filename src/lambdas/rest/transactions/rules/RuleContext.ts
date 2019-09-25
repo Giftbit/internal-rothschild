@@ -37,7 +37,15 @@ export class RuleContext {
     }
 
     evaluateDiscountSellerLiabilityRule(rule: string): number {
-        return getRuleFromCache(rule).evaluateToNumber(this);
+        const val = getRuleFromCache(rule).evaluateToNumber(this);
+        console.log("evalutated rule to number: " + val);
+        if (val > 1) {
+            return 1;
+        } else if (val < 0) {
+            return 0;
+        } else {
+            return val;
+        }
     }
 }
 

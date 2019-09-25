@@ -39,6 +39,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
                     taxable: subtotal,
                     tax: 0,
                     discount: 0,
+                    sellerDiscount: 0,
                     remainder: subtotal,
                     payable: 0
                 }
@@ -92,22 +93,20 @@ export class CheckoutTransactionPlan implements TransactionPlan {
             && !this.steps.find(step => getDiscountSellerLiability(step) !== 0)) {
             // Marketplace totals are only set if an item has a marketplaceRate or if discountSellerLiability is set on a Value.
             this.totals.marketplace = undefined;
+            for (const item of this.lineItems) {
+                item.lineTotal.sellerDiscount = undefined;
+            }
             return;
         }
 
         let sellerGross = 0;
+        let sellerDiscount = 0;
         for (const item of this.lineItems) {
             const rate = item.marketplaceRate != null ? item.marketplaceRate : 0;
             sellerGross += (1.0 - rate) * item.unitPrice * (item.quantity || 1);
+            sellerDiscount += item.lineTotal.sellerDiscount;
         }
         sellerGross = bankersRounding(sellerGross, 0);
-
-        let sellerDiscount = 0;
-        for (const step of this.steps) {
-            if (getDiscountSellerLiability(step) !== 0) {
-                sellerDiscount -= (step as LightrailUpdateTransactionPlanStep).amount * +(step as LightrailUpdateTransactionPlanStep).value.discountSellerLiability;
-            }
-        }
         sellerDiscount = bankersRounding(sellerDiscount, 0);
 
         this.totals.marketplace = {
