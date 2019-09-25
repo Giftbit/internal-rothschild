@@ -496,6 +496,24 @@ describe("/v2/values/", () => {
         chai.assert.isNull(updateValue.body.endDate);
     });
 
+    it("can update a Value's discountSellerLiability from type number to rule", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            balance: 5,
+            currency: "USD",
+            discount: true,
+            discountSellerLiability: 0.05
+        };
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValue.statusCode, 201);
+
+        const updateValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", {
+            discountSellerLiability: "1 - currentLineItem.marketplaceRate"
+        });
+        chai.assert.equal(updateValue.statusCode, 200);
+        chai.assert.equal(updateValue.body.discountSellerLiability, "1 - currentLineItem.marketplaceRate");
+    });
+
     it("can't create Value with balance and balanceRule", async () => {
         let value: Partial<Value> = {
             id: generateId(),

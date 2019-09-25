@@ -629,12 +629,12 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
         ]);
     });
 
-    it("discountSellerLiability rules that partially evaluate can still work - missing marketplaceRate", async () => {
+    it("discountSellerLiability rules that partially evaluate still execute based on what they evaluate to - missing marketplaceRate", async () => {
         const value: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
             discount: true,
-            discountSellerLiability: "1 - currentLineItem.markpletaceRate",
+            discountSellerLiability: "1 - currentLineItem.marketplaceRate",
             balanceRule: {
                 rule: "currentLineItem.lineTotal.subtotal * 0.40",
                 explanation: "40% off"

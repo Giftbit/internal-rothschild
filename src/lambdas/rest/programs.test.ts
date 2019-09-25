@@ -1798,8 +1798,9 @@ describe("/v2/programs", () => {
             discountSellerLiability: 0.20,
             discount: true
         };
-        const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", program);
+        const create = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
         chai.assert.equal(create.statusCode, 201);
+        chai.assert.equal(create.body.discountSellerLiability, 0.20);
     });
 
     it("can create a program with discountSellerLiability as a rule if it's a discount", async () => {
@@ -1810,8 +1811,9 @@ describe("/v2/programs", () => {
             discountSellerLiability: "1 - currentLineItem.marketplaceRate",
             discount: true
         };
-        const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", program);
+        const create = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
         chai.assert.equal(create.statusCode, 201);
+        chai.assert.equal(create.body.discountSellerLiability, "1 - currentLineItem.marketplaceRate");
     });
 
     it("can't create a program with duplicate fixedInitialUsesRemaining", async () => {
