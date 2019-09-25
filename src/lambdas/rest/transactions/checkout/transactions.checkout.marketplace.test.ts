@@ -8,7 +8,7 @@ import * as chai from "chai";
 import {Transaction} from "../../../../model/Transaction";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
 
-describe.only("/v2/transactions/checkout - marketplaceRate", () => {
+describe("/v2/transactions/checkout - marketplaceRate", () => {
 
     const router = new cassava.Router();
 
@@ -703,7 +703,6 @@ describe.only("/v2/transactions/checkout - marketplaceRate", () => {
                 "type": "product",
                 "productId": "adventure",
                 "unitPrice": 20000,
-                "marketplaceRate": 0.2,
                 "quantity": 1,
                 "lineTotal": {
                     "subtotal": 20000,

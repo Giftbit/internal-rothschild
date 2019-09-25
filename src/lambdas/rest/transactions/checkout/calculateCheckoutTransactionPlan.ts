@@ -114,10 +114,7 @@ function calculateAmountForLightrailTransactionStep(step: LightrailUpdateTransac
             if (value.discount) {
                 item.lineTotal.discount += amount;
                 if (value.discountSellerLiability !== null) {
-                    const sellerLibRate = getDiscountSellerLiability(transactionPlan, step, item);
-                    console.log("sellerLibRate: " + sellerLibRate + " . amount = " + amount);
-                    item.lineTotal.sellerDiscount += (amount * sellerLibRate);
-                    console.log("item.lineTotal.sellerDiscount: " + item.lineTotal.sellerDiscount);
+                    item.lineTotal.sellerDiscount += (amount * getDiscountSellerLiability(transactionPlan, step, item));
                 }
             }
         } else {
@@ -131,9 +128,16 @@ function calculateAmountForLightrailTransactionStep(step: LightrailUpdateTransac
  */
 function getDiscountSellerLiability(transactionPlan: TransactionPlan, step: LightrailUpdateTransactionPlanStep, item: LineItemResponse): number {
     if (typeof step.value.discountSellerLiability === "string") {
-        return getRuleContext(transactionPlan, step, item).evaluateDiscountSellerLiabilityRule(step.value.discountSellerLiability);
+        const result = getRuleContext(transactionPlan, step, item).evaluateDiscountSellerLiabilityRule(step.value.discountSellerLiability);
+        if (result > 1) {
+            return 1;
+        } else if (result < 0) {
+            return 0;
+        } else {
+            return result;
+        }
     } else {
-        return step.value.discountSellerLiability
+        return step.value.discountSellerLiability; // already between 0 and 1 based on value creation schema.
     }
 }
 

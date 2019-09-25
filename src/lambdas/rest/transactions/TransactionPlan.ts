@@ -344,11 +344,3 @@ export namespace TransactionPlan {
         return plan.steps.find(step => step.rail === "stripe") != null;
     }
 }
-
-export function getDiscountSellerLiability(step: TransactionPlanStep): number {
-    if (step.rail === "lightrail" && (step as LightrailTransactionPlanStep).value.discount && (step as LightrailTransactionPlanStep).value.discountSellerLiability) {
-        return +(step as LightrailTransactionPlanStep).value.discountSellerLiability;
-    } else {
-        return 0;
-    }
-}

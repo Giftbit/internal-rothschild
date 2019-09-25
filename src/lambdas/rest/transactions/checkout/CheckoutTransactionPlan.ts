@@ -1,5 +1,4 @@
 import {
-    getDiscountSellerLiability,
     InternalTransactionPlanStep,
     LightrailUpdateTransactionPlanStep,
     StripeTransactionPlanStep,
@@ -90,7 +89,9 @@ export class CheckoutTransactionPlan implements TransactionPlan {
 
     private calculateMarketplaceTotals(): void {
         if ((!this.lineItems || !this.lineItems.find(lineItem => lineItem.marketplaceRate !== undefined))
-            && !this.steps.find(step => getDiscountSellerLiability(step) !== 0)) {
+            && !this.steps.find(step =>
+                step.rail === "lightrail" && step.value.discount && !!step.value.discountSellerLiability
+            )) {
             // Marketplace totals are only set if an item has a marketplaceRate or if discountSellerLiability is set on a Value.
             this.totals.marketplace = undefined;
             for (const item of this.lineItems) {
