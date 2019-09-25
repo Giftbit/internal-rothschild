@@ -324,7 +324,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
     });
 
     it("can checkout against value that has discountSellerLiability: 1 - currentLineItem.marketplaceRate", async () => {
-        const partialValue: Partial<Value> = {
+        const value: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
             discount: true,
@@ -336,16 +336,16 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             pretax: true
         };
 
-        const post = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", partialValue);
-        chai.assert.equal(post.statusCode, 201, `body=${JSON.stringify(post.body)}`);
-        chai.assert.deepEqual(post.body.discountSellerLiability, partialValue.discountSellerLiability);
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+        chai.assert.deepEqual(createValue.body.discountSellerLiability, value.discountSellerLiability);
 
-        const checkoutRequest = {
+        const checkout: CheckoutRequest = {
             id: generateId(),
             sources: [
                 {
                     rail: "lightrail",
-                    valueId: partialValue.id
+                    valueId: value.id
                 }
             ],
             lineItems: [
@@ -367,9 +367,9 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             currency: "CAD",
             allowRemainder: true
         };
-        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-        chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
-        chai.assert.deepEqual(checkoutResp.body.totals, {
+        const createCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
+        chai.assert.equal(createCheckout.statusCode, 201, `body=${JSON.stringify(createCheckout.body)}`);
+        chai.assert.deepEqual(createCheckout.body.totals, {
             "subtotal": 21200,
             "tax": 1908,
             "discount": 8480,
@@ -386,7 +386,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
                 "sellerNet": 9600
             }
         });
-        chai.assert.deepEqual(checkoutResp.body.lineItems, [
+        chai.assert.deepEqual(createCheckout.body.lineItems, [
             {
                 "type": "product",
                 "productId": "adventure",
@@ -425,7 +425,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
     });
 
     it("discountSellerLiability rules result in a maximum of 100% discountSellerLiability", async () => {
-        const partialValue: Partial<Value> = {
+        const value: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
             discount: true,
@@ -436,16 +436,16 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             },
             pretax: true
         };
-        const post = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", partialValue);
-        chai.assert.equal(post.statusCode, 201, `body=${JSON.stringify(post.body)}`);
-        chai.assert.deepEqual(post.body.discountSellerLiability, partialValue.discountSellerLiability);
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+        chai.assert.deepEqual(createValue.body.discountSellerLiability, value.discountSellerLiability);
 
-        const checkoutRequest = {
+        const checkout: CheckoutRequest = {
             id: generateId(),
             sources: [
                 {
                     rail: "lightrail",
-                    valueId: partialValue.id
+                    valueId: value.id
                 }
             ],
             lineItems: [
@@ -459,9 +459,9 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             currency: "CAD",
             allowRemainder: true
         };
-        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-        chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
-        chai.assert.deepEqual(checkoutResp.body.totals, {
+        const createCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
+        chai.assert.equal(createCheckout.statusCode, 201, `body=${JSON.stringify(createCheckout.body)}`);
+        chai.assert.deepEqual(createCheckout.body.totals, {
             "subtotal": 20000,
             "tax": 0,
             "discount": 8000,
@@ -478,7 +478,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
                 "sellerNet": 8000
             }
         });
-        chai.assert.deepEqual(checkoutResp.body.lineItems[0]["lineTotal"] as LineTotal, {
+        chai.assert.deepEqual(createCheckout.body.lineItems[0]["lineTotal"] as LineTotal, {
                 "subtotal": 20000,
                 "taxable": 12000,
                 "tax": 0,
@@ -491,7 +491,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
     });
 
     it("discountSellerLiability rules result in a minimum of 0% discountSellerLiability", async () => {
-        const partialValue: Partial<Value> = {
+        const value: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
             discount: true,
@@ -502,16 +502,16 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             },
             pretax: true
         };
-        const post = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", partialValue);
-        chai.assert.equal(post.statusCode, 201, `body=${JSON.stringify(post.body)}`);
-        chai.assert.deepEqual(post.body.discountSellerLiability, partialValue.discountSellerLiability);
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+        chai.assert.deepEqual(createValue.body.discountSellerLiability, value.discountSellerLiability);
 
-        const checkoutRequest = {
+        const checkout: CheckoutRequest = {
             id: generateId(),
             sources: [
                 {
                     rail: "lightrail",
-                    valueId: partialValue.id
+                    valueId: value.id
                 }
             ],
             lineItems: [
@@ -525,9 +525,9 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             currency: "CAD",
             allowRemainder: true
         };
-        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-        chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
-        chai.assert.deepEqual(checkoutResp.body.totals, {
+        const createCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
+        chai.assert.equal(createCheckout.statusCode, 201, `body=${JSON.stringify(createCheckout.body)}`);
+        chai.assert.deepEqual(createCheckout.body.totals, {
             "subtotal": 20000,
             "tax": 0,
             "discount": 8000,
@@ -544,7 +544,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
                 "sellerNet": 16000
             }
         });
-        chai.assert.deepEqual(checkoutResp.body.lineItems[0]["lineTotal"] as LineTotal, {
+        chai.assert.deepEqual(createCheckout.body.lineItems[0]["lineTotal"] as LineTotal, {
             "subtotal": 20000,
             "taxable": 12000,
             "tax": 0,
@@ -556,7 +556,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
     });
 
     it("discountSellerLiability rules that don't evaluate to anything result in 0", async () => {
-        const partialValue: Partial<Value> = {
+        const value: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
             discount: true,
@@ -567,16 +567,16 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             },
             pretax: true
         };
-        const post = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", partialValue);
-        chai.assert.equal(post.statusCode, 201, `body=${JSON.stringify(post.body)}`);
-        chai.assert.deepEqual(post.body.discountSellerLiability, partialValue.discountSellerLiability);
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+        chai.assert.deepEqual(createValue.body.discountSellerLiability, value.discountSellerLiability);
 
-        const checkoutRequest = {
+        const checkout: CheckoutRequest = {
             id: generateId(),
             sources: [
                 {
                     rail: "lightrail",
-                    valueId: partialValue.id
+                    valueId: value.id
                 }
             ],
             lineItems: [
@@ -590,9 +590,9 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             currency: "CAD",
             allowRemainder: true
         };
-        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-        chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
-        chai.assert.deepEqual(checkoutResp.body.totals, {
+        const createCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
+        chai.assert.equal(createCheckout.statusCode, 201, `body=${JSON.stringify(createCheckout.body)}`);
+        chai.assert.deepEqual(createCheckout.body.totals, {
             "subtotal": 20000,
             "tax": 0,
             "discount": 8000,
@@ -609,7 +609,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
                 "sellerNet": 16000
             }
         });
-        chai.assert.deepEqual(checkoutResp.body.lineItems, [
+        chai.assert.deepEqual(createCheckout.body.lineItems, [
             {
                 "type": "product",
                 "productId": "adventure",
@@ -630,7 +630,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
     });
 
     it("discountSellerLiability rules that partially evaluate can still work - missing marketplaceRate", async () => {
-        const partialValue: Partial<Value> = {
+        const value: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
             discount: true,
@@ -641,16 +641,16 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             },
             pretax: true
         };
-        const post = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", partialValue);
-        chai.assert.equal(post.statusCode, 201, `body=${JSON.stringify(post.body)}`);
-        chai.assert.deepEqual(post.body.discountSellerLiability, partialValue.discountSellerLiability);
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+        chai.assert.deepEqual(createValue.body.discountSellerLiability, value.discountSellerLiability);
 
-        const checkoutRequest = {
+        const checkout: CheckoutRequest = {
             id: generateId(),
             sources: [
                 {
                     rail: "lightrail",
-                    valueId: partialValue.id
+                    valueId: value.id
                 }
             ],
             lineItems: [
@@ -663,9 +663,9 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             currency: "CAD",
             allowRemainder: true
         };
-        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-        chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
-        chai.assert.deepEqual(checkoutResp.body.totals, {
+        const createCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
+        chai.assert.equal(createCheckout.statusCode, 201, `body=${JSON.stringify(createCheckout.body)}`);
+        chai.assert.deepEqual(createCheckout.body.totals, {
             "subtotal": 20000,
             "tax": 0,
             "discount": 8000,
@@ -682,7 +682,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
                 "sellerNet": 12000
             }
         });
-        chai.assert.deepEqual(checkoutResp.body.lineItems, [
+        chai.assert.deepEqual(createCheckout.body.lineItems, [
             {
                 "type": "product",
                 "productId": "adventure",
@@ -702,7 +702,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
     });
 
     it("sellerDiscount is correctly rounded", async () => {
-        const partialValue: Partial<Value> = {
+        const value: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
             discount: true,
@@ -713,16 +713,16 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             },
             pretax: true
         };
-        const post = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", partialValue);
-        chai.assert.equal(post.statusCode, 201, `body=${JSON.stringify(post.body)}`);
-        chai.assert.deepEqual(post.body.discountSellerLiability, partialValue.discountSellerLiability);
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
+        chai.assert.deepEqual(createValue.body.discountSellerLiability, value.discountSellerLiability);
 
-        const checkoutRequest = {
+        const checkout: CheckoutRequest = {
             id: generateId(),
             sources: [
                 {
                     rail: "lightrail",
-                    valueId: partialValue.id
+                    valueId: value.id
                 }
             ],
             lineItems: [
@@ -736,10 +736,9 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             currency: "CAD",
             allowRemainder: true
         };
-        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-        console.log(JSON.stringify(checkoutResp.body, null, 4));
-        chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
-        chai.assert.deepEqual(checkoutResp.body.totals, {
+        const createCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
+        chai.assert.equal(createCheckout.statusCode, 201, `body=${JSON.stringify(createCheckout.body)}`);
+        chai.assert.deepEqual(createCheckout.body.totals, {
             "subtotal": 20000,
             "tax": 0,
             "discount": 8000,
@@ -756,7 +755,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
                 "sellerNet": 15012
             }
         });
-        chai.assert.deepEqual(checkoutResp.body.lineItems[0]["lineTotal"] as LineTotal,
+        chai.assert.deepEqual(createCheckout.body.lineItems[0]["lineTotal"] as LineTotal,
             {
                 "subtotal": 20000,
                 "taxable": 12000,
