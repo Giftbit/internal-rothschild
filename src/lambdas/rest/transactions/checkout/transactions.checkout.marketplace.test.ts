@@ -629,7 +629,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
         ]);
     });
 
-    it("discountSellerLiability rules that partially evaluate still execute based on what they evaluate to - missing marketplaceRate", async () => {
+    it("discountSellerLiability rules that partially evaluate still execute based on what they evaluate to - missing marketplaceRate on lineItems", async () => {
         const value: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
