@@ -12,8 +12,10 @@ import {generateCode} from "../../utils/codeGenerator";
 import chaiExclude from "chai-exclude";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
 import {generateUrlSafeHashFromValueIdContactId} from "./genericCodeWithPerContactOptions";
+import {attachValue, generateLegacyHashForValueIdContactId} from "./contactValues";
 import {nowInDbPrecision} from "../../utils/dbUtils";
 import {updateValue} from "./values/values";
+import {Value} from "../../model/Value";
 
 chai.use(chaiExclude);
 
@@ -142,6 +144,106 @@ describe("/v2/contacts/values", () => {
         });
     });
 
+    describe("legacy generic code using attachGenericAsNewValue flag attached before 26 ", () => {
+        const genericCode: Partial<Value> = {
+            id: "genericCodeId54321",
+            currency: currency.code,
+            code: generateCode({}),
+            isGenericCode: true,
+            balanceRule: {
+                rule: "500 + value.balanceChange",
+                explanation: "five bucks"
+            }
+        };
+        const contact: Partial<Contact> = {
+            id: "contactId54321"
+        };
+
+        const attachedValue: Partial<Value> = {
+            id: generateLegacyHashForValueIdContactId(genericCode.id, contact.id),
+            currency: genericCode.currency,
+            balanceRule: genericCode.balanceRule,
+            contactId: contact.id,
+            usesRemaining: 1
+        };
+
+        before(async () => {
+            const createCode = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericCode);
+            chai.assert.equal(createCode.statusCode, 201);
+
+            const knex = await getKnexWrite();
+            await knex.transaction(async trx => {
+                const updateRes: number = await trx("Values")
+                    .where({
+                        userId: testUtils.defaultTestUser.userId,
+                        id: genericCode.id
+                    })
+                    .update({
+                        createdDate: "2019-06-15 00:00:00.000"
+                    });
+                if (updateRes === 0) {
+                    throw new cassava.RestError(404);
+                }
+                if (updateRes > 1) {
+                    throw new Error(`Illegal UPDATE query.  Updated ${updateRes} values.`);
+                }
+            });
+            const getGenericCode = await testUtils.testAuthedRequest<any>(router, `/v2/values/${encodeURI(genericCode.id)}`, "GET");
+            chai.assert.equal(getGenericCode.statusCode, 200);
+            chai.assert.equal(getGenericCode.body.createdDate, "2019-06-15T00:00:00.000Z");
+
+            const createContact = await testUtils.testAuthedRequest<Value>(router, "/v2/contacts", "POST", contact);
+            chai.assert.equal(createContact.statusCode, 201);
+        });
+
+        it("can attach", async () => {
+            const attach = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", attachedValue);
+            chai.assert.equal(attach.statusCode, 201);
+
+            // manually set attachedFromValueId
+            const knex = await getKnexWrite();
+            await knex.transaction(async trx => {
+                const updateRes: number = await trx("Values")
+                    .where({
+                        userId: testUtils.defaultTestUser.userId,
+                        id: attachedValue.id
+                    })
+                    .update({
+                        attachedFromValueId: genericCode.id,
+                        createdDate: "2019-06-15 00:00:00.000"
+                    });
+                if (updateRes === 0) {
+                    throw new cassava.RestError(404);
+                }
+                if (updateRes > 1) {
+                    throw new Error(`Illegal UPDATE query.  Updated ${updateRes} values.`);
+                }
+            });
+
+            const get = await testUtils.testAuthedRequest<any>(router, `/v2/values/${encodeURI(attachedValue.id)}`, "GET");
+            chai.assert.equal(get.statusCode, 200);
+            chai.assert.equal(get.body.createdDate, "2019-06-15T00:00:00.000Z");
+            chai.assert.equal(get.body.attachedFromValueId, genericCode.id);
+        });
+
+        it("can detach", async () => {
+            const detach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/detach`, "POST", {valueId: genericCode.id});
+            chai.assert.equal(detach.statusCode, 200, `body=${JSON.stringify(detach.body)}`);
+            chai.assert.isNull(detach.body.contactId);
+
+            const getContactValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${contact.id}/values`, "GET");
+            chai.assert.equal(getContactValues.statusCode, 200);
+            chai.assert.notInclude(getContactValues.body.map(v => v.id), genericCode.id);
+        });
+
+        it("can re-attach", async () => {
+            const reattach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: attachedValue.id});
+            chai.assert.equal(reattach.statusCode, 200, `body=${JSON.stringify(reattach.body)}`);
+            chai.assert.isNotNull(reattach.body.contactId);
+            chai.assert.equal(reattach.body.attachedFromValueId, genericCode.id);
+        });
+    });
+
     describe("generic code using attachGenericAsNewValue flag before june 26", () => {
         const value: Partial<Value> = {
             id: generateId(),
@@ -185,6 +287,7 @@ describe("/v2/contacts/values", () => {
         it("can attach", async () => {
             const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value.id});
             chai.assert.equal(attach.statusCode, 200, `body=${JSON.stringify(attach.body)}`);
+            chai.assert.equal(attach.body.id, generateUrlSafeHashFromValueIdContactId(value.id, contact.id));
         });
 
         it("can detach" , async () => {
@@ -297,6 +400,7 @@ describe("/v2/contacts/values", () => {
             const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: value.code});
             chai.assert.equal(attach.statusCode, 200, `body=${JSON.stringify(attach.body)}`);
             chai.assert.isNull(attach.body.contactId);
+            chai.assert.equal(attach.body.id, value.id);
             chai.assert.equal(attach.body.usesRemaining, value.usesRemaining, "uses remaining is not reduced during attach");
         });
 
@@ -351,7 +455,6 @@ describe("/v2/contacts/values", () => {
             chai.assert.equal(getContactValues.statusCode, 200);
             chai.assert.notInclude(getContactValues.body.map(v => v.id), detach.body.valueId);
         });
-
 
         it("can't re-attach", async () => {
 
