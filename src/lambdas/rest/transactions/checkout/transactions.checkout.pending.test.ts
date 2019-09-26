@@ -24,7 +24,7 @@ describe("/v2/transactions/checkout - pending", () => {
 
     const router = new cassava.Router();
 
-    before(async function () {
+    before(async () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         transactions.installTransactionsRest(router);
@@ -35,7 +35,7 @@ describe("/v2/transactions/checkout - pending", () => {
             symbol: "$",
             decimalPlaces: 2
         });
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
     });
 
     after(() => {

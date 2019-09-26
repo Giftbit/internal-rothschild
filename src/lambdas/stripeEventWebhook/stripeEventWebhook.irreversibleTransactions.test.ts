@@ -34,7 +34,7 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
 
         await setCodeCryptographySecrets();
 
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
     });
 
     after(() => {

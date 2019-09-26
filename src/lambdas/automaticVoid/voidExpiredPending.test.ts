@@ -6,17 +6,19 @@ import {generateId} from "../../utils/testUtils";
 import * as currencies from "../rest/currencies";
 import {Value} from "../../model/Value";
 import {nowInDbPrecision} from "../../utils/dbUtils";
-import {getKnexWrite} from "../../utils/dbUtils/connection";
+import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {installRestRoutes} from "../rest/installRestRoutes";
-import {Transaction} from "../../model/Transaction";
+import {DbTransaction, Transaction} from "../../model/Transaction";
 import {CheckoutRequest, DebitRequest} from "../../model/TransactionRequest";
 import {voidExpiredPending} from "./voidExpiredPending";
 import {
+    setStubbedStripeUserId,
     setStubsForStripeTests,
-    stubNextStripeAuthAccountId,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../utils/testUtils/stripeTestUtils";
+import {getStripeClient} from "../../utils/stripeUtils/stripeAccess";
+import {TestUser} from "../../utils/testUtils/TestUser";
 
 describe("voidExpiredPending()", () => {
 
@@ -31,7 +33,7 @@ describe("voidExpiredPending()", () => {
     const router = new cassava.Router();
 
     before(async () => {
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
         await testUtils.resetDb();
 
         router.route(testUtils.authRoute);
@@ -238,9 +240,17 @@ describe("voidExpiredPending()", () => {
 
     it.only("does not choke when the Stripe account becomes disconnected", async function () {
         if (testStripeLive()) {
-            // This test relies upon a test token only supported in the local mock server.
+            // This test relies upon being able to create and delete accounts, which is
+            // only supported in the local mock server.
             this.skip();
         }
+
+        const testUser = new TestUser();
+
+        const stripe = await getStripeClient(true);
+        const stripeAccount = await stripe.accounts.create({type: "standard"});
+        chai.assert.isString(stripeAccount.id, "created Stripe account");
+        setStubbedStripeUserId(testUser, stripeAccount.id);
 
         const stripeCheckoutTx: CheckoutRequest = {
             id: generateId(),
@@ -260,11 +270,11 @@ describe("voidExpiredPending()", () => {
             ],
             pending: true
         };
-        const stripePendingCheckoutTxRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", stripeCheckoutTx);
+        const stripePendingCheckoutTxRes = await testUser.request<Transaction>(router, "/v2/transactions/checkout", "POST", stripeCheckoutTx);
         chai.assert.equal(stripePendingCheckoutTxRes.statusCode, 201);
         await updateTransactionPendingVoidDate(stripeCheckoutTx.id, past);
 
-        stubNextStripeAuthAccountId("acct_invalid");
+        await stripe.accounts.del(stripeAccount.id);
         await voidExpiredPending(getLambdaContext());
 
         // TODO probably not the right outcome
@@ -288,34 +298,37 @@ async function updateTransactionPendingVoidDate(transactionId: string, date: Dat
 }
 
 async function assertTransactionVoided(router: cassava.Router, transactionId: string): Promise<void> {
-    const txRes = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions/${transactionId}/chain`, "GET");
-    chai.assert.equal(txRes.statusCode, 200, `Getting transaction ${transactionId}.`);
-    chai.assert.lengthOf(txRes.body, 2, `2 transactions in chain for transaction ${transactionId}.`);
+    const knex = await getKnexRead();
+    const dbTxs: DbTransaction[] = await knex("Transactions")
+        .where({rootTransactionId: transactionId});
+    chai.assert.lengthOf(dbTxs, 2, `2 transactions in chain for transaction ${transactionId}.`);
 
     // These transactions might not be in the right order because they can happen in the same second,
     // which is the time resolution of the DB.
 
-    const pendingTx = txRes.body.find(tx => tx.id === transactionId);
+    const pendingTx = dbTxs.find(tx => tx.id === transactionId);
     chai.assert.isObject(pendingTx, `Find pending tx in chain for ${transactionId}.`);
-    chai.assert.isTrue(pendingTx.pending, `Transaction ${transactionId} is created pending.`);
+    chai.assert.isTrue(pendingTx.pendingVoidDate, `Transaction ${transactionId} is created pending.`);
 
-    const voidTx = txRes.body.find(tx => tx.id !== transactionId);
+    const voidTx = dbTxs.find(tx => tx.id !== transactionId);
     chai.assert.isObject(voidTx, `Find void tx in chain for ${transactionId}.`);
     chai.assert.equal(voidTx.transactionType, "void", `Transaction ${transactionId} is voided.`);
 }
 
 async function assertTransactionNotVoided(router: cassava.Router, transactionId: string): Promise<void> {
-    const txRes = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions/${transactionId}/chain`, "GET");
-    chai.assert.equal(txRes.statusCode, 200, `Getting transaction ${transactionId}.`);
+    const knex = await getKnexRead();
+    const dbTxs: DbTransaction[] = await knex("Transactions")
+        .where({rootTransactionId: transactionId});
+    chai.assert.isAtLeast(dbTxs.length, 1, `got at least 1 transaction in chain for transaction ${transactionId}`);
 
-    const pendingTx = txRes.body.find(tx => tx.id === transactionId);
+    const pendingTx = dbTxs.find(tx => tx.id === transactionId);
     chai.assert.isObject(pendingTx, `Find pending tx in chain for ${transactionId}.`);
-    chai.assert.isTrue(pendingTx.pending, `Transaction ${transactionId} is created pending.`);
+    chai.assert.isTrue(pendingTx.pendingVoidDate, `Transaction ${transactionId} is created pending.`);
 
-    if (txRes.body.length > 1) {
-        chai.assert.lengthOf(txRes.body, 2, `2 transactions in chain for transaction ${transactionId}.`);
+    if (dbTxs.length > 1) {
+        chai.assert.lengthOf(dbTxs, 2, `2 transactions in chain for transaction ${transactionId}.`);
 
-        const otherTx = txRes.body.find(tx => tx.id !== transactionId);
+        const otherTx = dbTxs.find(tx => tx.id !== transactionId);
         chai.assert.isObject(otherTx, `Find other tx in chain for ${transactionId}.`);
         chai.assert.notEqual(otherTx.transactionType, "void", `Transaction ${transactionId} is *not* voided.`);
     }

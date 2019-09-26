@@ -29,7 +29,7 @@ describe("/v2/transactions/reverse - transfer", () => {
             decimalPlaces: 2
         });
         chai.assert.equal(currency.code, "USD");
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
     });
 
     after(() => {

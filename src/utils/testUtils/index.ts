@@ -5,14 +5,15 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as mysql from "mysql2/promise";
 import * as path from "path";
 import {getDbCredentials} from "../dbUtils/connection";
-import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
 import {initializeCodeCryptographySecrets} from "../codeCryptoUtils";
 import {Currency} from "../../model/Currency";
 import {Value} from "../../model/Value";
 import {CheckoutRequest} from "../../model/TransactionRequest";
 import {Transaction} from "../../model/Transaction";
+import {TestUser} from "./TestUser";
+import {ParsedProxyResponse} from "./ParsedProxyResponse";
+import {ParsedCsvProxyResponse} from "./ParsedCsvProxyResponse";
 import log = require("loglevel");
-import papaparse = require("papaparse");
 import uuid = require("uuid");
 
 const rolesConfig = require("./rolesConfig.json");
@@ -22,63 +23,22 @@ if (!process.env["TEST_ENV"]) {
     throw new Error("Env var TEST_ENV is undefined.  This is not a test environment!");
 }
 
-export const defaultTestUser = {
-    userId: "default-test-user-TEST",
-    teamMemberId: "default-test-user-TEST",
-    jwt: "eyJ2ZXIiOjIsInZhdiI6MSwiYWxnIjoiSFMyNTYiLCJ0eXAiOiJKV1QifQ.eyJnIjp7Imd1aSI6ImRlZmF1bHQtdGVzdC11c2VyLVRFU1QiLCJnbWkiOiJkZWZhdWx0LXRlc3QtdXNlci1URVNUIiwidG1pIjoiZGVmYXVsdC10ZXN0LXVzZXItVEVTVCJ9LCJpYXQiOiIyMDE3LTAzLTA3VDE4OjM0OjA2LjYwMyswMDAwIiwianRpIjoiYmFkZ2UtZGQ5NWI5YjU4MmU4NDBlY2JhMWNiZjQxMzY1ZDU3ZTEiLCJzY29wZXMiOltdLCJyb2xlcyI6WyJhY2NvdW50TWFuYWdlciIsImNvbnRhY3RNYW5hZ2VyIiwiY3VzdG9tZXJTZXJ2aWNlTWFuYWdlciIsImN1c3RvbWVyU2VydmljZVJlcHJlc2VudGF0aXZlIiwicG9pbnRPZlNhbGUiLCJwcm9ncmFtTWFuYWdlciIsInByb21vdGVyIiwicmVwb3J0ZXIiLCJzZWN1cml0eU1hbmFnZXIiLCJ0ZWFtQWRtaW4iLCJ3ZWJQb3J0YWwiXX0.Pz9XaaNX3HenvSUb6MENm_KEBheztiscGr2h2TJfhIc",
-    auth: new AuthorizationBadge({
-        "g": {
-            "gui": "default-test-user-TEST",
-            "gmi": "default-test-user-TEST",
-            "tmi": "default-test-user-TEST",
-        },
-        "iat": "2017-03-07T18:34:06.603+0000",
-        "jti": "badge-dd95b9b582e840ecba1cbf41365d57e1",
-        "scopes": [],
-        "roles": [
-            "accountManager",
-            "contactManager",
-            "customerServiceManager",
-            "customerServiceRepresentative",
-            "pointOfSale",
-            "programManager",
-            "promoter",
-            "reporter",
-            "securityManager",
-            "teamAdmin",
-            "webPortal"
-        ]
-    })
-};
+export function generateId(length?: number): string {
+    return (uuid.v4() + uuid.v4()).substring(0, length != null ? length : 20);
+}
 
-export const alternateTestUser = {
-    userId: "alternate-test-user-TEST",
-    teamMemberId: "alternate-test-user-TEST",
-    jwt: "eyJ2ZXIiOjIsInZhdiI6MSwiYWxnIjoiSFMyNTYiLCJ0eXAiOiJKV1QifQ.eyJnIjp7Imd1aSI6ImFsdGVybmF0ZS10ZXN0LXVzZXItVEVTVCIsImdtaSI6ImFsdGVybmF0ZS10ZXN0LXVzZXItVEVTVCIsInRtaSI6ImFsdGVybmF0ZS10ZXN0LXVzZXItVEVTVCJ9LCJpYXQiOiIyMDE4LTAzLTIzVDIxOjI1OjI2LjgxMiswMDAwIiwianRpIjoiYmFkZ2UtMmYxOGZkMjk2YmNkNDg4ZWFkODUzNTllYjY2ODA0MTkiLCJzY29wZXMiOltdLCJyb2xlcyI6WyJhY2NvdW50TWFuYWdlciIsImNvbnRhY3RNYW5hZ2VyIiwiY3VzdG9tZXJTZXJ2aWNlTWFuYWdlciIsImN1c3RvbWVyU2VydmljZVJlcHJlc2VudGF0aXZlIiwicG9pbnRPZlNhbGUiLCJwcm9ncmFtTWFuYWdlciIsInByb21vdGVyIiwicmVwb3J0ZXIiLCJzZWN1cml0eU1hbmFnZXIiLCJ0ZWFtQWRtaW4iLCJ3ZWJQb3J0YWwiXX0.9Xdsk8q4dLTp5baeeP_kHi61C0jU8pvFshUhCmoDLbY",
-    auth: new AuthorizationBadge({
-        "g": {
-            "gui": "alternate-test-user-TEST",
-            "gmi": "alternate-test-user-TEST",
-            "tmi": "alternate-test-user-TEST"
-        },
-        "iat": "2018-03-23T21:25:26.812+0000",
-        "jti": "badge-2f18fd296bcd488ead85359eb6680419",
-        "scopes": [],
-        "roles": [
-            "accountManager",
-            "contactManager",
-            "customerServiceManager",
-            "customerServiceRepresentative",
-            "pointOfSale",
-            "programManager",
-            "promoter",
-            "reporter",
-            "securityManager",
-            "teamAdmin",
-            "webPortal"
-        ]
-    })
-};
+export const defaultTestUser = new TestUser("default-test-user-TEST");
+export const alternateTestUser = new TestUser("alternate-test-user-TEST");
+
+/**
+ * Make a simple authed request to the router with the default test user.
+ */
+export const testAuthedRequest: <T>(router: cassava.Router, url: string, method: string, body?: any) => Promise<ParsedProxyResponse<T>> = defaultTestUser.request.bind(defaultTestUser);
+
+/**
+ * Make a simple authed request for CSV to the router with the default test user.
+ */
+export const testAuthedCsvRequest: <T>(router: cassava.Router, url: string, method: string, body?: any) => Promise<ParsedCsvProxyResponse<T>> = defaultTestUser.requestCsv.bind(defaultTestUser);
 
 /**
  * A Cassava Route that enables authorization with the above JWTs.
@@ -213,74 +173,6 @@ async function getSqlMigrationFiles(): Promise<{ filename: string, sql: string }
     }
 
     return sqlMigrationFiles;
-}
-
-export interface ParsedProxyResponse<T> {
-    statusCode: number;
-    headers: {
-        [key: string]: string;
-    };
-    body: T;
-}
-
-/**
- * Make a simple authed request to the router with the default test user.
- */
-export async function testAuthedRequest<T>(router: cassava.Router, url: string, method: string, body?: any): Promise<ParsedProxyResponse<T>> {
-    const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent(url, method, {
-        headers: {
-            Authorization: `Bearer ${defaultTestUser.jwt}`
-        },
-        body: body && JSON.stringify(body) || undefined
-    }));
-
-    chai.assert.equal(resp.headers["Content-Type"], "application/json");
-
-    return {
-        statusCode: resp.statusCode,
-        headers: resp.headers,
-        body: resp.body && JSON.parse(resp.body) || undefined
-    };
-}
-
-export interface ParsedCsvProxyResponse<T> {
-    statusCode: number;
-    headers: {
-        [key: string]: string;
-    };
-    body: T[];
-}
-
-/**
- * Make a simple authed request for CSV to the router with the default test user.
- */
-export async function testAuthedCsvRequest<T>(router: cassava.Router, url: string, method: string, body?: any): Promise<ParsedCsvProxyResponse<T>> {
-    const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent(url, method, {
-        headers: {
-            Authorization: `Bearer ${defaultTestUser.jwt}`,
-            Accept: "text/csv"
-        },
-        body: body && JSON.stringify(body) || undefined
-    }));
-    resp.body = resp.body.substr(1); // clear universal bom from tests.
-
-    const parseRes = papaparse.parse(resp.body, {
-        dynamicTyping: true,
-        header: true,
-        delimiter: ","
-    });
-    chai.assert.equal(resp.headers["Content-Type"], "text/csv");
-    chai.assert.deepEqual(parseRes.errors, [], "csv parsing 0 errors");
-
-    return {
-        statusCode: resp.statusCode,
-        headers: resp.headers,
-        body: parseRes.data
-    };
-}
-
-export function generateId(length?: number): string {
-    return (uuid.v4() + uuid.v4()).substring(0, length != null ? length : 20);
 }
 
 export function generateFullcode(length?: number) {

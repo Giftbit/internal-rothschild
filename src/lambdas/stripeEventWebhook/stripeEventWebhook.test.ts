@@ -61,7 +61,7 @@ describe("/v2/stripeEventWebhook", () => {
 
         await setCodeCryptographySecrets();
 
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
     });
 
     after(() => {

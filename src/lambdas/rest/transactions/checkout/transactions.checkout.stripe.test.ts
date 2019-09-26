@@ -14,9 +14,9 @@ import * as testUtils from "../../../../utils/testUtils";
 import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {after} from "mocha";
 import {
+    setStubbedStripeUserId,
     setStubsForStripeTests,
     stripeLiveMerchantConfig,
-    stubNextStripeAuthAccountId,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
@@ -28,6 +28,7 @@ import {
     retrieveCharge
 } from "../../../../utils/stripeUtils/stripeTransactions";
 import chaiExclude from "chai-exclude";
+import {TestUser} from "../../../../utils/testUtils/TestUser";
 import log = require("loglevel");
 import Stripe = require("stripe");
 import ICharge = Stripe.charges.ICharge;
@@ -65,7 +66,7 @@ describe("split tender checkout with Stripe", () => {
         currency: "CAD"
     };
 
-    before(async function () {
+    before(async () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         transactions.installTransactionsRest(router);
@@ -84,7 +85,7 @@ describe("split tender checkout with Stripe", () => {
         const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
 
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
     });
 
     after(() => {
@@ -1292,8 +1293,10 @@ describe("split tender checkout with Stripe", () => {
     });
 
     it("returns 424 on StripePermissionError", async () => {
-        // This connect account isn't valid in the mock server or the real thing.
-        stubNextStripeAuthAccountId("acct_invalid");
+        // Create a new TestUser but don't create the Stripe account.  This Stripe
+        // account will be invalid both in test and live.
+        const testUser = new TestUser();
+        setStubbedStripeUserId(testUser, "acct_invalid");
 
         const request: CheckoutRequest = {
             id: generateId(),
@@ -1313,7 +1316,7 @@ describe("split tender checkout with Stripe", () => {
             currency: "CAD"
         };
 
-        const checkout = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", request);
+        const checkout = await testUser.request<any>(router, "/v2/transactions/checkout", "POST", request);
         chai.assert.equal(checkout.statusCode, 424);
     });
 

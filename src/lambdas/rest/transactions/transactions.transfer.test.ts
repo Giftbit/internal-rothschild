@@ -1101,8 +1101,8 @@ describe("/v2/transactions/transfer", () => {
     });
 
     describe("stripe transfers", () => {
-        before(function () {
-            setStubsForStripeTests();
+        before(async () => {
+            await setStubsForStripeTests();
         });
 
         after(() => {

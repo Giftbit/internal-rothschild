@@ -12,7 +12,7 @@ import {StripeRestError} from "./StripeRestError";
 describe("stripeTransactions", () => {
 
     before(async function () {
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
     });
 
     after(() => {

@@ -27,7 +27,7 @@ describe("/v2/stripeEventWebhook - Stripe Review events", () => {
 
         await setCodeCryptographySecrets();
 
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
     });
 
     after(() => {
