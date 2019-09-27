@@ -176,46 +176,39 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     }
 
     if (value.isGenericCode) {
-        if (Value.isGenericCodeWithPropertiesPerContact(value) || params.attachGenericAsNewValue) {
-            try {
-                if (Value.isGenericCodeWithPropertiesPerContact(value)) {
-                    MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericPerContactProps, auth);
-                    return await attachGenericCodeWithPerContactOptions(auth, contact.id, value);
-                } else if (params.attachGenericAsNewValue) {
-                    MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, auth);
-                    return await attachGenericValueAsNewValue(auth, contact.id, value);
-                }
-            } catch (err) {
-                if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "ValueAlreadyExists") {
-                    const createdValueId = await getIdForAttachingGenericValue(auth, contact.id, value);
-                    return await attachValue(auth, {
-                        contactId: params.contactId,
-                        valueIdentifier: {
-                            valueId: createdValueId,
-                            code: undefined
-                        },
-                        allowOverwrite: params.allowOverwrite,
-                    });
-                } else {
-                    throw err;
-                }
-            }
-        } else {
-            try {
+        try {
+            if (Value.isGenericCodeWithPropertiesPerContact(value)) {
+                MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericPerContactProps, auth);
+                return await attachGenericCodeWithPerContactOptions(auth, contact.id, value);
+            } else if (params.attachGenericAsNewValue) {
+                MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, auth);
+                return await attachGenericValueAsNewValue(auth, contact.id, value);
+            } else {
                 MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, auth);
                 await attachSharedGenericValue(auth, contact.id, value);
                 return value;
-            } catch (err) {
-                if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "ValueAlreadyAttached") {
-                    const now = nowInDbPrecision();
-                    return await updateValue(auth, value.id, {
-                        code: value.code ,
-                        updatedDate: now,
-                        updatedContactIdDate: now,
-                    });
-                } else {
-                    throw err;
-                }
+            }
+        } catch (err) {
+            if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "ValueAlreadyExists") {
+                const createdValueId = await getIdForAttachingGenericValue(auth, contact.id, value);
+                return await attachValue(auth, {
+                    contactId: params.contactId,
+                    valueIdentifier: {
+                        valueId: createdValueId,
+                        code: undefined
+                    },
+                    allowOverwrite: params.allowOverwrite,
+                });
+            } else if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "ValueAlreadyAttached") {
+                // when a shared generic code is being re-attached.
+                const now = nowInDbPrecision();
+                return await updateValue(auth, value.id, {
+                    code: value.code ,
+                    updatedDate: now,
+                    updatedContactIdDate: now,
+                });
+            } else {
+                throw err;
             }
         }
     } else {
@@ -253,7 +246,7 @@ export async function detachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             })
             .delete();
 
-        if ( res === 0 ) {
+        if (res === 0) {
             try {
                 const attachedValueId = await getIdForAttachingGenericValue(auth, contactId, value);
                 const now = nowInDbPrecision();

@@ -50,7 +50,7 @@ describe("/v2/contacts/values", () => {
         await createContact(testUtils.defaultTestUser.auth, contact);
     });
 
-    describe("unique value scenario",  () => {
+    describe("unique values can be attached and detached using code or valueId",  () => {
         const value: Partial<Value> = {
             id: "unique-value",
             currency: currency.code,
