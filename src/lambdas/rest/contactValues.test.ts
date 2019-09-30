@@ -57,7 +57,7 @@ describe("/v2/contacts/values", () => {
             code: generateFullcode(),
         };
 
-        before( async () => {
+        before(async () => {
             const createValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
             chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
         });
@@ -117,7 +117,7 @@ describe("/v2/contacts/values", () => {
             usesRemaining: 20
         };
 
-        before( async () => {
+        before(async () => {
             const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
             chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
         });
@@ -144,7 +144,7 @@ describe("/v2/contacts/values", () => {
         });
     });
 
-    describe("legacy generic code using attachGenericAsNewValue flag attached before 26 ", () => {
+    describe("legacy generic code using attachGenericAsNewValue flag attached before June 26, 2019", () => {
         const genericCode: Partial<Value> = {
             id: "genericCodeId54321",
             currency: currency.code,
@@ -194,14 +194,11 @@ describe("/v2/contacts/values", () => {
 
             const createContact = await testUtils.testAuthedRequest<Value>(router, "/v2/contacts", "POST", contact);
             chai.assert.equal(createContact.statusCode, 201);
-        });
 
-        it("can attach", async () => {
             const attach = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", attachedValue);
             chai.assert.equal(attach.statusCode, 201);
 
             // manually set attachedFromValueId
-            const knex = await getKnexWrite();
             await knex.transaction(async trx => {
                 const updateRes: number = await trx("Values")
                     .where({
@@ -226,6 +223,7 @@ describe("/v2/contacts/values", () => {
             chai.assert.equal(get.body.attachedFromValueId, genericCode.id);
         });
 
+
         it("can detach", async () => {
             const detach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/detach`, "POST", {valueId: genericCode.id});
             chai.assert.equal(detach.statusCode, 200, `body=${JSON.stringify(detach.body)}`);
@@ -244,7 +242,7 @@ describe("/v2/contacts/values", () => {
         });
     });
 
-    describe("generic code using attachGenericAsNewValue flag before june 26", () => {
+    describe("generic code with per contact property using generateUrlSafeHashFromValueIdContactId", () => {
         const value: Partial<Value> = {
             id: generateId(),
             currency: currency.code,
@@ -261,7 +259,7 @@ describe("/v2/contacts/values", () => {
             },
         };
 
-        before( async () => {
+        before(async () => {
             const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
             chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
 
@@ -307,7 +305,7 @@ describe("/v2/contacts/values", () => {
         });
     });
 
-    describe("generic code using attachGenericAsNewValue flag after june 26", () => {
+    describe("generic code using attachGenericAsNewValue flag after june 26, 2019", () => {
         const genericCode: Partial<Value> = {
             id: "324arwesf342aw",
             currency: currency.code,
@@ -322,7 +320,7 @@ describe("/v2/contacts/values", () => {
             id: "aw4rd4arwefd",
         };
 
-        before( async () => {
+        before(async () => {
             const createValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericCode);
             chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
 
@@ -407,18 +405,23 @@ describe("/v2/contacts/values", () => {
         it("can detach" , async () => {
             const detach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/detach`, "POST", {valueId: value.id});
             chai.assert.equal(detach.statusCode, 200, `body=${JSON.stringify(detach.body)}`);
-            chai.assert.isNull(detach.body.contactId);
+
+            const getContactValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${contact.id}/values?id=${value.id}`, "GET");
+            chai.assert.equal(getContactValues.statusCode, 200);
+            chai.assert.notInclude(getContactValues.body.map(v => v.id), detach.body.valueId);
         });
 
         it("can re-attach", async () => {
             const reattach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: value.code});
             chai.assert.equal(reattach.statusCode, 200, `body=${JSON.stringify(reattach.body)}`);
-            chai.assert.isNull(reattach.body.contactId);
+
+            const getContactValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${contact.id}/values?id=${value.id}`, "GET");
+            chai.assert.equal(getContactValues.statusCode, 200);
+            chai.assert.include(getContactValues.body.map(v => v.id), reattach.body.id);
         });
     });
 
     describe("can attach and detach a generic code but can't re-attach if the value is frozen after detach", () => {
-
         const value: Partial<Value> = {
             id: generateId(),
             currency: currency.code,
@@ -436,7 +439,7 @@ describe("/v2/contacts/values", () => {
             usesRemaining: 20
         };
 
-        before( async () => {
+        before(async () => {
             const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
             chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
         });

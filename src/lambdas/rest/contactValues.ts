@@ -180,7 +180,7 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             if (Value.isGenericCodeWithPropertiesPerContact(value)) {
                 MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericPerContactProps, auth);
                 return await attachGenericCodeWithPerContactOptions(auth, contact.id, value);
-            } else if (params.attachGenericAsNewValue) {
+            } else if (params.attachGenericAsNewValue) /* legacy case to eventually be removed */ {
                 MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, auth);
                 return await attachGenericValueAsNewValue(auth, contact.id, value);
             } else {
@@ -203,7 +203,7 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                 // when a shared generic code is being re-attached.
                 const now = nowInDbPrecision();
                 return await updateValue(auth, value.id, {
-                    code: value.code ,
+                    code: value.code,
                     updatedDate: now,
                     updatedContactIdDate: now,
                 });
