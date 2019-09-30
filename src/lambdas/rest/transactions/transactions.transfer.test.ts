@@ -6,11 +6,7 @@ import {formatCodeForLastFourDisplay, Value} from "../../../model/Value";
 import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../model/Transaction";
 import {Currency} from "../../../model/Currency";
 import {installRestRoutes} from "../installRestRoutes";
-import {
-    setStubsForStripeTests,
-    stripeLiveMerchantConfig,
-    unsetStubsForStripeTests
-} from "../../../utils/testUtils/stripeTestUtils";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
 import {createCurrency} from "../currencies";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {TransferRequest} from "../../../model/TransactionRequest";
@@ -1188,7 +1184,7 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.deepEqual(destStepFromGet, destStep);
 
             const stripeChargeId = (postTransferResp.body.steps.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
-            const stripeCharge = await retrieveCharge(stripeChargeId, true, stripeLiveMerchantConfig.stripeUserId);
+            const stripeCharge = await retrieveCharge(stripeChargeId, true, defaultTestUser.stripeAccountId);
             chai.assert.deepEqual(stripeCharge, sourceStep.charge);
         }).timeout(10000);
 
@@ -1292,7 +1288,7 @@ describe("/v2/transactions/transfer", () => {
             chai.assert.deepEqual(destStepFromGet, destStep);
 
             const stripeChargeId = (postTransferResp.body.steps.find(source => source.rail === "stripe") as StripeTransactionStep).chargeId;
-            const stripeCharge = await retrieveCharge(stripeChargeId, true, stripeLiveMerchantConfig.stripeUserId);
+            const stripeCharge = await retrieveCharge(stripeChargeId, true, defaultTestUser.stripeAccountId);
             chai.assert.deepEqual(stripeCharge, sourceStep.charge);
         }).timeout(10000);
 

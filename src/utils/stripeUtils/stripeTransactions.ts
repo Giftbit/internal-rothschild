@@ -7,7 +7,7 @@ import Stripe = require("stripe");
 
 export async function createCharge(params: Stripe.charges.IChargeCreationOptions, isTestMode: boolean, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<Stripe.charges.ICharge> {
     const lightrailStripe = await getStripeClient(isTestMode);
-    log.info("Creating Stripe charge", params);
+    log.info("Creating Stripe charge", params, merchantStripeAccountId);
 
     try {
         const charge = await lightrailStripe.charges.create(params, {
@@ -46,7 +46,7 @@ export async function createCharge(params: Stripe.charges.IChargeCreationOptions
 
 export async function createRefund(params: Stripe.refunds.IRefundCreationOptionsWithCharge, isTestMode: boolean, merchantStripeAccountId: string): Promise<Stripe.refunds.IRefund> {
     const lightrailStripe = await getStripeClient(isTestMode);
-    log.info("Creating refund for Stripe charge", params);
+    log.info("Creating refund for Stripe charge", params, merchantStripeAccountId);
     try {
         const refund = await lightrailStripe.refunds.create(params, {
             stripe_account: merchantStripeAccountId
@@ -85,7 +85,7 @@ export async function createRefund(params: Stripe.refunds.IRefundCreationOptions
 
 export async function captureCharge(chargeId: string, options: Stripe.charges.IChargeCaptureOptions, isTestMode: boolean, merchantStripeAccountId: string): Promise<Stripe.charges.ICharge> {
     const lightrailStripe = await getStripeClient(isTestMode);
-    log.info("Creating capture for Stripe charge", chargeId);
+    log.info("Creating capture for Stripe charge", chargeId, merchantStripeAccountId);
     try {
         const capturedCharge = await lightrailStripe.charges.capture(chargeId, options, {
             stripe_account: merchantStripeAccountId
@@ -110,7 +110,7 @@ export async function captureCharge(chargeId: string, options: Stripe.charges.IC
 
 export async function updateCharge(chargeId: string, params: Stripe.charges.IChargeUpdateOptions, isTestMode: boolean, merchantStripeAccountId: string): Promise<any> {
     const lightrailStripe = await getStripeClient(isTestMode);
-    log.info("Updating Stripe charge", params);
+    log.info("Updating Stripe charge", chargeId, params, merchantStripeAccountId);
     try {
         const chargeUpdate = await lightrailStripe.charges.update(
             chargeId,
@@ -130,7 +130,7 @@ export async function updateCharge(chargeId: string, params: Stripe.charges.ICha
 
 export async function retrieveCharge(chargeId: string, isTestMode: boolean, merchantStripeAccountId: string): Promise<Stripe.charges.ICharge> {
     const lightrailStripe = await getStripeClient(isTestMode);
-    log.info("Retrieving Stripe charge", chargeId);
+    log.info("Retrieving Stripe charge", chargeId, merchantStripeAccountId);
     try {
         const charge = await lightrailStripe.charges.retrieve(chargeId, {stripe_account: merchantStripeAccountId});
         log.info("retrieved Stripe charge", charge);

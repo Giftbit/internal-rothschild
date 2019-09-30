@@ -9,12 +9,18 @@ import papaparse = require("papaparse");
 export class TestUser {
     userId: string;
     teamMemberId: string;
+    stripeAccountId: string | null;
     jwt: string;
     auth: AuthorizationBadge;
 
-    constructor(userId?: string, teamMemberId?: string) {
-        this.userId = userId || `user-${generateId()}-TEST`;
-        this.teamMemberId = teamMemberId || this.userId;
+    constructor(options?: {
+        userId?: string;
+        teamMemberId?: string;
+        stripeAccountId?: string;
+    }) {
+        this.userId = options && options.userId || `user-${generateId()}-TEST`;
+        this.teamMemberId = options && options.teamMemberId || this.userId;
+        this.stripeAccountId = options && options.stripeAccountId || null;
         this.auth = new AuthorizationBadge({
             "g": {
                 "gui": this.userId,

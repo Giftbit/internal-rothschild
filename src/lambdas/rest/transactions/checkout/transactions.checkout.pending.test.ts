@@ -8,11 +8,7 @@ import {Value} from "../../../../model/Value";
 import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import {CaptureRequest, CheckoutRequest, VoidRequest} from "../../../../model/TransactionRequest";
-import {
-    setStubsForStripeTests,
-    stripeLiveMerchantConfig,
-    unsetStubsForStripeTests
-} from "../../../../utils/testUtils/stripeTestUtils";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
 import * as Stripe from "stripe";
 import {captureCharge, createRefund} from "../../../../utils/stripeUtils/stripeTransactions";
@@ -657,7 +653,7 @@ describe("/v2/transactions/checkout - pending", () => {
         chai.assert.equal(valuePendingRes.body.balance, 0);
 
         // Refund the charge manually
-        const refund = await createRefund({charge: (pendingTxRes.body.steps[1] as StripeTransactionStep).chargeId}, true, stripeLiveMerchantConfig.stripeUserId);
+        const refund = await createRefund({charge: (pendingTxRes.body.steps[1] as StripeTransactionStep).chargeId}, true, defaultTestUser.stripeAccountId);
 
         const voidRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingTx.id}/void`, "POST", {
             id: generateId()
@@ -729,7 +725,7 @@ describe("/v2/transactions/checkout - pending", () => {
         chai.assert.equal(valuePendingRes.body.balance, 0);
 
         // Capture the charge manually.
-        const capture = await captureCharge((pendingTxRes.body.steps[1] as StripeTransactionStep).chargeId, {}, true, stripeLiveMerchantConfig.stripeUserId);
+        const capture = await captureCharge((pendingTxRes.body.steps[1] as StripeTransactionStep).chargeId, {}, true, defaultTestUser.stripeAccountId);
 
         const captureRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingTx.id}/capture`, "POST", {
             id: generateId()

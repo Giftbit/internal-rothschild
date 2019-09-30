@@ -1,7 +1,6 @@
 import * as cassava from "cassava";
 import * as cryptojs from "crypto-js";
 import {createUSDCheckout, generateId, testAuthedRequest} from "../../utils/testUtils";
-import {stripeLiveMerchantConfig} from "../../utils/testUtils/stripeTestUtils";
 import {getLightrailStripeModeConfig} from "../../utils/stripeUtils/stripeAccess";
 import {stripeApiVersion} from "../../utils/stripeUtils/StripeConfig";
 import * as stripe from "stripe";
@@ -10,6 +9,7 @@ import {Value} from "../../model/Value";
 import {CheckoutRequest} from "../../model/TransactionRequest";
 import * as chai from "chai";
 import {createRefund, retrieveCharge} from "../stripeUtils/stripeTransactions";
+import * as testUtils from "./index";
 
 /**
  * See https://stripe.com/docs/webhooks/signatures#verify-manually for details about generating signed requests
@@ -40,7 +40,7 @@ export function generateConnectWebhookEventMock(eventType: string, eventObject: 
     return {
         id: generateId(),
         type: eventType,
-        account: stripeLiveMerchantConfig.stripeUserId,
+        account: testUtils.defaultTestUser.stripeAccountId,
         object: "event",
         data: {
             object: eventObject
@@ -117,7 +117,7 @@ export async function setupForWebhookEvent(router: cassava.Router, lightrailOpti
         }
     }
 
-    const finalStateStripeCharge = await retrieveCharge(stripeStep.chargeId, true, stripeLiveMerchantConfig.stripeUserId);
+    const finalStateStripeCharge = await retrieveCharge(stripeStep.chargeId, true, testUtils.defaultTestUser.stripeAccountId);
 
     return {
         checkout,
@@ -137,14 +137,14 @@ async function createStripeUSDCheckout(router: cassava.Router, checkoutProps?: P
 }
 
 export async function refundInStripe(stripeStep: StripeTransactionStep, refundReason?: string): Promise<stripe.charges.ICharge> {
-    const chargeFromStripe = await retrieveCharge(stripeStep.chargeId, true, stripeLiveMerchantConfig.stripeUserId);
+    const chargeFromStripe = await retrieveCharge(stripeStep.chargeId, true, testUtils.defaultTestUser.stripeAccountId);
     chai.assert.isNotNull(chargeFromStripe);
 
     await createRefund({
         charge: stripeStep.chargeId,
         reason: refundReason || undefined
-    }, true, stripeLiveMerchantConfig.stripeUserId);
-    return await retrieveCharge(stripeStep.chargeId, true, stripeLiveMerchantConfig.stripeUserId);
+    }, true, testUtils.defaultTestUser.stripeAccountId);
+    return await retrieveCharge(stripeStep.chargeId, true, testUtils.defaultTestUser.stripeAccountId);
 }
 
 export async function assertTransactionChainContainsTypes(router: cassava.Router, transactionId: string, expectedLengthOfChain: number, orderedExpectedTransactionTypes: TransactionType[]): Promise<Transaction[]> {

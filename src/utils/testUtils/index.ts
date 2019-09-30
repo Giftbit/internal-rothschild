@@ -27,8 +27,18 @@ export function generateId(length?: number): string {
     return (uuid.v4() + uuid.v4()).substring(0, length != null ? length : 20);
 }
 
-export const defaultTestUser = new TestUser("default-test-user-TEST");
-export const alternateTestUser = new TestUser("alternate-test-user-TEST");
+export const defaultTestUser = new TestUser({
+    userId: "default-test-user-TEST",
+
+    /**
+     * See .env.example for Stripe config details
+     * This is "merchant" (connected account) config from stripe test account//pass: integrationtesting+merchant@giftbit.com // x39Rlf4TH3pzn29hsb#
+     */
+    stripeAccountId: "acct_1BOVE6CM9MOvFvZK"
+});
+export const alternateTestUser = new TestUser({
+    userId: "alternate-test-user-TEST"
+});
 
 /**
  * Make a simple authed request to the router with the default test user.

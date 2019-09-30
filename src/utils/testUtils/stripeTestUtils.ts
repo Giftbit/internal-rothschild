@@ -15,14 +15,6 @@ let stubKvsGet: sinon.SinonStub;
 
 /**
  * See .env.example for Stripe config details
- * This is "merchant" (connected account) config from stripe test account//pass: integrationtesting+merchant@giftbit.com // x39Rlf4TH3pzn29hsb#
- */
-export const stripeLiveMerchantConfig = {
-    stripeUserId: "acct_1BOVE6CM9MOvFvZK"
-};
-
-/**
- * See .env.example for Stripe config details
  */
 export const stripeLiveLightrailConfig: StripeModeConfig = {
     clientId: null,
@@ -48,31 +40,40 @@ export async function setStubsForStripeTests(): Promise<void> {
 
     if (testStripeLive()) {
         stripeUserIds = {
-            [defaultTestUser.jwt]: stripeLiveMerchantConfig.stripeUserId
+            [defaultTestUser.jwt]: defaultTestUser.stripeAccountId
         };
     } else {
         const stripe = await getStripeClient(true);
-        const account = await stripe.accounts.create({type: "standard"});
+        const account = await stripe.accounts.create({
+            type: "standard",
+            id: defaultTestUser.stripeAccountId
+        } as any);
         stripeUserIds = {
-            [defaultTestUser.jwt]: account.id
+            [defaultTestUser.userId]: account.id
         };
     }
 
     stubKvsGet = sinonSandbox.stub(kvsAccess, "kvsGet");
-    stubKvsGet
-        .callsFake((token: string, key: string, authorizeAs?: string) => {
-            if (!stripeUserIds[token]) {
-                Promise.resolve(null);
-            }
-            return Promise.resolve({
-                token_type: "bearer",
-                stripe_user_id: stripeUserIds[token]
-            });
+    stubKvsGet.callsFake((token: string, key: string, authorizeAs?: string) => {
+        if (key !== "stripeAuth") {
+            throw new Error("We haven't mocked any other KVS keys yet.");
+        }
+        if (!authorizeAs) {
+            throw new Error("We haven't mocked calls without authorizeAs.");
+        }
+        const userId = JSON.parse(Buffer.from(authorizeAs, "base64").toString("ascii")).g.gui;
+        if (!stripeUserIds[userId]) {
+            return Promise.resolve(null);
+        }
+        return Promise.resolve({
+            token_type: "bearer",
+            stripe_user_id: stripeUserIds[userId]
         });
+    });
 }
 
 export function setStubbedStripeUserId(testUser: TestUser, stripeUserId: string): void {
-    stripeUserIds[testUser.jwt] = stripeUserId;
+    stripeUserIds[testUser.userId] = stripeUserId;
 }
 
 export function unsetStubsForStripeTests(): void {

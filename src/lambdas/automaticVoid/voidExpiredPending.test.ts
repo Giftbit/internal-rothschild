@@ -204,7 +204,7 @@ describe("voidExpiredPending()", () => {
         await assertTransactionVoided(router, txReq.id);
     });
 
-    it.only("does not choke when Stripe test data is deleted", async function () {
+    it("does not choke when Stripe test data is deleted", async function () {
         if (testStripeLive()) {
             // This test relies upon a test token only supported in the local mock server.
             this.skip();
@@ -238,7 +238,7 @@ describe("voidExpiredPending()", () => {
         await assertTransactionVoided(router, stripeCheckoutTx.id);
     });
 
-    it.only("does not choke when the Stripe account becomes disconnected", async function () {
+    it("does not choke when the Stripe account becomes disconnected", async function () {
         if (testStripeLive()) {
             // This test relies upon being able to create and delete accounts, which is
             // only supported in the local mock server.

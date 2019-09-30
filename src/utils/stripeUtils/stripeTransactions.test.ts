@@ -1,12 +1,7 @@
 import * as chai from "chai";
-import {
-    setStubsForStripeTests,
-    stripeLiveMerchantConfig,
-    testStripeLive,
-    unsetStubsForStripeTests
-} from "../testUtils/stripeTestUtils";
+import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../testUtils/stripeTestUtils";
 import {createCharge} from "./stripeTransactions";
-import {generateId} from "../testUtils";
+import {default as testUtils, generateId} from "../testUtils";
 import {StripeRestError} from "./StripeRestError";
 
 describe("stripeTransactions", () => {
@@ -38,7 +33,7 @@ describe("stripeTransactions", () => {
         let firstFail: any;
         try {
             // This charge will fail.
-            await createCharge(chargeParams, true, stripeLiveMerchantConfig.stripeUserId, idempotencyKey);
+            await createCharge(chargeParams, true, testUtils.defaultTestUser.stripeAccountId, idempotencyKey);
         } catch (err) {
             firstFail = err;
         }
@@ -49,7 +44,7 @@ describe("stripeTransactions", () => {
         // because it shares the idempotencyKey above, and then try again with the next
         // idempotencyKey.  Because we retry these idempotencyKeys in sequence we don't
         // risk double charging.
-        const charge = await createCharge(chargeParams, true, stripeLiveMerchantConfig.stripeUserId, idempotencyKey);
+        const charge = await createCharge(chargeParams, true, testUtils.defaultTestUser.stripeAccountId, idempotencyKey);
         chai.assert.equal(charge.amount, 2000);
     });
 });

@@ -16,7 +16,6 @@ import {after} from "mocha";
 import {
     setStubbedStripeUserId,
     setStubsForStripeTests,
-    stripeLiveMerchantConfig,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
@@ -168,7 +167,7 @@ describe("split tender checkout with Stripe", () => {
     });
 
     it("processes basic checkout with Stripe only - `customer` as payment source", async () => {
-        const customer = await createCustomer({source: "tok_visa"}, true, stripeLiveMerchantConfig.stripeUserId);
+        const customer = await createCustomer({source: "tok_visa"}, true, defaultTestUser.stripeAccountId);
 
         const request: CheckoutRequest = {
             id: generateId(),
@@ -465,7 +464,7 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.equal(lrCheckoutTransaction.statusCode, 200);
 
         const stripeChargeId = (lrCheckoutTransaction.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).charge.id;
-        const stripeCharge = await retrieveCharge(stripeChargeId, true, stripeLiveMerchantConfig.stripeUserId);
+        const stripeCharge = await retrieveCharge(stripeChargeId, true, defaultTestUser.stripeAccountId);
 
         chai.assert.deepEqual(stripeCharge.metadata, {
             lightrailTransactionId: basicRequest.id,
@@ -516,12 +515,12 @@ describe("split tender checkout with Stripe", () => {
         });
 
         const stripeChargeId = (postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId;
-        const stripeCharge = await retrieveCharge(stripeChargeId, true, stripeLiveMerchantConfig.stripeUserId);
+        const stripeCharge = await retrieveCharge(stripeChargeId, true, defaultTestUser.stripeAccountId);
         chai.assert.deepEqual(stripeCharge.metadata, stripeStep.charge.metadata);
     });
 
     it("passes additionalStripeParams to Stripe", async () => {
-        const onBehalfOf = testStripeLive() ? null : stripeLiveMerchantConfig.stripeUserId;
+        const onBehalfOf = testStripeLive() ? null : defaultTestUser.stripeAccountId;
         const request: CheckoutRequest = {
             id: generateId(),
             sources: [
@@ -593,7 +592,7 @@ describe("split tender checkout with Stripe", () => {
         }, `stripeCharge.shipping=${JSON.stringify(stripeCharge.shipping)}`);
 
         const stripeChargeId = (postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId;
-        const stripeChargeRetrieved = await retrieveCharge(stripeChargeId, true, stripeLiveMerchantConfig.stripeUserId);
+        const stripeChargeRetrieved = await retrieveCharge(stripeChargeId, true, defaultTestUser.stripeAccountId);
         chai.assert.deepEqual(stripeChargeRetrieved.metadata, stripeCharge.metadata);
     });
 
@@ -698,7 +697,7 @@ describe("split tender checkout with Stripe", () => {
                 currency: "CAD",
                 source: "tok_visa"
             };
-            await createCharge(firstRequest, true, stripeLiveMerchantConfig.stripeUserId, `${idempotencyKey}-0`);
+            await createCharge(firstRequest, true, defaultTestUser.stripeAccountId, `${idempotencyKey}-0`);
 
             const request = {
                 ...basicRequest,
@@ -806,7 +805,7 @@ describe("split tender checkout with Stripe", () => {
 
             // get the stripe charge and make sure that it hasn't been refunded
             const stripeChargeId = (postCheckoutResp.body.steps.find(steps => steps.rail === "stripe") as StripeTransactionStep).charge.id;
-            const stripeCharge = await retrieveCharge(stripeChargeId, true, stripeLiveMerchantConfig.stripeUserId);
+            const stripeCharge = await retrieveCharge(stripeChargeId, true, defaultTestUser.stripeAccountId);
             chai.assert.equal(stripeCharge.refunded, false, `stripeCharge first GET: check 'refunded': ${JSON.stringify(stripeCharge)}`);
             chai.assert.equal(stripeCharge.amount_refunded, 0, `stripeCharge first GET: check 'amount_refunded': ${JSON.stringify(stripeCharge)}`);
 
@@ -815,7 +814,7 @@ describe("split tender checkout with Stripe", () => {
             chai.assert.equal(postCheckoutResp3.statusCode, 409, `body=${JSON.stringify(postCheckoutResp3.body)}`);
 
             // make sure the original stripe charge still hasn't been affected
-            const stripeCharge2 = await retrieveCharge(stripeChargeId, true, stripeLiveMerchantConfig.stripeUserId);
+            const stripeCharge2 = await retrieveCharge(stripeChargeId, true, defaultTestUser.stripeAccountId);
             chai.assert.equal(stripeCharge2.refunded, false, `stripeCharge second GET: check 'refunded': ${JSON.stringify(stripeCharge)}`);
             chai.assert.equal(stripeCharge2.amount_refunded, 0, `stripeCharge second GET: check 'amount_refunded': ${JSON.stringify(stripeCharge)}`);
         });
@@ -1350,7 +1349,7 @@ describe("split tender checkout with Stripe", () => {
 
     describe("stripe customer + source tests", () => {
         it("can charge a customer's default card", async () => {
-            const customer = await createCustomer({source: "tok_visa"}, true, stripeLiveMerchantConfig.stripeUserId);
+            const customer = await createCustomer({source: "tok_visa"}, true, defaultTestUser.stripeAccountId);
 
             const request: CheckoutRequest = {
                 id: generateId(),
@@ -1378,8 +1377,8 @@ describe("split tender checkout with Stripe", () => {
         });
 
         it("can charge a customer's non-default card", async () => {
-            const customer = await createCustomer({source: "tok_visa"}, true, stripeLiveMerchantConfig.stripeUserId);
-            const source = await createCustomerSource(customer.id, {source: "tok_mastercard"}, true, stripeLiveMerchantConfig.stripeUserId);
+            const customer = await createCustomer({source: "tok_visa"}, true, defaultTestUser.stripeAccountId);
+            const source = await createCustomerSource(customer.id, {source: "tok_mastercard"}, true, defaultTestUser.stripeAccountId);
             chai.assert.notEqual(source.id, customer.default_source, "newly created source is not default source");
 
             const request: CheckoutRequest = {
