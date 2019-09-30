@@ -20,7 +20,7 @@ import {
 import {getStripeClient} from "../../utils/stripeUtils/stripeAccess";
 import {TestUser} from "../../utils/testUtils/TestUser";
 
-describe("voidExpiredPending()", () => {
+describe.("voidExpiredPending()", () => {
 
     const now = nowInDbPrecision();
     const past = new Date(now);
@@ -204,7 +204,7 @@ describe("voidExpiredPending()", () => {
         await assertTransactionVoided(router, txReq.id);
     });
 
-    it("does not choke when Stripe test data is deleted", async function () {
+    it("voids when Stripe test data is deleted", async function () {
         if (testStripeLive()) {
             // This test relies upon a test token only supported in the local mock server.
             this.skip();
@@ -238,7 +238,7 @@ describe("voidExpiredPending()", () => {
         await assertTransactionVoided(router, stripeCheckoutTx.id);
     });
 
-    it("does not choke when the Stripe account becomes disconnected", async function () {
+    it("voids when the Stripe account becomes disconnected", async function () {
         if (testStripeLive()) {
             // This test relies upon being able to create and delete accounts, which is
             // only supported in the local mock server.
@@ -250,7 +250,15 @@ describe("voidExpiredPending()", () => {
         const stripe = await getStripeClient(true);
         const stripeAccount = await stripe.accounts.create({type: "standard"});
         chai.assert.isString(stripeAccount.id, "created Stripe account");
+        testUser.stripeAccountId = stripeAccount.id;
         setStubbedStripeUserId(testUser, stripeAccount.id);
+
+        await currencies.createCurrency(testUser.auth, {
+            code: "CAD",
+            name: "Canadian bucks",
+            symbol: "$",
+            decimalPlaces: 2
+        });
 
         const stripeCheckoutTx: CheckoutRequest = {
             id: generateId(),
@@ -308,7 +316,7 @@ async function assertTransactionVoided(router: cassava.Router, transactionId: st
 
     const pendingTx = dbTxs.find(tx => tx.id === transactionId);
     chai.assert.isObject(pendingTx, `Find pending tx in chain for ${transactionId}.`);
-    chai.assert.isTrue(pendingTx.pendingVoidDate, `Transaction ${transactionId} is created pending.`);
+    chai.assert.instanceOf(pendingTx.pendingVoidDate, Date, `Transaction ${transactionId} is created pending.`);
 
     const voidTx = dbTxs.find(tx => tx.id !== transactionId);
     chai.assert.isObject(voidTx, `Find void tx in chain for ${transactionId}.`);
@@ -323,7 +331,7 @@ async function assertTransactionNotVoided(router: cassava.Router, transactionId:
 
     const pendingTx = dbTxs.find(tx => tx.id === transactionId);
     chai.assert.isObject(pendingTx, `Find pending tx in chain for ${transactionId}.`);
-    chai.assert.isTrue(pendingTx.pendingVoidDate, `Transaction ${transactionId} is created pending.`);
+    chai.assert.instanceOf(pendingTx.pendingVoidDate, Date, `Transaction ${transactionId} is created pending.`);
 
     if (dbTxs.length > 1) {
         chai.assert.lengthOf(dbTxs, 2, `2 transactions in chain for transaction ${transactionId}.`);
