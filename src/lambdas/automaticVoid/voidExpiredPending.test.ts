@@ -20,7 +20,7 @@ import {
 import {getStripeClient} from "../../utils/stripeUtils/stripeAccess";
 import {TestUser} from "../../utils/testUtils/TestUser";
 
-describe.("voidExpiredPending()", () => {
+describe("voidExpiredPending()", () => {
 
     const now = nowInDbPrecision();
     const past = new Date(now);
