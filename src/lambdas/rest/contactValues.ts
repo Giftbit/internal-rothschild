@@ -199,14 +199,6 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                     },
                     allowOverwrite: params.allowOverwrite,
                 });
-            } else if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "ValueAlreadyAttached") {
-                // when a shared generic code is being re-attached.
-                const now = nowInDbPrecision();
-                return await updateValue(auth, value.id, {
-                    code: value.code,
-                    updatedDate: now,
-                    updatedContactIdDate: now,
-                });
             } else {
                 throw err;
             }
