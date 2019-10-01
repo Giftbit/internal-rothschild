@@ -199,6 +199,8 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                     },
                     allowOverwrite: params.allowOverwrite,
                 });
+            } else if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "ValueAlreadyAttached") {
+                // when a shared generic code is being re-attached, do nothing.
             } else {
                 throw err;
             }
