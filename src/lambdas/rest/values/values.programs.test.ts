@@ -225,7 +225,7 @@ describe("/v2/values create from program", () => {
                 id: generateId()
             });
             chai.assert.equal(valueResp.statusCode, 409, JSON.stringify(valueResp.body));
-            chai.assert.equal(valueResp.body.message, "Value's balance 0 is less than minInitialBalance 100.");
+            chai.assert.include(valueResp.body.message, "minInitialBalance");
         });
 
         it("can't create Value with balance < minInitialBalance", async () => {
@@ -235,7 +235,7 @@ describe("/v2/values create from program", () => {
                 id: generateId()
             });
             chai.assert.equal(valueResp.statusCode, 409, JSON.stringify(valueResp.body));
-            chai.assert.equal(valueResp.body.message, "Value's balance 1 is less than minInitialBalance 100.");
+            chai.assert.include(valueResp.body.message, "minInitialBalance");
         });
 
         it("can't create Value with balance > maxInitialBalance", async () => {
@@ -245,7 +245,7 @@ describe("/v2/values create from program", () => {
                 id: generateId()
             });
             chai.assert.equal(valueResp.statusCode, 409, JSON.stringify(valueResp.body));
-            chai.assert.equal(valueResp.body.message, "Value's balance 201 is greater than maxInitialBalance 200.");
+            chai.assert.include(valueResp.body.message, "maxInitialBalance");
         });
 
         it("can create Value with balance > minInitialBalance and balance < maxInitialBalance", async () => {
@@ -327,7 +327,7 @@ describe("/v2/values create from program", () => {
                 programId: program.id
             } as Partial<Value>);
             chai.assert.equal(valuePost_BalanceNull.statusCode, 409);
-            chai.assert.equal(valuePost_BalanceNull.body.message, "Value's balance null is less than minInitialBalance 0.");
+            chai.assert.include(valuePost_BalanceNull.body.message, "minInitialBalance");
         });
     });
 
@@ -402,7 +402,7 @@ describe("/v2/values create from program", () => {
                 programId: program.id
             } as Partial<Value>);
             chai.assert.equal(valuePost_BalanceNull.statusCode, 409);
-            chai.assert.equal(valuePost_BalanceNull.body.message, "Value's balance null is outside fixedInitialBalances defined by Program 0.");
+            chai.assert.include(valuePost_BalanceNull.body.message, "fixedInitialBalances");
         });
     });
 

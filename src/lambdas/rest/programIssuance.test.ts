@@ -553,7 +553,7 @@ describe("/v2/issuances", () => {
         };
         const createIssuance = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${minInitialBalanceProgram.id}/issuances`, "POST", issuance);
         chai.assert.equal(createIssuance.statusCode, 409, JSON.stringify(createIssuance.body));
-        chai.assert.equal(createIssuance.body.message, "Value's balance 0 is less than minInitialBalance 1.", JSON.stringify(createIssuance.body));
+        chai.assert.include(createIssuance.body.message, "minInitialBalance", JSON.stringify(createIssuance.body));
     });
 
     it("can create Issuance from a program that has a startDate but no endDate", async () => {

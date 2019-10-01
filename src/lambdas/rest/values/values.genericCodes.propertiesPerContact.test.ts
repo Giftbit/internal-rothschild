@@ -1005,17 +1005,17 @@ describe("/v2/values - generic code with per contact properties", () => {
             genericCode.genericCodeOptions.perContact.balance = null;
             let createGenericCode = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericCode);
             chai.assert.equal(createGenericCode.statusCode, 409, `expected to fail since it is null`);
-            chai.assert.include(createGenericCode.body.message, "is less than minInitialBalance 5");
+            chai.assert.include(createGenericCode.body.message, "minInitialBalance");
 
             genericCode.genericCodeOptions.perContact.balance = 1;
             createGenericCode = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericCode);
             chai.assert.equal(createGenericCode.statusCode, 409, `expected to fail since it is below allowed range`);
-            chai.assert.include(createGenericCode.body.message, "is less than minInitialBalance 5");
+            chai.assert.include(createGenericCode.body.message, "minInitialBalance");
 
             genericCode.genericCodeOptions.perContact.balance = 11;
             createGenericCode = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericCode);
             chai.assert.equal(createGenericCode.statusCode, 409, `expected to fail since it is above allowed range`);
-            chai.assert.include(createGenericCode.body.message, "is greater than maxInitialBalance 10");
+            chai.assert.include(createGenericCode.body.message, "maxInitialBalance");
 
             genericCode.genericCodeOptions.perContact.balance = 7;
             createGenericCode = await testUtils.testAuthedRequest(router, "/v2/values", "POST", genericCode);
@@ -1053,17 +1053,17 @@ describe("/v2/values - generic code with per contact properties", () => {
             genericCode.genericCodeOptions.perContact.balance = null;
             let createGenericCode = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericCode);
             chai.assert.equal(createGenericCode.statusCode, 409, `expected to fail since it is null`);
-            chai.assert.include(createGenericCode.body.message, "is outside fixedInitialBalances defined by Program");
+            chai.assert.include(createGenericCode.body.message, "fixedInitialBalances");
 
             genericCode.genericCodeOptions.perContact.balance = 4;
             createGenericCode = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericCode);
             chai.assert.equal(createGenericCode.statusCode, 409, `expected to fail since it is below allowed range`);
-            chai.assert.include(createGenericCode.body.message, "is outside fixedInitialBalances defined by Program");
+            chai.assert.include(createGenericCode.body.message, "fixedInitialBalances");
 
             genericCode.genericCodeOptions.perContact.balance = 6;
             createGenericCode = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericCode);
             chai.assert.equal(createGenericCode.statusCode, 409, `expected to fail since it is above allowed range`);
-            chai.assert.include(createGenericCode.body.message, "is outside fixedInitialBalances defined by Program");
+            chai.assert.include(createGenericCode.body.message, "fixedInitialBalances");
 
             genericCode.genericCodeOptions.perContact.balance = 5;
             createGenericCode = await testUtils.testAuthedRequest(router, "/v2/values", "POST", genericCode);
@@ -1105,17 +1105,17 @@ describe("/v2/values - generic code with per contact properties", () => {
             genericCode.genericCodeOptions.perContact.usesRemaining = null;
             let createGenericCode = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericCode);
             chai.assert.equal(createGenericCode.statusCode, 409, `expected to fail since it is null`);
-            chai.assert.include(createGenericCode.body.message, "outside fixedInitialUsesRemaining defined by Program");
+            chai.assert.include(createGenericCode.body.message, "fixedInitialUsesRemaining");
 
             genericCode.genericCodeOptions.perContact.usesRemaining = 4;
             createGenericCode = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericCode);
             chai.assert.equal(createGenericCode.statusCode, 409, `expected to fail since it is below allowed range`);
-            chai.assert.include(createGenericCode.body.message, "outside fixedInitialUsesRemaining defined by Program");
+            chai.assert.include(createGenericCode.body.message, "fixedInitialUsesRemaining");
 
             genericCode.genericCodeOptions.perContact.usesRemaining = 6;
             createGenericCode = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", genericCode);
             chai.assert.equal(createGenericCode.statusCode, 409, `expected to fail since it is above allowed range`);
-            chai.assert.include(createGenericCode.body.message, "outside fixedInitialUsesRemaining defined by Program");
+            chai.assert.include(createGenericCode.body.message, "fixedInitialUsesRemaining");
 
             genericCode.genericCodeOptions.perContact.usesRemaining = 5;
             createGenericCode = await testUtils.testAuthedRequest(router, "/v2/values", "POST", genericCode);

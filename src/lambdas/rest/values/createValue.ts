@@ -144,21 +144,21 @@ function checkProgramConstraints(value: Value, program: Program): void {
     }
 
     if (program.fixedInitialBalances && (program.fixedInitialBalances.indexOf(balance) === -1 || balance === null)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${balance} is outside fixedInitialBalances defined by Program ${program.fixedInitialBalances}.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${balance} is not in the Program (${program.id}) fixedInitialBalances [${program.fixedInitialBalances.join(", ")}].`);
     }
     if (program.minInitialBalance !== null && (balance < program.minInitialBalance || balance === null)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${balance} is less than minInitialBalance ${program.minInitialBalance}.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${balance} is less than the Program (${program.id}) minInitialBalance ${program.minInitialBalance}.`);
     }
     if (program.maxInitialBalance !== null && (balance > program.maxInitialBalance || balance === null)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${balance} is greater than maxInitialBalance ${program.maxInitialBalance}.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${balance} is greater than the Program (${program.id}) maxInitialBalance ${program.maxInitialBalance}.`);
     }
 
     if (program.fixedInitialUsesRemaining && (program.fixedInitialUsesRemaining.indexOf(usesRemaining) === -1 || !usesRemaining)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's usesRemaining ${usesRemaining} outside fixedInitialUsesRemaining defined by Program ${program.fixedInitialUsesRemaining}.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's usesRemaining ${usesRemaining} is not in the Program (${program.id}) fixedInitialUsesRemaining [${program.fixedInitialUsesRemaining.join(", ")}].`);
     }
 
     if (program.currency !== value.currency) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's currency ${value.currency} cannot differ from currency of Program ${program.currency}.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's currency ${value.currency} does not match the Program (${program.id}) currency ${program.currency}.`);
     }
 }
 
