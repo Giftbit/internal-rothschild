@@ -119,71 +119,6 @@ describe("/v2/values - generic code with per contact properties", () => {
         chai.assert.equal(create.body.message, "If using a generic code with genericCodeOption.perContact properties either genericCodeOptions.perContact.balance or balanceRule must be set.");
     });
 
-    it("can't attach generic code with contact usage limits to same contact twice", async () => {
-        const genericValue: Partial<Value> = {
-            id: generateId(),
-            currency: "USD",
-            isGenericCode: true,
-            code: generateFullcode(),
-            genericCodeOptions: {
-                perContact: {
-                    balance: 500,
-                    usesRemaining: 2
-                }
-            },
-            balance: 5000,
-            usesRemaining: 10
-        };
-        const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValue);
-        chai.assert.equal(create.statusCode, 201);
-        chai.assert.deepNestedInclude(create.body, genericValue);
-
-        const contactId = generateId();
-        const createContact = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {
-            id: contactId
-        });
-        chai.assert.equal(createContact.statusCode, 201);
-
-        const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {code: genericValue.code});
-        chai.assert.equal(attach.statusCode, 200);
-        chai.assert.deepEqualExcluding(attach.body,
-            {
-                "id": null, // it's hashed
-                "currency": "USD",
-                "balance": 500,
-                "usesRemaining": 2,
-                "programId": null,
-                "issuanceId": null,
-                "contactId": contactId,
-                "code": null,
-                "attachedFromValueId": genericValue.id,
-                "isGenericCode": false,
-                "pretax": false,
-                "active": true,
-                "canceled": false,
-                "frozen": false,
-                "discount": false,
-                "discountSellerLiability": null,
-                "redemptionRule": null,
-                "balanceRule": null,
-                "startDate": null,
-                "endDate": null,
-                "metadata": {
-                    attachedFromGenericValue: {
-                        code: genericValue.code
-                    }
-                },
-                "createdDate": null,
-                "updatedDate": null,
-                "updatedContactIdDate": null,
-                "createdBy": "default-test-user-TEST"
-            }, ["id", "createdDate", "updatedDate", "updatedContactIdDate"]);
-
-        const attachAgain = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {code: genericValue.code});
-        chai.assert.equal(attachAgain.statusCode, 409);
-        chai.assert.equal(attachAgain.body["messageCode"], "ValueAlreadyAttached");
-    });
-
     it("insufficient balance will cause attach to fail. can credit balance and then attach another contact", async () => {
         const genericValue: Partial<Value> = {
             id: generateId(),
@@ -1420,19 +1355,7 @@ describe("/v2/values - generic code with per contact properties", () => {
             chai.assert.equal(get.body.attachedFromValueId, genericCode.id);
         });
 
-        it("attach with attachGenericAsNewValue: true fails (already attached)", async () => {
-            const listValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${contact.id}/values`, "GET");
-
-            // can attach the generic code using the legacy attachGenericAsNewValue=true param
-            const attach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
-                code: genericCode.code,
-                attachGenericAsNewValue: true
-            });
-            chai.assert.equal(attach.statusCode, 409);
-            chai.assert.equal(attach.body.messageCode, "ValueAlreadyAttached");
-        });
-
-        it("can migrate code to have genericCodeOptions and attach still 409s", async () => {
+        it("can migrate code to have genericCodeOptions and attach 200s", async () => {
             const updateRequest: Partial<Value> = {
                 genericCodeOptions: {
                     perContact: {
@@ -1451,12 +1374,13 @@ describe("/v2/values - generic code with per contact properties", () => {
             chai.assert.equal(get.body.genericCodeOptions.perContact.usesRemaining, 1);
             chai.assert.isNull(get.body.genericCodeOptions.perContact.balance);
 
-            // can't attach migrated generic code to same contact
+            // can attach migrated generic code to same contact
             const attachAgain = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
                 code: genericCode.code,
                 attachGenericAsNewValue: true
             });
-            chai.assert.equal(attachAgain.statusCode, 409);
+            chai.assert.equal(attachAgain.statusCode, 200);
+            chai.assert.equal(attachAgain.body.attachedFromValueId, genericCode.id);
         });
     });
 
