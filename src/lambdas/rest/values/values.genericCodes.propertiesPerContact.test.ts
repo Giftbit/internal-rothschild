@@ -1380,7 +1380,7 @@ describe("/v2/values - generic code with per contact properties", () => {
                 attachGenericAsNewValue: true
             });
             chai.assert.equal(attachAgain.statusCode, 200);
-            chai.assert.strictEqual(attachAgain.body.attachedFromValueId, genericCode.id);
+            chai.assert.equal(attachAgain.body.attachedFromValueId, genericCode.id);
         });
     });
 

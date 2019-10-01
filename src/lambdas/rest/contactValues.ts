@@ -190,11 +190,11 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             }
         } catch (err) {
             if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "ValueAlreadyExists") {
-                const createdValueId = await getIdForAttachingGenericValue(auth, contact.id, value);
+                const attachedValueId = await getIdForAttachingGenericValue(auth, contact.id, value);
                 return await attachValue(auth, {
                     contactId: params.contactId,
                     valueIdentifier: {
-                        valueId: createdValueId,
+                        valueId: attachedValueId,
                         code: undefined
                     },
                     allowOverwrite: params.allowOverwrite,
