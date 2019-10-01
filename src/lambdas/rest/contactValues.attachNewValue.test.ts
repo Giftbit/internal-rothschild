@@ -329,7 +329,7 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
         });
     });
 
-    it("returns the existing attached Value when a Contact tries to attach an already-attached generic value with 'attachGenericAsNewValue=true'", async () => {
+    it("a Contact cannot attach a generic-code Value twice using attachNewValue=true to create a new Value", async () => {
         const value: Partial<Value> = {
             id: generateId(),
             currency: currency.code,
@@ -352,8 +352,8 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
             code: value.code,
             attachGenericAsNewValue: true
         });
-        chai.assert.equal(attachResp2.statusCode, 200, `body=${JSON.stringify(attachResp2.body)}`);
-        chai.assert.deepEqualExcluding(attachResp1.body, attachResp2.body, ["createdDate"]);
+        chai.assert.equal(attachResp2.statusCode, 409, `body=${JSON.stringify(attachResp2.body)}`);
+        chai.assert.equal(attachResp2.body.messageCode, "ValueAlreadyAttached");
     });
 
     describe("stats on generic code with usesRemaining liability", () => {

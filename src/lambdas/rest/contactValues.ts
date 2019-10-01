@@ -18,7 +18,6 @@ import {
     generateUrlSafeHashFromValueIdContactId
 } from "./genericCodeWithPerContactOptions";
 import log = require("loglevel");
-import {GiftbitRestError} from "giftbit-cassava-routes";
 
 export function installContactValuesRest(router: cassava.Router): void {
     router.route("/v2/contacts/{id}/values")
@@ -176,32 +175,16 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     }
 
     if (value.isGenericCode) {
-        try {
-            if (Value.isGenericCodeWithPropertiesPerContact(value)) {
-                MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericPerContactProps, auth);
-                return await attachGenericCodeWithPerContactOptions(auth, contact.id, value);
-            } else if (params.attachGenericAsNewValue) /* legacy case to eventually be removed */ {
-                MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, auth);
-                return await attachGenericValueAsNewValue(auth, contact.id, value);
-            } else {
-                MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, auth);
-                await attachSharedGenericValue(auth, contact.id, value);
-                return value;
-            }
-        } catch (err) {
-            if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "ValueAlreadyExists") {
-                const attachedValueId = await getIdForAttachingGenericValue(auth, contact.id, value);
-                return await attachValue(auth, {
-                    contactId: params.contactId,
-                    valueIdentifier: {
-                        valueId: attachedValueId,
-                        code: undefined
-                    },
-                    allowOverwrite: params.allowOverwrite,
-                });
-            } else {
-                throw err;
-            }
+        if (Value.isGenericCodeWithPropertiesPerContact(value)) {
+            MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericPerContactProps, auth);
+            return await attachGenericCodeWithPerContactOptions(auth, contact.id, value);
+        } else if (params.attachGenericAsNewValue) /* legacy case to eventually be removed */ {
+            MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, auth);
+            return await attachGenericValueAsNewValue(auth, contact.id, value);
+        } else {
+            MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, auth);
+            await attachSharedGenericValue(auth, contact.id, value);
+            return value;
         }
     } else {
         MetricsLogger.valueAttachment(ValueAttachmentTypes.Unique, auth);
@@ -239,23 +222,9 @@ export async function detachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             .delete();
 
         if (res === 0) {
-            try {
-                const attachedValueId = await getIdForAttachingGenericValue(auth, contactId, value);
-                const now = nowInDbPrecision();
-                return await updateValue(auth, attachedValueId, {
-                    contactId: null,
-                    updatedDate: now,
-                    updatedContactIdDate: now
-                });
-            } catch (err) {
-                if ((err as GiftbitRestError).statusCode === 404 && err.additionalParams.messageCode === "ValueNotFound") {
-                    throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value ${valueId} is not Attached to the Contact ${contactId}.`, "AttachedValueNotFound");
-                } else {
-                    throw err;
-                }
-            }
+            // if this object doesn't exist it implies the Value isn't attached.
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value ${valueId} is not Attached to the Contact ${contactId}.`, "AttachedValueNotFound");
         }
-
         if (res > 1) {
             throw new Error(`Illegal DELETE query.  Deleted ${res} values.`);
         }
@@ -381,7 +350,7 @@ async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.Authoriz
         } catch (err) {
             const constraint = getSqlErrorConstraintName(err);
             if (constraint === "PRIMARY") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${originalValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyExists");
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${originalValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
             }
             if (constraint === "fk_Values_Contacts") {
                 throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${contactId}' not found.`, "ContactNotFound");
@@ -417,7 +386,7 @@ export async function getIdForAttachingGenericValue(auth: giftbitRoutes.jwtauth.
         const legacyHashId = await generateLegacyHashForValueIdContactId(genericValue.id, contactId);
 
         if (await valueExists(auth, legacyHashId)) {
-            return legacyHashId;
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${genericValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
         }
     }
     return generateUrlSafeHashFromValueIdContactId(genericValue.id, contactId);

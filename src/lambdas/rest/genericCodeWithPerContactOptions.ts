@@ -25,7 +25,7 @@ export async function attachGenericCodeWithPerContactOptions(auth: giftbitRoutes
         }, async () => transactionPlan = await getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth, contactId, genericValue));
     } catch (err) {
         if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "TransactionExists") {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${genericValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyExists");
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${genericValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
         } else {
             throw err;
         }
