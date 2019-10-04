@@ -4,6 +4,7 @@ import * as cassava from "cassava";
 import {getStripeClient} from "./stripeAccess";
 import log = require("loglevel");
 import Stripe = require("stripe");
+import {GiftbitRestError} from "giftbit-cassava-routes";
 
 export async function createCharge(params: Stripe.charges.IChargeCreationOptions, isTestMode: boolean, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<Stripe.charges.ICharge> {
     const lightrailStripe = await getStripeClient(isTestMode);
@@ -30,10 +31,20 @@ export async function createCharge(params: Stripe.charges.IChargeCreationOptions
                     const nextStepIdempotencyKey = getRetryIdempotencyKey(stepIdempotencyKey, err);
                     return createCharge(params, isTestMode, merchantStripeAccountId, nextStepIdempotencyKey);
                 }
+                if (err.code === "expired_card") {
+                    throw new StripeRestError(cassava.httpStatusCode.clientError.CONFLICT, "Your card is expired.", "StripeCardDeclined", err);
+                }
+                if (err.code === "insufficient_funds") {
+                    throw new StripeRestError(cassava.httpStatusCode.clientError.CONFLICT, "Your card has insufficient funds.", "StripeCardDeclined", err);
+                }
                 throw new StripeRestError(cassava.httpStatusCode.clientError.CONFLICT, "Card declined.", "StripeCardDeclined", err);
             case "StripeInvalidRequestError":
                 if (err.code === "amount_too_small") {
+                    // 422's
                     throw new StripeRestError(cassava.httpStatusCode.clientError.CONFLICT, `Failed to charge credit card: amount '${params.amount}' for Stripe was too small.`, "StripeAmountTooSmall", err);
+                }
+                if (err.code === "parameter_missing") {
+                    throw new StripeRestError(cassava.httpStatusCode.clientError.CONFLICT, "The stripeCardToken was invalid.", "StripeInvalidRequestError", err);
                 }
                 throw new StripeRestError(cassava.httpStatusCode.clientError.CONFLICT, "The stripeCardToken was invalid.", "StripeInvalidRequestError", err);
             case "StripeRateLimitError":
@@ -177,7 +188,10 @@ function checkForStandardStripeErrors(err: any): void {
         case "StripePermissionError":
             throw new StripeRestError(424, "Application access may have been revoked.", "StripePermissionError", err);
         default:
-        // do nothing
+            // try something for 500s
+            if (err.code === "api_connection_error") {
+                throw new GiftbitRestError(502, "Stripe is not responding.", "StripeAPIError");
+            }
     }
 }
 
@@ -195,7 +209,7 @@ function getRetryIdempotencyKey(stepIdempotencyKey: string, originalErr: any): s
     }
 
     if (count > 5) {
-        throw originalErr;
+       throw new StripeRestError(cassava.httpStatusCode.clientError.CONFLICT, "Card declined.", "StripeCardDeclined", originalErr);
     }
 
     return originalStepIdempotencyKey + "-retry-" + count;
