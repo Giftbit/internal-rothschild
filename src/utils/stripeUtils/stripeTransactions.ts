@@ -41,12 +41,12 @@ export async function createCharge(params: Stripe.charges.IChargeCreationOptions
             case "StripeInvalidRequestError":
                 if (err.code === "amount_too_small") {
                     // 422's
-                    throw new StripeRestError(cassava.httpStatusCode.clientError.CONFLICT, `Failed to charge credit card: amount '${params.amount}' for Stripe was too small.`, "StripeAmountTooSmall", err);
+                    throw new StripeRestError(422, `Failed to charge credit card: amount '${params.amount}' for Stripe was too small.`, "StripeAmountTooSmall", err);
                 }
                 if (err.code === "parameter_missing") {
-                    throw new StripeRestError(cassava.httpStatusCode.clientError.CONFLICT, "The stripeCardToken was invalid.", "StripeInvalidRequestError", err);
+                    throw new StripeRestError(422, "The stripeCardToken was invalid.", "StripeParameterMissing", err);
                 }
-                throw new StripeRestError(cassava.httpStatusCode.clientError.CONFLICT, "The stripeCardToken was invalid.", "StripeInvalidRequestError", err);
+                throw new StripeRestError(422, "your request has invalid parameter", "StripeInvalidRequestError", err);
             case "StripeRateLimitError":
                 throw new StripeRestError(cassava.httpStatusCode.clientError.TOO_MANY_REQUESTS, err.message, "StripeRateLimitError", err);
             default:
@@ -189,8 +189,8 @@ function checkForStandardStripeErrors(err: any): void {
             throw new StripeRestError(424, "Application access may have been revoked.", "StripePermissionError", err);
         default:
             // try something for 500s
-            if (err.code === "api_connection_error") {
-                throw new GiftbitRestError(502, "Stripe is not responding.", "StripeAPIError");
+            if (err.type === "StripeConnectionError") {
+                throw new GiftbitRestError(502, "Stripe is not responding.", "StripeConnectionError");
             }
     }
 }
@@ -209,7 +209,13 @@ function getRetryIdempotencyKey(stepIdempotencyKey: string, originalErr: any): s
     }
 
     if (count > 5) {
-       throw new StripeRestError(cassava.httpStatusCode.clientError.CONFLICT, "Card declined.", "StripeCardDeclined", originalErr);
+        if (originalErr.code === "expired_card") {
+            throw new StripeRestError(cassava.httpStatusCode.clientError.CONFLICT, "Your card is expired.", "StripeCardDeclined", originalErr);
+        } else if (originalErr.code === "insufficient_funds") {
+            throw new StripeRestError(cassava.httpStatusCode.clientError.CONFLICT, "Your card has insufficient funds.", "StripeCardDeclined", originalErr);
+        } else {
+            throw  new StripeRestError(cassava.httpStatusCode.clientError.CONFLICT, "Card declined.", "StripeCardDeclined", originalErr);
+        }
     }
 
     return originalStepIdempotencyKey + "-retry-" + count;

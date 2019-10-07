@@ -1233,7 +1233,7 @@ describe("split tender checkout with Stripe", () => {
             };
 
             const postCheckoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-            chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body)}`);
+            chai.assert.equal(postCheckoutResp.statusCode, 422, `body=${JSON.stringify(postCheckoutResp.body)}`);
             chai.assert.equal(postCheckoutResp.body.messageCode, "StripeAmountTooSmall");
         });
 
