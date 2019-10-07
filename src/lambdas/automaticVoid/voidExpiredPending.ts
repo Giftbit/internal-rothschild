@@ -44,10 +44,15 @@ export async function getExpiredPendingTransactions(limit: number): Promise<DbTr
 
     const now = nowInDbPrecision();
 
+    // Temporarily ignore transactions that have been failing for more than 3 days.
+    // TODO remove this once we're sure all transactions should be voidable.
+    const tooOld = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+
     const knex = await getKnexRead();
     return await knex("Transactions")
         .whereNull("nextTransactionId")
         .where("pendingVoidDate", "<", now)
+        .where("pendingVoidDate", ">", tooOld)
         .limit(limit)
         .orderBy("pendingVoidDate");    // Void in the order they expired.
 }
