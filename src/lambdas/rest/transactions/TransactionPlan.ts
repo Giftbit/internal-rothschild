@@ -126,10 +126,35 @@ export interface StripeCaptureTransactionPlanStep {
     captureResult?: stripe.charges.ICharge;
 }
 
+export interface StripeVoidTransactionPlanStep {
+    rail: "stripe";
+    type: "void";
+
+    /**
+     * The ID of the charge to void.
+     */
+    chargeId: string;
+
+    amount: number;
+
+    /**
+     * If `true` the void is forced to succeed by storing errors
+     * rather than failing.
+     */
+    force?: boolean;
+
+    /**
+     * Result of refunding.  Only set if the plan is executed
+     * and voiding succeeds.
+     */
+    voidResult?: stripe.refunds.IRefund | stripe.IStripeError;
+}
+
 export type StripeTransactionPlanStep =
     StripeChargeTransactionPlanStep
     | StripeRefundTransactionPlanStep
-    | StripeCaptureTransactionPlanStep;
+    | StripeCaptureTransactionPlanStep
+    | StripeVoidTransactionPlanStep;
 
 export interface InternalTransactionPlanStep {
     rail: "internal";
@@ -252,6 +277,13 @@ export namespace StripeTransactionPlanStep {
                 if (step.captureResult) {
                     stripeTransactionStep.chargeId = step.captureResult.id;
                     stripeTransactionStep.charge = step.captureResult;
+                    stripeTransactionStep.amount = step.amount;
+                }
+                break;
+            case "void":
+                if (step.voidResult) {
+                    stripeTransactionStep.chargeId = step.chargeId;
+                    stripeTransactionStep.charge = step.voidResult;
                     stripeTransactionStep.amount = step.amount;
                 }
                 break;

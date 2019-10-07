@@ -204,6 +204,37 @@ describe("voidExpiredPending()", () => {
         await assertTransactionVoided(router, txReq.id);
     });
 
+    it("voids the transaction even if the Value is canceled", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balance: 1000
+        };
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(postValueResp.statusCode, 201);
+
+        const txReq: DebitRequest = {
+            id: generateId(),
+            amount: 500,
+            currency: "CAD",
+            source: {
+                rail: "lightrail",
+                valueId: value.id
+            },
+            pending: true
+        };
+        const txResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", txReq);
+        chai.assert.equal(txResp.statusCode, 201);
+        await updateTransactionPendingVoidDate(txReq.id, past);
+
+        const freezeValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", {canceled: true});
+        chai.assert.equal(freezeValueResp.statusCode, 200);
+
+        await voidExpiredPending(getLambdaContext());
+
+        await assertTransactionVoided(router, txReq.id);
+    });
+
     it("voids when Stripe test data is deleted", async function () {
         if (testStripeLive()) {
             // This test relies upon a test token only supported in the local mock server.
@@ -234,7 +265,6 @@ describe("voidExpiredPending()", () => {
 
         await voidExpiredPending(getLambdaContext());
 
-        // TODO probably not the right outcome
         await assertTransactionVoided(router, stripeCheckoutTx.id);
     });
 
@@ -285,7 +315,6 @@ describe("voidExpiredPending()", () => {
         await stripe.accounts.del(stripeAccount.id);
         await voidExpiredPending(getLambdaContext());
 
-        // TODO probably not the right outcome
         await assertTransactionVoided(router, stripeCheckoutTx.id);
     });
 });

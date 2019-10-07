@@ -68,7 +68,7 @@ async function voidPendingTransaction(dbTransaction: DbTransaction): Promise<voi
             allowRemainder: false
         },
         async () => {
-            return createVoidTransactionPlanForDbTransaction(
+            const plan = await createVoidTransactionPlanForDbTransaction(
                 auth,
                 {
                     // This operation is naturally idempotent because of the transaction chain; so this ID doesn't matter much.
@@ -76,6 +76,12 @@ async function voidPendingTransaction(dbTransaction: DbTransaction): Promise<voi
                 },
                 dbTransaction
             );
+            plan.steps.forEach(step => {
+                if (step.rail === "stripe" && step.type === "void") {
+                    step.force = true;
+                }
+            });
+            return plan;
         }
     );
 }

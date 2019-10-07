@@ -51,6 +51,20 @@ export async function executeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
                     await updateCharge(step.chargeId, updateChargeParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id);
                     log.info(`Updated Stripe charge ${step.chargeId} with reason.`);
                 }
+            } else if (step.type === "void") {
+                try {
+                    const stripeRefundParams: Stripe.refunds.IRefundCreationOptionsWithCharge = {
+                        charge: step.chargeId
+                    };
+                    step.voidResult = await createRefund(stripeRefundParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id);
+                } catch (err) {
+                    if (step.force && (err as StripeRestError).isStripeRestError) {
+                        step.voidResult = (err as StripeRestError).stripeError;
+                        step.amount = 0;
+                    } else {
+                        throw err;
+                    }
+                }
             } else if (step.type === "capture") {
                 if (step.amount < 0) {
                     throw new Error(`StripeTransactionPlanStep capture amount ${step.amount} is < 0. The number represents the delta from the original charge and must be >= 0 as we cannot capture additional value.`);
