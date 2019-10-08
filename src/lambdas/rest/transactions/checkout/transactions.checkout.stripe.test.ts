@@ -1212,7 +1212,7 @@ describe("split tender checkout with Stripe", () => {
             // Not sent to Stripe because it will treat CAD as the settlement currency so $0.50 min is actually correct.
         });
 
-        it("returns 409 for simulate=false transactions where minAmount is lower than Stripe will accept", async function () {
+        it("returns 422 for simulate=false transactions where minAmount is lower than Stripe will accept", async function () {
             const checkoutRequest: CheckoutRequest = {
                 id: generateId(),
                 sources: [
