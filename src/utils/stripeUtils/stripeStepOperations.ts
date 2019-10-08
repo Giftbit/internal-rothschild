@@ -59,7 +59,12 @@ export async function executeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
                     step.voidResult = await createRefund(stripeRefundParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id);
                 } catch (err) {
                     if (step.force && (err as StripeRestError).isStripeRestError) {
-                        step.voidResult = (err as StripeRestError).stripeError;
+                        plan.totals = plan.totals || {unaccounted: 0};
+                        plan.totals.unaccounted += step.amount;
+                        step.voidResult = {
+                            ...(err as StripeRestError).stripeError,
+                            object: "error"
+                        };
                         step.amount = 0;
                     } else {
                         throw err;

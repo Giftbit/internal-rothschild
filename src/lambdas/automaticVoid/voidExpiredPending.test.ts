@@ -338,7 +338,7 @@ async function assertTransactionVoided(router: cassava.Router, transactionId: st
     const knex = await getKnexRead();
     const dbTxs: DbTransaction[] = await knex("Transactions")
         .where({rootTransactionId: transactionId});
-    chai.assert.lengthOf(dbTxs, 2, `2 transactions in chain for transaction ${transactionId}.`);
+    chai.assert.lengthOf(dbTxs, 2, `2 transactions (implies voided) in chain for transaction ${transactionId}.`);
 
     // These transactions might not be in the right order because they can happen in the same second,
     // which is the time resolution of the DB.

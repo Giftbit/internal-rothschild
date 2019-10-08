@@ -1,5 +1,6 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
+import * as stripe from "stripe";
 import * as testUtils from "../../../utils/testUtils";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../utils/testUtils";
 import {formatCodeForLastFourDisplay, Value} from "../../../model/Value";
@@ -180,6 +181,7 @@ describe("/v2/transactions/transfer", () => {
                 "totals_paidInternal": null,
                 "totals_remainder": 0,
                 "totals_forgiven": null,
+                "totals_unaccounted": null,
                 "totals_marketplace_sellerGross": null,
                 "totals_marketplace_sellerDiscount": null,
                 "totals_marketplace_sellerNet": null
@@ -1148,12 +1150,13 @@ describe("/v2/transactions/transfer", () => {
             }, ["chargeId", "charge"]);
             chai.assert.isNotNull(sourceStep.chargeId);
             chai.assert.isNotNull(sourceStep.charge);
-            chai.assert.equal(sourceStep.charge.amount, 1000);
-            chai.assert.deepEqual(sourceStep.charge.metadata, {
+            chai.assert.equal(sourceStep.charge.object, "charge");
+            chai.assert.equal((sourceStep.charge as stripe.charges.ICharge).amount, 1000);
+            chai.assert.deepEqual((sourceStep.charge as stripe.charges.ICharge).metadata, {
                 "lightrailTransactionId": request.id,
                 "lightrailTransactionSources": `[{\"rail\":\"lightrail\",\"valueId\":\"${valueCadForStripeTests.id}\"}]`,
                 "lightrailUserId": defaultTestUser.userId
-            }, JSON.stringify(sourceStep.charge.metadata));
+            }, JSON.stringify((sourceStep.charge as stripe.charges.ICharge).metadata));
 
             const destStep = postTransferResp.body.steps.find((s: LightrailTransactionStep) => s.valueId === valueCadForStripeTests.id) as LightrailTransactionStep;
             chai.assert.deepEqual(destStep, {
@@ -1252,8 +1255,9 @@ describe("/v2/transactions/transfer", () => {
             }, ["chargeId", "charge"]);
             chai.assert.isNotNull(sourceStep.chargeId);
             chai.assert.isNotNull(sourceStep.charge);
-            chai.assert.equal(sourceStep.charge.amount, 900);
-            chai.assert.deepEqual(sourceStep.charge.metadata, {
+            chai.assert.equal(sourceStep.charge.object, "charge");
+            chai.assert.equal((sourceStep.charge as stripe.charges.ICharge).amount, 900);
+            chai.assert.deepEqual((sourceStep.charge as stripe.charges.ICharge).metadata, {
                 "lightrailTransactionId": request.id,
                 "lightrailTransactionSources": `[{\"rail\":\"lightrail\",\"valueId\":\"${valueCad2ForStripeTests.id}\"}]`,
                 "lightrailUserId": defaultTestUser.userId

@@ -73,7 +73,8 @@ describe("/v2/transactions/checkout - basics", () => {
                 paidLightrail: 50,
                 paidStripe: 0,
                 remainder: 0,
-                forgiven: 0
+                forgiven: 0,
+                unaccounted: 0
             },
             lineItems: [
                 {
@@ -156,6 +157,7 @@ describe("/v2/transactions/checkout - basics", () => {
                 "totals_paidInternal": 0,
                 "totals_remainder": 0,
                 "totals_forgiven": 0,
+                "totals_unaccounted": 0,
                 "nextTransactionId": null,
                 "rootTransactionId": "checkout-1",
                 "totals_marketplace_sellerGross": null,
@@ -221,7 +223,8 @@ describe("/v2/transactions/checkout - basics", () => {
                 paidLightrail: 40,
                 paidStripe: 0,
                 remainder: 0,
-                forgiven: 0
+                forgiven: 0,
+                unaccounted: 0
             },
             lineItems: [
                 {
@@ -375,7 +378,8 @@ describe("/v2/transactions/checkout - basics", () => {
                 paidLightrail: 1003,
                 paidStripe: 0,
                 remainder: 0,
-                forgiven: 0
+                forgiven: 0,
+                unaccounted: 0
             },
             "lineItems": [
                 {
@@ -534,7 +538,8 @@ describe("/v2/transactions/checkout - basics", () => {
                 paidLightrail: 50,
                 paidStripe: 0,
                 remainder: 0,
-                forgiven: 0
+                forgiven: 0,
+                unaccounted: 0
             },
             lineItems: [
                 {
@@ -697,6 +702,7 @@ describe("/v2/transactions/checkout - basics", () => {
                         "payable": 79,
                         "remainder": 0,
                         "forgiven": 0,
+                        "unaccounted": 0,
                         "discountLightrail": 75,
                         "paidLightrail": 79,
                         "paidStripe": 0,

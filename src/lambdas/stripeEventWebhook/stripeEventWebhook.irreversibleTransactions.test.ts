@@ -79,7 +79,7 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
         const webhookEventSetup = await setupForWebhookEvent(restRouter, {initialCheckoutReq: {pending: true}});
 
         const refund = await createRefund({
-            charge: webhookEventSetup.stripeStep.charge.id
+            charge: webhookEventSetup.stripeStep.chargeId
         }, true, testUtils.defaultTestUser.stripeAccountId);
         const stripeChargeMock = buildStripeFraudRefundedChargeMock(webhookEventSetup.finalStateStripeCharge, refund);
         const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", stripeChargeMock));

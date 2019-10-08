@@ -1,7 +1,7 @@
 import * as chai from "chai";
 import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../testUtils/stripeTestUtils";
 import {createCharge} from "./stripeTransactions";
-import {default as testUtils, generateId} from "../testUtils";
+import * as testUtils from "../testUtils";
 import {StripeRestError} from "./StripeRestError";
 
 describe("stripeTransactions", () => {
@@ -29,7 +29,7 @@ describe("stripeTransactions", () => {
             source: "tok_chargeDeclinedInsufficientFunds|tok_visa"
         };
 
-        const idempotencyKey = generateId() + "-0";
+        const idempotencyKey = testUtils.generateId() + "-0";
         let firstFail: any;
         try {
             // This charge will fail.

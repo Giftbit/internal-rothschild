@@ -68,6 +68,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
             payable: 0,
             remainder: 0,
             forgiven: 0,
+            unaccounted: 0,
             discountLightrail: this.steps.filter(step => step.rail === "lightrail" && step.value.discount === true).reduce((prev, step) => prev + (<LightrailUpdateTransactionPlanStep>step).amount, 0) * -1,
             paidLightrail: this.steps.filter(step => step.rail === "lightrail" && step.value.discount === false).reduce((prev, step) => prev + (<LightrailUpdateTransactionPlanStep>step).amount, 0) * -1,
             paidStripe: this.steps.filter(step => step.rail === "stripe").reduce((prev, step) => prev + (<StripeTransactionPlanStep>step).amount, 0) * -1,

@@ -5,12 +5,15 @@ export class StripeRestError extends cassava.RestError {
 
     readonly isStripeRestError = true;
 
-    constructor(statusCode: number, message: string, messageCode: string, public stripeError: Stripe.IStripeError) {
+    constructor(statusCode: number, message: string, messageCode: string, stripeError: Stripe.IStripeError) {
         super(statusCode, message, {
             messageCode,
             stripeError: StripeRestError.santizeStripeError(stripeError)
         });
-        this.stripeError = StripeRestError.santizeStripeError(stripeError);
+    }
+
+    get stripeError(): Stripe.IStripeError {
+        return this.additionalParams["stripeError"];
     }
 
     /**

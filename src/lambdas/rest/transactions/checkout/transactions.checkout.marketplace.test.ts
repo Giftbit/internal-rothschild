@@ -266,7 +266,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             allowRemainder: true,
             currency: "CAD"
         };
-        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest );
+        const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
         chai.assert.deepEqual(checkoutResp.body.totals.marketplace, {
             sellerDiscount: 7505,
             sellerGross: 46000,
@@ -310,6 +310,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             payable: 500,
             remainder: 500,
             forgiven: 0,
+            unaccounted: 0,
             discountLightrail: 500,
             paidLightrail: 0,
             paidStripe: 0,

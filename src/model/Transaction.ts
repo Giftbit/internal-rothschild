@@ -36,6 +36,7 @@ export interface DbTransaction {
     totals_paidInternal: number | null;
     totals_remainder: number | null;
     totals_forgiven: number | null;
+    totals_unaccounted: number | null;
     totals_marketplace_sellerGross: number | null;
     totals_marketplace_sellerDiscount: number | null;
     totals_marketplace_sellerNet: number | null;
@@ -66,6 +67,7 @@ export namespace Transaction {
             totals_paidInternal: t.totals && t.totals.paidInternal,
             totals_remainder: t.totals && t.totals.remainder,
             totals_forgiven: t.totals && t.totals.forgiven,
+            totals_unaccounted: t.totals && t.totals.unaccounted,
             totals_marketplace_sellerGross: t.totals && t.totals.marketplace && t.totals.marketplace.sellerGross,
             totals_marketplace_sellerDiscount: t.totals && t.totals.marketplace && t.totals.marketplace.sellerDiscount,
             totals_marketplace_sellerNet: t.totals && t.totals.marketplace && t.totals.marketplace.sellerNet,
@@ -128,6 +130,7 @@ export namespace DbTransaction {
                     paidInternal: dbT.totals_paidInternal !== null ? dbT.totals_paidInternal : undefined,
                     remainder: dbT.totals_remainder !== null ? dbT.totals_remainder : undefined,
                     forgiven: dbT.totals_forgiven !== null ? dbT.totals_forgiven : undefined,
+                    unaccounted: dbT.totals_unaccounted !== null ? dbT.totals_unaccounted : undefined,
                     marketplace: undefined
                 };
 
@@ -153,6 +156,7 @@ function hasNonNullTotals(dbT: DbTransaction): boolean {
         dbT.totals_paidInternal !== null ||
         dbT.totals_remainder !== null ||
         dbT.totals_forgiven !== null ||
+        dbT.totals_unaccounted !== null ||
         dbT.totals_marketplace_sellerGross !== null ||
         dbT.totals_marketplace_sellerDiscount !== null ||
         dbT.totals_marketplace_sellerNet !== null;
@@ -188,7 +192,11 @@ export interface StripeTransactionStep {
     rail: "stripe";
     amount: number;
     chargeId?: string;
-    charge?: stripe.charges.ICharge | stripe.refunds.IRefund | stripe.IStripeError;
+    charge?: stripe.charges.ICharge | stripe.refunds.IRefund | StripeTransactionStepError;
+}
+
+export interface StripeTransactionStepError extends stripe.IStripeError {
+    object: "error";
 }
 
 export interface InternalTransactionStep {
@@ -208,6 +216,7 @@ export interface TransactionTotals {
     paidInternal?: number;
     remainder?: number;
     forgiven?: number;
+    unaccounted?: number;
     marketplace?: MarketplaceTransactionTotals;
     discount?: number; // deprecated
     payable?: number; // deprecated

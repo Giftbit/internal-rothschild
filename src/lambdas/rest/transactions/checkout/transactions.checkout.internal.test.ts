@@ -76,7 +76,8 @@ describe("/v2/transactions/checkout - internal sources", () => {
                 "paidLightrail": 0,
                 "paidStripe": 0,
                 "remainder": 0,
-                "forgiven": 0
+                "forgiven": 0,
+                "unaccounted": 0
             },
             "lineItems": [
                 {
@@ -209,7 +210,8 @@ describe("/v2/transactions/checkout - internal sources", () => {
                 "paidLightrail": 0,
                 "paidStripe": 0,
                 "remainder": 0,
-                "forgiven": 0
+                "forgiven": 0,
+                "unaccounted": 0
             },
             "lineItems": [
                 {
@@ -348,7 +350,8 @@ describe("/v2/transactions/checkout - internal sources", () => {
                 "paidLightrail": 0,
                 "paidStripe": 0,
                 "remainder": 0,
-                "forgiven": 0
+                "forgiven": 0,
+                "unaccounted": 0
             },
             "lineItems": [
                 {
@@ -466,7 +469,8 @@ describe("/v2/transactions/checkout - internal sources", () => {
                 "paidLightrail": 224,
                 "paidStripe": 0,
                 "remainder": 0,
-                "forgiven": 0
+                "forgiven": 0,
+                "unaccounted": 0
             },
             "lineItems": [
                 {
@@ -588,6 +592,7 @@ describe("/v2/transactions/checkout - internal sources", () => {
                 payable: 666,
                 remainder: 0,
                 forgiven: 0,
+                unaccounted: 0,
                 subtotal: 634,
                 tax: 32
             },

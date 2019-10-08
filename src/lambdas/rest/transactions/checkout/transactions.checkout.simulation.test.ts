@@ -97,7 +97,8 @@ describe("/v2/transactions/checkout - simulation tests", () => {
                 "paidLightrail": 4000,
                 "paidStripe": 0,
                 "remainder": 36400,
-                "forgiven": 0
+                "forgiven": 0,
+                "unaccounted": 0
             },
             "lineItems": [
                 {

@@ -5,6 +5,7 @@ import * as valueStores from "../../values/values";
 import * as currencies from "../../currencies";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as sinon from "sinon";
+import * as stripe from "stripe";
 import {Value} from "../../../../model/Value";
 import {StripeTransactionStep, Transaction} from "../../../../model/Transaction";
 import {Currency} from "../../../../model/Currency";
@@ -130,7 +131,8 @@ describe("split tender checkout with Stripe", () => {
             paidLightrail: 0,
             paidStripe: 123,
             remainder: 0,
-            forgiven: 0
+            forgiven: 0,
+            unaccounted: 0
         }, `body.totals=${JSON.stringify(postCheckoutResp.body.totals)}`);
         chai.assert.deepEqual(postCheckoutResp.body.lineItems, [
             {
@@ -201,7 +203,8 @@ describe("split tender checkout with Stripe", () => {
             paidLightrail: 0,
             paidStripe: 123,
             remainder: 0,
-            forgiven: 0
+            forgiven: 0,
+            unaccounted: 0
         }, `body.totals=${JSON.stringify(postCheckoutResp.body.totals)}`);
         chai.assert.deepEqual(postCheckoutResp.body.lineItems, [
             {
@@ -307,7 +310,8 @@ describe("split tender checkout with Stripe", () => {
             paidLightrail: 100,
             paidStripe: 400,
             remainder: 0,
-            forgiven: 0
+            forgiven: 0,
+            unaccounted: 0
         }, `body.totals=${JSON.stringify(postCheckoutResp.body.totals)}`);
         chai.assert.deepEqual(postCheckoutResp.body.lineItems, [
             {
@@ -406,7 +410,8 @@ describe("split tender checkout with Stripe", () => {
             paidLightrail: 500,
             paidStripe: 0,
             remainder: 0,
-            forgiven: 0
+            forgiven: 0,
+            unaccounted: 0
         }, `body.totals=${JSON.stringify(postCheckoutResp.body.totals)}`);
         chai.assert.deepEqual(postCheckoutResp.body.lineItems, [
             {
@@ -463,7 +468,7 @@ describe("split tender checkout with Stripe", () => {
         const lrCheckoutTransaction = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${basicRequest.id}`, "GET");  // created in first split tender test
         chai.assert.equal(lrCheckoutTransaction.statusCode, 200);
 
-        const stripeChargeId = (lrCheckoutTransaction.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).charge.id;
+        const stripeChargeId = (lrCheckoutTransaction.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId;
         const stripeCharge = await retrieveCharge(stripeChargeId, true, defaultTestUser.stripeAccountId);
 
         chai.assert.deepEqual(stripeCharge.metadata, {
@@ -500,14 +505,15 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.deepEqual(postCheckoutResp.body.metadata, request.metadata, `body.metadata=${postCheckoutResp.body.metadata}`);
 
         const stripeStep = postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep;
-        chai.assert.deepEqual(stripeStep.charge.metadata, {
+        chai.assert.equal(stripeStep.charge.object, "charge");
+        chai.assert.deepEqual((stripeStep.charge as stripe.charges.ICharge).metadata, {
             ...request.metadata,
             lightrailTransactionId: request.id,
             "lightrailTransactionSources": "[]", // lightrail value is used up by now
             "lightrailUserId": defaultTestUser.auth.userId
         });
 
-        chai.assert.deepEqual(stripeStep.charge.metadata, {
+        chai.assert.deepEqual((stripeStep.charge as stripe.charges.ICharge).metadata, {
             ...request.metadata,
             lightrailTransactionId: request.id,
             lightrailTransactionSources: "[]",
@@ -516,7 +522,7 @@ describe("split tender checkout with Stripe", () => {
 
         const stripeChargeId = (postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId;
         const stripeCharge = await retrieveCharge(stripeChargeId, true, defaultTestUser.stripeAccountId);
-        chai.assert.deepEqual(stripeCharge.metadata, stripeStep.charge.metadata);
+        chai.assert.deepEqual(stripeCharge.metadata, (stripeStep.charge as stripe.charges.ICharge).metadata);
     });
 
     it("passes additionalStripeParams to Stripe", async () => {
@@ -630,7 +636,8 @@ describe("split tender checkout with Stripe", () => {
             paidLightrail: 100,
             paidStripe: 400,
             remainder: 0,
-            forgiven: 0
+            forgiven: 0,
+            unaccounted: 0
         }, `body.totals=${JSON.stringify(postCheckoutResp.body.totals)}`);
         chai.assert.deepEqual(postCheckoutResp.body.lineItems, [
             {
@@ -804,7 +811,7 @@ describe("split tender checkout with Stripe", () => {
             chai.assert.equal(postCheckoutResp2.statusCode, 409, `body=${JSON.stringify(postCheckoutResp2.body)}`);
 
             // get the stripe charge and make sure that it hasn't been refunded
-            const stripeChargeId = (postCheckoutResp.body.steps.find(steps => steps.rail === "stripe") as StripeTransactionStep).charge.id;
+            const stripeChargeId = (postCheckoutResp.body.steps.find(steps => steps.rail === "stripe") as StripeTransactionStep).chargeId;
             const stripeCharge = await retrieveCharge(stripeChargeId, true, defaultTestUser.stripeAccountId);
             chai.assert.equal(stripeCharge.refunded, false, `stripeCharge first GET: check 'refunded': ${JSON.stringify(stripeCharge)}`);
             chai.assert.equal(stripeCharge.amount_refunded, 0, `stripeCharge first GET: check 'amount_refunded': ${JSON.stringify(stripeCharge)}`);
@@ -872,7 +879,8 @@ describe("split tender checkout with Stripe", () => {
             paidLightrail: 100,
             paidStripe: 400,
             remainder: 0,
-            forgiven: 0
+            forgiven: 0,
+            unaccounted: 0
         }, `body.totals=${JSON.stringify(postCheckoutResp.body.totals)}`);
         chai.assert.deepEqual(postCheckoutResp.body.lineItems, [
             {
@@ -1080,6 +1088,7 @@ describe("split tender checkout with Stripe", () => {
                 discount: 0,
                 discountLightrail: 0,
                 forgiven: 25,
+                unaccounted: 0,
                 paidInternal: 0,
                 paidLightrail: 100,
                 paidStripe: 0,
@@ -1097,6 +1106,7 @@ describe("split tender checkout with Stripe", () => {
                 discount: 0,
                 discountLightrail: 0,
                 forgiven: 25,
+                unaccounted: 0,
                 paidInternal: 0,
                 paidLightrail: 100,
                 paidStripe: 0,
@@ -1151,6 +1161,7 @@ describe("split tender checkout with Stripe", () => {
                 discount: 0,
                 discountLightrail: 0,
                 forgiven: 0,
+                unaccounted: 0,
                 paidInternal: 0,
                 paidLightrail: 100,
                 paidStripe: 0,
@@ -1168,6 +1179,7 @@ describe("split tender checkout with Stripe", () => {
                 discount: 0,
                 discountLightrail: 0,
                 forgiven: 0,
+                unaccounted: 0,
                 paidInternal: 0,
                 paidLightrail: 100,
                 paidStripe: 0,
@@ -1291,7 +1303,7 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.equal(checkout.statusCode, 422);
     });
 
-    it("returns 424 on StripePermissionError", async () => {
+    it("returns 409 on StripePermissionError", async () => {
         // Create a new TestUser but don't create the Stripe account.  This Stripe
         // account will be invalid both in test and live.
         const testUser = new TestUser();
@@ -1316,7 +1328,7 @@ describe("split tender checkout with Stripe", () => {
         };
 
         const checkout = await testUser.request<any>(router, "/v2/transactions/checkout", "POST", request);
-        chai.assert.equal(checkout.statusCode, 424);
+        chai.assert.equal(checkout.statusCode, 409, `body=${checkout.bodyRaw}`);
     });
 
     it("returns 429 on Stripe RateLimitError (mock server only)", async function () {

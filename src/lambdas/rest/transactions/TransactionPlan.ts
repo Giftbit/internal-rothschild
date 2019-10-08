@@ -6,6 +6,7 @@ import {
     LightrailTransactionStep,
     StripeDbTransactionStep,
     StripeTransactionStep,
+    StripeTransactionStepError,
     Transaction,
     TransactionStep,
     TransactionTotals,
@@ -147,7 +148,7 @@ export interface StripeVoidTransactionPlanStep {
      * Result of refunding.  Only set if the plan is executed
      * and voiding succeeds.
      */
-    voidResult?: stripe.refunds.IRefund | stripe.IStripeError;
+    voidResult?: stripe.refunds.IRefund | StripeTransactionStepError;
 }
 
 export type StripeTransactionPlanStep =
