@@ -161,12 +161,12 @@ describe("voidExpiredPending()", () => {
         // All that setup for this.
         await voidExpiredPending(getLambdaContext());
 
-        await assertTransactionVoided(router, pastPendingDebitTx1.id);
-        await assertTransactionVoided(router, pastPendingDebitTx2.id);
-        await assertTransactionVoided(router, pastPendingStripeCheckoutTx.id);
-        await assertTransactionVoided(router, voidedPendingDebitTx.id);
-        await assertTransactionNotVoided(router, futurePendingDebitTx.id);
-        await assertTransactionNotVoided(router, capturedPendingDebitTx.id);
+        await assertTransactionVoided(pastPendingDebitTx1.id);
+        await assertTransactionVoided(pastPendingDebitTx2.id);
+        await assertTransactionVoided(pastPendingStripeCheckoutTx.id);
+        await assertTransactionVoided(voidedPendingDebitTx.id);
+        await assertTransactionNotVoided(futurePendingDebitTx.id);
+        await assertTransactionNotVoided(capturedPendingDebitTx.id);
 
         const valueRes = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(valueRes.statusCode, 200);
@@ -201,7 +201,7 @@ describe("voidExpiredPending()", () => {
 
         await voidExpiredPending(getLambdaContext());
 
-        await assertTransactionVoided(router, txReq.id);
+        await assertTransactionVoided(txReq.id);
     });
 
     it("voids the transaction even if the Value is canceled", async () => {
@@ -232,7 +232,7 @@ describe("voidExpiredPending()", () => {
 
         await voidExpiredPending(getLambdaContext());
 
-        await assertTransactionVoided(router, txReq.id);
+        await assertTransactionVoided(txReq.id);
     });
 
     it("voids when Stripe test data is deleted", async function () {
@@ -265,10 +265,11 @@ describe("voidExpiredPending()", () => {
 
         await voidExpiredPending(getLambdaContext());
 
-        await assertTransactionVoided(router, stripeCheckoutTx.id);
+        await assertTransactionVoided(stripeCheckoutTx.id);
+        await assertAmountUnaccounted(stripeCheckoutTx.id, 1499);
     });
 
-    it("voids when the Stripe account becomes disconnected", async function () {
+    it.only("voids when the Stripe account becomes disconnected", async function () {
         if (testStripeLive()) {
             // This test relies upon being able to create and delete accounts, which is
             // only supported in the local mock server.
@@ -315,7 +316,8 @@ describe("voidExpiredPending()", () => {
         await stripe.accounts.del(stripeAccount.id);
         await voidExpiredPending(getLambdaContext());
 
-        await assertTransactionVoided(router, stripeCheckoutTx.id);
+        await assertTransactionVoided(stripeCheckoutTx.id);
+        await assertAmountUnaccounted(stripeCheckoutTx.id, 1499);
     });
 });
 
@@ -334,7 +336,7 @@ async function updateTransactionPendingVoidDate(transactionId: string, date: Dat
     chai.assert.equal(pendingDebitUpdate, 1, `Expected to updated transaction '${transactionId}'.`);
 }
 
-async function assertTransactionVoided(router: cassava.Router, transactionId: string): Promise<void> {
+async function assertTransactionVoided(transactionId: string): Promise<void> {
     const knex = await getKnexRead();
     const dbTxs: DbTransaction[] = await knex("Transactions")
         .where({rootTransactionId: transactionId});
@@ -352,7 +354,7 @@ async function assertTransactionVoided(router: cassava.Router, transactionId: st
     chai.assert.equal(voidTx.transactionType, "void", `Transaction ${transactionId} is voided.`);
 }
 
-async function assertTransactionNotVoided(router: cassava.Router, transactionId: string): Promise<void> {
+async function assertTransactionNotVoided(transactionId: string): Promise<void> {
     const knex = await getKnexRead();
     const dbTxs: DbTransaction[] = await knex("Transactions")
         .where({rootTransactionId: transactionId});
@@ -369,4 +371,17 @@ async function assertTransactionNotVoided(router: cassava.Router, transactionId:
         chai.assert.isObject(otherTx, `Find other tx in chain for ${transactionId}.`);
         chai.assert.notEqual(otherTx.transactionType, "void", `Transaction ${transactionId} is *not* voided.`);
     }
+}
+
+async function assertAmountUnaccounted(transactionId: string, amount: number): Promise<void> {
+    const knex = await getKnexRead();
+    const dbTxs: DbTransaction[] = await knex("Transactions")
+        .where({
+            rootTransactionId: transactionId
+        })
+        .whereRaw("rootTransactionId != id");
+    console.log("dbTxs=", dbTxs);
+    chai.assert.lengthOf(dbTxs, 1, "found voiding transaction");
+    chai.assert.equal(dbTxs[0].transactionType, "void");
+    chai.assert.equal(dbTxs[0].totals_unaccounted, amount, "totals_unaccounted");
 }

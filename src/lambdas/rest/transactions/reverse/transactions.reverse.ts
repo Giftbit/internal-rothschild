@@ -137,7 +137,7 @@ function getReverseForInternalTransactionStep(auth: giftbitRoutes.jwtauth.Author
 export function invertTransactionTotals<T extends object>(t: T): T {
     const res: T = Object.assign({}, t);
     for (const key in res) {
-        if (typeof res[key] === "number") {
+        if (res[key] && typeof res[key] === "number") {
             res[key] = -res[key] as any;
         } else if (res[key] && typeof res[key] === "object") {
             res[key] = invertTransactionTotals(res[key] as any) as any;

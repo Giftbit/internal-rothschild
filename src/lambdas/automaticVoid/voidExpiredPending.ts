@@ -76,11 +76,7 @@ async function voidPendingTransaction(dbTransaction: DbTransaction): Promise<voi
                 },
                 dbTransaction
             );
-            plan.steps.forEach(step => {
-                if (step.rail === "stripe" && step.type === "void") {
-                    step.force = true;
-                }
-            });
+            plan.force = true;
             return plan;
         }
     );

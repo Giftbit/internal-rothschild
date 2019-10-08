@@ -36,38 +36,42 @@ export async function executeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
                 const stripeChargeParams = stripeTransactionPlanStepToStripeChargeRequest(auth, step, plan);
                 step.chargeResult = await createCharge(stripeChargeParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id, step.stepIdempotencyKey);
             } else if (step.type === "refund") {
-                const stripeRefundParams: Stripe.refunds.IRefundCreationOptionsWithCharge = {
-                    charge: step.chargeId,
-                    metadata: {
-                        reason: step.reason || "not specified"
-                    }
-                };
-                step.refundResult = await createRefund(stripeRefundParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id);
-
-                if (step.reason) {
-                    const updateChargeParams: Stripe.charges.IChargeUpdateOptions = {
-                        description: step.reason
-                    };
-                    await updateCharge(step.chargeId, updateChargeParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id);
-                    log.info(`Updated Stripe charge ${step.chargeId} with reason.`);
-                }
-            } else if (step.type === "void") {
                 try {
                     const stripeRefundParams: Stripe.refunds.IRefundCreationOptionsWithCharge = {
-                        charge: step.chargeId
+                        charge: step.chargeId,
+                        metadata: {
+                            reason: step.reason || "not specified"
+                        }
                     };
-                    step.voidResult = await createRefund(stripeRefundParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id);
-                } catch (err) {
-                    if (step.force && (err as StripeRestError).isStripeRestError) {
+                    step.refundResult = await createRefund(stripeRefundParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id);
+
+                    if (step.reason) {
+                        try {
+                            const updateChargeParams: Stripe.charges.IChargeUpdateOptions = {
+                                description: step.reason
+                            };
+                            await updateCharge(step.chargeId, updateChargeParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id);
+                            log.info(`Updated Stripe charge ${step.chargeId} with reason.`);
+                        } catch (updateChargeError) {
+                            log.warn("Continuing after error updating Stripe charge", updateChargeError);
+                            // Don't rethrow.  This is a convenience and not worth failing the Transaction over.
+                        }
+                    }
+                } catch (refundError) {
+                    console.log("zzzzzzzzzzzzzzzz", plan.force, (refundError as StripeRestError).isStripeRestError);
+                    if (plan.force && (refundError as StripeRestError).isStripeRestError) {
+                        log.info("Error refunding Stripe charge (force=true)", refundError);
                         plan.totals = plan.totals || {unaccounted: 0};
+                        plan.totals.unaccounted = plan.totals.unaccounted || 0;
                         plan.totals.unaccounted += step.amount;
-                        step.voidResult = {
-                            ...(err as StripeRestError).stripeError,
+                        step.refundResult = {
+                            ...(refundError as StripeRestError).stripeError,
                             object: "error"
                         };
                         step.amount = 0;
+                        console.log("submitting", plan.totals);
                     } else {
-                        throw err;
+                        throw refundError;
                     }
                 }
             } else if (step.type === "capture") {

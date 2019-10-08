@@ -63,6 +63,9 @@ async function getVoidTransactionPlanSteps(auth: giftbitRoutes.jwtauth.Authoriza
             step.allowFrozen = true;
             step.allowCanceled = true;
         }
+        if (step.rail === "stripe" && step.type === "refund") {
+            step.reason = undefined;
+        }
     });
     return steps;
 }

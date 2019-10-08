@@ -54,6 +54,7 @@ export interface DbTransaction {
 export namespace Transaction {
     export function toDbTransaction
     (auth: giftbitRoutes.jwtauth.AuthorizationBadge, t: Transaction): DbTransaction {
+        console.log("Transaction.toDbTransaction t.totals && t.totals.forgiven=", t.totals && t.totals.forgiven);
         return {
             userId: auth.userId,
             id: t.id,

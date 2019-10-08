@@ -34,6 +34,13 @@ export interface TransactionPlan {
     metadata: object | null;
     rootTransactionId?: string;
     previousTransactionId?: string;
+
+    /**
+     * Force the Transaction to complete as much as possible, collect any errors and add to
+     * totals.unaccounted if necessary. This option is only available to automatic processes
+     * and may not be implemented for all Transaction types and all steps.
+     */
+    force?: boolean;
 }
 
 export type TransactionPlanStep =
@@ -92,12 +99,12 @@ export interface StripeRefundTransactionPlanStep {
     chargeId: string;
 
     amount: number;
+    reason?: string;
 
     /**
      * Result of creating the refund.  Only set if the plan is executed.
      */
-    refundResult?: stripe.refunds.IRefund;
-    reason: string;
+    refundResult?: stripe.refunds.IRefund | StripeTransactionStepError;
 }
 
 export interface StripeCaptureTransactionPlanStep {
@@ -127,35 +134,10 @@ export interface StripeCaptureTransactionPlanStep {
     captureResult?: stripe.charges.ICharge;
 }
 
-export interface StripeVoidTransactionPlanStep {
-    rail: "stripe";
-    type: "void";
-
-    /**
-     * The ID of the charge to void.
-     */
-    chargeId: string;
-
-    amount: number;
-
-    /**
-     * If `true` the void is forced to succeed by storing errors
-     * rather than failing.
-     */
-    force?: boolean;
-
-    /**
-     * Result of refunding.  Only set if the plan is executed
-     * and voiding succeeds.
-     */
-    voidResult?: stripe.refunds.IRefund | StripeTransactionStepError;
-}
-
 export type StripeTransactionPlanStep =
     StripeChargeTransactionPlanStep
     | StripeRefundTransactionPlanStep
-    | StripeCaptureTransactionPlanStep
-    | StripeVoidTransactionPlanStep;
+    | StripeCaptureTransactionPlanStep;
 
 export interface InternalTransactionPlanStep {
     rail: "internal";
@@ -235,7 +217,7 @@ export namespace StripeTransactionPlanStep {
                     id: `${plan.id}-${stepIndex}`,
                     transactionId: plan.id,
                     chargeId: step.chargeId,
-                    amount: step.refundResult.amount,
+                    amount: step.amount,
                     charge: JSON.stringify(step.refundResult)
                 };
             case "capture": // Capture steps aren't persisted to the DB.
@@ -271,20 +253,13 @@ export namespace StripeTransactionPlanStep {
                 if (step.refundResult) {
                     stripeTransactionStep.chargeId = step.chargeId;
                     stripeTransactionStep.charge = step.refundResult;
-                    stripeTransactionStep.amount = step.refundResult.amount;
+                    stripeTransactionStep.amount = step.amount;
                 }
                 break;
             case "capture":
                 if (step.captureResult) {
                     stripeTransactionStep.chargeId = step.captureResult.id;
                     stripeTransactionStep.charge = step.captureResult;
-                    stripeTransactionStep.amount = step.amount;
-                }
-                break;
-            case "void":
-                if (step.voidResult) {
-                    stripeTransactionStep.chargeId = step.chargeId;
-                    stripeTransactionStep.charge = step.voidResult;
                     stripeTransactionStep.amount = step.amount;
                 }
                 break;
@@ -324,6 +299,7 @@ export namespace InternalTransactionPlanStep {
 
 export namespace TransactionPlan {
     export function toTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan, simulated?: boolean): Transaction {
+        console.log("TransactionPlan.toTransaction plan.totals=", plan.totals);
         const transaction: Transaction = {
             ...getSharedProperties(plan),
             totals: plan.totals,
