@@ -269,7 +269,7 @@ describe("voidExpiredPending()", () => {
         await assertAmountUnaccounted(stripeCheckoutTx.id, 1499);
     });
 
-    it.only("voids when the Stripe account becomes disconnected", async function () {
+    it("voids when the Stripe account becomes disconnected", async function () {
         if (testStripeLive()) {
             // This test relies upon being able to create and delete accounts, which is
             // only supported in the local mock server.
@@ -380,7 +380,6 @@ async function assertAmountUnaccounted(transactionId: string, amount: number): P
             rootTransactionId: transactionId
         })
         .whereRaw("rootTransactionId != id");
-    console.log("dbTxs=", dbTxs);
     chai.assert.lengthOf(dbTxs, 1, "found voiding transaction");
     chai.assert.equal(dbTxs[0].transactionType, "void");
     chai.assert.equal(dbTxs[0].totals_unaccounted, amount, "totals_unaccounted");

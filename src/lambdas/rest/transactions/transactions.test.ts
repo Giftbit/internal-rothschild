@@ -358,13 +358,16 @@ describe("/v2/transactions", () => {
                     userId: testUtils.defaultTestUser.userId,
                     id: idAndDate.id,
                 })
-                .update({
-                    ...Transaction.toDbTransaction(testUtils.defaultTestUser.auth, {
-                        ...response.body,
-                        createdDate: idAndDate.createdDate
-                    }),
-                    rootTransactionId: response.body.id
-                });
+                .update(
+                    Transaction.toDbTransaction(
+                        testUtils.defaultTestUser.auth,
+                        {
+                            ...response.body,
+                            createdDate: idAndDate.createdDate
+                        },
+                        response.body.id
+                    )
+                );
             if (res === 0) {
                 chai.assert.fail(`No row updated. Test data failed during setup..`);
             }

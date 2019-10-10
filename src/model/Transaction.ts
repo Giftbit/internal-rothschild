@@ -52,9 +52,7 @@ export interface DbTransaction {
 }
 
 export namespace Transaction {
-    export function toDbTransaction
-    (auth: giftbitRoutes.jwtauth.AuthorizationBadge, t: Transaction): DbTransaction {
-        console.log("Transaction.toDbTransaction t.totals && t.totals.forgiven=", t.totals && t.totals.forgiven);
+    export function toDbTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, t: Transaction, rootTransactionId: string): DbTransaction {
         return {
             userId: auth.userId,
             id: t.id,
@@ -75,7 +73,7 @@ export namespace Transaction {
             lineItems: t.lineItems != null ? JSON.stringify(t.lineItems) : null,
             paymentSources: t.paymentSources != null ? JSON.stringify(t.paymentSources) : null,
             metadata: t.metadata != null ? JSON.stringify(t.metadata) : null,
-            rootTransactionId: null, // set during insert
+            rootTransactionId: rootTransactionId,
             nextTransactionId: null,
             tax: t.tax != null ? JSON.stringify(t.tax) : null,
             pendingVoidDate: t.pendingVoidDate,

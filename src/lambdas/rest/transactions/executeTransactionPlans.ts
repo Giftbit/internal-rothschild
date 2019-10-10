@@ -5,6 +5,7 @@ import {Transaction} from "../../../model/Transaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import {
+    finalizeInsertedTransaction,
     insertInternalTransactionSteps,
     insertLightrailTransactionSteps,
     insertStripeTransactionSteps,
@@ -91,17 +92,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         return TransactionPlan.toTransaction(auth, plan, options.simulate);
     }
 
-    try {
-        await insertTransaction(trx, auth, plan);
-    } catch (err) {
-        log.warn("Error inserting transaction:", err);
-        if ((err as GiftbitRestError).isRestError) {
-            throw err;
-        } else {
-            giftbitRoutes.sentry.sendErrorNotification(err);
-            throw err;
-        }
-    }
+    const insertedDbTransaction = await insertTransaction(trx, auth, plan);
 
     try {
         plan = await insertStripeTransactionSteps(auth, trx, plan);
@@ -125,9 +116,9 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
             giftbitRoutes.sentry.sendErrorNotification(err);
             throw new giftbitRoutes.GiftbitRestError(500, `An error occurred while processing transaction '${plan.id}'.`);
         }
-
     }
-    return TransactionPlan.toTransaction(auth, plan); // Has to re-call ".toTransaction" since things like the Stripe steps are updated when inserted.
+
+    return finalizeInsertedTransaction(auth, trx, insertedDbTransaction, plan);
 }
 
 /**

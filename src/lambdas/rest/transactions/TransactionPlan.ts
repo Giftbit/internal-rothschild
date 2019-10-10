@@ -299,9 +299,12 @@ export namespace InternalTransactionPlanStep {
 
 export namespace TransactionPlan {
     export function toTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan, simulated?: boolean): Transaction {
-        console.log("TransactionPlan.toTransaction plan.totals=", plan.totals);
         const transaction: Transaction = {
-            ...getSharedProperties(plan),
+            id: plan.id,
+            transactionType: plan.transactionType,
+            currency: plan.currency,
+            createdDate: plan.createdDate,
+            tax: plan.tax,
             totals: plan.totals,
             lineItems: plan.lineItems,
             steps: plan.steps.map(step => transactionPlanStepToTransactionStep(step)),
@@ -328,16 +331,6 @@ export namespace TransactionPlan {
                 return source;
             }
         });
-    }
-
-    function getSharedProperties(plan: TransactionPlan) {
-        return {
-            id: plan.id,
-            transactionType: plan.transactionType,
-            currency: plan.currency,
-            createdDate: plan.createdDate,
-            tax: plan.tax
-        };
     }
 
     function transactionPlanStepToTransactionStep(step: TransactionPlanStep): TransactionStep {

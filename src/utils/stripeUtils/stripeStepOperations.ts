@@ -58,7 +58,6 @@ export async function executeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
                         }
                     }
                 } catch (refundError) {
-                    console.log("zzzzzzzzzzzzzzzz", plan.force, (refundError as StripeRestError).isStripeRestError);
                     if (plan.force && (refundError as StripeRestError).isStripeRestError) {
                         log.info("Error refunding Stripe charge (force=true)", refundError);
                         plan.totals = plan.totals || {unaccounted: 0};
@@ -69,7 +68,6 @@ export async function executeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
                             object: "error"
                         };
                         step.amount = 0;
-                        console.log("submitting", plan.totals);
                     } else {
                         throw refundError;
                     }
