@@ -61,6 +61,7 @@ describe("/v2/programs", () => {
             currency: programRequest.currency,
             discount: false,
             discountSellerLiability: null,
+            discountSellerLiabilityRule: null,
             pretax: false,
             active: true,
             redemptionRule: null,
@@ -1808,12 +1809,15 @@ describe("/v2/programs", () => {
             id: generateId(),
             name: "name " + generateId(5),
             currency: "USD",
-            discountSellerLiability: "1 - currentLineItem.marketplaceRate",
+            discountSellerLiabilityRule: {
+                rule: "1 - currentLineItem.marketplaceRate",
+                explanation: "proportional to marketplacerate"
+            }, // todo - review
             discount: true
         };
         const create = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
         chai.assert.equal(create.statusCode, 201);
-        chai.assert.equal(create.body.discountSellerLiability, "1 - currentLineItem.marketplaceRate");
+        chai.assert.deepEqual(create.body.discountSellerLiabilityRule, program.discountSellerLiabilityRule);
     });
 
     it("can't create a program with duplicate fixedInitialUsesRemaining", async () => {

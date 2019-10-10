@@ -1,24 +1,27 @@
 import * as chai from "chai";
-import {formatDiscountSellerLiability} from "../Value";
+import {formatDiscountSellerLiabilityRuleForLegacySupport} from "../Value";
 
-describe("Value model tests", () => {
-    it("can get discountSellerLiability from string", async () => {
-        const res = formatDiscountSellerLiability(null);
-        chai.assert.isNull(res);
-    });
+describe("Value", () => {
+    describe("formatDiscountSellerLiabilityRuleForLegacySupport", () => {
+        it("returns null if null", async () => {
+            const res = formatDiscountSellerLiabilityRuleForLegacySupport(null);
+            chai.assert.isNull(res);
+        });
 
-    it("can get discountSellerLiability from string", async () => {
-        const res = formatDiscountSellerLiability("0.05");
-        chai.assert.equal(res, 0.05);
-    });
+        it("returns number from string that evaluates to number", async () => {
+            const res = formatDiscountSellerLiabilityRuleForLegacySupport({
+                rule: "0.05",
+                explanation: "5%"
+            });
+            chai.assert.equal(res, 0.05);
+        });
 
-    it("can get discountSellerLiability from string", async () => {
-        const res = formatDiscountSellerLiability("1 - currentLineItem.marketplaceRate");
-        chai.assert.equal(res, "1 - currentLineItem.marketplaceRate");
-    });
-
-    it("can get discountSellerLiability from string", async () => {
-        const res = formatDiscountSellerLiability("0.05 + 0.02");
-        chai.assert.equal(res, "0.05 + 0.02");
+        it("returns null from a rule", async () => {
+            const res = formatDiscountSellerLiabilityRuleForLegacySupport({
+                rule: "1 - currentLineItem.marketplaceRate",
+                explanation: "proportional shared with marketplace"
+            });
+            chai.assert.isNull(res);
+        });
     });
 });

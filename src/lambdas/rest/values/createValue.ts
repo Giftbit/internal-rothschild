@@ -78,6 +78,7 @@ export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
         frozen: false,
         discount: program ? program.discount : false,
         discountSellerLiability: program ? program.discountSellerLiability : null,
+        discountSellerLiabilityRule: program ? program.discountSellerLiabilityRule : null, // todo - figure out what makes sense here
         redemptionRule: program ? program.redemptionRule : null,
         balanceRule: program ? program.balanceRule : null,
         startDate: program ? program.startDate : null,

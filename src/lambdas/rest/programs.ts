@@ -52,6 +52,7 @@ export function installProgramsRest(router: cassava.Router): void {
                         currency: "",
                         discount: false,
                         discountSellerLiability: null,
+                        discountSellerLiabilityRule: null, // todo - does it make sense to be initializing both of these?
                         pretax: false,
                         active: true,
                         redemptionRule: null,

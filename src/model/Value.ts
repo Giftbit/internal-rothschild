@@ -20,7 +20,8 @@ export interface Value {
     canceled: boolean;
     frozen: boolean;
     discount: boolean;
-    discountSellerLiability: number | string | null;
+    discountSellerLiability?: number | null; // returned if rule can boil down to a decimal.
+    discountSellerLiabilityRule: Rule | null; // always returned
     redemptionRule: Rule | null;
     balanceRule: Rule | null;
     startDate: Date | null;
@@ -98,7 +99,7 @@ export namespace Value {
             frozen: v.frozen,
             pretax: v.pretax,
             discount: v.discount,
-            discountSellerLiabilityRule: !!v.discountSellerLiability ? v.discountSellerLiability.toString() : undefined,
+            discountSellerLiabilityRule: !!v.discountSellerLiability ? v.discountSellerLiability.toString() : undefined, // todo - fix this
             redemptionRule: JSON.stringify(v.redemptionRule),
             balanceRule: JSON.stringify(v.balanceRule),
             startDate: v.startDate,
@@ -183,7 +184,8 @@ export namespace DbValue {
             canceled: !!v.canceled,
             frozen: !!v.frozen,
             discount: !!v.discount,
-            discountSellerLiability: formatDiscountSellerLiability(v.discountSellerLiabilityRule),
+            discountSellerLiability: formatDiscountSellerLiabilityRuleForLegacySupport(JSON.parse(v.discountSellerLiabilityRule)),
+            discountSellerLiabilityRule: JSON.parse(v.discountSellerLiabilityRule),
             redemptionRule: JSON.parse(v.redemptionRule),
             balanceRule: JSON.parse(v.balanceRule),
             startDate: v.startDate,
@@ -215,15 +217,12 @@ export function formatCodeForLastFourDisplay(code: string): string {
 
 /**
  * If discountSellerLiability can directly correspond to a number this will return a number.
- * This was done to not break existing integrations that are depending on that type being a number.
- * Otherwise, returns discountSellerLiability as a string which will be a rule that needs to be evaluated.
+ * Otherwise, returns null since discountSellerLiabilityRule is either a rule or null.
  */
-export function formatDiscountSellerLiability(discountSellerLiability: string | null): string | number | null {
-    if (!discountSellerLiability) {
+export function formatDiscountSellerLiabilityRuleForLegacySupport(discountSellerLiabilityRule: Rule | null): number | null {
+    if (!discountSellerLiabilityRule || isNaN(+discountSellerLiabilityRule.rule)) {
         return null;
-    } else if (isNaN(+discountSellerLiability)) {
-        return discountSellerLiability as string;
     } else {
-        return +discountSellerLiability;
+        return +discountSellerLiabilityRule.rule;
     }
 }

@@ -164,6 +164,7 @@ describe("/v2/values - generic code with per contact properties", () => {
                 "frozen": false,
                 "discount": false,
                 "discountSellerLiability": null,
+                "discountSellerLiabilityRule": null,
                 "redemptionRule": null,
                 "balanceRule": null,
                 "startDate": null,

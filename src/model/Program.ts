@@ -1,5 +1,5 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {formatDiscountSellerLiability, Rule} from "./Value";
+import {formatDiscountSellerLiabilityRuleForLegacySupport, Rule} from "./Value";
 import {pickDefined} from "../utils/pick";
 
 export interface Program {
@@ -7,7 +7,8 @@ export interface Program {
     name: string;
     currency: string;
     discount: boolean;
-    discountSellerLiability: number | string | null;
+    discountSellerLiability: number | null;
+    discountSellerLiabilityRule: Rule | null;
     pretax: boolean;
     active: boolean;
     redemptionRule: Rule | null;
@@ -56,6 +57,7 @@ export namespace Program {
             currency: v.currency,
             discount: v.discount,
             discountSellerLiability: !!v.discountSellerLiability ? v.discountSellerLiability.toString() : undefined,
+            // todo - do something here
             pretax: v.pretax,
             active: v.active,
             redemptionRule: JSON.stringify(v.redemptionRule),
@@ -78,7 +80,7 @@ export interface DbProgram {
     name: string;
     currency: string;
     discount: boolean;
-    discountSellerLiabilityRule: string | null;
+    discountSellerLiabilityRule: string;
     pretax: boolean;
     active: boolean;
     redemptionRule: string;
@@ -102,7 +104,8 @@ export namespace DbProgram {
             name: v.name,
             currency: v.currency,
             discount: v.discount,
-            discountSellerLiability: formatDiscountSellerLiability(v.discountSellerLiabilityRule),
+            discountSellerLiability: formatDiscountSellerLiabilityRuleForLegacySupport(JSON.parse(v.discountSellerLiabilityRule)),
+            discountSellerLiabilityRule: JSON.parse(v.discountSellerLiabilityRule),
             pretax: v.pretax,
             active: v.active,
             minInitialBalance: v.minInitialBalance,

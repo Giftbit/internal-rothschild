@@ -328,7 +328,10 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             id: generateId(),
             currency: "CAD",
             discount: true,
-            discountSellerLiability: "1 - currentLineItem.marketplaceRate",
+            discountSellerLiabilityRule: {
+                rule: "1 - currentLineItem.marketplaceRate",
+                explanation: "proportional to marketplace rate"
+            },
             balance: 9200,
             pretax: true
         };
@@ -448,7 +451,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             id: generateId(),
             currency: "CAD",
             discount: true,
-            discountSellerLiability: "1 + 1",
+            discountSellerLiabilityRule: {rule: "1 + 1", explanation: "2, which will be limited to 1"},
             balanceRule: {
                 rule: "currentLineItem.lineTotal.subtotal * 0.40",
                 explanation: "40% off"
@@ -514,7 +517,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             id: generateId(),
             currency: "CAD",
             discount: true,
-            discountSellerLiability: "0 - 0.50",
+            discountSellerLiabilityRule: {rule: "0 - 0.50", explanation: "-0.5 which will be limited to 0"},
             balanceRule: {
                 rule: "currentLineItem.lineTotal.subtotal * 0.40",
                 explanation: "40% off"
@@ -579,7 +582,10 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             id: generateId(),
             currency: "CAD",
             discount: true,
-            discountSellerLiability: "currentLineItem.nothingHere",
+            discountSellerLiabilityRule: {
+                rule: "currentLineItem.nothingHere",
+                explanation: "doesn't correspond to anything in the context"
+            },
             balanceRule: {
                 rule: "currentLineItem.lineTotal.subtotal * 0.40",
                 explanation: "40% off"
@@ -653,7 +659,10 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             id: generateId(),
             currency: "CAD",
             discount: true,
-            discountSellerLiability: "1 - currentLineItem.marketplaceRate",
+            discountSellerLiabilityRule: {
+                rule: "1 - currentLineItem.marketplaceRate",
+                explanation: "proportional to marketplace rate"
+            },
             balanceRule: {
                 rule: "currentLineItem.lineTotal.subtotal * 0.40",
                 explanation: "40% off"
@@ -725,7 +734,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             id: generateId(),
             currency: "CAD",
             discount: true,
-            discountSellerLiability: "0.123456789",
+            discountSellerLiabilityRule: {rule: "0.123456789", explanation: "a very precise discount seller liability"},
             balanceRule: {
                 rule: "currentLineItem.lineTotal.subtotal * 0.40",
                 explanation: "40% off"
