@@ -36,7 +36,7 @@ export async function createCharge(params: Stripe.charges.IChargeCreationOptions
                 if (err.code === "amount_too_small") {
                     throw new StripeRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Failed to charge credit card: amount '${params.amount}' for Stripe was too small.`, "StripeAmountTooSmall", err);
                 }
-                throw new StripeRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Your request can not be completed. Code from Stripe : '${err.code}'`, "StripeInvalidRequestError", err);
+                throw new StripeRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Your request can not be completed. Code from Stripe: '${err.code}'`, "StripeInvalidRequestError", err);
             default:
                 throw err;
         }
@@ -176,9 +176,8 @@ function checkForStandardStripeErrors(err: any): void {
         case "StripePermissionError":
             throw new StripeRestError(424, "Application access may have been revoked.", "StripePermissionError", err);
         case "StripeConnectionError":
-            throw new StripeRestError(502, "Failed to connect to Stripe", "StripeConnectionError", err);
         case "StripeAPIError":
-            throw new StripeRestError(502, "Something went wrong with Stripe's API.", "StripeAPIError", err);
+            throw new StripeRestError(502, "There was a problem connecting to Stripe.", "StripeAPIError", err);
         default:
             // do nothing
     }
@@ -192,5 +191,5 @@ function getRetryIdempotencyKeyAndCount(stepIdempotencyKey: string): {newKey: st
         originalStepIdempotencyKey = retryCountMatcher[1];
         count = +retryCountMatcher[2] + 1;
     }
-       return {newKey: (originalStepIdempotencyKey + "-retry-" + count), count: count};
+    return {newKey: (originalStepIdempotencyKey + "-retry-" + count), count: count};
 }

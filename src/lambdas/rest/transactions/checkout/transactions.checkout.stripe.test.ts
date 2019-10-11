@@ -1355,9 +1355,8 @@ describe("split tender checkout with Stripe", () => {
        sinonSandbox.stub(getStripeClient, "getStripeClient")
           .callsFake(async function changeHost(): Promise<Stripe> {
               const stripeModeConfig = await getLightrailStripeModeConfig(true);
-              let client: Stripe;
-              client = new Stripe(stripeModeConfig.secretKey);
-              client.setHost("localhost", 9, "http");
+              const client = new Stripe(stripeModeConfig.secretKey);
+              client.setHost("localhost", 9, "http"); // if data is sent to a host that supports Discard Protocol on TCP or UDP port 9,the data sent to the server is simply discarded and no response is returned.
               return client;
         });
 
