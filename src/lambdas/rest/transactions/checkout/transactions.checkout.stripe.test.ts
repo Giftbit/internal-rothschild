@@ -31,7 +31,8 @@ import chaiExclude from "chai-exclude";
 import log = require("loglevel");
 import Stripe = require("stripe");
 import ICharge = Stripe.charges.ICharge;
-
+import * as getStripeClient from "../../../../utils/stripeUtils/stripeAccess";
+import {getLightrailStripeModeConfig} from "../../../../utils/stripeUtils/stripeAccess";
 chai.use(chaiExclude);
 
 describe("split tender checkout with Stripe", () => {
@@ -1343,6 +1344,43 @@ describe("split tender checkout with Stripe", () => {
 
         const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
         chai.assert.equal(checkout.statusCode, 429);
+    });
+
+    it("throws a 502 if there is a StripeConnectionError", async function () {
+        if (testStripeLive()) {
+            // This test relies upon a special token not implemented in the official server.
+            this.skip();
+        }
+
+       sinonSandbox.stub(getStripeClient, "getStripeClient")
+          .callsFake(async function changeHost(): Promise<Stripe> {
+              const stripeModeConfig = await getLightrailStripeModeConfig(true);
+              let client: Stripe;
+              client = new Stripe(stripeModeConfig.secretKey);
+              client.setHost("localhost", 9, "http");
+              return client;
+        });
+
+        const checkoutRequest: CheckoutRequest = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "stripe",
+                    source: "tok_visa",
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "xyz-123",
+                    unitPrice: 2000
+                }
+            ],
+            currency: "CAD"
+        };
+
+        const checkoutResponse = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        chai.assert.equal(checkoutResponse.statusCode, 502);
     });
 
     describe("stripe customer + source tests", () => {
