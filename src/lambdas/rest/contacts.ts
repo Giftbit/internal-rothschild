@@ -193,6 +193,7 @@ export async function createContact(auth: giftbitRoutes.jwtauth.AuthorizationBad
         return contact;
     } catch (err) {
         if (err.code === "ER_DUP_ENTRY") {
+            console.log("herererre");
             throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Contact with id '${contact.id}' already exists.`);
         }
         throw err;
