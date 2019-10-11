@@ -1356,7 +1356,8 @@ describe("split tender checkout with Stripe", () => {
           .callsFake(async function changeHost(): Promise<Stripe> {
               const stripeModeConfig = await getLightrailStripeModeConfig(true);
               const client = new Stripe(stripeModeConfig.secretKey);
-              // If data is sent to a host that supports Discard Protocol on TCP or UDP port 9, the data sent to the server is simply discarded and no response is returned.
+              // If data is sent to a host that supports Discard Protocol on TCP or UDP port 9.
+              // The data sent to the server is simply discarded and no response is returned.
               client.setHost("localhost", 9, "http");
               return client;
         });
