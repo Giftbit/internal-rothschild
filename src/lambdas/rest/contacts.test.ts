@@ -178,11 +178,12 @@ describe("/v2/contacts", () => {
     });
 
     it("409s on creating a duplicate contact", async () => {
-        const resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/contacts", "POST", {
             id: contact1.id,
             firstName: "Duplicate"
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.messageCode, "ContactIdExists");
     });
 
     it("422s on creating a contact with an id that is too long", async () => {
