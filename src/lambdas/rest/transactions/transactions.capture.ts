@@ -43,8 +43,12 @@ export async function createCaptureTransactionPlan(auth: giftbitRoutes.jwtauth.A
 
     const values = await getDbValuesFromTransaction(auth, transactionToCapture);
     const frozenValue = values.find(value => value.frozen);
+    const canceledValue = values.find(value => value.canceled);
     if (frozenValue) {
         throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot capture Transaction because value. '${frozenValue.id}' is frozen.`, "ValueFrozen");
+    }
+    if (canceledValue) {
+        throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot capture Transaction because value. '${canceledValue.id}' is canceled.`, "ValueCanceled");
     }
 
     return {

@@ -254,7 +254,7 @@ describe("voidExpiredPending()", () => {
             sources: [
                 {
                     rail: "stripe",
-                    source: "tok_forget"    // Mock server will forget about this charge.
+                    source: "tok_forget"    // Mock server will forget about this charge simulating deleted data.
                 }
             ],
             pending: true
@@ -312,8 +312,8 @@ describe("voidExpiredPending()", () => {
         const stripePendingCheckoutTxRes = await testUser.request<Transaction>(router, "/v2/transactions/checkout", "POST", stripeCheckoutTx);
         chai.assert.equal(stripePendingCheckoutTxRes.statusCode, 201);
         await updateTransactionPendingVoidDate(stripeCheckoutTx.id, past);
-
         await stripe.accounts.del(stripeAccount.id);
+
         await voidExpiredPending(getLambdaContext());
 
         await assertTransactionVoided(stripeCheckoutTx.id);
