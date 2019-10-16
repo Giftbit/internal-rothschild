@@ -32,7 +32,8 @@ import {TestUser} from "../../../../utils/testUtils/TestUser";
 import log = require("loglevel");
 import Stripe = require("stripe");
 import ICharge = Stripe.charges.ICharge;
-
+import * as getStripeClient from "../../../../utils/stripeUtils/stripeAccess";
+import {getLightrailStripeModeConfig} from "../../../../utils/stripeUtils/stripeAccess";
 chai.use(chaiExclude);
 
 describe("split tender checkout with Stripe", () => {
@@ -1224,7 +1225,7 @@ describe("split tender checkout with Stripe", () => {
             // Not sent to Stripe because it will treat CAD as the settlement currency so $0.50 min is actually correct.
         });
 
-        it("returns 409 for simulate=false transactions where minAmount is lower than Stripe will accept", async function () {
+        it("returns 422 for simulate=false transactions where minAmount is lower than Stripe will accept", async function () {
             const checkoutRequest: CheckoutRequest = {
                 id: generateId(),
                 sources: [
@@ -1245,7 +1246,7 @@ describe("split tender checkout with Stripe", () => {
             };
 
             const postCheckoutResp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-            chai.assert.equal(postCheckoutResp.statusCode, 409, `body=${JSON.stringify(postCheckoutResp.body)}`);
+            chai.assert.equal(postCheckoutResp.statusCode, 422, `body=${JSON.stringify(postCheckoutResp.body)}`);
             chai.assert.equal(postCheckoutResp.body.messageCode, "StripeAmountTooSmall");
         });
 
@@ -1357,6 +1358,44 @@ describe("split tender checkout with Stripe", () => {
 
         const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
         chai.assert.equal(checkout.statusCode, 429);
+    });
+
+    it("throws a 502 if there is a StripeConnectionError", async function () {
+        if (testStripeLive()) {
+            // This test relies upon a special token not implemented in the official server.
+            this.skip();
+        }
+
+       sinonSandbox.stub(getStripeClient, "getStripeClient")
+          .callsFake(async function changeHost(): Promise<Stripe> {
+              const stripeModeConfig = await getLightrailStripeModeConfig(true);
+              const client = new Stripe(stripeModeConfig.secretKey);
+              // If data is sent to a host that supports Discard Protocol on TCP or UDP port 9.
+              // The data sent to the server is simply discarded and no response is returned.
+              client.setHost("localhost", 9, "http");
+              return client;
+        });
+
+        const checkoutRequest: CheckoutRequest = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "stripe",
+                    source: "tok_visa",
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "xyz-123",
+                    unitPrice: 2000
+                }
+            ],
+            currency: "CAD"
+        };
+
+        const checkoutResponse = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+        chai.assert.equal(checkoutResponse.statusCode, 502);
     });
 
     describe("stripe customer + source tests", () => {

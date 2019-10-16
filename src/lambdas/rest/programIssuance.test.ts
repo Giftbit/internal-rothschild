@@ -140,7 +140,7 @@ describe("/v2/issuances", () => {
         chai.assert.equal(listIssuances.statusCode, 200, `body=${JSON.stringify(listIssuances.body)}`);
         chai.assert.equal(listIssuances.body.length, valuesToIssues.length);
         chai.assert.sameDeepMembers(listIssuances.body, issuances);
-    }).timeout(12000);
+    }).timeout(15000);
 
     it(`issuing from program that has a balanceRule`, async () => {
         let issuance: Partial<Issuance> = {
@@ -553,7 +553,7 @@ describe("/v2/issuances", () => {
         };
         const createIssuance = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${minInitialBalanceProgram.id}/issuances`, "POST", issuance);
         chai.assert.equal(createIssuance.statusCode, 409, JSON.stringify(createIssuance.body));
-        chai.assert.equal(createIssuance.body.message, "Value's balance 0 is less than minInitialBalance 1.", JSON.stringify(createIssuance.body));
+        chai.assert.include(createIssuance.body.message, "minInitialBalance", JSON.stringify(createIssuance.body));
     });
 
     it("can create Issuance from a program that has a startDate but no endDate", async () => {

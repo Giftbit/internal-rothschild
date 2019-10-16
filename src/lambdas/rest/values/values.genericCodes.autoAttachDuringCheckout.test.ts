@@ -582,30 +582,6 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             chai.assert.equal(checkout.body["messageCode"], "ValueMustBeAttached");
         });
 
-        it("can't manually attach generic code after it has been auto-attached", async () => {
-            // auto attach
-            const checkoutRequest: CheckoutRequest = {
-                id: generateId(),
-                currency: "USD",
-                sources: [
-                    {rail: "lightrail", code: genericValue.code},
-                    {rail: "lightrail", contactId: contactId}
-                ],
-                lineItems: [
-                    {unitPrice: 200}
-                ]
-            };
-            const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-            chai.assert.equal(checkout.statusCode, 201);
-
-            // try to manually attach
-            const attach = await testUtils.testAuthedRequest(router, `/v2/contacts/${contactId}/values/attach`, "POST", {
-                code: genericValue.code
-            });
-            chai.assert.equal(attach.statusCode, 409);
-            chai.assert.equal(attach.body["messageCode"], "ValueAlreadyAttached");
-        });
-
         it("auto-attaches to first contact in list if multiple contactIds passed in payment sources", async () => {
             const contact2 = generateId();
             const createContact = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contact2});
