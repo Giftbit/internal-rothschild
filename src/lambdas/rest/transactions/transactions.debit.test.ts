@@ -1426,7 +1426,7 @@ describe("/v2/transactions/debit", () => {
                 chai.assert.equal(voidRes.statusCode, 201, `body=${JSON.stringify(voidRes.body)}`);
             });
 
-            it("can't capture a transaction with a canceled value", async () => {
+            it("can capture a transaction with a canceled value", async () => {
                 const value: Partial<Value> = {
                     id: generateId(),
                     currency: "CAD",
@@ -1453,11 +1453,10 @@ describe("/v2/transactions/debit", () => {
                 chai.assert.equal(cancelRes.statusCode, 200, `body=${JSON.stringify(cancelRes.body)}`);
                 chai.assert.isTrue(cancelRes.body.canceled);
 
-                const failCaptureRes = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${pendingDebitTx.id}/capture`, "POST", {
+                const captureRes = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${pendingDebitTx.id}/capture`, "POST", {
                     id: generateId()
                 });
-                chai.assert.equal(failCaptureRes.statusCode, 409, `body=${JSON.stringify(failCaptureRes.body)}`);
-                chai.assert.equal(failCaptureRes.body.messageCode, "ValueCanceled");
+                chai.assert.equal(captureRes.statusCode, 201, `body=${JSON.stringify(captureRes.body)}`);
             });
         });
     });
