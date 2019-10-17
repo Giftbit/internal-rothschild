@@ -6,13 +6,20 @@ import * as testUtils from "../../../../utils/testUtils";
 import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
 import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../../model/Transaction";
-import {createCurrency} from "../../currencies";
 import {CaptureRequest, CheckoutRequest, VoidRequest} from "../../../../model/TransactionRequest";
-import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../utils/testUtils/stripeTestUtils";
+import {
+    setStubbedStripeUserId,
+    setStubsForStripeTests,
+    testStripeLive,
+    unsetStubsForStripeTests
+} from "../../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
 import * as Stripe from "stripe";
 import {captureCharge, createRefund} from "../../../../utils/stripeUtils/stripeTransactions";
 import chaiExclude from "chai-exclude";
+import {TestUser} from "../../../../utils/testUtils/TestUser";
+import {getStripeClient} from "../../../../utils/stripeUtils/stripeAccess";
+import {createCurrency} from "../../currencies";
 
 chai.use(chaiExclude);
 
@@ -749,5 +756,111 @@ describe("/v2/transactions/checkout - pending", () => {
 
         const valueCaptureRes = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(valueCaptureRes.body.balance, 0);
+    });
+
+    describe("stripe issues", () => {
+        it("can't void on disconnected Stripe account", async function () {
+            if (testStripeLive()) {
+                // This test relies upon being able to create and delete accounts, which is
+                // only supported in the local mock server.
+                this.skip();
+            }
+
+            const testUser = new TestUser();
+
+            const stripe = await getStripeClient(true);
+            const stripeAccount = await stripe.accounts.create({type: "standard"});
+            chai.assert.isString(stripeAccount.id, "created Stripe account");
+            testUser.stripeAccountId = stripeAccount.id;
+            setStubbedStripeUserId(testUser, stripeAccount.id);
+
+            await createCurrency(testUser.auth, {
+                code: "CAD",
+                name: "Canadian bucks",
+                symbol: "$",
+                decimalPlaces: 2
+            });
+
+            const stripeCheckoutTx: CheckoutRequest = {
+                id: generateId(),
+                currency: "cad",
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "human-souls",
+                        unitPrice: 1499
+                    }
+                ],
+                sources: [
+                    {
+                        rail: "stripe",
+                        source: "tok_visa"
+                    }
+                ],
+                pending: true
+            };
+            const stripePendingCheckoutTxRes = await testUser.request<Transaction>(router, "/v2/transactions/checkout", "POST", stripeCheckoutTx);
+            chai.assert.equal(stripePendingCheckoutTxRes.statusCode, 201);
+
+            await stripe.accounts.del(stripeAccount.id);
+
+            const failedVoidRes = await testUser.request<any>(router, `/v2/transactions/${stripeCheckoutTx.id}/void`, "POST", {
+                id: generateId()
+            });
+            chai.assert.equal(failedVoidRes.statusCode, 424, `body=${JSON.stringify(failedVoidRes.body)}`);
+            chai.assert.equal(failedVoidRes.body.messageCode, "StripePermissionError");
+        });
+
+        it("can't capture on disconnected Stripe account", async function () {
+            if (testStripeLive()) {
+                // This test relies upon being able to create and delete accounts, which is
+                // only supported in the local mock server.
+                this.skip();
+            }
+
+            const testUser = new TestUser();
+
+            const stripe = await getStripeClient(true);
+            const stripeAccount = await stripe.accounts.create({type: "standard"});
+            chai.assert.isString(stripeAccount.id, "created Stripe account");
+            testUser.stripeAccountId = stripeAccount.id;
+            setStubbedStripeUserId(testUser, stripeAccount.id);
+
+            await createCurrency(testUser.auth, {
+                code: "CAD",
+                name: "Canadian bucks",
+                symbol: "$",
+                decimalPlaces: 2
+            });
+
+            const stripeCheckoutTx: CheckoutRequest = {
+                id: generateId(),
+                currency: "cad",
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "human-souls",
+                        unitPrice: 1499
+                    }
+                ],
+                sources: [
+                    {
+                        rail: "stripe",
+                        source: "tok_visa"
+                    }
+                ],
+                pending: true
+            };
+            const stripePendingCheckoutTxRes = await testUser.request<Transaction>(router, "/v2/transactions/checkout", "POST", stripeCheckoutTx);
+            chai.assert.equal(stripePendingCheckoutTxRes.statusCode, 201);
+
+            await stripe.accounts.del(stripeAccount.id);
+
+            const failedCaptureRes = await testUser.request<any>(router, `/v2/transactions/${stripeCheckoutTx.id}/capture`, "POST", {
+                id: generateId()
+            });
+            chai.assert.equal(failedCaptureRes.statusCode, 424, `body=${JSON.stringify(failedCaptureRes.body)}`);
+            chai.assert.equal(failedCaptureRes.body.messageCode, "StripePermissionError");
+        });
     });
 });
