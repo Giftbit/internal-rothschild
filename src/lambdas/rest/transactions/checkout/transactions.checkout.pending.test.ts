@@ -862,5 +862,73 @@ describe("/v2/transactions/checkout - pending", () => {
             chai.assert.equal(failedCaptureRes.statusCode, 424, `body=${JSON.stringify(failedCaptureRes.body)}`);
             chai.assert.equal(failedCaptureRes.body.messageCode, "StripePermissionError");
         });
+
+        it("can't void when Stripe charges are missing", async function () {
+            if (testStripeLive()) {
+                // This test relies upon a test token only supported in the local mock server.
+                this.skip();
+            }
+
+            const stripeCheckoutTx: CheckoutRequest = {
+                id: generateId(),
+                currency: "cad",
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "human-souls",
+                        unitPrice: 1499
+                    }
+                ],
+                sources: [
+                    {
+                        rail: "stripe",
+                        source: "tok_forget"    // Mock server will forget about this charge simulating deleted data.
+                    }
+                ],
+                pending: true
+            };
+            const stripePendingCheckoutTxRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", stripeCheckoutTx);
+            chai.assert.equal(stripePendingCheckoutTxRes.statusCode, 201);
+
+            const failVoidRes = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${stripeCheckoutTx.id}/void`, "POST", {
+                id: generateId()
+            });
+            chai.assert.equal(failVoidRes.statusCode, 409, `body=${JSON.stringify(failVoidRes.body)}`);
+            chai.assert.equal(failVoidRes.body.messageCode, "StripeChargeNotFound");
+        });
+
+        it("can't capture when Stripe charges are missing", async function () {
+            if (testStripeLive()) {
+                // This test relies upon a test token only supported in the local mock server.
+                this.skip();
+            }
+
+            const stripeCheckoutTx: CheckoutRequest = {
+                id: generateId(),
+                currency: "cad",
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "human-souls",
+                        unitPrice: 1499
+                    }
+                ],
+                sources: [
+                    {
+                        rail: "stripe",
+                        source: "tok_forget"    // Mock server will forget about this charge simulating deleted data.
+                    }
+                ],
+                pending: true
+            };
+            const stripePendingCheckoutTxRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", stripeCheckoutTx);
+            chai.assert.equal(stripePendingCheckoutTxRes.statusCode, 201);
+
+            const failedCaptureRes = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${stripeCheckoutTx.id}/capture`, "POST", {
+                id: generateId()
+            });
+            chai.assert.equal(failedCaptureRes.statusCode, 409, `body=${JSON.stringify(failedCaptureRes.body)}`);
+            chai.assert.equal(failedCaptureRes.body.messageCode, "StripeChargeNotFound");
+        });
     });
 });

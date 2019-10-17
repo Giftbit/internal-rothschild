@@ -4,7 +4,6 @@ import * as cassava from "cassava";
 import {getStripeClient} from "./stripeAccess";
 import log = require("loglevel");
 import Stripe = require("stripe");
-import {GiftbitRestError} from "giftbit-cassava-routes";
 
 export async function createCharge(params: Stripe.charges.IChargeCreationOptions, isTestMode: boolean, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<Stripe.charges.ICharge> {
     const lightrailStripe = await getStripeClient(isTestMode);
@@ -101,6 +100,9 @@ export async function captureCharge(chargeId: string, options: Stripe.charges.IC
         if ((err as Stripe.IStripeError).code === "charge_already_refunded") {
             throw new StripeRestError(409, `Stripe charge '${chargeId}' cannot be captured because it was refunded.`, "StripeChargeAlreadyRefunded", err);
         }
+        if ((err as Stripe.IStripeError).code === "resource_missing" && (err as Stripe.IStripeError).param === "charge") {
+            throw new StripeRestError(409, `Stripe charge '${chargeId}' is missing.`, "StripeChargeNotFound", err);
+        }
 
         giftbitRoutes.sentry.sendErrorNotification(err);
         throw err;
@@ -120,8 +122,13 @@ export async function updateCharge(chargeId: string, params: Stripe.charges.ICha
         log.info("Updated Stripe charge", chargeUpdate);
         return chargeUpdate;
     } catch (err) {
-        checkForStandardStripeErrors(err);
         log.warn("Error updating Stripe charge:", err);
+
+        checkForStandardStripeErrors(err);
+        if ((err as Stripe.IStripeError).code === "resource_missing" && (err as Stripe.IStripeError).param === "id") {
+            throw new StripeRestError(409, `Stripe charge '${chargeId}' is missing.`, "StripeChargeNotFound", err);
+        }
+
         giftbitRoutes.sentry.sendErrorNotification(err);
         throw err;
     }
@@ -135,11 +142,12 @@ export async function retrieveCharge(chargeId: string, isTestMode: boolean, merc
         log.info("retrieved Stripe charge", charge);
         return charge;
     } catch (err) {
+        log.warn("Error retrieving Stripe charge:", err);
+
         checkForStandardStripeErrors(err);
         if (err.statusCode === 404) {
-            throw new StripeRestError(404, `Charge not found: ${chargeId}`, null, err);
+            throw new StripeRestError(404, `Stripe charge not found: ${chargeId}`, "StripeChargeNotFound", err);
         }
-        log.warn("Error retrieving Stripe charge:", err);
         giftbitRoutes.sentry.sendErrorNotification(err);
         throw err;
     }
@@ -184,11 +192,11 @@ function checkForStandardStripeErrors(err: any): void {
         case "StripeAPIError":
             throw new StripeRestError(502, "There was a problem connecting to Stripe.", "StripeAPIError", err);
         default:
-            // do nothing
+        // do nothing
     }
 }
 
-function getRetryIdempotencyKeyAndCount(stepIdempotencyKey: string): {newKey: string, count: number} {
+function getRetryIdempotencyKeyAndCount(stepIdempotencyKey: string): { newKey: string, count: number } {
     let originalStepIdempotencyKey = stepIdempotencyKey;
     let count = 1;
     const retryCountMatcher = /^(.+)-retry-(\d)$/.exec(stepIdempotencyKey);
