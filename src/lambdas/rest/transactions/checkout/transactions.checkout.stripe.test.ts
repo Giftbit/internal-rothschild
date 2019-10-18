@@ -29,11 +29,12 @@ import {
 } from "../../../../utils/stripeUtils/stripeTransactions";
 import chaiExclude from "chai-exclude";
 import {TestUser} from "../../../../utils/testUtils/TestUser";
+import * as getStripeClient from "../../../../utils/stripeUtils/stripeAccess";
+import {getLightrailStripeModeConfig} from "../../../../utils/stripeUtils/stripeAccess";
 import log = require("loglevel");
 import Stripe = require("stripe");
 import ICharge = Stripe.charges.ICharge;
-import * as getStripeClient from "../../../../utils/stripeUtils/stripeAccess";
-import {getLightrailStripeModeConfig} from "../../../../utils/stripeUtils/stripeAccess";
+
 chai.use(chaiExclude);
 
 describe("split tender checkout with Stripe", () => {
@@ -1308,7 +1309,8 @@ describe("split tender checkout with Stripe", () => {
         // Create a new TestUser but don't create the Stripe account.  This Stripe
         // account will be invalid both in test and live.
         const testUser = new TestUser();
-        setStubbedStripeUserId(testUser, "acct_invalid");
+        testUser.stripeAccountId = "acct_invalid";
+        setStubbedStripeUserId(testUser);
 
         const request: CheckoutRequest = {
             id: generateId(),
@@ -1366,15 +1368,15 @@ describe("split tender checkout with Stripe", () => {
             this.skip();
         }
 
-       sinonSandbox.stub(getStripeClient, "getStripeClient")
-          .callsFake(async function changeHost(): Promise<Stripe> {
-              const stripeModeConfig = await getLightrailStripeModeConfig(true);
-              const client = new Stripe(stripeModeConfig.secretKey);
-              // If data is sent to a host that supports Discard Protocol on TCP or UDP port 9.
-              // The data sent to the server is simply discarded and no response is returned.
-              client.setHost("localhost", 9, "http");
-              return client;
-        });
+        sinonSandbox.stub(getStripeClient, "getStripeClient")
+            .callsFake(async function changeHost(): Promise<Stripe> {
+                const stripeModeConfig = await getLightrailStripeModeConfig(true);
+                const client = new Stripe(stripeModeConfig.secretKey);
+                // If data is sent to a host that supports Discard Protocol on TCP or UDP port 9.
+                // The data sent to the server is simply discarded and no response is returned.
+                client.setHost("localhost", 9, "http");
+                return client;
+            });
 
         const checkoutRequest: CheckoutRequest = {
             id: generateId(),

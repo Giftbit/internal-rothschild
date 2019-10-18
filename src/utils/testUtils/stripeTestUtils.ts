@@ -40,7 +40,7 @@ export async function setStubsForStripeTests(): Promise<void> {
 
     if (testStripeLive()) {
         stripeUserIds = {
-            [defaultTestUser.jwt]: defaultTestUser.stripeAccountId
+            [defaultTestUser.userId]: defaultTestUser.stripeAccountId
         };
     } else {
         const stripe = await getStripeClient(true);
@@ -72,8 +72,11 @@ export async function setStubsForStripeTests(): Promise<void> {
     });
 }
 
-export function setStubbedStripeUserId(testUser: TestUser, stripeUserId: string): void {
-    stripeUserIds[testUser.userId] = stripeUserId;
+export function setStubbedStripeUserId(testUser: TestUser): void {
+    if (!testUser.stripeAccountId) {
+        throw new Error("TestUser.stripeAccountId not set");
+    }
+    stripeUserIds[testUser.userId] = testUser.stripeAccountId;
 }
 
 export function unsetStubsForStripeTests(): void {

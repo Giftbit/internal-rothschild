@@ -23,6 +23,7 @@ export class StripeRestError extends cassava.RestError {
     static santizeStripeError(error: Stripe.IStripeError): Stripe.IStripeError {
         return {
             ...error,
+            type: error.type,   // This comes from a getter now and isn't copied in the spread above.
             stack: undefined
         } as any;
     }

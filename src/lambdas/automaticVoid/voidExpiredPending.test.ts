@@ -279,10 +279,10 @@ describe("voidExpiredPending()", () => {
         const testUser = new TestUser();
 
         const stripe = await getStripeClient(true);
-        const stripeAccount = await stripe.accounts.create({type: "standard"});
+        const stripeAccount = await stripe.accounts.create({type: "standard"} as any);
         chai.assert.isString(stripeAccount.id, "created Stripe account");
         testUser.stripeAccountId = stripeAccount.id;
-        setStubbedStripeUserId(testUser, stripeAccount.id);
+        setStubbedStripeUserId(testUser);
 
         await currencies.createCurrency(testUser.auth, {
             code: "CAD",
