@@ -1,7 +1,24 @@
+/**
+ * Represents a state that is blocking the Transaction chain from progressing.
+ * So far this only means automatic void is blocked but it could mean more in the future.
+ */
 export interface TransactionChainBlocker {
     userId: string;
+
+    /**
+     * The transactionId for the end of the chain that is blocked.
+     */
     transactionId: string;
+
+    /**
+     * The type of the block.  If blocked by an error the messageCode
+     * is a good choice for this type.
+     */
     type: string;
+
+    /**
+     * Information about the block stored in JSON.  The expected fields depend upon the `type`.
+     */
     metadata: object;
     createdDate: Date;
     updatedDate: Date;
