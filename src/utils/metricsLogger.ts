@@ -1,48 +1,58 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {StripeTransactionPlanStep, TransactionPlan} from "../lambdas/rest/transactions/TransactionPlan";
 import * as Stripe from "stripe";
+import {Value} from "../model/Value";
 import log = require("loglevel");
 
 export namespace MetricsLogger {
     export function valueAttachment(attachType: ValueAttachmentTypes, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
-        logMetric(1, MetricsType.Histogram, `rothschild.values.attach`, {type: attachType}, auth);
+        logMetric(1, MetricsType.Histogram, "rothschild.values.attach", {type: attachType}, auth);
+    }
+
+    export function valueUpdated(valueUpdates: Partial<Value>, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
+        logMetric(1, MetricsType.Histogram, "rothschild.values.update", {
+            active: valueUpdates.active + "",
+            canceled: valueUpdates.canceled + "",
+            contactId: valueUpdates.contactId ? "set" : valueUpdates.contactId + "",
+            frozen: valueUpdates.frozen
+        }, auth);
     }
 
     export function transaction(plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
-        logMetric(1, MetricsType.Histogram, `rothschild.transactions`, {type: plan.transactionType}, auth);
+        logMetric(1, MetricsType.Histogram, "rothschild.transactions", {type: plan.transactionType}, auth);
     }
 
     export function stripeCall(step: StripeTransactionPlanStep, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
-        logMetric(step.amount, MetricsType.Histogram, `rothschild.transactions.stripe.calls`, {type: step.type}, auth);
+        logMetric(step.amount, MetricsType.Histogram, "rothschild.transactions.stripe.calls", {type: step.type}, auth);
     }
 
     export function stripeError(error: Stripe.IStripeError, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
-        logMetric(1, MetricsType.Histogram, `rothschild.transactions.stripe.errors`, {stripeErrorType: error.type}, auth);
+        logMetric(1, MetricsType.Histogram, "rothschild.transactions.stripe.errors", {stripeErrorType: error.type}, auth);
     }
 
     export function stripeWebhookEvent(event: Stripe.events.IEvent & { account?: string }, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
-        logMetric(1, MetricsType.Histogram, `rothschild.stripeEventWebhook.event`, {
+        logMetric(1, MetricsType.Histogram, "rothschild.stripeEventWebhook.event", {
             stripeEventType: event.type,
             stripeAccountId: event.account,
         }, auth);
     }
 
     export function stripeWebhookHandlerError(event: Stripe.events.IEvent & { account?: string }, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
-        logMetric(1, MetricsType.Histogram, `rothschild.stripeEventWebhook.error`, {
+        logMetric(1, MetricsType.Histogram, "rothschild.stripeEventWebhook.error", {
             stripeEventType: event.type,
             stripeAccountId: event.account,
         }, auth);
     }
 
     export function stripeWebhookFraudEvent(event: Stripe.events.IEvent & { account?: string }, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
-        logMetric(1, MetricsType.Histogram, `rothschild.stripeEventWebhook.fraud`, {
+        logMetric(1, MetricsType.Histogram, "rothschild.stripeEventWebhook.fraud", {
             stripeEventType: event.type,
             stripeAccountId: event.account
         }, auth);
     }
 
     export function stripeWebhookDisputeEvent(event: Stripe.events.IEvent & { account?: string }, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
-        logMetric(1, MetricsType.Histogram, `rothschild.stripeEventWebhook.dispute`, {
+        logMetric(1, MetricsType.Histogram, "rothschild.stripeEventWebhook.dispute", {
             stripeEventType: event.type,
             stripeAccountId: event.account
         }, auth);

@@ -28,6 +28,7 @@ import {getCurrency} from "../currencies";
 import {checkCodeParameters, checkValueProperties, createValue} from "./createValue";
 import {hasContactValues} from "../contactValues";
 import {QueryBuilder} from "knex";
+import {MetricsLogger} from "../../../utils/metricsLogger";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -451,6 +452,7 @@ export async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         if (updateRes > 1) {
             throw new Error(`Illegal UPDATE query.  Updated ${updateRes} values.`);
         }
+        MetricsLogger.valueUpdated(valueUpdates, auth);
         return updatedValue;
     });
 }
