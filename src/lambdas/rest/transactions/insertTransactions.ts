@@ -14,11 +14,10 @@ import {executeStripeSteps} from "../../../utils/stripeUtils/stripeStepOperation
 import {getSqlErrorColumnName, getSqlErrorConstraintName} from "../../../utils/dbUtils";
 import {generateCode} from "../../../utils/codeGenerator";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
-import {diffUtils} from "../../../utils/diffUtils";
 import Knex = require("knex");
 import log = require("loglevel");
 
-export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<DbTransaction> {
+export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<Transaction> {
     if (!plan.rootTransactionId) {
         plan.rootTransactionId = plan.id;
     }
@@ -39,7 +38,7 @@ export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.A
                     nextTransactionId: null
                 }).update(updateProperties);
         }
-        return dbTransaction;
+        return transaction;
     } catch (err) {
         log.warn("Error inserting transaction", err);
         const constraint = getSqlErrorConstraintName(err);
@@ -217,30 +216,4 @@ export async function insertInternalTransactionSteps(auth: giftbitRoutes.jwtauth
     await trx.into("InternalTransactionSteps")
         .insert(internalSteps);
     return plan;
-}
-
-/**
- * Update the just-inserted Transaction with members (totals) that may have changed while executing the plan.
- * This should *never* be used to update a Transaction after it has been returned to the user.
- */
-export async function finalizeInsertedTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, insertedDbTransaction: DbTransaction, plan: TransactionPlan): Promise<Transaction> {
-    const finalTransaction = TransactionPlan.toTransaction(auth, plan); // Plan totals may have changed during insertion.
-    const finalDbTransaction = Transaction.toDbTransaction(auth, finalTransaction, plan.rootTransactionId);
-    const dbTransactionDiff = diffUtils.shallowDiffObject(finalDbTransaction, insertedDbTransaction);
-    const changedDbTransactionKeys = Object.keys(dbTransactionDiff);
-    if (changedDbTransactionKeys.length) {
-        const illegalKeys: (keyof DbTransaction)[] = ["id", "userId", "transactionType", "currency", "rootTransactionId", "nextTransactionId"];
-        for (const illegalKey of illegalKeys) {
-            if (changedDbTransactionKeys.indexOf(illegalKey) !== -1) {
-                throw new Error(`Transaction execution changed '${illegalKey}' which should not be changed.`);
-            }
-        }
-        await trx.into("Transactions")
-            .where({
-                userId: auth.userId,
-                id: finalDbTransaction.id
-            })
-            .update(dbTransactionDiff);
-    }
-    return finalTransaction;
 }
