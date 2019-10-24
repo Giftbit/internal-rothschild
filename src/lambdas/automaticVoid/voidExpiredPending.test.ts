@@ -240,7 +240,7 @@ describe("voidExpiredPending()", () => {
         await assertNoTransactionsToVoid();
     });
 
-    it("voids when Stripe test data is deleted", async function () {
+    it("fails to void and stores the blocker when Stripe test data is deleted", async function () {
         if (testStripeLive()) {
             // This test relies upon a test token only supported in the local mock server.
             this.skip();
@@ -275,7 +275,7 @@ describe("voidExpiredPending()", () => {
         await assertNoTransactionsToVoid();
     });
 
-    it("voids when the Stripe account becomes disconnected", async function () {
+    it("fails to void and stores the blocker when the Stripe account becomes disconnected", async function () {
         if (testStripeLive()) {
             // This test relies upon being able to create and delete accounts, which is
             // only supported in the local mock server.
