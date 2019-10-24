@@ -741,7 +741,7 @@ const valueSchema: jsonschema.Schema = {
             maxLength: 16
         },
         programId: {
-            type: "string",
+            type: ["string", null],
             maxLength: 64,
             minLength: 1
         },
