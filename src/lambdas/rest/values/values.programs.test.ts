@@ -30,9 +30,21 @@ describe("/v2/values create from program", () => {
         });
     });
 
+    it("can create a value with programId = null", async () => {
+        let value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            programId: null
+        };
+
+        const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
+    });
+
     it("can't create a value with a programId that doesn't exist", async () => {
         let value: Partial<Value> = {
             id: generateId(),
+            currency: "USD",
             programId: generateId()
         };
 
