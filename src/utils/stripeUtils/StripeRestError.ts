@@ -16,6 +16,10 @@ export class StripeRestError extends cassava.RestError {
         return this.additionalParams["stripeError"];
     }
 
+    get messageCode(): string {
+        return this.additionalParams["messageCode"];
+    }
+
     /**
      * Remove properties of the StripeError we don't want to share.
      * @param error
@@ -26,5 +30,9 @@ export class StripeRestError extends cassava.RestError {
             type: error.type,   // This comes from a getter now and isn't copied in the spread above.
             stack: undefined
         } as any;
+    }
+
+    static isStripeRestError(err: any): err is StripeRestError {
+        return !!(err as StripeRestError).isStripeRestError;
     }
 }

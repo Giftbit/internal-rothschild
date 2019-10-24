@@ -1,10 +1,12 @@
 import * as awslambda from "aws-lambda";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {DbTransaction} from "../../model/Transaction";
-import {getKnexRead} from "../../utils/dbUtils/connection";
+import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {nowInDbPrecision} from "../../utils/dbUtils";
 import {executeTransactionPlanner} from "../rest/transactions/executeTransactionPlans";
 import {createVoidTransactionPlanForDbTransaction} from "../rest/transactions/transactions.void";
+import {StripeRestError} from "../../utils/stripeUtils/StripeRestError";
+import {TransactionChainBlocker} from "../../model/TransactionChainBlocker";
 import log = require("loglevel");
 import uuid = require("uuid");
 
@@ -23,8 +25,7 @@ export async function voidExpiredPending(ctx: awslambda.Context): Promise<void> 
         try {
             await voidPendingTransaction(transactions[txIx]);
         } catch (err) {
-            log.error(`Unable to void Transaction '${transactions[txIx].id}':`, err);
-            giftbitRoutes.sentry.sendErrorNotification(err);
+            await handleVoidPendingError(transactions[txIx], err);
         }
     }
 
@@ -46,10 +47,16 @@ export async function getExpiredPendingTransactions(limit: number): Promise<DbTr
 
     const knex = await getKnexRead();
     return await knex("Transactions")
-        .whereNull("nextTransactionId")
-        .where("pendingVoidDate", "<", now)
+        .leftOuterJoin("TransactionChainBlockers", {
+            "Transactions.userId": "TransactionChainBlockers.userId",
+            "Transactions.id": "TransactionChainBlockers.transactionId"
+        })
+        .whereNull("TransactionChainBlockers.transactionId")    // Exclusive left outer join (fancy!)
+        .whereNull("Transactions.nextTransactionId")
+        .where("Transactions.pendingVoidDate", "<", now)
         .limit(limit)
-        .orderBy("pendingVoidDate");    // Void in the order they expired.
+        .orderBy("pendingVoidDate")    // Void in the order they expired.
+        .select("Transactions.*");
 }
 
 async function voidPendingTransaction(dbTransaction: DbTransaction): Promise<void> {
@@ -67,17 +74,48 @@ async function voidPendingTransaction(dbTransaction: DbTransaction): Promise<voi
             simulate: false,
             allowRemainder: false
         },
-        async () => {
-            const plan = await createVoidTransactionPlanForDbTransaction(
-                auth,
-                {
-                    // This operation is naturally idempotent because of the transaction chain; so this ID doesn't matter much.
-                    id: "automatic-void-" + uuid.v4()
-                },
-                dbTransaction
-            );
-            plan.force = true;
-            return plan;
-        }
+        () => createVoidTransactionPlanForDbTransaction(
+            auth,
+            {
+                // This operation is naturally idempotent because of the transaction chain; so this ID doesn't matter much.
+                id: "automatic-void-" + uuid.v4()
+            },
+            dbTransaction
+        )
     );
+}
+
+async function handleVoidPendingError(dbTransaction: DbTransaction, error: any): Promise<void> {
+    log.warn(`Unable to void Transaction '${dbTransaction.id}':`, error);
+    if (StripeRestError.isStripeRestError(error)) {
+        if (error.messageCode === "StripePermissionError") {
+            return await markTransactionChainAsBlocked(dbTransaction, error.messageCode, {stripeError: error.stripeError});
+        }
+        if (dbTransaction.userId.endsWith("-TEST") && error.messageCode === "StripeChargeNotFound") {
+            return await markTransactionChainAsBlocked(dbTransaction, error.messageCode, {stripeError: error.stripeError});
+        }
+    }
+    log.error("Unhandled Transaction void error");
+    giftbitRoutes.sentry.sendErrorNotification(error);
+}
+
+async function markTransactionChainAsBlocked(dbTransaction: DbTransaction, blockerType: string, metadata: object): Promise<void> {
+    try {
+        const now = nowInDbPrecision();
+        const blocker: TransactionChainBlocker = {
+            userId: dbTransaction.userId,
+            transactionId: dbTransaction.id,
+            type: blockerType,
+            metadata: metadata,
+            createdDate: now,
+            updatedDate: now
+        };
+
+        const knex = await getKnexWrite();
+        return await knex("TransactionChainBlockers")
+            .insert(TransactionChainBlocker.toDbTransactionChainBlocker(blocker));
+    } catch (error) {
+        log.error("Error inserting TransactionChainBlocker", error);
+        giftbitRoutes.sentry.sendErrorNotification(error);
+    }
 }

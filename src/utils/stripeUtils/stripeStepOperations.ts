@@ -36,40 +36,24 @@ export async function executeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
                 const stripeChargeParams = stripeTransactionPlanStepToStripeChargeRequest(auth, step, plan);
                 step.chargeResult = await createCharge(stripeChargeParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id, step.stepIdempotencyKey);
             } else if (step.type === "refund") {
-                try {
-                    const stripeRefundParams: Stripe.refunds.IRefundCreationOptionsWithCharge = {
-                        charge: step.chargeId,
-                        metadata: {
-                            reason: step.reason || "not specified"
-                        }
-                    };
-                    step.refundResult = await createRefund(stripeRefundParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id);
-
-                    if (step.reason) {
-                        try {
-                            const updateChargeParams: Stripe.charges.IChargeUpdateOptions = {
-                                description: step.reason
-                            };
-                            await updateCharge(step.chargeId, updateChargeParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id);
-                            log.info(`Updated Stripe charge ${step.chargeId} with reason.`);
-                        } catch (updateChargeError) {
-                            log.warn("Continuing after error updating Stripe charge", updateChargeError);
-                            // Don't rethrow.  This is a convenience and not worth failing the Transaction over.
-                        }
+                const stripeRefundParams: Stripe.refunds.IRefundCreationOptionsWithCharge = {
+                    charge: step.chargeId,
+                    metadata: {
+                        reason: step.reason || "not specified"
                     }
-                } catch (refundError) {
-                    if (plan.force && (refundError as StripeRestError).isStripeRestError) {
-                        log.info("Error refunding Stripe charge (force=true)", refundError);
-                        plan.totals = plan.totals || {unaccounted: 0};
-                        plan.totals.unaccounted = plan.totals.unaccounted || 0;
-                        plan.totals.unaccounted += step.amount;
-                        step.refundResult = {
-                            ...(refundError as StripeRestError).stripeError,
-                            object: "error"
+                };
+                step.refundResult = await createRefund(stripeRefundParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id);
+
+                if (step.reason) {
+                    try {
+                        const updateChargeParams: Stripe.charges.IChargeUpdateOptions = {
+                            description: step.reason
                         };
-                        step.amount = 0;
-                    } else {
-                        throw refundError;
+                        await updateCharge(step.chargeId, updateChargeParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id);
+                        log.info(`Updated Stripe charge ${step.chargeId} with reason.`);
+                    } catch (updateChargeError) {
+                        log.warn("Continuing after error updating Stripe charge", updateChargeError);
+                        // Don't rethrow.  This is a convenience and not worth failing the Transaction over.
                     }
                 }
             } else if (step.type === "capture") {
@@ -85,7 +69,7 @@ export async function executeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
             }
         }
     } catch (err) {
-        if ((err as StripeRestError).isStripeRestError) {
+        if (StripeRestError.isStripeRestError(err)) {
             MetricsLogger.stripeError((err as StripeRestError).stripeError, auth);
             // Error was returned from Stripe. Passing original error along so that details of Stripe failure can be returned.
             throw err;

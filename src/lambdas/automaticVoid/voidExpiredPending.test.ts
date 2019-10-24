@@ -10,7 +10,7 @@ import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {installRestRoutes} from "../rest/installRestRoutes";
 import {DbTransaction, Transaction} from "../../model/Transaction";
 import {CheckoutRequest, DebitRequest} from "../../model/TransactionRequest";
-import {voidExpiredPending} from "./voidExpiredPending";
+import {getExpiredPendingTransactions, voidExpiredPending} from "./voidExpiredPending";
 import {
     setStubbedStripeUserId,
     setStubsForStripeTests,
@@ -19,6 +19,7 @@ import {
 } from "../../utils/testUtils/stripeTestUtils";
 import {getStripeClient} from "../../utils/stripeUtils/stripeAccess";
 import {TestUser} from "../../utils/testUtils/TestUser";
+import {DbTransactionChainBlocker} from "../../model/TransactionChainBlocker";
 
 describe("voidExpiredPending()", () => {
 
@@ -171,6 +172,8 @@ describe("voidExpiredPending()", () => {
         const valueRes = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(valueRes.statusCode, 200);
         chai.assert.equal(valueRes.body.balance, value.balance - futurePendingDebitTx.amount - capturedPendingDebitTx.amount);
+
+        await assertNoTransactionsToVoid();
     });
 
     it("voids the transaction even if the Value is frozen", async () => {
@@ -202,6 +205,7 @@ describe("voidExpiredPending()", () => {
         await voidExpiredPending(getLambdaContext());
 
         await assertTransactionVoided(txReq.id);
+        await assertNoTransactionsToVoid();
     });
 
     it("voids the transaction even if the Value is canceled", async () => {
@@ -233,6 +237,7 @@ describe("voidExpiredPending()", () => {
         await voidExpiredPending(getLambdaContext());
 
         await assertTransactionVoided(txReq.id);
+        await assertNoTransactionsToVoid();
     });
 
     it("voids when Stripe test data is deleted", async function () {
@@ -265,8 +270,9 @@ describe("voidExpiredPending()", () => {
 
         await voidExpiredPending(getLambdaContext());
 
-        await assertTransactionVoided(stripeCheckoutTx.id);
-        await assertAmountUnaccounted(stripeCheckoutTx.id, 1499);
+        await assertTransactionNotVoided(stripeCheckoutTx.id);
+        await assertTransactionBlocked(stripeCheckoutTx.id);
+        await assertNoTransactionsToVoid();
     });
 
     it("voids when the Stripe account becomes disconnected", async function () {
@@ -316,8 +322,9 @@ describe("voidExpiredPending()", () => {
 
         await voidExpiredPending(getLambdaContext());
 
-        await assertTransactionVoided(stripeCheckoutTx.id);
-        await assertAmountUnaccounted(stripeCheckoutTx.id, 1499);
+        await assertTransactionNotVoided(stripeCheckoutTx.id);
+        await assertTransactionBlocked(stripeCheckoutTx.id);
+        await assertNoTransactionsToVoid();
     });
 });
 
@@ -373,14 +380,15 @@ async function assertTransactionNotVoided(transactionId: string): Promise<void> 
     }
 }
 
-async function assertAmountUnaccounted(transactionId: string, amount: number): Promise<void> {
+async function assertTransactionBlocked(transactionId: string): Promise<void> {
     const knex = await getKnexRead();
-    const dbTxs: DbTransaction[] = await knex("Transactions")
-        .where({
-            rootTransactionId: transactionId
-        })
-        .whereRaw("rootTransactionId != id");
-    chai.assert.lengthOf(dbTxs, 1, "found voiding transaction");
-    chai.assert.equal(dbTxs[0].transactionType, "void");
-    chai.assert.equal(dbTxs[0].totals_unaccounted, amount, "totals_unaccounted");
+
+    const blockers: DbTransactionChainBlocker[] = await knex("TransactionChainBlockers")
+        .where({transactionId: transactionId});
+    chai.assert.lengthOf(blockers, 1);
+}
+
+async function assertNoTransactionsToVoid(): Promise<void> {
+    const pending = await getExpiredPendingTransactions(1000);
+    chai.assert.lengthOf(pending, 0);
 }

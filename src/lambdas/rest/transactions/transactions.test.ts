@@ -260,7 +260,6 @@ describe("/v2/transactions", () => {
                     paidStripe: 0,
                     remainder: 0,
                     forgiven: 0,
-                    unaccounted: 0
                 },
                 lineItems: [
                     {

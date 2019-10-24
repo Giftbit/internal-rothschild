@@ -132,8 +132,7 @@ describe("/v2/transactions/checkout - mixed sources", () => {
                 "paidLightrail": 60,
                 "paidStripe": 1360,
                 "remainder": 0,
-                "forgiven": 0,
-                "unaccounted": 0
+                "forgiven": 0
             },
             "lineItems": [
                 {
@@ -336,8 +335,7 @@ describe("/v2/transactions/checkout - mixed sources", () => {
                 "paidLightrail": 2100,
                 "paidStripe": 0,
                 "remainder": 0,
-                "forgiven": 0,
-                "unaccounted": 0
+                "forgiven": 0
             },
             "lineItems": [
                 {

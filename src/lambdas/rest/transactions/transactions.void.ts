@@ -15,7 +15,7 @@ export async function createVoidTransactionPlan(auth: giftbitRoutes.jwtauth.Auth
 }
 
 export async function createVoidTransactionPlanForDbTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: VoidRequest, dbTransactionToVoid: DbTransaction): Promise<TransactionPlan> {
-    log.info(`Creating void transaction plan for user: ${auth.userId} and void request:`, req);
+    log.info(`Creating void transaction plan for user '${auth.userId}' with void request:`, req);
 
     if (!dbTransactionToVoid.pendingVoidDate) {
         throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot void a Transaction that is not pending.`, "TransactionNotPending");
