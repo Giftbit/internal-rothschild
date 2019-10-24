@@ -69,7 +69,7 @@ export namespace Value {
             canceled: v.canceled,
             frozen: v.frozen,
             discount: v.discount,
-            discountSellerLiabilityRule: !!v.discountSellerLiability ? v.discountSellerLiability.toString() : null,
+            discountSellerLiabilityRule: JSON.stringify(formatDiscountSellerLiabilityAsRule(v)),
             redemptionRule: JSON.stringify(v.redemptionRule),
             balanceRule: JSON.stringify(v.balanceRule),
             startDate: v.startDate,
@@ -99,7 +99,7 @@ export namespace Value {
             frozen: v.frozen,
             pretax: v.pretax,
             discount: v.discount,
-            discountSellerLiabilityRule: !!v.discountSellerLiability ? v.discountSellerLiability.toString() : undefined, // todo - fix this
+            discountSellerLiabilityRule: JSON.stringify(formatDiscountSellerLiabilityAsRule(v)),
             redemptionRule: JSON.stringify(v.redemptionRule),
             balanceRule: JSON.stringify(v.balanceRule),
             startDate: v.startDate,
@@ -184,7 +184,7 @@ export namespace DbValue {
             canceled: !!v.canceled,
             frozen: !!v.frozen,
             discount: !!v.discount,
-            discountSellerLiability: formatDiscountSellerLiabilityRuleForLegacySupport(JSON.parse(v.discountSellerLiabilityRule)),
+            discountSellerLiability: formatDiscountSellerLiabilityRuleAsNumber(JSON.parse(v.discountSellerLiabilityRule)),
             discountSellerLiabilityRule: JSON.parse(v.discountSellerLiabilityRule),
             redemptionRule: JSON.parse(v.redemptionRule),
             balanceRule: JSON.parse(v.balanceRule),
@@ -216,13 +216,26 @@ export function formatCodeForLastFourDisplay(code: string): string {
 }
 
 /**
- * If discountSellerLiability can directly correspond to a number this will return a number.
+ * If discountSellerLiabilityRule can directly correspond to a number this will return a number.
  * Otherwise, returns null since discountSellerLiabilityRule is either a rule or null.
  */
-export function formatDiscountSellerLiabilityRuleForLegacySupport(discountSellerLiabilityRule: Rule | null): number | null {
+export function formatDiscountSellerLiabilityRuleAsNumber(discountSellerLiabilityRule: Rule | null): number | null {
     if (!discountSellerLiabilityRule || isNaN(+discountSellerLiabilityRule.rule)) {
         return null;
     } else {
         return +discountSellerLiabilityRule.rule;
+    }
+}
+
+export function formatDiscountSellerLiabilityAsRule(v: Partial<Value>): Rule | null {
+    if (v.discountSellerLiabilityRule != null) {
+        return v.discountSellerLiabilityRule;
+    } else if (v.discountSellerLiability != null) {
+        return {
+            rule: `${v.discountSellerLiability}`,
+            explanation: ""
+        };
+    } else {
+        return null;
     }
 }

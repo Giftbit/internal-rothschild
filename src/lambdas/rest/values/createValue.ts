@@ -1,7 +1,11 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
 import * as Knex from "knex";
-import {Value} from "../../../model/Value";
+import {
+    formatDiscountSellerLiabilityAsRule,
+    formatDiscountSellerLiabilityRuleAsNumber,
+    Value
+} from "../../../model/Value";
 import {dateInDbPrecision, nowInDbPrecision} from "../../../utils/dbUtils/index";
 import * as cassava from "cassava";
 import {MetricsLogger, ValueAttachmentTypes} from "../../../utils/metricsLogger";
@@ -78,7 +82,7 @@ export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
         frozen: false,
         discount: program ? program.discount : false,
         discountSellerLiability: program ? program.discountSellerLiability : null,
-        discountSellerLiabilityRule: program ? program.discountSellerLiabilityRule : null, // todo - figure out what makes sense here
+        discountSellerLiabilityRule: program ? program.discountSellerLiabilityRule : null,
         redemptionRule: program ? program.redemptionRule : null,
         balanceRule: program ? program.balanceRule : null,
         startDate: program ? program.startDate : null,
@@ -91,6 +95,12 @@ export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     });
 
     value.metadata = {...(program && program.metadata ? program.metadata : {}), ...value.metadata};
+
+    if (value.discountSellerLiability != null) {
+        value.discountSellerLiabilityRule = formatDiscountSellerLiabilityAsRule(value);
+    } else if (value.discountSellerLiabilityRule != null) {
+        value.discountSellerLiability = formatDiscountSellerLiabilityRuleAsNumber(value.discountSellerLiabilityRule);
+    }
 
     // code generation is done when the Value is inserted into the database.
     checkCodeParameters(generateCodeParameters, value.code);
@@ -109,6 +119,9 @@ export function checkValueProperties(value: Value, program: Program = null): voi
     }
     if (value.discountSellerLiability !== null && !value.discount) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have discountSellerLiability if it is not a discount.`);
+    }
+    if (value.discountSellerLiabilityRule !== null && !value.discount) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have a discountSellerLiabilityRule if it is not a discount.`);
     }
     if (value.contactId && value.isGenericCode) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "A Value with isGenericCode=true cannot have contactId set.");

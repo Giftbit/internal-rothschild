@@ -2,7 +2,13 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../../model/Pagination";
-import {DbValue, formatCodeForLastFourDisplay, Value} from "../../../model/Value";
+import {
+    DbValue,
+    formatCodeForLastFourDisplay,
+    formatDiscountSellerLiabilityAsRule,
+    formatDiscountSellerLiabilityRuleAsNumber,
+    Value
+} from "../../../model/Value";
 import {pick} from "../../../utils/pick";
 import {csvSerializer} from "../../../utils/serializers";
 import {
@@ -436,7 +442,14 @@ export async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         const updatedValue: Value = setValueUpdates(existingValue, valueUpdates);
 
         await checkForRestrictedUpdates(auth, existingValue, updatedValue);
+
+        console.log("here " + JSON.stringify(updatedValue, null, 4));
         checkValueProperties(updatedValue);
+        if (updatedValue.discountSellerLiability != null) {
+            updatedValue.discountSellerLiabilityRule = formatDiscountSellerLiabilityAsRule(updatedValue);
+        } else if (updatedValue.discountSellerLiabilityRule != null) {
+            updatedValue.discountSellerLiability = formatDiscountSellerLiabilityRuleAsNumber(updatedValue.discountSellerLiabilityRule);
+        }
 
         const dbValue = Value.toDbValueUpdate(auth, valueUpdates);
         const updateRes: number = await trx("Values")
@@ -469,6 +482,15 @@ function setValueUpdates(existingValue: Value, valueUpdates: Partial<Value>): Va
             }
         };
     }
+
+    // can be removed when discountSellerLiability is dropped from API responses
+    if (valueUpdates.discountSellerLiabilityRule !== null || valueUpdates.discountSellerLiability !== null) {
+        updatedValue.discountSellerLiabilityRule = valueUpdates.discountSellerLiabilityRule;
+        updatedValue.discountSellerLiability = valueUpdates.discountSellerLiability;
+    }
+    console.log("valueUpdates: " + JSON.stringify(valueUpdates, null, 4));
+    console.log("updatedValue: " + JSON.stringify(updatedValue, null, 4));
+
     return updatedValue;
 }
 
@@ -861,17 +883,29 @@ const valueSchema: jsonschema.Schema = {
         discount: {
             type: "boolean"
         },
-        discountSellerLiability: {
+        discountSellerLiabilityRule: {
             oneOf: [
                 {
-                    type: ["number", "null"],
-                    minimum: 0,
-                    maximum: 1
+                    type: "null"
                 },
                 {
-                    type: "string"
+                    title: "Balance rule",
+                    type: "object",
+                    properties: {
+                        rule: {
+                            type: "string"
+                        },
+                        explanation: {
+                            type: "string"
+                        }
+                    }
                 }
             ]
+        },
+        discountSellerLiability: {
+            type: ["number", "null"],
+            minimum: 0,
+            maximum: 1
         },
         startDate: {
             type: ["string", "null"],
@@ -891,6 +925,19 @@ const valueSchema: jsonschema.Schema = {
             properties: {
                 discount: {
                     enum: [true]
+                },
+                discountSellerLiabilityRule: {
+                    enum: [null, undefined]
+                }
+            }
+        },
+        discountSellerLiabilityRule: {
+            properties: {
+                discount: {
+                    enum: [true]
+                },
+                discountSellerLiability: {
+                    enum: [null, undefined]
                 }
             }
         }
@@ -901,12 +948,28 @@ const valueUpdateSchema: jsonschema.Schema = {
     type: "object",
     additionalProperties: false,
     properties: {
-        ...pick(valueSchema.properties, "id", "active", "frozen", "pretax", "redemptionRule", "balanceRule", "discount", "discountSellerLiability", "startDate", "endDate", "metadata", "genericCodeOptions"),
+        ...pick(valueSchema.properties, "id", "active", "frozen", "pretax", "redemptionRule", "balanceRule", "discount", "discountSellerLiability", "discountSellerLiabilityRule", "startDate", "endDate", "metadata", "genericCodeOptions"),
         canceled: {
             type: "boolean"
         }
     },
-    required: []
+    required: [],
+    dependencies: {
+        discountSellerLiability: {
+            properties: {
+                discountSellerLiabilityRule: {
+                    enum: [null, undefined]
+                }
+            }
+        },
+        discountSellerLiabilityRule: {
+            properties: {
+                discountSellerLiability: {
+                    enum: [null, undefined]
+                }
+            }
+        }
+    }
 };
 
 const valueChangeCodeSchema: jsonschema.Schema = {
