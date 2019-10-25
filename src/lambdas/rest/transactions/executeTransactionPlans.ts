@@ -13,7 +13,6 @@ import {
 import {rollbackStripeChargeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
 import {StripeRestError} from "../../../utils/stripeUtils/StripeRestError";
 import {MetricsLogger} from "../../../utils/metricsLogger";
-import {diffUtils} from "../../../utils/diffUtils";
 import log = require("loglevel");
 import Knex = require("knex");
 
@@ -92,7 +91,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         return TransactionPlan.toTransaction(auth, plan, options.simulate);
     }
 
-    const insertedTransaction = await insertTransaction(trx, auth, plan);
+    await insertTransaction(trx, auth, plan);
 
     try {
         plan = await insertStripeTransactionSteps(auth, trx, plan);
@@ -119,9 +118,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
     }
 
     // TransactionSteps may change during execution to fill in results. The top-level Transaction may not change.
-    const finalTransaction = TransactionPlan.toTransaction(auth, plan);
-    checkTransactionUnchanged(auth, insertedTransaction, finalTransaction);
-    return finalTransaction;
+    return TransactionPlan.toTransaction(auth, plan);
 }
 
 /**
@@ -151,19 +148,5 @@ async function rollbackTransactionPlan(auth: giftbitRoutes.jwtauth.Authorization
         } else {
             log.info(`An exception occurred while reversing transaction ${plan.previousTransactionId}. The reverse included refunds in Stripe but they were not successfully refunded. The state of Stripe and Lightrail are consistent.`);
         }
-    }
-}
-
-/**
- * Throw an error if the Transaction changed during exection.
- */
-function checkTransactionUnchanged(auth: giftbitRoutes.jwtauth.AuthorizationBadge, insertedTransaction: Transaction, finalTransaction: Transaction): void {
-    const rootTransactionId: string = null;   // Doesn't matter in this context.
-    const insertedDbTransaction = Transaction.toDbTransaction(auth, finalTransaction, rootTransactionId);
-    const finalDbTransaction = Transaction.toDbTransaction(auth, finalTransaction, rootTransactionId);
-    const dbTransactionDiff = diffUtils.shallowDiffObject(finalDbTransaction, insertedDbTransaction);
-    const changedDbTransactionKeys = Object.keys(dbTransactionDiff);
-    if (changedDbTransactionKeys.length) {
-        throw new Error(`DbTransaction changed after insertion.\nchangedDbTransactionKeys=[${changedDbTransactionKeys.join(", ")}]\ninsertedDbTransaction=${JSON.stringify(insertedDbTransaction)}\nfinalDbTransaction=${JSON.stringify(finalDbTransaction)}`);
     }
 }
