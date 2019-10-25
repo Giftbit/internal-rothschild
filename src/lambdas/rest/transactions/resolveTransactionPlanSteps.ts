@@ -19,6 +19,7 @@ import {nowInDbPrecision} from "../../../utils/dbUtils";
 import * as knex from "knex";
 import {getContact} from "../contacts";
 import {getStripeMinCharge} from "../../../utils/stripeUtils/getStripeMinCharge";
+import has = Reflect.has;
 
 /**
  * Options to resolving transaction parties.
@@ -130,30 +131,35 @@ export async function getLightrailValues(auth: giftbitRoutes.jwtauth.Authorizati
 
     const knex = await getKnexRead();
     const now = nowInDbPrecision();
-    let query: knex.QueryBuilder = knex("Values")
-        .select("Values.*")
-        .where("Values.userId", "=", auth.userId);
-    if (contactIds.length) {
-        query = query.leftJoin(knex.raw("(SELECT * FROM ContactValues WHERE userId = ? AND contactId in (?)) as ContactValuesTemp", [auth.userId, contactIds]), {
-            "Values.id": "ContactValuesTemp.valueId",
-            "Values.userId": "ContactValuesTemp.userId"
-        }); // The temporary table only joins to ContactValues that have a contactId in contactIds. If a generic code is transacted against directly via code/valueId, a ContactValue that it is attached to is not joined to.
-        query = query.groupBy("Values.id"); // Without groupBy, will return duplicate generic code if two contactId's are supplied as sources and both contact's have attached the generic code.
-        query = query.select(knex.raw("IFNULL(ContactValuesTemp.contactId, Values.contactId) as contactId")); // If step was looked up via ContactId then need to sure the contactId persists to the Step for tracking purposes.
-    }
-    query = query.where(q => {
-        if (valueIds.length) {
-            q = q.whereIn("Values.id", valueIds);
-        }
-        if (hashedCodes.length) {
-            q = q.orWhereIn("codeHashed", hashedCodes);
-        }
+
+    /**
+     * Build query dynamically depending on what types of Value identifiers are used.
+     * The callback function builds the core part of the query properly ('TT') before adding the extra filters below
+     * (nonTransactableHandling, includeZeroUsesRemaining, includeZeroBalance).
+     * We have a composite index for userId + each of value ID/code/contactId so UNION is more efficient than OR WHERE.
+     * Note, contactId is also returned in an extra column 'contactIdForResult' to make the union between Values
+     *  and ContactValues work.
+     */
+    let query = knex.select("*").from(function (this: knex.QueryBuilder) {
         if (contactIds.length) {
-            q = q.orWhereIn("Values.contactId", contactIds)
-                .orWhereIn("ContactValuesTemp.contactId", contactIds);
+            this.union(knex.raw("SELECT V.*, IFNULL(CV.contactId, V.contactId) AS contactIdForResult FROM `Values` V JOIN `ContactValues` CV ON V.`userId` = CV.`userId` AND V.`id` = CV.`valueId` WHERE CV.`userId` = ? AND CV.contactId IN (?)", [auth.userId, contactIds]));
+            this.union(knex.select("*", "contactId as contactIdForResult").from("Values")
+                .where("userId", "=", auth.userId).andWhere("contactId", "in", contactIds));
         }
-        return q;
+
+        if (hashedCodes.length) {
+            this.union(knex.select("*", "contactId as contactIdForResult").from("Values")
+                .where("userId", "=", auth.userId).andWhere("codeHashed", "in", hashedCodes));
+        }
+
+        if (valueIds.length) {
+            this.union(knex.select("*", "contactId as contactIdForResult").from("Values")
+                .where("userId", "=", auth.userId).andWhere("id", "in", valueIds));
+        }
+
+        this.as("TT");
     });
+
     if (options.nonTransactableHandling === "exclude") {
         query = query
             .where({
@@ -173,7 +179,11 @@ export async function getLightrailValues(auth: giftbitRoutes.jwtauth.Authorizati
     }
 
     const dbValues: DbValue[] = await query;
-    const values = await Promise.all(dbValues.map(value => DbValue.toValue(value)));
+    const dbValuesWithContactId: DbValue[] = dbValues.map((v: any) => ({
+        ...v,
+        contactId: v.contactId || v.contactIdForResult // Persist the contactId to the value record if it was looked up via the ContactValues table
+    }));
+    const values = await Promise.all(dbValuesWithContactId.map(value => DbValue.toValue(value)));
 
     if (options.nonTransactableHandling === "error") {
         // Throw an error if we have any Values that *would* have been filtered out

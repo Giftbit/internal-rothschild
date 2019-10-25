@@ -2,14 +2,20 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import {Currency} from "../../../model/Currency";
 import * as testUtils from "../../../utils/testUtils";
-import {defaultTestUser, setCodeCryptographySecrets} from "../../../utils/testUtils";
+import {defaultTestUser, generateId, setCodeCryptographySecrets, testAuthedRequest} from "../../../utils/testUtils";
 import {installRestRoutes} from "../installRestRoutes";
 import {createCurrency} from "../currencies";
 import {createContact} from "../contacts";
 import {Contact} from "../../../model/Contact";
-import {ResolveTransactionPartiesOptions, resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
+import {
+    getLightrailValues,
+    ResolveTransactionPartiesOptions,
+    resolveTransactionPlanSteps
+} from "./resolveTransactionPlanSteps";
 import {LightrailTransactionPlanStep} from "./TransactionPlan";
 import {AttachedContactValueScenario, setupAttachedContactValueScenario} from "../contactValues.test";
+import {Value} from "../../../model/Value";
+import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
 
 describe("resolveTransactionPlanSteps", () => {
 
@@ -118,6 +124,484 @@ describe("resolveTransactionPlanSteps", () => {
 
             const attachedValues = [...data.valuesAttachedToContactA, ...data.valuesAttachedToContactB];
             chai.assert.sameMembers(contactLightrailValues.map(v => (v as LightrailTransactionPlanStep).value.id), attachedValues.map(v => v.id));
+        });
+
+        describe("getLightrailValues", () => {
+            const currency = {
+                code: "USD"
+            };
+            const contact1: Partial<Contact> = {id: testUtils.generateId(8)};
+            const contact2: Partial<Contact> = {id: testUtils.generateId(8)};
+            const code1 = "ABCABC-DEFDEF";
+            const code2 = "GHIGHI-JKLJKL";
+            let value1_uniqueCode: Partial<Value> = {id: `value1_uniqueCode_${testUtils.generateId(5)}`, code: code1};
+            let value2_uniqueCodeContact: Partial<Value> = {
+                id: `value2_uniqueCodeContact_${testUtils.generateId(5)}`,
+                code: code2,
+                contactId: contact1.id,
+            };
+            let value3_sharedGeneric: Partial<Value> = {
+                id: `value3_sharedGeneric_${testUtils.generateId(5)}`,
+                isGenericCode: true,
+                balanceRule: {
+                    rule: "500",
+                    explanation: "500"
+                },
+                balance: null
+            };
+            let value4_perContactGeneric: Partial<Value> = {
+                id: `value4_perContactGeneric_${testUtils.generateId(5)}`,
+                isGenericCode: true,
+                balanceRule: {
+                    rule: "500",
+                    explanation: "500"
+                },
+                balance: null,
+                genericCodeOptions: {
+                    perContact: {
+                        usesRemaining: 2,
+                        balance: null
+                    }
+                }
+            };
+
+            before(async () => {
+                await testUtils.createUSD(router);
+
+                const createContact1Resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact1);
+                chai.assert.equal(createContact1Resp.statusCode, 201);
+                const createContact2Resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact2);
+                chai.assert.equal(createContact2Resp.statusCode, 201);
+
+                value1_uniqueCode = await testUtils.createUSDValue(router, value1_uniqueCode);
+                value2_uniqueCodeContact = await testUtils.createUSDValue(router, value2_uniqueCodeContact);
+                value3_sharedGeneric = await testUtils.createUSDValue(router, value3_sharedGeneric);
+                value4_perContactGeneric = await testUtils.createUSDValue(router, value4_perContactGeneric);
+
+                const attachSharedResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1.id}/values/attach`, "POST", {valueId: value3_sharedGeneric.id});
+                chai.assert.equal(attachSharedResp.statusCode, 200);
+                const attachPerContactResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact2.id}/values/attach`, "POST", {valueId: value4_perContactGeneric.id});
+                chai.assert.equal(attachPerContactResp.statusCode, 200);
+            });
+
+            it("gets values associated with one contactId", async () => {
+                const contact2AsTransactionSource: ResolveTransactionPartiesOptions = {
+                    ...txPartiesTemplate,
+                    currency: currency.code,
+                    parties: [{rail: "lightrail", contactId: contact2.id}]
+                };
+                const valuesByContactId2 = await getLightrailValues(testUtils.defaultTestUser.auth, contact2AsTransactionSource);
+                chai.assert.equal(valuesByContactId2.length, 1, `valuesByContactId2: ${JSON.stringify(valuesByContactId2)}`);
+                chai.assert.equal(valuesByContactId2[0].attachedFromValueId, value4_perContactGeneric.id, `valuesByContactId2: ${JSON.stringify(valuesByContactId2)}`);
+                chai.assert.equal(valuesByContactId2[0].contactId, contact2.id, `valuesByContactId2: ${JSON.stringify(valuesByContactId2)}`);
+
+                const contact1AsTransactionSource: ResolveTransactionPartiesOptions = {
+                    ...txPartiesTemplate,
+                    currency: currency.code,
+                    parties: [{rail: "lightrail", contactId: contact1.id}]
+                };
+                const valuesByContactId1 = await getLightrailValues(testUtils.defaultTestUser.auth, contact1AsTransactionSource);
+                chai.assert.equal(valuesByContactId1.length, 2, `valuesByContactId1: ${JSON.stringify(valuesByContactId1)}`);
+                chai.assert.equal(valuesByContactId1[0].contactId, contact1.id, `valuesByContactId1[0].contactId=${valuesByContactId1[0].contactId}; valueId=${valuesByContactId1[0].id}`);
+                chai.assert.equal(valuesByContactId1[1].contactId, contact1.id, `valuesByContactId1[1].contactId=${valuesByContactId1[1].contactId}; valueId=${valuesByContactId1[1].id}`);
+                chai.assert.deepEqualExcluding(valuesByContactId1.find(v => v.id === value2_uniqueCodeContact.id), value2_uniqueCodeContact, ["attachedFromValueId", "createdDate", "updatedDate", "updatedContactIdDate", "genericCodeOptions"], `valuesByContactId1: ${JSON.stringify(valuesByContactId1)}`);
+                chai.assert.deepEqualExcluding(valuesByContactId1.find(v => v.id === value3_sharedGeneric.id), {
+                    ...value3_sharedGeneric,
+                    contactId: contact1.id
+                }, ["attachedFromValueId", "createdDate", "updatedDate"], `valuesByContactId1: ${JSON.stringify(valuesByContactId1)}`);
+            });
+
+            it("gets values associated with two contactIds", async () => {
+                const contactsAsTransactionSources: ResolveTransactionPartiesOptions = {
+                    ...txPartiesTemplate,
+                    currency: currency.code,
+                    parties: [{
+                        rail: "lightrail",
+                        contactId: contact1.id
+                    }, {
+                        rail: "lightrail",
+                        contactId: contact2.id
+                    }]
+                };
+                const valuesByContactIds = await getLightrailValues(testUtils.defaultTestUser.auth, contactsAsTransactionSources);
+                chai.assert.equal(valuesByContactIds.length, 3);
+                chai.assert.deepEqualExcluding(valuesByContactIds.find(v => v.id === value2_uniqueCodeContact.id), value2_uniqueCodeContact, ["attachedFromValueId", "createdDate", "updatedDate", "updatedContactIdDate", "genericCodeOptions"]);
+                chai.assert.equal(valuesByContactIds.find(v => v.id === value3_sharedGeneric.id).contactId, contact1.id);
+                chai.assert.deepEqualExcluding(valuesByContactIds.find(v => v.id === value3_sharedGeneric.id), value3_sharedGeneric, ["attachedFromValueId", "createdDate", "updatedDate", "updatedContactIdDate", "genericCodeOptions", "contactId"]);
+                chai.assert.isObject(valuesByContactIds.find(v => v.attachedFromValueId === value4_perContactGeneric.id));
+                chai.assert.equal(valuesByContactIds.find(v => v.attachedFromValueId === value4_perContactGeneric.id).contactId, contact2.id);
+            });
+
+            it("gets values by code", async () => {
+                const codeAsTransactionSource: ResolveTransactionPartiesOptions = {
+                    ...txPartiesTemplate,
+                    parties: [{
+                        rail: "lightrail",
+                        code: code1
+                    }],
+                    currency: currency.code
+                };
+                const valuesByCode1 = await getLightrailValues(testUtils.defaultTestUser.auth, codeAsTransactionSource);
+                chai.assert.equal(valuesByCode1.length, 1);
+                chai.assert.deepEqualExcluding(valuesByCode1[0], value1_uniqueCode, ["createdDate", "updatedDate", "genericCodeOptions", "attachedFromValueId", "updatedContactIdDate"]);
+
+                const twoCodesAsTransactionSource: ResolveTransactionPartiesOptions = {
+                    ...txPartiesTemplate,
+                    parties: [{
+                        rail: "lightrail",
+                        code: code1
+                    }, {
+                        rail: "lightrail",
+                        code: code2
+                    }],
+                    currency: currency.code
+                };
+                const valuesByCode2 = await getLightrailValues(testUtils.defaultTestUser.auth, twoCodesAsTransactionSource);
+                chai.assert.equal(valuesByCode2.length, 2);
+                chai.assert.deepEqualExcluding(valuesByCode2, [value1_uniqueCode, value2_uniqueCodeContact], ["createdDate", "updatedDate", "genericCodeOptions", "attachedFromValueId", "updatedContactIdDate"]);
+            });
+
+            it("gets values by ID", async () => {
+                const valueIdAsTransactionSource: ResolveTransactionPartiesOptions = {
+                    ...txPartiesTemplate,
+                    parties: [{
+                        rail: "lightrail",
+                        valueId: value1_uniqueCode.id
+                    }],
+                    currency: currency.code
+                };
+                const valuesById1 = await getLightrailValues(testUtils.defaultTestUser.auth, valueIdAsTransactionSource);
+                chai.assert.equal(valuesById1.length, 1);
+                chai.assert.deepEqualExcluding(valuesById1[0], value1_uniqueCode, ["createdDate", "updatedDate", "genericCodeOptions", "attachedFromValueId", "updatedContactIdDate"]);
+
+                const twoValueIdsAsTransactionSource: ResolveTransactionPartiesOptions = {
+                    ...txPartiesTemplate,
+                    parties: [{
+                        rail: "lightrail",
+                        valueId: value1_uniqueCode.id
+                    }, {
+                        rail: "lightrail",
+                        valueId: value2_uniqueCodeContact.id
+                    }],
+                    currency: currency.code
+                };
+                const valuesById2 = await getLightrailValues(testUtils.defaultTestUser.auth, twoValueIdsAsTransactionSource);
+                chai.assert.equal(valuesById2.length, 2);
+                chai.assert.deepEqualExcluding(valuesById2.find(v => v.id === value1_uniqueCode.id), value1_uniqueCode, ["createdDate", "updatedDate", "genericCodeOptions", "attachedFromValueId", "updatedContactIdDate"]);
+                chai.assert.deepEqualExcluding(valuesById2.find(v => v.id === value2_uniqueCodeContact.id), value2_uniqueCodeContact, ["createdDate", "updatedDate", "genericCodeOptions", "attachedFromValueId", "updatedContactIdDate"]);
+            });
+
+            it("does not duplicate Value if specified by code and ID in separate sources", async () => {
+                const dupeIdentifierSources: ResolveTransactionPartiesOptions = {
+                    ...txPartiesTemplate,
+                    parties: [{
+                        rail: "lightrail",
+                        code: code1
+                    }, {
+                        rail: "lightrail",
+                        valueId: value1_uniqueCode.id
+                    }],
+                    currency: currency.code
+                };
+                const values = await getLightrailValues(testUtils.defaultTestUser.auth, dupeIdentifierSources);
+                chai.assert.equal(values.length, 1);
+                chai.assert.deepEqualExcluding(values[0], value1_uniqueCode, ["createdDate", "updatedDate", "genericCodeOptions", "attachedFromValueId", "updatedContactIdDate"]);
+            });
+
+            it("does not duplicate shared generic Value if attached to contact in sources and also passed anonymously", async () => {
+                const dupedSources: ResolveTransactionPartiesOptions = {
+                    ...txPartiesTemplate,
+                    currency: currency.code,
+                    parties: [{
+                        rail: "lightrail",
+                        code: value3_sharedGeneric.code
+                    }, {
+                        rail: "lightrail",
+                        contactId: contact1.id
+                    }]
+                };
+                const values = await getLightrailValues(testUtils.defaultTestUser.auth, dupedSources);
+                chai.assert.equal(values.length, 2);
+                chai.assert.equal(values[0].contactId, contact1.id);
+                chai.assert.equal(values[1].contactId, contact1.id);
+                chai.assert.isObject(values.find(v => v.id === value3_sharedGeneric.id));
+            });
+
+            it("gets multiple values by different identifiers", async () => {
+                const multiIdentiferSources: ResolveTransactionPartiesOptions = {
+                    ...txPartiesTemplate,
+                    currency: currency.code,
+                    nonTransactableHandling: "exclude",
+                    includeZeroBalance: false,
+                    includeZeroUsesRemaining: false,
+                    parties: [{
+                        rail: "lightrail",
+                        code: code1
+                    }, {
+                        rail: "lightrail",
+                        valueId: value2_uniqueCodeContact.id
+                    }, {
+                        rail: "lightrail",
+                        contactId: contact2.id
+                    }],
+                };
+                const values = await getLightrailValues(testUtils.defaultTestUser.auth, multiIdentiferSources);
+                chai.assert.equal(values.length, 3);
+                chai.assert.deepEqualExcluding(values.find(v => v.id === value1_uniqueCode.id), value1_uniqueCode, ["createdDate", "updatedDate", "genericCodeOptions", "attachedFromValueId", "updatedContactIdDate"]);
+                chai.assert.deepEqualExcluding(values.find(v => v.id === value2_uniqueCodeContact.id), value2_uniqueCodeContact, ["createdDate", "updatedDate", "genericCodeOptions", "attachedFromValueId", "updatedContactIdDate"]);
+                chai.assert.isObject(values.find(v => v.attachedFromValueId === value4_perContactGeneric.id));
+                chai.assert.equal(values.find(v => v.attachedFromValueId === value4_perContactGeneric.id).contactId, contact2.id);
+            });
+
+            it("excludes sources with zero balance when includeZeroBalance=false", async () => {
+                const value1 = await testUtils.createUSDValue(router); // balance will get zeroed
+
+                const sources_includeZeroBalance: ResolveTransactionPartiesOptions = {
+                    ...txPartiesTemplate,
+                    parties: [{
+                        rail: "lightrail",
+                        valueId: value1.id
+                    }],
+                    currency: currency.code,
+                    includeZeroBalance: true
+                };
+
+                const valueShouldBeReturned = await getLightrailValues(testUtils.defaultTestUser.auth, sources_includeZeroBalance);
+                chai.assert.equal(valueShouldBeReturned.length, 1);
+                chai.assert.equal(valueShouldBeReturned[0].id, value1.id);
+
+                const value1_zeroBalanceResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
+                    id: generateId(),
+                    currency: currency.code,
+                    amount: value1.balance,
+                    source: {rail: "lightrail", valueId: value1.id}
+                });
+                chai.assert.equal(value1_zeroBalanceResp.statusCode, 201, `value1_zeroBalanceResp.body=${JSON.stringify(value1_zeroBalanceResp)}`);
+                chai.assert.equal((value1_zeroBalanceResp.body.steps[0] as LightrailTransactionStep).balanceAfter, 0, `value1_zeroBalanceResp.body.steps=${value1_zeroBalanceResp.body.steps}`);
+
+                const valueShouldStillBeReturned = await getLightrailValues(testUtils.defaultTestUser.auth, sources_includeZeroBalance);
+                chai.assert.sameMembers(valueShouldStillBeReturned.map(v => v.id), valueShouldBeReturned.map(v => v.id));
+
+                const sources_excludeZeroBalance: ResolveTransactionPartiesOptions = {
+                    ...sources_includeZeroBalance,
+                    includeZeroBalance: false
+                };
+                const noValueReturned = await getLightrailValues(testUtils.defaultTestUser.auth, sources_excludeZeroBalance);
+                chai.assert.equal(noValueReturned.length, 0);
+            });
+
+            it("excludes sources with zero usesRemaining when includeZeroUsesRemaining=false", async () => {
+                const value2 = await testUtils.createUSDValue(router, {usesRemaining: 1}); // usesRemaining will get zeroed
+                const sources_includeZeroUses: ResolveTransactionPartiesOptions = {
+                    ...txPartiesTemplate,
+                    parties: [{
+                        rail: "lightrail",
+                        valueId: value2.id
+                    }],
+                    currency: currency.code,
+                    includeZeroUsesRemaining: true
+                };
+
+                const valueShouldBeReturned = await getLightrailValues(testUtils.defaultTestUser.auth, sources_includeZeroUses);
+                chai.assert.equal(valueShouldBeReturned.length, 1);
+                chai.assert.equal(valueShouldBeReturned[0].id, value2.id);
+
+                const value2_zeroUsesRemainingResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
+                    id: generateId(),
+                    currency: currency.code,
+                    uses: value2.usesRemaining,
+                    source: {rail: "lightrail", valueId: value2.id}
+                });
+                chai.assert.equal(value2_zeroUsesRemainingResp.statusCode, 201, `value2_zeroUsesRemainingResp.body=${JSON.stringify(value2_zeroUsesRemainingResp)}`);
+                chai.assert.equal((value2_zeroUsesRemainingResp.body.steps[0] as LightrailTransactionStep).usesRemainingAfter, 0, `value2_zeroUsesRemainingResp.body.steps=${value2_zeroUsesRemainingResp.body.steps}`);
+
+                const valueShouldStillBeReturned = await getLightrailValues(testUtils.defaultTestUser.auth, sources_includeZeroUses);
+                chai.assert.sameMembers(valueShouldStillBeReturned.map(v => v.id), valueShouldBeReturned.map(v => v.id));
+
+                const sources_excludeZeroUses: ResolveTransactionPartiesOptions = {
+                    ...sources_includeZeroUses,
+                    includeZeroUsesRemaining: false
+                };
+                const noValueReturned = await getLightrailValues(testUtils.defaultTestUser.auth, sources_excludeZeroUses);
+                chai.assert.equal(noValueReturned.length, 0);
+            });
+
+            it("properly excludes sources when nonTransactableHandling='exclude'", async () => {
+                const currency2: Currency = {
+                    code: "123",
+                    name: "Currency123",
+                    symbol: "$",
+                    decimalPlaces: 3
+                };
+                const createCurrency2Resp = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", currency2);
+                chai.assert.equal(createCurrency2Resp.statusCode, 201);
+
+                // setup: create a bunch of values that should be returned when nonTransactableHandling='include' and includeZeroBalance=true and includeZeroUsesRemaining=true
+                const value3 = await testUtils.createUSDValue(router); // will get cancelled
+                const value4 = await testUtils.createUSDValue(router); // will get frozen
+                const value5 = await testUtils.createUSDValue(router); // will get set to 'inactive'
+                const value6: Partial<Value> = {
+                    id: generateId(),
+                    currency: currency2.code,
+                    balance: 50
+                }; // wrong currency
+                const createValue6Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value6);
+                chai.assert.equal(createValue6Resp.statusCode, 201);
+                const value7 = await testUtils.createUSDValue(router, {startDate: new Date("2040-01-01T00:00:00.000Z")}); // start date in future
+                const value8 = await testUtils.createUSDValue(router, {endDate: new Date("2000-01-01T00:00:00.000Z")}); // expired
+
+                // check that they're all initially returned
+                const sources_includeNonTransactable: ResolveTransactionPartiesOptions = {
+                    parties: [{
+                        rail: "lightrail",
+                        valueId: value3.id
+                    }, {
+                        rail: "lightrail",
+                        valueId: value4.id
+                    }, {
+                        rail: "lightrail",
+                        valueId: value5.id
+                    }, {
+                        rail: "lightrail",
+                        valueId: value6.id
+                    }, {
+                        rail: "lightrail",
+                        valueId: value7.id
+                    }, {
+                        rail: "lightrail",
+                        valueId: value8.id
+                    }],
+                    currency: currency.code,
+                    transactionId: "1",
+                    nonTransactableHandling: "include",
+                    includeZeroUsesRemaining: true,
+                    includeZeroBalance: true
+                };
+
+                const valuesWhileAllValid = await getLightrailValues(testUtils.defaultTestUser.auth, sources_includeNonTransactable);
+                chai.assert.equal(valuesWhileAllValid.length, 6);
+                chai.assert.sameMembers(valuesWhileAllValid.map(v => v.id), [value3.id, value4.id, value5.id, value6.id, value7.id, value8.id]);
+
+                // update values so they're all non-transactable
+                const value3_cancelResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value3.id}`, "PATCH", {canceled: true});
+                chai.assert.equal(value3_cancelResp.statusCode, 200, `value3_cancelResp.body=${JSON.stringify(value3_cancelResp)}`);
+                chai.assert.equal(value3_cancelResp.body.canceled, true, `value3_cancelResp.body.canceled=${value3_cancelResp.body.canceled}`);
+
+                const value4_freezeResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value4.id}`, "PATCH", {frozen: true});
+                chai.assert.equal(value4_freezeResp.statusCode, 200, `value4_freezeResp.body=${JSON.stringify(value4_freezeResp)}`);
+                chai.assert.equal(value4_freezeResp.body.frozen, true, `value4_freezeResp.body.frozen=${value4_freezeResp.body.frozen}`);
+
+                const value5_inactivateResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value5.id}`, "PATCH", {active: false});
+                chai.assert.equal(value5_inactivateResp.statusCode, 200, `value5_inactivateResp.body=${JSON.stringify(value5_inactivateResp)}`);
+                chai.assert.equal(value5_inactivateResp.body.active, false, `value5_inactivateResp.body.active=${value5_inactivateResp.body.active}`);
+
+                // check that they still get returned when including non-transactable sources
+                const valuesAfterInvalidation = await getLightrailValues(testUtils.defaultTestUser.auth, sources_includeNonTransactable);
+                chai.assert.sameMembers(valuesAfterInvalidation.map(v => v.id), valuesWhileAllValid.map(v => v.id));
+
+                // check that they DON'T get returned when excluding non-transactable sources
+                const sources_excludeNonTransactable: ResolveTransactionPartiesOptions = {
+                    ...sources_includeNonTransactable,
+                    nonTransactableHandling: "exclude",
+                };
+                const noValuesAfterInvalidation = await getLightrailValues(testUtils.defaultTestUser.auth, sources_excludeNonTransactable);
+                chai.assert.equal(noValuesAfterInvalidation.length, 0);
+            });
+
+            it("doesn't fail if invalid sources included (code/valueId/contactId does not exist): successfully returns valid sources", async () => {
+                const sources: ResolveTransactionPartiesOptions = {
+                    ...txPartiesTemplate,
+                    currency: currency.code,
+                    parties: [{
+                        rail: "lightrail",
+                        code: generateId()
+                    }, {
+                        rail: "lightrail",
+                        contactId: generateId()
+                    }, {
+                        rail: "lightrail",
+                        valueId: value1_uniqueCode.id
+                    }]
+                };
+                const values = await getLightrailValues(testUtils.defaultTestUser.auth, sources);
+                chai.assert.equal(values.length, 1);
+                chai.assert.deepEqualExcluding(values[0], value1_uniqueCode, ["createdDate", "updatedDate", "genericCodeOptions", "attachedFromValueId", "updatedContactIdDate"])
+            });
+
+            it("does not leak Values between userIds", async () => {
+                // identical Value & Contact will be created for two different Lightrail users
+                const value: Partial<Value> = {
+                    id: "share-gen-1",
+                    isGenericCode: true,
+                    currency: "USD",
+                    balanceRule: {
+                        rule: "500",
+                        explanation: "500"
+                    }
+                };
+                const contact: Partial<Contact> = {
+                    id: "contact-1"
+                };
+
+                // set up data for first user
+                const currencyUser1 = await testAuthedRequest(router, "/v2/currencies/USD", "GET"); // created in before()
+                chai.assert.equal(currencyUser1.statusCode, 200, `currencyUser1.body=${JSON.stringify(currencyUser1.body)}`);
+                const valueUser1 = await testAuthedRequest(router, "/v2/values", "POST", value);
+                chai.assert.equal(valueUser1.statusCode, 201, `valueUser1.body=${JSON.stringify(valueUser1.body)}`);
+                const contactUser1 = await testAuthedRequest(router, "/v2/contacts", "POST", contact);
+                chai.assert.equal(contactUser1.statusCode, 201, `contactUser1.body=${JSON.stringify(contactUser1.body)}`);
+                const attachUser1 = await testAuthedRequest(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value.id});
+                chai.assert.equal(attachUser1.statusCode, 200, `attachUser1.body=${JSON.stringify(attachUser1.body)}`);
+
+                // set up data for second user
+                const currencyUser2 = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/currencies", "POST", {
+                    headers: {
+                        Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`
+                    },
+                    body: JSON.stringify({
+                        code: "USD",
+                        symbol: "$",
+                        decimalPlaces: 2,
+                        name: "USD"
+                    })
+                }));
+                chai.assert.equal(currencyUser2.statusCode, 201, `currencyUser2.body=${JSON.stringify(currencyUser2.body)}`);
+                const valueUser2 = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/values", "POST", {
+                    headers: {
+                        Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`
+                    },
+                    body: JSON.stringify(value)
+                }));
+                chai.assert.equal(valueUser2.statusCode, 201, `valueUser2.body=${JSON.stringify(valueUser2.body)}`);
+                const contactUser2 = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/contacts", "POST", {
+                    headers: {
+                        Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`
+                    },
+                    body: JSON.stringify(contact)
+                }));
+                chai.assert.equal(contactUser2.statusCode, 201, `contactUser2.body=${JSON.stringify(contactUser2.body)}`);
+                const attachUser2 = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent(`/v2/contacts/${contact.id}/values/attach`, "POST", {
+                    headers: {
+                        Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`
+                    },
+                    body: JSON.stringify({valueId: value.id})
+                }));
+                chai.assert.equal(attachUser2.statusCode, 200, `attachUser2.body=${JSON.stringify(attachUser2.body)}`);
+
+                // the actual test: make sure the right data comes back for the right auth badge
+                const resolvedValuesUser1 = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, {
+                    parties: [{
+                        rail: "lightrail",
+                        contactId: contact.id
+                    }],
+                    currency: "USD",
+                    transactionId: "1",
+                    nonTransactableHandling: "exclude",
+                    includeZeroUsesRemaining: false,
+                    includeZeroBalance: false
+                });
+                chai.assert.equal(resolvedValuesUser1.length, 1, JSON.stringify(resolvedValuesUser1, null, 4));
+            }).timeout(12000)
         });
     });
 });
