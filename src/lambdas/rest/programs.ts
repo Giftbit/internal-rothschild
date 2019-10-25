@@ -14,6 +14,7 @@ import {
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {ProgramStats} from "../../model/ProgramStats";
 import {checkRulesSyntax} from "./transactions/rules/RuleContext";
+import {formatDiscountSellerLiabilityAsRule, formatDiscountSellerLiabilityRuleAsNumber} from "../../model/Value";
 import log = require("loglevel");
 
 export function installProgramsRest(router: cassava.Router): void {
@@ -52,7 +53,7 @@ export function installProgramsRest(router: cassava.Router): void {
                         currency: "",
                         discount: false,
                         discountSellerLiability: null,
-                        discountSellerLiabilityRule: null, // todo - does it make sense to be initializing both of these?
+                        discountSellerLiabilityRule: null,
                         pretax: false,
                         active: true,
                         redemptionRule: null,
@@ -73,6 +74,12 @@ export function installProgramsRest(router: cassava.Router): void {
 
             program.startDate = program.startDate ? dateInDbPrecision(new Date(program.startDate)) : null;
             program.endDate = program.endDate ? dateInDbPrecision(new Date(program.endDate)) : null;
+
+            if (program.discountSellerLiability != null) {
+                program.discountSellerLiabilityRule = formatDiscountSellerLiabilityAsRule(program.discountSellerLiability);
+            } else if (program.discountSellerLiabilityRule != null) {
+                program.discountSellerLiability = formatDiscountSellerLiabilityRuleAsNumber(program.discountSellerLiabilityRule);
+            }
 
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
@@ -106,14 +113,13 @@ export function installProgramsRest(router: cassava.Router): void {
             }
 
             const now = nowInDbPrecision();
-            const program: Partial<Program> = {
-                // todo test this
-                ...pick(evt.body as Program, "name", "discount", "discountSellerLiabilityRule", "pretax", "active", "redemptionRule", "balanceRule", "minInitialBalance", "maxInitialBalance", "fixedInitialBalances", "fixedInitialUsesRemaining", "startDate", "endDate", "metadata"),
+            const programUpdates: Partial<Program> = {
+                ...pick(evt.body as Program, "name", "discount", "discountSellerLiability", "discountSellerLiabilityRule", "pretax", "active", "redemptionRule", "balanceRule", "minInitialBalance", "maxInitialBalance", "fixedInitialBalances", "fixedInitialUsesRemaining", "startDate", "endDate", "metadata"),
                 updatedDate: now
             };
 
             return {
-                body: await updateProgram(auth, evt.pathParameters.id, program)
+                body: await updateProgram(auth, evt.pathParameters.id, programUpdates)
             };
         });
 
@@ -267,12 +273,20 @@ async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
 
         checkProgramProperties(updatedProgram);
 
+        // this can eventually go away
+        if (programUpdates.discountSellerLiability != null) {
+            updatedProgram.discountSellerLiabilityRule = formatDiscountSellerLiabilityAsRule(updatedProgram.discountSellerLiability);
+        } else if (programUpdates.discountSellerLiabilityRule != null) {
+            updatedProgram.discountSellerLiability = formatDiscountSellerLiabilityRuleAsNumber(programUpdates.discountSellerLiabilityRule);
+        }
+
+        const dbProgramUpdate = Program.toDbProgramUpdate(auth, programUpdates);
         const patchRes = await trx("Programs")
             .where({
                 userId: auth.userId,
                 id: id
             })
-            .update(Program.toDbProgramUpdate(auth, programUpdates));
+            .update(dbProgramUpdate);
         if (patchRes === 0) {
             throw new cassava.RestError(404);
         }

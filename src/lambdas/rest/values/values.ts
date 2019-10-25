@@ -438,12 +438,13 @@ export async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             throw new Error(`Illegal SELECT query.  Returned ${selectValueRes.length} values.`);
         }
         const existingValue = await DbValue.toValue(selectValueRes[0]);
+        if (valueUpdates.discountSellerLiability != null || valueUpdates.discountSellerLiabilityRule) {
+            existingValue.discountSellerLiabilityRule = null;
+            existingValue.discountSellerLiability = null;
+        }
         let updatedValue: Value = setValueUpdates(existingValue, valueUpdates);
         updatedValue = setDiscountSellerLiabilityProperties(updatedValue);
         await checkForRestrictedUpdates(auth, existingValue, updatedValue);
-
-        // console.log("valueUpdates " + JSON.stringify(valueUpdates, null, 4));
-        // console.log("updatedValue " + JSON.stringify(updatedValue, null, 4));
 
         checkValueProperties(updatedValue);
 

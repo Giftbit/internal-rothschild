@@ -1,5 +1,5 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {formatDiscountSellerLiabilityAsRule, formatDiscountSellerLiabilityRuleAsNumber, Rule} from "./Value";
+import {formatDiscountSellerLiabilityRuleAsNumber, Rule} from "./Value";
 import {pickDefined} from "../utils/pick";
 
 export interface Program {
@@ -33,7 +33,7 @@ export namespace Program {
             name: v.name,
             currency: v.currency,
             discount: v.discount,
-            discountSellerLiabilityRule: JSON.stringify(formatDiscountSellerLiabilityAsRule(v)),
+            discountSellerLiabilityRule: JSON.stringify(v.discountSellerLiabilityRule),
             pretax: v.pretax,
             active: v.active,
             minInitialBalance: v.minInitialBalance,
@@ -56,8 +56,7 @@ export namespace Program {
             name: v.name,
             currency: v.currency,
             discount: v.discount,
-            discountSellerLiability: !!v.discountSellerLiability ? v.discountSellerLiability.toString() : undefined,
-            // todo - do something here
+            discountSellerLiabilityRule: JSON.stringify(v.discountSellerLiabilityRule),
             pretax: v.pretax,
             active: v.active,
             redemptionRule: JSON.stringify(v.redemptionRule),

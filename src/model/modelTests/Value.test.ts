@@ -28,7 +28,7 @@ describe("Value", () => {
     describe("formatDiscountSellerLiabilityAsRule", () => {
         it("returns null if null", async () => {
             const v: Partial<Value> = {};
-            const res: Rule | null = formatDiscountSellerLiabilityAsRule(v);
+            const res: Rule | null = formatDiscountSellerLiabilityAsRule(null);
             chai.assert.isNull(res);
         });
 
@@ -36,23 +36,11 @@ describe("Value", () => {
             const v: Partial<Value> = {
                 discountSellerLiability: 0.45
             };
-            const res: Rule | null = formatDiscountSellerLiabilityAsRule(v);
+            const res: Rule | null = formatDiscountSellerLiabilityAsRule(0.45);
             chai.assert.deepEqual(res, {
                 rule: "0.45",
                 explanation: ""
             });
         });
-
-        it("returns rule if set", async () => {
-            const v: Partial<Value> = {
-                discountSellerLiabilityRule: {
-                    rule: "1 - currentLineItem.marketplaceRate",
-                    explanation: "proportional to marketplace rate"
-                }
-            };
-            const res: Rule | null = formatDiscountSellerLiabilityAsRule(v);
-            chai.assert.deepEqual(res, v.discountSellerLiabilityRule);
-        });
     });
-
 });

@@ -90,7 +90,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
     private calculateMarketplaceTotals(): void {
         if ((!this.lineItems || !this.lineItems.find(lineItem => lineItem.marketplaceRate !== undefined))
             && !this.steps.find(step =>
-                step.rail === "lightrail" && step.value.discount && !!step.value.discountSellerLiability
+                step.rail === "lightrail" && step.value.discount && !!step.value.discountSellerLiabilityRule
             )) {
             // Marketplace totals are only set if an item has a marketplaceRate or if discountSellerLiability is set on a Value.
             this.totals.marketplace = undefined;

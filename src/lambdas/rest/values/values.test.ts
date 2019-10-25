@@ -645,7 +645,7 @@ describe("/v2/values/", () => {
             };
             const update = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", valueUpdate);
             chai.assert.equal(update.statusCode, 200, `body=${JSON.stringify(update.body)}`);
-            chai.assert.equal(update.body.discountSellerLiabilityRule, update.body.discountSellerLiabilityRule);
+            chai.assert.equal(update.body.discountSellerLiability, 0.50);
             chai.assert.deepEqual(update.body.discountSellerLiabilityRule, {
                 rule: "0.5",
                 explanation: ""

@@ -108,7 +108,7 @@ export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 // This can eventually go away.
 export function setDiscountSellerLiabilityProperties(v: Value): Value {
     if (v.discountSellerLiability != null) {
-        v.discountSellerLiabilityRule = formatDiscountSellerLiabilityAsRule(v);
+        v.discountSellerLiabilityRule = formatDiscountSellerLiabilityAsRule(v.discountSellerLiability);
     } else if (v.discountSellerLiabilityRule != null) {
         v.discountSellerLiability = formatDiscountSellerLiabilityRuleAsNumber(v.discountSellerLiabilityRule);
     }
