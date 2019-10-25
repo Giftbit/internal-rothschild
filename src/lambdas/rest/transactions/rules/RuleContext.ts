@@ -36,8 +36,8 @@ export class RuleContext {
         return getRuleFromCache(rule.rule).evaluateToBoolean(this);
     }
 
-    evaluateDiscountSellerLiabilityRule(rule: string): number {
-        return getRuleFromCache(rule).evaluateToNumber(this);
+    evaluateDiscountSellerLiabilityRule(rule: Rule): number {
+        return getRuleFromCache(rule.rule).evaluateToNumber(this);
     }
 }
 

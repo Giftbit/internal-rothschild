@@ -338,7 +338,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
 
         const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
-        chai.assert.deepEqual(createValue.body.discountSellerLiability, value.discountSellerLiability);
+        chai.assert.deepEqual(createValue.body.discountSellerLiabilityRule, value.discountSellerLiabilityRule);
 
         const checkout: CheckoutRequest = {
             id: generateId(),
@@ -376,7 +376,6 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
         };
         const createCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
         chai.assert.equal(createCheckout.statusCode, 201, `body=${JSON.stringify(createCheckout.body)}`);
-        console.log(JSON.stringify(createCheckout, null, 4));
         chai.assert.deepEqual(createCheckout.body.totals, {
             "subtotal": 52321,
             "tax": 3622,
@@ -460,7 +459,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
         };
         const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
-        chai.assert.deepEqual(createValue.body.discountSellerLiability, value.discountSellerLiability);
+        chai.assert.deepEqual(createValue.body.discountSellerLiabilityRule, value.discountSellerLiabilityRule);
 
         const checkout: CheckoutRequest = {
             id: generateId(),
@@ -526,7 +525,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
         };
         const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
-        chai.assert.deepEqual(createValue.body.discountSellerLiability, value.discountSellerLiability);
+        chai.assert.deepEqual(createValue.body.discountSellerLiabilityRule, value.discountSellerLiabilityRule);
 
         const checkout: CheckoutRequest = {
             id: generateId(),
@@ -594,7 +593,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
         };
         const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
-        chai.assert.deepEqual(createValue.body.discountSellerLiability, value.discountSellerLiability);
+        chai.assert.deepEqual(createValue.body.discountSellerLiabilityRule, value.discountSellerLiabilityRule);
 
         const checkout: CheckoutRequest = {
             id: generateId(),
@@ -671,7 +670,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
         };
         const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
-        chai.assert.deepEqual(createValue.body.discountSellerLiability, value.discountSellerLiability);
+        chai.assert.deepEqual(createValue.body.discountSellerLiabilityRule, value.discountSellerLiabilityRule);
 
         const checkout: CheckoutRequest = {
             id: generateId(),
@@ -743,7 +742,7 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
         };
         const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
-        chai.assert.deepEqual(createValue.body.discountSellerLiability, value.discountSellerLiability);
+        chai.assert.deepEqual(createValue.body.discountSellerLiabilityRule, value.discountSellerLiabilityRule);
 
         const checkout: CheckoutRequest = {
             id: generateId(),

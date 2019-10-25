@@ -156,6 +156,7 @@ describe("/v2/values/", () => {
             balanceRule: null,
             discount: false,
             discountSellerLiability: null,
+            discountSellerLiabilityRule: null,
             updatedContactIdDate: null,
             metadata: {},
             createdBy: defaultTestUser.auth.teamMemberId
@@ -491,7 +492,7 @@ describe("/v2/values/", () => {
         chai.assert.isNull(updateValue.body.endDate);
     });
 
-    describe.only("discountSellerLiability", () => {
+    describe("discountSellerLiability", () => {
         // can be removed when discountSellerLiability is dropped from API responses
         it("can create value with discountSellerLiability set", async () => {
             const value: Partial<Value> = {
@@ -560,7 +561,7 @@ describe("/v2/values/", () => {
             chai.assert.equal(update.statusCode, 200, `body=${JSON.stringify(update.body)}`);
             chai.assert.equal(update.body.discountSellerLiability, 1.0);
             chai.assert.deepEqual(update.body.discountSellerLiabilityRule, {
-                    rule: "1.0",
+                    rule: "1",
                     explanation: ""
                 }
             );
@@ -585,7 +586,7 @@ describe("/v2/values/", () => {
             };
             const update = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", valueUpdate);
             chai.assert.equal(update.statusCode, 200, `body=${JSON.stringify(update.body)}`);
-            chai.assert.equal(update.body.discountSellerLiabilityRule, {
+            chai.assert.deepEqual(update.body.discountSellerLiabilityRule, {
                 rule: "0.05",
                 explanation: "5%"
             });
@@ -618,10 +619,9 @@ describe("/v2/values/", () => {
             };
             const update = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", valueUpdate);
             chai.assert.equal(update.statusCode, 200, `body=${JSON.stringify(update.body)}`);
-            chai.assert.equal(update.body.discountSellerLiabilityRule, discountSellerLiabilityRule);
+            chai.assert.deepEqual(update.body.discountSellerLiabilityRule, discountSellerLiabilityRule);
             chai.assert.isNull(update.body.discountSellerLiability, "should not be set since the rule isn't a number");
         });
-
 
         // can be removed when discountSellerLiability is dropped from API responses
         it("can update discountSellerLiability from a rule to a number", async () => {
@@ -647,7 +647,7 @@ describe("/v2/values/", () => {
             chai.assert.equal(update.statusCode, 200, `body=${JSON.stringify(update.body)}`);
             chai.assert.equal(update.body.discountSellerLiabilityRule, update.body.discountSellerLiabilityRule);
             chai.assert.deepEqual(update.body.discountSellerLiabilityRule, {
-                rule: "0.50",
+                rule: "0.5",
                 explanation: ""
             });
         });

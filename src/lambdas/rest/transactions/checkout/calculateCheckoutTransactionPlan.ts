@@ -113,7 +113,7 @@ function calculateAmountForLightrailTransactionStep(step: LightrailUpdateTransac
             item.lineTotal.remainder -= amount;
             if (value.discount) {
                 item.lineTotal.discount += amount;
-                if (value.discountSellerLiability !== null) {
+                if (value.discountSellerLiabilityRule !== null) {
                     item.lineTotal.sellerDiscount += bankersRounding(amount * getDiscountSellerLiability(transactionPlan, step, item), 0);
                 }
             }
@@ -127,10 +127,7 @@ function calculateAmountForLightrailTransactionStep(step: LightrailUpdateTransac
  * Returns a number between 0 and 1.
  */
 function getDiscountSellerLiability(transactionPlan: TransactionPlan, step: LightrailUpdateTransactionPlanStep, item: LineItemResponse): number {
-    let discountSellerLiability: string | number = step.value.discountSellerLiability;
-    if (typeof step.value.discountSellerLiability === "string") {
-        discountSellerLiability = getRuleContext(transactionPlan, step, item).evaluateDiscountSellerLiabilityRule(step.value.discountSellerLiability);
-    }
+    let discountSellerLiability = getRuleContext(transactionPlan, step, item).evaluateDiscountSellerLiabilityRule(step.value.discountSellerLiabilityRule);
     return Math.min(1, Math.max(0, <number>discountSellerLiability));
 }
 

@@ -107,7 +107,8 @@ export function installProgramsRest(router: cassava.Router): void {
 
             const now = nowInDbPrecision();
             const program: Partial<Program> = {
-                ...pick(evt.body as Program, "name", "discount", "pretax", "active", "redemptionRule", "balanceRule", "minInitialBalance", "maxInitialBalance", "fixedInitialBalances", "fixedInitialUsesRemaining", "startDate", "endDate", "metadata"),
+                // todo test this
+                ...pick(evt.body as Program, "name", "discount", "discountSellerLiabilityRule", "pretax", "active", "redemptionRule", "balanceRule", "minInitialBalance", "maxInitialBalance", "fixedInitialBalances", "fixedInitialUsesRemaining", "startDate", "endDate", "metadata"),
                 updatedDate: now
             };
 
@@ -549,17 +550,29 @@ const programSchema: jsonschema.Schema = {
         discount: {
             type: "boolean"
         },
-        discountSellerLiability: {
+        discountSellerLiabilityRule: {
             oneOf: [
                 {
-                    type: ["number", "null"],
-                    minimum: 0,
-                    maximum: 1
+                    type: "null"
                 },
                 {
-                    type: "string"
+                    title: "DiscountSellerLiability rule",
+                    type: "object",
+                    properties: {
+                        rule: {
+                            type: "string"
+                        },
+                        explanation: {
+                            type: "string"
+                        }
+                    }
                 }
             ]
+        },
+        discountSellerLiability: {
+            type: ["number", "null"],
+            minimum: 0,
+            maximum: 1
         },
         pretax: {
             type: "boolean"
@@ -643,7 +656,29 @@ const programSchema: jsonschema.Schema = {
             type: ["object", "null"]
         }
     },
-    required: ["id", "name", "currency"]
+    required: ["id", "name", "currency"],
+    dependencies: {
+        discountSellerLiability: {
+            properties: {
+                discount: {
+                    enum: [true]
+                },
+                discountSellerLiabilityRule: {
+                    enum: [null, undefined]
+                }
+            }
+        },
+        discountSellerLiabilityRule: {
+            properties: {
+                discount: {
+                    enum: [true]
+                },
+                discountSellerLiability: {
+                    enum: [null, undefined]
+                }
+            }
+        }
+    }
 };
 const updateProgramSchema: jsonschema.Schema = {
     ...programSchema,

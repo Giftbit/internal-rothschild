@@ -2,13 +2,7 @@ import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../../model/Pagination";
-import {
-    DbValue,
-    formatCodeForLastFourDisplay,
-    formatDiscountSellerLiabilityAsRule,
-    formatDiscountSellerLiabilityRuleAsNumber,
-    Value
-} from "../../../model/Value";
+import {DbValue, formatCodeForLastFourDisplay, Value} from "../../../model/Value";
 import {pick} from "../../../utils/pick";
 import {csvSerializer} from "../../../utils/serializers";
 import {
@@ -31,7 +25,12 @@ import {
     formatObjectsAmountPropertiesForCurrencyDisplay
 } from "../../../model/Currency";
 import {getCurrency} from "../currencies";
-import {checkCodeParameters, checkValueProperties, createValue} from "./createValue";
+import {
+    checkCodeParameters,
+    checkValueProperties,
+    createValue,
+    setDiscountSellerLiabilityProperties
+} from "./createValue";
 import {hasContactValues} from "../contactValues";
 import {QueryBuilder} from "knex";
 import log = require("loglevel");
@@ -154,7 +153,7 @@ export function installValuesRest(router: cassava.Router): void {
 
             const now = nowInDbPrecision();
             const value = {
-                ...pick<Value>(evt.body, "pretax", "active", "canceled", "frozen", "pretax", "discount", "discountSellerLiability", "redemptionRule", "balanceRule", "startDate", "endDate", "metadata", "genericCodeOptions"),
+                ...pick<Value>(evt.body, "pretax", "active", "canceled", "frozen", "pretax", "discount", "discountSellerLiability", "discountSellerLiabilityRule", "redemptionRule", "balanceRule", "startDate", "endDate", "metadata", "genericCodeOptions"),
                 updatedDate: now
             };
             if (value.startDate) {
@@ -439,17 +438,14 @@ export async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             throw new Error(`Illegal SELECT query.  Returned ${selectValueRes.length} values.`);
         }
         const existingValue = await DbValue.toValue(selectValueRes[0]);
-        const updatedValue: Value = setValueUpdates(existingValue, valueUpdates);
-
+        let updatedValue: Value = setValueUpdates(existingValue, valueUpdates);
+        updatedValue = setDiscountSellerLiabilityProperties(updatedValue);
         await checkForRestrictedUpdates(auth, existingValue, updatedValue);
 
-        console.log("here " + JSON.stringify(updatedValue, null, 4));
+        // console.log("valueUpdates " + JSON.stringify(valueUpdates, null, 4));
+        // console.log("updatedValue " + JSON.stringify(updatedValue, null, 4));
+
         checkValueProperties(updatedValue);
-        if (updatedValue.discountSellerLiability != null) {
-            updatedValue.discountSellerLiabilityRule = formatDiscountSellerLiabilityAsRule(updatedValue);
-        } else if (updatedValue.discountSellerLiabilityRule != null) {
-            updatedValue.discountSellerLiability = formatDiscountSellerLiabilityRuleAsNumber(updatedValue.discountSellerLiabilityRule);
-        }
 
         const dbValue = Value.toDbValueUpdate(auth, valueUpdates);
         const updateRes: number = await trx("Values")
@@ -482,14 +478,6 @@ function setValueUpdates(existingValue: Value, valueUpdates: Partial<Value>): Va
             }
         };
     }
-
-    // can be removed when discountSellerLiability is dropped from API responses
-    if (valueUpdates.discountSellerLiabilityRule !== null || valueUpdates.discountSellerLiability !== null) {
-        updatedValue.discountSellerLiabilityRule = valueUpdates.discountSellerLiabilityRule;
-        updatedValue.discountSellerLiability = valueUpdates.discountSellerLiability;
-    }
-    console.log("valueUpdates: " + JSON.stringify(valueUpdates, null, 4));
-    console.log("updatedValue: " + JSON.stringify(updatedValue, null, 4));
 
     return updatedValue;
 }
@@ -889,7 +877,7 @@ const valueSchema: jsonschema.Schema = {
                     type: "null"
                 },
                 {
-                    title: "Balance rule",
+                    title: "DiscountSellerLiability rule",
                     type: "object",
                     properties: {
                         rule: {

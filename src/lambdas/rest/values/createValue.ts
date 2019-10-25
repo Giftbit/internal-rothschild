@@ -96,17 +96,23 @@ export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 
     value.metadata = {...(program && program.metadata ? program.metadata : {}), ...value.metadata};
 
-    if (value.discountSellerLiability != null) {
-        value.discountSellerLiabilityRule = formatDiscountSellerLiabilityAsRule(value);
-    } else if (value.discountSellerLiabilityRule != null) {
-        value.discountSellerLiability = formatDiscountSellerLiabilityRuleAsNumber(value.discountSellerLiabilityRule);
-    }
+    value = setDiscountSellerLiabilityProperties(value);
 
     // code generation is done when the Value is inserted into the database.
     checkCodeParameters(generateCodeParameters, value.code);
 
     checkValueProperties(value, program);
     return value;
+}
+
+// This can eventually go away.
+export function setDiscountSellerLiabilityProperties(v: Value): Value {
+    if (v.discountSellerLiability != null) {
+        v.discountSellerLiabilityRule = formatDiscountSellerLiabilityAsRule(v);
+    } else if (v.discountSellerLiabilityRule != null) {
+        v.discountSellerLiability = formatDiscountSellerLiabilityRuleAsNumber(v.discountSellerLiabilityRule);
+    }
+    return v;
 }
 
 export function checkValueProperties(value: Value, program: Program = null): void {

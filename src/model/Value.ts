@@ -2,6 +2,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {DbCode, getCodeLastFourNoPrefix} from "./DbCode";
 import {pickDefined} from "../utils/pick";
 import {decryptCode} from "../utils/codeCryptoUtils";
+import {Program} from "./Program";
 
 export interface Value {
     id: string;
@@ -69,7 +70,7 @@ export namespace Value {
             canceled: v.canceled,
             frozen: v.frozen,
             discount: v.discount,
-            discountSellerLiabilityRule: JSON.stringify(formatDiscountSellerLiabilityAsRule(v)),
+            discountSellerLiabilityRule: JSON.stringify(v.discountSellerLiabilityRule),
             redemptionRule: JSON.stringify(v.redemptionRule),
             balanceRule: JSON.stringify(v.balanceRule),
             startDate: v.startDate,
@@ -227,7 +228,7 @@ export function formatDiscountSellerLiabilityRuleAsNumber(discountSellerLiabilit
     }
 }
 
-export function formatDiscountSellerLiabilityAsRule(v: Partial<Value>): Rule | null {
+export function formatDiscountSellerLiabilityAsRule(v: Partial<Value> | Partial<Program>): Rule | null {
     if (v.discountSellerLiabilityRule != null) {
         return v.discountSellerLiabilityRule;
     } else if (v.discountSellerLiability != null) {
