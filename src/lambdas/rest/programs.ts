@@ -268,20 +268,19 @@ async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
             throw new Error(`Illegal SELECT query.  Returned ${selectProgramRes.length} values.`);
         }
         const existingProgram = DbProgram.toProgram(selectProgramRes[0]);
-        const updatedProgram = {
+        const updatedProgram: Program = {
             ...existingProgram,
             ...programUpdates
         };
-
-        checkProgramProperties(updatedProgram);
-
-        // this can eventually go away
+        // Can be removed when discountSellerLiability is removed from API.
         if (programUpdates.discountSellerLiability != null) {
             updatedProgram.discountSellerLiabilityRule = formatDiscountSellerLiabilityAsRule(updatedProgram.discountSellerLiability);
             MetricsLogger.legacyDiscountSellerLiabilitySet("programUpdate", auth);
         } else if (programUpdates.discountSellerLiabilityRule != null) {
             updatedProgram.discountSellerLiability = formatDiscountSellerLiabilityRuleAsNumber(programUpdates.discountSellerLiabilityRule);
         }
+
+        checkProgramProperties(updatedProgram);
 
         const dbProgramUpdate = Program.toDbProgramUpdate(auth, programUpdates);
         const patchRes = await trx("Programs")
@@ -568,12 +567,13 @@ const programSchema: jsonschema.Schema = {
             type: "boolean"
         },
         discountSellerLiabilityRule: {
+            title: "DiscountSellerLiability rule",
             oneOf: [
                 {
                     type: "null"
                 },
                 {
-                    title: "DiscountSellerLiability rule",
+                    title: "rule",
                     type: "object",
                     properties: {
                         rule: {

@@ -663,24 +663,24 @@ describe("/v2/values create from program", () => {
 
         it("can override discountSellerLiability by setting number during value creation", async () => {
             // set discountSellerLiability as number
-            let value1: Partial<Value> = {
+            let value: Partial<Value> = {
                 id: generateId(),
                 programId: program.id,
                 balance: 100,
                 discountSellerLiability: 0.35
             };
 
-            const createValue1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
-            chai.assert.equal(createValue1.statusCode, 201, JSON.stringify(createValue1.body));
-            chai.assert.deepEqual(createValue1.body.discountSellerLiabilityRule, {
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(create.statusCode, 201, JSON.stringify(create.body));
+            chai.assert.deepEqual(create.body.discountSellerLiabilityRule, {
                 rule: "0.35", explanation: ""
             });
-            chai.assert.equal(createValue1.body.discountSellerLiability, 0.35);
+            chai.assert.equal(create.body.discountSellerLiability, 0.35);
         });
 
         it("can override discountSellerLiability by setting rule during value creation", async () => {
             // set discountSellerLiability as rule
-            let value2: Partial<Value> = {
+            let value: Partial<Value> = {
                 id: generateId(),
                 programId: program.id,
                 balance: 100,
@@ -690,14 +690,14 @@ describe("/v2/values create from program", () => {
                 }
             };
 
-            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value2);
-            chai.assert.equal(createValue.statusCode, 201, JSON.stringify(createValue.body));
-            chai.assert.deepEqual(createValue.body.discountSellerLiabilityRule, value2.discountSellerLiabilityRule);
-            chai.assert.isNull(createValue.body.discountSellerLiability);
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(create.statusCode, 201, JSON.stringify(create.body));
+            chai.assert.deepEqual(create.body.discountSellerLiabilityRule, value.discountSellerLiabilityRule);
+            chai.assert.isNull(create.body.discountSellerLiability);
         });
     });
 
-    describe("program with discountSellerLiability set as rule", () => {
+    describe("program with discountSellerLiabilityRule set as rule", () => {
         const program: Partial<Program> = {
             id: generateId(),
             currency: "USD",
@@ -717,26 +717,24 @@ describe("/v2/values create from program", () => {
         });
 
         it("can override discountSellerLiability by setting number during value creation", async () => {
-            // The program has a discountSellerLiabilityRule set. It's odd to want to override to a number.
-            // It's also super edge casey and not worth the additional code make possible in value creation.
-            let value1: Partial<Value> = {
+            let value: Partial<Value> = {
                 id: generateId(),
                 programId: program.id,
                 balance: 100,
                 discountSellerLiability: 0.35
             };
 
-            const createValue1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
-            chai.assert.equal(createValue1.statusCode, 201, JSON.stringify(createValue1.body));
-            chai.assert.deepEqual(createValue1.body.discountSellerLiabilityRule, {
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(create.statusCode, 201, JSON.stringify(create.body));
+            chai.assert.deepEqual(create.body.discountSellerLiabilityRule, {
                 rule: "0.35",
                 explanation: ""
             });
-            chai.assert.equal(createValue1.body.discountSellerLiability, 0.35);
+            chai.assert.equal(create.body.discountSellerLiability, 0.35);
         });
 
         it("can override discountSellerLiability by setting rule during value creation", async () => {
-            let value2: Partial<Value> = {
+            let value: Partial<Value> = {
                 id: generateId(),
                 programId: program.id,
                 balance: 100,
@@ -746,10 +744,10 @@ describe("/v2/values create from program", () => {
                 }
             };
 
-            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value2);
-            chai.assert.equal(createValue.statusCode, 201, JSON.stringify(createValue.body));
-            chai.assert.deepEqual(createValue.body.discountSellerLiabilityRule, value2.discountSellerLiabilityRule);
-            chai.assert.isNull(createValue.body.discountSellerLiability);
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(create.statusCode, 201, JSON.stringify(create.body));
+            chai.assert.deepEqual(create.body.discountSellerLiabilityRule, value.discountSellerLiabilityRule);
+            chai.assert.isNull(create.body.discountSellerLiability);
         });
     });
 

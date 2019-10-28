@@ -83,7 +83,7 @@ export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
         discount: program ? program.discount : false,
         discountSellerLiability: null,
         discountSellerLiabilityRule: null, // Due to how these properties can be overridden during value creation
-                                           // from what the programs set, default to null. Once discountSellerLiability
+                                           // from what the program has set, default to null. Once discountSellerLiability
                                            // is deprecated change back to `program ? program.discountSellerLiabilityRule : null`
         redemptionRule: program ? program.redemptionRule : null,
         balanceRule: program ? program.balanceRule : null,

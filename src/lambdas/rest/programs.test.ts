@@ -1797,21 +1797,6 @@ describe("/v2/programs", () => {
             });
         });
 
-
-        it("can create a program with discountSellerLiability if it's a discount", async () => {
-            const program: Partial<Program> = {
-                id: generateId(),
-                name: "name " + generateId(5),
-                currency: "USD",
-                discountSellerLiability: 0.20,
-                discount: true
-            };
-            const create = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
-            chai.assert.equal(create.statusCode, 201);
-            chai.assert.equal(create.body.discountSellerLiability, 0.20);
-        });
-
-        // can be removed when discountSellerLiability is dropped from API responses
         it("can create program with discountSellerLiabilityRule set - set as decimal WILL populate discountSellerLiability in response", async () => {
             const program: Partial<Program> = {
                 id: generateId(),
@@ -1829,7 +1814,6 @@ describe("/v2/programs", () => {
             chai.assert.deepEqual(create.body.discountSellerLiabilityRule, program.discountSellerLiabilityRule);
         });
 
-        // can be removed when discountSellerLiability is dropped from API responses
         it("can create program with discountSellerLiabilityRule set - set as rule WILL NOT populate discountSellerLiability in response", async () => {
             const program: Partial<Program> = {
                 id: generateId(),
@@ -1894,7 +1878,6 @@ describe("/v2/programs", () => {
             chai.assert.equal(update.body.discountSellerLiability, 0.05, "should be set since the rule is a number");
         });
 
-        // can be removed when discountSellerLiability is dropped from API responses
         it("can update discountSellerLiability from a number to a rule", async () => {
             const program: Partial<Program> = {
                 id: generateId(),
@@ -1987,7 +1970,7 @@ describe("/v2/programs", () => {
         });
 
         // can be removed when discountSellerLiability is dropped from API responses
-        it("can't set discountSellerLiability if discount: false", async () => {
+        it("can't can't create program with discountSellerLiability if discount: false", async () => {
             const program: Partial<Program> = {
                 id: generateId(),
                 name: "name",
@@ -1999,7 +1982,7 @@ describe("/v2/programs", () => {
             chai.assert.equal(create.statusCode, 422, JSON.stringify(create.body));
         });
 
-        it("can't set discountSellerLiabilityRule if discount: false", async () => {
+        it("can't create program with discountSellerLiabilityRule if discount: false", async () => {
             const program: Partial<Program> = {
                 id: generateId(),
                 name: "name",
@@ -2061,35 +2044,6 @@ describe("/v2/programs", () => {
             });
             chai.assert.equal(update.statusCode, 422, `body=${JSON.stringify(update.body)}`);
         });
-    });
-
-    it("can't create a program with discountSellerLiability if it's not a discount", async () => {
-        const program: Partial<Program> = {
-            id: generateId(),
-            name: "name " + generateId(5),
-            currency: "USD",
-            discountSellerLiability: 0.20
-        };
-        const create = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", program);
-        chai.assert.equal(create.statusCode, 422);
-        chai.assert.equal(create.body.message, "Program can't have discountSellerLiability if it is not a discount.");
-    });
-
-
-    it("can create a program with discountSellerLiability as a rule if it's a discount", async () => {
-        const program: Partial<Program> = {
-            id: generateId(),
-            name: "name " + generateId(5),
-            currency: "USD",
-            discountSellerLiabilityRule: {
-                rule: "1 - currentLineItem.marketplaceRate",
-                explanation: "proportional to marketplacerate"
-            }, // todo - review
-            discount: true
-        };
-        const create = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
-        chai.assert.equal(create.statusCode, 201);
-        chai.assert.deepEqual(create.body.discountSellerLiabilityRule, program.discountSellerLiabilityRule);
     });
 
     it("can't create a program with duplicate fixedInitialUsesRemaining", async () => {

@@ -510,7 +510,6 @@ describe("/v2/values/", () => {
             });
         });
 
-        // can be removed when discountSellerLiability is dropped from API responses
         it("can create value with discountSellerLiabilityRule set - set as decimal WILL populate discountSellerLiability in response", async () => {
             const value: Partial<Value> = {
                 id: generateId(),
@@ -528,7 +527,6 @@ describe("/v2/values/", () => {
             chai.assert.deepEqual(create.body.discountSellerLiabilityRule, value.discountSellerLiabilityRule);
         });
 
-        // can be removed when discountSellerLiability is dropped from API responses
         it("can create value with discountSellerLiabilityRule set - set as rule WILL NOT populate discountSellerLiability in response", async () => {
             const value: Partial<Value> = {
                 id: generateId(),
@@ -593,7 +591,6 @@ describe("/v2/values/", () => {
             chai.assert.equal(update.body.discountSellerLiability, 0.05, "should be set since the rule is a number");
         });
 
-        // can be removed when discountSellerLiability is dropped from API responses
         it("can update discountSellerLiability from a number to a rule", async () => {
             const value: Partial<Value> = {
                 id: generateId(),
@@ -686,7 +683,7 @@ describe("/v2/values/", () => {
         });
 
         // can be removed when discountSellerLiability is dropped from API responses
-        it("can't set discountSellerLiability if discount: false", async () => {
+        it("can't create value with discountSellerLiability if discount: false", async () => {
             const value: Partial<Value> = {
                 id: generateId(),
                 currency: "USD",
@@ -698,7 +695,7 @@ describe("/v2/values/", () => {
             chai.assert.equal(create.statusCode, 422, JSON.stringify(create.body));
         });
 
-        it("can't set discountSellerLiabilityRule if discount: false", async () => {
+        it("can't create value with discountSellerLiabilityRule if discount: false", async () => {
             const value: Partial<Value> = {
                 id: generateId(),
                 currency: "USD",
