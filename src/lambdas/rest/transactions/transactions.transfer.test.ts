@@ -181,7 +181,6 @@ describe("/v2/transactions/transfer", () => {
                 "totals_paidInternal": null,
                 "totals_remainder": 0,
                 "totals_forgiven": null,
-                "totals_unaccounted": null,
                 "totals_marketplace_sellerGross": null,
                 "totals_marketplace_sellerDiscount": null,
                 "totals_marketplace_sellerNet": null

@@ -6,7 +6,6 @@ import {
     LightrailTransactionStep,
     StripeDbTransactionStep,
     StripeTransactionStep,
-    StripeTransactionStepError,
     Transaction,
     TransactionStep,
     TransactionTotals,
@@ -34,13 +33,6 @@ export interface TransactionPlan {
     metadata: object | null;
     rootTransactionId?: string;
     previousTransactionId?: string;
-
-    /**
-     * Force the Transaction to complete as much as possible, collect any errors and add to
-     * totals.unaccounted if necessary. This option is only available to automatic processes
-     * and may not be implemented for all Transaction types and all steps.
-     */
-    force?: boolean;
 }
 
 export type TransactionPlanStep =
@@ -102,9 +94,9 @@ export interface StripeRefundTransactionPlanStep {
     reason?: string;
 
     /**
-     * Result of creating the refund.  Only set if the plan is executed.
+     * Result of creating the refund.  Set when the plan is executed.
      */
-    refundResult?: stripe.refunds.IRefund | StripeTransactionStepError;
+    refundResult?: stripe.refunds.IRefund;
 }
 
 export interface StripeCaptureTransactionPlanStep {

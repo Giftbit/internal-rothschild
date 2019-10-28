@@ -5,7 +5,6 @@ import {Transaction} from "../../../model/Transaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import {
-    finalizeInsertedTransaction,
     insertInternalTransactionSteps,
     insertLightrailTransactionSteps,
     insertStripeTransactionSteps,
@@ -92,7 +91,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         return TransactionPlan.toTransaction(auth, plan, options.simulate);
     }
 
-    const insertedDbTransaction = await insertTransaction(trx, auth, plan);
+    await insertTransaction(trx, auth, plan);
 
     try {
         plan = await insertStripeTransactionSteps(auth, trx, plan);
@@ -118,7 +117,8 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         }
     }
 
-    return finalizeInsertedTransaction(auth, trx, insertedDbTransaction, plan);
+    // TransactionSteps may change during execution to fill in results. The top-level Transaction may not change.
+    return TransactionPlan.toTransaction(auth, plan);
 }
 
 /**

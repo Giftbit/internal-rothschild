@@ -96,8 +96,7 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
                 "paidLightrail": 500,
                 "paidStripe": 0,
                 "remainder": 528,
-                "forgiven": 0,
-                "unaccounted": 0
+                "forgiven": 0
             },
             "lineItems": [
                 {

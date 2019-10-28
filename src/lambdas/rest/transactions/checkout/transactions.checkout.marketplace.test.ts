@@ -310,7 +310,6 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             payable: 500,
             remainder: 500,
             forgiven: 0,
-            unaccounted: 0,
             discountLightrail: 500,
             paidLightrail: 0,
             paidStripe: 0,

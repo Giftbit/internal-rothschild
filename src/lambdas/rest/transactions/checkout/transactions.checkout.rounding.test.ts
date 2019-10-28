@@ -68,8 +68,7 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
                 paidLightrail: 0,
                 paidStripe: 0,
                 remainder: 7,
-                forgiven: 0,
-                unaccounted: 0
+                forgiven: 0
             },
             lineItems: [
                 {
@@ -157,8 +156,7 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
                 paidLightrail: 0,
                 paidStripe: 0,
                 remainder: 6,
-                forgiven: 0,
-                unaccounted: 0
+                forgiven: 0
             },
             lineItems: [
                 {
@@ -243,8 +241,7 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
                 paidLightrail: 0,
                 paidStripe: 0,
                 remainder: 6,
-                forgiven: 0,
-                unaccounted: 0
+                forgiven: 0
             },
             lineItems: [
                 {
