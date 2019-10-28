@@ -241,6 +241,13 @@ export function installValuesRest(router: cassava.Router): void {
         });
 }
 
+/**
+ * Note: getValues() differs slightly from getLightrailValues() but if it is ever refactored to have a more similar purpose
+ *  they may be worth consolidating. getValues() is meant to return a list of Values - all or a subset narrowed by filter
+ *  params. Query params such as code or contactId are added with AND WHERE to narrow the list. Only one contactId is accepted.
+ *  getLightrailValues() returns a set of potentially unrelated Values for checkout payment using OR WHERE. It accepts an
+ *  arbitrary number of contactIds.
+ */
 export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams, showCode: boolean = false): Promise<{ values: Value[], pagination: Pagination }> {
     auth.requireIds("userId");
 
