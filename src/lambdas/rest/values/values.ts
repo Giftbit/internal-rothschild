@@ -29,10 +29,11 @@ import {
     checkCodeParameters,
     checkValueProperties,
     createValue,
-    setDiscountSellerLiabilityProperties
+    setDiscountSellerLiabilityPropertiesForLegacySupport
 } from "./createValue";
 import {hasContactValues} from "../contactValues";
 import {QueryBuilder} from "knex";
+import {MetricsLogger} from "../../../utils/metricsLogger";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -438,12 +439,14 @@ export async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             throw new Error(`Illegal SELECT query.  Returned ${selectValueRes.length} values.`);
         }
         const existingValue = await DbValue.toValue(selectValueRes[0]);
-        if (valueUpdates.discountSellerLiability != null || valueUpdates.discountSellerLiabilityRule) {
-            existingValue.discountSellerLiabilityRule = null;
+        if (valueUpdates.discountSellerLiabilityRule) {
             existingValue.discountSellerLiability = null;
+        } else if (valueUpdates.discountSellerLiability != null) {
+            MetricsLogger.legacyDiscountSellerLiabilitySet("valueUpdate", auth);
+            existingValue.discountSellerLiabilityRule = null;
         }
         let updatedValue: Value = setValueUpdates(existingValue, valueUpdates);
-        updatedValue = setDiscountSellerLiabilityProperties(updatedValue);
+        updatedValue = setDiscountSellerLiabilityPropertiesForLegacySupport(updatedValue);
         await checkForRestrictedUpdates(auth, existingValue, updatedValue);
 
         checkValueProperties(updatedValue);
@@ -873,12 +876,13 @@ const valueSchema: jsonschema.Schema = {
             type: "boolean"
         },
         discountSellerLiabilityRule: {
+            title: "DiscountSellerLiability rule",
             oneOf: [
                 {
                     type: "null"
                 },
                 {
-                    title: "DiscountSellerLiability rule",
+                    title: "Rule",
                     type: "object",
                     properties: {
                         rule: {

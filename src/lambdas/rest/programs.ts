@@ -15,6 +15,7 @@ import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {ProgramStats} from "../../model/ProgramStats";
 import {checkRulesSyntax} from "./transactions/rules/RuleContext";
 import {formatDiscountSellerLiabilityAsRule, formatDiscountSellerLiabilityRuleAsNumber} from "../../model/Value";
+import {MetricsLogger} from "../../utils/metricsLogger";
 import log = require("loglevel");
 
 export function installProgramsRest(router: cassava.Router): void {
@@ -76,6 +77,7 @@ export function installProgramsRest(router: cassava.Router): void {
             program.endDate = program.endDate ? dateInDbPrecision(new Date(program.endDate)) : null;
 
             if (program.discountSellerLiability != null) {
+                MetricsLogger.legacyDiscountSellerLiabilitySet("programCreate", auth);
                 program.discountSellerLiabilityRule = formatDiscountSellerLiabilityAsRule(program.discountSellerLiability);
             } else if (program.discountSellerLiabilityRule != null) {
                 program.discountSellerLiability = formatDiscountSellerLiabilityRuleAsNumber(program.discountSellerLiabilityRule);
@@ -276,6 +278,7 @@ async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
         // this can eventually go away
         if (programUpdates.discountSellerLiability != null) {
             updatedProgram.discountSellerLiabilityRule = formatDiscountSellerLiabilityAsRule(updatedProgram.discountSellerLiability);
+            MetricsLogger.legacyDiscountSellerLiabilitySet("programUpdate", auth);
         } else if (programUpdates.discountSellerLiabilityRule != null) {
             updatedProgram.discountSellerLiability = formatDiscountSellerLiabilityRuleAsNumber(programUpdates.discountSellerLiabilityRule);
         }

@@ -81,8 +81,10 @@ export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
         canceled: false,
         frozen: false,
         discount: program ? program.discount : false,
-        discountSellerLiability: program ? program.discountSellerLiability : null,
-        discountSellerLiabilityRule: program ? program.discountSellerLiabilityRule : null,
+        discountSellerLiability: null,
+        discountSellerLiabilityRule: null, // Due to how these properties can be overridden during value creation
+                                           // from what the programs set, default to null. Once discountSellerLiability
+                                           // is deprecated change back to `program ? program.discountSellerLiabilityRule : null`
         redemptionRule: program ? program.redemptionRule : null,
         balanceRule: program ? program.balanceRule : null,
         startDate: program ? program.startDate : null,
@@ -96,7 +98,18 @@ export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 
     value.metadata = {...(program && program.metadata ? program.metadata : {}), ...value.metadata};
 
-    value = setDiscountSellerLiabilityProperties(value);
+    // If these properties aren't set during value creation, default to what program has set.
+    if (value.discountSellerLiability == null && value.discountSellerLiabilityRule == null && program != null) {
+        if (program.discountSellerLiabilityRule != null) {
+            value.discountSellerLiabilityRule = program.discountSellerLiabilityRule;
+        } else if (program.discountSellerLiability != null) {
+            value.discountSellerLiability = program.discountSellerLiability;
+        }
+    }
+    if (value.discountSellerLiability != null) {
+        MetricsLogger.legacyDiscountSellerLiabilitySet("valueCreate", auth);
+    }
+    value = setDiscountSellerLiabilityPropertiesForLegacySupport(value);
 
     // code generation is done when the Value is inserted into the database.
     checkCodeParameters(generateCodeParameters, value.code);
@@ -105,12 +118,15 @@ export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     return value;
 }
 
-// This can eventually go away.
-export function setDiscountSellerLiabilityProperties(v: Value): Value {
-    if (v.discountSellerLiability != null) {
-        v.discountSellerLiabilityRule = formatDiscountSellerLiabilityAsRule(v.discountSellerLiability);
-    } else if (v.discountSellerLiabilityRule != null) {
+/*
+ * If rule is set, will attempt to convert rule to number to support existing functionality.
+ * Otherwise, if number is set, will format as rule.
+ */
+export function setDiscountSellerLiabilityPropertiesForLegacySupport(v: Value): Value {
+    if (v.discountSellerLiabilityRule != null) {
         v.discountSellerLiability = formatDiscountSellerLiabilityRuleAsNumber(v.discountSellerLiabilityRule);
+    } else if (v.discountSellerLiability != null) {
+        v.discountSellerLiabilityRule = formatDiscountSellerLiabilityAsRule(v.discountSellerLiability);
     }
     return v;
 }
