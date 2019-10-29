@@ -320,7 +320,7 @@ Resources:
         - Key: Service
           Value: Rothschild
     DeletionPolicy: Snapshot
-  DbInstanceParameterGroupNew:
+  DbInstanceParameterGroup:
     Type: AWS::RDS::DBParameterGroup
     Properties:
       Description: !Sub "${AWS::StackName} instance parameter group"
@@ -341,7 +341,7 @@ Resources:
       DBClusterIdentifier: !Ref DbCluster
       DBInstanceClass: !If [HighCapacity, db.r4.xlarge, db.t2.medium]
       DBSubnetGroupName: !Ref DbSubnetGroup
-      DBParameterGroupName: !Ref DbInstanceParameterGroupNew
+      DBParameterGroupName: !Ref DbInstanceParameterGroup
       EnablePerformanceInsights: !If [HighCapacity, true, !Ref "AWS::NoValue"]
       PerformanceInsightsRetentionPeriod: !If [HighCapacity, 731, !Ref "AWS::NoValue"]
       PerformanceInsightsKMSKeyId: !If [HighCapacity, !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}", !Ref "AWS::NoValue"]
