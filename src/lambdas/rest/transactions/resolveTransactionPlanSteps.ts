@@ -141,7 +141,7 @@ export async function getLightrailValues(auth: giftbitRoutes.jwtauth.Authorizati
      */
     let query = knex.select("*").from(function (this: knex.QueryBuilder) {
         if (contactIds.length) {
-            this.union(knex.raw("SELECT V.*, IFNULL(CV.contactId, V.contactId) AS contactIdForResult FROM `Values` V JOIN `ContactValues` CV ON V.`userId` = CV.`userId` AND V.`id` = CV.`valueId` WHERE CV.`userId` = ? AND CV.contactId IN (?)", [auth.userId, contactIds]));
+            this.union(knex.raw("SELECT V.*, CV.contactId AS contactIdForResult FROM `Values` V JOIN `ContactValues` CV ON V.`userId` = CV.`userId` AND V.`id` = CV.`valueId` WHERE CV.`userId` = ? AND CV.contactId IN (?)", [auth.userId, contactIds]));
             this.union(knex.select("*", "contactId as contactIdForResult").from("Values")
                 .where("userId", "=", auth.userId).andWhere("contactId", "in", contactIds));
         }
