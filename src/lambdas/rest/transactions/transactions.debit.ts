@@ -7,9 +7,8 @@ import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {DebitRequest} from "../../../model/TransactionRequest";
 
 export async function createDebitTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: DebitRequest): Promise<TransactionPlan> {
-    const steps = await resolveTransactionPlanSteps(auth, {
+    const steps = await resolveTransactionPlanSteps(auth, [req.source], {
         currency: req.currency,
-        parties: [req.source],
         transactionId: req.id,
         nonTransactableHandling: "error",
         includeZeroBalance: true,

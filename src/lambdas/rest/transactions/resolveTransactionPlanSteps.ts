@@ -24,8 +24,6 @@ import {getStripeMinCharge} from "../../../utils/stripeUtils/getStripeMinCharge"
  * Options to resolving transaction parties.
  */
 export interface ResolveTransactionPartiesOptions {
-    parties: TransactionParty[];
-
     /**
      * The currency of the transaction.
      * NOTE: when we do currency conversion transactions this will have
@@ -40,7 +38,7 @@ export interface ResolveTransactionPartiesOptions {
 
     /**
      * What to do about Lightrail Values that can not be transacted against
-     * (because they are canceled, frozen, etc...).
+     * (because they are canceled, frozen, inactive, unstarted, ended, wrong currency).
      * - error: throw a 409 GiftbitRestError
      * - exclude: remove them from the results
      * - include: accept them in the results
@@ -58,13 +56,12 @@ export interface ResolveTransactionPartiesOptions {
     includeZeroBalance: boolean;
 }
 
-export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions): Promise<TransactionPlanStep[]> {
-    const fetchedValues = await getLightrailValues(auth, options);
+export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[], options: ResolveTransactionPartiesOptions): Promise<TransactionPlanStep[]> {
+    const fetchedValues = await getLightrailValues(auth, parties, options);
     return getTransactionPlanStepsFromSources(
-        options.transactionId,
-        options.currency,
         fetchedValues,
-        options.parties.filter(party => party.rail !== "lightrail") as (StripeTransactionParty | InternalTransactionParty)[]
+        parties.filter(party => party.rail !== "lightrail") as (StripeTransactionParty | InternalTransactionParty)[],
+        options
     );
 }
 
@@ -72,7 +69,7 @@ export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.Au
  * Translates Values loaded from the database and non Lightrail sources into TransactionPlanSteps.
  * Used when the Values have already been loaded from the DB.
  */
-export function getTransactionPlanStepsFromSources(transactionId: string, currency: string, lightrailSources: Value[], nonLightrailSources: (StripeTransactionParty | InternalTransactionParty)[]): TransactionPlanStep[] {
+export function getTransactionPlanStepsFromSources(lightrailSources: Value[], nonLightrailSources: (StripeTransactionParty | InternalTransactionParty)[], options: ResolveTransactionPartiesOptions): TransactionPlanStep[] {
     const lightrailSteps = lightrailSources
         .map((v): LightrailTransactionPlanStep => ({
             rail: "lightrail",
@@ -80,8 +77,8 @@ export function getTransactionPlanStepsFromSources(transactionId: string, curren
             amount: 0,
             uses: null,
             action: "update",
-            allowCanceled: false,
-            allowFrozen: true
+            allowCanceled: options.nonTransactableHandling === "include",
+            allowFrozen: options.nonTransactableHandling === "include"
         }));
 
     const internalSteps = nonLightrailSources
@@ -101,11 +98,11 @@ export function getTransactionPlanStepsFromSources(transactionId: string, curren
         .map((p: StripeTransactionParty, index): StripeTransactionPlanStep => ({
             rail: "stripe",
             type: "charge",
-            stepIdempotencyKey: `${transactionId}-${index}`,
+            stepIdempotencyKey: `${options.transactionId}-${index}`,
             source: p.source || null,
             customer: p.customer || null,
             maxAmount: p.maxAmount || null,
-            minAmount: p.minAmount != null ? p.minAmount : getStripeMinCharge(currency),
+            minAmount: p.minAmount != null ? p.minAmount : getStripeMinCharge(options.currency),
             forgiveSubMinAmount: !!p.forgiveSubMinAmount,
             additionalStripeParams: p.additionalStripeParams || null,
             amount: 0
@@ -114,16 +111,16 @@ export function getTransactionPlanStepsFromSources(transactionId: string, curren
     return [...lightrailSteps, ...internalSteps, ...stripeSteps];
 }
 
-export async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions): Promise<Value[]> {
-    const valueIds = options.parties.filter(p => p.rail === "lightrail" && p.valueId)
+export async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[], options: ResolveTransactionPartiesOptions): Promise<Value[]> {
+    const valueIds = parties.filter(p => p.rail === "lightrail" && p.valueId)
         .map(p => (p as LightrailTransactionParty).valueId);
 
-    const hashedCodesPromises = options.parties.filter(p => p.rail === "lightrail" && p.code)
+    const hashedCodesPromises = parties.filter(p => p.rail === "lightrail" && p.code)
         .map(p => (p as LightrailTransactionParty).code)
         .map(code => computeCodeLookupHash(code, auth));
     const hashedCodes = await Promise.all(hashedCodesPromises);
 
-    const contactIds = options.parties.filter(p => p.rail === "lightrail" && p.contactId)
+    const contactIds = parties.filter(p => p.rail === "lightrail" && p.contactId)
         .map(p => (p as LightrailTransactionParty).contactId);
 
     if (!valueIds.length && !hashedCodes.length && !contactIds.length) {
