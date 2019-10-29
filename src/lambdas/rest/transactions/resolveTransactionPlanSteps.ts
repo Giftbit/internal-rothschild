@@ -19,7 +19,6 @@ import {nowInDbPrecision} from "../../../utils/dbUtils";
 import * as knex from "knex";
 import {getContact} from "../contacts";
 import {getStripeMinCharge} from "../../../utils/stripeUtils/getStripeMinCharge";
-import has = Reflect.has;
 
 /**
  * Options to resolving transaction parties.
