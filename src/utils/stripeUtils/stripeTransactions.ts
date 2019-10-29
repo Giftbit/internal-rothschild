@@ -109,7 +109,7 @@ export async function captureCharge(chargeId: string, options: Stripe.charges.IC
             throw new StripeRestError(409, `Stripe charge '${chargeId}' cannot be captured because it was refunded.`, "StripeChargeAlreadyRefunded", err);
         }
         if ((err as Stripe.IStripeError).code === "resource_missing" && (err as Stripe.IStripeError).param === "charge") {
-            throw new StripeRestError(409, `Stripe charge '${chargeId}' is missing.`, "StripeChargeNotFound", err);
+            throw new StripeRestError(isTestMode ? 409 : 500, `Stripe charge '${chargeId}' is missing.`, "StripeChargeNotFound", err);
         }
 
         giftbitRoutes.sentry.sendErrorNotification(err);
@@ -134,7 +134,7 @@ export async function updateCharge(chargeId: string, params: Stripe.charges.ICha
 
         checkForStandardStripeErrors(err);
         if ((err as Stripe.IStripeError).code === "resource_missing" && (err as Stripe.IStripeError).param === "id") {
-            throw new StripeRestError(409, `Stripe charge '${chargeId}' is missing.`, "StripeChargeNotFound", err);
+            throw new StripeRestError(isTestMode ? 409 : 500, `Stripe charge '${chargeId}' is missing.`, "StripeChargeNotFound", err);
         }
 
         giftbitRoutes.sentry.sendErrorNotification(err);

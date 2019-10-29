@@ -231,8 +231,8 @@ describe("voidExpiredPending()", () => {
         chai.assert.equal(txResp.statusCode, 201);
         await updateTransactionPendingVoidDate(txReq.id, past);
 
-        const freezeValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", {canceled: true});
-        chai.assert.equal(freezeValueResp.statusCode, 200);
+        const cancelValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", {canceled: true});
+        chai.assert.equal(cancelValueResp.statusCode, 200);
 
         await voidExpiredPending(getLambdaContext());
 
