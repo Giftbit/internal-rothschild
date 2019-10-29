@@ -164,6 +164,8 @@ describe("resolveTransactionPlanSteps", () => {
                     }
                 }
             };
+            let contact1_attachedValues: Value[] = [];
+            let contact2_attachedValues: Value[] = [];
 
             before(async () => {
                 await testUtils.createUSD(router);
@@ -175,13 +177,17 @@ describe("resolveTransactionPlanSteps", () => {
 
                 value1_uniqueCode = await testUtils.createUSDValue(router, value1_uniqueCode);
                 value2_uniqueCodeContact = await testUtils.createUSDValue(router, value2_uniqueCodeContact);
+                contact1_attachedValues.push(value2_uniqueCodeContact as Value);
                 value3_sharedGeneric = await testUtils.createUSDValue(router, value3_sharedGeneric);
                 value4_perContactGeneric = await testUtils.createUSDValue(router, value4_perContactGeneric);
 
                 const attachSharedResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1.id}/values/attach`, "POST", {valueId: value3_sharedGeneric.id});
                 chai.assert.equal(attachSharedResp.statusCode, 200);
+                contact1_attachedValues.push(attachSharedResp.body);
+
                 const attachPerContactResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact2.id}/values/attach`, "POST", {valueId: value4_perContactGeneric.id});
                 chai.assert.equal(attachPerContactResp.statusCode, 200);
+                contact2_attachedValues.push(attachPerContactResp.body);
             });
 
             it("gets values associated with one contactId", async () => {
@@ -309,6 +315,11 @@ describe("resolveTransactionPlanSteps", () => {
             });
 
             it("does not duplicate shared generic Value if attached to contact in sources and also passed anonymously", async () => {
+                const attachedValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?contactId=${contact1.id}`, "GET");
+                chai.assert.equal(attachedValues.statusCode, 200, `attachedValues.body=${JSON.stringify(attachedValues.body)}`);
+                chai.assert.equal(attachedValues.body.length, 2, `attachedValues.body=${JSON.stringify(attachedValues.body)}`);
+                chai.assert.sameMembers(attachedValues.body.map(v => v.id), contact1_attachedValues.map(v => v.id), `attachedValues IDs '${attachedValues.body.map(v => v.id)}' should match contact1_attachedValues IDs '${contact1_attachedValues.map(v => v.id)}'`);
+
                 const dupedSources: ResolveTransactionPartiesOptions = {
                     ...txPartiesTemplate,
                     currency: currency.code,
@@ -324,7 +335,7 @@ describe("resolveTransactionPlanSteps", () => {
                 chai.assert.equal(values.length, 2);
                 chai.assert.equal(values[0].contactId, contact1.id);
                 chai.assert.equal(values[1].contactId, contact1.id);
-                chai.assert.isObject(values.find(v => v.id === value3_sharedGeneric.id));
+                chai.assert.sameMembers(values.map(v => v.id), contact1_attachedValues.map(v => v.id), `values IDs '${values.map(v => v.id)}' should match contact1_attachedValues IDs '${contact1_attachedValues.map(v => v.id)}'`);
             });
 
             it("gets multiple values by different identifiers", async () => {
