@@ -86,16 +86,18 @@ async function voidPendingTransaction(dbTransaction: DbTransaction): Promise<voi
 }
 
 async function handleVoidPendingError(dbTransaction: DbTransaction, error: any): Promise<void> {
-    log.warn(`Unable to void Transaction '${dbTransaction.id}':`, error);
     if (StripeRestError.isStripeRestError(error)) {
         if (error.messageCode === "StripePermissionError") {
+            log.warn(`StripePermissionError voiding Transaction '${dbTransaction.id}', marking as blocked`);
             return await markTransactionChainAsBlocked(dbTransaction, error.messageCode, {stripeError: error.stripeError});
         }
         if (dbTransaction.userId.endsWith("-TEST") && error.messageCode === "StripeChargeNotFound") {
+            // Stripe test data can be deleted so this isn't reason to freak out.
+            log.warn(`StripeChargeNotFound in test mode voiding Transaction '${dbTransaction.id}', marking as blocked`);
             return await markTransactionChainAsBlocked(dbTransaction, error.messageCode, {stripeError: error.stripeError});
         }
     }
-    log.error("Unhandled Transaction void error");
+    log.error("Unhandled Transaction void error", error);
     giftbitRoutes.sentry.sendErrorNotification(error);
 }
 
