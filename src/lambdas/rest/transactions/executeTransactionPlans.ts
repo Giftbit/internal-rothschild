@@ -117,7 +117,8 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         }
     }
 
-    // TransactionSteps may change during execution to fill in results. The top-level Transaction may not change.
+    // Call TransactionPlan.toTransaction again because TransactionSteps may change during execution to fill in results.
+    // Note that the top-level Transaction may not change.
     return TransactionPlan.toTransaction(auth, plan);
 }
 
