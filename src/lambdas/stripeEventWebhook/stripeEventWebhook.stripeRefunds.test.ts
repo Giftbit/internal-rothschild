@@ -29,7 +29,7 @@ describe("/v2/stripeEventWebhook - Stripe Refund events", () => {
 
         await setCodeCryptographySecrets();
 
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
     });
 
     after(() => {

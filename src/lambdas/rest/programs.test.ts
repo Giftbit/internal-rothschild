@@ -30,7 +30,7 @@ describe("/v2/programs", () => {
             decimalPlaces: 2
         });
 
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
     });
 
     after(() => {

@@ -44,17 +44,19 @@ export type LightrailTransactionPlanStep = LightrailUpdateTransactionPlanStep | 
 
 export interface LightrailInsertTransactionPlanStep {
     rail: "lightrail";
-    value: Value;
     action: "insert";
+    value: Value;
     generateCodeParameters?: GenerateCodeParameters;
 }
 
 export interface LightrailUpdateTransactionPlanStep {
     rail: "lightrail";
+    action: "update";
     value: Value;
     amount: number;
     uses: number | null;
-    action: "update";
+    allowCanceled: boolean;
+    allowFrozen: boolean;
 }
 
 export interface StripeChargeTransactionPlanStep {
@@ -76,7 +78,7 @@ export interface StripeChargeTransactionPlanStep {
 }
 
 export function isStepWithAmount(step: TransactionPlanStep): step is LightrailUpdateTransactionPlanStep | StripeTransactionPlanStep | InternalTransactionPlanStep {
-    return (<any>step).amount !== undefined;
+    return (step as any).amount !== undefined;
 }
 
 export interface StripeRefundTransactionPlanStep {
@@ -89,12 +91,12 @@ export interface StripeRefundTransactionPlanStep {
     chargeId: string;
 
     amount: number;
+    reason?: string;
 
     /**
-     * Result of creating the refund.  Only set if the plan is executed.
+     * Result of creating the refund.  Set when the plan is executed.
      */
     refundResult?: stripe.refunds.IRefund;
-    reason: string;
 }
 
 export interface StripeCaptureTransactionPlanStep {
@@ -207,7 +209,7 @@ export namespace StripeTransactionPlanStep {
                     id: `${plan.id}-${stepIndex}`,
                     transactionId: plan.id,
                     chargeId: step.chargeId,
-                    amount: step.refundResult.amount,
+                    amount: step.amount,
                     charge: JSON.stringify(step.refundResult)
                 };
             case "capture": // Capture steps aren't persisted to the DB.
@@ -243,7 +245,7 @@ export namespace StripeTransactionPlanStep {
                 if (step.refundResult) {
                     stripeTransactionStep.chargeId = step.chargeId;
                     stripeTransactionStep.charge = step.refundResult;
-                    stripeTransactionStep.amount = step.refundResult.amount;
+                    stripeTransactionStep.amount = step.amount;
                 }
                 break;
             case "capture":
@@ -290,7 +292,11 @@ export namespace InternalTransactionPlanStep {
 export namespace TransactionPlan {
     export function toTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan, simulated?: boolean): Transaction {
         const transaction: Transaction = {
-            ...getSharedProperties(plan),
+            id: plan.id,
+            transactionType: plan.transactionType,
+            currency: plan.currency,
+            createdDate: plan.createdDate,
+            tax: plan.tax,
             totals: plan.totals,
             lineItems: plan.lineItems,
             steps: plan.steps.map(step => transactionPlanStepToTransactionStep(step)),
@@ -317,16 +323,6 @@ export namespace TransactionPlan {
                 return source;
             }
         });
-    }
-
-    function getSharedProperties(plan: TransactionPlan) {
-        return {
-            id: plan.id,
-            transactionType: plan.transactionType,
-            currency: plan.currency,
-            createdDate: plan.createdDate,
-            tax: plan.tax
-        };
     }
 
     function transactionPlanStepToTransactionStep(step: TransactionPlanStep): TransactionStep {

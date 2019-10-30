@@ -9,7 +9,7 @@ import {
 } from "../../utils/stripeUtils/stripeAccess";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
-import {StripeTransactionStep, Transaction} from "../../model/Transaction";
+import {Transaction} from "../../model/Transaction";
 import {
     createReverse,
     createVoid,
@@ -146,7 +146,7 @@ function logEvent(auth: giftbitRoutes.jwtauth.AuthorizationBadge, event: Stripe.
 }
 
 async function reverseOrVoidFraudulentTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, event: Stripe.events.IEvent & { account: string }, stripeCharge: Stripe.charges.ICharge, lightrailTransaction: Transaction): Promise<Transaction> {
-    if (!<StripeTransactionStep>lightrailTransaction.steps.find(step => step.rail === "stripe" && step.chargeId === stripeCharge.id)) {
+    if (!lightrailTransaction.steps.find(step => step.rail === "stripe" && step.chargeId === stripeCharge.id)) {
         throw new Error(`Property mismatch: Stripe charge '${stripeCharge.id}' should match a charge in Lightrail Transaction '${lightrailTransaction.id}' except for refund details. Transaction='${JSON.stringify(lightrailTransaction)}'`);
     }
 

@@ -2,7 +2,7 @@ import * as superagent from "superagent";
 
 export async function kvsDelete(token: string, key: string): Promise<void> {
     try {
-        await superagent.delete(`https://${process.env["LIGHTRAIL_DOMAIN"]}/v1/storage/${key}`)
+        await superagent.delete(`https://${getLightrailDomain()}/v1/storage/${key}`)
             .set("Authorization", `Bearer ${token}`)
             .set("Content-Type", "application/json")
             .timeout({
@@ -21,7 +21,7 @@ export async function kvsDelete(token: string, key: string): Promise<void> {
 
 export async function kvsGet(token: string, key: string, authorizeAs?: string): Promise<any> {
     try {
-        let request = superagent.get(`https://${process.env["LIGHTRAIL_DOMAIN"]}/v1/storage/${key}`)
+        let request = superagent.get(`https://${getLightrailDomain()}/v1/storage/${key}`)
             .set("Authorization", `Bearer ${token}`)
             .ok(r => r.ok || r.status === 404)
             .timeout({
@@ -48,7 +48,7 @@ export async function kvsGet(token: string, key: string, authorizeAs?: string): 
 
 export async function kvsPut(token: string, key: string, value: any): Promise<void> {
     try {
-        await superagent.put(`https://${process.env["LIGHTRAIL_DOMAIN"]}/v1/storage/${key}`)
+        await superagent.put(`https://${getLightrailDomain()}/v1/storage/${key}`)
             .set("Authorization", `Bearer ${token}`)
             .set("Content-Type", "application/json")
             .send(value)
@@ -64,4 +64,11 @@ export async function kvsPut(token: string, key: string, value: any): Promise<vo
         }
         throw err;
     }
+}
+
+function getLightrailDomain(): string {
+    if (!process.env["LIGHTRAIL_DOMAIN"]) {
+        throw new Error("Env var LIGHTRAIL_DOMAIN undefined.");
+    }
+    return process.env["LIGHTRAIL_DOMAIN"];
 }

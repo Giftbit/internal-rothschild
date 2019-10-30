@@ -1,10 +1,12 @@
 import * as awslambda from "aws-lambda";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {DbTransaction} from "../../model/Transaction";
-import {getKnexRead} from "../../utils/dbUtils/connection";
+import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {nowInDbPrecision} from "../../utils/dbUtils";
 import {executeTransactionPlanner} from "../rest/transactions/executeTransactionPlans";
 import {createVoidTransactionPlanForDbTransaction} from "../rest/transactions/transactions.void";
+import {StripeRestError} from "../../utils/stripeUtils/StripeRestError";
+import {TransactionChainBlocker} from "../../model/TransactionChainBlocker";
 import log = require("loglevel");
 import uuid = require("uuid");
 
@@ -23,8 +25,7 @@ export async function voidExpiredPending(ctx: awslambda.Context): Promise<void> 
         try {
             await voidPendingTransaction(transactions[txIx]);
         } catch (err) {
-            log.error(`Unable to void Transaction '${transactions[txIx].id}':`, err);
-            giftbitRoutes.sentry.sendErrorNotification(err);
+            await handleVoidPendingError(transactions[txIx], err);
         }
     }
 
@@ -44,17 +45,18 @@ export async function getExpiredPendingTransactions(limit: number): Promise<DbTr
 
     const now = nowInDbPrecision();
 
-    // Temporarily ignore transactions that have been failing for more than 3 days.
-    // TODO remove this once we're sure all transactions should be voidable.
-    const tooOld = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
-
     const knex = await getKnexRead();
     return await knex("Transactions")
-        .whereNull("nextTransactionId")
-        .where("pendingVoidDate", "<", now)
-        .where("pendingVoidDate", ">", tooOld)
+        .leftOuterJoin("TransactionChainBlockers", {
+            "Transactions.userId": "TransactionChainBlockers.userId",
+            "Transactions.id": "TransactionChainBlockers.transactionId"
+        })
+        .whereNull("TransactionChainBlockers.transactionId")    // Exclusive left outer join (fancy!)
+        .whereNull("Transactions.nextTransactionId")
+        .where("Transactions.pendingVoidDate", "<", now)
         .limit(limit)
-        .orderBy("pendingVoidDate");    // Void in the order they expired.
+        .orderBy("pendingVoidDate")    // Void in the order they expired.
+        .select("Transactions.*");
 }
 
 async function voidPendingTransaction(dbTransaction: DbTransaction): Promise<void> {
@@ -66,19 +68,56 @@ async function voidPendingTransaction(dbTransaction: DbTransaction): Promise<voi
         "lightrailV2:transactions:void"
     ];
 
-
     await executeTransactionPlanner(
         auth,
-        {simulate: false, allowRemainder: false},
-        async () => {
-            return createVoidTransactionPlanForDbTransaction(
-                auth,
-                {
-                    // This operation is naturally idempotent because of the transaction chain; so this ID doesn't matter much.
-                    id: "automatic-void-" + uuid.v4()
-                },
-                dbTransaction
-            );
-        }
+        {
+            simulate: false,
+            allowRemainder: false
+        },
+        () => createVoidTransactionPlanForDbTransaction(
+            auth,
+            {
+                // This operation is naturally idempotent because of the transaction chain; so this ID doesn't matter much.
+                id: "automatic-void-" + uuid.v4()
+            },
+            dbTransaction
+        )
     );
+}
+
+async function handleVoidPendingError(dbTransaction: DbTransaction, error: any): Promise<void> {
+    if (StripeRestError.isStripeRestError(error)) {
+        if (error.messageCode === "StripePermissionError") {
+            log.warn(`StripePermissionError voiding Transaction '${dbTransaction.id}', marking as blocked`);
+            return await markTransactionChainAsBlocked(dbTransaction, error.messageCode, {stripeError: error.stripeError});
+        }
+        if (dbTransaction.userId.endsWith("-TEST") && error.messageCode === "StripeChargeNotFound") {
+            // Stripe test data can be deleted so this isn't reason to freak out.
+            log.warn(`StripeChargeNotFound in test mode voiding Transaction '${dbTransaction.id}', marking as blocked`);
+            return await markTransactionChainAsBlocked(dbTransaction, error.messageCode, {stripeError: error.stripeError});
+        }
+    }
+    log.error("Unhandled Transaction void error", error);
+    giftbitRoutes.sentry.sendErrorNotification(error);
+}
+
+async function markTransactionChainAsBlocked(dbTransaction: DbTransaction, blockerType: string, metadata: object): Promise<void> {
+    try {
+        const now = nowInDbPrecision();
+        const blocker: TransactionChainBlocker = {
+            userId: dbTransaction.userId,
+            transactionId: dbTransaction.id,
+            type: blockerType,
+            metadata: metadata,
+            createdDate: now,
+            updatedDate: now
+        };
+
+        const knex = await getKnexWrite();
+        return await knex("TransactionChainBlockers")
+            .insert(TransactionChainBlocker.toDbTransactionChainBlocker(blocker));
+    } catch (error) {
+        log.error("Error inserting TransactionChainBlocker", error);
+        giftbitRoutes.sentry.sendErrorNotification(error);
+    }
 }
