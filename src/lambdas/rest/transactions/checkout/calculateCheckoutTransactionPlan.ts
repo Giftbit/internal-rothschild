@@ -13,6 +13,7 @@ import {RuleContext} from "../rules/RuleContext";
 import {CheckoutTransactionPlan} from "./CheckoutTransactionPlan";
 import {bankersRounding} from "../../../../utils/moneyUtils";
 import {LineItemResponse} from "../../../../model/LineItem";
+import * as mathUtils from "../../../../utils/mathUtils";
 import log = require("loglevel");
 
 /**
@@ -128,7 +129,7 @@ function calculateAmountForLightrailTransactionStep(step: LightrailUpdateTransac
  */
 function getDiscountSellerLiability(transactionPlan: TransactionPlan, step: LightrailUpdateTransactionPlanStep, item: LineItemResponse): number {
     let discountSellerLiability = getRuleContext(transactionPlan, step, item).evaluateDiscountSellerLiabilityRule(step.value.discountSellerLiabilityRule);
-    return Math.min(1, Math.max(0, discountSellerLiability));
+    return mathUtils.constrain(0, discountSellerLiability, 1);
 }
 
 function calculateAmountForStripeTransactionStep(step: StripeChargeTransactionPlanStep, transactionPlan: TransactionPlan): void {
