@@ -17,9 +17,8 @@ export interface TransferTransactionSteps {
 }
 
 export async function resolveTransferTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: TransferRequest): Promise<TransferTransactionSteps> {
-    const sourceSteps = await resolveTransactionPlanSteps(auth, {
+    const sourceSteps = await resolveTransactionPlanSteps(auth, [req.source], {
         currency: req.currency,
-        parties: [req.source],
         transactionId: req.id,
         nonTransactableHandling: "error",
         includeZeroBalance: true,
@@ -30,9 +29,8 @@ export async function resolveTransferTransactionPlanSteps(auth: giftbitRoutes.jw
     }
     const sourceStep = sourceSteps[0] as LightrailUpdateTransactionPlanStep | StripeChargeTransactionPlanStep;
 
-    const destSteps = await resolveTransactionPlanSteps(auth, {
+    const destSteps = await resolveTransactionPlanSteps(auth, [req.destination], {
         currency: req.currency,
-        parties: [req.destination],
         transactionId: req.id,
         nonTransactableHandling: "error",
         includeZeroBalance: true,

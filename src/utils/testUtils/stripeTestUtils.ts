@@ -1,19 +1,17 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as kvsAccess from "../kvsAccess";
 import * as sinon from "sinon";
-import {initializeAssumeCheckoutToken, initializeLightrailStripeConfig} from "../stripeUtils/stripeAccess";
+import {
+    getStripeClient,
+    initializeAssumeCheckoutToken,
+    initializeLightrailStripeConfig
+} from "../stripeUtils/stripeAccess";
 import {StripeModeConfig} from "../stripeUtils/StripeConfig";
+import {defaultTestUser} from "./index";
+import {TestUser} from "./TestUser";
 
 const sinonSandbox = sinon.createSandbox();
 let stubKvsGet: sinon.SinonStub;
-
-/**
- * See .env.example for Stripe config details
- * This is "merchant" (connected account) config from stripe test account//pass: integrationtesting+merchant@giftbit.com // x39Rlf4TH3pzn29hsb#
- */
-export const stripeLiveMerchantConfig = {
-    stripeUserId: "acct_1BOVE6CM9MOvFvZK"
-};
 
 /**
  * See .env.example for Stripe config details
@@ -25,7 +23,9 @@ export const stripeLiveLightrailConfig: StripeModeConfig = {
     connectWebhookSigningSecret: "secret"
 };
 
-export function setStubsForStripeTests() {
+let stripeUserIds: { [token: string]: string } = {};
+
+export async function setStubsForStripeTests(): Promise<void> {
     const testAssumeToken: giftbitRoutes.secureConfig.AssumeScopeToken = {
         assumeToken: "this-is-an-assume-token"
     };
@@ -38,32 +38,48 @@ export function setStubsForStripeTests() {
         live: stripeLiveLightrailConfig
     }));
 
+    if (testStripeLive()) {
+        stripeUserIds = {
+            [defaultTestUser.userId]: defaultTestUser.stripeAccountId
+        };
+    } else {
+        const stripe = await getStripeClient(true);
+        const account = await stripe.accounts.create({
+            type: "standard",
+            id: defaultTestUser.stripeAccountId
+        } as any);
+        stripeUserIds = {
+            [defaultTestUser.userId]: account.id
+        };
+    }
+
     stubKvsGet = sinonSandbox.stub(kvsAccess, "kvsGet");
-    stubKvsGet
-        .resolves({
+    stubKvsGet.callsFake((token: string, key: string, authorizeAs?: string) => {
+        if (key !== "stripeAuth") {
+            throw new Error("We haven't mocked any other KVS keys yet.");
+        }
+        if (!authorizeAs) {
+            throw new Error("We haven't mocked calls without authorizeAs.");
+        }
+        const userId = JSON.parse(Buffer.from(authorizeAs, "base64").toString("ascii")).g.gui;
+        if (!stripeUserIds[userId]) {
+            return Promise.resolve(null);
+        }
+        return Promise.resolve({
             token_type: "bearer",
-            stripe_user_id: stripeLiveMerchantConfig.stripeUserId
+            stripe_user_id: stripeUserIds[userId]
         });
+    });
 }
 
-/**
- * A hacky way to change the stub and define what accountId should show up next.
- */
-export function stubNextStripeAuthAccountId(stripeAccountId: string): void {
-    stubKvsGet.reset();
-    stubKvsGet.onFirstCall()
-        .resolves({
-            token_type: "bearer",
-            stripe_user_id: stripeAccountId
-        });
-    stubKvsGet
-        .resolves({
-            token_type: "bearer",
-            stripe_user_id: stripeLiveMerchantConfig.stripeUserId
-        });
+export function setStubbedStripeUserId(testUser: TestUser): void {
+    if (!testUser.stripeAccountId) {
+        throw new Error("TestUser.stripeAccountId not set");
+    }
+    stripeUserIds[testUser.userId] = testUser.stripeAccountId;
 }
 
-export function unsetStubsForStripeTests() {
+export function unsetStubsForStripeTests(): void {
     sinonSandbox.restore();
     stubKvsGet = null;
 }

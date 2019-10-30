@@ -4,11 +4,10 @@ import * as cassava from "cassava";
 import {getStripeClient} from "./stripeAccess";
 import log = require("loglevel");
 import Stripe = require("stripe");
-import {GiftbitRestError} from "giftbit-cassava-routes";
 
 export async function createCharge(params: Stripe.charges.IChargeCreationOptions, isTestMode: boolean, merchantStripeAccountId: string, stepIdempotencyKey: string): Promise<Stripe.charges.ICharge> {
     const lightrailStripe = await getStripeClient(isTestMode);
-    log.info("Creating Stripe charge", params);
+    log.info("Creating Stripe charge", params, merchantStripeAccountId);
 
     try {
         const charge = await lightrailStripe.charges.create(params, {
@@ -45,7 +44,7 @@ export async function createCharge(params: Stripe.charges.IChargeCreationOptions
 
 export async function createRefund(params: Stripe.refunds.IRefundCreationOptionsWithCharge, isTestMode: boolean, merchantStripeAccountId: string): Promise<Stripe.refunds.IRefund> {
     const lightrailStripe = await getStripeClient(isTestMode);
-    log.info("Creating refund for Stripe charge", params);
+    log.info("Creating refund for Stripe charge", params, merchantStripeAccountId);
     try {
         const refund = await lightrailStripe.refunds.create(params, {
             stripe_account: merchantStripeAccountId
@@ -58,7 +57,15 @@ export async function createRefund(params: Stripe.refunds.IRefundCreationOptions
         checkForStandardStripeErrors(err);
         if ((err as Stripe.IStripeError).code === "charge_already_refunded") {
             // Refunds are sorted most recent first, so we only need one.
-            const refunds = await lightrailStripe.charges.listRefunds(params.charge, {limit: 1}, {stripe_account: merchantStripeAccountId});
+            const refunds = await lightrailStripe.refunds.list(
+                {
+                    limit: 1,
+                    charge: params.charge
+                },
+                {
+                    stripe_account: merchantStripeAccountId
+                }
+            );
             if (refunds.data.length === 0) {
                 throw new Error(`Attempting to refund charge '${params.charge}' resulted in 'charge_already_refunded' but listing refunds returned nothing.`);
             } else {
@@ -71,6 +78,11 @@ export async function createRefund(params: Stripe.refunds.IRefundCreationOptions
             // less clear.  Accepting the dispute and then reversing is riskier still.
             throw new StripeRestError(409, `Stripe charge '${params.charge}' cannot be refunded because it is disputed.`, "StripeChargeDisputed", err);
         }
+        if ((err as Stripe.IStripeError).code === "resource_missing" && (err as Stripe.IStripeError).param === "id") {
+            // The Stripe charge was not found.  In production mode this indicates a serious problem.
+            // In test mode this can be triggered by deleting Stripe test data so it isn't a problem.
+            throw new StripeRestError(isTestMode ? 409 : 500, `Stripe charge '${params.charge}' cannot be refunded because it does not exist.`, "StripeChargeNotFound", err);
+        }
 
         giftbitRoutes.sentry.sendErrorNotification(err);
         throw err;
@@ -79,7 +91,7 @@ export async function createRefund(params: Stripe.refunds.IRefundCreationOptions
 
 export async function captureCharge(chargeId: string, options: Stripe.charges.IChargeCaptureOptions, isTestMode: boolean, merchantStripeAccountId: string): Promise<Stripe.charges.ICharge> {
     const lightrailStripe = await getStripeClient(isTestMode);
-    log.info("Creating capture for Stripe charge", chargeId);
+    log.info("Creating capture for Stripe charge", chargeId, merchantStripeAccountId);
     try {
         const capturedCharge = await lightrailStripe.charges.capture(chargeId, options, {
             stripe_account: merchantStripeAccountId
@@ -96,6 +108,9 @@ export async function captureCharge(chargeId: string, options: Stripe.charges.IC
         if ((err as Stripe.IStripeError).code === "charge_already_refunded") {
             throw new StripeRestError(409, `Stripe charge '${chargeId}' cannot be captured because it was refunded.`, "StripeChargeAlreadyRefunded", err);
         }
+        if ((err as Stripe.IStripeError).code === "resource_missing" && (err as Stripe.IStripeError).param === "charge") {
+            throw new StripeRestError(isTestMode ? 409 : 500, `Stripe charge '${chargeId}' is missing.`, "StripeChargeNotFound", err);
+        }
 
         giftbitRoutes.sentry.sendErrorNotification(err);
         throw err;
@@ -104,7 +119,7 @@ export async function captureCharge(chargeId: string, options: Stripe.charges.IC
 
 export async function updateCharge(chargeId: string, params: Stripe.charges.IChargeUpdateOptions, isTestMode: boolean, merchantStripeAccountId: string): Promise<any> {
     const lightrailStripe = await getStripeClient(isTestMode);
-    log.info("Updating Stripe charge", params);
+    log.info("Updating Stripe charge", chargeId, params, merchantStripeAccountId);
     try {
         const chargeUpdate = await lightrailStripe.charges.update(
             chargeId,
@@ -115,8 +130,13 @@ export async function updateCharge(chargeId: string, params: Stripe.charges.ICha
         log.info("Updated Stripe charge", chargeUpdate);
         return chargeUpdate;
     } catch (err) {
-        checkForStandardStripeErrors(err);
         log.warn("Error updating Stripe charge:", err);
+
+        checkForStandardStripeErrors(err);
+        if ((err as Stripe.IStripeError).code === "resource_missing" && (err as Stripe.IStripeError).param === "id") {
+            throw new StripeRestError(isTestMode ? 409 : 500, `Stripe charge '${chargeId}' is missing.`, "StripeChargeNotFound", err);
+        }
+
         giftbitRoutes.sentry.sendErrorNotification(err);
         throw err;
     }
@@ -124,17 +144,18 @@ export async function updateCharge(chargeId: string, params: Stripe.charges.ICha
 
 export async function retrieveCharge(chargeId: string, isTestMode: boolean, merchantStripeAccountId: string): Promise<Stripe.charges.ICharge> {
     const lightrailStripe = await getStripeClient(isTestMode);
-    log.info("Retrieving Stripe charge", chargeId);
+    log.info("Retrieving Stripe charge", chargeId, merchantStripeAccountId);
     try {
         const charge = await lightrailStripe.charges.retrieve(chargeId, {stripe_account: merchantStripeAccountId});
         log.info("retrieved Stripe charge", charge);
         return charge;
     } catch (err) {
+        log.warn("Error retrieving Stripe charge:", err);
+
         checkForStandardStripeErrors(err);
         if (err.statusCode === 404) {
-            throw new StripeRestError(404, `Charge not found: ${chargeId}`, null, err);
+            throw new StripeRestError(404, `Stripe charge not found: ${chargeId}`, "StripeChargeNotFound", err);
         }
-        log.warn("Error retrieving Stripe charge:", err);
         giftbitRoutes.sentry.sendErrorNotification(err);
         throw err;
     }
@@ -179,11 +200,11 @@ function checkForStandardStripeErrors(err: any): void {
         case "StripeAPIError":
             throw new StripeRestError(502, "There was a problem connecting to Stripe.", "StripeAPIError", err);
         default:
-            // do nothing
+        // do nothing
     }
 }
 
-function getRetryIdempotencyKeyAndCount(stepIdempotencyKey: string): {newKey: string, count: number} {
+function getRetryIdempotencyKeyAndCount(stepIdempotencyKey: string): { newKey: string, count: number } {
     let originalStepIdempotencyKey = stepIdempotencyKey;
     let count = 1;
     const retryCountMatcher = /^(.+)-retry-(\d)$/.exec(stepIdempotencyKey);

@@ -565,7 +565,7 @@ describe("/v2/reports/transactions/", () => {
         it("handles Stripe steps", async () => {
             await testUtils.resetDb();
             await testUtils.createUSD(router);
-            setStubsForStripeTests();
+            await setStubsForStripeTests();
 
             await testUtils.createUSDCheckout(router, null, true);
             const checkoutReportResp = await testUtils.testAuthedCsvRequest<ReportTransaction[]>(router, "/v2/reports/transactions?transactionType=checkout", "GET");

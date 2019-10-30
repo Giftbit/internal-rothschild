@@ -16,7 +16,7 @@ describe("/v2/transactions/chain", () => {
 
     const router = new cassava.Router();
 
-    before(async function () {
+    before(async () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
@@ -29,7 +29,7 @@ describe("/v2/transactions/chain", () => {
         });
         chai.assert.equal(currency.code, "USD");
 
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
     });
 
     after(() => {

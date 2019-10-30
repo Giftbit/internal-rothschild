@@ -621,9 +621,12 @@ Resources:
           DB_PORT: !GetAtt DbCluster.Endpoint.Port
           DB_USERNAME: "master"
           DB_PASSWORD_PARAMETER: !GetAtt DbCredentials.PasswordParameter
+          LIGHTRAIL_DOMAIN: !Ref LightrailDomain
           SECURE_CONFIG_BUCKET: !Ref SecureConfigBucket
+          SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH: assumeRetrieveStripeAuth.json
           SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY: code_cryptography_secrets.json
           SECURE_CONFIG_KEY_SENTRY: sentry_lambda_services.json
+          SECURE_CONFIG_KEY_STRIPE: stripe_connect.json
       VpcConfig:
         SecurityGroupIds:
           - !GetAtt LambdaSecurityGroup.GroupId
@@ -651,8 +654,10 @@ Resources:
               Action:
                 - s3:GetObject
               Resource:
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeRetrieveStripeAuth.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/code_cryptography_secrets.json"
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/stripe_connect.json"
             - Effect: Allow
               Action:
                 - kms:Decrypt

@@ -353,7 +353,7 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
             attachGenericAsNewValue: true
         });
         chai.assert.equal(attachResp2.statusCode, 200, `body=${JSON.stringify(attachResp2.body)}`);
-        chai.assert.deepEqualExcluding(attachResp1.body, attachResp2.body, ["createdDate"]);
+        chai.assert.deepEqualExcluding(attachResp1.body, attachResp2.body, ["createdDate", "updatedDate", "updatedContactIdDate"]);
     });
 
     describe("stats on generic code with usesRemaining liability", () => {

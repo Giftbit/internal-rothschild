@@ -18,12 +18,15 @@ import Knex = require("knex");
 import log = require("loglevel");
 
 export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan): Promise<Transaction> {
+    if (!plan.rootTransactionId) {
+        plan.rootTransactionId = plan.id;
+    }
+
     try {
         const transaction = TransactionPlan.toTransaction(auth, plan);
-        let dbT: DbTransaction = Transaction.toDbTransaction(auth, transaction);
-        dbT.rootTransactionId = plan.rootTransactionId ? plan.rootTransactionId : plan.id;
+        const dbTransaction = Transaction.toDbTransaction(auth, transaction, plan.rootTransactionId);
         await trx.into("Transactions")
-            .insert(dbT);
+            .insert(dbTransaction);
         if (plan.previousTransactionId) {
             let updateProperties: { [P in keyof DbTransaction]?: DbTransaction[P] | Knex.Raw } = {
                 nextTransactionId: plan.id,
@@ -37,12 +40,14 @@ export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.A
         }
         return transaction;
     } catch (err) {
+        log.warn("Error inserting transaction", err);
         const constraint = getSqlErrorConstraintName(err);
         if (constraint === "fk_Transaction_Currencies") {
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${plan.currency}' does not exist. See the documentation on creating currencies.`, "CurrencyNotFound");
         } else if (err.code === "ER_DUP_ENTRY") {
             throw new giftbitRoutes.GiftbitRestError(409, `A Lightrail transaction with transactionId '${plan.id}' already exists.`, "TransactionExists");
         } else {
+            giftbitRoutes.sentry.sendErrorNotification(err);
             throw err;
         }
     }
@@ -124,10 +129,14 @@ async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.Authoriza
         .where({
             userId: auth.userId,
             id: step.value.id,
-            frozen: false,
-            active: true,
-            canceled: false
+            active: true
         });
+    if (!step.allowCanceled) {
+        query = query.where({canceled: false});
+    }
+    if (!step.allowFrozen) {
+        query = query.where({frozen: false});
+    }
     if (step.value.balance != null && step.amount !== 0 && step.amount != null) {
         updateProperties.balance = trx.raw(`balance + ?`, [step.amount]);
         if (step.amount < 0) {

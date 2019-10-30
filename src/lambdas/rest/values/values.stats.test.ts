@@ -33,7 +33,7 @@ describe("/v2/values/ - secret stats capability", () => {
             symbol: "$",
             decimalPlaces: 2
         });
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
     });
 
     after(async function () {

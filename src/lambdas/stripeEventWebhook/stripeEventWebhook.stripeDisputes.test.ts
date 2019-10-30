@@ -27,7 +27,7 @@ describe("/v2/stripeEventWebhook - Stripe Dispute events", () => {
 
         await setCodeCryptographySecrets();
 
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
     });
 
     beforeEach(function () {

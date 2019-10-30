@@ -10,6 +10,7 @@ import {Contact} from "../../../model/Contact";
 import {ResolveTransactionPartiesOptions, resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
 import {LightrailTransactionPlanStep} from "./TransactionPlan";
 import {AttachedContactValueScenario, setupAttachedContactValueScenario} from "../contactValues.test";
+import {TransactionParty} from "../../../model/TransactionRequest";
 
 describe("resolveTransactionPlanSteps", () => {
 
@@ -48,8 +49,7 @@ describe("resolveTransactionPlanSteps", () => {
             data = await setupAttachedContactValueScenario(router, currency);
         });
 
-        const txPartiesTemplate: ResolveTransactionPartiesOptions = {
-            parties: [],
+        const resolvePartiesOptions: ResolveTransactionPartiesOptions = {
             currency: currency.code,
             transactionId: "1",
             nonTransactableHandling: "include",
@@ -58,63 +58,39 @@ describe("resolveTransactionPlanSteps", () => {
         };
 
         it("can get lightrail transaction plan steps associated with contactA", async () => {
-            const contactAsTransactionSource: ResolveTransactionPartiesOptions = {
-                ...txPartiesTemplate,
-                parties: [
-                    {
-                        rail: "lightrail",
-                        contactId: data.contactA.id
-                    }
-                ],
-                currency: currency.code,
-                transactionId: "1",
-                nonTransactableHandling: "include",
-                includeZeroUsesRemaining: true,
-                includeZeroBalance: true
-            };
-            const contactLightrailValues = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, contactAsTransactionSource);
+            const parties: TransactionParty[] = [
+                {
+                    rail: "lightrail",
+                    contactId: data.contactA.id
+                }
+            ];
+            const contactLightrailValues = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, parties, resolvePartiesOptions);
             chai.assert.sameMembers(contactLightrailValues.map(v => (v as LightrailTransactionPlanStep).value.id), data.valuesAttachedToContactA.map(v => v.id));
         });
 
         it("can get lightrail transaction plan steps associated with contactB", async () => {
-            const contactAsTransactionSource: ResolveTransactionPartiesOptions = {
-                ...txPartiesTemplate,
-                parties: [
-                    {
-                        rail: "lightrail",
-                        contactId: data.contactB.id
-                    }
-                ],
-                currency: currency.code,
-                transactionId: "1",
-                nonTransactableHandling: "include",
-                includeZeroUsesRemaining: true,
-                includeZeroBalance: true
-            };
-            const contactLightrailValues = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, contactAsTransactionSource);
+            const parties: TransactionParty[] = [
+                {
+                    rail: "lightrail",
+                    contactId: data.contactB.id
+                }
+            ];
+            const contactLightrailValues = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, parties, resolvePartiesOptions);
             chai.assert.sameMembers(contactLightrailValues.map(v => (v as LightrailTransactionPlanStep).value.id), data.valuesAttachedToContactB.map(v => v.id));
         });
 
         it("can get lightrail transaction plan steps associated with contactA and contactB. Doesnt duplicate shared generic Values.", async () => {
-            const contactAsTransactionSource: ResolveTransactionPartiesOptions = {
-                ...txPartiesTemplate,
-                parties: [
-                    {
-                        rail: "lightrail",
-                        contactId: data.contactA.id
-                    },
-                    {
-                        rail: "lightrail",
-                        contactId: data.contactB.id
-                    }
-                ],
-                currency: currency.code,
-                transactionId: "1",
-                nonTransactableHandling: "include",
-                includeZeroUsesRemaining: true,
-                includeZeroBalance: true
-            };
-            const contactLightrailValues = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, contactAsTransactionSource);
+            const parties: TransactionParty[] = [
+                {
+                    rail: "lightrail",
+                    contactId: data.contactA.id
+                },
+                {
+                    rail: "lightrail",
+                    contactId: data.contactB.id
+                }
+            ];
+            const contactLightrailValues = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, parties, resolvePartiesOptions);
 
             const distinctValues = [...data.valuesAttachedToContactA, ...data.valuesAttachedToContactB.filter(v => v.id !== data.genVal2_sharedGenericValue.id)];
             chai.assert.sameMembers(contactLightrailValues.map(v => (v as LightrailTransactionPlanStep).value.id), distinctValues.map(v => v.id));

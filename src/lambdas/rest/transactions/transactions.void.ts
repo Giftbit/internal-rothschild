@@ -1,11 +1,11 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import {GiftbitRestError} from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import * as log from "loglevel";
 import {VoidRequest} from "../../../model/TransactionRequest";
-import {TransactionPlan} from "./TransactionPlan";
+import {TransactionPlan, TransactionPlanStep} from "./TransactionPlan";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {getDbTransaction} from "./transactions";
-import {GiftbitRestError} from "giftbit-cassava-routes";
 import {getReverseTransactionPlanSteps, invertTransactionTotals} from "./reverse/transactions.reverse";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 
@@ -15,7 +15,7 @@ export async function createVoidTransactionPlan(auth: giftbitRoutes.jwtauth.Auth
 }
 
 export async function createVoidTransactionPlanForDbTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: VoidRequest, dbTransactionToVoid: DbTransaction): Promise<TransactionPlan> {
-    log.info(`Creating void transaction plan for user: ${auth.userId} and void request:`, req);
+    log.info(`Creating void transaction plan for user '${auth.userId}' with void request:`, req);
 
     if (!dbTransactionToVoid.pendingVoidDate) {
         throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot void a Transaction that is not pending.`, "TransactionNotPending");
@@ -43,14 +43,29 @@ export async function createVoidTransactionPlanForDbTransaction(auth: giftbitRou
         id: req.id,
         transactionType: "void",
         currency: transactionToVoid.currency,
-        steps: await getReverseTransactionPlanSteps(auth, req.id, transactionToVoid),
+        steps: await getVoidTransactionPlanSteps(auth, req.id, transactionToVoid),
         totals: transactionToVoid.totals && invertTransactionTotals(transactionToVoid.totals),
         createdDate: nowInDbPrecision(),
         metadata: req.metadata,
-        tax: transactionToVoid.tax ? transactionToVoid.tax : null,
+        tax: transactionToVoid.tax || null,
         lineItems: null,
         paymentSources: null,
         rootTransactionId: transactionToVoid.id,
         previousTransactionId: transactionToVoid.id
     };
+}
+
+async function getVoidTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, transactionId: string, transactionToVoid: Transaction): Promise<TransactionPlanStep[]> {
+    // Voiding is mostly the same as reversing.
+    const steps = await getReverseTransactionPlanSteps(auth, transactionId, transactionToVoid);
+    steps.forEach(step => {
+        if (step.rail === "lightrail" && step.action === "update") {
+            step.allowFrozen = true;
+            step.allowCanceled = true;
+        }
+        if (step.rail === "stripe" && step.type === "refund") {
+            step.reason = undefined;
+        }
+    });
+    return steps;
 }

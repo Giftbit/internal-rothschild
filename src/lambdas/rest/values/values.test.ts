@@ -340,10 +340,10 @@ describe("/v2/values/", () => {
         chai.assert.deepEqualExcluding(resp.body, value1, ["updatedDate"]);
     });
 
-    it("cannot uncancel a value", async () => {
-        const resp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value1.id}`, "PATCH", {canceled: false});
-        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.equal(resp.body.messageCode, "CannotUncancelValue");
+    it("can uncancel a value", async () => {
+        const resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "PATCH", {canceled: false});
+        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.canceled, false);
     });
 
     it("can create a value attached to a contact", async () => {

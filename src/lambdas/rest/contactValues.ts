@@ -329,8 +329,7 @@ async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.Authoriz
         metadata: null,
         tax: null
     };
-    const dbAttachTransaction: DbTransaction = Transaction.toDbTransaction(auth, attachTransaction);
-    dbAttachTransaction.rootTransactionId = dbAttachTransaction.id;
+    const dbAttachTransaction: DbTransaction = Transaction.toDbTransaction(auth, attachTransaction, attachTransaction.id);
 
     const dbLightrailTransactionStep0: LightrailDbTransactionStep = {
         userId: auth.userId,
