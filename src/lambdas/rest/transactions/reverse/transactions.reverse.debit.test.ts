@@ -259,7 +259,7 @@ describe("/v2/transactions/reverse - debit", () => {
         chai.assert.sameDeepMembers(chainRes.body, [debitRes.body, captureRes.body, reverseRes.body]);
     });
 
-    it("can reverse a debt with a canceled Value", async () => {
+    it("can reverse a debit with a canceled Value", async () => {
         const value: Partial<Value> = {
             id: generateId(),
             currency: "USD",
@@ -291,7 +291,7 @@ describe("/v2/transactions/reverse - debit", () => {
         chai.assert.equal((reverseRes.body.steps[0] as LightrailTransactionStep).balanceChange, 20);
     });
 
-    it("can't reverse a debt with a frozen Value", async () => {
+    it("can't reverse a debit with a frozen Value", async () => {
         const value: Partial<Value> = {
             id: generateId(),
             currency: "USD",
