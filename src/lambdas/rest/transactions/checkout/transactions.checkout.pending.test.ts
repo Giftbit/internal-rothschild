@@ -3,7 +3,7 @@ import * as chai from "chai";
 import * as transactions from "../transactions";
 import * as valueStores from "../../values/values";
 import * as testUtils from "../../../../utils/testUtils";
-import {defaultTestUser, generateId} from "../../../../utils/testUtils";
+import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
 import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../../model/Transaction";
 import {CaptureRequest, CheckoutRequest, VoidRequest} from "../../../../model/TransactionRequest";
@@ -38,6 +38,7 @@ describe("/v2/transactions/checkout - pending", () => {
             symbol: "$",
             decimalPlaces: 2
         });
+        setCodeCryptographySecrets();
         await setStubsForStripeTests();
     });
 
@@ -618,6 +619,213 @@ describe("/v2/transactions/checkout - pending", () => {
 
         const valueCaptureRes = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(valueCaptureRes.body.balance, 0);
+    });
+
+    it("can create and void a pending transaction, Remainder only", async () => {
+        const pendingTx: CheckoutRequest = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "lightrail",
+                    code: "this-does-not-exist"
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "🚗",
+                    unitPrice: 14286,
+                    taxRate: 0.05
+                }
+            ],
+            currency: "CAD",
+            allowRemainder: true,
+            pending: true
+        };
+        const pendingTxRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", pendingTx);
+        chai.assert.equal(pendingTxRes.statusCode, 201, `body=${JSON.stringify(pendingTxRes.body)}`);
+        chai.assert.deepEqualExcluding(pendingTxRes.body, {
+            id: pendingTx.id,
+            transactionType: "checkout",
+            currency: "CAD",
+            totals: {
+                subtotal: 14286,
+                tax: 714,
+                discount: 0,
+                discountLightrail: 0,
+                payable: 15000,
+                paidInternal: 0,
+                paidLightrail: 0,
+                paidStripe: 0,
+                remainder: 15000,
+                forgiven: 0
+            },
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "🚗",
+                    unitPrice: 14286,
+                    taxRate: 0.05,
+                    quantity: 1,
+                    lineTotal: {
+                        subtotal: 14286,
+                        taxable: 14286,
+                        tax: 714,
+                        discount: 0,
+                        payable: 15000,
+                        remainder: 15000
+                    }
+                }
+            ],
+            steps: [],
+            paymentSources: [
+                {
+                    rail: "lightrail",
+                    code: "…xist"
+                }
+            ],
+            pending: true,
+            pendingVoidDate: null,
+            metadata: null,
+            tax: {
+                roundingMode: "HALF_EVEN"
+            },
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
+        }, ["createdDate", "pendingVoidDate"]);
+        chai.assert.isNotNull(pendingTxRes.body.pendingVoidDate);
+
+        const voidTx: VoidRequest = {
+            id: generateId()
+        };
+        const voidRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingTx.id}/void`, "POST", voidTx);
+        chai.assert.equal(voidRes.statusCode, 201, `body=${JSON.stringify(voidRes.body)}`);
+        chai.assert.isNotTrue(voidRes.body.pending);
+        chai.assert.deepEqualExcluding(voidRes.body, {
+            id: voidTx.id,
+            transactionType: "void",
+            currency: "CAD",
+            totals: {
+                subtotal: -14286,
+                tax: -714,
+                discount: 0,
+                discountLightrail: 0,
+                payable: -15000,
+                paidInternal: 0,
+                paidLightrail: 0,
+                paidStripe: 0,
+                remainder: -15000,
+                forgiven: 0
+            },
+            lineItems: null,
+            steps: [],
+            paymentSources: null,
+            pending: false,
+            metadata: null,
+            tax: {
+                roundingMode: "HALF_EVEN"
+            },
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
+        }, ["createdDate"]);
+    });
+
+    it("can create and capture a pending transaction, Remainder only", async () => {
+        const pendingTx: CheckoutRequest = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "lightrail",
+                    code: "this-does-not-exist"
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "🚗",
+                    unitPrice: 14286,
+                    taxRate: 0.05
+                }
+            ],
+            currency: "CAD",
+            allowRemainder: true,
+            pending: true
+        };
+        const pendingTxRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", pendingTx);
+        chai.assert.equal(pendingTxRes.statusCode, 201, `body=${JSON.stringify(pendingTxRes.body)}`);
+        chai.assert.deepEqualExcluding(pendingTxRes.body, {
+            id: pendingTx.id,
+            transactionType: "checkout",
+            currency: "CAD",
+            totals: {
+                subtotal: 14286,
+                tax: 714,
+                discount: 0,
+                discountLightrail: 0,
+                payable: 15000,
+                paidInternal: 0,
+                paidLightrail: 0,
+                paidStripe: 0,
+                remainder: 15000,
+                forgiven: 0
+            },
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "🚗",
+                    unitPrice: 14286,
+                    taxRate: 0.05,
+                    quantity: 1,
+                    lineTotal: {
+                        subtotal: 14286,
+                        taxable: 14286,
+                        tax: 714,
+                        discount: 0,
+                        payable: 15000,
+                        remainder: 15000
+                    }
+                }
+            ],
+            steps: [],
+            paymentSources: [
+                {
+                    rail: "lightrail",
+                    code: "…xist"
+                }
+            ],
+            pending: true,
+            pendingVoidDate: null,
+            metadata: null,
+            tax: {
+                roundingMode: "HALF_EVEN"
+            },
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
+        }, ["createdDate", "pendingVoidDate"]);
+        chai.assert.isNotNull(pendingTxRes.body.pendingVoidDate);
+
+        const captureTx: CaptureRequest = {
+            id: generateId()
+        };
+        const captureRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingTx.id}/capture`, "POST", captureTx);
+        chai.assert.equal(captureRes.statusCode, 201, `body=${JSON.stringify(captureRes.body)}`);
+
+        chai.assert.deepEqualExcluding(captureRes.body, {
+            id: captureTx.id,
+            transactionType: "capture",
+            currency: "CAD",
+            totals: null,
+            lineItems: null,
+            steps: [],
+            paymentSources: null,
+            pending: false,
+            metadata: null,
+            tax: {
+                roundingMode: "HALF_EVEN"
+            },
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
+        }, ["createdDate"]);
     });
 
     it("voids Lightrail+Stripe successfully when the Stripe charge was refunded already", async () => {

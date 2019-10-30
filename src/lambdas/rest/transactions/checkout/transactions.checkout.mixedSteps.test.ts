@@ -31,7 +31,7 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             symbol: "$",
             decimalPlaces: 2
         });
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
     });
 
     after(() => {

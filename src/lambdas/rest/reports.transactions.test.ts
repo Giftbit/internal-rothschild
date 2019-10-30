@@ -34,7 +34,7 @@ describe("/v2/reports/transactions/", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-        await testUtils.setCodeCryptographySecrets();
+        testUtils.setCodeCryptographySecrets();
         await testUtils.createUSD(router);
 
         await testUtils.createUSDCheckout(router, null, false);

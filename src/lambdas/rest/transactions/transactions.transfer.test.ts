@@ -24,8 +24,7 @@ describe("/v2/transactions/transfer", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
 
         const postCurrencyResp = await createCurrency(defaultTestUser.auth, currency);
         chai.assert.equal(postCurrencyResp.code, "CAD", `currencyResp=${JSON.stringify(postCurrencyResp)}`);

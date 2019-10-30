@@ -185,12 +185,12 @@ async function getSqlMigrationFiles(): Promise<{ filename: string, sql: string }
     return sqlMigrationFiles;
 }
 
-export function generateFullcode(length?: number) {
+export function generateFullcode(length?: number): string {
     return (uuid.v4() + uuid.v4()).replace("-", "").toUpperCase().substring(0, length != null ? length : 10);
 }
 
-export async function setCodeCryptographySecrets() {
-    return await initializeCodeCryptographySecrets(Promise.resolve({
+export function setCodeCryptographySecrets(): void {
+    initializeCodeCryptographySecrets(Promise.resolve({
         encryptionSecret: "ca7589aef4ffed15783341414fe2f4a5edf9ddad75cf2e96ed2a16aee88673ea",
         lookupHashSecret: "ae8645165cc7533dbcc84aeb21c7d6553a38271b7e3402f99d16b8a8717847e1"
     }));

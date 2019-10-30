@@ -29,7 +29,7 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
         await createCurrency(testUtils.defaultTestUser.auth, currency);
 
         const contactPartial: Partial<Contact> = {
