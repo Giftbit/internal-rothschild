@@ -84,7 +84,7 @@ export async function setupForWebhookEvent(router: cassava.Router, lightrailOpti
     chai.assert.isObject(checkoutSetup.checkout);
     checkout = checkoutSetup.checkout;
     chai.assert.isObject(checkoutSetup.checkout.steps.find(step => step.rail === "stripe"));
-    const stripeStep = <StripeTransactionStep>checkoutSetup.checkout.steps.find(step => step.rail === "stripe");
+    const stripeStep = checkoutSetup.checkout.steps.find(step => step.rail === "stripe") as StripeTransactionStep;
 
     // if transaction should be reversed in Lightrail as well, do that (doesn't matter if it's already been refunded in Stripe)
     if (lightrailOptions && lightrailOptions.reversed) {
@@ -94,7 +94,7 @@ export async function setupForWebhookEvent(router: cassava.Router, lightrailOpti
         nextLightrailTransaction = reverseResp.body;
 
         chai.assert.isObject(nextLightrailTransaction.steps.find(step => step.rail === "stripe"));
-        nextStripeStep = <StripeTransactionStep>nextLightrailTransaction.steps.find(step => step.rail === "stripe");
+        nextStripeStep = (nextLightrailTransaction.steps.find(step => step.rail === "stripe") as StripeTransactionStep);
     }
 
     // if original charge was pending and needs to be captured or voided, do that
@@ -105,7 +105,7 @@ export async function setupForWebhookEvent(router: cassava.Router, lightrailOpti
             chai.assert.equal(captureResp.statusCode, 201, `captureResp.body=${JSON.stringify(captureResp.body)}`);
             nextLightrailTransaction = captureResp.body;
             chai.assert.isObject(nextLightrailTransaction.steps.find(step => step.rail === "stripe"));
-            nextStripeStep = <StripeTransactionStep>nextLightrailTransaction.steps.find(step => step.rail === "stripe");
+            nextStripeStep = (nextLightrailTransaction.steps.find(step => step.rail === "stripe") as StripeTransactionStep);
         }
         if (lightrailOptions.voided) {
             await new Promise(resolve => setTimeout(resolve, 1000)); // manually delay creating the next transaction so it has a different createdDate
@@ -113,7 +113,7 @@ export async function setupForWebhookEvent(router: cassava.Router, lightrailOpti
             chai.assert.equal(voidResp.statusCode, 201, `captureResp.body=${JSON.stringify(voidResp.body)}`);
             nextLightrailTransaction = voidResp.body;
             chai.assert.isObject(nextLightrailTransaction.steps.find(step => step.rail === "stripe"));
-            nextStripeStep = <StripeTransactionStep>nextLightrailTransaction.steps.find(step => step.rail === "stripe");
+            nextStripeStep = (nextLightrailTransaction.steps.find(step => step.rail === "stripe") as StripeTransactionStep);
         }
     }
 

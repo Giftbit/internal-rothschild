@@ -293,7 +293,7 @@ describe("/v2/transactions/reverse - checkout", () => {
         chai.assert.equal((postCheckout.body.steps[0] as LightrailTransactionStep).balanceChange, -110, `body=${JSON.stringify(postCheckout.body)}`);
         chai.assert.isDefined(postCheckout.body.steps.find(step => step.rail === "stripe"));
 
-        const stripeStep = <StripeTransactionStep>postCheckout.body.steps.find(step => step.rail === "stripe");
+        const stripeStep = postCheckout.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep;
         chai.assert.isObject(stripeStep.charge);
 
         // Manually refund charge.
@@ -346,7 +346,7 @@ describe("/v2/transactions/reverse - checkout", () => {
         chai.assert.equal(postCheckout.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
         chai.assert.equal((postCheckout.body.steps[0] as LightrailTransactionStep).balanceChange, -110, `body=${JSON.stringify(postCheckout.body)}`);
 
-        const stripeStep = <StripeTransactionStep>postCheckout.body.steps.find(step => step.rail === "stripe");
+        const stripeStep = postCheckout.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep;
         chai.assert.isObject(stripeStep);
         chai.assert.isObject(stripeStep.charge);
 

@@ -78,7 +78,7 @@ export interface StripeChargeTransactionPlanStep {
 }
 
 export function isStepWithAmount(step: TransactionPlanStep): step is LightrailUpdateTransactionPlanStep | StripeTransactionPlanStep | InternalTransactionPlanStep {
-    return (<any>step).amount !== undefined;
+    return (step as any).amount !== undefined;
 }
 
 export interface StripeRefundTransactionPlanStep {

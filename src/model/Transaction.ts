@@ -268,15 +268,15 @@ export namespace DbTransactionStep {
     }
 
     export function isLightrailDbTransactionStep(step: DbTransactionStep): step is LightrailDbTransactionStep {
-        return (<LightrailDbTransactionStep>step).valueId !== undefined;
+        return (step as LightrailDbTransactionStep).valueId !== undefined;
     }
 
     export function isStripeDbTransactionStep(step: DbTransactionStep): step is StripeDbTransactionStep {
-        return (<StripeDbTransactionStep>step).chargeId !== undefined;
+        return (step as StripeDbTransactionStep).chargeId !== undefined;
     }
 
     export function isInternalDbTransactionStep(step: DbTransactionStep): step is InternalDbTransactionStep {
-        return (<InternalDbTransactionStep>step).internalId !== undefined;
+        return (step as InternalDbTransactionStep).internalId !== undefined;
     }
 
     export function toLightrailTransactionStep(step: LightrailDbTransactionStep): LightrailTransactionStep {
