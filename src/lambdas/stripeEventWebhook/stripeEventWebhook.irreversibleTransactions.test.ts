@@ -27,9 +27,7 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
         restRouter.route(testUtils.authRoute);
         installRestRoutes(restRouter);
         installStripeEventWebhookRest(webhookEventRouter);
-
-        await setCodeCryptographySecrets();
-
+        setCodeCryptographySecrets();
         await setStubsForStripeTests();
     });
 

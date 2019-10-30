@@ -21,7 +21,7 @@ describe("/v2/transactions/checkout - basics", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
         await createCurrency(testUtils.defaultTestUser.auth, {
             code: "CAD",
             name: "Canadian Tire Money",

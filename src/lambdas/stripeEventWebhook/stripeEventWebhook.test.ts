@@ -54,9 +54,7 @@ describe("/v2/stripeEventWebhook", () => {
         restRouter.route(testUtils.authRoute);
         installRestRoutes(restRouter);
         installStripeEventWebhookRest(webhookEventRouter);
-
-        await setCodeCryptographySecrets();
-
+        setCodeCryptographySecrets();
         await setStubsForStripeTests();
     });
 

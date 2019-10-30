@@ -72,7 +72,7 @@ async function voidPendingTransaction(dbTransaction: DbTransaction): Promise<voi
         auth,
         {
             simulate: false,
-            allowRemainder: false
+            allowRemainder: true
         },
         () => createVoidTransactionPlanForDbTransaction(
             auth,
