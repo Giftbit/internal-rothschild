@@ -270,7 +270,7 @@ describe("MetricsLogger", () => {
 
         describe("integration tests", () => {
             before(async function () {
-                setStubsForStripeTests();
+                await setStubsForStripeTests();
             });
 
             after(() => {

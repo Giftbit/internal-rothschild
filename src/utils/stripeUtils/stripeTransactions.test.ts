@@ -1,18 +1,13 @@
 import * as chai from "chai";
-import {
-    setStubsForStripeTests,
-    stripeLiveMerchantConfig,
-    testStripeLive,
-    unsetStubsForStripeTests
-} from "../testUtils/stripeTestUtils";
+import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../testUtils/stripeTestUtils";
 import {createCharge} from "./stripeTransactions";
-import {generateId} from "../testUtils";
+import * as testUtils from "../testUtils";
 import {StripeRestError} from "./StripeRestError";
 
 describe("stripeTransactions", () => {
 
     before(async function () {
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
     });
 
     after(() => {
@@ -34,11 +29,11 @@ describe("stripeTransactions", () => {
             source: "tok_chargeDeclinedInsufficientFunds|tok_visa"
         };
 
-        const idempotencyKey = generateId() + "-0";
+        const idempotencyKey = testUtils.generateId() + "-0";
         let firstFail: any;
         try {
             // This charge will fail.
-            await createCharge(chargeParams, true, stripeLiveMerchantConfig.stripeUserId, idempotencyKey);
+            await createCharge(chargeParams, true, testUtils.defaultTestUser.stripeAccountId, idempotencyKey);
         } catch (err) {
             firstFail = err;
         }
@@ -49,7 +44,7 @@ describe("stripeTransactions", () => {
         // because it shares the idempotencyKey above, and then try again with the next
         // idempotencyKey.  Because we retry these idempotencyKeys in sequence we don't
         // risk double charging.
-        const charge = await createCharge(chargeParams, true, stripeLiveMerchantConfig.stripeUserId, idempotencyKey);
+        const charge = await createCharge(chargeParams, true, testUtils.defaultTestUser.stripeAccountId, idempotencyKey);
         chai.assert.equal(charge.amount, 2000);
     });
 });

@@ -8,6 +8,7 @@ import {StripeCaptureTransactionPlanStep, TransactionPlan, TransactionPlanStep} 
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {getDbTransaction} from "./transactions";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
+import {getDbValuesByTransaction} from "../values/values";
 
 export async function createCaptureTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CaptureRequest, transactionIdToCapture: string): Promise<TransactionPlan> {
     log.info(`Creating capture transaction plan for user: ${auth.userId} and capture request:`, req);
@@ -38,6 +39,12 @@ export async function createCaptureTransactionPlan(auth: giftbitRoutes.jwtauth.A
     }
 
     const transactionToCapture: Transaction = (await DbTransaction.toTransactions([dbTransactionToCapture], auth.userId))[0];
+
+    const values = await getDbValuesByTransaction(auth, transactionToCapture);
+    const frozenValue = values.find(value => value.frozen);
+    if (frozenValue) {
+        throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot capture Transaction because value. '${frozenValue.id}' is frozen.`, "ValueFrozen");
+    }
 
     return {
         id: req.id,

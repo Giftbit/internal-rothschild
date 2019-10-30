@@ -29,7 +29,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             symbol: "$",
             decimalPlaces: 2
         });
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
     });
 
     after(() => {

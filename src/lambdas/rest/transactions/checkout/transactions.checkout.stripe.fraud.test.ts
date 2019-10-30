@@ -46,7 +46,7 @@ describe("handling fraudulent charges", () => {
         const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
 
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
     });
 
     after(() => {

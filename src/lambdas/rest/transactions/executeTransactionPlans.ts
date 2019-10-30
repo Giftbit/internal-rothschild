@@ -91,17 +91,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         return TransactionPlan.toTransaction(auth, plan, options.simulate);
     }
 
-    try {
-        await insertTransaction(trx, auth, plan);
-    } catch (err) {
-        log.warn("Error inserting transaction:", err);
-        if ((err as GiftbitRestError).isRestError) {
-            throw err;
-        } else {
-            giftbitRoutes.sentry.sendErrorNotification(err);
-            throw err;
-        }
-    }
+    await insertTransaction(trx, auth, plan);
 
     try {
         plan = await insertStripeTransactionSteps(auth, trx, plan);
@@ -125,9 +115,11 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
             giftbitRoutes.sentry.sendErrorNotification(err);
             throw new giftbitRoutes.GiftbitRestError(500, `An error occurred while processing transaction '${plan.id}'.`);
         }
-
     }
-    return TransactionPlan.toTransaction(auth, plan); // Has to re-call ".toTransaction" since things like the Stripe steps are updated when inserted.
+
+    // Call TransactionPlan.toTransaction again because TransactionSteps may change during execution to fill in results.
+    // Note that the top-level Transaction may not change.
+    return TransactionPlan.toTransaction(auth, plan);
 }
 
 /**

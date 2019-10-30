@@ -4,11 +4,7 @@ import {setCodeCryptographySecrets, testAuthedRequest} from "../../utils/testUti
 import {installRestRoutes} from "../rest/installRestRoutes";
 import {installStripeEventWebhookRest} from "./installStripeEventWebhookRest";
 import * as chai from "chai";
-import {
-    setStubsForStripeTests,
-    stripeLiveMerchantConfig,
-    unsetStubsForStripeTests
-} from "../../utils/testUtils/stripeTestUtils";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
 import * as stripe from "stripe";
 import {
     assertTransactionChainContainsTypes,
@@ -34,7 +30,7 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
 
         await setCodeCryptographySecrets();
 
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
     });
 
     after(() => {
@@ -83,8 +79,8 @@ describe("/v2/stripeEventWebhook - irreversible Lightrail Transactions", () => {
         const webhookEventSetup = await setupForWebhookEvent(restRouter, {initialCheckoutReq: {pending: true}});
 
         const refund = await createRefund({
-            charge: webhookEventSetup.stripeStep.charge.id
-        }, true, stripeLiveMerchantConfig.stripeUserId);
+            charge: webhookEventSetup.stripeStep.chargeId
+        }, true, testUtils.defaultTestUser.stripeAccountId);
         const stripeChargeMock = buildStripeFraudRefundedChargeMock(webhookEventSetup.finalStateStripeCharge, refund);
         const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", stripeChargeMock));
         chai.assert.equal(webhookResp.statusCode, 204);

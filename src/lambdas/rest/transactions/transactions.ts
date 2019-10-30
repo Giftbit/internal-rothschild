@@ -6,7 +6,8 @@ import {
     filterForUsedAttaches,
     getContactIdFromSources,
     getLightrailValues,
-    getTransactionPlanStepsFromSources
+    getTransactionPlanStepsFromSources,
+    ResolveTransactionPartiesOptions
 } from "./resolveTransactionPlanSteps";
 import {
     CaptureRequest,
@@ -309,14 +310,14 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
             allowRemainder: checkout.allowRemainder
         },
         async () => {
-            const fetchedValues = await getLightrailValues(auth, {
+            const resolveOptions: ResolveTransactionPartiesOptions = {
                 currency: checkout.currency,
-                parties: checkout.sources,
                 transactionId: checkout.id,
                 nonTransactableHandling: "exclude",
                 includeZeroBalance: !!checkout.allowRemainder,
                 includeZeroUsesRemaining: !!checkout.allowRemainder,
-            });
+            };
+            const fetchedValues = await getLightrailValues(auth, checkout.sources, resolveOptions);
 
             // handle auto attach on generic codes
             const valuesToAttach: Value[] = fetchedValues.filter(v => Value.isGenericCodeWithPropertiesPerContact(v));
@@ -330,10 +331,9 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
             }
 
             const checkoutTransactionPlanSteps = getTransactionPlanStepsFromSources(
-                checkout.id,
-                checkout.currency,
                 valuesForCheckout,
-                checkout.sources.filter(src => src.rail !== "lightrail") as (StripeTransactionParty | InternalTransactionParty)[]
+                checkout.sources.filter(src => src.rail !== "lightrail") as (StripeTransactionParty | InternalTransactionParty)[],
+                resolveOptions
             );
 
             const checkoutTransactionPlan: TransactionPlan = getCheckoutTransactionPlan(checkout, checkoutTransactionPlanSteps);

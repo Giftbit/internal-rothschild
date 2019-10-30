@@ -259,7 +259,7 @@ describe("/v2/transactions", () => {
                     paidLightrail: 50,
                     paidStripe: 0,
                     remainder: 0,
-                    forgiven: 0
+                    forgiven: 0,
                 },
                 lineItems: [
                     {
@@ -357,13 +357,16 @@ describe("/v2/transactions", () => {
                     userId: testUtils.defaultTestUser.userId,
                     id: idAndDate.id,
                 })
-                .update({
-                    ...Transaction.toDbTransaction(testUtils.defaultTestUser.auth, {
-                        ...response.body,
-                        createdDate: idAndDate.createdDate
-                    }),
-                    rootTransactionId: response.body.id
-                });
+                .update(
+                    Transaction.toDbTransaction(
+                        testUtils.defaultTestUser.auth,
+                        {
+                            ...response.body,
+                            createdDate: idAndDate.createdDate
+                        },
+                        response.body.id
+                    )
+                );
             if (res === 0) {
                 chai.assert.fail(`No row updated. Test data failed during setup..`);
             }

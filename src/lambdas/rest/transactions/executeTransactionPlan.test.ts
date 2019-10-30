@@ -81,7 +81,9 @@ describe("rest/transactions/executeTransactionPlan", () => {
                     value: await DbValue.toValue(value),
                     amount: -3500,    // more than is in the value
                     uses: null,
-                    action: "update"
+                    action: "update",
+                    allowCanceled: false,
+                    allowFrozen: false
                 }
             ],
             totals: {remainder: 0},
@@ -163,7 +165,9 @@ describe("rest/transactions/executeTransactionPlan", () => {
                     value: await DbValue.toValue(value),
                     amount: -1200,
                     uses: -1,
-                    action: "update"
+                    action: "update",
+                    allowCanceled: false,
+                    allowFrozen: true
                 }
             ],
             totals: {remainder: null},
