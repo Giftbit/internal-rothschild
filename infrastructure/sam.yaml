@@ -657,7 +657,7 @@ Resources:
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeRetrieveStripeAuth.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/code_cryptography_secrets.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/stripe_connect.json
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/stripe_connect.json"
             - Effect: Allow
               Action:
                 - kms:Decrypt
