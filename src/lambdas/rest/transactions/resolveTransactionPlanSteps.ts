@@ -139,21 +139,40 @@ export async function getLightrailValues(auth: giftbitRoutes.jwtauth.Authorizati
      * Note, contactId is also returned in an extra column 'contactIdForResult' to make the union between Values
      *  and ContactValues work.
      */
-    let query = knex.select("*").from(queryBuilder =>  {
+    let query = knex.select("*").from(queryBuilder => {
         if (contactIds.length) {
-            queryBuilder.union(knex.raw("SELECT V.*, CV.contactId AS contactIdForResult FROM `Values` V JOIN `ContactValues` CV ON V.`userId` = CV.`userId` AND V.`id` = CV.`valueId` WHERE CV.`userId` = ? AND CV.contactId IN (?)", [auth.userId, contactIds]));
-            queryBuilder.union(knex.select("*", "contactId as contactIdForResult").from("Values")
-                .where("userId", "=", auth.userId).andWhere("contactId", "in", contactIds));
+            queryBuilder.union(
+                knex.select("V.*", "CV.contactId AS contactIdForResult")
+                    .from("Values AS V")
+                    .join("ContactValues AS CV", {"V.userId": "CV.userId", "V.id": "CV.valueId"})
+                    .where({"CV.userId": auth.userId})
+                    .andWhere("CV.contactId", "in", contactIds)
+            );
+
+            queryBuilder.union(
+                knex.select("*", "contactId as contactIdForResult")
+                    .from("Values")
+                    .where({"userId": auth.userId})
+                    .andWhere("contactId", "in", contactIds)
+            );
         }
 
         if (hashedCodes.length) {
-            queryBuilder.union(knex.select("*", "contactId as contactIdForResult").from("Values")
-                .where("userId", "=", auth.userId).andWhere("codeHashed", "in", hashedCodes));
+            queryBuilder.union(
+                knex.select("*", "contactId as contactIdForResult")
+                    .from("Values")
+                    .where({"userId": auth.userId})
+                    .andWhere("codeHashed", "in", hashedCodes)
+            );
         }
 
         if (valueIds.length) {
-            queryBuilder.union(knex.select("*", "contactId as contactIdForResult").from("Values")
-                .where("userId", "=", auth.userId).andWhere("id", "in", valueIds));
+            queryBuilder.union(
+                knex.select("*", "contactId as contactIdForResult")
+                    .from("Values")
+                    .where({"userId": auth.userId})
+                    .andWhere("id", "in", valueIds)
+            );
         }
 
         queryBuilder.as("TT");
