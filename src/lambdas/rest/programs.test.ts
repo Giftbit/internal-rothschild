@@ -2044,6 +2044,21 @@ describe("/v2/programs", () => {
             });
             chai.assert.equal(update.statusCode, 422, `body=${JSON.stringify(update.body)}`);
         });
+        
+        it("can't set discountSellerLiabilityRule to a rule that doesn't compile", async () => {
+            const program: Partial<Program> = {
+                id: generateId(),
+                name: "name",
+                currency: "USD",
+                discount: true,
+                discountSellerLiabilityRule: {
+                    rule: "currentLineItem.lineTotal.subtotal * (0.1",
+                    explanation: "unclosed parenthesis"
+                }
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/programs`, "POST", program);
+            chai.assert.equal(create.statusCode, 422, `body=${JSON.stringify(create.body)}`);
+        });
     });
 
     it("can't create a program with duplicate fixedInitialUsesRemaining", async () => {

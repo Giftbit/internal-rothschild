@@ -1,5 +1,5 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {formatDiscountSellerLiabilityRuleAsNumber, Rule} from "./Value";
+import {discountSellerLiabilityRuleToNumber, Rule} from "./Value";
 import {pickDefined} from "../utils/pick";
 
 export interface Program {
@@ -103,7 +103,7 @@ export namespace DbProgram {
             name: v.name,
             currency: v.currency,
             discount: v.discount,
-            discountSellerLiability: formatDiscountSellerLiabilityRuleAsNumber(JSON.parse(v.discountSellerLiabilityRule)),
+            discountSellerLiability: discountSellerLiabilityRuleToNumber(JSON.parse(v.discountSellerLiabilityRule)),
             discountSellerLiabilityRule: JSON.parse(v.discountSellerLiabilityRule),
             pretax: v.pretax,
             active: v.active,

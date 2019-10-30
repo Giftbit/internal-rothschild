@@ -12,6 +12,7 @@ import {getProgram} from "./programs";
 import {Value} from "../../model/Value";
 import {CodeParameters} from "../../model/CodeParameters";
 import {createValue} from "./values/createValue";
+import {ruleSchema} from "./transactions/rules/ruleSchema";
 import log = require("loglevel");
 
 export function installIssuancesRest(router: cassava.Router): void {
@@ -295,42 +296,12 @@ const issuanceSchema: jsonschema.Schema = {
             }
         },
         redemptionRule: {
-            oneOf: [
-                {
-                    type: "null"
-                },
-                {
-                    title: "Redemption rule",
-                    type: "object",
-                    properties: {
-                        rule: {
-                            type: "string"
-                        },
-                        explanation: {
-                            type: "string"
-                        }
-                    }
-                }
-            ]
+            ...ruleSchema,
+            title: "Redemption rule"
         },
         balanceRule: {
-            oneOf: [
-                {
-                    type: "null"
-                },
-                {
-                    title: "Balance rule",
-                    type: "object",
-                    properties: {
-                        rule: {
-                            type: "string"
-                        },
-                        explanation: {
-                            type: "string"
-                        }
-                    }
-                }
-            ]
+            ...ruleSchema,
+            title: "Balance rule"
         },
         startDate: {
             type: ["string", "null"],

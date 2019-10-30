@@ -34,6 +34,7 @@ import {
 import {hasContactValues} from "../contactValues";
 import {QueryBuilder} from "knex";
 import {MetricsLogger} from "../../../utils/metricsLogger";
+import {ruleSchema} from "../transactions/rules/ruleSchema";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -835,65 +836,19 @@ const valueSchema: jsonschema.Schema = {
             type: "boolean"
         },
         redemptionRule: {
-            oneOf: [
-                {
-                    type: "null"
-                },
-                {
-                    title: "Redemption rule",
-                    type: "object",
-                    properties: {
-                        rule: {
-                            type: "string"
-                        },
-                        explanation: {
-                            type: "string"
-                        }
-                    }
-                }
-            ]
+            ...ruleSchema,
+            title: "Redemption rule",
         },
         balanceRule: {
-            oneOf: [
-                {
-                    type: "null"
-                },
-                {
-                    title: "Balance rule",
-                    type: "object",
-                    properties: {
-                        rule: {
-                            type: "string"
-                        },
-                        explanation: {
-                            type: "string"
-                        }
-                    }
-                }
-            ]
+            ...ruleSchema,
+            title: "Balance rule"
         },
         discount: {
             type: "boolean"
         },
         discountSellerLiabilityRule: {
-            title: "DiscountSellerLiability rule",
-            oneOf: [
-                {
-                    type: "null"
-                },
-                {
-                    title: "Rule",
-                    type: "object",
-                    properties: {
-                        rule: {
-                            type: "string"
-                        },
-                        explanation: {
-                            type: "string"
-                        }
-                    }
-                }
-            ]
+            ...ruleSchema,
+            title: "DiscountSellerLiability rule"
         },
         discountSellerLiability: {
             type: ["number", "null"],

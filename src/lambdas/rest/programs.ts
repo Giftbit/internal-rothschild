@@ -14,8 +14,9 @@ import {
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {ProgramStats} from "../../model/ProgramStats";
 import {checkRulesSyntax} from "./transactions/rules/RuleContext";
-import {formatDiscountSellerLiabilityAsRule, formatDiscountSellerLiabilityRuleAsNumber} from "../../model/Value";
+import {discountSellerLiabilityRuleToNumber, discountSellerLiabilityToRule} from "../../model/Value";
 import {MetricsLogger} from "../../utils/metricsLogger";
+import {ruleSchema} from "./transactions/rules/ruleSchema";
 import log = require("loglevel");
 
 export function installProgramsRest(router: cassava.Router): void {
@@ -78,9 +79,9 @@ export function installProgramsRest(router: cassava.Router): void {
 
             if (program.discountSellerLiability != null) {
                 MetricsLogger.legacyDiscountSellerLiabilitySet("programCreate", auth);
-                program.discountSellerLiabilityRule = formatDiscountSellerLiabilityAsRule(program.discountSellerLiability);
+                program.discountSellerLiabilityRule = discountSellerLiabilityToRule(program.discountSellerLiability);
             } else if (program.discountSellerLiabilityRule != null) {
-                program.discountSellerLiability = formatDiscountSellerLiabilityRuleAsNumber(program.discountSellerLiabilityRule);
+                program.discountSellerLiability = discountSellerLiabilityRuleToNumber(program.discountSellerLiabilityRule);
             }
 
             return {
@@ -274,10 +275,10 @@ async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
         };
         // Can be removed when discountSellerLiability is removed from API.
         if (programUpdates.discountSellerLiability != null) {
-            updatedProgram.discountSellerLiabilityRule = formatDiscountSellerLiabilityAsRule(updatedProgram.discountSellerLiability);
+            updatedProgram.discountSellerLiabilityRule = discountSellerLiabilityToRule(updatedProgram.discountSellerLiability);
             MetricsLogger.legacyDiscountSellerLiabilitySet("programUpdate", auth);
         } else if (programUpdates.discountSellerLiabilityRule != null) {
-            updatedProgram.discountSellerLiability = formatDiscountSellerLiabilityRuleAsNumber(programUpdates.discountSellerLiabilityRule);
+            updatedProgram.discountSellerLiability = discountSellerLiabilityRuleToNumber(programUpdates.discountSellerLiabilityRule);
         }
 
         checkProgramProperties(updatedProgram);
@@ -567,24 +568,8 @@ const programSchema: jsonschema.Schema = {
             type: "boolean"
         },
         discountSellerLiabilityRule: {
-            title: "DiscountSellerLiability rule",
-            oneOf: [
-                {
-                    type: "null"
-                },
-                {
-                    title: "rule",
-                    type: "object",
-                    properties: {
-                        rule: {
-                            type: "string"
-                        },
-                        explanation: {
-                            type: "string"
-                        }
-                    }
-                }
-            ]
+            ...ruleSchema,
+            title: "DiscountSellerLiability rule"
         },
         discountSellerLiability: {
             type: ["number", "null"],
@@ -598,42 +583,12 @@ const programSchema: jsonschema.Schema = {
             type: "boolean"
         },
         redemptionRule: {
-            oneOf: [ // todo can we export this schema for a rule so that it's not duplicated?
-                {
-                    type: "null"
-                },
-                {
-                    title: "Redemption rule",
-                    type: "object",
-                    properties: {
-                        rule: {
-                            type: "string"
-                        },
-                        explanation: {
-                            type: "string"
-                        }
-                    }
-                }
-            ]
+            ...ruleSchema,
+            title: "Redemption rule",
         },
         balanceRule: {
-            oneOf: [
-                {
-                    type: "null"
-                },
-                {
-                    title: "Balance rule",
-                    type: "object",
-                    properties: {
-                        rule: {
-                            type: "string"
-                        },
-                        explanation: {
-                            type: "string"
-                        }
-                    }
-                }
-            ]
+            ...ruleSchema,
+            title: "Balance rule"
         },
         minInitialBalance: {
             type: ["number", "null"],

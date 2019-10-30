@@ -1,11 +1,7 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
 import * as Knex from "knex";
-import {
-    formatDiscountSellerLiabilityAsRule,
-    formatDiscountSellerLiabilityRuleAsNumber,
-    Value
-} from "../../../model/Value";
+import {discountSellerLiabilityRuleToNumber, discountSellerLiabilityToRule, Value} from "../../../model/Value";
 import {dateInDbPrecision, nowInDbPrecision} from "../../../utils/dbUtils/index";
 import * as cassava from "cassava";
 import {MetricsLogger, ValueAttachmentTypes} from "../../../utils/metricsLogger";
@@ -124,9 +120,9 @@ export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
  */
 export function setDiscountSellerLiabilityPropertiesForLegacySupport(v: Value): Value {
     if (v.discountSellerLiabilityRule != null) {
-        v.discountSellerLiability = formatDiscountSellerLiabilityRuleAsNumber(v.discountSellerLiabilityRule);
+        v.discountSellerLiability = discountSellerLiabilityRuleToNumber(v.discountSellerLiabilityRule);
     } else if (v.discountSellerLiability != null) {
-        v.discountSellerLiabilityRule = formatDiscountSellerLiabilityAsRule(v.discountSellerLiability);
+        v.discountSellerLiabilityRule = discountSellerLiabilityToRule(v.discountSellerLiability);
     }
     return v;
 }

@@ -1,15 +1,15 @@
 import * as chai from "chai";
-import {formatDiscountSellerLiabilityAsRule, formatDiscountSellerLiabilityRuleAsNumber, Rule, Value} from "../Value";
+import {discountSellerLiabilityRuleToNumber, discountSellerLiabilityToRule, Rule, Value} from "../Value";
 
 describe("Value", () => {
-    describe("formatDiscountSellerLiabilityRuleForLegacySupport", () => {
+    describe("discountSellerLiabilityRuleToNumber", () => {
         it("returns null if null", async () => {
-            const res = formatDiscountSellerLiabilityRuleAsNumber(null);
+            const res = discountSellerLiabilityRuleToNumber(null);
             chai.assert.isNull(res);
         });
 
         it("returns number from string that evaluates to number", async () => {
-            const res = formatDiscountSellerLiabilityRuleAsNumber({
+            const res = discountSellerLiabilityRuleToNumber({
                 rule: "0.05",
                 explanation: "5%"
             });
@@ -17,7 +17,7 @@ describe("Value", () => {
         });
 
         it("returns null from a rule", async () => {
-            const res = formatDiscountSellerLiabilityRuleAsNumber({
+            const res = discountSellerLiabilityRuleToNumber({
                 rule: "1 - currentLineItem.marketplaceRate",
                 explanation: "proportional shared with marketplace"
             });
@@ -25,10 +25,10 @@ describe("Value", () => {
         });
     });
 
-    describe("formatDiscountSellerLiabilityAsRule", () => {
+    describe("discountSellerLiabilityToRule", () => {
         it("returns null if null", async () => {
             const v: Partial<Value> = {};
-            const res: Rule | null = formatDiscountSellerLiabilityAsRule(null);
+            const res: Rule | null = discountSellerLiabilityToRule(null);
             chai.assert.isNull(res);
         });
 
@@ -36,7 +36,7 @@ describe("Value", () => {
             const v: Partial<Value> = {
                 discountSellerLiability: 0.45
             };
-            const res: Rule | null = formatDiscountSellerLiabilityAsRule(0.45);
+            const res: Rule | null = discountSellerLiabilityToRule(0.45);
             chai.assert.deepEqual(res, {
                 rule: "0.45",
                 explanation: ""

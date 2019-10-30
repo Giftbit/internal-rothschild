@@ -128,7 +128,7 @@ function calculateAmountForLightrailTransactionStep(step: LightrailUpdateTransac
  */
 function getDiscountSellerLiability(transactionPlan: TransactionPlan, step: LightrailUpdateTransactionPlanStep, item: LineItemResponse): number {
     let discountSellerLiability = getRuleContext(transactionPlan, step, item).evaluateDiscountSellerLiabilityRule(step.value.discountSellerLiabilityRule);
-    return Math.min(1, Math.max(0, <number>discountSellerLiability));
+    return Math.min(1, Math.max(0, discountSellerLiability));
 }
 
 function calculateAmountForStripeTransactionStep(step: StripeChargeTransactionPlanStep, transactionPlan: TransactionPlan): void {

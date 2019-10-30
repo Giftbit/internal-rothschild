@@ -757,6 +757,21 @@ describe("/v2/values/", () => {
             });
             chai.assert.equal(update.statusCode, 422, `body=${JSON.stringify(update.body)}`);
         });
+
+        it("can't set discountSellerLiabilityRule to a rule that doesn't compile", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: true,
+                discountSellerLiabilityRule: {
+                    rule: "currentLineItem.lineTotal.subtotal * (0.1",
+                    explanation: "unclosed parenthesis"
+                }
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 422, `body=${JSON.stringify(create.body)}`);
+        });
     });
 
     it("can't create Value with balance and balanceRule", async () => {

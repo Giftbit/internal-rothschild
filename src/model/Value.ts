@@ -184,7 +184,7 @@ export namespace DbValue {
             canceled: !!v.canceled,
             frozen: !!v.frozen,
             discount: !!v.discount,
-            discountSellerLiability: formatDiscountSellerLiabilityRuleAsNumber(JSON.parse(v.discountSellerLiabilityRule)),
+            discountSellerLiability: discountSellerLiabilityRuleToNumber(JSON.parse(v.discountSellerLiabilityRule)),
             discountSellerLiabilityRule: JSON.parse(v.discountSellerLiabilityRule),
             redemptionRule: JSON.parse(v.redemptionRule),
             balanceRule: JSON.parse(v.balanceRule),
@@ -215,11 +215,11 @@ export function formatCodeForLastFourDisplay(code: string): string {
     return "…" + getCodeLastFourNoPrefix(code);
 }
 
-/**
+/*
  * If discountSellerLiabilityRule can directly correspond to a number this will return a number.
  * Otherwise, returns null since discountSellerLiabilityRule is either a rule or null.
  */
-export function formatDiscountSellerLiabilityRuleAsNumber(discountSellerLiabilityRule: Rule | null): number | null {
+export function discountSellerLiabilityRuleToNumber(discountSellerLiabilityRule: Rule | null): number | null {
     if (!discountSellerLiabilityRule || isNaN(+discountSellerLiabilityRule.rule)) {
         return null;
     } else {
@@ -227,7 +227,7 @@ export function formatDiscountSellerLiabilityRuleAsNumber(discountSellerLiabilit
     }
 }
 
-export function formatDiscountSellerLiabilityAsRule(discountSellerLiability: number | null): Rule | null {
+export function discountSellerLiabilityToRule(discountSellerLiability: number | null): Rule | null {
     if (discountSellerLiability != null) {
         return {
             rule: `${discountSellerLiability}`,
