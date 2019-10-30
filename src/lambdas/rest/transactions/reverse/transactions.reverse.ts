@@ -20,7 +20,7 @@ import {GiftbitRestError} from "giftbit-cassava-routes";
 import {getDbTransaction, getTransaction} from "../transactions";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
 import {Value} from "../../../../model/Value";
-import {getValues} from "../../values/values";
+import {getDbValuesByTransaction, getValues} from "../../values/values";
 import log = require("loglevel");
 
 export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: ReverseRequest, transactionIdToReverse: string): Promise<TransactionPlan> {
@@ -57,6 +57,12 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
         lastDbTransaction.transactionType === "capture"
             ? await getTransaction(auth, lastDbTransaction.rootTransactionId)
             : (await DbTransaction.toTransactions([lastDbTransaction], auth.userId))[0];
+
+    const values = await getDbValuesByTransaction(auth, transactionToReverse);
+    const frozenValue = values.find(value => value.frozen);
+    if (frozenValue) {
+        throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot reverse Transaction because value. '${frozenValue.id}' is frozen.`, "ValueFrozen");
+    }
 
     return {
         id: req.id,
@@ -108,7 +114,7 @@ function getReverseForLightrailTransactionStep(auth: giftbitRoutes.jwtauth.Autho
         amount: step.balanceChange != null ? -step.balanceChange : null,
         uses: step.usesRemainingChange != null ? -step.usesRemainingChange : null,
         action: "update",
-        allowCanceled: false,
+        allowCanceled: true,
         allowFrozen: false
     };
 }
