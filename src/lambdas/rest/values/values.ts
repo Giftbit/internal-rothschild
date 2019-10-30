@@ -35,7 +35,6 @@ import {hasContactValues} from "../contactValues";
 import {QueryBuilder} from "knex";
 import {MetricsLogger} from "../../../utils/metricsLogger";
 import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
-import {MetricsLogger} from "../../../utils/metricsLogger";
 import {ruleSchema} from "../transactions/rules/ruleSchema";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
