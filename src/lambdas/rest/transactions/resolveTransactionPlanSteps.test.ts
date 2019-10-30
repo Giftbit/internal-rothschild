@@ -167,6 +167,18 @@ describe("resolveTransactionPlanSteps", () => {
             let contact1_attachedValues: Value[] = [];
             let contact2_attachedValues: Value[] = [];
 
+            /**
+             * Returns enough identifers to assert that the value is the one we expect without needing to exclude dates etc
+             */
+            function mapValueIdentifiers(value: Value) {
+                return {
+                    id: value.id,
+                    attachedFromValueId: value.attachedFromValueId,
+                    contactId: value.isGenericCode && !value.genericCodeOptions ? null : value.contactId,
+                    code: value.code
+                }
+            }
+
             before(async () => {
                 await testUtils.createUSD(router);
 
@@ -190,6 +202,17 @@ describe("resolveTransactionPlanSteps", () => {
                 contact2_attachedValues.push(attachPerContactResp.body);
             });
 
+            beforeEach(async () => {
+                // make sure that the cached list of values attached to each contact is accurate
+                const contact1ValuesResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?contactId=${contact1.id}`, "GET");
+                chai.assert.equal(contact1ValuesResp.statusCode, 200, `contact1ValuesResp.body=${JSON.stringify(contact1ValuesResp.body)}`);
+                chai.assert.sameDeepMembers(contact1ValuesResp.body.map(v => mapValueIdentifiers(v)), contact1_attachedValues.map(v => mapValueIdentifiers(v)), `fetched values for contact1 do not match cached list: fetched=${JSON.stringify(contact1ValuesResp.body)}, cached=${JSON.stringify(contact1_attachedValues)}`);
+
+                const contact2ValuesResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?contactId=${contact2.id}`, "GET");
+                chai.assert.equal(contact2ValuesResp.statusCode, 200, `contact2ValuesResp.body=${JSON.stringify(contact2ValuesResp.body)}`);
+                chai.assert.sameDeepMembers(contact2ValuesResp.body.map(v => mapValueIdentifiers(v)), contact2_attachedValues.map(v => mapValueIdentifiers(v)), `fetched values for contact2 do not match cached list: fetched=${JSON.stringify(contact2ValuesResp.body)}, cached=${JSON.stringify(contact2_attachedValues)}`);
+            });
+
             it("gets values associated with one contactId", async () => {
                 const contact2AsTransactionSource: ResolveTransactionPartiesOptions = {
                     ...txPartiesTemplate,
@@ -198,8 +221,7 @@ describe("resolveTransactionPlanSteps", () => {
                 };
                 const valuesByContactId2 = await getLightrailValues(testUtils.defaultTestUser.auth, contact2AsTransactionSource);
                 chai.assert.equal(valuesByContactId2.length, 1, `valuesByContactId2: ${JSON.stringify(valuesByContactId2)}`);
-                chai.assert.equal(valuesByContactId2[0].attachedFromValueId, value4_perContactGeneric.id, `valuesByContactId2: ${JSON.stringify(valuesByContactId2)}`);
-                chai.assert.equal(valuesByContactId2[0].contactId, contact2.id, `valuesByContactId2: ${JSON.stringify(valuesByContactId2)}`);
+                chai.assert.sameDeepMembers(valuesByContactId2.map(v => mapValueIdentifiers(v)), contact2_attachedValues.map(v => mapValueIdentifiers(v)), `valuesByContactId2=${JSON.stringify(valuesByContactId2)}`);
 
                 const contact1AsTransactionSource: ResolveTransactionPartiesOptions = {
                     ...txPartiesTemplate,
@@ -207,14 +229,7 @@ describe("resolveTransactionPlanSteps", () => {
                     parties: [{rail: "lightrail", contactId: contact1.id}]
                 };
                 const valuesByContactId1 = await getLightrailValues(testUtils.defaultTestUser.auth, contact1AsTransactionSource);
-                chai.assert.equal(valuesByContactId1.length, 2, `valuesByContactId1: ${JSON.stringify(valuesByContactId1)}`);
-                chai.assert.equal(valuesByContactId1[0].contactId, contact1.id, `valuesByContactId1[0].contactId=${valuesByContactId1[0].contactId}; valueId=${valuesByContactId1[0].id}`);
-                chai.assert.equal(valuesByContactId1[1].contactId, contact1.id, `valuesByContactId1[1].contactId=${valuesByContactId1[1].contactId}; valueId=${valuesByContactId1[1].id}`);
-                chai.assert.deepEqualExcluding(valuesByContactId1.find(v => v.id === value2_uniqueCodeContact.id), value2_uniqueCodeContact, ["attachedFromValueId", "createdDate", "updatedDate", "updatedContactIdDate", "genericCodeOptions"], `valuesByContactId1: ${JSON.stringify(valuesByContactId1)}`);
-                chai.assert.deepEqualExcluding(valuesByContactId1.find(v => v.id === value3_sharedGeneric.id), {
-                    ...value3_sharedGeneric,
-                    contactId: contact1.id
-                }, ["attachedFromValueId", "createdDate", "updatedDate"], `valuesByContactId1: ${JSON.stringify(valuesByContactId1)}`);
+                chai.assert.sameDeepMembers(valuesByContactId1.map(v => mapValueIdentifiers(v)), contact1_attachedValues.map(v => mapValueIdentifiers(v)), `valuesByContactId1=${JSON.stringify(valuesByContactId1)}`);
             });
 
             it("gets values associated with two contactIds", async () => {
@@ -230,12 +245,7 @@ describe("resolveTransactionPlanSteps", () => {
                     }]
                 };
                 const valuesByContactIds = await getLightrailValues(testUtils.defaultTestUser.auth, contactsAsTransactionSources);
-                chai.assert.equal(valuesByContactIds.length, 3);
-                chai.assert.deepEqualExcluding(valuesByContactIds.find(v => v.id === value2_uniqueCodeContact.id), value2_uniqueCodeContact, ["attachedFromValueId", "createdDate", "updatedDate", "updatedContactIdDate", "genericCodeOptions"]);
-                chai.assert.equal(valuesByContactIds.find(v => v.id === value3_sharedGeneric.id).contactId, contact1.id);
-                chai.assert.deepEqualExcluding(valuesByContactIds.find(v => v.id === value3_sharedGeneric.id), value3_sharedGeneric, ["attachedFromValueId", "createdDate", "updatedDate", "updatedContactIdDate", "genericCodeOptions", "contactId"]);
-                chai.assert.isObject(valuesByContactIds.find(v => v.attachedFromValueId === value4_perContactGeneric.id));
-                chai.assert.equal(valuesByContactIds.find(v => v.attachedFromValueId === value4_perContactGeneric.id).contactId, contact2.id);
+                chai.assert.sameDeepMembers(valuesByContactIds.map(v => mapValueIdentifiers(v)), [...contact1_attachedValues, ...contact2_attachedValues].map(v => mapValueIdentifiers(v)), `valuesByContactIds=${JSON.stringify(valuesByContactIds)}`);
             });
 
             it("gets values by code", async () => {
@@ -315,27 +325,19 @@ describe("resolveTransactionPlanSteps", () => {
             });
 
             it("does not duplicate shared generic Value if attached to contact in sources and also passed anonymously", async () => {
-                const attachedValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?contactId=${contact1.id}`, "GET");
-                chai.assert.equal(attachedValues.statusCode, 200, `attachedValues.body=${JSON.stringify(attachedValues.body)}`);
-                chai.assert.equal(attachedValues.body.length, 2, `attachedValues.body=${JSON.stringify(attachedValues.body)}`);
-                chai.assert.sameMembers(attachedValues.body.map(v => v.id), contact1_attachedValues.map(v => v.id), `attachedValues IDs '${attachedValues.body.map(v => v.id)}' should match contact1_attachedValues IDs '${contact1_attachedValues.map(v => v.id)}'`);
-
                 const dupedSources: ResolveTransactionPartiesOptions = {
                     ...txPartiesTemplate,
                     currency: currency.code,
                     parties: [{
                         rail: "lightrail",
-                        code: value3_sharedGeneric.code
+                        code: value3_sharedGeneric.code // attached to contact1
                     }, {
                         rail: "lightrail",
                         contactId: contact1.id
                     }]
                 };
                 const values = await getLightrailValues(testUtils.defaultTestUser.auth, dupedSources);
-                chai.assert.equal(values.length, 2);
-                chai.assert.equal(values[0].contactId, contact1.id);
-                chai.assert.equal(values[1].contactId, contact1.id);
-                chai.assert.sameMembers(values.map(v => v.id), contact1_attachedValues.map(v => v.id), `values IDs '${values.map(v => v.id)}' should match contact1_attachedValues IDs '${contact1_attachedValues.map(v => v.id)}'`);
+                chai.assert.sameDeepMembers(values.map(v => mapValueIdentifiers(v)), contact1_attachedValues.map(v => mapValueIdentifiers(v)), `values=${JSON.stringify(values)}`);
             });
 
             it("gets multiple values by different identifiers", async () => {
@@ -357,11 +359,7 @@ describe("resolveTransactionPlanSteps", () => {
                     }],
                 };
                 const values = await getLightrailValues(testUtils.defaultTestUser.auth, multiIdentiferSources);
-                chai.assert.equal(values.length, 3);
-                chai.assert.deepEqualExcluding(values.find(v => v.id === value1_uniqueCode.id), value1_uniqueCode, ["createdDate", "updatedDate", "genericCodeOptions", "attachedFromValueId", "updatedContactIdDate"]);
-                chai.assert.deepEqualExcluding(values.find(v => v.id === value2_uniqueCodeContact.id), value2_uniqueCodeContact, ["createdDate", "updatedDate", "genericCodeOptions", "attachedFromValueId", "updatedContactIdDate"]);
-                chai.assert.isObject(values.find(v => v.attachedFromValueId === value4_perContactGeneric.id));
-                chai.assert.equal(values.find(v => v.attachedFromValueId === value4_perContactGeneric.id).contactId, contact2.id);
+                chai.assert.sameDeepMembers(values.map(v => mapValueIdentifiers(v)), [value1_uniqueCode, value2_uniqueCodeContact, ...contact2_attachedValues].map(v => mapValueIdentifiers(v as Value)), `values=${JSON.stringify(values)}`);
             });
 
             it("excludes sources with zero balance when includeZeroBalance=false", async () => {
@@ -391,7 +389,7 @@ describe("resolveTransactionPlanSteps", () => {
                 chai.assert.equal((value1_zeroBalanceResp.body.steps[0] as LightrailTransactionStep).balanceAfter, 0, `value1_zeroBalanceResp.body.steps=${value1_zeroBalanceResp.body.steps}`);
 
                 const valueShouldStillBeReturned = await getLightrailValues(testUtils.defaultTestUser.auth, sources_includeZeroBalance);
-                chai.assert.sameMembers(valueShouldStillBeReturned.map(v => v.id), valueShouldBeReturned.map(v => v.id));
+                chai.assert.sameDeepMembers(valueShouldStillBeReturned.map(v => mapValueIdentifiers(v)), valueShouldBeReturned.map(v => mapValueIdentifiers(v)));
 
                 const sources_excludeZeroBalance: ResolveTransactionPartiesOptions = {
                     ...sources_includeZeroBalance,
@@ -427,7 +425,7 @@ describe("resolveTransactionPlanSteps", () => {
                 chai.assert.equal((value2_zeroUsesRemainingResp.body.steps[0] as LightrailTransactionStep).usesRemainingAfter, 0, `value2_zeroUsesRemainingResp.body.steps=${value2_zeroUsesRemainingResp.body.steps}`);
 
                 const valueShouldStillBeReturned = await getLightrailValues(testUtils.defaultTestUser.auth, sources_includeZeroUses);
-                chai.assert.sameMembers(valueShouldStillBeReturned.map(v => v.id), valueShouldBeReturned.map(v => v.id));
+                chai.assert.sameDeepMembers(valueShouldStillBeReturned.map(v => mapValueIdentifiers(v)), valueShouldBeReturned.map(v => mapValueIdentifiers(v)));
 
                 const sources_excludeZeroUses: ResolveTransactionPartiesOptions = {
                     ...sources_includeZeroUses,
@@ -508,7 +506,7 @@ describe("resolveTransactionPlanSteps", () => {
 
                 // check that they still get returned when including non-transactable sources
                 const valuesAfterInvalidation = await getLightrailValues(testUtils.defaultTestUser.auth, sources_includeNonTransactable);
-                chai.assert.sameMembers(valuesAfterInvalidation.map(v => v.id), valuesWhileAllValid.map(v => v.id));
+                chai.assert.sameDeepMembers(valuesAfterInvalidation.map(v => mapValueIdentifiers(v)), valuesWhileAllValid.map(v => mapValueIdentifiers(v)));
 
                 // check that they DON'T get returned when excluding non-transactable sources
                 const sources_excludeNonTransactable: ResolveTransactionPartiesOptions = {
