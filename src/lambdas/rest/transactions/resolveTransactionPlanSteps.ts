@@ -196,8 +196,8 @@ export async function getLightrailValues(auth: giftbitRoutes.jwtauth.Authorizati
         query = query.where(q => q.whereNull("balance").orWhere("balance", ">", 0));
     }
 
-    const dbValues: DbValue[] = await query;
-    const dbValuesWithContactId: DbValue[] = dbValues.map((v: any) => ({
+    const dbValues: (DbValue & { contactIdForResult: string | null })[] = await query;
+    const dbValuesWithContactId: DbValue[] = dbValues.map((v) => ({
         ...v,
         contactId: v.contactId || v.contactIdForResult // Persist the contactId to the value record if it was looked up via the ContactValues table
     }));
