@@ -132,17 +132,14 @@ export async function getLightrailValues(auth: giftbitRoutes.jwtauth.Authorizati
     const now = nowInDbPrecision();
 
     /**
-     * Build query dynamically depending on what types of Value identifiers are used.
-     * The callback function builds the core part of the query properly ('TT') before adding the extra filters below
-     * (nonTransactableHandling, includeZeroUsesRemaining, includeZeroBalance).
-     * We have a composite index for userId + each of value ID/code/contactId so UNION is more efficient than OR WHERE.
-     * Note, contactId is also returned in an extra column 'contactIdForResult' to make the union between Values
-     *  and ContactValues work.
+     * Note on query structure: We have a composite index for userId + ID/code/contactId so it's more efficient to use
+     *  those in a set of UNION subqueries to build up the FROM clause, than it was to use 'OR WHERE code = ? OR WHERE
+     *  contactId = ?' ...etc, which resulted in a full table scan.
      */
     let query = knex.select("*").from(queryBuilder => {
         if (contactIds.length) {
             queryBuilder.union(
-                knex.select("V.*", "CV.contactId AS contactIdForResult")
+                knex.select("V.*", "CV.contactId AS contactIdForResult") // contactId returned in an extra column so it can be tracked for shared generics looked up by contactId
                     .from("Values AS V")
                     .join("ContactValues AS CV", {"V.userId": "CV.userId", "V.id": "CV.valueId"})
                     .where({"CV.userId": auth.userId})
