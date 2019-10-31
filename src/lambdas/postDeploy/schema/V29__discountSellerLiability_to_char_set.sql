@@ -5,7 +5,7 @@ ALTER TABLE rothschild.`Values`
 
 UPDATE rothschild.`Values` V
 SET V.discountSellerLiabilityRule = CONCAT('{"rule":"', CAST(V.discountSellerLiability as CHAR),
-                                           '", "explanation":"Legacy discountSellerLiability migration."}')
+                                           '", "explanation":"Populated from deprecated property discountSellerLiability."}')
 WHERE V.discountSellerLiability IS NOT NULL;
 
 ALTER TABLE rothschild.`Values`
@@ -16,7 +16,7 @@ ALTER TABLE rothschild.`Programs`
 
 UPDATE rothschild.`Programs` P
 SET P.discountSellerLiabilityRule = CONCAT('{"rule":"', CAST(P.discountSellerLiability as CHAR),
-                                           '", "explanation":"Legacy discountSellerLiability migration."}')
+                                           '", "explanation":"Populated from deprecated property discountSellerLiability."}')
 WHERE P.discountSellerLiability IS NOT NULL;
 
 ALTER TABLE rothschild.`Programs`

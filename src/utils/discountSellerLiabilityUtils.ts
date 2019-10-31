@@ -23,7 +23,7 @@ export namespace DiscountSellerLiabilityUtils {
         if (discountSellerLiability != null) {
             return {
                 rule: `${discountSellerLiability}`,
-                explanation: ""
+                explanation: "Populated from deprecated property discountSellerLiability."
             };
         } else {
             return null;

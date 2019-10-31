@@ -1793,7 +1793,8 @@ describe("/v2/programs", () => {
             chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
             chai.assert.equal(create.body.discountSellerLiability, 0.25);
             chai.assert.deepEqual(create.body.discountSellerLiabilityRule, {
-                rule: "0.25", explanation: ""
+                rule: "0.25",
+                explanation: "Populated from deprecated property discountSellerLiability."
             });
         });
 
@@ -1805,7 +1806,7 @@ describe("/v2/programs", () => {
                 discount: true,
                 discountSellerLiabilityRule: {
                     rule: "0.25",
-                    explanation: ""
+                    explanation: "Populated from deprecated property discountSellerLiability."
                 }
             };
             const create = await testUtils.testAuthedRequest<Program>(router, `/v2/programs`, "POST", program);
@@ -1847,7 +1848,7 @@ describe("/v2/programs", () => {
             chai.assert.equal(update.body.discountSellerLiability, 1.0);
             chai.assert.deepEqual(update.body.discountSellerLiabilityRule, {
                     rule: "1",
-                    explanation: ""
+                    explanation: "Populated from deprecated property discountSellerLiability."
                 }
             );
         });
@@ -1891,7 +1892,7 @@ describe("/v2/programs", () => {
             chai.assert.equal(create.body.discountSellerLiability, 0.25);
             chai.assert.deepEqual(create.body.discountSellerLiabilityRule, {
                 rule: "0.25",
-                explanation: ""
+                explanation: "Populated from deprecated property discountSellerLiability."
             });
 
             const discountSellerLiabilityRule: Rule = {
@@ -1932,7 +1933,7 @@ describe("/v2/programs", () => {
             chai.assert.equal(update.body.discountSellerLiability, 0.50);
             chai.assert.deepEqual(update.body.discountSellerLiabilityRule, {
                 rule: "0.5",
-                explanation: ""
+                explanation: "Populated from deprecated property discountSellerLiability."
             });
         });
 
@@ -1945,7 +1946,7 @@ describe("/v2/programs", () => {
                 discount: true,
                 discountSellerLiability: {
                     rule: "0.05",
-                    explanation: ""
+                    explanation: "5% off"
                 }
             };
             const create = await testUtils.testAuthedRequest<Program>(router, `/v2/programs`, "POST", program);
@@ -1962,7 +1963,7 @@ describe("/v2/programs", () => {
                 discountSellerLiability: null,
                 discountSellerLiabilityRule: {
                     rule: "0.05",
-                    explanation: ""
+                    explanation: "5% off"
                 }
             };
             const create = await testUtils.testAuthedRequest<Program>(router, `/v2/programs`, "POST", program);
@@ -1990,7 +1991,7 @@ describe("/v2/programs", () => {
                 discount: false,
                 discountSellerLiabilityRule: {
                     rule: "0.05",
-                    explanation: ""
+                    explanation: "5% off"
                 }
             };
             const create = await testUtils.testAuthedRequest<Value>(router, `/v2/programs`, "POST", program);
@@ -2011,7 +2012,7 @@ describe("/v2/programs", () => {
             chai.assert.equal(create.body.discountSellerLiability, 0.25);
             chai.assert.deepEqual(create.body.discountSellerLiabilityRule, {
                 rule: "0.25",
-                explanation: ""
+                explanation: "Populated from deprecated property discountSellerLiability."
             });
 
             const update = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${program.id}`, "PATCH", {
@@ -2044,7 +2045,7 @@ describe("/v2/programs", () => {
             });
             chai.assert.equal(update.statusCode, 422, `body=${JSON.stringify(update.body)}`);
         });
-        
+
         it("can't set discountSellerLiabilityRule to a rule that doesn't compile", async () => {
             const program: Partial<Program> = {
                 id: generateId(),
