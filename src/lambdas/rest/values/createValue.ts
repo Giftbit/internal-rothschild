@@ -1,7 +1,7 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
 import * as Knex from "knex";
-import {discountSellerLiabilityRuleToNumber, discountSellerLiabilityToRule, Value} from "../../../model/Value";
+import {Value} from "../../../model/Value";
 import {dateInDbPrecision, nowInDbPrecision} from "../../../utils/dbUtils/index";
 import * as cassava from "cassava";
 import {MetricsLogger, ValueAttachmentTypes} from "../../../utils/metricsLogger";
@@ -12,6 +12,7 @@ import {CreateValueParameters} from "./values";
 import {checkRulesSyntax} from "../transactions/rules/RuleContext";
 import {LightrailInsertTransactionPlanStep, TransactionPlan} from "../transactions/TransactionPlan";
 import {executeTransactionPlan} from "../transactions/executeTransactionPlans";
+import {DiscountSellerLiabilityUtils} from "../../../utils/discountSellerLiabilityUtils";
 import log = require("loglevel");
 
 export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: CreateValueParameters, trx: Knex.Transaction): Promise<Value> {
@@ -120,9 +121,9 @@ export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
  */
 export function setDiscountSellerLiabilityPropertiesForLegacySupport(v: Value): Value {
     if (v.discountSellerLiabilityRule != null) {
-        v.discountSellerLiability = discountSellerLiabilityRuleToNumber(v.discountSellerLiabilityRule);
+        v.discountSellerLiability = DiscountSellerLiabilityUtils.ruleToNumber(v.discountSellerLiabilityRule);
     } else if (v.discountSellerLiability != null) {
-        v.discountSellerLiabilityRule = discountSellerLiabilityToRule(v.discountSellerLiability);
+        v.discountSellerLiabilityRule = DiscountSellerLiabilityUtils.numberToRule(v.discountSellerLiability);
     }
     return v;
 }

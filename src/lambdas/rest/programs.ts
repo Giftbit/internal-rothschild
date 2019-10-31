@@ -14,9 +14,9 @@ import {
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {ProgramStats} from "../../model/ProgramStats";
 import {checkRulesSyntax} from "./transactions/rules/RuleContext";
-import {discountSellerLiabilityRuleToNumber, discountSellerLiabilityToRule} from "../../model/Value";
 import {MetricsLogger} from "../../utils/metricsLogger";
 import {ruleSchema} from "./transactions/rules/ruleSchema";
+import {DiscountSellerLiabilityUtils} from "../../utils/discountSellerLiabilityUtils";
 import log = require("loglevel");
 
 export function installProgramsRest(router: cassava.Router): void {
@@ -79,9 +79,9 @@ export function installProgramsRest(router: cassava.Router): void {
 
             if (program.discountSellerLiability != null) {
                 MetricsLogger.legacyDiscountSellerLiabilitySet("programCreate", auth);
-                program.discountSellerLiabilityRule = discountSellerLiabilityToRule(program.discountSellerLiability);
+                program.discountSellerLiabilityRule = DiscountSellerLiabilityUtils.numberToRule(program.discountSellerLiability);
             } else if (program.discountSellerLiabilityRule != null) {
-                program.discountSellerLiability = discountSellerLiabilityRuleToNumber(program.discountSellerLiabilityRule);
+                program.discountSellerLiability = DiscountSellerLiabilityUtils.ruleToNumber(program.discountSellerLiabilityRule);
             }
 
             return {
@@ -275,10 +275,10 @@ async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
         };
         // Can be removed when discountSellerLiability is removed from API.
         if (programUpdates.discountSellerLiability != null) {
-            updatedProgram.discountSellerLiabilityRule = discountSellerLiabilityToRule(updatedProgram.discountSellerLiability);
+            updatedProgram.discountSellerLiabilityRule = DiscountSellerLiabilityUtils.numberToRule(updatedProgram.discountSellerLiability);
             MetricsLogger.legacyDiscountSellerLiabilitySet("programUpdate", auth);
         } else if (programUpdates.discountSellerLiabilityRule != null) {
-            updatedProgram.discountSellerLiability = discountSellerLiabilityRuleToNumber(programUpdates.discountSellerLiabilityRule);
+            updatedProgram.discountSellerLiability = DiscountSellerLiabilityUtils.ruleToNumber(programUpdates.discountSellerLiabilityRule);
         }
 
         checkProgramProperties(updatedProgram);
