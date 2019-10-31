@@ -27,8 +27,7 @@ describe("/v2/transactions/reverse - checkout", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
 
         const currency = await createCurrency(testUtils.defaultTestUser.auth, {
             code: "USD",

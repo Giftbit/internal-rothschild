@@ -38,7 +38,7 @@ describe("resolveTransactionPlanSteps", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
         await createCurrency(testUtils.defaultTestUser.auth, currency);
         await createContact(testUtils.defaultTestUser.auth, contact);
     });

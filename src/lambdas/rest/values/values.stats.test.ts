@@ -26,7 +26,7 @@ describe("/v2/values/ - secret stats capability", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
         await createCurrency(testUtils.defaultTestUser.auth, {
             code: "USD",
             name: "The Big Bucks",

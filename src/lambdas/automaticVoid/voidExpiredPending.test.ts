@@ -2,7 +2,7 @@ import * as chai from "chai";
 import * as cassava from "cassava";
 import * as awslambda from "aws-lambda";
 import * as testUtils from "../../utils/testUtils";
-import {generateId} from "../../utils/testUtils";
+import {generateId, setCodeCryptographySecrets} from "../../utils/testUtils";
 import * as currencies from "../rest/currencies";
 import {Value} from "../../model/Value";
 import {nowInDbPrecision} from "../../utils/dbUtils";
@@ -34,6 +34,7 @@ describe("voidExpiredPending()", () => {
     const router = new cassava.Router();
 
     before(async () => {
+        setCodeCryptographySecrets();
         await setStubsForStripeTests();
         await testUtils.resetDb();
 
@@ -111,6 +112,29 @@ describe("voidExpiredPending()", () => {
         chai.assert.equal(stripePendingCheckoutTxRes.statusCode, 201);
         await updateTransactionPendingVoidDate(pastPendingStripeCheckoutTx.id, past);
 
+        const pastPendingRemainderCheckoutTx: CheckoutRequest = {
+            id: "pastPendingRemainderCheckoutTx",
+            currency: "cad",
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "butterfly_kisses",
+                    unitPrice: 1499
+                }
+            ],
+            sources: [
+                {
+                    rail: "lightrail",
+                    code: "does-not-exist"
+                }
+            ],
+            allowRemainder: true,
+            pending: true
+        };
+        const remainderPendingCheckoutTxRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", pastPendingRemainderCheckoutTx);
+        chai.assert.equal(remainderPendingCheckoutTxRes.statusCode, 201);
+        await updateTransactionPendingVoidDate(pastPendingRemainderCheckoutTx.id, past);
+
         const futurePendingDebitTx: DebitRequest = {
             id: "futurePendingDebitTx",
             amount: 5,
@@ -165,6 +189,7 @@ describe("voidExpiredPending()", () => {
         await assertTransactionVoided(pastPendingDebitTx1.id);
         await assertTransactionVoided(pastPendingDebitTx2.id);
         await assertTransactionVoided(pastPendingStripeCheckoutTx.id);
+        await assertTransactionVoided(pastPendingRemainderCheckoutTx.id);
         await assertTransactionVoided(voidedPendingDebitTx.id);
         await assertTransactionNotVoided(futurePendingDebitTx.id);
         await assertTransactionNotVoided(capturedPendingDebitTx.id);

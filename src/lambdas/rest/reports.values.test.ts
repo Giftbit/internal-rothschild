@@ -40,7 +40,7 @@ describe("/v2/reports/values/", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-        await testUtils.setCodeCryptographySecrets();
+        testUtils.setCodeCryptographySecrets();
         await testUtils.createUSD(router);
 
         const program1resp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {

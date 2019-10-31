@@ -72,7 +72,7 @@ async function voidPendingTransaction(dbTransaction: DbTransaction): Promise<voi
         auth,
         {
             simulate: false,
-            allowRemainder: false
+            allowRemainder: true
         },
         () => createVoidTransactionPlanForDbTransaction(
             auth,
@@ -97,7 +97,7 @@ async function handleVoidPendingError(dbTransaction: DbTransaction, error: any):
             return await markTransactionChainAsBlocked(dbTransaction, error.messageCode, {stripeError: error.stripeError});
         }
     }
-    log.error("Unhandled Transaction void error", error);
+    log.error("Unhandled Transaction void error\n", dbTransaction, "\n", error);
     giftbitRoutes.sentry.sendErrorNotification(error);
 }
 

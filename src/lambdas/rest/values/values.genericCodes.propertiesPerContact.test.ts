@@ -25,7 +25,7 @@ describe("/v2/values - generic code with per contact properties", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
         await createCurrency(testUtils.defaultTestUser.auth, {
             code: "USD",
             name: "US Dollars",
