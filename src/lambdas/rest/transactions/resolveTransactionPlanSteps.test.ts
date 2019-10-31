@@ -14,6 +14,7 @@ import {
 } from "./resolveTransactionPlanSteps";
 import {LightrailTransactionPlanStep} from "./TransactionPlan";
 import {AttachedContactValueScenario, setupAttachedContactValueScenario} from "../contactValues.test";
+import {LightrailTransactionParty, TransactionParty} from "../../../model/TransactionRequest";
 import {Value} from "../../../model/Value";
 import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
 
@@ -43,7 +44,7 @@ describe("resolveTransactionPlanSteps", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
         await createCurrency(testUtils.defaultTestUser.auth, currency);
         await createContact(testUtils.defaultTestUser.auth, contact);
     });
@@ -54,8 +55,7 @@ describe("resolveTransactionPlanSteps", () => {
             data = await setupAttachedContactValueScenario(router, currency);
         });
 
-        const txPartiesTemplate: ResolveTransactionPartiesOptions = {
-            parties: [],
+        const resolvePartiesOptions: ResolveTransactionPartiesOptions = {
             currency: currency.code,
             transactionId: "1",
             nonTransactableHandling: "include",
@@ -64,63 +64,39 @@ describe("resolveTransactionPlanSteps", () => {
         };
 
         it("can get lightrail transaction plan steps associated with contactA", async () => {
-            const contactAsTransactionSource: ResolveTransactionPartiesOptions = {
-                ...txPartiesTemplate,
-                parties: [
-                    {
-                        rail: "lightrail",
-                        contactId: data.contactA.id
-                    }
-                ],
-                currency: currency.code,
-                transactionId: "1",
-                nonTransactableHandling: "include",
-                includeZeroUsesRemaining: true,
-                includeZeroBalance: true
-            };
-            const contactLightrailValues = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, contactAsTransactionSource);
+            const parties: TransactionParty[] = [
+                {
+                    rail: "lightrail",
+                    contactId: data.contactA.id
+                }
+            ];
+            const contactLightrailValues = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, parties, resolvePartiesOptions);
             chai.assert.sameMembers(contactLightrailValues.map(v => (v as LightrailTransactionPlanStep).value.id), data.valuesAttachedToContactA.map(v => v.id));
         });
 
         it("can get lightrail transaction plan steps associated with contactB", async () => {
-            const contactAsTransactionSource: ResolveTransactionPartiesOptions = {
-                ...txPartiesTemplate,
-                parties: [
-                    {
-                        rail: "lightrail",
-                        contactId: data.contactB.id
-                    }
-                ],
-                currency: currency.code,
-                transactionId: "1",
-                nonTransactableHandling: "include",
-                includeZeroUsesRemaining: true,
-                includeZeroBalance: true
-            };
-            const contactLightrailValues = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, contactAsTransactionSource);
+            const parties: TransactionParty[] = [
+                {
+                    rail: "lightrail",
+                    contactId: data.contactB.id
+                }
+            ];
+            const contactLightrailValues = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, parties, resolvePartiesOptions);
             chai.assert.sameMembers(contactLightrailValues.map(v => (v as LightrailTransactionPlanStep).value.id), data.valuesAttachedToContactB.map(v => v.id));
         });
 
         it("can get lightrail transaction plan steps associated with contactA and contactB. Allows both contacts to use shared generic Value.", async () => {
-            const contactAsTransactionSource: ResolveTransactionPartiesOptions = {
-                ...txPartiesTemplate,
-                parties: [
-                    {
-                        rail: "lightrail",
-                        contactId: data.contactA.id
-                    },
-                    {
-                        rail: "lightrail",
-                        contactId: data.contactB.id
-                    }
-                ],
-                currency: currency.code,
-                transactionId: "1",
-                nonTransactableHandling: "include",
-                includeZeroUsesRemaining: true,
-                includeZeroBalance: true
-            };
-            const contactLightrailValues = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, contactAsTransactionSource);
+            const parties: TransactionParty[] = [
+                {
+                    rail: "lightrail",
+                    contactId: data.contactA.id
+                },
+                {
+                    rail: "lightrail",
+                    contactId: data.contactB.id
+                }
+            ];
+            const contactLightrailValues = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, parties, resolvePartiesOptions);
 
             const attachedValues = [...data.valuesAttachedToContactA, ...data.valuesAttachedToContactB];
             chai.assert.sameMembers(contactLightrailValues.map(v => (v as LightrailTransactionPlanStep).value.id), attachedValues.map(v => v.id));
@@ -214,168 +190,137 @@ describe("resolveTransactionPlanSteps", () => {
             });
 
             it("gets values associated with one contactId", async () => {
-                const contact2AsTransactionSource: ResolveTransactionPartiesOptions = {
-                    ...txPartiesTemplate,
-                    currency: currency.code,
-                    parties: [{rail: "lightrail", contactId: contact2.id}]
-                };
-                const valuesByContactId2 = await getLightrailValues(testUtils.defaultTestUser.auth, contact2AsTransactionSource);
+                const contact2AsTransactionSource: LightrailTransactionParty[] = [{
+                    rail: "lightrail",
+                    contactId: contact2.id
+                }];
+                const valuesByContactId2 = await getLightrailValues(testUtils.defaultTestUser.auth, contact2AsTransactionSource, resolvePartiesOptions);
                 chai.assert.equal(valuesByContactId2.length, 1, `valuesByContactId2: ${JSON.stringify(valuesByContactId2)}`);
                 chai.assert.sameDeepMembers(valuesByContactId2.map(v => mapValueIdentifiers(v)), contact2_attachedValues.map(v => mapValueIdentifiers(v)), `valuesByContactId2=${JSON.stringify(valuesByContactId2)}`);
 
-                const contact1AsTransactionSource: ResolveTransactionPartiesOptions = {
-                    ...txPartiesTemplate,
-                    currency: currency.code,
-                    parties: [{rail: "lightrail", contactId: contact1.id}]
-                };
-                const valuesByContactId1 = await getLightrailValues(testUtils.defaultTestUser.auth, contact1AsTransactionSource);
+                const contact1AsTransactionSource: LightrailTransactionParty[] = [{
+                    rail: "lightrail",
+                    contactId: contact1.id
+                }];
+                const valuesByContactId1 = await getLightrailValues(testUtils.defaultTestUser.auth, contact1AsTransactionSource, resolvePartiesOptions);
                 chai.assert.sameDeepMembers(valuesByContactId1.map(v => mapValueIdentifiers(v)), contact1_attachedValues.map(v => mapValueIdentifiers(v)), `valuesByContactId1=${JSON.stringify(valuesByContactId1)}`);
             });
 
             it("gets values associated with two contactIds", async () => {
-                const contactsAsTransactionSources: ResolveTransactionPartiesOptions = {
-                    ...txPartiesTemplate,
-                    currency: currency.code,
-                    parties: [{
-                        rail: "lightrail",
-                        contactId: contact1.id
-                    }, {
-                        rail: "lightrail",
-                        contactId: contact2.id
-                    }]
-                };
-                const valuesByContactIds = await getLightrailValues(testUtils.defaultTestUser.auth, contactsAsTransactionSources);
+                const contactsAsTransactionSources: LightrailTransactionParty[] = [{
+                    rail: "lightrail",
+                    contactId: contact1.id
+                }, {
+                    rail: "lightrail",
+                    contactId: contact2.id
+                }];
+                const valuesByContactIds = await getLightrailValues(testUtils.defaultTestUser.auth, contactsAsTransactionSources, resolvePartiesOptions);
                 chai.assert.sameDeepMembers(valuesByContactIds.map(v => mapValueIdentifiers(v)), [...contact1_attachedValues, ...contact2_attachedValues].map(v => mapValueIdentifiers(v)), `valuesByContactIds=${JSON.stringify(valuesByContactIds)}`);
             });
 
             it("gets values by code", async () => {
-                const codeAsTransactionSource: ResolveTransactionPartiesOptions = {
-                    ...txPartiesTemplate,
-                    parties: [{
-                        rail: "lightrail",
-                        code: code1
-                    }],
-                    currency: currency.code
-                };
-                const valuesByCode1 = await getLightrailValues(testUtils.defaultTestUser.auth, codeAsTransactionSource);
+                const codeAsTransactionSource: LightrailTransactionParty[] = [{
+                    rail: "lightrail",
+                    code: code1
+                }];
+                const valuesByCode1 = await getLightrailValues(testUtils.defaultTestUser.auth, codeAsTransactionSource, resolvePartiesOptions);
                 chai.assert.equal(valuesByCode1.length, 1);
                 chai.assert.deepEqualExcluding(valuesByCode1[0], value1_uniqueCode, ["createdDate", "updatedDate", "genericCodeOptions", "attachedFromValueId", "updatedContactIdDate"]);
 
-                const twoCodesAsTransactionSource: ResolveTransactionPartiesOptions = {
-                    ...txPartiesTemplate,
-                    parties: [{
-                        rail: "lightrail",
-                        code: code1
-                    }, {
-                        rail: "lightrail",
-                        code: code2
-                    }],
-                    currency: currency.code
-                };
-                const valuesByCode2 = await getLightrailValues(testUtils.defaultTestUser.auth, twoCodesAsTransactionSource);
+                const twoCodesAsTransactionSource: LightrailTransactionParty[] = [{
+                    rail: "lightrail",
+                    code: code1
+                }, {
+                    rail: "lightrail",
+                    code: code2
+                }];
+                const valuesByCode2 = await getLightrailValues(testUtils.defaultTestUser.auth, twoCodesAsTransactionSource, resolvePartiesOptions);
                 chai.assert.equal(valuesByCode2.length, 2);
                 chai.assert.deepEqualExcluding(valuesByCode2, [value1_uniqueCode, value2_uniqueCodeContact], ["createdDate", "updatedDate", "genericCodeOptions", "attachedFromValueId", "updatedContactIdDate"]);
             });
 
             it("gets values by ID", async () => {
-                const valueIdAsTransactionSource: ResolveTransactionPartiesOptions = {
-                    ...txPartiesTemplate,
-                    parties: [{
-                        rail: "lightrail",
-                        valueId: value1_uniqueCode.id
-                    }],
-                    currency: currency.code
-                };
-                const valuesById1 = await getLightrailValues(testUtils.defaultTestUser.auth, valueIdAsTransactionSource);
+                const valueIdAsTransactionSource: LightrailTransactionParty[] = [{
+                    rail: "lightrail",
+                    valueId: value1_uniqueCode.id
+                }];
+                const valuesById1 = await getLightrailValues(testUtils.defaultTestUser.auth, valueIdAsTransactionSource, resolvePartiesOptions);
                 chai.assert.equal(valuesById1.length, 1);
                 chai.assert.deepEqualExcluding(valuesById1[0], value1_uniqueCode, ["createdDate", "updatedDate", "genericCodeOptions", "attachedFromValueId", "updatedContactIdDate"]);
 
-                const twoValueIdsAsTransactionSource: ResolveTransactionPartiesOptions = {
-                    ...txPartiesTemplate,
-                    parties: [{
-                        rail: "lightrail",
-                        valueId: value1_uniqueCode.id
-                    }, {
-                        rail: "lightrail",
-                        valueId: value2_uniqueCodeContact.id
-                    }],
-                    currency: currency.code
-                };
-                const valuesById2 = await getLightrailValues(testUtils.defaultTestUser.auth, twoValueIdsAsTransactionSource);
+                const twoValueIdsAsTransactionSource: LightrailTransactionParty[] = [{
+                    rail: "lightrail",
+                    valueId: value1_uniqueCode.id
+                }, {
+                    rail: "lightrail",
+                    valueId: value2_uniqueCodeContact.id
+                }];
+                const valuesById2 = await getLightrailValues(testUtils.defaultTestUser.auth, twoValueIdsAsTransactionSource, resolvePartiesOptions);
                 chai.assert.equal(valuesById2.length, 2);
                 chai.assert.deepEqualExcluding(valuesById2.find(v => v.id === value1_uniqueCode.id), value1_uniqueCode, ["createdDate", "updatedDate", "genericCodeOptions", "attachedFromValueId", "updatedContactIdDate"]);
                 chai.assert.deepEqualExcluding(valuesById2.find(v => v.id === value2_uniqueCodeContact.id), value2_uniqueCodeContact, ["createdDate", "updatedDate", "genericCodeOptions", "attachedFromValueId", "updatedContactIdDate"]);
             });
 
             it("does not duplicate Value if specified by code and ID in separate sources", async () => {
-                const dupeIdentifierSources: ResolveTransactionPartiesOptions = {
-                    ...txPartiesTemplate,
-                    parties: [{
-                        rail: "lightrail",
-                        code: code1
-                    }, {
-                        rail: "lightrail",
-                        valueId: value1_uniqueCode.id
-                    }],
-                    currency: currency.code
-                };
-                const values = await getLightrailValues(testUtils.defaultTestUser.auth, dupeIdentifierSources);
+                const dupeIdentifierSources: LightrailTransactionParty[] = [{
+                    rail: "lightrail",
+                    code: code1
+                }, {
+                    rail: "lightrail",
+                    valueId: value1_uniqueCode.id
+                }];
+                const values = await getLightrailValues(testUtils.defaultTestUser.auth, dupeIdentifierSources, resolvePartiesOptions);
                 chai.assert.equal(values.length, 1);
                 chai.assert.deepEqualExcluding(values[0], value1_uniqueCode, ["createdDate", "updatedDate", "genericCodeOptions", "attachedFromValueId", "updatedContactIdDate"]);
             });
 
             it("does not duplicate shared generic Value if attached to contact in sources and also passed anonymously", async () => {
-                const dupedSources: ResolveTransactionPartiesOptions = {
-                    ...txPartiesTemplate,
-                    currency: currency.code,
-                    parties: [{
-                        rail: "lightrail",
-                        code: value3_sharedGeneric.code // attached to contact1
-                    }, {
-                        rail: "lightrail",
-                        contactId: contact1.id
-                    }]
-                };
-                const values = await getLightrailValues(testUtils.defaultTestUser.auth, dupedSources);
+                const dupedSources: LightrailTransactionParty[] = [{
+                    rail: "lightrail",
+                    code: value3_sharedGeneric.code // attached to contact1
+                }, {
+                    rail: "lightrail",
+                    contactId: contact1.id
+                }];
+                const values = await getLightrailValues(testUtils.defaultTestUser.auth, dupedSources, resolvePartiesOptions);
                 chai.assert.sameDeepMembers(values.map(v => mapValueIdentifiers(v)), contact1_attachedValues.map(v => mapValueIdentifiers(v)), `values=${JSON.stringify(values)}`);
             });
 
             it("gets multiple values by different identifiers", async () => {
-                const multiIdentiferSources: ResolveTransactionPartiesOptions = {
-                    ...txPartiesTemplate,
+                const multiIdentiferSources: LightrailTransactionParty[] = [{
+                    rail: "lightrail",
+                    code: code1
+                }, {
+                    rail: "lightrail",
+                    valueId: value2_uniqueCodeContact.id
+                }, {
+                    rail: "lightrail",
+                    contactId: contact2.id
+                }];
+                const options: ResolveTransactionPartiesOptions = {
+                    ...resolvePartiesOptions,
                     currency: currency.code,
                     nonTransactableHandling: "exclude",
                     includeZeroBalance: false,
                     includeZeroUsesRemaining: false,
-                    parties: [{
-                        rail: "lightrail",
-                        code: code1
-                    }, {
-                        rail: "lightrail",
-                        valueId: value2_uniqueCodeContact.id
-                    }, {
-                        rail: "lightrail",
-                        contactId: contact2.id
-                    }],
                 };
-                const values = await getLightrailValues(testUtils.defaultTestUser.auth, multiIdentiferSources);
+                const values = await getLightrailValues(testUtils.defaultTestUser.auth, multiIdentiferSources, options);
                 chai.assert.sameDeepMembers(values.map(v => mapValueIdentifiers(v)), [value1_uniqueCode, value2_uniqueCodeContact, ...contact2_attachedValues].map(v => mapValueIdentifiers(v as Value)), `values=${JSON.stringify(values)}`);
             });
 
             it("excludes sources with zero balance when includeZeroBalance=false", async () => {
                 const value1 = await testUtils.createUSDValue(router); // balance will get zeroed
 
-                const sources_includeZeroBalance: ResolveTransactionPartiesOptions = {
-                    ...txPartiesTemplate,
-                    parties: [{
-                        rail: "lightrail",
-                        valueId: value1.id
-                    }],
-                    currency: currency.code,
+                const source: LightrailTransactionParty[] = [{
+                    rail: "lightrail",
+                    valueId: value1.id
+                }];
+                const includeZeroBalanceOptions: ResolveTransactionPartiesOptions = {
+                    ...resolvePartiesOptions,
                     includeZeroBalance: true
                 };
 
-                const valueShouldBeReturned = await getLightrailValues(testUtils.defaultTestUser.auth, sources_includeZeroBalance);
+                const valueShouldBeReturned = await getLightrailValues(testUtils.defaultTestUser.auth, source, includeZeroBalanceOptions);
                 chai.assert.equal(valueShouldBeReturned.length, 1);
                 chai.assert.equal(valueShouldBeReturned[0].id, value1.id);
 
@@ -388,30 +333,29 @@ describe("resolveTransactionPlanSteps", () => {
                 chai.assert.equal(value1_zeroBalanceResp.statusCode, 201, `value1_zeroBalanceResp.body=${JSON.stringify(value1_zeroBalanceResp)}`);
                 chai.assert.equal((value1_zeroBalanceResp.body.steps[0] as LightrailTransactionStep).balanceAfter, 0, `value1_zeroBalanceResp.body.steps=${value1_zeroBalanceResp.body.steps}`);
 
-                const valueShouldStillBeReturned = await getLightrailValues(testUtils.defaultTestUser.auth, sources_includeZeroBalance);
+                const valueShouldStillBeReturned = await getLightrailValues(testUtils.defaultTestUser.auth, source, includeZeroBalanceOptions);
                 chai.assert.sameDeepMembers(valueShouldStillBeReturned.map(v => mapValueIdentifiers(v)), valueShouldBeReturned.map(v => mapValueIdentifiers(v)));
 
-                const sources_excludeZeroBalance: ResolveTransactionPartiesOptions = {
-                    ...sources_includeZeroBalance,
+                const excludeZeroBalanceOptions: ResolveTransactionPartiesOptions = {
+                    ...resolvePartiesOptions,
                     includeZeroBalance: false
                 };
-                const noValueReturned = await getLightrailValues(testUtils.defaultTestUser.auth, sources_excludeZeroBalance);
+                const noValueReturned = await getLightrailValues(testUtils.defaultTestUser.auth, source, excludeZeroBalanceOptions);
                 chai.assert.equal(noValueReturned.length, 0);
             });
 
             it("excludes sources with zero usesRemaining when includeZeroUsesRemaining=false", async () => {
                 const value2 = await testUtils.createUSDValue(router, {usesRemaining: 1}); // usesRemaining will get zeroed
-                const sources_includeZeroUses: ResolveTransactionPartiesOptions = {
-                    ...txPartiesTemplate,
-                    parties: [{
-                        rail: "lightrail",
-                        valueId: value2.id
-                    }],
-                    currency: currency.code,
+                const source: LightrailTransactionParty[] = [{
+                    rail: "lightrail",
+                    valueId: value2.id
+                }];
+                const includeZeroUsesOptions: ResolveTransactionPartiesOptions = {
+                    ...resolvePartiesOptions,
                     includeZeroUsesRemaining: true
                 };
 
-                const valueShouldBeReturned = await getLightrailValues(testUtils.defaultTestUser.auth, sources_includeZeroUses);
+                const valueShouldBeReturned = await getLightrailValues(testUtils.defaultTestUser.auth, source, includeZeroUsesOptions);
                 chai.assert.equal(valueShouldBeReturned.length, 1);
                 chai.assert.equal(valueShouldBeReturned[0].id, value2.id);
 
@@ -424,14 +368,14 @@ describe("resolveTransactionPlanSteps", () => {
                 chai.assert.equal(value2_zeroUsesRemainingResp.statusCode, 201, `value2_zeroUsesRemainingResp.body=${JSON.stringify(value2_zeroUsesRemainingResp)}`);
                 chai.assert.equal((value2_zeroUsesRemainingResp.body.steps[0] as LightrailTransactionStep).usesRemainingAfter, 0, `value2_zeroUsesRemainingResp.body.steps=${value2_zeroUsesRemainingResp.body.steps}`);
 
-                const valueShouldStillBeReturned = await getLightrailValues(testUtils.defaultTestUser.auth, sources_includeZeroUses);
+                const valueShouldStillBeReturned = await getLightrailValues(testUtils.defaultTestUser.auth, source, includeZeroUsesOptions);
                 chai.assert.sameDeepMembers(valueShouldStillBeReturned.map(v => mapValueIdentifiers(v)), valueShouldBeReturned.map(v => mapValueIdentifiers(v)));
 
-                const sources_excludeZeroUses: ResolveTransactionPartiesOptions = {
-                    ...sources_includeZeroUses,
+                const excludeZeroUsesOptions: ResolveTransactionPartiesOptions = {
+                    ...includeZeroUsesOptions,
                     includeZeroUsesRemaining: false
                 };
-                const noValueReturned = await getLightrailValues(testUtils.defaultTestUser.auth, sources_excludeZeroUses);
+                const noValueReturned = await getLightrailValues(testUtils.defaultTestUser.auth, source, excludeZeroUsesOptions);
                 chai.assert.equal(noValueReturned.length, 0);
             });
 
@@ -460,26 +404,26 @@ describe("resolveTransactionPlanSteps", () => {
                 const value8 = await testUtils.createUSDValue(router, {endDate: new Date("2000-01-01T00:00:00.000Z")}); // expired
 
                 // check that they're all initially returned
-                const sources_includeNonTransactable: ResolveTransactionPartiesOptions = {
-                    parties: [{
-                        rail: "lightrail",
-                        valueId: value3.id
-                    }, {
-                        rail: "lightrail",
-                        valueId: value4.id
-                    }, {
-                        rail: "lightrail",
-                        valueId: value5.id
-                    }, {
-                        rail: "lightrail",
-                        valueId: value6.id
-                    }, {
-                        rail: "lightrail",
-                        valueId: value7.id
-                    }, {
-                        rail: "lightrail",
-                        valueId: value8.id
-                    }],
+                const sources: LightrailTransactionParty[] = [{
+                    rail: "lightrail",
+                    valueId: value3.id
+                }, {
+                    rail: "lightrail",
+                    valueId: value4.id
+                }, {
+                    rail: "lightrail",
+                    valueId: value5.id
+                }, {
+                    rail: "lightrail",
+                    valueId: value6.id
+                }, {
+                    rail: "lightrail",
+                    valueId: value7.id
+                }, {
+                    rail: "lightrail",
+                    valueId: value8.id
+                }];
+                const includeNonTransactableOptions: ResolveTransactionPartiesOptions = {
                     currency: currency.code,
                     transactionId: "1",
                     nonTransactableHandling: "include",
@@ -487,7 +431,7 @@ describe("resolveTransactionPlanSteps", () => {
                     includeZeroBalance: true
                 };
 
-                const valuesWhileAllValid = await getLightrailValues(testUtils.defaultTestUser.auth, sources_includeNonTransactable);
+                const valuesWhileAllValid = await getLightrailValues(testUtils.defaultTestUser.auth, sources, includeNonTransactableOptions);
                 chai.assert.equal(valuesWhileAllValid.length, 6);
                 chai.assert.sameMembers(valuesWhileAllValid.map(v => v.id), [value3.id, value4.id, value5.id, value6.id, value7.id, value8.id]);
 
@@ -505,34 +449,30 @@ describe("resolveTransactionPlanSteps", () => {
                 chai.assert.equal(value5_inactivateResp.body.active, false, `value5_inactivateResp.body.active=${value5_inactivateResp.body.active}`);
 
                 // check that they still get returned when including non-transactable sources
-                const valuesAfterInvalidation = await getLightrailValues(testUtils.defaultTestUser.auth, sources_includeNonTransactable);
+                const valuesAfterInvalidation = await getLightrailValues(testUtils.defaultTestUser.auth, sources, includeNonTransactableOptions);
                 chai.assert.sameDeepMembers(valuesAfterInvalidation.map(v => mapValueIdentifiers(v)), valuesWhileAllValid.map(v => mapValueIdentifiers(v)));
 
                 // check that they DON'T get returned when excluding non-transactable sources
-                const sources_excludeNonTransactable: ResolveTransactionPartiesOptions = {
-                    ...sources_includeNonTransactable,
+                const excludeNonTransactableOptions: ResolveTransactionPartiesOptions = {
+                    ...includeNonTransactableOptions,
                     nonTransactableHandling: "exclude",
                 };
-                const noValuesAfterInvalidation = await getLightrailValues(testUtils.defaultTestUser.auth, sources_excludeNonTransactable);
+                const noValuesAfterInvalidation = await getLightrailValues(testUtils.defaultTestUser.auth, sources, excludeNonTransactableOptions);
                 chai.assert.equal(noValuesAfterInvalidation.length, 0);
             });
 
             it("doesn't fail if invalid sources included (code/valueId/contactId does not exist): successfully returns valid sources", async () => {
-                const sources: ResolveTransactionPartiesOptions = {
-                    ...txPartiesTemplate,
-                    currency: currency.code,
-                    parties: [{
-                        rail: "lightrail",
-                        code: generateId()
-                    }, {
-                        rail: "lightrail",
-                        contactId: generateId()
-                    }, {
-                        rail: "lightrail",
-                        valueId: value1_uniqueCode.id
-                    }]
-                };
-                const values = await getLightrailValues(testUtils.defaultTestUser.auth, sources);
+                const sources: LightrailTransactionParty[] = [{
+                    rail: "lightrail",
+                    code: generateId()
+                }, {
+                    rail: "lightrail",
+                    contactId: generateId()
+                }, {
+                    rail: "lightrail",
+                    valueId: value1_uniqueCode.id
+                }];
+                const values = await getLightrailValues(testUtils.defaultTestUser.auth, sources, resolvePartiesOptions);
                 chai.assert.equal(values.length, 1);
                 chai.assert.deepEqualExcluding(values[0], value1_uniqueCode, ["createdDate", "updatedDate", "genericCodeOptions", "attachedFromValueId", "updatedContactIdDate"])
             });
@@ -598,17 +538,18 @@ describe("resolveTransactionPlanSteps", () => {
                 chai.assert.equal(attachUser2.statusCode, 200, `attachUser2.body=${JSON.stringify(attachUser2.body)}`);
 
                 // the actual test: make sure the right data comes back for the right auth badge
-                const resolvedValuesUser1 = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth, {
-                    parties: [{
+                const resolvedValuesUser1 = await resolveTransactionPlanSteps(testUtils.defaultTestUser.auth,
+                    [{
                         rail: "lightrail",
                         contactId: contact.id
                     }],
-                    currency: "USD",
-                    transactionId: "1",
-                    nonTransactableHandling: "exclude",
-                    includeZeroUsesRemaining: false,
-                    includeZeroBalance: false
-                });
+                    {
+                        currency: "USD",
+                        transactionId: "1",
+                        nonTransactableHandling: "exclude",
+                        includeZeroUsesRemaining: false,
+                        includeZeroBalance: false
+                    });
                 chai.assert.equal(resolvedValuesUser1.length, 1, JSON.stringify(resolvedValuesUser1, null, 4));
             }).timeout(12000)
         });

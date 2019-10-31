@@ -12,7 +12,7 @@ import {generateCode} from "../../utils/codeGenerator";
 import chaiExclude from "chai-exclude";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
 import {generateUrlSafeHashFromValueIdContactId} from "./genericCodeWithPerContactOptions";
-import {attachValue, generateLegacyHashForValueIdContactId} from "./contactValues";
+import {generateLegacyHashForValueIdContactId} from "./contactValues";
 import {nowInDbPrecision} from "../../utils/dbUtils";
 import {updateValue} from "./values/values";
 import {Value} from "../../model/Value";
@@ -45,12 +45,12 @@ describe("/v2/contacts/values", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
         await createCurrency(testUtils.defaultTestUser.auth, currency);
         await createContact(testUtils.defaultTestUser.auth, contact);
     });
 
-    describe("unique values can be attached and detached using code or valueId",  () => {
+    describe("unique values can be attached and detached using code or valueId", () => {
         const value: Partial<Value> = {
             id: "unique-value",
             currency: currency.code,
@@ -82,7 +82,7 @@ describe("/v2/contacts/values", () => {
             chai.assert.equal(attachResp.body.updatedContactIdDate, attachResp.body.updatedDate);
         });
 
-        it("can detach" , async () => {
+        it("can detach", async () => {
             const detach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/detach`, "POST", {valueId: value.id});
             chai.assert.equal(detach.statusCode, 200, `body=${JSON.stringify(detach.body)}`);
             chai.assert.isNull(detach.body.contactId);
@@ -127,7 +127,7 @@ describe("/v2/contacts/values", () => {
             chai.assert.equal(attach.statusCode, 200, `body=${JSON.stringify(attach.body)}`);
         });
 
-        it("can detach" , async () => {
+        it("can detach", async () => {
             const detach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/detach`, "POST", {valueId: value.id});
             chai.assert.equal(detach.statusCode, 200, `body=${JSON.stringify(detach.body)}`);
             chai.assert.equal(detach.body.contactId, null);
@@ -288,7 +288,7 @@ describe("/v2/contacts/values", () => {
             chai.assert.equal(attach.body.id, generateUrlSafeHashFromValueIdContactId(value.id, contact.id));
         });
 
-        it("can detach" , async () => {
+        it("can detach", async () => {
             const detach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/detach`, "POST", {valueId: value.id});
             chai.assert.equal(detach.statusCode, 200, `body=${JSON.stringify(detach.body)}`);
             chai.assert.isNull(detach.body.contactId);
@@ -360,7 +360,7 @@ describe("/v2/contacts/values", () => {
             chai.assert.equal(attachResp.body.id, "F6GljQ2EJiGZAFkHKXuJNPtOkOc", "Specifically checking for string F6GljQ2EJiGZAFkHKXuJNPtOkOc since this is what the hash should return for contactId: aw4rd4arwefd, and valueId: 324arwesf342aw");
         });
 
-        it("can detach" , async () => {
+        it("can detach", async () => {
             const detach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/detach`, "POST", {valueId: genericCode.id});
             chai.assert.equal(detach.statusCode, 200, `body=${JSON.stringify(detach.body)}`);
             chai.assert.isNull(detach.body.contactId);
@@ -402,7 +402,7 @@ describe("/v2/contacts/values", () => {
             chai.assert.equal(attach.body.usesRemaining, value.usesRemaining, "uses remaining is not reduced during attach");
         });
 
-        it("can detach" , async () => {
+        it("can detach", async () => {
             const detach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/detach`, "POST", {valueId: value.id});
             chai.assert.equal(detach.statusCode, 200, `body=${JSON.stringify(detach.body)}`);
 
@@ -449,7 +449,7 @@ describe("/v2/contacts/values", () => {
             chai.assert.equal(attach.statusCode, 200, `body=${JSON.stringify(attach.body)}`);
         });
 
-        it("can detach" , async () => {
+        it("can detach", async () => {
             const detach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/detach`, "POST", {valueId: value.id});
             chai.assert.equal(detach.statusCode, 200, `body=${JSON.stringify(detach.body)}`);
             chai.assert.isNull(detach.body.contactId);

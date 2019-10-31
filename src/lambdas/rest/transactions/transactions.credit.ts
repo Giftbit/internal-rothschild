@@ -6,9 +6,8 @@ import {CreditRequest} from "../../../model/TransactionRequest";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 
 export async function createCreditTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CreditRequest): Promise<TransactionPlan> {
-    const steps = await resolveTransactionPlanSteps(auth, {
+    const steps = await resolveTransactionPlanSteps(auth, [req.destination], {
         currency: req.currency,
-        parties: [req.destination],
         transactionId: req.id,
         nonTransactableHandling: "error",
         includeZeroBalance: true,

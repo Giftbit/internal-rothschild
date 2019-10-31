@@ -1,5 +1,6 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
+import * as stripe from "stripe";
 import * as testUtils from "../../../../../utils/testUtils/index";
 import {generateId} from "../../../../../utils/testUtils";
 import {installRestRoutes} from "../../../installRestRoutes";
@@ -29,7 +30,7 @@ describe("/v2/transactions/reverse - transfer", () => {
             decimalPlaces: 2
         });
         chai.assert.equal(currency.code, "USD");
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
     });
 
     after(() => {
@@ -199,12 +200,12 @@ describe("/v2/transactions/reverse - transfer", () => {
                         "rail": "stripe",
                         "chargeId": stripeStep.chargeId,
                         "charge": {
-                            "id": stripeStep.charge.id,
+                            "id": (stripeStep.charge as stripe.charges.ICharge).id,
                             "object": "refund",
                             "amount": 75,
-                            "balance_transaction": stripeStep.charge.balance_transaction,
+                            "balance_transaction": (stripeStep.charge as stripe.charges.ICharge).balance_transaction,
                             "charge": stripeStep.chargeId,
-                            "created": stripeStep.charge.created,
+                            "created": (stripeStep.charge as stripe.charges.ICharge).created,
                             "currency": "usd",
                             "metadata": {
                                 "reason": `Being refunded as part of reverse transaction ${reverse.id}.`

@@ -45,11 +45,16 @@ export async function executeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
                 step.refundResult = await createRefund(stripeRefundParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id);
 
                 if (step.reason) {
-                    const updateChargeParams: Stripe.charges.IChargeUpdateOptions = {
-                        description: step.reason
-                    };
-                    await updateCharge(step.chargeId, updateChargeParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id);
-                    log.info(`Updated Stripe charge ${step.chargeId} with reason.`);
+                    try {
+                        const updateChargeParams: Stripe.charges.IChargeUpdateOptions = {
+                            description: step.reason
+                        };
+                        await updateCharge(step.chargeId, updateChargeParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id);
+                        log.info(`Updated Stripe charge ${step.chargeId} with reason.`);
+                    } catch (updateChargeError) {
+                        log.warn("Continuing after error updating Stripe charge", updateChargeError);
+                        // Don't rethrow.  This is a convenience and not worth failing the Transaction over.
+                    }
                 }
             } else if (step.type === "capture") {
                 if (step.amount < 0) {
@@ -64,7 +69,7 @@ export async function executeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
             }
         }
     } catch (err) {
-        if ((err as StripeRestError).isStripeRestError) {
+        if (StripeRestError.isStripeRestError(err)) {
             MetricsLogger.stripeError((err as StripeRestError).stripeError, auth);
             // Error was returned from Stripe. Passing original error along so that details of Stripe failure can be returned.
             throw err;

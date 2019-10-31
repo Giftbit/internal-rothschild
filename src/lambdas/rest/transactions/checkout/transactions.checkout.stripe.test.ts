@@ -5,6 +5,7 @@ import * as valueStores from "../../values/values";
 import * as currencies from "../../currencies";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as sinon from "sinon";
+import * as stripe from "stripe";
 import {Value} from "../../../../model/Value";
 import {StripeTransactionStep, Transaction} from "../../../../model/Transaction";
 import {Currency} from "../../../../model/Currency";
@@ -14,9 +15,8 @@ import * as testUtils from "../../../../utils/testUtils";
 import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {after} from "mocha";
 import {
+    setStubbedStripeUserId,
     setStubsForStripeTests,
-    stripeLiveMerchantConfig,
-    stubNextStripeAuthAccountId,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
@@ -28,11 +28,13 @@ import {
     retrieveCharge
 } from "../../../../utils/stripeUtils/stripeTransactions";
 import chaiExclude from "chai-exclude";
+import {TestUser} from "../../../../utils/testUtils/TestUser";
+import * as getStripeClient from "../../../../utils/stripeUtils/stripeAccess";
+import {getLightrailStripeModeConfig} from "../../../../utils/stripeUtils/stripeAccess";
 import log = require("loglevel");
 import Stripe = require("stripe");
 import ICharge = Stripe.charges.ICharge;
-import * as getStripeClient from "../../../../utils/stripeUtils/stripeAccess";
-import {getLightrailStripeModeConfig} from "../../../../utils/stripeUtils/stripeAccess";
+
 chai.use(chaiExclude);
 
 describe("split tender checkout with Stripe", () => {
@@ -66,7 +68,7 @@ describe("split tender checkout with Stripe", () => {
         currency: "CAD"
     };
 
-    before(async function () {
+    before(async () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         transactions.installTransactionsRest(router);
@@ -85,7 +87,7 @@ describe("split tender checkout with Stripe", () => {
         const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
 
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
     });
 
     after(() => {
@@ -168,7 +170,7 @@ describe("split tender checkout with Stripe", () => {
     });
 
     it("processes basic checkout with Stripe only - `customer` as payment source", async () => {
-        const customer = await createCustomer({source: "tok_visa"}, true, stripeLiveMerchantConfig.stripeUserId);
+        const customer = await createCustomer({source: "tok_visa"}, true, defaultTestUser.stripeAccountId);
 
         const request: CheckoutRequest = {
             id: generateId(),
@@ -464,8 +466,8 @@ describe("split tender checkout with Stripe", () => {
         const lrCheckoutTransaction = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${basicRequest.id}`, "GET");  // created in first split tender test
         chai.assert.equal(lrCheckoutTransaction.statusCode, 200);
 
-        const stripeChargeId = (lrCheckoutTransaction.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).charge.id;
-        const stripeCharge = await retrieveCharge(stripeChargeId, true, stripeLiveMerchantConfig.stripeUserId);
+        const stripeChargeId = (lrCheckoutTransaction.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId;
+        const stripeCharge = await retrieveCharge(stripeChargeId, true, defaultTestUser.stripeAccountId);
 
         chai.assert.deepEqual(stripeCharge.metadata, {
             lightrailTransactionId: basicRequest.id,
@@ -501,14 +503,15 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.deepEqual(postCheckoutResp.body.metadata, request.metadata, `body.metadata=${postCheckoutResp.body.metadata}`);
 
         const stripeStep = postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep;
-        chai.assert.deepEqual(stripeStep.charge.metadata, {
+        chai.assert.equal(stripeStep.charge.object, "charge");
+        chai.assert.deepEqual((stripeStep.charge as stripe.charges.ICharge).metadata, {
             ...request.metadata,
             lightrailTransactionId: request.id,
             "lightrailTransactionSources": "[]", // lightrail value is used up by now
             "lightrailUserId": defaultTestUser.auth.userId
         });
 
-        chai.assert.deepEqual(stripeStep.charge.metadata, {
+        chai.assert.deepEqual((stripeStep.charge as stripe.charges.ICharge).metadata, {
             ...request.metadata,
             lightrailTransactionId: request.id,
             lightrailTransactionSources: "[]",
@@ -516,12 +519,12 @@ describe("split tender checkout with Stripe", () => {
         });
 
         const stripeChargeId = (postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId;
-        const stripeCharge = await retrieveCharge(stripeChargeId, true, stripeLiveMerchantConfig.stripeUserId);
-        chai.assert.deepEqual(stripeCharge.metadata, stripeStep.charge.metadata);
+        const stripeCharge = await retrieveCharge(stripeChargeId, true, defaultTestUser.stripeAccountId);
+        chai.assert.deepEqual(stripeCharge.metadata, (stripeStep.charge as stripe.charges.ICharge).metadata);
     });
 
     it("passes additionalStripeParams to Stripe", async () => {
-        const onBehalfOf = testStripeLive() ? null : stripeLiveMerchantConfig.stripeUserId;
+        const onBehalfOf = testStripeLive() ? null : defaultTestUser.stripeAccountId;
         const request: CheckoutRequest = {
             id: generateId(),
             sources: [
@@ -593,7 +596,7 @@ describe("split tender checkout with Stripe", () => {
         }, `stripeCharge.shipping=${JSON.stringify(stripeCharge.shipping)}`);
 
         const stripeChargeId = (postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep).chargeId;
-        const stripeChargeRetrieved = await retrieveCharge(stripeChargeId, true, stripeLiveMerchantConfig.stripeUserId);
+        const stripeChargeRetrieved = await retrieveCharge(stripeChargeId, true, defaultTestUser.stripeAccountId);
         chai.assert.deepEqual(stripeChargeRetrieved.metadata, stripeCharge.metadata);
     });
 
@@ -698,7 +701,7 @@ describe("split tender checkout with Stripe", () => {
                 currency: "CAD",
                 source: "tok_visa"
             };
-            await createCharge(firstRequest, true, stripeLiveMerchantConfig.stripeUserId, `${idempotencyKey}-0`);
+            await createCharge(firstRequest, true, defaultTestUser.stripeAccountId, `${idempotencyKey}-0`);
 
             const request = {
                 ...basicRequest,
@@ -805,8 +808,8 @@ describe("split tender checkout with Stripe", () => {
             chai.assert.equal(postCheckoutResp2.statusCode, 409, `body=${JSON.stringify(postCheckoutResp2.body)}`);
 
             // get the stripe charge and make sure that it hasn't been refunded
-            const stripeChargeId = (postCheckoutResp.body.steps.find(steps => steps.rail === "stripe") as StripeTransactionStep).charge.id;
-            const stripeCharge = await retrieveCharge(stripeChargeId, true, stripeLiveMerchantConfig.stripeUserId);
+            const stripeChargeId = (postCheckoutResp.body.steps.find(steps => steps.rail === "stripe") as StripeTransactionStep).chargeId;
+            const stripeCharge = await retrieveCharge(stripeChargeId, true, defaultTestUser.stripeAccountId);
             chai.assert.equal(stripeCharge.refunded, false, `stripeCharge first GET: check 'refunded': ${JSON.stringify(stripeCharge)}`);
             chai.assert.equal(stripeCharge.amount_refunded, 0, `stripeCharge first GET: check 'amount_refunded': ${JSON.stringify(stripeCharge)}`);
 
@@ -815,7 +818,7 @@ describe("split tender checkout with Stripe", () => {
             chai.assert.equal(postCheckoutResp3.statusCode, 409, `body=${JSON.stringify(postCheckoutResp3.body)}`);
 
             // make sure the original stripe charge still hasn't been affected
-            const stripeCharge2 = await retrieveCharge(stripeChargeId, true, stripeLiveMerchantConfig.stripeUserId);
+            const stripeCharge2 = await retrieveCharge(stripeChargeId, true, defaultTestUser.stripeAccountId);
             chai.assert.equal(stripeCharge2.refunded, false, `stripeCharge second GET: check 'refunded': ${JSON.stringify(stripeCharge)}`);
             chai.assert.equal(stripeCharge2.amount_refunded, 0, `stripeCharge second GET: check 'amount_refunded': ${JSON.stringify(stripeCharge)}`);
         });
@@ -1292,9 +1295,12 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.equal(checkout.statusCode, 422);
     });
 
-    it("returns 424 on StripePermissionError", async () => {
-        // This connect account isn't valid in the mock server or the real thing.
-        stubNextStripeAuthAccountId("acct_invalid");
+    it("returns 409 on StripePermissionError", async () => {
+        // Create a new TestUser but don't create the Stripe account.  This Stripe
+        // account will be invalid both in test and live.
+        const testUser = new TestUser();
+        testUser.stripeAccountId = "acct_invalid";
+        setStubbedStripeUserId(testUser);
 
         const request: CheckoutRequest = {
             id: generateId(),
@@ -1314,8 +1320,8 @@ describe("split tender checkout with Stripe", () => {
             currency: "CAD"
         };
 
-        const checkout = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/checkout", "POST", request);
-        chai.assert.equal(checkout.statusCode, 424);
+        const checkout = await testUser.request<any>(router, "/v2/transactions/checkout", "POST", request);
+        chai.assert.equal(checkout.statusCode, 409, `body=${checkout.bodyRaw}`);
     });
 
     it("returns 429 on Stripe RateLimitError (mock server only)", async function () {
@@ -1352,15 +1358,15 @@ describe("split tender checkout with Stripe", () => {
             this.skip();
         }
 
-       sinonSandbox.stub(getStripeClient, "getStripeClient")
-          .callsFake(async function changeHost(): Promise<Stripe> {
-              const stripeModeConfig = await getLightrailStripeModeConfig(true);
-              const client = new Stripe(stripeModeConfig.secretKey);
-              // If data is sent to a host that supports Discard Protocol on TCP or UDP port 9.
-              // The data sent to the server is simply discarded and no response is returned.
-              client.setHost("localhost", 9, "http");
-              return client;
-        });
+        sinonSandbox.stub(getStripeClient, "getStripeClient")
+            .callsFake(async function changeHost(): Promise<Stripe> {
+                const stripeModeConfig = await getLightrailStripeModeConfig(true);
+                const client = new Stripe(stripeModeConfig.secretKey);
+                // If data is sent to a host that supports Discard Protocol on TCP or UDP port 9.
+                // The data sent to the server is simply discarded and no response is returned.
+                client.setHost("localhost", 9, "http");
+                return client;
+            });
 
         const checkoutRequest: CheckoutRequest = {
             id: generateId(),
@@ -1386,7 +1392,7 @@ describe("split tender checkout with Stripe", () => {
 
     describe("stripe customer + source tests", () => {
         it("can charge a customer's default card", async () => {
-            const customer = await createCustomer({source: "tok_visa"}, true, stripeLiveMerchantConfig.stripeUserId);
+            const customer = await createCustomer({source: "tok_visa"}, true, defaultTestUser.stripeAccountId);
 
             const request: CheckoutRequest = {
                 id: generateId(),
@@ -1414,8 +1420,8 @@ describe("split tender checkout with Stripe", () => {
         });
 
         it("can charge a customer's non-default card", async () => {
-            const customer = await createCustomer({source: "tok_visa"}, true, stripeLiveMerchantConfig.stripeUserId);
-            const source = await createCustomerSource(customer.id, {source: "tok_mastercard"}, true, stripeLiveMerchantConfig.stripeUserId);
+            const customer = await createCustomer({source: "tok_visa"}, true, defaultTestUser.stripeAccountId);
+            const source = await createCustomerSource(customer.id, {source: "tok_mastercard"}, true, defaultTestUser.stripeAccountId);
             chai.assert.notEqual(source.id, customer.default_source, "newly created source is not default source");
 
             const request: CheckoutRequest = {

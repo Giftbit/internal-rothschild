@@ -3,20 +3,23 @@ import * as chai from "chai";
 import * as transactions from "../transactions";
 import * as valueStores from "../../values/values";
 import * as testUtils from "../../../../utils/testUtils";
-import {defaultTestUser, generateId} from "../../../../utils/testUtils";
+import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
 import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../../model/Transaction";
-import {createCurrency} from "../../currencies";
 import {CaptureRequest, CheckoutRequest, VoidRequest} from "../../../../model/TransactionRequest";
 import {
+    setStubbedStripeUserId,
     setStubsForStripeTests,
-    stripeLiveMerchantConfig,
+    testStripeLive,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
 import * as Stripe from "stripe";
 import {captureCharge, createRefund} from "../../../../utils/stripeUtils/stripeTransactions";
 import chaiExclude from "chai-exclude";
+import {TestUser} from "../../../../utils/testUtils/TestUser";
+import {getStripeClient} from "../../../../utils/stripeUtils/stripeAccess";
+import {createCurrency} from "../../currencies";
 
 chai.use(chaiExclude);
 
@@ -24,7 +27,7 @@ describe("/v2/transactions/checkout - pending", () => {
 
     const router = new cassava.Router();
 
-    before(async function () {
+    before(async () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         transactions.installTransactionsRest(router);
@@ -35,7 +38,8 @@ describe("/v2/transactions/checkout - pending", () => {
             symbol: "$",
             decimalPlaces: 2
         });
-        setStubsForStripeTests();
+        setCodeCryptographySecrets();
+        await setStubsForStripeTests();
     });
 
     after(() => {
@@ -617,6 +621,213 @@ describe("/v2/transactions/checkout - pending", () => {
         chai.assert.equal(valueCaptureRes.body.balance, 0);
     });
 
+    it("can create and void a pending transaction, Remainder only", async () => {
+        const pendingTx: CheckoutRequest = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "lightrail",
+                    code: "this-does-not-exist"
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "🚗",
+                    unitPrice: 14286,
+                    taxRate: 0.05
+                }
+            ],
+            currency: "CAD",
+            allowRemainder: true,
+            pending: true
+        };
+        const pendingTxRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", pendingTx);
+        chai.assert.equal(pendingTxRes.statusCode, 201, `body=${JSON.stringify(pendingTxRes.body)}`);
+        chai.assert.deepEqualExcluding(pendingTxRes.body, {
+            id: pendingTx.id,
+            transactionType: "checkout",
+            currency: "CAD",
+            totals: {
+                subtotal: 14286,
+                tax: 714,
+                discount: 0,
+                discountLightrail: 0,
+                payable: 15000,
+                paidInternal: 0,
+                paidLightrail: 0,
+                paidStripe: 0,
+                remainder: 15000,
+                forgiven: 0
+            },
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "🚗",
+                    unitPrice: 14286,
+                    taxRate: 0.05,
+                    quantity: 1,
+                    lineTotal: {
+                        subtotal: 14286,
+                        taxable: 14286,
+                        tax: 714,
+                        discount: 0,
+                        payable: 15000,
+                        remainder: 15000
+                    }
+                }
+            ],
+            steps: [],
+            paymentSources: [
+                {
+                    rail: "lightrail",
+                    code: "…xist"
+                }
+            ],
+            pending: true,
+            pendingVoidDate: null,
+            metadata: null,
+            tax: {
+                roundingMode: "HALF_EVEN"
+            },
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
+        }, ["createdDate", "pendingVoidDate"]);
+        chai.assert.isNotNull(pendingTxRes.body.pendingVoidDate);
+
+        const voidTx: VoidRequest = {
+            id: generateId()
+        };
+        const voidRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingTx.id}/void`, "POST", voidTx);
+        chai.assert.equal(voidRes.statusCode, 201, `body=${JSON.stringify(voidRes.body)}`);
+        chai.assert.isNotTrue(voidRes.body.pending);
+        chai.assert.deepEqualExcluding(voidRes.body, {
+            id: voidTx.id,
+            transactionType: "void",
+            currency: "CAD",
+            totals: {
+                subtotal: -14286,
+                tax: -714,
+                discount: 0,
+                discountLightrail: 0,
+                payable: -15000,
+                paidInternal: 0,
+                paidLightrail: 0,
+                paidStripe: 0,
+                remainder: -15000,
+                forgiven: 0
+            },
+            lineItems: null,
+            steps: [],
+            paymentSources: null,
+            pending: false,
+            metadata: null,
+            tax: {
+                roundingMode: "HALF_EVEN"
+            },
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
+        }, ["createdDate"]);
+    });
+
+    it("can create and capture a pending transaction, Remainder only", async () => {
+        const pendingTx: CheckoutRequest = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "lightrail",
+                    code: "this-does-not-exist"
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "🚗",
+                    unitPrice: 14286,
+                    taxRate: 0.05
+                }
+            ],
+            currency: "CAD",
+            allowRemainder: true,
+            pending: true
+        };
+        const pendingTxRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", pendingTx);
+        chai.assert.equal(pendingTxRes.statusCode, 201, `body=${JSON.stringify(pendingTxRes.body)}`);
+        chai.assert.deepEqualExcluding(pendingTxRes.body, {
+            id: pendingTx.id,
+            transactionType: "checkout",
+            currency: "CAD",
+            totals: {
+                subtotal: 14286,
+                tax: 714,
+                discount: 0,
+                discountLightrail: 0,
+                payable: 15000,
+                paidInternal: 0,
+                paidLightrail: 0,
+                paidStripe: 0,
+                remainder: 15000,
+                forgiven: 0
+            },
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "🚗",
+                    unitPrice: 14286,
+                    taxRate: 0.05,
+                    quantity: 1,
+                    lineTotal: {
+                        subtotal: 14286,
+                        taxable: 14286,
+                        tax: 714,
+                        discount: 0,
+                        payable: 15000,
+                        remainder: 15000
+                    }
+                }
+            ],
+            steps: [],
+            paymentSources: [
+                {
+                    rail: "lightrail",
+                    code: "…xist"
+                }
+            ],
+            pending: true,
+            pendingVoidDate: null,
+            metadata: null,
+            tax: {
+                roundingMode: "HALF_EVEN"
+            },
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
+        }, ["createdDate", "pendingVoidDate"]);
+        chai.assert.isNotNull(pendingTxRes.body.pendingVoidDate);
+
+        const captureTx: CaptureRequest = {
+            id: generateId()
+        };
+        const captureRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingTx.id}/capture`, "POST", captureTx);
+        chai.assert.equal(captureRes.statusCode, 201, `body=${JSON.stringify(captureRes.body)}`);
+
+        chai.assert.deepEqualExcluding(captureRes.body, {
+            id: captureTx.id,
+            transactionType: "capture",
+            currency: "CAD",
+            totals: null,
+            lineItems: null,
+            steps: [],
+            paymentSources: null,
+            pending: false,
+            metadata: null,
+            tax: {
+                roundingMode: "HALF_EVEN"
+            },
+            createdDate: null,
+            createdBy: defaultTestUser.auth.teamMemberId
+        }, ["createdDate"]);
+    });
+
     it("voids Lightrail+Stripe successfully when the Stripe charge was refunded already", async () => {
         const value: Partial<Value> = {
             id: generateId(),
@@ -657,7 +868,7 @@ describe("/v2/transactions/checkout - pending", () => {
         chai.assert.equal(valuePendingRes.body.balance, 0);
 
         // Refund the charge manually
-        const refund = await createRefund({charge: (pendingTxRes.body.steps[1] as StripeTransactionStep).chargeId}, true, stripeLiveMerchantConfig.stripeUserId);
+        const refund = await createRefund({charge: (pendingTxRes.body.steps[1] as StripeTransactionStep).chargeId}, true, defaultTestUser.stripeAccountId);
 
         const voidRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingTx.id}/void`, "POST", {
             id: generateId()
@@ -729,7 +940,7 @@ describe("/v2/transactions/checkout - pending", () => {
         chai.assert.equal(valuePendingRes.body.balance, 0);
 
         // Capture the charge manually.
-        const capture = await captureCharge((pendingTxRes.body.steps[1] as StripeTransactionStep).chargeId, {}, true, stripeLiveMerchantConfig.stripeUserId);
+        const capture = await captureCharge((pendingTxRes.body.steps[1] as StripeTransactionStep).chargeId, {}, true, defaultTestUser.stripeAccountId);
 
         const captureRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingTx.id}/capture`, "POST", {
             id: generateId()
@@ -747,5 +958,179 @@ describe("/v2/transactions/checkout - pending", () => {
 
         const valueCaptureRes = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
         chai.assert.equal(valueCaptureRes.body.balance, 0);
+    });
+
+    describe("stripe issues", () => {
+        it("can't void on disconnected Stripe account", async function () {
+            if (testStripeLive()) {
+                // This test relies upon being able to create and delete accounts, which is
+                // only supported in the local mock server.
+                this.skip();
+            }
+
+            const testUser = new TestUser();
+
+            const stripe = await getStripeClient(true);
+            const stripeAccount = await stripe.accounts.create({type: "standard"} as any);
+            chai.assert.isString(stripeAccount.id, "created Stripe account");
+            testUser.stripeAccountId = stripeAccount.id;
+            setStubbedStripeUserId(testUser);
+
+            await createCurrency(testUser.auth, {
+                code: "CAD",
+                name: "Canadian bucks",
+                symbol: "$",
+                decimalPlaces: 2
+            });
+
+            const stripeCheckoutTx: CheckoutRequest = {
+                id: generateId(),
+                currency: "cad",
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "human-souls",
+                        unitPrice: 1499
+                    }
+                ],
+                sources: [
+                    {
+                        rail: "stripe",
+                        source: "tok_visa"
+                    }
+                ],
+                pending: true
+            };
+            const stripePendingCheckoutTxRes = await testUser.request<Transaction>(router, "/v2/transactions/checkout", "POST", stripeCheckoutTx);
+            chai.assert.equal(stripePendingCheckoutTxRes.statusCode, 201);
+
+            await stripe.accounts.del(stripeAccount.id);
+
+            const failedVoidRes = await testUser.request<any>(router, `/v2/transactions/${stripeCheckoutTx.id}/void`, "POST", {
+                id: generateId()
+            });
+            chai.assert.equal(failedVoidRes.statusCode, 424, `body=${JSON.stringify(failedVoidRes.body)}`);
+            chai.assert.equal(failedVoidRes.body.messageCode, "StripePermissionError");
+        });
+
+        it("can't capture on disconnected Stripe account", async function () {
+            if (testStripeLive()) {
+                // This test relies upon being able to create and delete accounts, which is
+                // only supported in the local mock server.
+                this.skip();
+            }
+
+            const testUser = new TestUser();
+
+            const stripe = await getStripeClient(true);
+            const stripeAccount = await stripe.accounts.create({type: "standard"} as any);
+            chai.assert.isString(stripeAccount.id, "created Stripe account");
+            testUser.stripeAccountId = stripeAccount.id;
+            setStubbedStripeUserId(testUser);
+
+            await createCurrency(testUser.auth, {
+                code: "CAD",
+                name: "Canadian bucks",
+                symbol: "$",
+                decimalPlaces: 2
+            });
+
+            const stripeCheckoutTx: CheckoutRequest = {
+                id: generateId(),
+                currency: "cad",
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "human-souls",
+                        unitPrice: 1499
+                    }
+                ],
+                sources: [
+                    {
+                        rail: "stripe",
+                        source: "tok_visa"
+                    }
+                ],
+                pending: true
+            };
+            const stripePendingCheckoutTxRes = await testUser.request<Transaction>(router, "/v2/transactions/checkout", "POST", stripeCheckoutTx);
+            chai.assert.equal(stripePendingCheckoutTxRes.statusCode, 201);
+
+            await stripe.accounts.del(stripeAccount.id);
+
+            const failedCaptureRes = await testUser.request<any>(router, `/v2/transactions/${stripeCheckoutTx.id}/capture`, "POST", {
+                id: generateId()
+            });
+            chai.assert.equal(failedCaptureRes.statusCode, 424, `body=${JSON.stringify(failedCaptureRes.body)}`);
+            chai.assert.equal(failedCaptureRes.body.messageCode, "StripePermissionError");
+        });
+
+        it("can't void when Stripe charges are missing", async function () {
+            if (testStripeLive()) {
+                // This test relies upon a test token only supported in the local mock server.
+                this.skip();
+            }
+
+            const stripeCheckoutTx: CheckoutRequest = {
+                id: generateId(),
+                currency: "cad",
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "human-souls",
+                        unitPrice: 1499
+                    }
+                ],
+                sources: [
+                    {
+                        rail: "stripe",
+                        source: "tok_forget"    // Mock server will forget about this charge simulating deleted data.
+                    }
+                ],
+                pending: true
+            };
+            const stripePendingCheckoutTxRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", stripeCheckoutTx);
+            chai.assert.equal(stripePendingCheckoutTxRes.statusCode, 201);
+
+            const failVoidRes = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${stripeCheckoutTx.id}/void`, "POST", {
+                id: generateId()
+            });
+            chai.assert.equal(failVoidRes.statusCode, 409, `body=${JSON.stringify(failVoidRes.body)}`);
+            chai.assert.equal(failVoidRes.body.messageCode, "StripeChargeNotFound");
+        });
+
+        it("can't capture when Stripe charges are missing", async function () {
+            if (testStripeLive()) {
+                // This test relies upon a test token only supported in the local mock server.
+                this.skip();
+            }
+
+            const stripeCheckoutTx: CheckoutRequest = {
+                id: generateId(),
+                currency: "cad",
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "human-souls",
+                        unitPrice: 1499
+                    }
+                ],
+                sources: [
+                    {
+                        rail: "stripe",
+                        source: "tok_forget"    // Mock server will forget about this charge simulating deleted data.
+                    }
+                ],
+                pending: true
+            };
+            const stripePendingCheckoutTxRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", stripeCheckoutTx);
+            chai.assert.equal(stripePendingCheckoutTxRes.statusCode, 201);
+
+            const failedCaptureRes = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${stripeCheckoutTx.id}/capture`, "POST", {
+                id: generateId()
+            });
+            chai.assert.equal(failedCaptureRes.statusCode, 409, `body=${JSON.stringify(failedCaptureRes.body)}`);
+            chai.assert.equal(failedCaptureRes.body.messageCode, "StripeChargeNotFound");
+        });
     });
 });

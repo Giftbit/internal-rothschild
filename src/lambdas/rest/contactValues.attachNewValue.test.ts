@@ -29,7 +29,7 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
         await createCurrency(testUtils.defaultTestUser.auth, currency);
 
         const contactPartial: Partial<Contact> = {
@@ -353,7 +353,7 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
             attachGenericAsNewValue: true
         });
         chai.assert.equal(attachResp2.statusCode, 200, `body=${JSON.stringify(attachResp2.body)}`);
-        chai.assert.deepEqualExcluding(attachResp1.body, attachResp2.body, ["createdDate"]);
+        chai.assert.deepEqualExcluding(attachResp1.body, attachResp2.body, ["createdDate", "updatedDate", "updatedContactIdDate"]);
     });
 
     describe("stats on generic code with usesRemaining liability", () => {

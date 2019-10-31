@@ -70,7 +70,9 @@ export async function getAttachTransactionPlanForGenericCodeWithPerContactOption
         action: "update",
         value: genericValue,
         amount: genericValue.balance !== null ? -amount : null, // generic code can have balance: null but perContact balance set.
-        uses: genericValue.usesRemaining !== null ? -uses : null // likewise
+        uses: genericValue.usesRemaining !== null ? -uses : null, // likewise
+        allowCanceled: false,
+        allowFrozen: false
     };
     const insertStep: LightrailInsertTransactionPlanStep = {
         rail: "lightrail",

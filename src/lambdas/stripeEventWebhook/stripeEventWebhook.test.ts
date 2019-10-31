@@ -12,11 +12,7 @@ import {
 import {installRestRoutes} from "../rest/installRestRoutes";
 import * as stripeAccess from "../../utils/stripeUtils/stripeAccess";
 import * as chai from "chai";
-import {
-    setStubsForStripeTests,
-    stripeLiveMerchantConfig,
-    unsetStubsForStripeTests
-} from "../../utils/testUtils/stripeTestUtils";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
 import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../model/Transaction";
 import {Value} from "../../model/Value";
 import {CheckoutRequest} from "../../model/TransactionRequest";
@@ -58,10 +54,8 @@ describe("/v2/stripeEventWebhook", () => {
         restRouter.route(testUtils.authRoute);
         installRestRoutes(restRouter);
         installStripeEventWebhookRest(webhookEventRouter);
-
-        await setCodeCryptographySecrets();
-
-        setStubsForStripeTests();
+        setCodeCryptographySecrets();
+        await setStubsForStripeTests();
     });
 
     after(() => {
@@ -142,7 +136,7 @@ describe("/v2/stripeEventWebhook", () => {
 
             const chain = await assertTransactionChainContainsTypes(restRouter, webhookEventSetup.checkout.id, 2, ["checkout", "reverse"]);
             const reverseTransaction: Transaction = chain[1];
-            chai.assert.deepEqual(reverseTransaction.metadata, {stripeWebhookTriggeredAction: `Transaction reversed by Lightrail because Stripe charge '${refundedCharge.id}' was refunded as fraudulent. Stripe eventId: '${webhookEvent.id}', Stripe accountId: '${stripeLiveMerchantConfig.stripeUserId}'`}, `reverseTransaction metadata: ${JSON.stringify(reverseTransaction.metadata)}`);
+            chai.assert.deepEqual(reverseTransaction.metadata, {stripeWebhookTriggeredAction: `Transaction reversed by Lightrail because Stripe charge '${refundedCharge.id}' was refunded as fraudulent. Stripe eventId: '${webhookEvent.id}', Stripe accountId: '${defaultTestUser.stripeAccountId}'`}, `reverseTransaction metadata: ${JSON.stringify(reverseTransaction.metadata)}`);
 
             await assertValuesRestoredAndFrozen(restRouter, webhookEventSetup.valuesCharged, true);
         }).timeout(8000);
@@ -457,12 +451,12 @@ describe("/v2/stripeEventWebhook", () => {
                 amount: 500,
                 currency: "usd",
                 source: "tok_visa"
-            }, true, stripeLiveMerchantConfig.stripeUserId, generateId());
+            }, true, defaultTestUser.stripeAccountId, generateId());
             await createRefund({
                 charge: charge.id,
                 reason: "fraudulent"
-            }, true, stripeLiveMerchantConfig.stripeUserId);
-            const refundedCharge = await retrieveCharge(charge.id, true, stripeLiveMerchantConfig.stripeUserId);
+            }, true, defaultTestUser.stripeAccountId);
+            const refundedCharge = await retrieveCharge(charge.id, true, defaultTestUser.stripeAccountId);
             chai.assert.isTrue(refundedCharge.refunded, `Stripe charge should have 'refunded=true': ${JSON.stringify(refundedCharge)}`);
             const eventMock = generateConnectWebhookEventMock("charge.refunded", refundedCharge);
 
@@ -496,12 +490,12 @@ describe("/v2/stripeEventWebhook", () => {
                 amount: 500,
                 currency: "usd",
                 source: "tok_visa"
-            }, true, stripeLiveMerchantConfig.stripeUserId, generateId());
+            }, true, defaultTestUser.stripeAccountId, generateId());
             await createRefund({
                 charge: charge.id,
                 reason: "fraudulent"
-            }, true, stripeLiveMerchantConfig.stripeUserId);
-            const refundedCharge = await retrieveCharge(charge.id, true, stripeLiveMerchantConfig.stripeUserId);
+            }, true, defaultTestUser.stripeAccountId);
+            const refundedCharge = await retrieveCharge(charge.id, true, defaultTestUser.stripeAccountId);
             chai.assert.isTrue(refundedCharge.refunded, `Stripe charge should have 'refunded=true': ${JSON.stringify(refundedCharge)}`);
 
             const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", refundedCharge));

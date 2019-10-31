@@ -13,11 +13,7 @@ import {
 } from "../../../../../model/Transaction";
 import {CheckoutRequest, ReverseRequest} from "../../../../../model/TransactionRequest";
 import {after} from "mocha";
-import {
-    setStubsForStripeTests,
-    stripeLiveMerchantConfig,
-    unsetStubsForStripeTests
-} from "../../../../../utils/testUtils/stripeTestUtils";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../../utils/testUtils/stripeTestUtils";
 import {createRefund} from "../../../../../utils/stripeUtils/stripeTransactions";
 import chaiExclude from "chai-exclude";
 
@@ -31,8 +27,7 @@ describe("/v2/transactions/reverse - checkout", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
 
         const currency = await createCurrency(testUtils.defaultTestUser.auth, {
             code: "USD",
@@ -41,7 +36,7 @@ describe("/v2/transactions/reverse - checkout", () => {
             decimalPlaces: 2
         });
         chai.assert.equal(currency.code, "USD");
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
     });
 
     after(() => {
@@ -297,11 +292,11 @@ describe("/v2/transactions/reverse - checkout", () => {
         chai.assert.equal((postCheckout.body.steps[0] as LightrailTransactionStep).balanceChange, -110, `body=${JSON.stringify(postCheckout.body)}`);
         chai.assert.isDefined(postCheckout.body.steps.find(step => step.rail === "stripe"));
 
-        const stripeStep = <StripeTransactionStep>postCheckout.body.steps.find(step => step.rail === "stripe");
+        const stripeStep = postCheckout.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep;
         chai.assert.isObject(stripeStep.charge);
 
         // Manually refund charge.
-        await createRefund({charge: stripeStep.chargeId}, true, stripeLiveMerchantConfig.stripeUserId);
+        await createRefund({charge: stripeStep.chargeId}, true, testUtils.defaultTestUser.stripeAccountId);
 
         // Lightrail reverse.
         const reverse: ReverseRequest = {
@@ -350,12 +345,12 @@ describe("/v2/transactions/reverse - checkout", () => {
         chai.assert.equal(postCheckout.statusCode, 201, `body=${JSON.stringify(postCheckout.body)}`);
         chai.assert.equal((postCheckout.body.steps[0] as LightrailTransactionStep).balanceChange, -110, `body=${JSON.stringify(postCheckout.body)}`);
 
-        const stripeStep = <StripeTransactionStep>postCheckout.body.steps.find(step => step.rail === "stripe");
+        const stripeStep = postCheckout.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep;
         chai.assert.isObject(stripeStep);
         chai.assert.isObject(stripeStep.charge);
 
         // Manual partial refund.
-        await createRefund({charge: stripeStep.chargeId, amount: 200}, true, stripeLiveMerchantConfig.stripeUserId);
+        await createRefund({charge: stripeStep.chargeId, amount: 200}, true, testUtils.defaultTestUser.stripeAccountId);
 
         // Lightrail reverse.
         const reverse: Partial<ReverseRequest> = {

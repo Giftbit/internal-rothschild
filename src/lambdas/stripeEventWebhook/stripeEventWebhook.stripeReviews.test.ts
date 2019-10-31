@@ -24,10 +24,8 @@ describe("/v2/stripeEventWebhook - Stripe Review events", () => {
         restRouter.route(testUtils.authRoute);
         installRestRoutes(restRouter);
         installStripeEventWebhookRest(webhookEventRouter);
-
-        await setCodeCryptographySecrets();
-
-        setStubsForStripeTests();
+        setCodeCryptographySecrets();
+        await setStubsForStripeTests();
     });
 
     after(() => {

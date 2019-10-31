@@ -28,6 +28,8 @@ import {getCurrency} from "../currencies";
 import {checkCodeParameters, checkValueProperties, createValue} from "./createValue";
 import {hasContactValues} from "../contactValues";
 import {QueryBuilder} from "knex";
+import {MetricsLogger} from "../../../utils/metricsLogger";
+import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -421,6 +423,21 @@ export async function getValueByCode(auth: giftbitRoutes.jwtauth.AuthorizationBa
     return DbValue.toValue(res[0], showCode);
 }
 
+export async function getDbValuesByTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, transaction: Transaction): Promise<DbValue[]> {
+    const valueIds = transaction.steps
+        .filter(step => step.rail === "lightrail")
+        .map(step => (step as LightrailTransactionStep).valueId);
+    if (!valueIds.length) {
+        return [];
+    }
+
+    const knex = await getKnexRead();
+    const dbValues: DbValue[] = await knex("Values")
+        .where({userId: auth.userId})
+        .whereIn("id", valueIds);
+    return dbValues;
+}
+
 export async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, valueUpdates: Partial<Value>): Promise<Value> {
     auth.requireIds("userId");
 
@@ -458,6 +475,7 @@ export async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         if (updateRes > 1) {
             throw new Error(`Illegal UPDATE query.  Updated ${updateRes} values.`);
         }
+        MetricsLogger.valueUpdated(valueUpdates, auth);
         return updatedValue;
     });
 }

@@ -26,6 +26,7 @@
       true,
       "spaces"
     ],
+    "no-angle-bracket-type-assertion": true,
     "no-console": true,
     "no-duplicate-variable": true,
     "no-eval": true,

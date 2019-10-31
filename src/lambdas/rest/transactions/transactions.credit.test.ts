@@ -20,8 +20,7 @@ describe("/v2/transactions/credit", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
 
         await currencies.createCurrency(defaultTestUser.auth, {
             code: "CAD",

@@ -18,23 +18,23 @@ describe("/v2/transactions/checkout - mixed sources", () => {
 
     const router = new cassava.Router();
 
-    before(async function () {
+    before(async () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         transactions.installTransactionsRest(router);
         valueStores.installValuesRest(router);
 
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
         await createCurrency(testUtils.defaultTestUser.auth, {
             code: "CAD",
             name: "Canadian Tire Money",
             symbol: "$",
             decimalPlaces: 2
         });
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
     });
 
-    after(async function () {
+    after(() => {
         unsetStubsForStripeTests();
     });
 
