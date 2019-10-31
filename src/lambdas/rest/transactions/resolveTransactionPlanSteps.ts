@@ -132,9 +132,9 @@ export async function getLightrailValues(auth: giftbitRoutes.jwtauth.Authorizati
     const now = nowInDbPrecision();
 
     /**
-     * Note on query structure: We have a composite index for userId + ID/code/contactId so it's more efficient to use
-     *  those in a set of UNION subqueries to build up the FROM clause, than it was to use 'OR WHERE code = ? OR WHERE
-     *  contactId = ?' ...etc, which resulted in a full table scan.
+     * Note on query structure: The Values table has a composite index for each of userId+ID, userId+code, userId+contactId
+     *  so it's more efficient to use those in a set of UNION subqueries to build up the FROM clause, than it was to use
+     *  'OR WHERE code = ? OR WHERE contactId = ?' ...etc, which resulted in a full table scan.
      */
     let query = knex.select("*").from(queryBuilder => {
         if (contactIds.length) {
