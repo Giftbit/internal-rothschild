@@ -14,6 +14,9 @@ import {
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {ProgramStats} from "../../model/ProgramStats";
 import {checkRulesSyntax} from "./transactions/rules/RuleContext";
+import {MetricsLogger} from "../../utils/metricsLogger";
+import {ruleSchema} from "./transactions/rules/ruleSchema";
+import {DiscountSellerLiabilityUtils} from "../../utils/discountSellerLiabilityUtils";
 import log = require("loglevel");
 
 export function installProgramsRest(router: cassava.Router): void {
@@ -52,6 +55,7 @@ export function installProgramsRest(router: cassava.Router): void {
                         currency: "",
                         discount: false,
                         discountSellerLiability: null,
+                        discountSellerLiabilityRule: null,
                         pretax: false,
                         active: true,
                         redemptionRule: null,
@@ -72,6 +76,13 @@ export function installProgramsRest(router: cassava.Router): void {
 
             program.startDate = program.startDate ? dateInDbPrecision(new Date(program.startDate)) : null;
             program.endDate = program.endDate ? dateInDbPrecision(new Date(program.endDate)) : null;
+
+            if (program.discountSellerLiability != null) {
+                MetricsLogger.legacyDiscountSellerLiabilitySet("programCreate", auth);
+                program.discountSellerLiabilityRule = DiscountSellerLiabilityUtils.numberToRule(program.discountSellerLiability);
+            } else if (program.discountSellerLiabilityRule != null) {
+                program.discountSellerLiability = DiscountSellerLiabilityUtils.ruleToNumber(program.discountSellerLiabilityRule);
+            }
 
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
@@ -105,13 +116,13 @@ export function installProgramsRest(router: cassava.Router): void {
             }
 
             const now = nowInDbPrecision();
-            const program: Partial<Program> = {
-                ...pick(evt.body as Program, "name", "discount", "pretax", "active", "redemptionRule", "balanceRule", "minInitialBalance", "maxInitialBalance", "fixedInitialBalances", "fixedInitialUsesRemaining", "startDate", "endDate", "metadata"),
+            const programUpdates: Partial<Program> = {
+                ...pick(evt.body as Program, "name", "discount", "discountSellerLiability", "discountSellerLiabilityRule", "pretax", "active", "redemptionRule", "balanceRule", "minInitialBalance", "maxInitialBalance", "fixedInitialBalances", "fixedInitialUsesRemaining", "startDate", "endDate", "metadata"),
                 updatedDate: now
             };
 
             return {
-                body: await updateProgram(auth, evt.pathParameters.id, program)
+                body: await updateProgram(auth, evt.pathParameters.id, programUpdates)
             };
         });
 
@@ -258,19 +269,27 @@ async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
             throw new Error(`Illegal SELECT query.  Returned ${selectProgramRes.length} values.`);
         }
         const existingProgram = DbProgram.toProgram(selectProgramRes[0]);
-        const updatedProgram = {
+        const updatedProgram: Program = {
             ...existingProgram,
             ...programUpdates
         };
+        // Can be removed when discountSellerLiability is removed from API.
+        if (programUpdates.discountSellerLiability != null) {
+            updatedProgram.discountSellerLiabilityRule = DiscountSellerLiabilityUtils.numberToRule(updatedProgram.discountSellerLiability);
+            MetricsLogger.legacyDiscountSellerLiabilitySet("programUpdate", auth);
+        } else if (programUpdates.discountSellerLiabilityRule != null) {
+            updatedProgram.discountSellerLiability = DiscountSellerLiabilityUtils.ruleToNumber(programUpdates.discountSellerLiabilityRule);
+        }
 
         checkProgramProperties(updatedProgram);
 
+        const dbProgramUpdate = Program.toDbProgramUpdate(auth, programUpdates);
         const patchRes = await trx("Programs")
             .where({
                 userId: auth.userId,
                 id: id
             })
-            .update(Program.toDbProgramUpdate(auth, programUpdates));
+            .update(dbProgramUpdate);
         if (patchRes === 0) {
             throw new cassava.RestError(404);
         }
@@ -548,6 +567,10 @@ const programSchema: jsonschema.Schema = {
         discount: {
             type: "boolean"
         },
+        discountSellerLiabilityRule: {
+            ...ruleSchema,
+            title: "DiscountSellerLiability rule"
+        },
         discountSellerLiability: {
             type: ["number", "null"],
             minimum: 0,
@@ -560,42 +583,12 @@ const programSchema: jsonschema.Schema = {
             type: "boolean"
         },
         redemptionRule: {
-            oneOf: [ // todo can we export this schema for a rule so that it's not duplicated?
-                {
-                    type: "null"
-                },
-                {
-                    title: "Redemption rule",
-                    type: "object",
-                    properties: {
-                        rule: {
-                            type: "string"
-                        },
-                        explanation: {
-                            type: "string"
-                        }
-                    }
-                }
-            ]
+            ...ruleSchema,
+            title: "Redemption rule",
         },
         balanceRule: {
-            oneOf: [
-                {
-                    type: "null"
-                },
-                {
-                    title: "Balance rule",
-                    type: "object",
-                    properties: {
-                        rule: {
-                            type: "string"
-                        },
-                        explanation: {
-                            type: "string"
-                        }
-                    }
-                }
-            ]
+            ...ruleSchema,
+            title: "Balance rule"
         },
         minInitialBalance: {
             type: ["number", "null"],
@@ -635,7 +628,29 @@ const programSchema: jsonschema.Schema = {
             type: ["object", "null"]
         }
     },
-    required: ["id", "name", "currency"]
+    required: ["id", "name", "currency"],
+    dependencies: {
+        discountSellerLiability: {
+            properties: {
+                discount: {
+                    enum: [true]
+                },
+                discountSellerLiabilityRule: {
+                    enum: [null, undefined]
+                }
+            }
+        },
+        discountSellerLiabilityRule: {
+            properties: {
+                discount: {
+                    enum: [true]
+                },
+                discountSellerLiability: {
+                    enum: [null, undefined]
+                }
+            }
+        }
+    }
 };
 const updateProgramSchema: jsonschema.Schema = {
     ...programSchema,
