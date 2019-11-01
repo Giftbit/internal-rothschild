@@ -57,7 +57,7 @@ export interface ResolveTransactionPartiesOptions {
 }
 
 export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[], options: ResolveTransactionPartiesOptions): Promise<TransactionPlanStep[]> {
-    const fetchedValues = await getLightrailValues(auth, parties, options);
+    const fetchedValues = await getLightrailValuesForTransactionPlanSteps(auth, parties, options);
     return getTransactionPlanStepsFromSources(
         fetchedValues,
         parties.filter(party => party.rail !== "lightrail") as (StripeTransactionParty | InternalTransactionParty)[],
@@ -111,7 +111,7 @@ export function getTransactionPlanStepsFromSources(lightrailSources: Value[], no
     return [...lightrailSteps, ...internalSteps, ...stripeSteps];
 }
 
-export async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[], options: ResolveTransactionPartiesOptions): Promise<Value[]> {
+export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[], options: ResolveTransactionPartiesOptions): Promise<Value[]> {
     const valueIds = parties.filter(p => p.rail === "lightrail" && p.valueId)
         .map(p => (p as LightrailTransactionParty).valueId);
 
