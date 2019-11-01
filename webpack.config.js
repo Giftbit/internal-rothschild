@@ -26,7 +26,7 @@ module.exports = function (env) {
                             {
                                 loader: 'babel-loader',
                                 options: {
-                                    presets: [['@babel/env', {targets: {node: '8.10'}}]],
+                                    presets: [['@babel/env', {targets: {node: '10.17'}}]],
                                     plugins: [],
                                     compact: false,
                                     babelrc: false,
@@ -41,7 +41,7 @@ module.exports = function (env) {
                             {
                                 loader: 'babel-loader',
                                 options: {
-                                    presets: [['@babel/env', {targets: {node: '8.10'}}]],
+                                    presets: [['@babel/env', {targets: {node: '10.17'}}]],
                                     plugins: [],
                                     compact: false,
                                     babelrc: false,

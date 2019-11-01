@@ -242,7 +242,7 @@ Resources:
     Properties:
       CodeUri: ../dist/credentialGen/credentialGen.zip
       Handler: index.handler
-      Runtime: nodejs8.10
+      Runtime: nodejs10.x
       MemorySize: 128
       Timeout: 60 # seconds, 300 max
       Policies:
@@ -449,7 +449,7 @@ Resources:
     Properties:
       CodeUri: ../dist/stripeEventWebhook/stripeEventWebhook.zip
       Handler: index.handler
-      Runtime: nodejs8.10
+      Runtime: nodejs10.x
       MemorySize: 128
       Timeout: 180 # seconds, 900 max
       Environment:
@@ -523,7 +523,7 @@ Resources:
     Properties:
       CodeUri: ../dist/rest/rest.zip
       Handler: index.handler
-      Runtime: nodejs8.10
+      Runtime: nodejs10.x
       MemorySize: 512
       Timeout: 180 # seconds, 900 max
       ReservedConcurrentExecutions: 150
@@ -611,7 +611,7 @@ Resources:
     Properties:
       CodeUri: ../dist/automaticVoid/automaticVoid.zip
       Handler: index.handler
-      Runtime: nodejs8.10
+      Runtime: nodejs10.x
       MemorySize: 256
       Timeout: 600 # same as schedule rate
       Environment:
@@ -688,7 +688,7 @@ Resources:
     Properties:
       CodeUri: ../dist/postDeploy/postDeploy.zip
       Handler: index.handler
-      Runtime: nodejs8.10
+      Runtime: nodejs10.x
       MemorySize: 256
       Timeout: 900 # seconds, 900 max
       Environment:
