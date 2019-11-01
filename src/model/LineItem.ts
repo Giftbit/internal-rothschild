@@ -22,6 +22,7 @@ export interface LineTotal {
     tax: number;
     discount: number;
     remainder: number; // not displayed but used during the order calculation
+    sellerDiscount?: number;
     payable: number;
 }
 

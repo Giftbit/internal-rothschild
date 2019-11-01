@@ -2,6 +2,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {DbCode, getCodeLastFourNoPrefix} from "./DbCode";
 import {pickDefined} from "../utils/pick";
 import {decryptCode} from "../utils/codeCryptoUtils";
+import {DiscountSellerLiabilityUtils} from "../utils/discountSellerLiabilityUtils";
 
 export interface Value {
     id: string;
@@ -20,7 +21,8 @@ export interface Value {
     canceled: boolean;
     frozen: boolean;
     discount: boolean;
-    discountSellerLiability: number | null;
+    discountSellerLiability?: number | null; // returned if rule can boil down to a decimal.
+    discountSellerLiabilityRule: Rule | null; // always returned
     redemptionRule: Rule | null;
     balanceRule: Rule | null;
     startDate: Date | null;
@@ -68,7 +70,7 @@ export namespace Value {
             canceled: v.canceled,
             frozen: v.frozen,
             discount: v.discount,
-            discountSellerLiability: v.discountSellerLiability,
+            discountSellerLiabilityRule: JSON.stringify(v.discountSellerLiabilityRule),
             redemptionRule: JSON.stringify(v.redemptionRule),
             balanceRule: JSON.stringify(v.balanceRule),
             startDate: v.startDate,
@@ -94,7 +96,7 @@ export namespace Value {
             frozen: v.frozen,
             pretax: v.pretax,
             discount: v.discount,
-            discountSellerLiability: v.discountSellerLiability,
+            discountSellerLiabilityRule: JSON.stringify(v.discountSellerLiabilityRule),
             redemptionRule: JSON.stringify(v.redemptionRule),
             balanceRule: JSON.stringify(v.balanceRule),
             startDate: v.startDate,
@@ -135,7 +137,7 @@ export interface DbValue {
     canceled: boolean;
     frozen: boolean;
     discount: boolean;
-    discountSellerLiability: number | null;
+    discountSellerLiabilityRule: string | null;
     redemptionRule: string;
     balanceRule: string;
     startDate: Date | null;
@@ -179,7 +181,8 @@ export namespace DbValue {
             canceled: !!v.canceled,
             frozen: !!v.frozen,
             discount: !!v.discount,
-            discountSellerLiability: v.discountSellerLiability,
+            discountSellerLiability: DiscountSellerLiabilityUtils.ruleToNumber(JSON.parse(v.discountSellerLiabilityRule)),
+            discountSellerLiabilityRule: JSON.parse(v.discountSellerLiabilityRule),
             redemptionRule: JSON.parse(v.redemptionRule),
             balanceRule: JSON.parse(v.balanceRule),
             startDate: v.startDate,

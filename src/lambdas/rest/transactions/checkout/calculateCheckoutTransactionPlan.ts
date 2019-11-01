@@ -13,6 +13,7 @@ import {RuleContext} from "../rules/RuleContext";
 import {CheckoutTransactionPlan} from "./CheckoutTransactionPlan";
 import {bankersRounding} from "../../../../utils/moneyUtils";
 import {LineItemResponse} from "../../../../model/LineItem";
+import {MathUtils} from "../../../../utils/mathUtils";
 import log = require("loglevel");
 
 /**
@@ -89,7 +90,7 @@ function calculateAmountForLightrailTransactionStep(step: LightrailUpdateTransac
         const item = transactionPlan.lineItems[index];
         if (item.lineTotal.remainder > 0) {
             if (value.redemptionRule) {
-                if (!getRuleContext(transactionPlan, value, step, item).evaluateRedemptionRule(value.redemptionRule)) {
+                if (!getRuleContext(transactionPlan, step, item).evaluateRedemptionRule(value.redemptionRule)) {
                     log.info(`Value ${value.id} CANNOT be applied to ${JSON.stringify(item)}. Skipping to next item.`);
                     continue;
                 }
@@ -98,7 +99,7 @@ function calculateAmountForLightrailTransactionStep(step: LightrailUpdateTransac
             log.info(`Value ${value.id} CAN be applied to ${JSON.stringify(item)}.`);
             let amount: number;
             if (value.balanceRule) {
-                const evaluateBalanceRule = getRuleContext(transactionPlan, value, step, item).evaluateBalanceRule(value.balanceRule);
+                const evaluateBalanceRule = getRuleContext(transactionPlan, step, item).evaluateBalanceRule(value.balanceRule);
                 const amountFromRule: number = isNaN(evaluateBalanceRule) || evaluateBalanceRule < 0 ? 0 : evaluateBalanceRule;
                 const roundedAmountFromRule = bankersRounding(amountFromRule, 0);
                 amount = Math.min(item.lineTotal.remainder, roundedAmountFromRule);
@@ -113,11 +114,22 @@ function calculateAmountForLightrailTransactionStep(step: LightrailUpdateTransac
             item.lineTotal.remainder -= amount;
             if (value.discount) {
                 item.lineTotal.discount += amount;
+                if (value.discountSellerLiabilityRule !== null) {
+                    item.lineTotal.sellerDiscount += bankersRounding(amount * getDiscountSellerLiability(transactionPlan, step, item), 0);
+                }
             }
         } else {
             // The item has been paid for, skip.
         }
     }
+}
+
+/**
+ * Returns a number between 0 and 1.
+ */
+function getDiscountSellerLiability(transactionPlan: TransactionPlan, step: LightrailUpdateTransactionPlanStep, item: LineItemResponse): number {
+    let discountSellerLiability = getRuleContext(transactionPlan, step, item).evaluateDiscountSellerLiabilityRule(step.value.discountSellerLiabilityRule);
+    return MathUtils.constrain(0, discountSellerLiability, 1);
 }
 
 function calculateAmountForStripeTransactionStep(step: StripeChargeTransactionPlanStep, transactionPlan: TransactionPlan): void {
@@ -147,7 +159,7 @@ function getAvailableBalance(balance: number, negativeStepAmount: number): numbe
     return balance + negativeStepAmount;
 }
 
-function getRuleContext(transactionPlan: TransactionPlan, value: Value, step: LightrailUpdateTransactionPlanStep, item: LineItemResponse): RuleContext {
+function getRuleContext(transactionPlan: TransactionPlan, step: LightrailUpdateTransactionPlanStep, item: LineItemResponse): RuleContext {
     return new RuleContext({
         totals: transactionPlan.totals,
         lineItems: transactionPlan.lineItems,

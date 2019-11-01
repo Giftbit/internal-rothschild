@@ -625,4 +625,143 @@ describe("/v2/values create from program", () => {
             chai.assert.notDeepEqual(valueResp.body.metadata, program.metadata);
         });
     });
+
+    it("can create value from program that uses discountSellerLiabilityRule", async () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            currency: "USD",
+            name: "example",
+            discount: true,
+            discountSellerLiabilityRule: {
+                rule: "1 - currentLineItem.marketplaceRate",
+                explanation: "proportional to marketplace rate"
+            },
+        };
+        const createProgram = await testUtils.testAuthedRequest<Value>(router, "/v2/programs", "POST", program);
+        chai.assert.equal(createProgram.statusCode, 201, JSON.stringify(createProgram.body));
+        chai.assert.deepEqual(createProgram.body.discountSellerLiabilityRule, program.discountSellerLiabilityRule);
+        chai.assert.isNull(createProgram.body.discountSellerLiability);
+
+        let value: Partial<Value> = {
+            id: generateId(),
+            programId: program.id,
+            balance: 100
+        };
+
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValue.statusCode, 201, JSON.stringify(createValue.body));
+        chai.assert.deepEqual(createValue.body.discountSellerLiabilityRule, program.discountSellerLiabilityRule);
+        chai.assert.isNull(createValue.body.discountSellerLiability);
+    });
+
+    describe("program with discountSellerLiability set as number", () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            currency: "USD",
+            name: "example",
+            discount: true,
+            discountSellerLiability: 0.25
+        };
+
+        before(async () => {
+            const createProgram = await testUtils.testAuthedRequest<Value>(router, "/v2/programs", "POST", program);
+            chai.assert.equal(createProgram.statusCode, 201, JSON.stringify(createProgram.body));
+            chai.assert.deepEqual(createProgram.body.discountSellerLiabilityRule, {
+                rule: "0.25",
+                explanation: "Populated from deprecated property discountSellerLiability."
+            });
+            chai.assert.equal(createProgram.body.discountSellerLiability, 0.25);
+        });
+
+        it("can override discountSellerLiability by setting number during value creation", async () => {
+            // set discountSellerLiability as number
+            let value: Partial<Value> = {
+                id: generateId(),
+                programId: program.id,
+                balance: 100,
+                discountSellerLiability: 0.35
+            };
+
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(create.statusCode, 201, JSON.stringify(create.body));
+            chai.assert.deepEqual(create.body.discountSellerLiabilityRule, {
+                rule: "0.35",
+                explanation: "Populated from deprecated property discountSellerLiability."
+            });
+            chai.assert.equal(create.body.discountSellerLiability, 0.35);
+        });
+
+        it("can override discountSellerLiability by setting rule during value creation", async () => {
+            // set discountSellerLiability as rule
+            let value: Partial<Value> = {
+                id: generateId(),
+                programId: program.id,
+                balance: 100,
+                discountSellerLiabilityRule: {
+                    rule: "1 - currentLineItem.marketplaceRate",
+                    explanation: "proportional to marketplace rate"
+                }
+            };
+
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(create.statusCode, 201, JSON.stringify(create.body));
+            chai.assert.deepEqual(create.body.discountSellerLiabilityRule, value.discountSellerLiabilityRule);
+            chai.assert.isNull(create.body.discountSellerLiability);
+        });
+    });
+
+    describe("program with discountSellerLiabilityRule set as rule", () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            currency: "USD",
+            name: "example",
+            discount: true,
+            discountSellerLiabilityRule: {
+                rule: "1 - currentLineItem.marketplaceRate",
+                explanation: "proportional to marketplace rate"
+            },
+        };
+
+        before(async () => {
+            const createProgram = await testUtils.testAuthedRequest<Value>(router, "/v2/programs", "POST", program);
+            chai.assert.equal(createProgram.statusCode, 201, JSON.stringify(createProgram.body));
+            chai.assert.deepEqual(createProgram.body.discountSellerLiabilityRule, program.discountSellerLiabilityRule);
+            chai.assert.isNull(createProgram.body.discountSellerLiability);
+        });
+
+        it("can override discountSellerLiability by setting number during value creation", async () => {
+            let value: Partial<Value> = {
+                id: generateId(),
+                programId: program.id,
+                balance: 100,
+                discountSellerLiability: 0.35
+            };
+
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(create.statusCode, 201, JSON.stringify(create.body));
+            chai.assert.deepEqual(create.body.discountSellerLiabilityRule, {
+                rule: "0.35",
+                explanation: "Populated from deprecated property discountSellerLiability."
+            });
+            chai.assert.equal(create.body.discountSellerLiability, 0.35);
+        });
+
+        it("can override discountSellerLiability by setting rule during value creation", async () => {
+            let value: Partial<Value> = {
+                id: generateId(),
+                programId: program.id,
+                balance: 100,
+                discountSellerLiabilityRule: {
+                    rule: "currentLineItem.marketplaceRate + 0.10",
+                    explanation: "some different weird rule"
+                }
+            };
+
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(create.statusCode, 201, JSON.stringify(create.body));
+            chai.assert.deepEqual(create.body.discountSellerLiabilityRule, value.discountSellerLiabilityRule);
+            chai.assert.isNull(create.body.discountSellerLiability);
+        });
+    });
+
 });
