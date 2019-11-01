@@ -25,11 +25,17 @@ import {
     formatObjectsAmountPropertiesForCurrencyDisplay
 } from "../../../model/Currency";
 import {getCurrency} from "../currencies";
-import {checkCodeParameters, checkValueProperties, createValue} from "./createValue";
+import {
+    checkCodeParameters,
+    checkValueProperties,
+    createValue,
+    setDiscountSellerLiabilityPropertiesForLegacySupport
+} from "./createValue";
 import {hasContactValues} from "../contactValues";
 import {QueryBuilder} from "knex";
 import {MetricsLogger} from "../../../utils/metricsLogger";
 import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {ruleSchema} from "../transactions/rules/ruleSchema";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -150,7 +156,7 @@ export function installValuesRest(router: cassava.Router): void {
 
             const now = nowInDbPrecision();
             const value = {
-                ...pick<Value>(evt.body, "pretax", "active", "canceled", "frozen", "pretax", "discount", "discountSellerLiability", "redemptionRule", "balanceRule", "startDate", "endDate", "metadata", "genericCodeOptions"),
+                ...pick<Value>(evt.body, "pretax", "active", "canceled", "frozen", "pretax", "discount", "discountSellerLiability", "discountSellerLiabilityRule", "redemptionRule", "balanceRule", "startDate", "endDate", "metadata", "genericCodeOptions"),
                 updatedDate: now
             };
             if (value.startDate) {
@@ -450,9 +456,16 @@ export async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             throw new Error(`Illegal SELECT query.  Returned ${selectValueRes.length} values.`);
         }
         const existingValue = await DbValue.toValue(selectValueRes[0]);
-        const updatedValue: Value = setValueUpdates(existingValue, valueUpdates);
-
+        if (valueUpdates.discountSellerLiabilityRule) {
+            existingValue.discountSellerLiability = null;
+        } else if (valueUpdates.discountSellerLiability != null) {
+            MetricsLogger.legacyDiscountSellerLiabilitySet("valueUpdate", auth);
+            existingValue.discountSellerLiabilityRule = null;
+        }
+        let updatedValue: Value = setValueUpdates(existingValue, valueUpdates);
+        updatedValue = setDiscountSellerLiabilityPropertiesForLegacySupport(updatedValue);
         await checkForRestrictedUpdates(auth, existingValue, updatedValue);
+
         checkValueProperties(updatedValue);
 
         const dbValue = Value.toDbValueUpdate(auth, valueUpdates);
@@ -487,6 +500,7 @@ function setValueUpdates(existingValue: Value, valueUpdates: Partial<Value>): Va
             }
         };
     }
+
     return updatedValue;
 }
 
@@ -839,45 +853,19 @@ const valueSchema: jsonschema.Schema = {
             type: "boolean"
         },
         redemptionRule: {
-            oneOf: [
-                {
-                    type: "null"
-                },
-                {
-                    title: "Redemption rule",
-                    type: "object",
-                    properties: {
-                        rule: {
-                            type: "string"
-                        },
-                        explanation: {
-                            type: "string"
-                        }
-                    }
-                }
-            ]
+            ...ruleSchema,
+            title: "Redemption rule",
         },
         balanceRule: {
-            oneOf: [
-                {
-                    type: "null"
-                },
-                {
-                    title: "Balance rule",
-                    type: "object",
-                    properties: {
-                        rule: {
-                            type: "string"
-                        },
-                        explanation: {
-                            type: "string"
-                        }
-                    }
-                }
-            ]
+            ...ruleSchema,
+            title: "Balance rule"
         },
         discount: {
             type: "boolean"
+        },
+        discountSellerLiabilityRule: {
+            ...ruleSchema,
+            title: "DiscountSellerLiability rule"
         },
         discountSellerLiability: {
             type: ["number", "null"],
@@ -902,6 +890,19 @@ const valueSchema: jsonschema.Schema = {
             properties: {
                 discount: {
                     enum: [true]
+                },
+                discountSellerLiabilityRule: {
+                    enum: [null, undefined]
+                }
+            }
+        },
+        discountSellerLiabilityRule: {
+            properties: {
+                discount: {
+                    enum: [true]
+                },
+                discountSellerLiability: {
+                    enum: [null, undefined]
                 }
             }
         }
@@ -912,12 +913,28 @@ const valueUpdateSchema: jsonschema.Schema = {
     type: "object",
     additionalProperties: false,
     properties: {
-        ...pick(valueSchema.properties, "id", "active", "frozen", "pretax", "redemptionRule", "balanceRule", "discount", "discountSellerLiability", "startDate", "endDate", "metadata", "genericCodeOptions"),
+        ...pick(valueSchema.properties, "id", "active", "frozen", "pretax", "redemptionRule", "balanceRule", "discount", "discountSellerLiability", "discountSellerLiabilityRule", "startDate", "endDate", "metadata", "genericCodeOptions"),
         canceled: {
             type: "boolean"
         }
     },
-    required: []
+    required: [],
+    dependencies: {
+        discountSellerLiability: {
+            properties: {
+                discountSellerLiabilityRule: {
+                    enum: [null, undefined]
+                }
+            }
+        },
+        discountSellerLiabilityRule: {
+            properties: {
+                discountSellerLiability: {
+                    enum: [null, undefined]
+                }
+            }
+        }
+    }
 };
 
 const valueChangeCodeSchema: jsonschema.Schema = {

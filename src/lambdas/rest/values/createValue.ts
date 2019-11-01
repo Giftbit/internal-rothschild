@@ -12,6 +12,7 @@ import {CreateValueParameters} from "./values";
 import {checkRulesSyntax} from "../transactions/rules/RuleContext";
 import {LightrailInsertTransactionPlanStep, TransactionPlan} from "../transactions/TransactionPlan";
 import {executeTransactionPlan} from "../transactions/executeTransactionPlans";
+import {DiscountSellerLiabilityUtils} from "../../../utils/discountSellerLiabilityUtils";
 import log = require("loglevel");
 
 export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: CreateValueParameters, trx: Knex.Transaction): Promise<Value> {
@@ -77,7 +78,10 @@ export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
         canceled: false,
         frozen: false,
         discount: program ? program.discount : false,
-        discountSellerLiability: program ? program.discountSellerLiability : null,
+        discountSellerLiability: null,
+        discountSellerLiabilityRule: null, // Due to how these properties can be overridden during value creation
+                                           // from what the program has set, default to null. Once discountSellerLiability
+                                           // is deprecated change back to `program ? program.discountSellerLiabilityRule : null`
         redemptionRule: program ? program.redemptionRule : null,
         balanceRule: program ? program.balanceRule : null,
         startDate: program ? program.startDate : null,
@@ -91,11 +95,37 @@ export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 
     value.metadata = {...(program && program.metadata ? program.metadata : {}), ...value.metadata};
 
+    // If these properties aren't set during value creation, default to what program has set.
+    if (value.discountSellerLiability == null && value.discountSellerLiabilityRule == null && program != null) {
+        if (program.discountSellerLiabilityRule != null) {
+            value.discountSellerLiabilityRule = program.discountSellerLiabilityRule;
+        } else if (program.discountSellerLiability != null) {
+            value.discountSellerLiability = program.discountSellerLiability;
+        }
+    }
+    if (value.discountSellerLiability != null) {
+        MetricsLogger.legacyDiscountSellerLiabilitySet("valueCreate", auth);
+    }
+    value = setDiscountSellerLiabilityPropertiesForLegacySupport(value);
+
     // code generation is done when the Value is inserted into the database.
     checkCodeParameters(generateCodeParameters, value.code);
 
     checkValueProperties(value, program);
     return value;
+}
+
+/*
+ * If rule is set, will attempt to convert rule to number to support existing functionality.
+ * Otherwise, if number is set, will format as rule.
+ */
+export function setDiscountSellerLiabilityPropertiesForLegacySupport(v: Value): Value {
+    if (v.discountSellerLiabilityRule != null) {
+        v.discountSellerLiability = DiscountSellerLiabilityUtils.ruleToNumber(v.discountSellerLiabilityRule);
+    } else if (v.discountSellerLiability != null) {
+        v.discountSellerLiabilityRule = DiscountSellerLiabilityUtils.numberToRule(v.discountSellerLiability);
+    }
+    return v;
 }
 
 export function checkValueProperties(value: Value, program: Program = null): void {
@@ -108,6 +138,9 @@ export function checkValueProperties(value: Value, program: Program = null): voi
     }
     if (value.discountSellerLiability !== null && !value.discount) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have discountSellerLiability if it is not a discount.`);
+    }
+    if (value.discountSellerLiabilityRule !== null && !value.discount) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have a discountSellerLiabilityRule if it is not a discount.`);
     }
     if (value.contactId && value.isGenericCode) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "A Value with isGenericCode=true cannot have contactId set.");

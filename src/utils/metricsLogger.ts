@@ -5,6 +5,10 @@ import {Value} from "../model/Value";
 import log = require("loglevel");
 
 export namespace MetricsLogger {
+    export function legacyDiscountSellerLiabilitySet(request: "valueCreate" | "valueUpdate" | "programCreate" | "programUpdate", auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
+        logMetric(1, MetricsType.Histogram, `rothschild.legacy.discountSellerLiabilitySet`, {type: request}, auth);
+    }
+
     export function valueAttachment(attachType: ValueAttachmentTypes, auth: giftbitRoutes.jwtauth.AuthorizationBadge) {
         logMetric(1, MetricsType.Histogram, "rothschild.values.attach", {type: attachType}, auth);
     }
