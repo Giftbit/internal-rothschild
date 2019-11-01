@@ -7,7 +7,7 @@ import {
 } from "../../../model/TransactionRequest";
 import {
     InternalTransactionPlanStep,
-    LightrailTransactionPlanStep,
+    LightrailTransactionPlanStep, LightrailUpdateTransactionPlanStep,
     StripeTransactionPlanStep,
     TransactionPlan,
     TransactionPlanStep
@@ -16,7 +16,6 @@ import {DbValue, Value} from "../../../model/Value";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {computeCodeLookupHash} from "../../../utils/codeCryptoUtils";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
-import * as knex from "knex";
 import {getContact} from "../contacts";
 import {getStripeMinCharge} from "../../../utils/stripeUtils/getStripeMinCharge";
 
@@ -193,11 +192,8 @@ export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRou
     }
 
     const dbValues: (DbValue & { contactIdForResult: string | null })[] = await query;
-    const dbValuesWithContactId: DbValue[] = dbValues.map((v) => ({
-        ...v,
-        contactId: v.contactId || v.contactIdForResult // Persist the contactId to the value record if it was looked up via the ContactValues table
-    }));
-    const values = await Promise.all(dbValuesWithContactId.map(value => DbValue.toValue(value)));
+    const dedupedDbValues = dedupeAttachedValuesProperties(dbValues);
+    const values = await Promise.all(dedupedDbValues.map(value => DbValue.toValue(value)));
 
     if (options.nonTransactableHandling === "error") {
         // Throw an error if we have any Values that *would* have been filtered out
@@ -253,4 +249,19 @@ export async function getContactIdFromSources(auth: giftbitRoutes.jwtauth.Author
     } else {
         return null;
     }
+}
+
+function dedupeAttachedValuesProperties(values: (DbValue & { contactIdForResult: string | null })[]): DbValue[] {
+    return values
+        .map((v) => ({
+            ...v,
+            contactId: v.contactId || v.contactIdForResult // Persist the contactId to the value record if it was looked up via the ContactValues table
+        }))
+        .filter((v, _, dbValues) => {
+            if (!v.contactId) {
+                return !dbValues.find(otherValue => otherValue.id === v.id && otherValue.contactId); // skip this value if there's another one in the list with the same ID *and* a contactId: generic codes can be used by two different contacts in the same transaction, but not by a contact and also anonymously
+            } else {
+                return true;
+            }
+        });
 }

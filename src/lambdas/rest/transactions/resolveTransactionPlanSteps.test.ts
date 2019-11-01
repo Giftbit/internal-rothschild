@@ -17,6 +17,7 @@ import {AttachedContactValueScenario, setupAttachedContactValueScenario} from ".
 import {LightrailTransactionParty, TransactionParty} from "../../../model/TransactionRequest";
 import {Value} from "../../../model/Value";
 import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {create} from "domain";
 
 describe("resolveTransactionPlanSteps", () => {
 
@@ -118,6 +119,7 @@ describe("resolveTransactionPlanSteps", () => {
             };
             let value3_sharedGeneric: Partial<Value> = {
                 id: `value3_sharedGeneric_${testUtils.generateId(5)}`,
+                code: `SHARE-GEN-3`,
                 isGenericCode: true,
                 balanceRule: {
                     rule: "500",

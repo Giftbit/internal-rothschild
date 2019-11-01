@@ -121,6 +121,15 @@ export async function insertValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 }
 
 async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, step: LightrailUpdateTransactionPlanStep, plan: TransactionPlan): Promise<void> {
+    const lightrailUpdateSteps = plan.steps.filter(s => s.rail === "lightrail" && s.action === "update") as LightrailUpdateTransactionPlanStep[];
+    if (valueHasInsufficientBalanceForSteps(step.value, lightrailUpdateSteps)) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${step.value.id}' cannot be used in this transaction because it has insufficient balance.`, "InsufficientBalance");
+    } else if (valueHasInsufficientUsesForSteps(step.value, lightrailUpdateSteps)) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${step.value.id}' cannot be used in this transaction because it has insufficient usesRemaining.`, "InsufficientUsesRemaining");
+    } else {
+        // carry on, the value in this step won't be overdrawn
+    }
+
     let updateProperties: { [P in keyof DbValue]?: DbValue[P] | Knex.Raw } = {
         updatedDate: plan.createdDate
     };
@@ -216,4 +225,24 @@ export async function insertInternalTransactionSteps(auth: giftbitRoutes.jwtauth
     await trx.into("InternalTransactionSteps")
         .insert(internalSteps);
     return plan;
+}
+
+function valueHasInsufficientUsesForSteps(value: Value, steps: LightrailUpdateTransactionPlanStep[]): boolean {
+    const thisValueStepsWithUses = steps.filter(s => s.value.id === value.id && s.uses);
+    if (thisValueStepsWithUses.length === 0 || value.usesRemaining === null) {
+        return false;
+    } else {
+        const totalUses = thisValueStepsWithUses.map(s => s.uses).reduce((acc, curr) => acc + curr);
+        return value.usesRemaining + totalUses < 0; // 'uses' is a negative number on drawdown steps
+    }
+}
+
+function valueHasInsufficientBalanceForSteps(value: Value, steps: LightrailUpdateTransactionPlanStep[]): boolean {
+    const thisValueStepsWithAmount = steps.filter(s => s.value.id === value.id && s.amount);
+    if (thisValueStepsWithAmount.length === 0 || value.balance === null) {
+        return false;
+    } else {
+        const totalAmount = thisValueStepsWithAmount.map(s => s.amount).reduce((acc, curr) => acc + curr);
+        return value.balance + totalAmount < 0; // 'amount' is a negative number on drawdown steps
+    }
 }
