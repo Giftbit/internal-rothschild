@@ -7,7 +7,6 @@ import {LightrailTransactionParty} from "../../../../model/TransactionRequest";
 import {LightrailTransactionStep, Transaction} from "../../../../model/Transaction";
 import * as cassava from "cassava";
 import {installRestRoutes} from "../../installRestRoutes";
-import {testing} from "cassava";
 
 describe("checkout - edge cases", () => {
     const router = new cassava.Router();
