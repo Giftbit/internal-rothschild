@@ -177,21 +177,21 @@ function validateTransactionPlan(plan: TransactionPlan, options: ExecuteTransact
 }
 
 function valueHasInsufficientUsesForSteps(value: Value, steps: LightrailUpdateTransactionPlanStep[]): boolean {
-    const thisValueStepsWithUses = steps.filter(s => s.value.id === value.id && s.uses);
-    if (thisValueStepsWithUses.length === 0 || value.usesRemaining === null) {
+    const stepsInvolvingValueWithUses = steps.filter(s => s.value.id === value.id && s.uses);
+    if (stepsInvolvingValueWithUses.length === 0 || value.usesRemaining === null) {
         return false;
     } else {
-        const totalUses = thisValueStepsWithUses.map(s => s.uses).reduce((acc, curr) => acc + curr);
+        const totalUses = stepsInvolvingValueWithUses.map(s => s.uses).reduce((acc, curr) => acc + curr);
         return value.usesRemaining + totalUses < 0; // 'uses' is a negative number on drawdown steps
     }
 }
 
 function valueHasInsufficientBalanceForSteps(value: Value, steps: LightrailUpdateTransactionPlanStep[]): boolean {
-    const thisValueStepsWithAmount = steps.filter(s => s.value.id === value.id && s.amount);
-    if (thisValueStepsWithAmount.length === 0 || value.balance === null) {
+    const stepsInvolvingValueWithAmount = steps.filter(s => s.value.id === value.id && s.amount);
+    if (stepsInvolvingValueWithAmount.length === 0 || value.balance === null) {
         return false;
     } else {
-        const totalAmount = thisValueStepsWithAmount.map(s => s.amount).reduce((acc, curr) => acc + curr);
+        const totalAmount = stepsInvolvingValueWithAmount.map(s => s.amount).reduce((acc, curr) => acc + curr);
         return value.balance + totalAmount < 0; // 'amount' is a negative number on drawdown steps
     }
 }
