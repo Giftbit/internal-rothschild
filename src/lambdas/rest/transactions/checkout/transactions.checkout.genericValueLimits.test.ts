@@ -8,7 +8,7 @@ import {LightrailTransactionStep, Transaction} from "../../../../model/Transacti
 import * as cassava from "cassava";
 import {installRestRoutes} from "../../installRestRoutes";
 
-describe("checkout - edge cases", () => {
+describe("checkout - handling limited balance/uses on generic values", () => {
     const router = new cassava.Router();
 
     before(async () => {
