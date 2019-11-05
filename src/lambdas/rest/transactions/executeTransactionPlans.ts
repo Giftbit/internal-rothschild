@@ -1,6 +1,11 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
-import {StripeChargeTransactionPlanStep, StripeRefundTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
+import {
+    LightrailUpdateTransactionPlanStep,
+    StripeChargeTransactionPlanStep,
+    StripeRefundTransactionPlanStep,
+    TransactionPlan
+} from "./TransactionPlan";
 import {Transaction} from "../../../model/Transaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
@@ -13,8 +18,12 @@ import {
 import {rollbackStripeChargeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
 import {StripeRestError} from "../../../utils/stripeUtils/StripeRestError";
 import {MetricsLogger} from "../../../utils/metricsLogger";
+import * as cassava from "cassava";
+import {Value} from "../../../model/Value";
+import {transactionPartySchema} from "../../../model/TransactionRequest";
 import log = require("loglevel");
 import Knex = require("knex");
+import lightrail = transactionPartySchema.lightrail;
 
 export interface ExecuteTransactionPlannerOptions {
     allowRemainder: boolean;
@@ -79,13 +88,7 @@ async function executeTransactionPlans(auth: giftbitRoutes.jwtauth.Authorization
 export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, plan: TransactionPlan, options: ExecuteTransactionPlannerOptions): Promise<Transaction> {
     auth.requireIds("userId", "teamMemberId");
 
-    if ((plan.totals && plan.totals.remainder && !options.allowRemainder) ||
-        plan.steps.find(step => step.rail === "lightrail" && step.action === "update" && step.value.balance != null && step.value.balance + step.amount < 0)) {
-        throw new giftbitRoutes.GiftbitRestError(409, "Insufficient balance for the transaction.", "InsufficientBalance");
-    }
-    if (plan.steps.find(step => step.rail === "lightrail" && step.action === "update" && step.value.usesRemaining != null && step.value.usesRemaining + step.uses < 0)) {
-        throw new giftbitRoutes.GiftbitRestError(409, "Insufficient usesRemaining for the transaction.", "InsufficientUsesRemaining");
-    }
+    validateTransactionPlan(plan, options);
 
     if (options.simulate) {
         return TransactionPlan.toTransaction(auth, plan, options.simulate);
@@ -149,5 +152,46 @@ async function rollbackTransactionPlan(auth: giftbitRoutes.jwtauth.Authorization
         } else {
             log.info(`An exception occurred while reversing transaction ${plan.previousTransactionId}. The reverse included refunds in Stripe but they were not successfully refunded. The state of Stripe and Lightrail are consistent.`);
         }
+    }
+}
+
+function validateTransactionPlan(plan: TransactionPlan, options: ExecuteTransactionPlannerOptions): void {
+    if ((plan.totals && plan.totals.remainder && !options.allowRemainder) ||
+        plan.steps.find(step => step.rail === "lightrail" && step.action === "update" && step.value.balance != null && step.value.balance + step.amount < 0)) {
+        throw new giftbitRoutes.GiftbitRestError(409, "Insufficient balance for the transaction.", "InsufficientBalance");
+    }
+    if (plan.steps.find(step => step.rail === "lightrail" && step.action === "update" && step.value.usesRemaining != null && step.value.usesRemaining + step.uses < 0)) {
+        throw new giftbitRoutes.GiftbitRestError(409, "Insufficient usesRemaining for the transaction.", "InsufficientUsesRemaining");
+    }
+
+    const lightrailUpdateSteps = plan.steps.filter(s => s.rail === "lightrail" && s.action === "update") as LightrailUpdateTransactionPlanStep[];
+    lightrailUpdateSteps.forEach(step => {
+        if (valueHasInsufficientBalanceForSteps(step.value, lightrailUpdateSteps)) {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${step.value.id}' cannot be used in this transaction because it has insufficient balance.`, "InsufficientBalance");
+        } else if (valueHasInsufficientUsesForSteps(step.value, lightrailUpdateSteps)) {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${step.value.id}' cannot be used in this transaction because it has insufficient usesRemaining.`, "InsufficientUsesRemaining");
+        } else {
+            // carry on, the value in this step won't be overdrawn
+        }
+    });
+}
+
+function valueHasInsufficientUsesForSteps(value: Value, steps: LightrailUpdateTransactionPlanStep[]): boolean {
+    const thisValueStepsWithUses = steps.filter(s => s.value.id === value.id && s.uses);
+    if (thisValueStepsWithUses.length === 0 || value.usesRemaining === null) {
+        return false;
+    } else {
+        const totalUses = thisValueStepsWithUses.map(s => s.uses).reduce((acc, curr) => acc + curr);
+        return value.usesRemaining + totalUses < 0; // 'uses' is a negative number on drawdown steps
+    }
+}
+
+function valueHasInsufficientBalanceForSteps(value: Value, steps: LightrailUpdateTransactionPlanStep[]): boolean {
+    const thisValueStepsWithAmount = steps.filter(s => s.value.id === value.id && s.amount);
+    if (thisValueStepsWithAmount.length === 0 || value.balance === null) {
+        return false;
+    } else {
+        const totalAmount = thisValueStepsWithAmount.map(s => s.amount).reduce((acc, curr) => acc + curr);
+        return value.balance + totalAmount < 0; // 'amount' is a negative number on drawdown steps
     }
 }
