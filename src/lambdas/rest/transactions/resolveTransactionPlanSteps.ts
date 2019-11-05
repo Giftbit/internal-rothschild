@@ -7,7 +7,7 @@ import {
 } from "../../../model/TransactionRequest";
 import {
     InternalTransactionPlanStep,
-    LightrailTransactionPlanStep, LightrailUpdateTransactionPlanStep,
+    LightrailTransactionPlanStep,
     StripeTransactionPlanStep,
     TransactionPlan,
     TransactionPlanStep
@@ -192,7 +192,7 @@ export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRou
     }
 
     const dbValues: (DbValue & { contactIdForResult: string | null })[] = await query;
-    const dedupedDbValues = dedupeAttachedValuesProperties(dbValues);
+    const dedupedDbValues = consolidateValueQueryResults(dbValues);
     const values = await Promise.all(dedupedDbValues.map(value => DbValue.toValue(value)));
 
     if (options.nonTransactableHandling === "error") {
@@ -251,17 +251,13 @@ export async function getContactIdFromSources(auth: giftbitRoutes.jwtauth.Author
     }
 }
 
-function dedupeAttachedValuesProperties(values: (DbValue & { contactIdForResult: string | null })[]): DbValue[] {
+function consolidateValueQueryResults(values: (DbValue & { contactIdForResult: string | null })[]): DbValue[] {
     return values
         .map((v) => ({
             ...v,
             contactId: v.contactId || v.contactIdForResult // Persist the contactId to the value record if it was looked up via the ContactValues table
         }))
         .filter((v, _, dbValues) => {
-            if (!v.contactId) {
-                return !dbValues.find(otherValue => otherValue.id === v.id && otherValue.contactId); // skip this value if there's another one in the list with the same ID *and* a contactId: generic codes can be used by two different contacts in the same transaction, but not by a contact and also anonymously
-            } else {
-                return true;
-            }
+            return v.contactId || !dbValues.find(otherValue => otherValue.id === v.id && otherValue.contactId); // generic codes can be used by two different contacts in the same transaction, but not by a contact and also anonymously: skip anonymous usage if this value is also attached
         });
 }
