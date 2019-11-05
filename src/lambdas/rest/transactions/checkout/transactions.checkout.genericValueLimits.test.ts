@@ -183,9 +183,6 @@ describe("checkout - handling limited balance/uses on generic values", () => {
             sources: [{
                 rail: "lightrail",
                 contactId: contactId
-            }, {
-                rail: "lightrail",
-                valueId: shared1.id
             }]
         });
         chai.assert.equal(checkoutResp.statusCode, 201, `checkoutResp.body=${JSON.stringify(checkoutResp.body)}`);
