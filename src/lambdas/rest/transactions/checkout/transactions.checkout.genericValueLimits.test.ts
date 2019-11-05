@@ -103,7 +103,14 @@ describe("checkout - handling limited balance/uses on generic values", () => {
             chai.assert.equal(checkoutResp.statusCode, 409, `checkoutResp.body=${JSON.stringify(checkoutResp.body, null, 4)}`);
         });
 
-        it("succeeds if value with one use remaining is attached to two contacts as sources but only *needed* once for the transaction)", async () => {
+        /**
+         * NOTE: This test is an acknowledgement of known behaviour in an unlikely situation, not a prescription.
+         *  If a shared generic value has insufficient usesRemaining or balance to be used by both [all] attached
+         *  contacts in a transaction, it will generally fail. There is an edge-of-the-edge case where the transaction
+         *  will succeed instead: if nothing forces the steps into a particular order (ie discounts being applied first),
+         *  the generic value MAY be successfully charged for one contact and not another.
+         */
+        it("409s if value with one use remaining is attached to two contacts as sources", async () => {
             const contactId1 = `contact1_${generateId(5)}`;
             const contactId2 = `contact2_${generateId(5)}`;
             const contact1Resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contactId1});
@@ -113,6 +120,7 @@ describe("checkout - handling limited balance/uses on generic values", () => {
 
             const sharedGenericLimitedUses = await testUtils.createUSDValue(router, {
                 id: `sharedLimitedUses_${generateId(5)}`,
+                discount: true, // make sure this value will be applied first
                 isGenericCode: true,
                 balanceRule: {rule: "50", explanation: ""},
                 balance: null,
