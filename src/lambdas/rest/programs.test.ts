@@ -2057,7 +2057,37 @@ describe("/v2/programs", () => {
                     explanation: "unclosed parenthesis"
                 }
             };
-            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/programs`, "POST", program);
+            const create = await testUtils.testAuthedRequest<Program>(router, `/v2/programs`, "POST", program);
+            chai.assert.equal(create.statusCode, 422, `body=${JSON.stringify(create.body)}`);
+        });
+
+        it("can't set discountSellerLiabilityRule to a rule that evaluate to a number less than 0", async () => {
+            const program: Partial<Program> = {
+                id: generateId(),
+                name: "name",
+                currency: "USD",
+                discount: true,
+                discountSellerLiabilityRule: {
+                    rule: "-1",
+                    explanation: "must be between 0 and 1"
+                }
+            };
+            const create = await testUtils.testAuthedRequest<Program>(router, `/v2/programs`, "POST", program);
+            chai.assert.equal(create.statusCode, 422, `body=${JSON.stringify(create.body)}`);
+        });
+
+        it("can't set discountSellerLiabilityRule to a rule that evaluate to a number greater than 1", async () => {
+            const program: Partial<Program> = {
+                id: generateId(),
+                name: "name",
+                currency: "USD",
+                discount: true,
+                discountSellerLiabilityRule: {
+                    rule: "1.1",
+                    explanation: "must be between 0 and 1"
+                }
+            };
+            const create = await testUtils.testAuthedRequest<Program>(router, `/v2/programs`, "POST", program);
             chai.assert.equal(create.statusCode, 422, `body=${JSON.stringify(create.body)}`);
         });
     });

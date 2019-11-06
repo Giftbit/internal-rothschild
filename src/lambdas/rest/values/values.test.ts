@@ -492,7 +492,7 @@ describe("/v2/values/", () => {
         chai.assert.isNull(updateValue.body.endDate);
     });
 
-    describe("discountSellerLiability", () => {
+    describe.only("discountSellerLiability", () => {
         // can be removed when discountSellerLiability is dropped from API responses
         it("can create value with discountSellerLiability set", async () => {
             const value: Partial<Value> = {
@@ -768,6 +768,37 @@ describe("/v2/values/", () => {
                 discountSellerLiabilityRule: {
                     rule: "currentLineItem.lineTotal.subtotal * (0.1",
                     explanation: "unclosed parenthesis"
+                }
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 422, `body=${JSON.stringify(create.body)}`);
+        });
+
+        it("can't set discountSellerLiabilityRule to a rule that evaluate to a number less than 0", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: true,
+                discountSellerLiabilityRule: {
+                    rule: "-1",
+                    explanation: "must be between 0 and 1"
+                }
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            console.log(JSON.stringify(create.body, null, 4));
+            chai.assert.equal(create.statusCode, 422, `body=${JSON.stringify(create.body)}`);
+        });
+
+        it("can't set discountSellerLiabilityRule to a rule that evaluate to a number greater than 1", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: true,
+                discountSellerLiabilityRule: {
+                    rule: "1.1",
+                    explanation: "must be between 0 and 1"
                 }
             };
             const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
