@@ -16,7 +16,6 @@ import {DbValue, Value} from "../../../model/Value";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {computeCodeLookupHash} from "../../../utils/codeCryptoUtils";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
-import * as knex from "knex";
 import {getContact} from "../contacts";
 import {getStripeMinCharge} from "../../../utils/stripeUtils/getStripeMinCharge";
 
@@ -57,7 +56,7 @@ export interface ResolveTransactionPartiesOptions {
 }
 
 export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[], options: ResolveTransactionPartiesOptions): Promise<TransactionPlanStep[]> {
-    const fetchedValues = await getLightrailValues(auth, parties, options);
+    const fetchedValues = await getLightrailValuesForTransactionPlanSteps(auth, parties, options);
     return getTransactionPlanStepsFromSources(
         fetchedValues,
         parties.filter(party => party.rail !== "lightrail") as (StripeTransactionParty | InternalTransactionParty)[],
@@ -111,7 +110,7 @@ export function getTransactionPlanStepsFromSources(lightrailSources: Value[], no
     return [...lightrailSteps, ...internalSteps, ...stripeSteps];
 }
 
-export async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[], options: ResolveTransactionPartiesOptions): Promise<Value[]> {
+export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[], options: ResolveTransactionPartiesOptions): Promise<Value[]> {
     const valueIds = parties.filter(p => p.rail === "lightrail" && p.valueId)
         .map(p => (p as LightrailTransactionParty).valueId);
 
@@ -129,30 +128,51 @@ export async function getLightrailValues(auth: giftbitRoutes.jwtauth.Authorizati
 
     const knex = await getKnexRead();
     const now = nowInDbPrecision();
-    let query: knex.QueryBuilder = knex("Values")
-        .select("Values.*")
-        .where("Values.userId", "=", auth.userId);
-    if (contactIds.length) {
-        query = query.leftJoin(knex.raw("(SELECT * FROM ContactValues WHERE userId = ? AND contactId in (?)) as ContactValuesTemp", [auth.userId, contactIds]), {
-            "Values.id": "ContactValuesTemp.valueId",
-            "Values.userId": "ContactValuesTemp.userId"
-        }); // The temporary table only joins to ContactValues that have a contactId in contactIds. If a generic code is transacted against directly via code/valueId, a ContactValue that it is attached to is not joined to.
-        query = query.groupBy("Values.id"); // Without groupBy, will return duplicate generic code if two contactId's are supplied as sources and both contact's have attached the generic code.
-        query = query.select(knex.raw("IFNULL(ContactValuesTemp.contactId, Values.contactId) as contactId")); // If step was looked up via ContactId then need to sure the contactId persists to the Step for tracking purposes.
-    }
-    query = query.where(q => {
-        if (valueIds.length) {
-            q = q.whereIn("Values.id", valueIds);
-        }
-        if (hashedCodes.length) {
-            q = q.orWhereIn("codeHashed", hashedCodes);
-        }
+
+    /**
+     * Note on query structure: The Values table has a composite index for each of userId+ID, userId+code, userId+contactId
+     *  so it's more efficient to use those in a set of UNION subqueries to build up the FROM clause, than it was to use
+     *  'OR WHERE code = ? OR WHERE contactId = ?' ...etc, which resulted in a full table scan.
+     */
+    let query = knex.select("*").from(queryBuilder => {
         if (contactIds.length) {
-            q = q.orWhereIn("Values.contactId", contactIds)
-                .orWhereIn("ContactValuesTemp.contactId", contactIds);
+            queryBuilder.union(
+                knex.select("V.*", "CV.contactId AS contactIdForResult") // contactId returned in an extra column so it can be tracked for shared generics looked up by contactId
+                    .from("Values AS V")
+                    .join("ContactValues AS CV", {"V.userId": "CV.userId", "V.id": "CV.valueId"})
+                    .where({"CV.userId": auth.userId})
+                    .andWhere("CV.contactId", "in", contactIds)
+            );
+
+            queryBuilder.union(
+                knex.select("*", "contactId as contactIdForResult")
+                    .from("Values")
+                    .where({"userId": auth.userId})
+                    .andWhere("contactId", "in", contactIds)
+            );
         }
-        return q;
+
+        if (hashedCodes.length) {
+            queryBuilder.union(
+                knex.select("*", "contactId as contactIdForResult")
+                    .from("Values")
+                    .where({"userId": auth.userId})
+                    .andWhere("codeHashed", "in", hashedCodes)
+            );
+        }
+
+        if (valueIds.length) {
+            queryBuilder.union(
+                knex.select("*", "contactId as contactIdForResult")
+                    .from("Values")
+                    .where({"userId": auth.userId})
+                    .andWhere("id", "in", valueIds)
+            );
+        }
+
+        queryBuilder.as("TT");
     });
+
     if (options.nonTransactableHandling === "exclude") {
         query = query
             .where({
@@ -171,8 +191,9 @@ export async function getLightrailValues(auth: giftbitRoutes.jwtauth.Authorizati
         query = query.where(q => q.whereNull("balance").orWhere("balance", ">", 0));
     }
 
-    const dbValues: DbValue[] = await query;
-    const values = await Promise.all(dbValues.map(value => DbValue.toValue(value)));
+    const dbValues: (DbValue & { contactIdForResult: string | null })[] = await query;
+    const dedupedDbValues = consolidateValueQueryResults(dbValues);
+    const values = await Promise.all(dedupedDbValues.map(value => DbValue.toValue(value)));
 
     if (options.nonTransactableHandling === "error") {
         // Throw an error if we have any Values that *would* have been filtered out
@@ -228,4 +249,15 @@ export async function getContactIdFromSources(auth: giftbitRoutes.jwtauth.Author
     } else {
         return null;
     }
+}
+
+function consolidateValueQueryResults(values: (DbValue & { contactIdForResult: string | null })[]): DbValue[] {
+    return values
+        .map((v) => ({
+            ...v,
+            contactId: v.contactId || v.contactIdForResult // Persist the contactId to the value record if it was looked up via the ContactValues table
+        }))
+        .filter((v, _, dbValues) => {
+            return v.contactId || !dbValues.find(otherValue => otherValue.id === v.id && otherValue.contactId); // generic codes can be used by two different contacts in the same transaction, but not by a contact and also anonymously: skip anonymous usage if this value is also attached
+        });
 }

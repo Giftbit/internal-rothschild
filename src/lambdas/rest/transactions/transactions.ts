@@ -5,7 +5,7 @@ import * as pendingTransactionUtils from "./pendingTransactionUtils";
 import {
     filterForUsedAttaches,
     getContactIdFromSources,
-    getLightrailValues,
+    getLightrailValuesForTransactionPlanSteps,
     getTransactionPlanStepsFromSources,
     ResolveTransactionPartiesOptions
 } from "./resolveTransactionPlanSteps";
@@ -317,7 +317,7 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
                 includeZeroBalance: !!checkout.allowRemainder,
                 includeZeroUsesRemaining: !!checkout.allowRemainder,
             };
-            const fetchedValues = await getLightrailValues(auth, checkout.sources, resolveOptions);
+            const fetchedValues = await getLightrailValuesForTransactionPlanSteps(auth, checkout.sources, resolveOptions);
 
             // handle auto attach on generic codes
             const valuesToAttach: Value[] = fetchedValues.filter(v => Value.isGenericCodeWithPropertiesPerContact(v));
