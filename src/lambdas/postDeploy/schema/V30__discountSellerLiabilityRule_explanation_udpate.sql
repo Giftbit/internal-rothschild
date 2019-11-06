@@ -8,14 +8,14 @@ SET discountSellerLiabilityRule = CONCAT('{"rule":"',
                                                             discountSellerLiabilityRule) -
                                                      (LOCATE('"rule":', discountSellerLiabilityRule) + 10))
                                               AS CHAR),
-                                         CONCAT('", "explanation":"',
+                                         CONCAT('", "explanation":"Seller ',
                                                 CAST(SUBSTR(discountSellerLiabilityRule,
                                                             LOCATE('"rule":', discountSellerLiabilityRule) + 8,
                                                             LOCATE('"explanation":',
                                                                    discountSellerLiabilityRule) -
                                                             (LOCATE('"rule":', discountSellerLiabilityRule) + 10)) * 100
                                                      AS CHAR),
-                                                '% seller liability"}'))
+                                                '% liable"}'))
 WHERE discountSellerLiabilityRule IS NOT NULL
   AND SUBSTR(discountSellerLiabilityRule,
              LOCATE('"explanation":',
