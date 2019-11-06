@@ -104,7 +104,7 @@ describe("checkout - handling limited balance/uses on generic values", () => {
         });
 
         /**
-         * NOTE: This test is an acknowledgement of known behaviour in an unlikely situation, not a prescription.
+         * This test is an acknowledgement of known behaviour in an unlikely situation, not a prescription.
          *  If a shared generic value has insufficient usesRemaining or balance to be used by both [all] attached
          *  contacts in a transaction, it will generally fail. There is an edge-of-the-edge case where the transaction
          *  will succeed instead: if nothing forces the steps into a particular order (ie discounts being applied first),
