@@ -688,7 +688,7 @@ Resources:
     Properties:
       CodeUri: ../dist/postDeploy/postDeploy.zip
       Handler: index.handler
-      Runtime: nodejs10.x
+      Runtime: nodejs8.10
       MemorySize: 256
       Timeout: 900 # seconds, 900 max
       Environment:
