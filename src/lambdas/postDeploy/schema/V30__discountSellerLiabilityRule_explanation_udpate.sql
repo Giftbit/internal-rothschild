@@ -16,6 +16,6 @@ SET discountSellerLiabilityRule = CONCAT('{"rule":"',
                                                      AS CHAR),
                                                 '% liable"}'))
 WHERE discountSellerLiabilityRule IS NOT NULL
-  AND discountSellerLiabilityRule REGEXP '"Populated from deprecated property discountSellerLiability."'
+  AND discountSellerLiabilityRule LIKE '%Populated from deprecated property discountSellerLiability.%';
 
 SET SQL_SAFE_UPDATES = 1;

@@ -4,6 +4,7 @@ import {Rule} from "../../../../model/Value";
 import {getRuleFromCache} from "../getRuleFromCache";
 import {ValueContext} from "./ValueContext";
 import * as cassava from "cassava";
+import {DiscountSellerLiabilityUtils} from "../../../../utils/discountSellerLiabilityUtils";
 
 export interface RuleContextParams {
     totals: TransactionTotals;
@@ -74,18 +75,6 @@ export function checkRulesSyntax(holder: { redemptionRule?: Rule, balanceRule?: 
                 column: rule.compileError.column
             });
         }
-        const emptyRuleContext: RuleContext = new RuleContext({
-            currentLineItem: null,
-            totals: null,
-            lineItems: null,
-            metadata: null,
-            value: null,
-        });
-        const evaluateOnEmptyContext: number = emptyRuleContext.evaluateDiscountSellerLiabilityRule(holder.discountSellerLiabilityRule);
-        if (evaluateOnEmptyContext < 0 || evaluateOnEmptyContext > 1) {
-            throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Property discountSellerLiabilityRule must evaluate to a number between 0 and 1.`, {
-                messageCode: "DiscountSellerLiabilityRuleSyntaxError"
-            });
-        }
+        DiscountSellerLiabilityUtils.checkNumericOnlyRuleConstraints(holder.discountSellerLiabilityRule);
     }
 }
