@@ -166,7 +166,6 @@ export function checkValueProperties(value: Value, program: Program = null): voi
     checkRulesSyntax(value, "Value");
 }
 
-
 function checkProgramConstraints(value: Value, program: Program): void {
     let balance = value.balance;
     let usesRemaining = value.usesRemaining;

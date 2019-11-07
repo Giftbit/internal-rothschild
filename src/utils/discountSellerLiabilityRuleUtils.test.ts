@@ -40,7 +40,7 @@ describe("DiscountSellerLiabibilityRuleUtils", () => {
             const res: Rule | null = DiscountSellerLiabilityUtils.numberToRule(0.45);
             chai.assert.deepEqual(res, {
                 rule: "0.45",
-                explanation: "Populated from deprecated property discountSellerLiability."
+                explanation: "Seller 45% liable"
             });
         });
     });

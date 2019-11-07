@@ -507,7 +507,7 @@ describe("/v2/values/", () => {
             chai.assert.equal(create.body.discountSellerLiability, 0.25);
             chai.assert.deepEqual(create.body.discountSellerLiabilityRule, {
                 rule: "0.25",
-                explanation: "Populated from deprecated property discountSellerLiability."
+                explanation: "Seller 25% liable"
             });
         });
 
@@ -561,7 +561,7 @@ describe("/v2/values/", () => {
             chai.assert.equal(update.body.discountSellerLiability, 1.0);
             chai.assert.deepEqual(update.body.discountSellerLiabilityRule, {
                     rule: "1",
-                    explanation: "Populated from deprecated property discountSellerLiability."
+                    explanation: "Seller 100% liable"
                 }
             );
         });
@@ -605,7 +605,7 @@ describe("/v2/values/", () => {
             chai.assert.equal(create.body.discountSellerLiability, 0.25);
             chai.assert.deepEqual(create.body.discountSellerLiabilityRule, {
                 rule: "0.25",
-                explanation: "Populated from deprecated property discountSellerLiability."
+                explanation: "Seller 25% liable"
             });
 
             const discountSellerLiabilityRule: Rule = {
@@ -646,7 +646,7 @@ describe("/v2/values/", () => {
             chai.assert.equal(update.body.discountSellerLiability, 0.50);
             chai.assert.deepEqual(update.body.discountSellerLiabilityRule, {
                 rule: "0.5",
-                explanation: "Populated from deprecated property discountSellerLiability."
+                explanation: "Seller 50% liable"
             });
         });
 
@@ -725,7 +725,7 @@ describe("/v2/values/", () => {
             chai.assert.equal(create.body.discountSellerLiability, 0.25);
             chai.assert.deepEqual(create.body.discountSellerLiabilityRule, {
                 rule: "0.25",
-                explanation: "Populated from deprecated property discountSellerLiability."
+                explanation: "Seller 25% liable"
             });
 
             const update = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", {
@@ -768,6 +768,37 @@ describe("/v2/values/", () => {
                 discountSellerLiabilityRule: {
                     rule: "currentLineItem.lineTotal.subtotal * (0.1",
                     explanation: "unclosed parenthesis"
+                }
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 422, `body=${JSON.stringify(create.body)}`);
+        });
+
+        it("can't set discountSellerLiabilityRule to a rule that evaluate to a number less than 0", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: true,
+                discountSellerLiabilityRule: {
+                    rule: "-1",
+                    explanation: "must be between 0 and 1"
+                }
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            console.log(JSON.stringify(create.body, null, 4));
+            chai.assert.equal(create.statusCode, 422, `body=${JSON.stringify(create.body)}`);
+        });
+
+        it("can't set discountSellerLiabilityRule to a rule that evaluate to a number greater than 1", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: true,
+                discountSellerLiabilityRule: {
+                    rule: "1.1",
+                    explanation: "must be between 0 and 1"
                 }
             };
             const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
