@@ -4,6 +4,7 @@ import {Rule} from "../../../../model/Value";
 import {getRuleFromCache} from "../getRuleFromCache";
 import {ValueContext} from "./ValueContext";
 import * as cassava from "cassava";
+import {DiscountSellerLiabilityUtils} from "../../../../utils/discountSellerLiabilityUtils";
 
 export interface RuleContextParams {
     totals: TransactionTotals;
@@ -67,12 +68,13 @@ export function checkRulesSyntax(holder: { redemptionRule?: Rule, balanceRule?: 
     if (holder.discountSellerLiabilityRule) {
         const rule = getRuleFromCache(holder.discountSellerLiabilityRule.rule);
         if (rule.compileError) {
-            throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `${holderType} discountSellerLiability has a syntax error.`, {
+            throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `${holderType} discountSellerLiabilityRule has a syntax error.`, {
                 messageCode: "DiscountSellerLiabilityRuleSyntaxError",
                 syntaxErrorMessage: rule.compileError.msg,
                 row: rule.compileError.row,
                 column: rule.compileError.column
             });
         }
+        DiscountSellerLiabilityUtils.checkNumericOnlyRuleConstraints(holder.discountSellerLiabilityRule);
     }
 }
