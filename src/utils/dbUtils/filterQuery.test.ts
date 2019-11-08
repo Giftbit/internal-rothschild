@@ -15,6 +15,7 @@ describe("filterQuery()", () => {
         b: number;
         c: boolean;
         d: Date;
+        expires: Date | null,
         code: string;
     }
 
@@ -26,6 +27,7 @@ describe("filterQuery()", () => {
         b: number;
         c: boolean;
         d: Date;
+        expires: Date | null;
         codeHashed: string;
     }
 
@@ -38,8 +40,20 @@ describe("filterQuery()", () => {
             b: v.b,
             c: v.c,
             d: v.d,
+            expires: v.expires,
             codeHashed: hashCode(v.code)
         };
+    }
+
+    /*
+     * Returns: [null, "1970-01-01T00:00:00.001Z", "1970-01-01T00:00:00.002Z", "1970-01-01T00:00:00.003Z", ...][i]
+     */
+    function getExpiresBasedOnIndex(i: number): Date | null {
+        if (i === 0) {
+            return null;
+        } else {
+            return new Date(i);
+        }
     }
 
     const filterTestFilterOptions: FilterQueryOptions = {
@@ -64,6 +78,9 @@ describe("filterQuery()", () => {
                 type: "boolean"
             },
             d: {
+                type: "Date"
+            },
+            expires: {
                 type: "Date"
             },
             code: {
@@ -91,6 +108,7 @@ describe("filterQuery()", () => {
             "  b           INT          NOT NULL,\n" +
             "  c           BOOLEAN      NOT NULL,\n" +
             "  d           DATETIME     NOT NULL,\n" +
+            "  expires     DATETIME,\n" +
             "  codeHashed TEXT,\n" +
             "  PRIMARY KEY pk_Row (userId, id)\n" +
             ");");
@@ -106,6 +124,7 @@ describe("filterQuery()", () => {
                 b: Math.floor(Math.abs(Math.tan(i))) * 10,
                 c: !!(i % 3),
                 d: new Date(400464000000 + i * 1000),
+                expires: getExpiresBasedOnIndex(i),
                 code: `CODE-${i.toString()}`
             });
         }
@@ -584,6 +603,81 @@ describe("filterQuery()", () => {
                 .orderBy("id"),
             {
                 "code.in": "CODE-623,CODE-821"
+            },
+            filterTestFilterOptions
+        );
+        const actual: FilterTestDb[] = await query;
+        chai.assert.deepEqual(actual, expected);
+    });
+
+    it.only("can filter by isNull=true", async () => {
+        const knex = await getKnexRead();
+
+        const expected: FilterTestDb[] = await knex("FilterTest")
+            .where({
+                userId: "user1"
+            })
+            .whereNull("expires")
+            .orderBy("id");
+        chai.assert.lengthOf(expected, 1, "expected exactly 1 row");
+        chai.assert.equal(expected[0].id, "id-0");
+
+        const [query] = await filterQuery(
+            knex("FilterTest")
+                .where({userId: "user1"})
+                .orderBy("id"),
+            {
+                "expires.isNull": "true"
+            },
+            filterTestFilterOptions
+        );
+        const actual: FilterTestDb[] = await query;
+        chai.assert.deepEqual(actual, expected);
+    });
+
+    it.only("can filter by isNull=false", async () => {
+        const knex = await getKnexRead();
+
+        const expected: FilterTestDb[] = await knex("FilterTest")
+            .where({
+                userId: "user1"
+            })
+            .whereNotNull("expires")
+            .orderBy("id");
+        chai.assert.lengthOf(expected, 999, "expected exactly 1 row");
+        chai.assert.isEmpty(expected.filter(it => it.id === "id-0"), "Should contain all but id-0.");
+
+        const [query] = await filterQuery(
+            knex("FilterTest")
+                .where({userId: "user1"})
+                .orderBy("id"),
+            {
+                "expires.isNull": "false"
+            },
+            filterTestFilterOptions
+        );
+        const actual: FilterTestDb[] = await query;
+        chai.assert.deepEqual(actual, expected);
+    });
+
+    it.only("can filter by isNull=jibberish - jibberish evaluates to false so equivalent to isNull=false", async () => {
+        const knex = await getKnexRead();
+
+        const expected: FilterTestDb[] = await knex("FilterTest")
+            .where({
+                userId: "user1"
+            })
+            .whereNotNull("expires")
+            .orderBy("id");
+        chai.assert.lengthOf(expected, 999, "expected exactly 1 row");
+        chai.assert.isEmpty(expected.filter(it => it.id === "id-0"), "Should contain all but id-0.");
+
+        const [query] = await filterQuery(
+            knex("FilterTest")
+                .where({userId: "user1"})
+                .orderBy("id"),
+            {
+                "expires.isNull": "jibberish"
             },
             filterTestFilterOptions
         );

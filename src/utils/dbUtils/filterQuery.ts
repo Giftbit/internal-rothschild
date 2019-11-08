@@ -36,7 +36,7 @@ export interface FilterQueryProperty {
     valueMap?: (value: any) => number | string | boolean | Date | Promise<number | string | boolean | Date>;
 }
 
-export type FilterQueryOperator = "lt" | "lte" | "gt" | "gte" | "eq" | "ne" | "in" | "like";
+export type FilterQueryOperator = "lt" | "lte" | "gt" | "gte" | "eq" | "ne" | "in" | "like" | "isNull";
 
 /**
  * Add where clauses to filter the given SQL query.
@@ -91,12 +91,12 @@ function filterQueryPropertyAllowsOperator(prop: FilterQueryProperty, op: string
     }
     switch (prop.type) {
         case "boolean":
-            return ["eq", "ne"].indexOf(op) !== -1;
+            return ["eq", "ne", "isNull"].indexOf(op) !== -1;
         case "number":
         case "Date":
-            return ["lt", "lte", "gt", "gte", "eq", "ne"].indexOf(op) !== -1;
+            return ["lt", "lte", "gt", "gte", "eq", "ne", "isNull"].indexOf(op) !== -1;
         case "string":
-            return ["lt", "lte", "gt", "gte", "eq", "ne", "like"].indexOf(op) !== -1;
+            return ["lt", "lte", "gt", "gte", "eq", "ne", "like", "isNull"].indexOf(op) !== -1;
     }
     return false;
 }
@@ -127,6 +127,15 @@ async function addFilterToQuery(query: knex.QueryBuilder, prop: FilterQueryPrope
             return [query.whereIn(columnIdentifier, await Promise.all(value.split(",").map(v => convertValue(prop, v))))];
         case "like":
             return [query.where(columnIdentifier, "LIKE", await convertValue(prop, value))];
+        case "isNull":
+            switch (value) {
+                case "true":
+                    return [query.whereNull(columnIdentifier)];
+                case "false":
+                    return [query.whereNotNull(columnIdentifier)];
+                default:
+                    throw new giftbitRoutes.GiftbitRestError(422, `Query filter '${value}' is not allowed on isNull operator. Allowed values [true, false].`)
+            }
     }
 }
 
