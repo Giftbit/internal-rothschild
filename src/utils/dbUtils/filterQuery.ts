@@ -36,7 +36,15 @@ export interface FilterQueryProperty {
     valueMap?: (value: any) => number | string | boolean | Date | Promise<number | string | boolean | Date>;
 }
 
-export type FilterQueryOperator = "lt" | "lte" | "gt" | "gte" | "eq" | "ne" | "in" | "like" | "isNull";
+export type FilterQueryOperator = "lt" | "lte" | "gt" | "gte" | "eq" | "ne" | "in" | "like" | "isNull" | "orNull";
+
+
+interface Filter {
+    property: FilterQueryProperty;
+    filterKey: string;
+    op: FilterQueryOperator;
+    filterValue: string;
+}
 
 /**
  * Add where clauses to filter the given SQL query.
@@ -46,6 +54,8 @@ export type FilterQueryOperator = "lt" | "lte" | "gt" | "gte" | "eq" | "ne" | "i
  * @returns The filtered SQL query in a tuple.
  */
 export async function filterQuery(query: knex.QueryBuilder, filterParams: { [key: string]: string }, options: FilterQueryOptions): Promise<[knex.QueryBuilder]> {
+    const filters: Filter[] = [];
+    const orNullFilters: Filter[] = [];
     for (const queryKey of Object.keys(filterParams)) {
         const {filterKey, op} = splitFilterKeyAndOp(queryKey);
         const filterValue = filterParams[queryKey];
@@ -59,15 +69,38 @@ export async function filterQuery(query: knex.QueryBuilder, filterParams: { [key
         if (!filterQueryPropertyAllowsOperator(property, op)) {
             throw new giftbitRoutes.GiftbitRestError(400, `Query filter key '${filterKey}' does not support operator '${op}'.`);
         }
+        const filter: Filter = {
+            property: property,
+            filterKey: filterKey,
+            op: op,
+            filterValue: filterValue
 
-        [query] = await addFilterToQuery(
-            query,
-            property,
-            filterKey,
-            op,
-            filterValue,
-            options
-        );
+        };
+        if (filter.op === "orNull") {
+            orNullFilters.push(filter);
+        } else {
+            filters.push(filter);
+        }
+    }
+
+    for (const filter of filters) {
+
+        console.log("filter: " + JSON.stringify(filter, null, 4));
+        const orNullFilter = orNullFilters.find(orNullFilter => orNullFilter.filterKey === filter.filterKey);
+        if (orNullFilter) {
+            [query] = await query.where(async q => {
+                [q] = await addFilterToQuery(q, filter, options);
+                [q] = await addFilterToQuery(q, orNullFilter, options);
+                console.log("this happened");
+                return q;
+            });
+        } else {
+            [query] = await addFilterToQuery(
+                query,
+                filter,
+                options
+            );
+        }
     }
 
     // We have to return the query in an array (or object or something) because the query is
@@ -91,50 +124,59 @@ function filterQueryPropertyAllowsOperator(prop: FilterQueryProperty, op: string
     }
     switch (prop.type) {
         case "boolean":
-            return ["eq", "ne", "isNull"].indexOf(op) !== -1;
+            return ["eq", "ne", "isNull", "orNull"].indexOf(op) !== -1;
         case "number":
         case "Date":
-            return ["lt", "lte", "gt", "gte", "eq", "ne", "isNull"].indexOf(op) !== -1;
+            return ["lt", "lte", "gt", "gte", "eq", "ne", "isNull", "orNull"].indexOf(op) !== -1;
         case "string":
-            return ["lt", "lte", "gt", "gte", "eq", "ne", "like", "isNull"].indexOf(op) !== -1;
+            return ["lt", "lte", "gt", "gte", "eq", "ne", "like", "isNull", "orNull"].indexOf(op) !== -1;
     }
     return false;
 }
 
-async function addFilterToQuery(query: knex.QueryBuilder, prop: FilterQueryProperty, key: string, op: FilterQueryOperator, value: string, options: FilterQueryOptions): Promise<[knex.QueryBuilder]> {
-    let columnIdentifier = key;
-    if (prop.columnName) {
-        columnIdentifier = prop.columnName;
+async function addFilterToQuery(query: knex.QueryBuilder, filter: Filter, options: FilterQueryOptions): Promise<[knex.QueryBuilder]> {
+    let columnIdentifier = filter.filterKey;
+    if (filter.property.columnName) {
+        columnIdentifier = filter.property.columnName;
     }
     if (options.tableName) {
         columnIdentifier = options.tableName + "." + columnIdentifier;
     }
 
-    switch (op) {
+    switch (filter.op) {
         case "lt":
-            return [query.where(columnIdentifier, "<", await convertValue(prop, value))];
+            return [query.where(columnIdentifier, "<", await convertValue(filter.property, filter.filterValue))];
         case "lte":
-            return [query.where(columnIdentifier, "<=", await convertValue(prop, value))];
+            return [query.where(columnIdentifier, "<=", await convertValue(filter.property, filter.filterValue))];
         case "gt":
-            return [query.where(columnIdentifier, ">", await convertValue(prop, value))];
+            return [query.where(columnIdentifier, ">", await convertValue(filter.property, filter.filterValue))];
         case "gte":
-            return [query.where(columnIdentifier, ">=", await convertValue(prop, value))];
+            return [query.where(columnIdentifier, ">=", await convertValue(filter.property, filter.filterValue))];
         case "eq":
-            return [query.where(columnIdentifier, "=", await convertValue(prop, value))];
+            return [query.where(columnIdentifier, "=", await convertValue(filter.property, filter.filterValue))];
         case "ne":
-            return [query.where(columnIdentifier, "!=", await convertValue(prop, value))];
+            return [query.where(columnIdentifier, "!=", await convertValue(filter.property, filter.filterValue))];
         case "in":
-            return [query.whereIn(columnIdentifier, await Promise.all(value.split(",").map(v => convertValue(prop, v))))];
+            return [query.whereIn(columnIdentifier, await Promise.all(filter.filterValue.split(",").map(v => convertValue(filter.property, v))))];
         case "like":
-            return [query.where(columnIdentifier, "LIKE", await convertValue(prop, value))];
+            return [query.where(columnIdentifier, "LIKE", await convertValue(filter.property, filter.filterValue))];
         case "isNull":
-            switch (value) {
+            switch (filter.filterValue) {
                 case "true":
                     return [query.whereNull(columnIdentifier)];
                 case "false":
                     return [query.whereNotNull(columnIdentifier)];
                 default:
-                    throw new giftbitRoutes.GiftbitRestError(422, `Query filter '${value}' is not allowed on isNull operator. Allowed values [true, false].`)
+                    throw new giftbitRoutes.GiftbitRestError(422, `Query filter '${filter.filterValue}' is not allowed on isNull operator. Allowed values [true, false].`)
+            }
+        case "orNull":
+            switch (filter.filterValue) {
+                case "true":
+                    return [query.orWhereNull(columnIdentifier)];
+                case "false":
+                    return [query.orWhereNotNull(columnIdentifier)];
+                default:
+                    throw new giftbitRoutes.GiftbitRestError(422, `Query filter '${filter.filterValue}' is not allowed on orNull operator. Allowed values [true, false].`)
             }
     }
 }
