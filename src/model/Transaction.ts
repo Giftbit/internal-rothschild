@@ -3,7 +3,6 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {getKnexRead} from "../utils/dbUtils/connection";
 import {LineItem} from "./LineItem";
 import {TransactionParty} from "./TransactionRequest";
-import {LightrailDbTransactionStep, TransactionType} from "./Transaction";
 import {TaxRequestProperties} from "./TaxProperties";
 
 export interface Transaction {
