@@ -257,7 +257,12 @@ function consolidateValueQueryResults(values: (DbValue & { contactIdForResult: s
             ...v,
             contactId: v.contactId || v.contactIdForResult // Persist the contactId to the value record if it was looked up via the ContactValues table
         }))
-        .filter((v, _, dbValues) => {
-            return v.contactId || !dbValues.find(otherValue => otherValue.id === v.id && otherValue.contactId); // generic codes can be used by two different contacts in the same transaction, but not by a contact and also anonymously: skip anonymous usage if this value is also attached
+        .filter((v, index, dbValues) => {
+            if (v.contactId) {
+                const firstValue = dbValues.find(firstValue => firstValue.id === v.id && firstValue.contactId === v.contactId);
+                return dbValues.indexOf(firstValue) === index; // unique attached values can only be used once per transaction but might have been included twice in the payment sources (eg by code and also by contactId)
+            } else {
+                return v.contactId || !dbValues.find(otherValue => otherValue.id === v.id && otherValue.contactId); // generic codes can be used by two different contacts in the same transaction, but not by a contact and also anonymously: skip anonymous usage if this value is also attached
+            }
         });
 }
