@@ -161,7 +161,6 @@ describe("checkout - handling limited balance/uses on generic values", () => {
                 sources
             });
             chai.assert.equal(checkoutResp.statusCode, 409, `checkoutResp.body=${JSON.stringify(checkoutResp.body, null, 4)}`);
-
         });
     });
 
