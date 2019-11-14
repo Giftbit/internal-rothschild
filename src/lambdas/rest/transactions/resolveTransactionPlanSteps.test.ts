@@ -102,7 +102,7 @@ describe("resolveTransactionPlanSteps", () => {
             chai.assert.sameMembers(contactLightrailValues.map(v => (v as LightrailTransactionPlanStep).value.id), attachedValues.map(v => v.id));
         });
 
-        describe("getLightrailValues", () => {
+        describe("getLightrailValuesForTransactionPlanSteps", () => {
             const currency = {
                 code: "USD"
             };
@@ -262,29 +262,58 @@ describe("resolveTransactionPlanSteps", () => {
                 chai.assert.deepEqualExcluding(valuesById2.find(v => v.id === value2_uniqueCodeContact.id), value2_uniqueCodeContact, ["createdDate", "updatedDate", "genericCodeOptions", "attachedFromValueId", "updatedContactIdDate"]);
             });
 
-            it("does not duplicate Value if specified by code and ID in separate sources", async () => {
-                const dupeIdentifierSources: LightrailTransactionParty[] = [{
-                    rail: "lightrail",
-                    code: code1
-                }, {
-                    rail: "lightrail",
-                    valueId: value1_uniqueCode.id
-                }];
-                const values = await getLightrailValuesForTransactionPlanSteps(testUtils.defaultTestUser.auth, dupeIdentifierSources, resolvePartiesOptions);
-                chai.assert.equal(values.length, 1);
-                chai.assert.deepEqualExcluding(values[0], value1_uniqueCode, ["createdDate", "updatedDate", "genericCodeOptions", "attachedFromValueId", "updatedContactIdDate"]);
-            });
+            describe("Value de-duplication", () => {
+                it("does not duplicate shared generic Value if attached to contact in sources and also passed anonymously", async () => {
+                    const dupedSources: LightrailTransactionParty[] = [{
+                        rail: "lightrail",
+                        code: value3_sharedGeneric.code // attached to contact1
+                    }, {
+                        rail: "lightrail",
+                        contactId: contact1.id
+                    }];
+                    const values = await getLightrailValuesForTransactionPlanSteps(testUtils.defaultTestUser.auth, dupedSources, resolvePartiesOptions);
+                    chai.assert.sameDeepMembers(values.map(v => mapValueIdentifiers(v)), contact1_attachedValues.map(v => mapValueIdentifiers(v)), `values=${JSON.stringify(values)}`);
+                });
 
-            it("does not duplicate shared generic Value if attached to contact in sources and also passed anonymously", async () => {
-                const dupedSources: LightrailTransactionParty[] = [{
-                    rail: "lightrail",
-                    code: value3_sharedGeneric.code // attached to contact1
-                }, {
-                    rail: "lightrail",
-                    contactId: contact1.id
-                }];
-                const values = await getLightrailValuesForTransactionPlanSteps(testUtils.defaultTestUser.auth, dupedSources, resolvePartiesOptions);
-                chai.assert.sameDeepMembers(values.map(v => mapValueIdentifiers(v)), contact1_attachedValues.map(v => mapValueIdentifiers(v)), `values=${JSON.stringify(values)}`);
+                it("does not duplicate unique Value if attached to contact in sources and also passed in anonymously", async () => {
+                    chai.assert.equal(value2_uniqueCodeContact.contactId, contact1.id, "value2_uniqueCodeContact should be attached to contact1");
+                    const dupedSources: LightrailTransactionParty[] = [{
+                        rail: "lightrail",
+                        valueId: value2_uniqueCodeContact.id
+                    }, {
+                        rail: "lightrail",
+                        contactId: value2_uniqueCodeContact.contactId
+                    }];
+                    const values = await getLightrailValuesForTransactionPlanSteps(testUtils.defaultTestUser.auth, dupedSources, resolvePartiesOptions);
+                    chai.assert.sameDeepMembers(values.map(v => mapValueIdentifiers(v)), contact1_attachedValues.map(v => mapValueIdentifiers(v)));
+                });
+
+                it("does not duplicate attached values passed in by different identifiers", async () => {
+                    const dupedSources: LightrailTransactionParty[] = [{
+                        rail: "lightrail",
+                        valueId: value2_uniqueCodeContact.id
+                    }, {
+                        rail: "lightrail",
+                        code: value2_uniqueCodeContact.code
+                    }];
+                    const values = await getLightrailValuesForTransactionPlanSteps(testUtils.defaultTestUser.auth, dupedSources, resolvePartiesOptions);
+                    chai.assert.equal(values.length, 1, `should only have one value: ${JSON.stringify(values)}`);
+                    chai.assert.deepEqual(mapValueIdentifiers(values[0]), mapValueIdentifiers(value2_uniqueCodeContact as Value));
+                });
+
+                it("does not duplicate unattached values passed in by different identifiers", async () => {
+                    chai.assert.isNull(value1_uniqueCode.contactId, "value1_uniqueCode should not be attached to a contact");
+                    const dupedSources: LightrailTransactionParty[] = [{
+                        rail: "lightrail",
+                        valueId: value1_uniqueCode.id
+                    }, {
+                        rail: "lightrail",
+                        code: value1_uniqueCode.code
+                    }];
+                    const values = await getLightrailValuesForTransactionPlanSteps(testUtils.defaultTestUser.auth, dupedSources, resolvePartiesOptions);
+                    chai.assert.equal(values.length, 1, `should only have one value: ${JSON.stringify(values)}`);
+                    chai.assert.deepEqual(mapValueIdentifiers(values[0]), mapValueIdentifiers(value1_uniqueCode as Value));
+                });
             });
 
             it("gets multiple values by different identifiers", async () => {

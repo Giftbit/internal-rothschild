@@ -160,8 +160,7 @@ describe("checkout - handling limited balance/uses on generic values", () => {
                 lineItems: [{unitPrice: 100}],
                 sources
             });
-            chai.assert.equal(checkoutResp.statusCode, 201, `checkoutResp.body=${JSON.stringify(checkoutResp.body, null, 4)}`);
-
+            chai.assert.equal(checkoutResp.statusCode, 409, `checkoutResp.body=${JSON.stringify(checkoutResp.body, null, 4)}`);
         });
     });
 
