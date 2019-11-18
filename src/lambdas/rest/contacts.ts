@@ -169,8 +169,7 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                     type: "string"
                 },
                 "createdDate": {
-                    type: "Date",
-                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
+                    type: "Date"
                 },
             },
             tableName: "Contacts"

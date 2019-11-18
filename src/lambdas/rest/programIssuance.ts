@@ -112,23 +112,18 @@ async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, prog
                 },
                 "count": {
                     type: "number",
-                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 },
                 "usesRemaining": {
                     type: "number",
-                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 },
                 "startDate": {
                     type: "Date",
-                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 },
                 "endDate": {
                     type: "Date",
-                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 },
                 "createdDate": {
                     type: "Date",
-                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 }
             }
         },

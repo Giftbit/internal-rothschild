@@ -38,7 +38,6 @@ export interface FilterQueryProperty {
 
 export type FilterQueryOperator = "lt" | "lte" | "gt" | "gte" | "eq" | "ne" | "in" | "like" | "isNull" | "orNull";
 
-type FilterValueType = number | string | boolean | Date
 
 type Filter = SingleValueFilter | ArrayValueFilter;
 
@@ -47,6 +46,8 @@ interface BasicFilterProps {
     filterKey: string;
     op: FilterQueryOperator;
 }
+
+type FilterValueType = number | string | boolean | Date
 
 /**
  * The Value is singular. Ie `property.op=value`.
@@ -87,9 +88,6 @@ export async function filterQuery(query: knex.QueryBuilder, filterParams: { [key
             throw new giftbitRoutes.GiftbitRestError(400, `Query filter key '${filterKey}' does not support operator '${op}'.`);
         }
 
-        // value: op !== "in" ? await convertValue(property, filterValue, op) :
-        //                 await Promise.all(filterValue.split(",").map(v => convertValue(property, v, op)))
-
         const filter: Filter = {
             property: property,
             filterKey: filterKey,
@@ -97,22 +95,6 @@ export async function filterQuery(query: knex.QueryBuilder, filterParams: { [key
             value: op !== "in" ? await convertValue(property, filterValue, op) :
                 await Promise.all(filterValue.split(",").map(v => convertValue(property, v, op)))
         } as Filter;
-
-        // if (op !== "in") {
-        //     filter = {
-        //         property: property,
-        //         filterKey: filterKey,
-        //         op: op,
-        //         value: await convertValue(property, filterValue, op)
-        //     }
-        // } else {
-        //     filter = {
-        //         property: property,
-        //         filterKey: filterKey,
-        //         op: op,
-        //         value: await Promise.all(filterValue.split(",").map(v => convertValue(property, v, op)))
-        //     }
-        // }
 
         if (filter.op === "orNull") {
             orNullFilters.push(filter);

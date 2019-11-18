@@ -682,13 +682,13 @@ describe.only("filterQuery()", () => {
     it("can filter by expires is greater than or null - using date of 997th record (0, 998 and 999) should be returned", async () => {
         const knex = await getKnexRead();
 
-        const date = getExpiryBasedOnIndex(997).toISOString();
+        const date997 = getExpiryBasedOnIndex(997).toISOString();
         const actualQ = knex("FilterTest")
             .where({
                 userId: "user1"
             })
             .where(q => {
-                q.where("expires", ">", date);
+                q.where("expires", ">", date997);
                 q.orWhereNull("expires");
                 return q;
             })
@@ -702,8 +702,82 @@ describe.only("filterQuery()", () => {
                 .where({userId: "user1"})
                 .orderBy("id"),
             {
-                "expires.gt": date,
+                "expires.gt": date997,
                 "expires.orNull": "true"
+            },
+            filterTestFilterOptions
+        );
+        const actual: FilterTestDb[] = await query;
+        chai.assert.deepEqual(actual, expected);
+    });
+
+
+    it("can do complicated orNull filter", async () => {
+        const knex = await getKnexRead();
+
+        const date501 = getExpiryBasedOnIndex(501).toISOString();
+        const date499 = getExpiryBasedOnIndex(499).toISOString();
+        const actualQ = knex("FilterTest")
+            .where({
+                userId: "user1"
+            })
+            .whereIn("id", ["id-0", "id-500"])
+            .where(q => {
+                q.where("expires", "<", date501);
+                q.orWhereNull("expires");
+                return q;
+            })
+            .where(q => {
+                q.where("expires", ">", date499);
+                q.orWhereNull("expires");
+                return q;
+            })
+            .orderBy("id");
+        const expected: FilterTestDb[] = await actualQ;
+        chai.assert.lengthOf(expected, 2);
+        chai.assert.sameMembers(expected.map(it => it.id), ["id-0", "id-500"]);
+
+        const [query] = await filterQuery(
+            knex("FilterTest")
+                .where({userId: "user1"})
+                .orderBy("id"),
+            {
+                "expires.lt": date501,
+                "expires.gt": date499,
+                "expires.orNull": "true",
+                "id.in": "id-0,id-500"
+            },
+            filterTestFilterOptions
+        );
+        const actual: FilterTestDb[] = await query;
+        chai.assert.deepEqual(actual, expected);
+    });
+
+    it("can filter by expires.gt=date1000 orNull = false - should return 999 results. None have a greater date, but 999 are not null", async () => {
+        const knex = await getKnexRead();
+
+        const date1000 = getExpiryBasedOnIndex(1000).toISOString();
+        const actualQ = knex("FilterTest")
+            .where({
+                userId: "user1"
+            })
+            .where(q => {
+                q.where("expires", ">", date1000);
+                q.orWhereNotNull("expires");
+                return q;
+            })
+            .orderBy("id");
+        const expected: FilterTestDb[] = await actualQ;
+        chai.assert.lengthOf(expected, 999);
+        chai.assert.notInclude(expected.map(it => it.id), ["id-0"]);
+
+        const [query] = await filterQuery(
+            knex("FilterTest")
+                .where({userId: "user1"})
+                .orderBy("id"),
+            {
+                "expires.gt": date1000,
+                "expires.orNull": "false"
             },
             filterTestFilterOptions
         );
