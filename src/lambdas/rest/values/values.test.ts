@@ -786,7 +786,6 @@ describe("/v2/values/", () => {
                 }
             };
             const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
-            console.log(JSON.stringify(create.body, null, 4));
             chai.assert.equal(create.statusCode, 422, `body=${JSON.stringify(create.body)}`);
         });
 

@@ -5,7 +5,7 @@ import * as testUtils from "../testUtils";
 import {filterQuery, FilterQueryOptions} from "./filterQuery";
 import * as cryptojs from "crypto-js";
 
-describe.only("filterQuery()", () => {
+describe("filterQuery()", () => {
 
     interface FilterTest {
         userId: string;
@@ -15,7 +15,7 @@ describe.only("filterQuery()", () => {
         b: number;
         c: boolean;
         d: Date;
-        expires: Date | null,
+        expires: Date | null;
         code: string;
     }
 

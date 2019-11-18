@@ -47,20 +47,20 @@ interface BasicFilterProps {
     op: FilterQueryOperator;
 }
 
-type FilterValueType = number | string | boolean | Date
+type FilterValueType = number | string | boolean | Date;
 
 /**
  * The Value is singular. Ie `property.op=value`.
  */
 interface SingleValueFilter extends BasicFilterProps {
-    value: FilterValueType
+    value: FilterValueType;
 }
 
 /**
  * The Value is an array. Ie `property.in=value1,value2`.
  */
 interface ArrayValueFilter extends BasicFilterProps {
-    value: FilterValueType[]
+    value: FilterValueType[];
 }
 
 
@@ -205,7 +205,7 @@ async function convertValue(prop: FilterQueryProperty, value: string, operator: 
             case "false":
                 return false;
             default:
-                throw new giftbitRoutes.GiftbitRestError(422, `Query filter '${value}' is not allowed on ${operator} operator. Allowed values [true, false].`)
+                throw new giftbitRoutes.GiftbitRestError(422, `Query filter '${value}' is not allowed on ${operator} operator. Allowed values [true, false].`);
         }
     }
     let result: number | string | boolean | Date;
