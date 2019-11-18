@@ -679,39 +679,35 @@ describe.only("filterQuery()", () => {
         }
     });
 
-    it("can filter by orNull", async () => {
+    it("can filter by expires is greater than or null - using date of 997th record (0, 998 and 999) should be returned", async () => {
         const knex = await getKnexRead();
 
-        const secondOldestExpiry = getExpiryBasedOnIndex(998).toISOString();
-        console.log(secondOldestExpiry);
+        const date = getExpiryBasedOnIndex(997).toISOString();
         const actualQ = knex("FilterTest")
             .where({
                 userId: "user1"
             })
             .where(q => {
-                q.where("expires", ">", secondOldestExpiry);
-                // q.orWhereNull("expires");
+                q.where("expires", ">", date);
+                q.orWhereNull("expires");
                 return q;
             })
             .orderBy("id");
-        console.log(actualQ.toSQL().sql);
         const expected: FilterTestDb[] = await actualQ;
-        chai.assert.lengthOf(expected, 1);
-        chai.assert.exists(expected.find(it => it.id === "id-999"));
+        chai.assert.lengthOf(expected, 3);
+        chai.assert.sameMembers(expected.map(it => it.id), ["id-0", "id-998", "id-999"]);
 
         const [query] = await filterQuery(
             knex("FilterTest")
                 .where({userId: "user1"})
                 .orderBy("id"),
             {
-                "expires.gt": secondOldestExpiry,
-                "expires.orNull": "false"
-
+                "expires.gt": date,
+                "expires.orNull": "true"
             },
             filterTestFilterOptions
         );
         const actual: FilterTestDb[] = await query;
-        console.log(JSON.stringify(actual, null, 4));
         chai.assert.deepEqual(actual, expected);
     });
 
@@ -743,7 +739,6 @@ describe.only("filterQuery()", () => {
             filterTestFilterOptions
         );
         const actual: FilterTestDb[] = await query;
-
         chai.assert.deepEqual(actual, expected);
     });
 
