@@ -888,9 +888,6 @@ const valueSchema: jsonschema.Schema = {
     dependencies: {
         discountSellerLiability: {
             properties: {
-                discount: {
-                    enum: [true]
-                },
                 discountSellerLiabilityRule: {
                     enum: [null, undefined]
                 }
@@ -898,9 +895,6 @@ const valueSchema: jsonschema.Schema = {
         },
         discountSellerLiabilityRule: {
             properties: {
-                discount: {
-                    enum: [true]
-                },
                 discountSellerLiability: {
                     enum: [null, undefined]
                 }
