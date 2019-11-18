@@ -351,6 +351,10 @@ function checkProgramProperties(program: Program): void {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Program can't have discountSellerLiability if it is not a discount.`);
     }
 
+    if (program.discountSellerLiabilityRule !== null && !program.discount) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Program can't have discountSellerLiabilityRule if it is not a discount.`);
+    }
+
     if (program.endDate && program.startDate > program.endDate) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "Property startDate cannot exceed endDate.");
     }
@@ -632,9 +636,6 @@ const programSchema: jsonschema.Schema = {
     dependencies: {
         discountSellerLiability: {
             properties: {
-                discount: {
-                    enum: [true]
-                },
                 discountSellerLiabilityRule: {
                     enum: [null, undefined]
                 }
@@ -642,9 +643,6 @@ const programSchema: jsonschema.Schema = {
         },
         discountSellerLiabilityRule: {
             properties: {
-                discount: {
-                    enum: [true]
-                },
                 discountSellerLiability: {
                     enum: [null, undefined]
                 }

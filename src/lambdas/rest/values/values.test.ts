@@ -804,6 +804,44 @@ describe("/v2/values/", () => {
             const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
             chai.assert.equal(create.statusCode, 422, `body=${JSON.stringify(create.body)}`);
         });
+
+        // can be removed when discountSellerLiability is dropped from API responses
+        it("can set discountSellerLiability: null, if discount: false", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: false,
+                discountSellerLiability: null
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+        });
+
+        it("can set discountSellerLiabilityRule: null, if discount: false", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: false,
+                discountSellerLiabilityRule: null
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+        });
+
+        it("can set both discountSellerLiabilityRule: null and discountSellerLiability: null", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: false,
+                discountSellerLiability: null,
+                discountSellerLiabilityRule: null
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+        });
     });
 
     it("can't create Value with balance and balanceRule", async () => {

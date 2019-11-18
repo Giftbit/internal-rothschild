@@ -2090,6 +2090,44 @@ describe("/v2/programs", () => {
             const create = await testUtils.testAuthedRequest<Program>(router, `/v2/programs`, "POST", program);
             chai.assert.equal(create.statusCode, 422, `body=${JSON.stringify(create.body)}`);
         });
+
+        // can be removed when discountSellerLiability is dropped from API responses
+        it("can set discountSellerLiability: null, if discount: false", async () => {
+            const program: Partial<Program> = {
+                id: generateId(),
+                name: "name",
+                currency: "USD",
+                discount: false,
+                discountSellerLiability: null
+            };
+            const create = await testUtils.testAuthedRequest<Program>(router, `/v2/programs`, "POST", program);
+            chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+        });
+
+        it("can set discountSellerLiabilityRule: null, if discount: false", async () => {
+            const program: Partial<Program> = {
+                id: generateId(),
+                name: "name",
+                currency: "USD",
+                discount: false,
+                discountSellerLiabilityRule: null
+            };
+            const create = await testUtils.testAuthedRequest<Program>(router, `/v2/programs`, "POST", program);
+            chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+        });
+
+        it("can set both discountSellerLiabilityRule: null and discountSellerLiability: null", async () => {
+            const program: Partial<Program> = {
+                id: generateId(),
+                name: "name",
+                currency: "USD",
+                discount: false,
+                discountSellerLiability: null,
+                discountSellerLiabilityRule: null
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/programs`, "POST", program);
+            chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+        });
     });
 
     it("can't create a program with duplicate fixedInitialUsesRemaining", async () => {
