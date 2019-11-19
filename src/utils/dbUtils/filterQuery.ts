@@ -38,22 +38,21 @@ export interface FilterQueryProperty {
 
 export type FilterQueryOperator = "lt" | "lte" | "gt" | "gte" | "eq" | "ne" | "in" | "like" | "isNull" | "orNull";
 
+type FilterValueType = number | string | boolean | Date;
 
 type Filter = SingleValueFilter | ArrayValueFilter;
 
 interface BasicFilterProps {
     property: FilterQueryProperty;
     filterKey: string;
-    op: FilterQueryOperator;
 }
-
-type FilterValueType = number | string | boolean | Date;
 
 /**
  * The Value is singular. Ie `property.op=value`.
  */
 interface SingleValueFilter extends BasicFilterProps {
     value: FilterValueType;
+    op: "lt" | "lte" | "gt" | "gte" | "eq" | "ne" | "like" | "isNull" | "orNull";
 }
 
 /**
@@ -61,8 +60,8 @@ interface SingleValueFilter extends BasicFilterProps {
  */
 interface ArrayValueFilter extends BasicFilterProps {
     value: FilterValueType[];
+    op: "in";
 }
-
 
 /**
  * Add where clauses to filter the given SQL query.
@@ -72,8 +71,17 @@ interface ArrayValueFilter extends BasicFilterProps {
  * @returns The filtered SQL query in a tuple.
  */
 export async function filterQuery(query: knex.QueryBuilder, filterParams: { [key: string]: string }, options: FilterQueryOptions): Promise<[knex.QueryBuilder]> {
+    const filters = await parseFilters(filterParams, options);
+
+    query = addFiltersToQuery(query, filters.filter(f => f.op !== "orNull"), filters.filter(f => f.op === "orNull"), options);
+
+    // We have to return the query in an array (or object or something) because the query is
+    // itself awaitable so awaiting this function would execute the query.
+    return [query];
+}
+
+async function parseFilters(filterParams: { [key: string]: string }, options: FilterQueryOptions): Promise<Filter[]> {
     const filters: Filter[] = [];
-    const orNullFilters: Filter[] = [];
     for (const queryKey of Object.keys(filterParams)) {
         const {filterKey, op} = splitFilterKeyAndOp(queryKey);
         const filterValue = filterParams[queryKey];
@@ -95,19 +103,9 @@ export async function filterQuery(query: knex.QueryBuilder, filterParams: { [key
             value: op !== "in" ? await convertValue(property, filterValue, op) :
                 await Promise.all(filterValue.split(",").map(v => convertValue(property, v, op)))
         } as Filter;
-
-        if (filter.op === "orNull") {
-            orNullFilters.push(filter);
-        } else {
-            filters.push(filter);
-        }
+        filters.push(filter);
     }
-
-    query = addFiltersToQuery(query, filters, orNullFilters, options);
-
-    // We have to return the query in an array (or object or something) because the query is
-    // itself awaitable so awaiting this function would execute the query.
-    return [query];
+    return filters;
 }
 
 function addFiltersToQuery(query: knex.QueryBuilder, filters: Filter[], orNullFilters: Filter[], options: FilterQueryOptions): knex.QueryBuilder {
@@ -156,7 +154,7 @@ function filterQueryPropertyAllowsOperator(prop: FilterQueryProperty, op: string
     return false;
 }
 
-function addFilterToQuery(query: knex.QueryBuilder, filter: SingleValueFilter | ArrayValueFilter, options: FilterQueryOptions): knex.QueryBuilder {
+function addFilterToQuery(query: knex.QueryBuilder, filter: Filter, options: FilterQueryOptions): knex.QueryBuilder {
     let columnIdentifier = filter.filterKey;
     if (filter.property.columnName) {
         columnIdentifier = filter.property.columnName;
@@ -177,11 +175,11 @@ function addFilterToQuery(query: knex.QueryBuilder, filter: SingleValueFilter | 
         case "eq":
             return query.where(columnIdentifier, "=", filter.value);
         case "ne":
-            return query.where(columnIdentifier, "!=", filter.value as FilterValueType);
+            return query.where(columnIdentifier, "!=", filter.value);
         case "in":
-            return query.whereIn(columnIdentifier, filter.value as FilterValueType[]);
+            return query.whereIn(columnIdentifier, filter.value);
         case "like":
-            return query.where(columnIdentifier, "LIKE", filter.value as FilterValueType);
+            return query.where(columnIdentifier, "LIKE", filter.value);
         case "isNull":
             if (filter.value) {
                 return query.whereNull(columnIdentifier);

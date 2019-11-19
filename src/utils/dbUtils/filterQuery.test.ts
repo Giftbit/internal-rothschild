@@ -745,7 +745,6 @@ describe("filterQuery()", () => {
             .where({
                 userId: "user1"
             })
-            .whereIn("id", ["id-0", "id-500"])
             .where(q => {
                 q.where("expires", "<", date501);
                 q.orWhereNull("expires");
@@ -768,8 +767,7 @@ describe("filterQuery()", () => {
             {
                 "expires.lt": date501,
                 "expires.gt": date499,
-                "expires.orNull": "true",
-                "id.in": "id-0,id-500"
+                "expires.orNull": "true"
             },
             filterTestFilterOptions
         );
