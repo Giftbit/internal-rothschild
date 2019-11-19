@@ -232,6 +232,7 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
                 },
                 "createdDate": {
                     type: "Date",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 },
                 "currency": {
                     type: "string",

@@ -124,6 +124,7 @@ async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, prog
                 },
                 "createdDate": {
                     type: "Date",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 }
             }
         },
