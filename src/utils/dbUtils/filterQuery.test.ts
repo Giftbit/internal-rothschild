@@ -46,7 +46,7 @@ describe("filterQuery()", () => {
     }
 
     /*
-     * Returns: [null, "1970-01-01T00:00:00.001Z", "1970-01-01T00:00:00.002Z", "1970-01-01T00:00:00.003Z", ...][i]
+     * Returns: [null, <date1>, <date2>, <date3>, ...] where date1 < date2 < date3
      */
     function getExpiryBasedOnIndex(i: number): Date | null {
         if (i === 0) {
@@ -783,6 +783,52 @@ describe("filterQuery()", () => {
         );
         const actual: FilterTestDb[] = await query;
         chai.assert.deepEqual(actual, expected);
+    });
+
+    it("can filter by expires.isNull=true, expires.orNull=false - should return everything", async () => {
+        const knex = await getKnexRead();
+
+        const actualQ = knex("FilterTest")
+            .where({
+                userId: "user1"
+            })
+            .where(q => {
+                q.whereNull("expires");
+                q.orWhereNotNull("expires");
+                return q;
+            })
+            .orderBy("id");
+        const expected: FilterTestDb[] = await actualQ;
+        chai.assert.lengthOf(expected, 1000);
+
+        const [query] = await filterQuery(
+            knex("FilterTest")
+                .where({userId: "user1"})
+                .orderBy("id"),
+            {
+                "expires.isNull": "true",
+                "expires.orNull": "false"
+            },
+            filterTestFilterOptions
+        );
+        const actual: FilterTestDb[] = await query;
+        chai.assert.deepEqual(actual, expected);
+    });
+
+
+    it("filtering by orNull does nothing on its own", async () => {
+        const knex = await getKnexRead();
+        const [query] = await filterQuery(
+            knex("FilterTest")
+                .where({userId: "user1"})
+                .orderBy("id"),
+            {
+                "expires.orNull": "true"
+            },
+            filterTestFilterOptions
+        );
+        const actual: FilterTestDb[] = await query;
+        chai.assert.lengthOf(actual, 1000);
     });
 
     it("ignores query parameters that aren't specified in options", async () => {
