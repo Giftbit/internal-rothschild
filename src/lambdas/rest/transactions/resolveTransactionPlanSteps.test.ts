@@ -153,7 +153,7 @@ describe("resolveTransactionPlanSteps", () => {
                     attachedFromValueId: value.attachedFromValueId,
                     contactId: value.isGenericCode && !value.genericCodeOptions ? null : value.contactId,
                     code: value.code
-                }
+                };
             }
 
             before(async () => {
@@ -504,7 +504,7 @@ describe("resolveTransactionPlanSteps", () => {
                 }];
                 const values = await getLightrailValuesForTransactionPlanSteps(testUtils.defaultTestUser.auth, sources, resolvePartiesOptions);
                 chai.assert.equal(values.length, 1);
-                chai.assert.deepEqualExcluding(values[0], value1_uniqueCode, ["createdDate", "updatedDate", "genericCodeOptions", "attachedFromValueId", "updatedContactIdDate"])
+                chai.assert.deepEqualExcluding(values[0], value1_uniqueCode, ["createdDate", "updatedDate", "genericCodeOptions", "attachedFromValueId", "updatedContactIdDate"]);
             });
 
             it("does not leak Values between userIds", async () => {
@@ -581,7 +581,7 @@ describe("resolveTransactionPlanSteps", () => {
                         includeZeroBalance: false
                     });
                 chai.assert.equal(resolvedValuesUser1.length, 1, JSON.stringify(resolvedValuesUser1, null, 4));
-            }).timeout(12000)
+            }).timeout(12000);
         });
     });
 });

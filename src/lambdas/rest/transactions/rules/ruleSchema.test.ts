@@ -13,7 +13,7 @@ describe("ruleSchema", () => {
             }
         };
         chai.assert.doesNotThrow(() => {
-            evt.validateBody(exampleSchema)
+            evt.validateBody(exampleSchema);
         });
     });
 
@@ -25,7 +25,7 @@ describe("ruleSchema", () => {
             }
         };
         chai.assert.throws(() => {
-            evt.validateBody(exampleSchema)
+            evt.validateBody(exampleSchema);
         }, "The undefined body has 1 validation error(s): requestBody.exampleRule requires property \"rule\".");
     });
 
@@ -37,7 +37,7 @@ describe("ruleSchema", () => {
             }
         };
         chai.assert.throws(() => {
-            evt.validateBody(exampleSchema)
+            evt.validateBody(exampleSchema);
         }, "The undefined body has 1 validation error(s): requestBody.exampleRule requires property \"explanation\".");
     });
 
@@ -51,7 +51,7 @@ describe("ruleSchema", () => {
             }
         };
         chai.assert.throws(() => {
-            evt.validateBody(exampleSchema)
+            evt.validateBody(exampleSchema);
         }, "The undefined body has 1 validation error(s): requestBody.exampleRule additionalProperty \"extra\" exists in instance when not allowed.");
     });
 
@@ -61,7 +61,7 @@ describe("ruleSchema", () => {
             exampleRule: null
         };
         chai.assert.doesNotThrow(() => {
-            evt.validateBody(exampleSchema)
+            evt.validateBody(exampleSchema);
         });
     });
 
@@ -71,7 +71,7 @@ describe("ruleSchema", () => {
             exampleRule: undefined
         };
         chai.assert.doesNotThrow(() => {
-            evt.validateBody(exampleSchema)
+            evt.validateBody(exampleSchema);
         });
     });
 });

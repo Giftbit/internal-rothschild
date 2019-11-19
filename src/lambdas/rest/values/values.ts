@@ -348,10 +348,12 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                     type: "Date"
                 },
                 createdDate: {
-                    type: "Date"
+                    type: "Date",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 },
                 updatedDate: {
-                    type: "Date"
+                    type: "Date",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 }
             }
         },
