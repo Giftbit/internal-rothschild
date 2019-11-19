@@ -679,6 +679,26 @@ describe("filterQuery()", () => {
         }
     });
 
+    it("can't filter by orNull=jibberish - throws 422", async () => {
+        const knex = await getKnexRead();
+
+        try {
+            await filterQuery(
+                knex("FilterTest")
+                    .where({userId: "user1"})
+                    .orderBy("id"),
+                {
+                    "expires.gt": "2020-01-01", // needs to be defined since orNull doesn't work on its own
+                    "expires.orNull": "jibberish"
+                },
+                filterTestFilterOptions
+            );
+            chai.assert.fail("failed");
+        } catch (e) {
+            chai.assert.equal(e.statusCode, 422);
+        }
+    });
+
     it("can filter by expires is greater than or null - using date of 997th record (0, 998 and 999) should be returned", async () => {
         const knex = await getKnexRead();
 
@@ -711,7 +731,11 @@ describe("filterQuery()", () => {
         chai.assert.deepEqual(actual, expected);
     });
 
-
+    /* Complicated orNull filter.
+     *  SELECT * FROM FilterTest
+     *  WHERE (expires < date501 or expires is null)
+     *    AND (expires > date499 or expires is null)
+     */
     it("can do complicated orNull filter", async () => {
         const knex = await getKnexRead();
 
@@ -814,7 +838,6 @@ describe("filterQuery()", () => {
         const actual: FilterTestDb[] = await query;
         chai.assert.deepEqual(actual, expected);
     });
-
 
     it("filtering by orNull does nothing on its own", async () => {
         const knex = await getKnexRead();
