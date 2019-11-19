@@ -25,7 +25,7 @@ describe("mathUtils", () => {
 
         it("throws error if min > max", () => {
             chai.assert.throws(() => {
-                MathUtils.constrain(2, 1, 1)
+                MathUtils.constrain(2, 1, 1);
             }, "Min=2 must be less than or equal max=1");
         });
     });

@@ -3,6 +3,6 @@ export namespace MathUtils {
         if (min > max) {
             throw new Error(`Min=${min} must be less than or equal max=${max}.`);
         }
-        return Math.min(max, Math.max(min, value))
+        return Math.min(max, Math.max(min, value));
     }
 }

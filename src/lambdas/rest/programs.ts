@@ -176,11 +176,9 @@ async function getPrograms(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filte
                 },
                 "startDate": {
                     type: "Date",
-                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 },
                 "endDate": {
                     type: "Date",
-                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 },
                 "createdDate": {
                     type: "Date",
