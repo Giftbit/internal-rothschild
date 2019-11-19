@@ -2196,11 +2196,11 @@ describe("/v2/programs", () => {
 
     it("can filter by isNull", async () => {
         const list = await testUtils.testAuthedRequest<Program[]>(router, "/v2/programs?endDate.isNull=true", "GET");
-        chai.assert.equal(list.statusCode, 200, "The isNull functionality is tested through filterQuery tests. This test just ensures the orNull operator is allowed on endDate.");
+        chai.assert.equal(list.statusCode, 200, "The isNull functionality is tested through filterQuery tests. This test just ensures the isNull operator is allowed on endDate.");
     });
 
     it("can filter by orNull", async () => {
         const list = await testUtils.testAuthedRequest<Program[]>(router, "/v2/programs?endDate.gt=2019-01-01&endDate.orNull=true", "GET");
-        chai.assert.equal(list.statusCode, 200, "The isNull functionality is tested through filterQuery tests. This test just ensures the orNull operator is allowed on endDate.");
+        chai.assert.equal(list.statusCode, 200, "The orNull functionality is tested through filterQuery tests. This test just ensures the orNull operator is allowed on endDate.");
     });
 });
