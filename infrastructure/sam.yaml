@@ -30,6 +30,11 @@ Parameters:
     Type: String
     Description: Optional ARN of the KMS encrypting SecureConfigBucket
     AllowedPattern: arn:aws:kms:[a-zA-Z_0-9\-]+:\d{12}:key/[a-zA-Z_0-9+=,.@\-_/]+
+  StateChangeTopicArn:
+    Type: String
+    Description: Optional ARN of the SNS topic to publish messages about state changes to
+    AllowedPattern: (arn:aws:sns:[a-zA-Z_0-9\-]+:\d{12}:[a-zA-Z_0-9+=,.@\-_/]+)?
+    Default: ""
   VpcUniqueNumber:
     Type: Number
     Description: The value to prefix the regions subnets with
@@ -38,7 +43,8 @@ Parameters:
     MinValue: 1
 
 Conditions:
-  HighCapacity: !Equals [!Ref Capacity, "high"]
+  IsStateChangeTopicArnSet: !Equals [!Ref StateChangeTopicArn, ""]
+  IsHighCapacity: !Not [!Equals [!Ref Capacity, "high"]]
 
 Mappings:
   RegionBastionHostImageMap:
@@ -328,9 +334,9 @@ Resources:
       Parameters:
         sql_mode: IGNORE_SPACE,STRICT_TRANS_TABLES
         slow_query_log: 1
-        performance_schema: !If [HighCapacity, 1, !Ref "AWS::NoValue"]
-        performance-schema-consumer-events-waits-current: !If [HighCapacity, "ON", !Ref "AWS::NoValue"]
-        performance-schema-instrument: !If [HighCapacity, 'wait/%=ON', !Ref "AWS::NoValue"]
+        performance_schema: !If [IsHighCapacity, 1, !Ref "AWS::NoValue"]
+        performance-schema-consumer-events-waits-current: !If [IsHighCapacity, "ON", !Ref "AWS::NoValue"]
+        performance-schema-instrument: !If [IsHighCapacity, 'wait/%=ON', !Ref "AWS::NoValue"]
       Tags:
         - Key: Service
           Value: Rothschild
@@ -339,12 +345,12 @@ Resources:
     Properties:
       Engine: aurora
       DBClusterIdentifier: !Ref DbCluster
-      DBInstanceClass: !If [HighCapacity, db.r4.xlarge, db.t2.medium]
+      DBInstanceClass: !If [IsHighCapacity, db.r4.xlarge, db.t2.medium]
       DBSubnetGroupName: !Ref DbSubnetGroup
       DBParameterGroupName: !Ref DbInstanceParameterGroup
-      EnablePerformanceInsights: !If [HighCapacity, true, !Ref "AWS::NoValue"]
-      PerformanceInsightsRetentionPeriod: !If [HighCapacity, 731, !Ref "AWS::NoValue"]
-      PerformanceInsightsKMSKeyId: !If [HighCapacity, !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}", !Ref "AWS::NoValue"]
+      EnablePerformanceInsights: !If [IsHighCapacity, true, !Ref "AWS::NoValue"]
+      PerformanceInsightsRetentionPeriod: !If [IsHighCapacity, 731, !Ref "AWS::NoValue"]
+      PerformanceInsightsKMSKeyId: !If [IsHighCapacity, !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}", !Ref "AWS::NoValue"]
       Tags:
         - Key: Service
           Value: Rothschild
@@ -678,6 +684,32 @@ Resources:
           Type: Schedule
           Properties:
             Schedule: rate(10 minutes)
+            Input: !Sub ""
+
+  BinlogWatcherFunction:
+    Type: AWS::Serverless::Function
+    Condition: IsStateChangeTopicArnSet
+    Properties:
+      CodeUri: ../dist/binlogWatcher/binlogWatcher.zip
+      Handler: index.handler
+      Runtime: nodejs10.x
+      MemorySize: 128
+      Timeout: 300 # seconds, 900 max
+      Environment:
+        Variables:
+          DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
+          DB_PORT: !GetAtt DbCluster.Endpoint.Port
+          DB_USERNAME: "todo_create_readrep_user"
+          DB_PASSWORD_PARAMETER: "todo"
+          STATE_CHANGE_TOPIC_ARN: !Ref StateChangeTopicArn
+      Tags:
+        ShortName: BinlogWatcherFunction
+        Service: Rothschild
+      Events:
+        CheckVoidSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: rate(5 minutes)
             Input: !Sub ""
 
   PostDeployFunction:

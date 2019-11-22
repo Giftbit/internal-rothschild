@@ -18,7 +18,7 @@ logPrefix.reg(log);
 logPrefix.apply(log, {
     format: (level, name, timestamp) => {
         return `[${level}]`;
-    },
+    }
 });
 
 log.setLevel(process.env.LOG_LEVEL as any || log.levels.INFO);
@@ -28,7 +28,10 @@ export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, 
 }
 
 export async function createMySqlEventsInstance(): Promise<BinlogStream> {
+    // TODO Don't use master credentials.  Create a readrep user and use those credentials.
+    // They can be passed in using the usual env vars though so this code is fine.
     const dbCredentials = await getDbCredentials();
+
     const instance = new BinlogStream({
         host: process.env["DB_ENDPOINT"],
         user: dbCredentials.username,
