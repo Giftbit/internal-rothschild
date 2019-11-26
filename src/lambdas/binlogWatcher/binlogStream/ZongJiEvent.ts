@@ -1,3 +1,6 @@
+/**
+ * Properties common to all ZongJi events.
+ */
 export interface ZongJiEventBase {
     nextPosition: number;
     size: number;
@@ -10,6 +13,9 @@ export interface DeleteRowsEvent extends ZongJiEventBase {
     getTypeName(): "DeleteRows";
 }
 
+/**
+ * @see https://dev.mysql.com/doc/internals/en/query-event.html
+ */
 export interface QueryEvent extends ZongJiEventBase {
     getEventName(): "query";
 
@@ -25,6 +31,10 @@ export interface QueryEvent extends ZongJiEventBase {
     query: string;
 }
 
+/**
+ * A new binlog file was created.
+ * @see https://dev.mysql.com/doc/internals/en/rotate-event.html
+ */
 export interface RotateEvent extends ZongJiEventBase {
     getEventName(): "rotate";
 
@@ -45,6 +55,9 @@ export interface WriteRowsEvent extends ZongJiEventBase {
     getTypeName(): "WriteRows";
 }
 
+/**
+ * @see https://dev.mysql.com/doc/internals/en/xid-event.html
+ */
 export interface XidEvent extends ZongJiEventBase {
     getEventName(): "xid";
 
@@ -53,4 +66,9 @@ export interface XidEvent extends ZongJiEventBase {
     xid: number;
 }
 
+/**
+ * A row in the MySQL binary log as represented by ZongJi.
+ * @see https://github.com/nevill/zongji
+ * @see https://dev.mysql.com/doc/internals/en/event-meanings.html
+ */
 export type ZongJiEvent = DeleteRowsEvent | QueryEvent | RotateEvent | UpdateRowsEvent | WriteRowsEvent | XidEvent;

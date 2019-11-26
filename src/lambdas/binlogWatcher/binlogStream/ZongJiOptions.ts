@@ -1,3 +1,6 @@
+/**
+ * @see https://github.com/nevill/zongji
+ */
 export interface ZongJiOptions {
     serverId?: number;
     startAtEnd?: boolean;

@@ -30,7 +30,7 @@ export class BinlogStream extends EventEmitter {
         this.connection = mysql.createConnection(this.connectionOptions);
         this.connection.on("error", async err => {
             log.error("BinlogStream connection error", err);
-            // TODO reconnect?
+            // TODO reconnect?  https://gist.github.com/numtel/5b37b2a7f47b380c1a099596c6f3db2f
         });
 
         this.zongJi = new ZongJi(this.connection);
