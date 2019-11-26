@@ -2,7 +2,6 @@ import * as awslambda from "aws-lambda";
 import * as logPrefix from "loglevel-plugin-prefix";
 import {getDbCredentials} from "../../utils/dbUtils/connection";
 import {BinlogStream} from "./binlogStream/BinlogStream";
-import {BinlogTransaction} from "./BinlogTransaction";
 import log = require("loglevel");
 
 // Wrapping console.log instead of binding (default behaviour for loglevel)
@@ -38,7 +37,10 @@ export async function createMySqlEventsInstance(): Promise<BinlogStream> {
         password: dbCredentials.password,
         port: +process.env["DB_PORT"],
         timezone: "Z"
-    }, {
+    });
+    // instance.on("transaction", (tx: BinlogTransaction) => console.log(tx));
+
+    await instance.start({
         serverId: 1234,
         filename: "bin.000025",
         position: 24519,
@@ -46,9 +48,6 @@ export async function createMySqlEventsInstance(): Promise<BinlogStream> {
             mysql: true,
         }
     });
-    instance.on("transaction", (tx: BinlogTransaction) => console.log(tx));
-
-    await instance.start();
 
     return instance;
 }

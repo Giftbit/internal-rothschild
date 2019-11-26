@@ -63,11 +63,11 @@ const resolveAffectedColumns = (normalizedEvent, normalizedRows) => {
     }
 };
 
-export const mysqlEventDataNormalizer = (event) => {
+export const mysqlEventDataNormalizer = (event, binlogName) => {
     const type = getEventType(event.getEventName());
     const schema = event.tableMap[event.tableId].parentSchema;
     const table = event.tableMap[event.tableId].tableName;
-    const {timestamp, nextPosition, binlogName} = event;
+    const {timestamp, nextPosition} = event;
 
     const normalized = {
         type,
@@ -77,7 +77,7 @@ export const mysqlEventDataNormalizer = (event) => {
         affectedColumns: [],
         timestamp,
         nextPosition,
-        binlogName,
+        binlogName
     };
 
     event.rows.forEach((row) => {
