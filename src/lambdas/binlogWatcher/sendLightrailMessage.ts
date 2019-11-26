@@ -21,6 +21,10 @@ async function sendLightrailMessage(msg: LightrailMessage): Promise<void> {
                     DataType: "String",
                     StringValue: msg.service
                 },
+                userId: msg.userId && {
+                    DataType: "String",
+                    StringValue: msg.userId
+                },
                 createdDate: {
                     DataType: "String",
                     StringValue: msg.createdDate
