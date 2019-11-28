@@ -1,5 +1,4 @@
 import {LightrailMessage} from "../LightrailMessage";
-import {BinlogTransaction} from "../BinlogTransaction";
 import {getContactCreatedMessages, getContactDeletedMessages, getContactUpdatedMessages} from "./getContactMessages";
 import {
     getCurrencyCreatedMessages,
@@ -8,6 +7,7 @@ import {
 } from "./getCurrencyMessages";
 import {getValueCreatedMessages, getValueDeletedMessages, getValueUpdatedMessages} from "./getValueMessages";
 import {getTransactionCreatedMessages} from "./getTransactionMessages";
+import {BinlogTransaction} from "../binlogTransaction/BinlogTransaction";
 
 const messageGetters: ((tx: BinlogTransaction) => Promise<LightrailMessage[]>)[] = [
     getContactCreatedMessages,

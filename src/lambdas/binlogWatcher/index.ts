@@ -3,6 +3,7 @@ import * as logPrefix from "loglevel-plugin-prefix";
 import {getDbCredentials} from "../../utils/dbUtils/connection";
 import {BinlogStream} from "./binlogStream/BinlogStream";
 import {BinlogTransactionBuilder} from "./binlogTransaction/BinlogTransactionBuilder";
+import {getLightrailMessages} from "./getLightrailMessages/getLightrailMessages";
 import log = require("loglevel");
 
 // Wrapping console.log instead of binding (default behaviour for loglevel)
@@ -41,13 +42,14 @@ export async function createMySqlEventsInstance(): Promise<BinlogStream> {
     });
 
     const txBuilder = new BinlogTransactionBuilder();
-    binlogStream.on("binlog", event => txBuilder.handleBinlogEvent(binlogStream.binlogName, event));
-    // instance.on("transaction", (tx: BinlogTransaction) => console.log(tx));
+    binlogStream.on("binlog", event => txBuilder.handleBinlogEvent(event));
+    // txBuilder.on("transaction", tx => console.log(tx));
+    txBuilder.on("transaction", async tx => console.log(await getLightrailMessages(tx)));
 
     await binlogStream.start({
         serverId: 1234,
         filename: "bin.000025",
-        position: 24519,
+        position: 0,
         excludeSchema: {
             mysql: true,
         }

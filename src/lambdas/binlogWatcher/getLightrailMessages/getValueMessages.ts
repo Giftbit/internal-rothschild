@@ -1,6 +1,6 @@
-import {BinlogTransaction} from "../BinlogTransaction";
 import {LightrailMessage} from "../LightrailMessage";
 import {DbValue} from "../../../model/Value";
+import {BinlogTransaction} from "../binlogTransaction/BinlogTransaction";
 
 export async function getValueCreatedMessages(tx: BinlogTransaction): Promise<LightrailMessage[]> {
     return tx.statements

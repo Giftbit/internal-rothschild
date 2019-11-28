@@ -1,4 +1,3 @@
-import {BinlogTransaction} from "../BinlogTransaction";
 import {LightrailMessage} from "../LightrailMessage";
 import {
     DbTransaction,
@@ -6,6 +5,7 @@ import {
     LightrailDbTransactionStep,
     StripeDbTransactionStep
 } from "../../../model/Transaction";
+import {BinlogTransaction} from "../binlogTransaction/BinlogTransaction";
 
 export async function getTransactionCreatedMessages(tx: BinlogTransaction): Promise<LightrailMessage[]> {
     return tx.statements

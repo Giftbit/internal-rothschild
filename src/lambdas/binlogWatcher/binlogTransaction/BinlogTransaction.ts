@@ -13,7 +13,6 @@ export namespace BinlogTransaction {
         affectedColumns: string[];
         timestamp: number;
         nextPosition: number;
-        binlogName: string;
     }
 
     export interface AffectedRow<T> {

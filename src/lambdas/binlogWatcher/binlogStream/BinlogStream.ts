@@ -1,21 +1,18 @@
-import EventEmitter = require("events");
+import events = require("events");
 import log = require("loglevel");
 import mysql = require("mysql");
 import ZongJi = require("zongji");
 import {ZongJiOptions} from "./ZongJiOptions";
-import {RotateEvent, ZongJiEvent} from "./ZongJiEvent";
-import {TypedEventEmitter} from "../TypedEventEmitter";
+import {QueryEvent, RotateEvent, ZongJiEvent} from "./ZongJiEvent";
 
 /**
  * Inspired by https://github.com/rodrigogs/mysql-events/
  * and https://gist.github.com/numtel/5b37b2a7f47b380c1a099596c6f3db2f
  */
-export class BinlogStream extends EventEmitter implements TypedEventEmitter<{ binlog: ZongJiEvent }> {
+export class BinlogStream extends events.EventEmitter {
 
     private zongJi: ZongJi = null;
     private connection: mysql.Connection;
-    binlogName: string | null = null;
-    binlogPosition: number | null = null;
 
     constructor(private connectionOptions: mysql.ConnectionConfig) {
         super();
@@ -28,28 +25,22 @@ export class BinlogStream extends EventEmitter implements TypedEventEmitter<{ bi
 
         log.info("BinlogStream starting");
 
-        if (zongJiOptions.filename && zongJiOptions.position != null) {
-            this.binlogName = zongJiOptions.filename;
-            this.binlogPosition = zongJiOptions.position;
-        } else {
-            this.binlogName = null;
-            this.binlogPosition = null;
-        }
-
         let connectionHasErrored = false;
+        let binlogName: string | null = zongJiOptions.filename || null;
+        let binlogPosition: number | null = null;
         const onError = async () => {
             if (!connectionHasErrored) {
                 // Only reconnect on the first error for this connection.
                 connectionHasErrored = true;
 
-                log.info("BinlogStream restarting from", this.binlogName, this.binlogPosition);
+                log.info("BinlogStream restarting from", binlogName, binlogPosition);
                 try {
                     await this.stop();
-                    await this.start({
+                    await this.start(binlogPosition === null ? zongJiOptions : {
                         ...zongJiOptions,
                         startAtEnd: false,
-                        filename: this.binlogName,
-                        position: this.binlogPosition
+                        filename: binlogName,
+                        position: binlogPosition
                     });
                 } catch (restartError) {
                     log.error("BinlogStream error restarting.  Letting the Lambda die.", restartError);
@@ -72,11 +63,15 @@ export class BinlogStream extends EventEmitter implements TypedEventEmitter<{ bi
             log.info("BinlogStream ZongJi ready");
         });
         this.zongJi.on("binlog", (event: ZongJiEvent) => {
-            // console.log(event);
+            // log.debug(event.getTypeName(), this.summarizeEventForDebugging(event), binlogName, binlogPosition);
             if (event.getTypeName() === "Rotate") {
-                this.binlogName = (event as RotateEvent).binlogName;
+                binlogName = (event as RotateEvent).binlogName;
             }
-            this.emit("binlog", event);
+            this.emit("binlog", {
+                binlog: event,
+                binlogName: binlogName
+            });
+            binlogPosition = event.nextPosition;
         });
         this.zongJi.start(zongJiOptions);
 
@@ -105,5 +100,16 @@ export class BinlogStream extends EventEmitter implements TypedEventEmitter<{ bi
         this.connection = null;
 
         log.info("BinlogStream stopped");
+    }
+
+    // noinspection JSUnusedGlobalSymbols This useful for too noisy for most debugging.
+    summarizeEventForDebugging(event: ZongJiEvent): string {
+        if (event.getTypeName() === "Query") {
+            if ((event as QueryEvent).query.length > 16) {
+                return (event as QueryEvent).query.substring(0, 16) + "…";
+            }
+            return (event as QueryEvent).query;
+        }
+        return "";
     }
 }
