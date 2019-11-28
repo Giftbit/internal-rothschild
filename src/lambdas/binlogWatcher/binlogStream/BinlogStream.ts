@@ -3,23 +3,22 @@ import log = require("loglevel");
 import mysql = require("mysql");
 import ZongJi = require("zongji");
 import {ZongJiOptions} from "./ZongJiOptions";
-import {BinlogTransactionBuilder} from "./BinlogTransactionBuilder";
-import {ZongJiEvent} from "./ZongJiEvent";
+import {RotateEvent, ZongJiEvent} from "./ZongJiEvent";
+import {TypedEventEmitter} from "../TypedEventEmitter";
 
 /**
  * Inspired by https://github.com/rodrigogs/mysql-events/
+ * and https://gist.github.com/numtel/5b37b2a7f47b380c1a099596c6f3db2f
  */
-export class BinlogStream extends EventEmitter {
+export class BinlogStream extends EventEmitter implements TypedEventEmitter<{ binlog: ZongJiEvent }> {
 
-    private txBuilder = new BinlogTransactionBuilder();
     private zongJi: ZongJi = null;
     private connection: mysql.Connection;
+    binlogName: string | null = null;
+    binlogPosition: number | null = null;
 
     constructor(private connectionOptions: mysql.ConnectionConfig) {
         super();
-        this.txBuilder.on("transaction", tx => {
-            this.emit("transaction", tx);
-        });
     }
 
     async start(zongJiOptions: ZongJiOptions): Promise<void> {
@@ -29,23 +28,28 @@ export class BinlogStream extends EventEmitter {
 
         log.info("BinlogStream starting");
 
+        if (zongJiOptions.filename && zongJiOptions.position != null) {
+            this.binlogName = zongJiOptions.filename;
+            this.binlogPosition = zongJiOptions.position;
+        } else {
+            this.binlogName = null;
+            this.binlogPosition = null;
+        }
+
         let connectionHasErrored = false;
         const onError = async () => {
             if (!connectionHasErrored) {
                 // Only reconnect on the first error for this connection.
                 connectionHasErrored = true;
 
-                const binlogName = this.zongJi.binlogName;
-                const binlogNextPos = this.zongJi.binlogNextPos;
-                log.info("BinlogStream restarting from", binlogName, binlogNextPos);
-
+                log.info("BinlogStream restarting from", this.binlogName, this.binlogPosition);
                 try {
                     await this.stop();
                     await this.start({
                         ...zongJiOptions,
                         startAtEnd: false,
-                        filename: binlogName,
-                        position: binlogNextPos
+                        filename: this.binlogName,
+                        position: this.binlogPosition
                     });
                 } catch (restartError) {
                     log.error("BinlogStream error restarting.  Letting the Lambda die.", restartError);
@@ -70,10 +74,9 @@ export class BinlogStream extends EventEmitter {
         this.zongJi.on("binlog", (event: ZongJiEvent) => {
             // console.log(event);
             if (event.getTypeName() === "Rotate") {
-                // handle file change
+                this.binlogName = (event as RotateEvent).binlogName;
             }
-            this.txBuilder.handleBinlogEvent(event);
-            // handle position change
+            this.emit("binlog", event);
         });
         this.zongJi.start(zongJiOptions);
 
