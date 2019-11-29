@@ -686,32 +686,6 @@ Resources:
             Schedule: rate(10 minutes)
             Input: !Sub ""
 
-  BinlogWatcherFunction:
-    Type: AWS::Serverless::Function
-    Condition: IsStateChangeTopicArnSet
-    Properties:
-      CodeUri: ../dist/binlogWatcher/binlogWatcher.zip
-      Handler: index.handler
-      Runtime: nodejs10.x
-      MemorySize: 128
-      Timeout: 300 # seconds, 900 max
-      Environment:
-        Variables:
-          DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
-          DB_PORT: !GetAtt DbCluster.Endpoint.Port
-          DB_USERNAME: "todo_create_readrep_user"
-          DB_PASSWORD_PARAMETER: "todo"
-          STATE_CHANGE_TOPIC_ARN: !Ref StateChangeTopicArn
-      Tags:
-        ShortName: BinlogWatcherFunction
-        Service: Rothschild
-      Events:
-        CheckVoidSchedule:
-          Type: Schedule
-          Properties:
-            Schedule: rate(5 minutes)
-            Input: !Sub ""
-
   PostDeployFunction:
     Type: AWS::Serverless::Function
     DependsOn:
@@ -785,3 +759,48 @@ Resources:
       BuildDate: !Ref BuildDate
       ReadOnlyUserPassword: !GetAtt DbReadUserCredentials.Password
       StripeWebhookEvents: "charge.refunded,charge.refund.updated,review.closed,charge.dispute.created"
+
+  BinlogWatcherState:
+    Type: AWS::DynamoDB::Table
+    Condition: IsStateChangeTopicArnSet
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+      Tags:
+        - Key: ShortName
+          Value: BinlogWatcherState
+        - Key: Service
+          Value: Rothschild
+
+  BinlogWatcherFunction:
+    Type: AWS::Serverless::Function
+    Condition: IsStateChangeTopicArnSet
+    Properties:
+      CodeUri: ../dist/binlogWatcher/binlogWatcher.zip
+      Handler: index.handler
+      Runtime: nodejs10.x
+      MemorySize: 128
+      Timeout: 300 # seconds, 900 max
+      Environment:
+        Variables:
+          DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
+          DB_PORT: !GetAtt DbCluster.Endpoint.Port
+          DB_USERNAME: "todo_create_readrep_user"
+          DB_PASSWORD_PARAMETER: "todo"
+          STATE_CHANGE_TOPIC_ARN: !Ref StateChangeTopicArn
+      Tags:
+        ShortName: BinlogWatcherFunction
+        Service: Rothschild
+      Events:
+        CheckVoidSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: rate(5 minutes)
+            Input: !Sub ""

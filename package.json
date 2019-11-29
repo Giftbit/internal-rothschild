@@ -55,6 +55,7 @@
     "chai-match": "^1.1.1",
     "crypto-js": "^3.1.9-1",
     "dotenv-safe": "^8.1.0",
+    "dynameh": "^4.0.0",
     "file-loader": "^4.2.0",
     "giftbit-cassava-routes": "git+ssh://git@github.com/Giftbit/giftbit-cassava-routes.git#semver:^10.4.2",
     "giftbit-lambda-metricslib": "git+ssh://git@github.com/Giftbit/giftbit-lambda-metricslib.git#semver:^3.0.0",

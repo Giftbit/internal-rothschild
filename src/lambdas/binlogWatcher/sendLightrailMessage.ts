@@ -34,6 +34,7 @@ async function sendLightrailMessage(msg: LightrailMessage): Promise<void> {
         });
     } catch (error) {
         log.error("Error sending LightrailMessage", error);
+        // TODO fallback or stop processing binlogs?
         throw error;
     }
 }

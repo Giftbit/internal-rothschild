@@ -2,21 +2,14 @@ import EventEmitter = require("events");
 import log = require("loglevel");
 import {mysqlEventDataNormalizer} from "./mysqlEventDataNormalizer";
 import {BinlogTransaction} from "./BinlogTransaction";
-import {
-    DeleteRowsEvent,
-    QueryEvent,
-    UpdateRowsEvent,
-    WriteRowsEvent,
-    XidEvent,
-    ZongJiEvent
-} from "../binlogStream/ZongJiEvent";
+import {DeleteRowsEvent, QueryEvent, UpdateRowsEvent, WriteRowsEvent, XidEvent} from "../binlogStream/ZongJiEvent";
 import {BinlogEvent} from "../binlogStream/BinlogEvent";
 
 export class BinlogTransactionBuilder extends EventEmitter {
 
     private txInProgress: BinlogTransaction = null;
 
-    handleBinlogEvent(event: BinlogEvent<ZongJiEvent>): void {
+    handleBinlogEvent(event: BinlogEvent): void {
         switch (event.binlog.getTypeName()) {
             case "Query":
                 this.handleQueryEvent(event as BinlogEvent<QueryEvent>);
@@ -75,7 +68,7 @@ export class BinlogTransactionBuilder extends EventEmitter {
         this.emitTransaction();
     }
 
-    private isTxContinuation(event: BinlogEvent<ZongJiEvent>): boolean {
+    private isTxContinuation(event: BinlogEvent): boolean {
         if (!this.txInProgress) {
             // Most likely reason is a bad restart in the middle of a transaction.
             log.warn("BinlogTransactionBuilder received", event.binlog.getTypeName(), "when txInProgress is null. event=", event, "txInProgress=", this.txInProgress);

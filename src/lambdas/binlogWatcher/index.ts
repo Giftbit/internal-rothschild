@@ -4,6 +4,7 @@ import {getDbCredentials} from "../../utils/dbUtils/connection";
 import {BinlogStream} from "./binlogStream/BinlogStream";
 import {BinlogTransactionBuilder} from "./binlogTransaction/BinlogTransactionBuilder";
 import {getLightrailMessages} from "./getLightrailMessages/getLightrailMessages";
+import {BinlogWatcherStateManager} from "./BinlogWatcherStateManager";
 import log = require("loglevel");
 
 // Wrapping console.log instead of binding (default behaviour for loglevel)
@@ -41,10 +42,17 @@ export async function createMySqlEventsInstance(): Promise<BinlogStream> {
         timezone: "Z"
     });
 
+
     const txBuilder = new BinlogTransactionBuilder();
     binlogStream.on("binlog", event => txBuilder.handleBinlogEvent(event));
     // txBuilder.on("transaction", tx => console.log(tx));
     txBuilder.on("transaction", async tx => console.log(await getLightrailMessages(tx)));
+
+    const binlogWatcherStateManager = new BinlogWatcherStateManager();
+    binlogStream.on("binlog", event => binlogWatcherStateManager.onBinlogEvent(event));
+    txBuilder.on("transaction", tx => binlogWatcherStateManager.onTransaction(tx));
+    txBuilder.on("transactionStart", () => binlogWatcherStateManager.pauseCheckpointing());
+    txBuilder.on("transactionEnd", () => binlogWatcherStateManager.unpauseCheckpointing());
 
     await binlogStream.start({
         serverId: 1234,
