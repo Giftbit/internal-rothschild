@@ -5,6 +5,7 @@ import {BinlogStream} from "./binlogStream/BinlogStream";
 import {BinlogTransactionBuilder} from "./binlogTransaction/BinlogTransactionBuilder";
 import {getLightrailMessages} from "./getLightrailMessages/getLightrailMessages";
 import {BinlogWatcherStateManager} from "./BinlogWatcherStateManager";
+import {LightrailMessagePublisher} from "../LightrailMessagePublisher";
 import log = require("loglevel");
 
 // Wrapping console.log instead of binding (default behaviour for loglevel)
@@ -45,14 +46,24 @@ export async function createMySqlEventsInstance(): Promise<BinlogStream> {
 
     const txBuilder = new BinlogTransactionBuilder();
     binlogStream.on("binlog", event => txBuilder.handleBinlogEvent(event));
-    // txBuilder.on("transaction", tx => console.log(tx));
-    txBuilder.on("transaction", async tx => console.log(await getLightrailMessages(tx)));
+
+    const publisher = new LightrailMessagePublisher();
+    txBuilder.on("transaction", async tx => {
+        try {
+            const msgs = await getLightrailMessages(tx);
+            await publisher.publishAll(msgs);
+        } catch (err) {
+            log.error("Error getting LightrailMessages", err);
+        }
+    });
 
     const binlogWatcherStateManager = new BinlogWatcherStateManager();
     binlogStream.on("binlog", event => binlogWatcherStateManager.onBinlogEvent(event));
     txBuilder.on("transaction", tx => binlogWatcherStateManager.onTransaction(tx));
     txBuilder.on("transactionStart", () => binlogWatcherStateManager.pauseCheckpointing());
     txBuilder.on("transactionEnd", () => binlogWatcherStateManager.unpauseCheckpointing());
+    publisher.on("failing", () => binlogWatcherStateManager.pauseCheckpointing());
+    publisher.on("ok", () => binlogWatcherStateManager.unpauseCheckpointing());
 
     await binlogStream.start({
         serverId: 1234,

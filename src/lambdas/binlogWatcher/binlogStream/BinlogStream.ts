@@ -1,15 +1,15 @@
-import events = require("events");
 import log = require("loglevel");
 import mysql = require("mysql");
 import ZongJi = require("zongji");
 import {ZongJiOptions} from "./ZongJiOptions";
 import {QueryEvent, RotateEvent, ZongJiEvent} from "./ZongJiEvent";
+import {EventEmitter} from "events";
 
 /**
  * Inspired by https://github.com/rodrigogs/mysql-events/
  * and https://gist.github.com/numtel/5b37b2a7f47b380c1a099596c6f3db2f
  */
-export class BinlogStream extends events.EventEmitter {
+export class BinlogStream extends EventEmitter {
 
     private zongJi: ZongJi = null;
     private connection: mysql.Connection;

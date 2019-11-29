@@ -11,10 +11,10 @@ export class BinlogWatcherStateManager {
     private state: BinlogWatcherState | null = null;
     private dynamodb = new aws.DynamoDB({
         apiVersion: "2012-08-10",
-        credentials: process.env["AWS_REGION"] ? new aws.EnvironmentCredentials("AWS") : new aws.SharedIniFileCredentials({profile: "default"}),
-        region: process.env["AWS_REGION"] || "us-west-2",
+        credentials: new aws.EnvironmentCredentials("AWS"),
+        region: process.env["AWS_REGION"],
         httpOptions: {
-            // Both being 10s sets a maxium DDB timeout to be 20s.
+            // Both being 10s sets a maximum DDB timeout to be 20s.
             timeout: 10000,
             connectTimeout: 10000
         }
@@ -55,6 +55,7 @@ export class BinlogWatcherStateManager {
     }
 
     async save(): Promise<void> {
+        // TODO checkpointPauseCount isn't right.  The checkpoint should be based upon the last successfully sent LightrailMessage.
         if (!this.checkpointPauseCount) {
             throw new Error("BinlogWatcherStateManager checkpointing is paused and refusing to save state.");
         }

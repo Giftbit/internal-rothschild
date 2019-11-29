@@ -1,9 +1,9 @@
-import EventEmitter = require("events");
 import log = require("loglevel");
 import {mysqlEventDataNormalizer} from "./mysqlEventDataNormalizer";
 import {BinlogTransaction} from "./BinlogTransaction";
 import {DeleteRowsEvent, QueryEvent, UpdateRowsEvent, WriteRowsEvent, XidEvent} from "../binlogStream/ZongJiEvent";
 import {BinlogEvent} from "../binlogStream/BinlogEvent";
+import {EventEmitter} from "events";
 
 export class BinlogTransactionBuilder extends EventEmitter {
 
