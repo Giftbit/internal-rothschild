@@ -3,9 +3,10 @@ import * as logPrefix from "loglevel-plugin-prefix";
 import {getDbCredentials} from "../../utils/dbUtils/connection";
 import {BinlogStream} from "./binlogStream/BinlogStream";
 import {BinlogTransactionBuilder} from "./binlogTransaction/BinlogTransactionBuilder";
-import {getLightrailMessages} from "./getLightrailMessages/getLightrailMessages";
+import {getLightrailEvents} from "./getLightrailMessages/getLightrailEvents";
 import {BinlogWatcherStateManager} from "./BinlogWatcherStateManager";
-import {LightrailMessagePublisher} from "../LightrailMessagePublisher";
+import {LightrailEventPublisher} from "../LightrailEventPublisher";
+import {BinlogTransaction} from "./binlogTransaction/BinlogTransaction";
 import log = require("loglevel");
 
 // Wrapping console.log instead of binding (default behaviour for loglevel)
@@ -47,28 +48,25 @@ export async function createMySqlEventsInstance(): Promise<BinlogStream> {
     const txBuilder = new BinlogTransactionBuilder();
     binlogStream.on("binlog", event => txBuilder.handleBinlogEvent(event));
 
-    const publisher = new LightrailMessagePublisher();
-    txBuilder.on("transaction", async tx => {
+    const binlogWatcherStateManager = new BinlogWatcherStateManager();
+    // await binlogWatcherStateManager.load();  // TODO
+
+    const publisher = new LightrailEventPublisher();
+    txBuilder.on("transaction", async (tx: BinlogTransaction) => {
         try {
-            const msgs = await getLightrailMessages(tx);
-            await publisher.publishAll(msgs);
+            binlogWatcherStateManager.openCheckpoint(tx.binlogName, tx.nextPosition);
+            const events = await getLightrailEvents(tx);
+            await publisher.publishAllAtOnce(events);
+            binlogWatcherStateManager.closeCheckpoint(tx.binlogName, tx.nextPosition);
         } catch (err) {
-            log.error("Error getting LightrailMessages", err);
+            log.error("Error getting LightrailEvents", err);
         }
     });
 
-    const binlogWatcherStateManager = new BinlogWatcherStateManager();
-    binlogStream.on("binlog", event => binlogWatcherStateManager.onBinlogEvent(event));
-    txBuilder.on("transaction", tx => binlogWatcherStateManager.onTransaction(tx));
-    txBuilder.on("transactionStart", () => binlogWatcherStateManager.pauseCheckpointing());
-    txBuilder.on("transactionEnd", () => binlogWatcherStateManager.unpauseCheckpointing());
-    publisher.on("failing", () => binlogWatcherStateManager.pauseCheckpointing());
-    publisher.on("ok", () => binlogWatcherStateManager.unpauseCheckpointing());
-
     await binlogStream.start({
         serverId: 1234,
-        filename: "bin.000025",
-        position: 0,
+        filename: binlogWatcherStateManager.state?.checkpoint?.binlogName,      // bin.000025
+        position: binlogWatcherStateManager.state?.checkpoint?.binlogPosition,  // 0
         excludeSchema: {
             mysql: true,
         }

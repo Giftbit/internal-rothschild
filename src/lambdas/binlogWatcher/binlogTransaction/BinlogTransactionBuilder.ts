@@ -1,7 +1,14 @@
 import log = require("loglevel");
 import {mysqlEventDataNormalizer} from "./mysqlEventDataNormalizer";
 import {BinlogTransaction} from "./BinlogTransaction";
-import {DeleteRowsEvent, QueryEvent, UpdateRowsEvent, WriteRowsEvent, XidEvent} from "../binlogStream/ZongJiEvent";
+import {
+    DeleteRowsEvent,
+    QueryEvent,
+    RotateEvent,
+    UpdateRowsEvent,
+    WriteRowsEvent,
+    XidEvent
+} from "../binlogStream/ZongJiEvent";
 import {BinlogEvent} from "../binlogStream/BinlogEvent";
 import {EventEmitter} from "events";
 
@@ -11,6 +18,9 @@ export class BinlogTransactionBuilder extends EventEmitter {
 
     handleBinlogEvent(event: BinlogEvent): void {
         switch (event.binlog.getTypeName()) {
+            case "Rotate":
+                this.handleRotateEvent(event as BinlogEvent<RotateEvent>);
+                break;
             case "Query":
                 this.handleQueryEvent(event as BinlogEvent<QueryEvent>);
                 break;
@@ -24,12 +34,20 @@ export class BinlogTransactionBuilder extends EventEmitter {
         }
     }
 
+    private handleRotateEvent(event: BinlogEvent<RotateEvent>): void {
+        if (this.txInProgress) {
+            // Most likely reason is a crash in the middle of a transaction.  The transaction is not committed.
+            log.warn("BinlogTransactionBuilder received", event.binlog.getTypeName(), "when txInProgress is *not* null. event=", event, "txInProgress=", this.txInProgress);
+            this.cancelTransaction();
+        }
+    }
+
     private handleQueryEvent(event: BinlogEvent<QueryEvent>): void {
         switch (event.binlog.query) {
             case "BEGIN":
                 if (this.txInProgress) {
-                    log.error("BinlogTransactionBuilder Query BEGIN when txInProgress is not complete", event, this.txInProgress);
-                    this.emitTransaction();
+                    log.warn("BinlogTransactionBuilder Query BEGIN when txInProgress is not complete.  Possible crash in the middle of previous transaction.", event, this.txInProgress);
+                    this.cancelTransaction();
                 }
                 this.emit("transactionStart");
                 this.txInProgress = {
@@ -46,8 +64,7 @@ export class BinlogTransactionBuilder extends EventEmitter {
                 this.emitTransaction();
                 break;
             case "ROLLBACK":
-                this.txInProgress = null;
-                this.emit("transactionEnd");
+                this.cancelTransaction();
                 break;
         }
     }
@@ -83,10 +100,13 @@ export class BinlogTransactionBuilder extends EventEmitter {
         return true;
     }
 
+    private cancelTransaction(): void {
+        this.txInProgress = null;
+    }
+
     private emitTransaction(): void {
         const tx = this.txInProgress;
         this.txInProgress = null;
         this.emit("transaction", tx);
-        this.emit("transactionEnd");
     }
 }

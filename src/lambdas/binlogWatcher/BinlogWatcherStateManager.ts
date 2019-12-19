@@ -1,14 +1,12 @@
 import * as aws from "aws-sdk";
 import * as dynameh from "dynameh";
-import {BinlogEvent} from "./binlogStream/BinlogEvent";
-import {BinlogTransaction} from "./binlogTransaction/BinlogTransaction";
 import {BinlogWatcherState} from "./BinlogWatcherState";
 import log = require("loglevel");
 
 export class BinlogWatcherStateManager {
 
-    private checkpointPauseCount: number = 0;
-    private state: BinlogWatcherState | null = null;
+    state: BinlogWatcherState | null = null;
+
     private dynamodb = new aws.DynamoDB({
         apiVersion: "2012-08-10",
         credentials: new aws.EnvironmentCredentials("AWS"),
@@ -26,40 +24,55 @@ export class BinlogWatcherStateManager {
         versionKeyField: "version"
     };
 
-    pauseCheckpointing(): void {
-        this.checkpointPauseCount++;
+    private openCheckpoints: BinlogWatcherState.Checkpoint[] = [];
+    private closedCheckpoints: BinlogWatcherState.Checkpoint[] = [];
+
+    /**
+     * Opens a checkpoint at the start of an operation.  Until this checkpoint completes
+     * the state checkpoint cannot advance past this point.
+     */
+    openCheckpoint(binlogName: string, binlogPosition: number): void {
+        this.openCheckpoints.push({
+            binlogName,
+            binlogPosition
+        });
     }
 
-    unpauseCheckpointing(): void {
-        this.checkpointPauseCount--;
-        if (this.checkpointPauseCount < 0) {
-            log.error("BinlogCheckpointer.checkpointPauseCount < 0");
-            this.checkpointPauseCount = 0;
+    /**
+     * Closes the previously opened checkpoint at the end of an operation.  After
+     * this the checkpoint may advance as far as the last closed checkpoint that
+     * is not before an open checkpoint.
+     *
+     * An example:
+     * event      | latest checkpoint
+     * -----------|-------------------
+     * A open     | null
+     * A complete | A
+     * B open     | A
+     * C open     | A
+     * C complete | A (because B is blocking)
+     * B complete | C
+     */
+    closeCheckpoint(binlogName: string, binlogPosition: number): void {
+        const openCheckpointIx = this.openCheckpoints.findIndex(c => c.binlogName === binlogName && c.binlogPosition === binlogPosition);
+        if (openCheckpointIx === -1) {
+            throw new Error("checkpointComplete does not have a matching start");
         }
-    }
+        this.closedCheckpoints.push(this.openCheckpoints.splice(openCheckpointIx, 1)[0]);
 
-    onBinlogEvent(event: BinlogEvent): void {
-        if (!this.checkpointPauseCount) {
-            return;
+        for (let checkpointIx = 0; checkpointIx < this.closedCheckpoints.length; checkpointIx++) {
+            const closedCheckpoint = this.closedCheckpoints[checkpointIx];
+            const earlierOpenCheckpoint = this.openCheckpoints.find(c => BinlogWatcherState.Checkpoint.compare(c, closedCheckpoint) < 0);
+            if (!earlierOpenCheckpoint) {
+                this.closedCheckpoints.splice(checkpointIx, 1);
+                if (BinlogWatcherState.Checkpoint.compare(closedCheckpoint, this.state.checkpoint) > 0) {
+                    this.state.checkpoint = closedCheckpoint;
+                }
+            }
         }
-        this.state.binlogName = event.binlogName;
-        this.state.binlogPosition = event.binlog.nextPosition;
-    }
-
-    onTransaction(tx: BinlogTransaction): void {
-        if (!this.checkpointPauseCount) {
-            return;
-        }
-        this.state.binlogName = tx.binlogName;
-        this.state.binlogPosition = tx.nextPosition;
     }
 
     async save(): Promise<void> {
-        // TODO checkpointPauseCount isn't right.  The checkpoint should be based upon the last successfully sent LightrailMessage.
-        if (!this.checkpointPauseCount) {
-            throw new Error("BinlogWatcherStateManager checkpointing is paused and refusing to save state.");
-        }
-
         const putRequest = dynameh.requestBuilder.buildPutInput(this.tableSchema, this.state);
         log.debug("BinlogWatcherStateManager putRequest=", JSON.stringify(putRequest));
 
@@ -67,11 +80,7 @@ export class BinlogWatcherStateManager {
         log.debug("BinlogWatcherStateManager putResponse=", JSON.stringify(putResponse));
     }
 
-    async load(): Promise<BinlogWatcherState> {
-        if (!this.checkpointPauseCount) {
-            throw new Error("BinlogWatcherStateManager checkpointing is paused and refusing to load state.");
-        }
-
+    async load(): Promise<void> {
         const getRequest = dynameh.requestBuilder.buildGetInput(this.tableSchema, "theonlyitem");
         log.debug("BinlogWatcherStateManager getRequest=", getRequest);
 
@@ -82,11 +91,9 @@ export class BinlogWatcherStateManager {
         if (this.state === null) {
             log.warn("BinlogWatcherStateManager did not find existing state.  This should only happen the very first time this Lambda runs!");
             this.state = {
-                id: "theonlyitem",
-                binlogName: null,
-                binlogPosition: null
+                id: "BinlogWatcherState",
+                checkpoint: null
             };
         }
-        return this.state;
     }
 }

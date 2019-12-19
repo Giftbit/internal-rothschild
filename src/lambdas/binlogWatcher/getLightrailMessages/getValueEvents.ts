@@ -1,8 +1,8 @@
-import {LightrailMessage} from "../LightrailMessage";
+import {LightrailEvent} from "../LightrailEvent";
 import {DbValue} from "../../../model/Value";
 import {BinlogTransaction} from "../binlogTransaction/BinlogTransaction";
 
-export async function getValueCreatedMessages(tx: BinlogTransaction): Promise<LightrailMessage[]> {
+export async function getValueCreatedEvents(tx: BinlogTransaction): Promise<LightrailEvent[]> {
     return tx.statements
         .filter(s => s.type === "INSERT" && s.table === "Values")
         .reduce((res, s) => [...res, ...s.affectedRows], [] as BinlogTransaction.AffectedRow<DbValue>[])
@@ -20,7 +20,7 @@ export async function getValueCreatedMessages(tx: BinlogTransaction): Promise<Li
         });
 }
 
-export async function getValueDeletedMessages(tx: BinlogTransaction): Promise<LightrailMessage[]> {
+export async function getValueDeletedEvents(tx: BinlogTransaction): Promise<LightrailEvent[]> {
     return tx.statements
         .filter(s => s.type === "DELETE" && s.table === "Values")
         .reduce((res, s) => [...res, ...s.affectedRows], [] as BinlogTransaction.AffectedRow<DbValue>[])
@@ -38,7 +38,7 @@ export async function getValueDeletedMessages(tx: BinlogTransaction): Promise<Li
         });
 }
 
-export async function getValueUpdatedMessages(tx: BinlogTransaction): Promise<LightrailMessage[]> {
+export async function getValueUpdatedEvents(tx: BinlogTransaction): Promise<LightrailEvent[]> {
     return tx.statements
         .filter(s => s.type === "UPDATE" && s.table === "Values")
         .reduce((res, s) => [...res, ...s.affectedRows], [] as BinlogTransaction.AffectedRow<DbValue>[])

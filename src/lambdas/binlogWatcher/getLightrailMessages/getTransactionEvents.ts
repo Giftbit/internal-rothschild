@@ -1,4 +1,4 @@
-import {LightrailMessage} from "../LightrailMessage";
+import {LightrailEvent} from "../LightrailEvent";
 import {
     DbTransaction,
     InternalDbTransactionStep,
@@ -7,7 +7,7 @@ import {
 } from "../../../model/Transaction";
 import {BinlogTransaction} from "../binlogTransaction/BinlogTransaction";
 
-export async function getTransactionCreatedMessages(tx: BinlogTransaction): Promise<LightrailMessage[]> {
+export async function getTransactionCreatedEvents(tx: BinlogTransaction): Promise<LightrailEvent[]> {
     return tx.statements
         .filter(s => s.type === "INSERT" && s.table === "Transactions")
         .reduce((res, s) => [...res, ...s.affectedRows], [] as BinlogTransaction.AffectedRow<DbTransaction>[])
