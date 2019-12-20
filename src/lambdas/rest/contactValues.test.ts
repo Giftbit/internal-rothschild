@@ -27,7 +27,10 @@ describe("/v2/contacts/values", () => {
         code: "AUD",
         decimalPlaces: 2,
         symbol: "$",
-        name: "Dollarydoo"
+        name: "Dollarydoo",
+        createdDate: nowInDbPrecision(),
+        updatedDate: nowInDbPrecision(),
+        createdBy: testUtils.defaultTestUser.teamMemberId
     };
 
     const contact: Contact = {

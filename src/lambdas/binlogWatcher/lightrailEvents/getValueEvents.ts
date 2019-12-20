@@ -9,11 +9,14 @@ export async function getValueCreatedEvents(tx: BinlogTransaction): Promise<Ligh
         .map(row => {
             const newValue = row.after as DbValue;
             return {
+                specversion: "1.0",
                 type: "lightrail.value.created",
-                service: "rothschild",
+                source: "/lightrail/rothschild",
+                id: `value-created-${newValue.id}`,
+                time: newValue.createdDate,
                 userId: newValue.userId,
-                createdDate: new Date().toISOString(),
-                payload: {
+                datacontenttype: "application/json",
+                data: {
                     newValue: DbValue.toValue(newValue, false)
                 }
             };
@@ -27,11 +30,14 @@ export async function getValueDeletedEvents(tx: BinlogTransaction): Promise<Ligh
         .map(row => {
             const oldValue = row.before as DbValue;
             return {
+                specversion: "1.0",
                 type: "lightrail.value.deleted",
-                service: "rothschild",
+                source: "/lightrail/rothschild",
+                id: `value-deleted-${oldValue.id}`,
+                time: new Date(),
                 userId: oldValue.userId,
-                createdDate: new Date().toISOString(),
-                payload: {
+                datacontenttype: "application/json",
+                data: {
                     oldValue: DbValue.toValue(oldValue, false)
                 }
             };
@@ -46,11 +52,14 @@ export async function getValueUpdatedEvents(tx: BinlogTransaction): Promise<Ligh
             const oldValue = row.before as DbValue;
             const newValue = row.after as DbValue;
             return {
+                specversion: "1.0",
                 type: "lightrail.value.updated",
-                service: "rothschild",
+                source: "/lightrail/rothschild",
+                id: `value-updated-${oldValue.id}-${newValue.updatedDate.toISOString()}`,
+                time: newValue.updatedDate,
                 userId: oldValue.userId,
-                createdDate: new Date().toISOString(),
-                payload: {
+                datacontenttype: "application/json",
+                data: {
                     oldValue: DbValue.toValue(oldValue, false),
                     newValue: DbValue.toValue(newValue, false)
                 }

@@ -9,11 +9,14 @@ export async function getContactCreatedEvents(tx: BinlogTransaction): Promise<Li
         .map(row => {
             const newContact = row.after as DbContact;
             return {
+                specversion: "1.0",
                 type: "lightrail.contact.created",
-                service: "rothschild",
+                source: "/lightrail/rothschild",
+                id: `contact-created-${newContact.id}`, // TODO what if it is created, deleted and created again?
+                time: newContact.createdDate,
                 userId: newContact.userId,
-                createdDate: new Date().toISOString(),
-                payload: {
+                datacontenttype: "application/json",
+                data: {
                     newContact: DbContact.toContact(newContact)
                 }
             };
@@ -27,11 +30,14 @@ export async function getContactDeletedEvents(tx: BinlogTransaction): Promise<Li
         .map(row => {
             const oldContact = row.before as DbContact;
             return {
+                specversion: "1.0",
                 type: "lightrail.contact.deleted",
-                service: "rothschild",
+                source: "/lightrail/rothschild",
+                id: `contact-deleted-${oldContact.id}`,
+                time: new Date(),
                 userId: oldContact.userId,
-                createdDate: new Date().toISOString(),
-                payload: {
+                datacontenttype: "application/json",
+                data: {
                     oldContact: DbContact.toContact(oldContact)
                 }
             };
@@ -46,11 +52,14 @@ export async function getContactUpdatedEvents(tx: BinlogTransaction): Promise<Li
             const oldContact = row.before as DbContact;
             const newContact = row.after as DbContact;
             return {
+                specversion: "1.0",
                 type: "lightrail.contact.updated",
-                service: "rothschild",
+                source: "/lightrail/rothschild",
+                id: `contact-updated-${oldContact.id}-${newContact.updatedDate.toISOString()}`,
+                time: newContact.updatedDate,
                 userId: newContact.userId,
-                createdDate: new Date().toISOString(),
-                payload: {
+                datacontenttype: "application/json",
+                data: {
                     oldContact: DbContact.toContact(oldContact),
                     newContact: DbContact.toContact(newContact)
                 }

@@ -11,6 +11,7 @@ import {after} from "mocha";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../utils/testUtils/stripeTestUtils";
 import {CheckoutRequest, InternalTransactionParty} from "../../../../model/TransactionRequest";
 import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
@@ -29,7 +30,10 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             code: "CAD",
             name: "Canadian Tire Money",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
         setCodeCryptographySecrets();
     });

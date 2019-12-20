@@ -4,9 +4,10 @@ import {getDbCredentials} from "../../utils/dbUtils/connection";
 import {BinlogStream} from "./binlogStream/BinlogStream";
 import {BinlogTransactionBuilder} from "./binlogTransaction/BinlogTransactionBuilder";
 import {getLightrailEvents} from "./lightrailEvents/getLightrailEvents";
-import {LightrailEventPublisher} from "../LightrailEventPublisher";
+import {LightrailEventPublisher} from "./LightrailEventPublisher";
 import {BinlogTransaction} from "./binlogTransaction/BinlogTransaction";
 import {BinlogWatcherStateManager} from "./binlogWatcherState/BinlogWatcherStateManager";
+import {BinlogEvent} from "./binlogStream/BinlogEvent";
 import log = require("loglevel");
 
 // Wrapping console.log instead of binding (default behaviour for loglevel)
@@ -32,6 +33,14 @@ export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, 
 }
 
 export async function createMySqlEventsInstance(): Promise<BinlogStream> {
+    const binlogWatcherStateManager = new BinlogWatcherStateManager();
+    // await binlogWatcherStateManager.load();  // TODO
+    // This loading is a problem.  In testing we need to replay a prerecorded stream
+    // of binlog events and then assert on the LightrailEvents that result.  We also
+    // need to be able to do a series of actions in Lightrail and record the binlog events.
+    // Or just do the Lightrail actions and assert on the LightrailEvents?  That could
+    // end up being a much slower test.
+
     // TODO Don't use master credentials.  Create a readrep user and use those credentials.
     // They can be passed in using the usual env vars though so this code is fine.
     const dbCredentials = await getDbCredentials();
@@ -45,10 +54,16 @@ export async function createMySqlEventsInstance(): Promise<BinlogStream> {
     });
 
     const txBuilder = new BinlogTransactionBuilder();
-    binlogStream.on("binlog", event => txBuilder.handleBinlogEvent(event));
-
-    const binlogWatcherStateManager = new BinlogWatcherStateManager();
-    // await binlogWatcherStateManager.load();  // TODO
+    binlogStream.on("binlog", (event: BinlogEvent) => {
+        txBuilder.handleBinlogEvent(event);
+        if (event.binlog.getTypeName() === "Rotate") {
+            // Checkpointing is safe here because transactions cannot span binlog files.
+            // Doing so prevents us from losing track of progress in the face of an epic
+            // string of binlog events without a transaction.
+            binlogWatcherStateManager.openCheckpoint(event.binlogName, event.binlog.nextPosition);
+            binlogWatcherStateManager.closeCheckpoint(event.binlogName, event.binlog.nextPosition);
+        }
+    });
 
     const publisher = new LightrailEventPublisher();
     txBuilder.on("transaction", async (tx: BinlogTransaction) => {

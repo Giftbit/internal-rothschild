@@ -5,6 +5,7 @@ import {Currency, DbCurrency} from "../../model/Currency";
 import {pick} from "../../utils/pick";
 import {csvSerializer} from "../../utils/serializers";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
+import {nowInDbPrecision} from "../../utils/dbUtils";
 
 export function installCurrenciesRest(router: cassava.Router): void {
     router.route("/v2/currencies")
@@ -30,7 +31,13 @@ export function installCurrenciesRest(router: cassava.Router): void {
             auth.requireScopes("lightrailV2:currencies:create");
             evt.validateBody(currencySchema);
 
-            const currency = pick(evt.body, "code", "name", "symbol", "decimalPlaces") as Currency;
+            const now = nowInDbPrecision();
+            const currency = {
+                ...pick(evt.body, "code", "name", "symbol", "decimalPlaces"),
+                createdDate: now,
+                updatedDate: now,
+                createdBy: auth.teamMemberId ? auth.teamMemberId : auth.userId,
+            } as Currency;
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
                 body: await createCurrency(auth, currency)

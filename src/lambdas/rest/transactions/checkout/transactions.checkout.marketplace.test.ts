@@ -8,6 +8,7 @@ import * as chai from "chai";
 import {Transaction} from "../../../../model/Transaction";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import {LineTotal} from "../../../../model/LineItem";
+import {nowInDbPrecision} from "../../../../utils/dbUtils";
 
 describe("/v2/transactions/checkout - marketplaceRate", () => {
 
@@ -22,7 +23,10 @@ describe("/v2/transactions/checkout - marketplaceRate", () => {
             code: "CAD",
             name: "Canadian bucks",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
     });
 

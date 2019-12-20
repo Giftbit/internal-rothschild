@@ -11,6 +11,7 @@ import {getKnexRead} from "../../../utils/dbUtils/connection";
 import * as codeGenerator from "../../../utils/codeGenerator";
 import {CheckoutRequest, LightrailTransactionParty} from "../../../model/TransactionRequest";
 import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
@@ -28,7 +29,10 @@ describe("/v2/values/", () => {
             code: "USD",
             name: "The Big Bucks",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
     });
 

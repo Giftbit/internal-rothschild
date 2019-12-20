@@ -4,11 +4,11 @@ import * as testUtils from "../../utils/testUtils";
 import {installRestRoutes} from "../rest/installRestRoutes";
 import {createMySqlEventsInstance} from "./index";
 
-describe.only("binlogWatcher", () => {
+describe.skip("binlogWatcher", () => {
 
     const router = new cassava.Router();
 
-    const currency: Currency = {
+    const currency: Partial<Currency> = {
         code: "CAD",
         decimalPlaces: 2,
         symbol: "$",

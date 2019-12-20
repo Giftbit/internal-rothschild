@@ -9,11 +9,14 @@ export async function getCurrencyCreatedEvents(tx: BinlogTransaction): Promise<L
         .map(row => {
             const newCurrency = row.after as DbCurrency;
             return {
+                specversion: "1.0",
                 type: "lightrail.currency.created",
-                service: "rothschild",
+                source: "/lightrail/rothschild",
+                id: `currency-created-${newCurrency.code}`, // TODO what if it is created, deleted and created again?
+                time: newCurrency.createdDate,
                 userId: newCurrency.userId,
-                createdDate: new Date().toISOString(),
-                payload: {
+                datacontenttype: "application/json",
+                data: {
                     newCurrency: DbCurrency.toCurrency(newCurrency)
                 }
             };
@@ -27,11 +30,14 @@ export async function getCurrencyDeletedEvents(tx: BinlogTransaction): Promise<L
         .map(row => {
             const oldCurrency = row.before as DbCurrency;
             return {
+                specversion: "1.0",
                 type: "lightrail.currency.deleted",
-                service: "rothschild",
+                source: "/lightrail/rothschild",
+                id: `currency-deleted-${oldCurrency.code}`,
+                time: new Date(),
                 userId: oldCurrency.userId,
-                createdDate: new Date().toISOString(),
-                payload: {
+                datacontenttype: "application/json",
+                data: {
                     oldCurrency: DbCurrency.toCurrency(oldCurrency)
                 }
             };
@@ -46,11 +52,14 @@ export async function getCurrencyUpdatedEvents(tx: BinlogTransaction): Promise<L
             const oldCurrency = row.before as DbCurrency;
             const newCurrency = row.after as DbCurrency;
             return {
+                specversion: "1.0",
                 type: "lightrail.currency.updated",
-                service: "rothschild",
+                source: "/lightrail/rothschild",
+                id: `currency-updated-${oldCurrency.code}-${newCurrency.updatedDate.toISOString()}`,
+                time: newCurrency.updatedDate,
                 userId: newCurrency.userId,
-                createdDate: new Date().toISOString(),
-                payload: {
+                datacontenttype: "application/json",
+                data: {
                     oldCurrency: DbCurrency.toCurrency(oldCurrency),
                     newCurrency: DbCurrency.toCurrency(newCurrency)
                 }

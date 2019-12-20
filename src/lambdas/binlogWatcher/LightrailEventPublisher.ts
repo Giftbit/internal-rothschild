@@ -1,5 +1,5 @@
 import * as aws from "aws-sdk";
-import {LightrailEvent} from "./binlogWatcher/LightrailEvent";
+import {LightrailEvent} from "./lightrailEvents/LightrailEvent";
 import log = require("loglevel");
 
 export class LightrailEventPublisher {
@@ -63,23 +63,35 @@ export class LightrailEventPublisher {
 
     private async publishOnce(event: LightrailEvent): Promise<void> {
         await this.sns.publish({
-            Message: JSON.stringify(event.payload),
+            Message: JSON.stringify(event.data),
             MessageAttributes: {
+                specversion: {
+                    DataType: "String",
+                    StringValue: event.specversion
+                },
                 type: {
                     DataType: "String",
                     StringValue: event.type
                 },
-                service: {
+                source: {
                     DataType: "String",
-                    StringValue: event.service
+                    StringValue: event.source
                 },
-                userId: event.userId && {
+                id: {
                     DataType: "String",
-                    StringValue: event.userId
+                    StringValue: event.id
                 },
-                createdDate: {
+                time: {
                     DataType: "String",
-                    StringValue: event.createdDate
+                    StringValue: event.time.toISOString()
+                },
+                userId: event.userid && {
+                    DataType: "String",
+                    StringValue: event.userid
+                },
+                datacontenttype: {
+                    DataType: "String",
+                    StringValue: event.datacontenttype
                 }
             },
             TopicArn: process.env["STATE_CHANGE_TOPIC_ARN"]

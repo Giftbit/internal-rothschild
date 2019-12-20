@@ -8,6 +8,9 @@ export interface Currency {
     name: string;
     symbol: string;
     decimalPlaces: number;
+    createdDate: Date;
+    updatedDate: Date;
+    createdBy: string;
 }
 
 export namespace Currency {
@@ -17,7 +20,10 @@ export namespace Currency {
             code: c.code,
             name: c.name,
             symbol: c.symbol,
-            decimalPlaces: c.decimalPlaces
+            decimalPlaces: c.decimalPlaces,
+            createdDate: c.createdDate,
+            updatedDate: c.updatedDate,
+            createdBy: c.createdBy
         };
     }
 
@@ -32,6 +38,9 @@ export interface DbCurrency {
     name: string;
     symbol: string;
     decimalPlaces: number;
+    createdDate: Date;
+    updatedDate: Date;
+    createdBy: string;
 }
 
 export namespace DbCurrency {
@@ -40,7 +49,10 @@ export namespace DbCurrency {
             code: c.code,
             name: c.name,
             symbol: c.symbol,
-            decimalPlaces: c.decimalPlaces
+            decimalPlaces: c.decimalPlaces,
+            createdDate: c.createdDate,
+            updatedDate: c.updatedDate,
+            createdBy: c.createdBy
         };
     }
 }

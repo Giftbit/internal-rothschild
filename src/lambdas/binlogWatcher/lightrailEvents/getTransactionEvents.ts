@@ -31,11 +31,14 @@ export async function getTransactionCreatedEvents(tx: BinlogTransaction): Promis
                 .map(row => row.after);
 
             return {
+                specversion: "1.0",
                 type: "lightrail.transaction.created",
-                service: "rothschild",
+                source: "/lightrail/rothschild",
+                id: `tx-created-${dbTransaction.id}`,
+                time: dbTransaction.createdDate,
                 userId: dbTransaction.userId,
-                createdDate: new Date().toISOString(),
-                payload: {
+                datacontenttype: "application/json",
+                data: {
                     newTransaction: DbTransaction.toTransaction(dbTransaction, [...dbLightrailTransactionSteps, ...dbStripeTransactionSteps, ...dbInternalTransactionSteps])
                 }
             };

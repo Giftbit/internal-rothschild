@@ -27,7 +27,10 @@ describe("/v2/transactions/debit", () => {
             code: "CAD",
             name: "Canadian bucks",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
     });
 
