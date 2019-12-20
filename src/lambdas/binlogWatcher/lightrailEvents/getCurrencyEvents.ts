@@ -1,6 +1,7 @@
 import {LightrailEvent} from "./LightrailEvent";
 import {DbCurrency} from "../../../model/Currency";
 import {BinlogTransaction} from "../binlogTransaction/BinlogTransaction";
+import {generateLightrailEventId} from "./generateEventId";
 
 export async function getCurrencyCreatedEvents(tx: BinlogTransaction): Promise<LightrailEvent[]> {
     return tx.statements
@@ -12,7 +13,7 @@ export async function getCurrencyCreatedEvents(tx: BinlogTransaction): Promise<L
                 specversion: "1.0",
                 type: "lightrail.currency.created",
                 source: "/lightrail/rothschild",
-                id: `currency-created-${newCurrency.code}`, // TODO what if it is created, deleted and created again?
+                id: generateLightrailEventId("lightrail.currency.created", newCurrency.userId, newCurrency.code, newCurrency.createdDate.getTime()),
                 time: newCurrency.createdDate,
                 userId: newCurrency.userId,
                 datacontenttype: "application/json",
@@ -33,7 +34,7 @@ export async function getCurrencyDeletedEvents(tx: BinlogTransaction): Promise<L
                 specversion: "1.0",
                 type: "lightrail.currency.deleted",
                 source: "/lightrail/rothschild",
-                id: `currency-deleted-${oldCurrency.code}`,
+                id: generateLightrailEventId("lightrail.currency.deleted", oldCurrency.userId, oldCurrency.code, oldCurrency.createdDate.getTime()),
                 time: new Date(),
                 userId: oldCurrency.userId,
                 datacontenttype: "application/json",
@@ -55,7 +56,7 @@ export async function getCurrencyUpdatedEvents(tx: BinlogTransaction): Promise<L
                 specversion: "1.0",
                 type: "lightrail.currency.updated",
                 source: "/lightrail/rothschild",
-                id: `currency-updated-${oldCurrency.code}-${newCurrency.updatedDate.toISOString()}`,
+                id: generateLightrailEventId("lightrail.currency.updated", newCurrency.userId, newCurrency.code, newCurrency.updatedDate.getTime()),
                 time: newCurrency.updatedDate,
                 userId: newCurrency.userId,
                 datacontenttype: "application/json",

@@ -6,6 +6,7 @@ import {
     StripeDbTransactionStep
 } from "../../../model/Transaction";
 import {BinlogTransaction} from "../binlogTransaction/BinlogTransaction";
+import {generateLightrailEventId} from "./generateEventId";
 
 export async function getTransactionCreatedEvents(tx: BinlogTransaction): Promise<LightrailEvent[]> {
     return tx.statements
@@ -34,7 +35,7 @@ export async function getTransactionCreatedEvents(tx: BinlogTransaction): Promis
                 specversion: "1.0",
                 type: "lightrail.transaction.created",
                 source: "/lightrail/rothschild",
-                id: `tx-created-${dbTransaction.id}`,
+                id: generateLightrailEventId("lightrail.transaction.created", dbTransaction.userId, dbTransaction.id, dbTransaction.createdDate.getTime()),
                 time: dbTransaction.createdDate,
                 userId: dbTransaction.userId,
                 datacontenttype: "application/json",

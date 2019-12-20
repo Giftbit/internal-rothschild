@@ -1,6 +1,7 @@
 import {LightrailEvent} from "./LightrailEvent";
 import {DbValue} from "../../../model/Value";
 import {BinlogTransaction} from "../binlogTransaction/BinlogTransaction";
+import {generateLightrailEventId} from "./generateEventId";
 
 export async function getValueCreatedEvents(tx: BinlogTransaction): Promise<LightrailEvent[]> {
     return tx.statements
@@ -12,7 +13,7 @@ export async function getValueCreatedEvents(tx: BinlogTransaction): Promise<Ligh
                 specversion: "1.0",
                 type: "lightrail.value.created",
                 source: "/lightrail/rothschild",
-                id: `value-created-${newValue.id}`,
+                id: generateLightrailEventId("lightrail.value.created", newValue.userId, newValue.id, newValue.createdDate.getTime()),
                 time: newValue.createdDate,
                 userId: newValue.userId,
                 datacontenttype: "application/json",
@@ -33,7 +34,7 @@ export async function getValueDeletedEvents(tx: BinlogTransaction): Promise<Ligh
                 specversion: "1.0",
                 type: "lightrail.value.deleted",
                 source: "/lightrail/rothschild",
-                id: `value-deleted-${oldValue.id}`,
+                id: generateLightrailEventId("lightrail.value.deleted", oldValue.userId, oldValue.id, oldValue.createdDate.getTime()),
                 time: new Date(),
                 userId: oldValue.userId,
                 datacontenttype: "application/json",
@@ -55,7 +56,7 @@ export async function getValueUpdatedEvents(tx: BinlogTransaction): Promise<Ligh
                 specversion: "1.0",
                 type: "lightrail.value.updated",
                 source: "/lightrail/rothschild",
-                id: `value-updated-${oldValue.id}-${newValue.updatedDate.toISOString()}`,
+                id: generateLightrailEventId("lightrail.value.updated", newValue.userId, newValue.id, newValue.updatedDate.getTime()),
                 time: newValue.updatedDate,
                 userId: oldValue.userId,
                 datacontenttype: "application/json",

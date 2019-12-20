@@ -4,6 +4,7 @@ import {getCurrencyCreatedEvents, getCurrencyDeletedEvents, getCurrencyUpdatedEv
 import {getValueCreatedEvents, getValueDeletedEvents, getValueUpdatedEvents} from "./getValueEvents";
 import {getTransactionCreatedEvents} from "./getTransactionEvents";
 import {BinlogTransaction} from "../binlogTransaction/BinlogTransaction";
+import {getProgramCreatedEvents, getProgramDeletedEvents, getProgramUpdatedEvents} from "./getProgramEvents";
 
 const eventGetters: ((tx: BinlogTransaction) => Promise<LightrailEvent[]>)[] = [
     getContactCreatedEvents,
@@ -12,6 +13,9 @@ const eventGetters: ((tx: BinlogTransaction) => Promise<LightrailEvent[]>)[] = [
     getCurrencyCreatedEvents,
     getCurrencyDeletedEvents,
     getCurrencyUpdatedEvents,
+    getProgramCreatedEvents,
+    getProgramDeletedEvents,
+    getProgramUpdatedEvents,
     getTransactionCreatedEvents,
     getValueCreatedEvents,
     getValueDeletedEvents,

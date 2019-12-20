@@ -1,6 +1,7 @@
 import {LightrailEvent} from "./LightrailEvent";
 import {DbContact} from "../../../model/Contact";
 import {BinlogTransaction} from "../binlogTransaction/BinlogTransaction";
+import {generateLightrailEventId} from "./generateEventId";
 
 export async function getContactCreatedEvents(tx: BinlogTransaction): Promise<LightrailEvent[]> {
     return tx.statements
@@ -12,7 +13,7 @@ export async function getContactCreatedEvents(tx: BinlogTransaction): Promise<Li
                 specversion: "1.0",
                 type: "lightrail.contact.created",
                 source: "/lightrail/rothschild",
-                id: `contact-created-${newContact.id}`, // TODO what if it is created, deleted and created again?
+                id: generateLightrailEventId("lightrail.contact.created", newContact.userId, newContact.id, newContact.createdDate.getTime()),
                 time: newContact.createdDate,
                 userId: newContact.userId,
                 datacontenttype: "application/json",
@@ -33,7 +34,7 @@ export async function getContactDeletedEvents(tx: BinlogTransaction): Promise<Li
                 specversion: "1.0",
                 type: "lightrail.contact.deleted",
                 source: "/lightrail/rothschild",
-                id: `contact-deleted-${oldContact.id}`,
+                id: generateLightrailEventId("lightrail.contact.deleted", oldContact.userId, oldContact.id, oldContact.createdDate.getTime()),
                 time: new Date(),
                 userId: oldContact.userId,
                 datacontenttype: "application/json",
@@ -55,7 +56,7 @@ export async function getContactUpdatedEvents(tx: BinlogTransaction): Promise<Li
                 specversion: "1.0",
                 type: "lightrail.contact.updated",
                 source: "/lightrail/rothschild",
-                id: `contact-updated-${oldContact.id}-${newContact.updatedDate.toISOString()}`,
+                id: generateLightrailEventId("lightrail.contact.updated", newContact.userId, newContact.id, newContact.updatedDate.getTime()),
                 time: newContact.updatedDate,
                 userId: newContact.userId,
                 datacontenttype: "application/json",
