@@ -24,10 +24,22 @@ export class LightrailEventPublisher {
             } catch (e) {
                 log.debug("Error publishing LightrailEvent", e);
                 await new Promise(resolve => setTimeout(resolve, backoff + (Math.random() * 500) | 0));
-                backoff = Math.min(15000, backoff * 2);
+                backoff = Math.min(16000, backoff * 2);
+                if (backoff === 16000) {
+                    log.error("Error publishing LightrailEvent (has reached maximum backoff)", e);
+                }
             }
         }
         this.pendingPublishCount--;
+    }
+
+    /**
+     * Publish all events simultaneously.  SNS events are not guaranteed to arrive in
+     * the same order anyways so this is usually the right idea.
+     * @param events
+     */
+    async publishAllAtOnce(events: LightrailEvent[]): Promise<void> {
+        await Promise.all(events.map(e => this.publish(e)));
     }
 
     /**
@@ -38,14 +50,6 @@ export class LightrailEventPublisher {
         for (const msg of events) {
             await this.publish(msg);
         }
-    }
-
-    /**
-     * Publish all events simultaneously.
-     * @param events
-     */
-    async publishAllAtOnce(events: LightrailEvent[]): Promise<void> {
-        await Promise.all(events.map(e => this.publish(e)));
     }
 
     /**

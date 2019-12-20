@@ -1,4 +1,4 @@
-import {LightrailEvent} from "../LightrailEvent";
+import {LightrailEvent} from "./LightrailEvent";
 import {DbCurrency} from "../../../model/Currency";
 import {BinlogTransaction} from "../binlogTransaction/BinlogTransaction";
 

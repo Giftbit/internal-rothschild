@@ -12,6 +12,9 @@ import {
 import {BinlogEvent} from "../binlogStream/BinlogEvent";
 import {EventEmitter} from "events";
 
+/**
+ * Builds BinlogTransactions out of a series of BinlogEvents.
+ */
 export class BinlogTransactionBuilder extends EventEmitter {
 
     private txInProgress: BinlogTransaction = null;

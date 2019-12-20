@@ -6,6 +6,8 @@ import {QueryEvent, RotateEvent, ZongJiEvent} from "./ZongJiEvent";
 import {EventEmitter} from "events";
 
 /**
+ * Wraps ZongJi to create a stable steam of MySQL binlog events.
+ *
  * Inspired by https://github.com/rodrigogs/mysql-events/
  * and https://gist.github.com/numtel/5b37b2a7f47b380c1a099596c6f3db2f
  */
