@@ -65,7 +65,7 @@ export class BinlogWatcherStateManager {
             const earlierOpenCheckpoint = this.openCheckpoints.find(c => BinlogWatcherState.Checkpoint.compare(c, closedCheckpoint) < 0);
             if (!earlierOpenCheckpoint) {
                 this.closedCheckpoints.splice(checkpointIx, 1);
-                if (BinlogWatcherState.Checkpoint.compare(closedCheckpoint, this.state.checkpoint) > 0) {
+                if (this.state.checkpoint == null || BinlogWatcherState.Checkpoint.compare(closedCheckpoint, this.state.checkpoint) > 0) {
                     this.state.checkpoint = closedCheckpoint;
                 }
             }

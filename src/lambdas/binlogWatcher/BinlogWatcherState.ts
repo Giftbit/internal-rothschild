@@ -6,7 +6,7 @@ export interface BinlogWatcherState {
      */
     id: "BinlogWatcherState";
 
-    checkpoint: Checkpoint;
+    checkpoint: Checkpoint | null;
 
     /**
      * Track version of the state to prevent bad overwriting.  This is managed automatically
@@ -37,7 +37,7 @@ export namespace BinlogWatcherState {
             } else if (a.binlogName > b.binlogName) {
                 return 1;
             } else {
-                return b.binlogPosition - a.binlogPosition;
+                return a.binlogPosition - b.binlogPosition;
             }
         }
     }

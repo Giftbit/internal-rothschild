@@ -18,11 +18,11 @@ describe("BinlogWatcherState", () => {
             it("returns < 0 if a.binlogName < b.binlogName", () => {
                 const a: BinlogWatcherState.Checkpoint = {
                     binlogName: "bin.000001",
-                    binlogPosition: 1200
+                    binlogPosition: 2
                 };
                 const b: BinlogWatcherState.Checkpoint = {
                     binlogName: "bin.000002",
-                    binlogPosition: 100
+                    binlogPosition: 1
                 };
                 chai.assert.isBelow(BinlogWatcherState.Checkpoint.compare(a, b), 0);
             });
@@ -30,35 +30,35 @@ describe("BinlogWatcherState", () => {
             it("returns < 0 if a.binlogName == b.binlogName && a.binlogPosition < b.binlogPosition", () => {
                 const a: BinlogWatcherState.Checkpoint = {
                     binlogName: "bin.000001",
-                    binlogPosition: 1200
+                    binlogPosition: 1
                 };
                 const b: BinlogWatcherState.Checkpoint = {
-                    binlogName: "bin.000002",
-                    binlogPosition: 1400
+                    binlogName: "bin.000001",
+                    binlogPosition: 2
                 };
                 chai.assert.isBelow(BinlogWatcherState.Checkpoint.compare(a, b), 0);
             });
 
             it("returns > 0 if a.binlogName > b.binlogName", () => {
                 const a: BinlogWatcherState.Checkpoint = {
-                    binlogName: "bin.000003",
-                    binlogPosition: 1200
+                    binlogName: "bin.000002",
+                    binlogPosition: 1
                 };
                 const b: BinlogWatcherState.Checkpoint = {
-                    binlogName: "bin.000002",
-                    binlogPosition: 1400
+                    binlogName: "bin.000001",
+                    binlogPosition: 2
                 };
                 chai.assert.isAbove(BinlogWatcherState.Checkpoint.compare(a, b), 0);
             });
 
             it("returns > 0 if a.binlogName == b.binlogName && a.binlogPosition > b.binlogPosition", () => {
                 const a: BinlogWatcherState.Checkpoint = {
-                    binlogName: "bin.000002",
-                    binlogPosition: 1200
+                    binlogName: "bin.000001",
+                    binlogPosition: 2
                 };
                 const b: BinlogWatcherState.Checkpoint = {
-                    binlogName: "bin.000002",
-                    binlogPosition: 1400
+                    binlogName: "bin.000001",
+                    binlogPosition: 1
                 };
                 chai.assert.isAbove(BinlogWatcherState.Checkpoint.compare(a, b), 0);
             });
