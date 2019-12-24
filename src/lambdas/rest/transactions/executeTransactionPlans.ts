@@ -21,6 +21,7 @@ import {MetricsLogger} from "../../../utils/metricsLogger";
 import * as cassava from "cassava";
 import {Value} from "../../../model/Value";
 import {transactionPartySchema} from "../../../model/TransactionRequest";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
 import log = require("loglevel");
 import Knex = require("knex");
 import lightrail = transactionPartySchema.lightrail;
@@ -122,7 +123,60 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
 
     // Call TransactionPlan.toTransaction again because TransactionSteps may change during execution to fill in results.
     // Note that the top-level Transaction may not change.
-    return TransactionPlan.toTransaction(auth, plan);
+    const transaction = TransactionPlan.toTransaction(auth, plan);
+    const contactIds = getContactIdsFromTransaction(transaction);
+    const tags = await insertTransactionContactTags(auth, trx, transaction, contactIds);
+ 
+    return transaction;
+}
+
+function getContactIdsFromTransaction(transaction: Transaction): string[] {
+    let contactIds = transaction.steps.filter(s => s.rail === "lightrail" && s.contactId).map(s => (s as LightrailTransactionStep).contactId);
+    if (transaction.paymentSources) {
+        contactIds = [...contactIds, ...transaction.paymentSources.filter(s => s.rail === "lightrail" && s.contactId).map(s => (s as LightrailTransactionStep).contactId)]
+    }
+    return contactIds;
+}
+
+async function insertTransactionContactTags(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, transaction: Transaction, contactIds: string[]): Promise<string[]> {
+    if (contactIds.length === 0) {
+        return [];
+    }
+
+    const tags = [...new Set(contactIds.map(id => `contactId:${id}`))];
+    const now = nowInDbPrecision();
+
+    for (let tag of tags) {
+        const tagData = {
+            userId: auth.userId,
+            id: tag, // TODO address this: uuid? special prefix for lr-generated, so as not to conflict with cust-supplied later on?
+            tag: tag,
+            createdDate: now,
+            updatedDate: now,
+        };
+
+        let dbTagRes = await trx("Tags").where({
+            userId: auth.userId,
+            tag
+        });
+        if (dbTagRes.length === 0) {
+            await trx.into("Tags").insert(tagData);
+        }
+        dbTagRes = await trx("Tags").where({
+            userId: auth.userId,
+            tag
+        }); // todo clean up this weird duplication
+
+
+        const txsTagsData = {
+            userId: auth.userId,
+            transactionId: transaction.id,
+            tagId: dbTagRes[0].id
+        };
+        await trx.into("TransactionsTags")
+            .insert(txsTagsData);
+    }
+    return tags;
 }
 
 /**
