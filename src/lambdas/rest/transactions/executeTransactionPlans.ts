@@ -6,7 +6,7 @@ import {
     StripeRefundTransactionPlanStep,
     TransactionPlan
 } from "./TransactionPlan";
-import {Transaction} from "../../../model/Transaction";
+import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import {
