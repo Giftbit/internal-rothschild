@@ -20,6 +20,7 @@ export interface Transaction {
     createdBy: string;
     metadata: object | null;
     tax: TaxRequestProperties | null;
+    tags?: string[];
 }
 
 export interface DbTransaction {
@@ -94,6 +95,16 @@ export namespace DbTransaction {
             .where("userId", userId)
             .whereIn("transactionId", txIds));
 
+        let transactionsTags = txIds.reduce((tagMap, id) => {
+            tagMap[id] = [];
+            return tagMap;
+        }, {});
+        let dbTxTags = await knex.select("Tags.*", "TransactionsTags.transactionId").from("Tags").join("TransactionsTags", {
+            "TransactionsTags.userId": "Tags.userId",
+            "TransactionsTags.tagId": "Tags.id"
+        }).where("TransactionsTags.userId", userId).whereIn("TransactionsTags.transactionId", txIds);
+        dbTxTags.forEach(t => transactionsTags[t.transactionId].push(t.tag));
+
         return txns.map(dbT => {
             let t: Transaction = {
                 id: dbT.id,
@@ -108,7 +119,8 @@ export namespace DbTransaction {
                 pending: !!dbT.pendingVoidDate,
                 pendingVoidDate: dbT.pendingVoidDate || undefined,
                 createdDate: dbT.createdDate,
-                createdBy: dbT.createdBy
+                createdBy: dbT.createdBy,
+                tags: transactionsTags[dbT.id].length > 0 ? transactionsTags[dbT.id] : undefined,
             };
             if (hasNonNullTotals(dbT)) {
                 let payable: number;
