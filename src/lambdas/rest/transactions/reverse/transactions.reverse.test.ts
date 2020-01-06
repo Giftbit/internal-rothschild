@@ -6,7 +6,7 @@ import {Value} from "../../../../model/Value";
 import {generateId} from "../../../../utils/testUtils";
 import * as testUtils from "../../../../utils/testUtils/index";
 import {Transaction} from "../../../../model/Transaction";
-import {DebitRequest, ReverseRequest} from "../../../../model/TransactionRequest";
+import {CheckoutRequest, DebitRequest, ReverseRequest} from "../../../../model/TransactionRequest";
 import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
@@ -138,5 +138,53 @@ describe("/v2/transactions/reverse", () => {
             const createReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${debit.id}/reverse`, "POST", reverse);
             chai.assert.equal(createReverse.statusCode, 201, `body=${JSON.stringify(createReverse.body)}`);
         });
+    });
+
+    it("reverse concurrent request test", async () => {
+        const promo1: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 100,
+            discount: true
+        };
+        const createPromo1 = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", promo1);
+        chai.assert.equal(createPromo1.statusCode, 201, JSON.stringify(createPromo1));
+
+        const promo2: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 100,
+            discount: true
+        };
+        const createPromo2 = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", promo2);
+        chai.assert.equal(createPromo2.statusCode, 201, JSON.stringify(createPromo2));
+
+        const checkout: CheckoutRequest = {
+            id: generateId(),
+            currency: "USD",
+            sources: [
+                {rail: "lightrail", valueId: promo1.id},
+                {rail: "lightrail", valueId: promo2.id}
+            ],
+            lineItems: [{unitPrice: 5000}],
+            allowRemainder: true
+        };
+        const createCheckout = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/checkout`, "POST", checkout);
+        chai.assert.equal(createCheckout.statusCode, 201, `body=${JSON.stringify(createCheckout.body)}`);
+
+        const reverse1: ReverseRequest = {
+            id: generateId() + "-1"
+        };
+        const reverse2: ReverseRequest = {
+            id: generateId() + "-2"
+        };
+        const call1 = testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkout.id}/reverse`, "POST", reverse1);
+        const call2 = testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/transactions/${checkout.id}/reverse`, "POST", reverse2);
+        const call1Result = await call1;
+        const call2Result = await call2;
+
+        chai.assert.equal(call1Result.statusCode, 201);
+        chai.assert.equal(call2Result.statusCode, 409);
+        chai.assert.equal(call2Result.body["messageCode"], "TransactionReversed");
     });
 });
