@@ -6,7 +6,7 @@ import {
     StripeRefundTransactionPlanStep,
     TransactionPlan
 } from "./TransactionPlan";
-import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {Transaction} from "../../../model/Transaction";
 import {TransactionPlanError} from "./TransactionPlanError";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import {
@@ -121,32 +121,21 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         }
     }
 
+    await insertTransactionTags(auth, trx, plan);
+
     // Call TransactionPlan.toTransaction again because TransactionSteps may change during execution to fill in results.
     // Note that the top-level Transaction may not change.
-    const transaction = TransactionPlan.toTransaction(auth, plan);
-    const contactIds = getContactIdsFromTransaction(transaction);
-    const tags = await insertTransactionContactTags(auth, trx, transaction, contactIds);
- 
-    return transaction;
+    return TransactionPlan.toTransaction(auth, plan);
 }
 
-function getContactIdsFromTransaction(transaction: Transaction): string[] {
-    let contactIds = transaction.steps.filter(s => s.rail === "lightrail" && s.contactId).map(s => (s as LightrailTransactionStep).contactId);
-    if (transaction.paymentSources) {
-        contactIds = [...contactIds, ...transaction.paymentSources.filter(s => s.rail === "lightrail" && s.contactId).map(s => (s as LightrailTransactionStep).contactId)]
-    }
-    return contactIds;
-}
-
-async function insertTransactionContactTags(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, transaction: Transaction, contactIds: string[]): Promise<string[]> {
-    if (contactIds.length === 0) {
-        return [];
+async function insertTransactionTags(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, transactionPlan: TransactionPlan): Promise<void> {
+    if (!transactionPlan.tags || transactionPlan.tags.length === 0) {
+        return;
     }
 
-    const tags = [...new Set(contactIds.map(id => `contactId:${id}`))];
     const now = nowInDbPrecision();
 
-    for (let tag of tags) {
+    for (let tag of transactionPlan.tags) {
         const tagData = {
             userId: auth.userId,
             id: tag, // TODO address this: uuid? special prefix for lr-generated, so as not to conflict with cust-supplied later on?
@@ -170,13 +159,12 @@ async function insertTransactionContactTags(auth: giftbitRoutes.jwtauth.Authoriz
 
         const txsTagsData = {
             userId: auth.userId,
-            transactionId: transaction.id,
+            transactionId: transactionPlan.id,
             tagId: dbTagRes[0].id
         };
         await trx.into("TransactionsTags")
             .insert(txsTagsData);
     }
-    return tags;
 }
 
 /**

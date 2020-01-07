@@ -4,7 +4,7 @@ import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
 import log = require("loglevel");
 
-export function getCheckoutTransactionPlan(checkout: CheckoutRequest, steps: TransactionPlanStep[]): TransactionPlan {
+export function getCheckoutTransactionPlan(checkout: CheckoutRequest, steps: TransactionPlanStep[], tags: string[]): TransactionPlan {
     log.info(`optimizing checkout transaction`);
 
     const now = nowInDbPrecision();
@@ -18,7 +18,11 @@ export function getCheckoutTransactionPlan(checkout: CheckoutRequest, steps: Tra
 
     log.info(`optimized checkout transaction\nsortedPretaxSteps: ${JSON.stringify(sortedPretaxSteps)}\nsortedPostTaxSteps: ${JSON.stringify(sortedPostTaxSteps)}`);
 
-    return calculateCheckoutTransactionPlanForOrderedSteps(checkout, sortedPretaxSteps, sortedPostTaxSteps, now);
+    const plan = calculateCheckoutTransactionPlanForOrderedSteps(checkout, sortedPretaxSteps, sortedPostTaxSteps, now);
+    if (tags.length) {
+        plan.tags = tags
+    }
+    return plan;
 }
 
 /**

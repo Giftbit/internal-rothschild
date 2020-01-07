@@ -56,7 +56,7 @@ export interface ResolveTransactionPartiesOptions {
 }
 
 export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[], options: ResolveTransactionPartiesOptions): Promise<TransactionPlanStep[]> {
-    const fetchedValues = await getLightrailValuesForTransactionPlanSteps(auth, parties, options);
+    const fetchedValues = (await getLightrailSourcesForTransactionPlanSteps(auth, parties, options)).values;
     return getTransactionPlanStepsFromSources(
         fetchedValues,
         parties.filter(party => party.rail !== "lightrail") as (StripeTransactionParty | InternalTransactionParty)[],
@@ -110,7 +110,80 @@ export function getTransactionPlanStepsFromSources(lightrailSources: Value[], no
     return [...lightrailSteps, ...internalSteps, ...stripeSteps];
 }
 
-export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[], options: ResolveTransactionPartiesOptions): Promise<Value[]> {
+export async function getLightrailSourcesForTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[], options: ResolveTransactionPartiesOptions): Promise<{ values: Value[], contactIds: string[] }> {
+    let values = await getAllPossibleValues(auth, parties);
+
+    let contactIdsForResult = [...new Set([...values.map(v => v.contactId), ...parties.filter(p => p.rail === "lightrail" && p.contactId).map(p => (p as LightrailTransactionParty).contactId)])];
+
+    values = handleNonTransactableValues(values, options, true).values;
+
+    return {values, contactIds: contactIdsForResult};
+}
+
+function handleNonTransactableValues(values: Value[], options: ResolveTransactionPartiesOptions, returnNonTransactableContactIds: boolean): { values: Value[], contactIds: string[] } {
+    const now = nowInDbPrecision();
+
+    let result = {
+        values: [...values],
+        contactIds: values.map(v => v.id)
+    };
+
+    if (options.nonTransactableHandling === "error") {
+        // Throw an error if we have any Values that *would* have been filtered out
+        // on `options.nonTransactableHandling === "filter"`.  This is inherently a
+        // duplication of logic (which is often a bad idea) but filtering on the DB
+        // when acceptable is a *huge* performance gain.
+        for (const value of values) {
+            if (value.currency !== options.currency) {
+                throw new giftbitRoutes.GiftbitRestError(409, `Value '${value.id}' is in currency '${value.currency}' which is not the transaction's currency '${options.currency}'.`, "WrongCurrency");
+            }
+
+            if (value.canceled) {
+                throw new giftbitRoutes.GiftbitRestError(409, `Value '${value.id}' cannot be transacted against because it is canceled.`, "ValueCanceled");
+            }
+            if (value.frozen) {
+                throw new giftbitRoutes.GiftbitRestError(409, `Value '${value.id}' cannot be transacted against because it is frozen.`, "ValueFrozen");
+            }
+            if (!value.active) {
+                throw new giftbitRoutes.GiftbitRestError(409, `Value '${value.id}' cannot be transacted against because it is inactive.`, "ValueInactive");
+            }
+
+            if (value.startDate && value.startDate > now) {
+                throw new giftbitRoutes.GiftbitRestError(409, `Value '${value.id}' cannot be transacted against because it has not started.`, "ValueNotStarted");
+            }
+            if (value.endDate && value.endDate < now) {
+                throw new giftbitRoutes.GiftbitRestError(409, `Value '${value.id}' cannot be transacted against because it expired.`, "ValueEnded");
+            }
+        }
+    } else if (options.nonTransactableHandling === "exclude") {
+        result.values = values.filter(v =>
+            (v.currency === options.currency) &&
+            !v.canceled &&
+            !v.frozen &&
+            v.active &&
+            (!v.startDate || v.startDate <= now) &&
+            (!v.endDate || v.endDate >= now)
+        )
+    } else if (options.nonTransactableHandling === "include") {
+        // all values should be returned
+    }
+
+    if (!options.includeZeroBalance) {
+        result.values = result.values.filter(v => (v.balance === null) || (v.balance === 0 && options.includeZeroBalance) || (v.balance > 0))
+    }
+
+    if (!options.includeZeroUsesRemaining) {
+        result.values = result.values.filter(v => (v.usesRemaining === null) || (v.usesRemaining === 0 && options.includeZeroUsesRemaining) || (v.usesRemaining > 0))
+    }
+
+    if (!returnNonTransactableContactIds) {
+        result.contactIds = result.values.map(v => v.contactId);
+    }
+
+    return result;
+}
+
+export async function getAllPossibleValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[]): Promise<Value[]> {
     const valueIds = parties.filter(p => p.rail === "lightrail" && p.valueId)
         .map(p => (p as LightrailTransactionParty).valueId);
 
@@ -127,7 +200,6 @@ export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRou
     }
 
     const knex = await getKnexRead();
-    const now = nowInDbPrecision();
 
     /**
      * Note on query structure: The Values table has a composite index for each of userId+ID, userId+code, userId+contactId
@@ -173,58 +245,9 @@ export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRou
         queryBuilder.as("TT");
     });
 
-    if (options.nonTransactableHandling === "exclude") {
-        query = query
-            .where({
-                currency: options.currency,
-                canceled: false,
-                frozen: false,
-                active: true
-            })
-            .where(q => q.whereNull("startDate").orWhere("startDate", "<", now))
-            .where(q => q.whereNull("endDate").orWhere("endDate", ">", now));
-    }
-    if (!options.includeZeroUsesRemaining) {
-        query = query.where(q => q.whereNull("usesRemaining").orWhere("usesRemaining", ">", 0));
-    }
-    if (!options.includeZeroBalance) {
-        query = query.where(q => q.whereNull("balance").orWhere("balance", ">", 0));
-    }
-
     const dbValues: (DbValue & { contactIdForResult: string | null })[] = await query;
     const dedupedDbValues = consolidateValueQueryResults(dbValues);
-    const values = await Promise.all(dedupedDbValues.map(value => DbValue.toValue(value)));
-
-    if (options.nonTransactableHandling === "error") {
-        // Throw an error if we have any Values that *would* have been filtered out
-        // on `options.nonTransactableHandling === "filter"`.  This is inherently a
-        // duplication of logic (which is often a bad idea) but filtering on the DB
-        // when acceptable is a *huge* performance gain.
-        for (const value of values) {
-            if (value.currency !== options.currency) {
-                throw new giftbitRoutes.GiftbitRestError(409, `Value '${value.id}' is in currency '${value.currency}' which is not the transaction's currency '${options.currency}'.`, "WrongCurrency");
-            }
-
-            if (value.canceled) {
-                throw new giftbitRoutes.GiftbitRestError(409, `Value '${value.id}' cannot be transacted against because it is canceled.`, "ValueCanceled");
-            }
-            if (value.frozen) {
-                throw new giftbitRoutes.GiftbitRestError(409, `Value '${value.id}' cannot be transacted against because it is frozen.`, "ValueFrozen");
-            }
-            if (!value.active) {
-                throw new giftbitRoutes.GiftbitRestError(409, `Value '${value.id}' cannot be transacted against because it is inactive.`, "ValueInactive");
-            }
-
-            const now = nowInDbPrecision();
-            if (value.startDate && value.startDate > now) {
-                throw new giftbitRoutes.GiftbitRestError(409, `Value '${value.id}' cannot be transacted against because it has not started.`, "ValueNotStarted");
-            }
-            if (value.endDate && value.endDate < now) {
-                throw new giftbitRoutes.GiftbitRestError(409, `Value '${value.id}' cannot be transacted against because it expired.`, "ValueEnded");
-            }
-        }
-    }
-    return values;
+    return await Promise.all(dedupedDbValues.map(value => DbValue.toValue(value)));
 }
 
 export function filterForUsedAttaches(attachTransactionPlans: TransactionPlan[], transactionPlan: TransactionPlan) {

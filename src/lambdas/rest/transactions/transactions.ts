@@ -5,7 +5,7 @@ import * as pendingTransactionUtils from "./pendingTransactionUtils";
 import {
     filterForUsedAttaches,
     getContactIdFromSources,
-    getLightrailValuesForTransactionPlanSteps,
+    getLightrailSourcesForTransactionPlanSteps,
     getTransactionPlanStepsFromSources,
     ResolveTransactionPartiesOptions
 } from "./resolveTransactionPlanSteps";
@@ -317,7 +317,8 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
                 includeZeroBalance: !!checkout.allowRemainder,
                 includeZeroUsesRemaining: !!checkout.allowRemainder,
             };
-            const fetchedValues = await getLightrailValuesForTransactionPlanSteps(auth, checkout.sources, resolveOptions);
+            const checkoutSources = await getLightrailSourcesForTransactionPlanSteps(auth, checkout.sources, resolveOptions);
+            const fetchedValues = checkoutSources.values;
 
             // handle auto attach on generic codes
             const valuesToAttach: Value[] = fetchedValues.filter(v => Value.isGenericCodeWithPropertiesPerContact(v));
@@ -336,7 +337,7 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
                 resolveOptions
             );
 
-            const checkoutTransactionPlan: TransactionPlan = getCheckoutTransactionPlan(checkout, checkoutTransactionPlanSteps);
+            const checkoutTransactionPlan: TransactionPlan = getCheckoutTransactionPlan(checkout, checkoutTransactionPlanSteps, formatContactIdTags(checkoutSources.contactIds));
 
             // Only persist attach transactions that were used.
             const attachTransactionsToPersist: TransactionPlan[] = filterForUsedAttaches(attachTransactionPlans, checkoutTransactionPlan);
@@ -345,6 +346,10 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
         }
     );
     return Array.isArray(transaction) ? transaction.find(tx => tx.transactionType === "checkout") : transaction;
+}
+
+function formatContactIdTags(contactIds: string[]): string[] {
+    return contactIds.map(id => `contactId:${id}`);
 }
 
 async function getAutoAttachTransactionPlans(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valuesToAttach: Value[], valuesForCheckout: Value[], sources: TransactionParty[]): Promise<TransactionPlan[]> {

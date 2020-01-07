@@ -49,7 +49,6 @@ describe("/v2/transactions - tags", () => {
         await testUtils.createUSDValue(router, value3);
     });
 
-
     describe("checkouts", () => {
         describe("'regular' checkouts", () => {
             it("unique attached value as source", async () => {
@@ -60,6 +59,9 @@ describe("/v2/transactions - tags", () => {
                     sources: [{rail: "lightrail", valueId: value1.id}]
                 });
                 chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
+
+                chai.assert.equal(resp.body.tags.length, 1, `resp.body should have 1 tag: ${JSON.stringify(resp.body)}`);
+                chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`], `tags=${resp.body.tags}`);
             });
 
             it("contactId as source", async () => {
@@ -70,6 +72,9 @@ describe("/v2/transactions - tags", () => {
                     sources: [{rail: "lightrail", contactId: contact1.id}]
                 });
                 chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
+
+                chai.assert.equal(resp.body.tags.length, 1, `resp.body should have 1 tag: ${JSON.stringify(resp.body)}`);
+                chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`], `tags=${resp.body.tags}`);
             });
 
             it("2nd contactId as source, doesn't get used", async () => {
@@ -84,6 +89,9 @@ describe("/v2/transactions - tags", () => {
                     sources: [{rail: "lightrail", valueId: value1.id}, {rail: "lightrail", contactId: contact2.id}]
                 });
                 chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
+
+                chai.assert.equal(resp.body.tags.length, 2, `resp.body should have 2 tags: ${JSON.stringify(resp.body)}`);
+                chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`, `contactId:${contact2.id}`], `tags=${resp.body.tags}`);
             });
 
             it("2nd unique value (attached to different contact) as source, doesn't get used", async () => {
@@ -106,9 +114,12 @@ describe("/v2/transactions - tags", () => {
                     sources: [{rail: "lightrail", valueId: value1.id}, {rail: "lightrail", valueId: newValue.id}]
                 });
                 chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
+
+                chai.assert.equal(resp.body.tags.length, 2, `resp.body should have 2 tags: ${JSON.stringify(resp.body)}`);
+                chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`, `contactId:${newContact.id}`], `tags=${resp.body.tags}`);
             });
 
-            it("contactId that doens't exist as source", async () => {
+            it("contactId that doesn't exist as source", async () => {
                 const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
                     id: "checkout-nonexistent-cid",
                     currency: "USD",
@@ -116,6 +127,9 @@ describe("/v2/transactions - tags", () => {
                     sources: [{rail: "lightrail", contactId: "gibberish"}, {rail: "lightrail", valueId: value1.id}]
                 });
                 chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
+
+                chai.assert.equal(resp.body.tags.length, 2, `resp.body should have 2 tags: ${JSON.stringify(resp.body)}`);
+                chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`, `contactId:gibberish`], `tags=${resp.body.tags}`);
             });
         });
 
@@ -352,5 +366,8 @@ describe("/v2/transactions - tags", () => {
         chai.assert.equal(attachResp.statusCode, 200, `.body=${JSON.stringify(attachResp)}`);
     });
 
-    it("allows two users to create transactions with the same tags");
+    describe("data isolation", () => {
+        it("allows two users to create transactions with the same tags");
+        it("maps the right tags to the right transactions - create; get");
+    });
 });

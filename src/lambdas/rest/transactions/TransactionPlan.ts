@@ -33,6 +33,7 @@ export interface TransactionPlan {
     metadata: object | null;
     rootTransactionId?: string;
     previousTransactionId?: string;
+    tags?: string[];
 }
 
 export type TransactionPlanStep =
@@ -304,7 +305,8 @@ export namespace TransactionPlan {
             pending: !!plan.pendingVoidDate,
             pendingVoidDate: plan.pendingVoidDate || undefined,
             metadata: plan.metadata || null,
-            createdBy: auth.teamMemberId
+            createdBy: auth.teamMemberId,
+            tags: plan.tags
         };
         if (simulated) {
             transaction.simulated = true;
