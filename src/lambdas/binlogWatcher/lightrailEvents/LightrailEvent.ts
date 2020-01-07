@@ -65,5 +65,5 @@ export interface LightrailEvent {
      * Breaking changes are a big deal and need to be coordinated.  Adding new properties
      * is not a breaking change.
      */
-    data: any;
+    data: any | Promise<any>;
 }

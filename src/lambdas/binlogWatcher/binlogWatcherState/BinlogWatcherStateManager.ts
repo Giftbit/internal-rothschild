@@ -81,7 +81,7 @@ export class BinlogWatcherStateManager {
     }
 
     async load(): Promise<void> {
-        const getRequest = dynameh.requestBuilder.buildGetInput(this.tableSchema, "theonlyitem");
+        const getRequest = dynameh.requestBuilder.buildGetInput(this.tableSchema, "BinlogWatcherState");
         log.debug("BinlogWatcherStateManager getRequest=", getRequest);
 
         const getResponse = await this.dynamodb.getItem(getRequest).promise();

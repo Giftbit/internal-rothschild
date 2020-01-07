@@ -1,8 +1,9 @@
 import * as aws from "aws-sdk";
-import {LightrailEvent} from "./lightrailEvents/LightrailEvent";
+import {LightrailEvent} from "../lightrailEvents/LightrailEvent";
+import {LightrailEventPublisher} from "./LightrailEventPublisher";
 import log = require("loglevel");
 
-export class LightrailEventPublisher {
+export class LightrailEventSnsPublisher implements LightrailEventPublisher {
 
     private sns = new aws.SNS({
         apiVersion: "2010-03-31",
@@ -63,7 +64,7 @@ export class LightrailEventPublisher {
 
     private async publishOnce(event: LightrailEvent): Promise<void> {
         await this.sns.publish({
-            Message: JSON.stringify(event.data),
+            Message: JSON.stringify(await event.data),
             MessageAttributes: {
                 specversion: {
                     DataType: "String",

@@ -2,9 +2,11 @@ import * as cassava from "cassava";
 import {Currency} from "../../model/Currency";
 import * as testUtils from "../../utils/testUtils";
 import {installRestRoutes} from "../rest/installRestRoutes";
-import {createMySqlEventsInstance} from "./index";
+import {BinlogWatcherStateManager} from "./binlogWatcherState/BinlogWatcherStateManager";
+import {LightrailEventMockPublisher} from "./lightrailEventPublisher/LightrailEventMockPublisher";
+import {startBinlogWatcher} from "./startBinlogWatcher";
 
-describe.skip("binlogWatcher", () => {
+describe.only("binlogWatcher", () => {
 
     const router = new cassava.Router();
 
@@ -25,44 +27,17 @@ describe.skip("binlogWatcher", () => {
     });
 
     it("test", async () => {
-        const instance = await createMySqlEventsInstance();
-
-        // const valueRes = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
-        //     id: testUtils.generateId(),
-        //     currency: "CAD",
-        //     balance: 5000
-        // });
-        // chai.assert.equal(valueRes.statusCode, 201);
-
-        // const checkoutRes = await testUtils.testAuthedRequest<Value>(router, "/v2/transactions/checkout", "POST", {
-        //     id: testUtils.generateId(),
-        //     currency: "CAD",
-        //     lineItems: [
-        //         {
-        //             type: "product",
-        //             unitPrice: 10000
-        //         }
-        //     ],
-        //     sources: [
-        //         {
-        //             rail: "lightrail",
-        //             valueId: valueRes.body.id
-        //         },
-        //         {
-        //             rail: "stripe",
-        //             source: "tok_visa"
-        //         }
-        //     ]
-        // });
-        // chai.assert.equal(checkoutRes.statusCode, 201, checkoutRes.bodyRaw);
-
-        // const cancelRes = await await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueRes.body.id}`, "PATCH", {
-        //     canceled: true
-        // });
-        // chai.assert.equal(cancelRes.statusCode, 200);
+        // TODO use this to test getting mysql to start fresh every time
+        const stateManager = new BinlogWatcherStateManager();
+        stateManager.state = {
+            id: "BinlogWatcherState",
+            checkpoint: null
+        };
+        const publisher = new LightrailEventMockPublisher();
+        const binlogStream = await startBinlogWatcher(stateManager, publisher);
 
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        await instance.stop();
+        console.log(publisher.events);
     });
 });
