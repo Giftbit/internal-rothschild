@@ -49,7 +49,7 @@ export async function executeStripeSteps(auth: giftbitRoutes.jwtauth.Authorizati
                         const updateChargeParams: Stripe.charges.IChargeUpdateOptions = {
                             description: step.reason
                         };
-                        await updateCharge(step.chargeId, updateChargeParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id);
+                        await updateCharge(step.chargeId, updateChargeParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id, true);
                         log.info(`Updated Stripe charge ${step.chargeId} with reason.`);
                     } catch (updateChargeError) {
                         log.warn("Continuing after error updating Stripe charge", updateChargeError);
@@ -136,7 +136,7 @@ export async function rollbackStripeChargeSteps(auth: giftbitRoutes.jwtauth.Auth
             const updateChargeParams: Stripe.charges.IChargeUpdateOptions = {
                 description: reason
             };
-            await updateCharge(step.chargeResult.id, updateChargeParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id);
+            await updateCharge(step.chargeResult.id, updateChargeParams, auth.isTestUser(), merchantStripeAuth.stripe_user_id, true);
             log.info(`Updated Stripe charge ${step.chargeResult.id} with reason.`);
 
             refunded.push(refund);
