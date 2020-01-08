@@ -2,6 +2,7 @@ import {StripeRestError} from "./StripeRestError";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import {getStripeClient} from "./stripeAccess";
+import {IHeaderOptions} from "stripe";
 import log = require("loglevel");
 import Stripe = require("stripe");
 
@@ -123,16 +124,15 @@ export async function captureCharge(chargeId: string, options: Stripe.charges.IC
  */
 export async function updateCharge(chargeId: string, params: Stripe.charges.IChargeUpdateOptions, isTestMode: boolean, merchantStripeAccountId: string, shortTimeout: boolean = false): Promise<any> {
     const lightrailStripe = await getStripeClient(isTestMode);
-    if (shortTimeout) {
-        lightrailStripe.setTimeout(10000 /* 10s */);
-    }
     log.info("Updating Stripe charge", chargeId, params, merchantStripeAccountId);
     try {
+        console.log("before update: " + new Date().getTime());
         const chargeUpdate = await lightrailStripe.charges.update(
             chargeId,
             params, {
                 stripe_account: merchantStripeAccountId,
-            }
+                timeout: shortTimeout ? 10000 /* 10s */ : undefined
+            } as IHeaderOptions
         );
         log.info("Updated Stripe charge", chargeUpdate);
         return chargeUpdate;
