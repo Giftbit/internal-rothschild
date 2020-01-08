@@ -117,8 +117,15 @@ export async function captureCharge(chargeId: string, options: Stripe.charges.IC
     }
 }
 
-export async function updateCharge(chargeId: string, params: Stripe.charges.IChargeUpdateOptions, isTestMode: boolean, merchantStripeAccountId: string): Promise<any> {
+/**
+ * Set @param shortTimeout = true when the update is a non-critical operation.
+ * This will cause a 10s timeout on the call to update the charge.
+ */
+export async function updateCharge(chargeId: string, params: Stripe.charges.IChargeUpdateOptions, isTestMode: boolean, merchantStripeAccountId: string, shortTimeout: boolean = false): Promise<any> {
     const lightrailStripe = await getStripeClient(isTestMode);
+    if (shortTimeout) {
+        lightrailStripe.setTimeout(10000 /* 10s */);
+    }
     log.info("Updating Stripe charge", chargeId, params, merchantStripeAccountId);
     try {
         const chargeUpdate = await lightrailStripe.charges.update(
