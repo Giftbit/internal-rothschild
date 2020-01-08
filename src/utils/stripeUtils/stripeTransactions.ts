@@ -126,7 +126,6 @@ export async function updateCharge(chargeId: string, params: Stripe.charges.ICha
     const lightrailStripe = await getStripeClient(isTestMode);
     log.info("Updating Stripe charge", chargeId, params, merchantStripeAccountId);
     try {
-        console.log("before update: " + new Date().getTime());
         const chargeUpdate = await lightrailStripe.charges.update(
             chargeId,
             params, {
