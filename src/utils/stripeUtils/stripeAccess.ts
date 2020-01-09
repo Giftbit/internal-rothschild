@@ -96,6 +96,7 @@ export async function getStripeClient(isTestMode: boolean): Promise<Stripe> {
         client = new Stripe(stripeModeConfig.secretKey);
     }
     client.setApiVersion(stripeApiVersion);
+    client.setMaxNetworkRetries(3);
     return client;
 }
 
