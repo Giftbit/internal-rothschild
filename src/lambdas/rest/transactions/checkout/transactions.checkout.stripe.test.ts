@@ -17,7 +17,6 @@ import {after} from "mocha";
 import {
     setStubbedStripeUserId,
     setStubsForStripeTests,
-    stubStripeClientTestHost,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
@@ -1321,66 +1320,6 @@ describe("split tender checkout with Stripe", () => {
 
         const checkout = await testUser.request<any>(router, "/v2/transactions/checkout", "POST", request);
         chai.assert.equal(checkout.statusCode, 409, `body=${checkout.bodyRaw}`);
-    });
-
-    it("returns 429 on Stripe RateLimitError (mock server only)", async function () {
-        if (testStripeLive()) {
-            // This test uses a special token only implemented in the mock server.
-            this.skip();
-        }
-
-        const request: CheckoutRequest = {
-            id: generateId(),
-            allowRemainder: true,
-            sources: [
-                {
-                    rail: "stripe",
-                    source: "tok_429"
-                }
-            ],
-            lineItems: [
-                {
-                    productId: "socks",
-                    unitPrice: 500
-                }
-            ],
-            currency: "CAD"
-        };
-
-        const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
-        chai.assert.equal(checkout.statusCode, 429);
-    });
-
-    it("throws a 502 if there is a StripeConnectionError", async function () {
-        if (testStripeLive()) {
-            // This test relies upon a special token not implemented in the official server.
-            this.skip();
-        }
-
-        // If data is sent to a host that supports Discard Protocol on TCP or UDP port 9.
-        // The data sent to the server is simply discarded and no response is returned.
-        stubStripeClientTestHost(sinonSandbox, "localhost", 9, "http");
-
-        const checkoutRequest: CheckoutRequest = {
-            id: generateId(),
-            sources: [
-                {
-                    rail: "stripe",
-                    source: "tok_visa",
-                }
-            ],
-            lineItems: [
-                {
-                    type: "product",
-                    productId: "xyz-123",
-                    unitPrice: 2000
-                }
-            ],
-            currency: "CAD"
-        };
-
-        const checkoutResponse = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-        chai.assert.equal(checkoutResponse.statusCode, 502);
     });
 
     describe("stripe customer + source tests", () => {

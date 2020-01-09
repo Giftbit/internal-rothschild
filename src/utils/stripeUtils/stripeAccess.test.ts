@@ -3,6 +3,19 @@ import * as sinon from "sinon";
 import * as kvsAccess from "../kvsAccess";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {getMerchantStripeAuth, initializeAssumeCheckoutToken} from "./stripeAccess";
+import {
+    setStubsForStripeTests,
+    stubStripeClientTestHost,
+    testStripeLive,
+    unsetStubsForStripeTests
+} from "../testUtils/stripeTestUtils";
+import {CheckoutRequest} from "../../model/TransactionRequest";
+import * as testUtils from "../testUtils";
+import * as transactions from "../../lambdas/rest/transactions/transactions";
+import * as valueStores from "../../lambdas/rest/values/values";
+import * as currencies from "../../lambdas/rest/currencies";
+import * as cassava from "cassava";
+import {StripeRestError} from "./StripeRestError";
 
 describe("stripeAccess", () => {
     describe("getMerchantStripeAuth", () => {
@@ -48,6 +61,128 @@ describe("stripeAccess", () => {
             chai.assert.equal(stripeAuth2.stripe_user_id, "acct_stripe_user_id2");
 
             chai.assert.notDeepEqual(stripeAuth1, stripeAuth2);
+        });
+    });
+
+    describe("Stripe connection errors", () => {
+        const router = new cassava.Router();
+
+        before(async () => {
+            await testUtils.resetDb();
+            router.route(testUtils.authRoute);
+            transactions.installTransactionsRest(router);
+            valueStores.installValuesRest(router);
+            currencies.installCurrenciesRest(router);
+
+            await testUtils.createUSD(router);
+            await testUtils.createUSDValue(router, {balance: 5000});
+
+            await setStubsForStripeTests();
+        });
+
+        const sinonSandbox = sinon.createSandbox();
+
+        afterEach(() => {
+            sinonSandbox.restore();
+        });
+        after(() => {
+            unsetStubsForStripeTests();
+        });
+
+        it("returns 429 on Stripe RateLimitError (mock server only)", async function () {
+            if (testStripeLive()) {
+                // This test uses a special token only implemented in the mock server.
+                this.skip();
+            }
+
+            const request: CheckoutRequest = {
+                id: testUtils.generateId(),
+                allowRemainder: true,
+                sources: [
+                    {
+                        rail: "stripe",
+                        source: "tok_429"
+                    }
+                ],
+                lineItems: [
+                    {
+                        productId: "socks",
+                        unitPrice: 500
+                    }
+                ],
+                currency: "USD"
+            };
+
+            const checkout = await testUtils.testAuthedRequest<StripeRestError>(router, "/v2/transactions/checkout", "POST", request);
+            chai.assert.equal(checkout.statusCode, 429);
+        });
+
+        it("throws a 502 if there is a StripeConnectionError", async function () {
+            if (testStripeLive()) {
+                // This test relies upon a special test server configuration.
+                this.skip();
+            }
+
+            // If data is sent to a host that supports Discard Protocol on TCP or UDP port 9.
+            // The data sent to the server is simply discarded and no response is returned.
+            stubStripeClientTestHost(sinonSandbox, "localhost", 9, "http");
+
+            const checkoutRequest: CheckoutRequest = {
+                id: testUtils.generateId(),
+                sources: [
+                    {
+                        rail: "stripe",
+                        source: "tok_visa",
+                    }
+                ],
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "xyz-123",
+                        unitPrice: 2000
+                    }
+                ],
+                currency: "USD"
+            };
+
+            const checkoutResponse = await testUtils.testAuthedRequest<StripeRestError>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+            chai.assert.equal(checkoutResponse.statusCode, 502);
+        });
+
+        it("global retry count = 3: requests are retried three times if none of the tries hit the global timeout", async function () {
+            if (testStripeLive()) {
+                // This test relies upon a special test server configuration.
+                this.skip();
+            }
+
+            // If data is sent to a host that supports Discard Protocol on TCP or UDP port 9.
+            // The data sent to the server is simply discarded and no response is returned.
+            stubStripeClientTestHost(sinonSandbox, "localhost", 9, "http");
+
+            const checkoutRequest: CheckoutRequest = {
+                id: testUtils.generateId(),
+                sources: [
+                    {
+                        rail: "stripe",
+                        source: "tok_visa",
+                    }
+                ],
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "xyz-123",
+                        unitPrice: 2000
+                    }
+                ],
+                currency: "USD"
+            };
+
+            const checkoutResponse = await testUtils.testAuthedRequest<StripeRestError>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+            chai.assert.equal(checkoutResponse.statusCode, 502, `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
+            chai.assert.isObject(JSON.parse(checkoutResponse.bodyRaw), `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
+            chai.assert.isObject(JSON.parse(checkoutResponse.bodyRaw)["stripeError"], `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
+            chai.assert.isString(JSON.parse(checkoutResponse.bodyRaw)["stripeError"].raw.message, `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
+            chai.assert.match(JSON.parse(checkoutResponse.bodyRaw)["stripeError"].raw.message, /An error occurred with our connection to Stripe. Request was retried \d times./);
         });
     });
 });
