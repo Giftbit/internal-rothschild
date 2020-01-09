@@ -17,6 +17,7 @@ import {after} from "mocha";
 import {
     setStubbedStripeUserId,
     setStubsForStripeTests,
+    stubStripeClientTestHost,
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
@@ -29,8 +30,6 @@ import {
 } from "../../../../utils/stripeUtils/stripeTransactions";
 import chaiExclude from "chai-exclude";
 import {TestUser} from "../../../../utils/testUtils/TestUser";
-import * as getStripeClient from "../../../../utils/stripeUtils/stripeAccess";
-import {getLightrailStripeModeConfig} from "../../../../utils/stripeUtils/stripeAccess";
 import log = require("loglevel");
 import Stripe = require("stripe");
 import ICharge = Stripe.charges.ICharge;
@@ -1358,15 +1357,9 @@ describe("split tender checkout with Stripe", () => {
             this.skip();
         }
 
-        sinonSandbox.stub(getStripeClient, "getStripeClient")
-            .callsFake(async function changeHost(): Promise<Stripe> {
-                const stripeModeConfig = await getLightrailStripeModeConfig(true);
-                const client = new Stripe(stripeModeConfig.secretKey);
-                // If data is sent to a host that supports Discard Protocol on TCP or UDP port 9.
-                // The data sent to the server is simply discarded and no response is returned.
-                client.setHost("localhost", 9, "http");
-                return client;
-            });
+        // If data is sent to a host that supports Discard Protocol on TCP or UDP port 9.
+        // The data sent to the server is simply discarded and no response is returned.
+        stubStripeClientTestHost(sinonSandbox, "localhost", 9, "http");
 
         const checkoutRequest: CheckoutRequest = {
             id: generateId(),

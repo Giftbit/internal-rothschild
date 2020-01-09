@@ -1,6 +1,8 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as kvsAccess from "../kvsAccess";
 import * as sinon from "sinon";
+import {SinonSandbox} from "sinon";
+import * as stripeAccess from "../stripeUtils/stripeAccess";
 import {
     getStripeClient,
     initializeAssumeCheckoutToken,
@@ -9,6 +11,8 @@ import {
 import {StripeModeConfig} from "../stripeUtils/StripeConfig";
 import {defaultTestUser} from "./index";
 import {TestUser} from "./TestUser";
+import Stripe from "stripe";
+
 
 const sinonSandbox = sinon.createSandbox();
 let stubKvsGet: sinon.SinonStub;
@@ -86,4 +90,14 @@ export function unsetStubsForStripeTests(): void {
 
 export function testStripeLive(): boolean {
     return process.env["TEST_STRIPE_LOCAL"] !== "true";
+}
+
+export function stubStripeClientTestHost(sandbox: SinonSandbox, host: string, port?: number, protocol = "http"): void {
+    const getOriginalClient = stripeAccess.getStripeClient;
+    sandbox.stub(stripeAccess, "getStripeClient")
+        .callsFake(async function changeHost(): Promise<Stripe> {
+            const client = await getOriginalClient.call(stripeAccess, true);
+            client.setHost(host, port, protocol);
+            return client;
+        });
 }
