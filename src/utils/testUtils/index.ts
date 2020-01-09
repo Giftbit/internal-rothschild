@@ -78,6 +78,7 @@ export async function resetDb(): Promise<void> {
     });
 
     try {
+        await connection.query("RESET MASTER");     // Resets the binary log.
         if (!fullMigrationHasRun) {
             await runSqlMigrations(connection);
             fullMigrationHasRun = true;

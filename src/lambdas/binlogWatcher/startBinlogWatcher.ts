@@ -5,7 +5,10 @@ import {BinlogTransactionBuilder} from "./binlogTransaction/BinlogTransactionBui
 import {BinlogEvent} from "./binlogStream/BinlogEvent";
 import {BinlogTransaction} from "./binlogTransaction/BinlogTransaction";
 import {getLightrailEvents} from "./lightrailEvents/getLightrailEvents";
-import {getDbCredentials} from "../../utils/dbUtils/connection";
+import {getDbCredentials, getKnexWrite} from "../../utils/dbUtils/connection";
+import {LightrailEvent} from "./lightrailEvents/LightrailEvent";
+import {generateId} from "../../utils/testUtils";
+import {QueryEvent} from "./binlogStream/ZongJiEvent";
 import log = require("loglevel");
 
 export async function startBinlogWatcher(stateManager: BinlogWatcherStateManager,
@@ -46,10 +49,70 @@ export async function startBinlogWatcher(stateManager: BinlogWatcherStateManager
         serverId: 1234,
         filename: stateManager.state?.checkpoint?.binlogName,      // bin.000025
         position: stateManager.state?.checkpoint?.binlogPosition,  // 0
-        excludeSchema: {
-            mysql: true,
+        includeSchema: {
+            rothschild: true,
         }
     });
 
     return binlogStream;
+}
+
+export async function testLightrailEvents(eventGenerator: () => Promise<void>): Promise<LightrailEvent[]> {
+    const openingSentinel = generateId();
+    const closingSentinel = generateId();
+    let hasSeenOpeningSentinel = false;
+    let hasSeenClosingSentinel = false;
+    let lightrailEvents: LightrailEvent[] = [];
+    let error: any = null;
+
+    const dbCredentials = await getDbCredentials();
+    const binlogStream = new BinlogStream({
+        host: process.env["DB_ENDPOINT"],
+        user: dbCredentials.username,
+        password: dbCredentials.password,
+        port: +process.env["DB_PORT"],
+        timezone: "Z"
+    });
+
+    const txBuilder = new BinlogTransactionBuilder();
+    binlogStream.on("binlog", (event: BinlogEvent) => {
+        console.log(hasSeenOpeningSentinel, hasSeenClosingSentinel, event);
+        if (!hasSeenOpeningSentinel) {
+            if (event.binlog.getTypeName() === "Query" && (event as BinlogEvent<QueryEvent>).binlog.query.includes(openingSentinel)) {
+                hasSeenOpeningSentinel = true;
+            }
+        } else if (!hasSeenClosingSentinel) {
+            if (event.binlog.getTypeName() === "Query" && (event as BinlogEvent<QueryEvent>).binlog.query.includes(closingSentinel)) {
+                hasSeenClosingSentinel = true;
+            } else {
+                txBuilder.handleBinlogEvent(event);
+            }
+        }
+    });
+
+    txBuilder.on("transaction", async (tx: BinlogTransaction) => {
+        try {
+            const events = await getLightrailEvents(tx);
+            lightrailEvents = [...lightrailEvents, ...events];
+        } catch (err) {
+            log.error("Error getting LightrailEvents", err);
+            error = err;
+        }
+    });
+
+    await binlogStream.start({
+        serverId: 1234,
+        includeSchema: {
+            rothschild: true,
+        }
+    });
+
+    const knex = await getKnexWrite();
+    knex.select("?", [openingSentinel]);
+    await eventGenerator();
+    knex.select("?", [closingSentinel]);
+
+    await binlogStream.stop();
+
+    return lightrailEvents;
 }

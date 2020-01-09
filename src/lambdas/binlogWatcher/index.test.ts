@@ -18,7 +18,7 @@ describe.only("binlogWatcher", () => {
     };
 
     before(async function () {
-        // await testUtils.resetDb();
+        await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
         testUtils.setCodeCryptographySecrets();
@@ -39,5 +39,11 @@ describe.only("binlogWatcher", () => {
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         console.log(publisher.events);
+    });
+
+    it("test better", async () => {
+        const lightrailEvents = await testLightrailEvents(async () => {
+            // make some rest calls
+        });
     });
 });
