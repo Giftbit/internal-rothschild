@@ -43,7 +43,7 @@ export interface LightrailEvent {
     /**
      * The ISO-8601 date of when the event was generated.
      */
-    time: Date;
+    time: Date | string;
 
     /**
      * The Lightrail userId of the user that generated the event (if any).

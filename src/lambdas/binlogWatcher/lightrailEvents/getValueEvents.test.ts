@@ -9,8 +9,9 @@ import {setStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
 import {createCurrency} from "../../rest/currencies";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {Value} from "../../../model/Value";
+import {assertIsLightrailEvent} from "./assertIsLightrailEvent";
 
-describe.only("getValueEvents()", () => {
+describe("getValueEvents()", () => {
 
     const router = new cassava.Router();
 
@@ -37,16 +38,49 @@ describe.only("getValueEvents()", () => {
         const createValueRequest: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
-            balance: 500
+            balance: 0
         };
+        let valueCreated: Value = null;
 
         const lightrailEvents = await testLightrailEvents(async () => {
-            console.log("!!!!!!!!!!!!!!!!!!!!!!!!!");
             const createRes = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", createValueRequest);
             chai.assert.equal(createRes.statusCode, 201, `body=${JSON.stringify(createRes.body)}`);
+            valueCreated = createRes.body;
+        });
+        chai.assert.lengthOf(lightrailEvents, 2);
+
+        const txEvent = lightrailEvents.find(e => e.type === "lightrail.transaction.created");
+        assertIsLightrailEvent(txEvent);
+        chai.assert.equal(txEvent.data.newTransaction.currency, createValueRequest.currency);
+        chai.assert.lengthOf(txEvent.data.newTransaction.steps, 1);
+        chai.assert.equal(txEvent.data.newTransaction.steps[0].rail, "lightrail");
+        chai.assert.equal(txEvent.data.newTransaction.steps[0].valueId, createValueRequest.id);
+
+        const valueEvent = lightrailEvents.find(e => e.type === "lightrail.value.created");
+        assertIsLightrailEvent(valueEvent);
+        chai.assert.deepEqual(valueEvent.data.newValue, valueCreated);
+    });
+
+    it("creates an event for Value updated", async () => {
+        const createValueRequest: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balance: 0
+        };
+        const createRes = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", createValueRequest);
+        chai.assert.equal(createRes.statusCode, 201, `body=${JSON.stringify(createRes.body)}`);
+        let valueUpdated: Value = null;
+
+        const lightrailEvents = await testLightrailEvents(async () => {
+            const updateRes = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${createValueRequest.id}`, "PATCH", {discount: true});
+            chai.assert.equal(updateRes.statusCode, 200, `body=${JSON.stringify(updateRes.body)}`);
+            const valueUpdated = updateRes.body;
         });
         chai.assert.lengthOf(lightrailEvents, 1);
-        chai.assert.equal(lightrailEvents[1].data.id, createValueRequest.id);
-        chai.assert.equal(lightrailEvents[1].data.currency, createValueRequest.balance);
+
+        const valueEvent = lightrailEvents.find(e => e.type === "lightrail.value.updated");
+        assertIsLightrailEvent(valueEvent);
+        chai.assert.deepEqual(valueEvent.data.oldValue, createRes.body);
+        chai.assert.deepEqual(valueEvent.data.newValue, valueUpdated);
     });
 });

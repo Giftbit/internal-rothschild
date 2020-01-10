@@ -4,10 +4,10 @@ import {BinlogTransaction} from "../binlogTransaction/BinlogTransaction";
 import {generateLightrailEventId} from "./generateEventId";
 
 export async function getValueCreatedEvents(tx: BinlogTransaction): Promise<LightrailEvent[]> {
-    return tx.statements
+    const eventPromises = tx.statements
         .filter(s => s.type === "INSERT" && s.table === "Values")
         .reduce((res, s) => [...res, ...s.affectedRows], [] as BinlogTransaction.AffectedRow<DbValue>[])
-        .map(row => {
+        .map(async row => {
             const newValue = row.after as DbValue;
             return {
                 specversion: "1.0",
@@ -15,20 +15,21 @@ export async function getValueCreatedEvents(tx: BinlogTransaction): Promise<Ligh
                 source: "/lightrail/rothschild",
                 id: generateLightrailEventId("lightrail.value.created", newValue.userId, newValue.id, newValue.createdDate.getTime()),
                 time: newValue.createdDate,
-                userId: newValue.userId,
+                userid: newValue.userId,
                 datacontenttype: "application/json",
                 data: {
-                    newValue: DbValue.toValue(newValue, false)
+                    newValue: await DbValue.toValue(newValue, false)
                 }
-            };
+            } as LightrailEvent;
         });
+    return Promise.all(eventPromises);
 }
 
 export async function getValueDeletedEvents(tx: BinlogTransaction): Promise<LightrailEvent[]> {
-    return tx.statements
+    const eventPromises = tx.statements
         .filter(s => s.type === "DELETE" && s.table === "Values")
         .reduce((res, s) => [...res, ...s.affectedRows], [] as BinlogTransaction.AffectedRow<DbValue>[])
-        .map(row => {
+        .map(async row => {
             const oldValue = row.before as DbValue;
             return {
                 specversion: "1.0",
@@ -36,20 +37,21 @@ export async function getValueDeletedEvents(tx: BinlogTransaction): Promise<Ligh
                 source: "/lightrail/rothschild",
                 id: generateLightrailEventId("lightrail.value.deleted", oldValue.userId, oldValue.id, oldValue.createdDate.getTime()),
                 time: new Date(),
-                userId: oldValue.userId,
+                userid: oldValue.userId,
                 datacontenttype: "application/json",
                 data: {
-                    oldValue: DbValue.toValue(oldValue, false)
+                    oldValue: await DbValue.toValue(oldValue, false)
                 }
-            };
+            } as LightrailEvent;
         });
+    return Promise.all(eventPromises);
 }
 
 export async function getValueUpdatedEvents(tx: BinlogTransaction): Promise<LightrailEvent[]> {
-    return tx.statements
+    const eventPromises = tx.statements
         .filter(s => s.type === "UPDATE" && s.table === "Values")
         .reduce((res, s) => [...res, ...s.affectedRows], [] as BinlogTransaction.AffectedRow<DbValue>[])
-        .map(row => {
+        .map(async row => {
             const oldValue = row.before as DbValue;
             const newValue = row.after as DbValue;
             return {
@@ -58,12 +60,13 @@ export async function getValueUpdatedEvents(tx: BinlogTransaction): Promise<Ligh
                 source: "/lightrail/rothschild",
                 id: generateLightrailEventId("lightrail.value.updated", newValue.userId, newValue.id, newValue.updatedDate.getTime()),
                 time: newValue.updatedDate,
-                userId: oldValue.userId,
+                userid: oldValue.userId,
                 datacontenttype: "application/json",
                 data: {
-                    oldValue: DbValue.toValue(oldValue, false),
-                    newValue: DbValue.toValue(newValue, false)
+                    oldValue: await DbValue.toValue(oldValue, false),
+                    newValue: await DbValue.toValue(newValue, false)
                 }
-            };
+            } as LightrailEvent;
         });
+    return Promise.all(eventPromises);
 }

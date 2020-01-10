@@ -43,6 +43,49 @@ export interface RotateEvent extends ZongJiEventBase {
     binlogName: string;
 }
 
+export interface TableMap {
+    [key: string]: {
+        columnSchemas: {
+            [key: string]: {
+                COLUMN_NAME: string;
+                COLLATION_NAME: string | null;
+                CHARACTER_SET_NAME: string | null;
+                COLUMN_COMMENT: string;
+                COLUMN_TYPE: string;
+            }
+        };
+        parentSchema: string;
+        tableName: string;
+        columns: {
+            name: string;
+            charset: string;
+            type: number;
+            metadata: {
+                max_length?: number;
+                decimals?: number;
+            }
+        }[];
+    };
+}
+
+export interface TableMapEvent {
+    getEventName(): "tablemap";
+
+    getTypeName(): "TableMap";
+
+    tableMap: TableMap;
+    tableId: number;
+    flags: number;
+    schemaName: string;
+    tableName: string;
+    columnCount: number;
+    columnTypes: number[];
+    columnsMetadata: ({
+        max_length?: number;
+        decimals?: number;
+    } | null)[];
+}
+
 export interface UpdateRowsEvent extends ZongJiEventBase {
     getEventName(): "updaterows";
 
@@ -53,6 +96,15 @@ export interface WriteRowsEvent extends ZongJiEventBase {
     getEventName(): "writerows";
 
     getTypeName(): "WriteRows";
+
+    tableId: number;
+    flags: number;
+    useChecksum: boolean;
+    extraDataLength: number;
+    numberOfColumns: number;
+    tableMap: TableMap;
+    columns_present_bitmap: Buffer;
+    rows: { [key: string]: string | number | boolean | Date | null }[];
 }
 
 /**

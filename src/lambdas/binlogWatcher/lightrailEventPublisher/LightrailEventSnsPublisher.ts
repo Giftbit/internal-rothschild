@@ -64,7 +64,7 @@ export class LightrailEventSnsPublisher implements LightrailEventPublisher {
 
     private async publishOnce(event: LightrailEvent): Promise<void> {
         await this.sns.publish({
-            Message: JSON.stringify(await event.data),
+            Message: JSON.stringify(event.data),
             MessageAttributes: {
                 specversion: {
                     DataType: "String",

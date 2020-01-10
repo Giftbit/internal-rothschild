@@ -18,7 +18,26 @@ export async function startBinlogWatcher(stateManager: BinlogWatcherStateManager
         user: dbCredentials.username,
         password: dbCredentials.password,
         port: +process.env["DB_PORT"],
-        timezone: "Z"
+        timezone: "Z",
+        typeCast: function (field, next) {
+            if (field.type === "TINY" && field.length === 1) {
+                // MySQL does not have a true boolean type.  Convert tinyint(1) to boolean.
+                const val = field.string();
+                if (val === null) {
+                    return null;
+                } else {
+                    return val === "1";
+                }
+            }
+            if (field.type === "DATETIME") {
+                const value = field.string();
+                if (!value) {
+                    return null;
+                }
+                return new Date(value + "Z");
+            }
+            return next();
+        }
     });
 
     const txBuilder = new BinlogTransactionBuilder();
@@ -56,8 +75,12 @@ export async function startBinlogWatcher(stateManager: BinlogWatcherStateManager
     return binlogStream;
 }
 
+/**
+ * Collects LightrailEvents generated during the execution of the given `eventGenerator`
+ * function.  It's sorta similar to the above startBinlogWatcher() if you squint.
+ */
 export async function testLightrailEvents(eventGenerator: () => Promise<void>): Promise<LightrailEvent[]> {
-    const sentinelUser = "binlogtest";
+    const sentinelUser = "binlogtest-" + Math.random().toString(36).substr(0, 5);
     let hasSeenOpeningSentinel = false;
     let hasSeenClosingSentinel = false;
     let lightrailEvents: LightrailEvent[] = [];
@@ -68,14 +91,33 @@ export async function testLightrailEvents(eventGenerator: () => Promise<void>): 
         user: dbCredentials.username,
         password: dbCredentials.password,
         port: +process.env["DB_PORT"],
-        timezone: "Z"
+        timezone: "Z",
+        typeCast: function (field, next) {
+            if (field.type === "TINY" && field.length === 1) {
+                // MySQL does not have a true boolean type.  Convert tinyint(1) to boolean.
+                const val = field.string();
+                if (val === null) {
+                    return null;
+                } else {
+                    return val === "1";
+                }
+            }
+            if (field.type === "DATETIME") {
+                const value = field.string();
+                if (!value) {
+                    return null;
+                }
+                return new Date(value + "Z");
+            }
+            return next();
+        }
     });
 
     const txBuilder = new BinlogTransactionBuilder();
     binlogStream.on("binlog", (event: BinlogEvent) => {
-        console.log(event.binlog.getTypeName());
         if (!hasSeenOpeningSentinel) {
-            if (event.binlog.getTypeName() === "Query" && (event as BinlogEvent<QueryEvent>).binlog.query.startsWith(`CREATE USER '${sentinelUser}'@'localhost' IDENTIFIED BY 'password'`)) {
+            // Look for a specific binlog event that marks the beginning of the events we care about.
+            if (event.binlog.getTypeName() === "Query" && (event as BinlogEvent<QueryEvent>).binlog.query.startsWith(`CREATE USER '${sentinelUser}'@'localhost'`)) {
                 hasSeenOpeningSentinel = true;
             }
         } else if (!hasSeenClosingSentinel) {
@@ -84,10 +126,9 @@ export async function testLightrailEvents(eventGenerator: () => Promise<void>): 
     });
 
     txBuilder.on("transaction", async (tx: BinlogTransaction) => {
-        console.log("tx=", tx);
         try {
             const events = await getLightrailEvents(tx);
-            lightrailEvents = [...lightrailEvents, ...events];
+            lightrailEvents = [...lightrailEvents, ...JSON.parse(JSON.stringify(events))];
         } catch (err) {
             log.error("Error getting LightrailEvents", err);
         }
@@ -100,18 +141,29 @@ export async function testLightrailEvents(eventGenerator: () => Promise<void>): 
         }
     });
 
+    // Block on all previous SQL transactions completing and then trigger
+    // a binlog event we will look for to mark the start of events we care about.
     const knex = await getKnexWrite();
+    await knex.raw("FLUSH TABLE WITH READ LOCK");
+    await knex.raw("UNLOCK TABLES");
     await knex.raw(`CREATE USER '${sentinelUser}'@'localhost' IDENTIFIED BY 'password'`);
-    await eventGenerator();
-    await knex.raw(`DROP USER '${sentinelUser}'@'localhost'`);
 
-    await new Promise(resolve => {
+    await eventGenerator();
+
+    await new Promise(async resolve => {
         binlogStream.on("binlog", (event: BinlogEvent) => {
+            // Look for a specific binlog event that marks the end of the events we care about.
             if (event.binlog.getTypeName() === "Query" && (event as BinlogEvent<QueryEvent>).binlog.query.startsWith(`DROP USER '${sentinelUser}'@'localhost'`)) {
                 hasSeenClosingSentinel = true;
                 resolve();
             }
         });
+
+        // Block on all previous SQL transactions completing and then trigger
+        // a binlog event we will look for to mark the end of events we care about.
+        await knex.raw("FLUSH TABLE WITH READ LOCK");
+        await knex.raw("UNLOCK TABLES");
+        await knex.raw(`DROP USER '${sentinelUser}'@'localhost'`);
     });
 
     await binlogStream.stop();
