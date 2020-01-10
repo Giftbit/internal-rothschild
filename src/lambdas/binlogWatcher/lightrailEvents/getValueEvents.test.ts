@@ -74,7 +74,7 @@ describe("getValueEvents()", () => {
         const lightrailEvents = await testLightrailEvents(async () => {
             const updateRes = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${createValueRequest.id}`, "PATCH", {discount: true});
             chai.assert.equal(updateRes.statusCode, 200, `body=${JSON.stringify(updateRes.body)}`);
-            const valueUpdated = updateRes.body;
+            valueUpdated = updateRes.body;
         });
         chai.assert.lengthOf(lightrailEvents, 1);
 

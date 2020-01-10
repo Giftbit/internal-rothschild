@@ -18,6 +18,11 @@ const normalizeRow = (row) => {
         if (columnValue instanceof Buffer && columnValue.length === 1) { // It's a boolean
             row[columns[i]] = (columnValue[0] > 0);
         }
+        if (columnValue instanceof Date) {
+            // Fix the timezone of Dates, because ZongJi constructs Dates in the local timezone,
+            // but our server is configured for UTC.
+            row[columns[i]] = new Date(Date.UTC(columnValue.getFullYear(), columnValue.getMonth(), columnValue.getDate(), columnValue.getHours(), columnValue.getMinutes(), columnValue.getSeconds(), columnValue.getMilliseconds()));
+        }
     }
 
     return row;

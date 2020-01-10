@@ -18,26 +18,7 @@ export async function startBinlogWatcher(stateManager: BinlogWatcherStateManager
         user: dbCredentials.username,
         password: dbCredentials.password,
         port: +process.env["DB_PORT"],
-        timezone: "Z",
-        typeCast: function (field, next) {
-            if (field.type === "TINY" && field.length === 1) {
-                // MySQL does not have a true boolean type.  Convert tinyint(1) to boolean.
-                const val = field.string();
-                if (val === null) {
-                    return null;
-                } else {
-                    return val === "1";
-                }
-            }
-            if (field.type === "DATETIME") {
-                const value = field.string();
-                if (!value) {
-                    return null;
-                }
-                return new Date(value + "Z");
-            }
-            return next();
-        }
+        timezone: "Z"
     });
 
     const txBuilder = new BinlogTransactionBuilder();
@@ -91,26 +72,7 @@ export async function testLightrailEvents(eventGenerator: () => Promise<void>): 
         user: dbCredentials.username,
         password: dbCredentials.password,
         port: +process.env["DB_PORT"],
-        timezone: "Z",
-        typeCast: function (field, next) {
-            if (field.type === "TINY" && field.length === 1) {
-                // MySQL does not have a true boolean type.  Convert tinyint(1) to boolean.
-                const val = field.string();
-                if (val === null) {
-                    return null;
-                } else {
-                    return val === "1";
-                }
-            }
-            if (field.type === "DATETIME") {
-                const value = field.string();
-                if (!value) {
-                    return null;
-                }
-                return new Date(value + "Z");
-            }
-            return next();
-        }
+        timezone: "Z"
     });
 
     const txBuilder = new BinlogTransactionBuilder();
