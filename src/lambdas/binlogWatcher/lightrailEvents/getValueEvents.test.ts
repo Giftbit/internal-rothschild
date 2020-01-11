@@ -5,7 +5,6 @@ import * as testUtils from "../../../utils/testUtils";
 import {generateId} from "../../../utils/testUtils";
 import {installRestRoutes} from "../../rest/installRestRoutes";
 import {testLightrailEvents} from "../startBinlogWatcher";
-import {setStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
 import {createCurrency} from "../../rest/currencies";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {Value} from "../../../model/Value";
@@ -25,12 +24,11 @@ describe("getValueEvents()", () => {
         updatedDate: nowInDbPrecision()
     };
 
-    before(async function () {
+    before(async () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
         testUtils.setCodeCryptographySecrets();
-        await setStubsForStripeTests();
         await createCurrency(testUtils.defaultTestUser.auth, currency);
     });
 

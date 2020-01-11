@@ -1,9 +1,22 @@
 import log = require("loglevel");
 import mysql = require("mysql");
 import ZongJi = require("zongji");
+import ZongJiCommon = require("zongji/lib/common");
 import {ZongJiOptions} from "./ZongJiOptions";
 import {QueryEvent, RotateEvent, ZongJiEvent} from "./ZongJiEvent";
 import {EventEmitter} from "events";
+
+// Oh God this is just the worst.  So MySQL doesn't have a BOOL type but
+// rather uses TINY INT storing 0 or 1.  That is the only way we use
+// TINY INT.  ZongJi parses TINY INT as a number and doesn't expose a way
+// to configure that.  So we'll do this gross hack and force it.
+const unhackedReadMysqlValue = ZongJiCommon.readMysqlValue;
+ZongJiCommon.readMysqlValue = function (parser, column, columnSchema, tableMap, zongji) {
+    if (column.type === 1) {
+        return !!unhackedReadMysqlValue.apply(this, arguments);
+    }
+    return unhackedReadMysqlValue.apply(this, arguments);
+};
 
 /**
  * Wraps ZongJi to create a stable steam of MySQL binlog events.

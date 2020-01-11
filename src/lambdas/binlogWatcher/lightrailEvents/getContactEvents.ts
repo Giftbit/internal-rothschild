@@ -15,7 +15,7 @@ export async function getContactCreatedEvents(tx: BinlogTransaction): Promise<Li
                 source: "/lightrail/rothschild",
                 id: generateLightrailEventId("lightrail.contact.created", newContact.userId, newContact.id, newContact.createdDate.getTime()),
                 time: newContact.createdDate,
-                userId: newContact.userId,
+                userid: newContact.userId,
                 datacontenttype: "application/json",
                 data: {
                     newContact: DbContact.toContact(newContact)
