@@ -16,7 +16,7 @@ const normalizeRow = (row) => {
         const columnValue = row[columns[i]];
 
         if (columnValue instanceof Buffer && columnValue.length === 1) { // It's a boolean
-            // <jeffg> This doesn't actually seem to do anything.
+            // <jeffg> This doesn't actually seem to happen.
             row[columns[i]] = (columnValue[0] > 0);
         }
         if (columnValue instanceof Date) {

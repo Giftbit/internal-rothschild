@@ -30,7 +30,7 @@ Parameters:
     Type: String
     Description: Optional ARN of the KMS encrypting SecureConfigBucket
     AllowedPattern: arn:aws:kms:[a-zA-Z_0-9\-]+:\d{12}:key/[a-zA-Z_0-9+=,.@\-_/]+
-  StateChangeTopicArn:
+  LightrailEventTopicArn:
     Type: String
     Description: Optional ARN of the SNS topic to publish messages about state changes to
     AllowedPattern: (arn:aws:sns:[a-zA-Z_0-9\-]+:\d{12}:[a-zA-Z_0-9+=,.@\-_/]+)?
@@ -43,7 +43,7 @@ Parameters:
     MinValue: 1
 
 Conditions:
-  IsStateChangeTopicArnSet: !Equals [!Ref StateChangeTopicArn, ""]
+  IsLightrailEventTopicArnSet: !Equals [!Ref LightrailEventTopicArn, ""]
   IsHighCapacity: !Not [!Equals [!Ref Capacity, "high"]]
 
 Mappings:
@@ -762,7 +762,7 @@ Resources:
 
   BinlogWatcherState:
     Type: AWS::DynamoDB::Table
-    Condition: IsStateChangeTopicArnSet
+    Condition: IsLightrailEventTopicArnSet
     Properties:
       AttributeDefinitions:
         - AttributeName: id
@@ -781,20 +781,21 @@ Resources:
 
   BinlogWatcherFunction:
     Type: AWS::Serverless::Function
-    Condition: IsStateChangeTopicArnSet
+    Condition: IsLightrailEventTopicArnSet
     Properties:
       CodeUri: ../dist/binlogWatcher/binlogWatcher.zip
       Handler: index.handler
       Runtime: nodejs10.x
-      MemorySize: 128
-      Timeout: 300 # seconds, 900 max
+      MemorySize: 128 # if we're consistently falling behind increase the instance size
+      Timeout: 600 # seconds, 900 max
       Environment:
         Variables:
           DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
           DB_PORT: !GetAtt DbCluster.Endpoint.Port
           DB_USERNAME: "todo_create_readrep_user"
           DB_PASSWORD_PARAMETER: "todo"
-          STATE_CHANGE_TOPIC_ARN: !Ref StateChangeTopicArn
+          LIGHTRAIL_EVENT_TOPIC_ARN: !Ref LightrailEventTopicArn
+          READ_REPLICA_SERVER_ID: 1234
       Tags:
         ShortName: BinlogWatcherFunction
         Service: Rothschild
@@ -802,5 +803,5 @@ Resources:
         CheckVoidSchedule:
           Type: Schedule
           Properties:
-            Schedule: rate(5 minutes)
+            Schedule: rate(10 minutes)
             Input: !Sub ""

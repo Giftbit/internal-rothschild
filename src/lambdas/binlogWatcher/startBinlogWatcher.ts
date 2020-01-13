@@ -1,3 +1,4 @@
+import * as giftbitRoutes from "giftbit-cassava-routes";
 import {LightrailEventPublisher} from "./lightrailEventPublisher/LightrailEventPublisher";
 import {BinlogWatcherStateManager} from "./binlogWatcherState/BinlogWatcherStateManager";
 import {BinlogStream} from "./binlogStream/BinlogStream";
@@ -10,6 +11,12 @@ import {LightrailEvent} from "./lightrailEvents/LightrailEvent";
 import {QueryEvent} from "./binlogStream/ZongJiEvent";
 import log = require("loglevel");
 
+/**
+ * Starts BinlogWatcher by opening a BinlogStream and wiring it up to the given
+ * BinlogWatcherStateManager and LightrailEventPublisher.
+ * @param stateManager
+ * @param publisher
+ */
 export async function startBinlogWatcher(stateManager: BinlogWatcherStateManager,
                                          publisher: LightrailEventPublisher): Promise<BinlogStream> {
     const dbCredentials = await getDbCredentials(); // TODO set up read rep user and put credentials in env
@@ -41,13 +48,14 @@ export async function startBinlogWatcher(stateManager: BinlogWatcherStateManager
             stateManager.closeCheckpoint(tx.binlogName, tx.nextPosition);
         } catch (err) {
             log.error("Error getting LightrailEvents", err);
+            giftbitRoutes.sentry.sendErrorNotification(err);
         }
     });
 
     await binlogStream.start({
-        serverId: 1234,
-        filename: stateManager.state?.checkpoint?.binlogName,      // bin.000025
-        position: stateManager.state?.checkpoint?.binlogPosition,  // 0
+        serverId: +(process.env["READ_REPLICA_SERVER_ID"] ?? 1234),
+        filename: stateManager.state?.checkpoint?.binlogName,
+        position: stateManager.state?.checkpoint?.binlogPosition,
         includeSchema: {
             rothschild: true,
         }
@@ -57,8 +65,10 @@ export async function startBinlogWatcher(stateManager: BinlogWatcherStateManager
 }
 
 /**
- * Collects LightrailEvents generated during the execution of the given `eventGenerator`
- * function.  It's sorta similar to the above startBinlogWatcher() if you squint.
+ * Collect LightrailEvents created during the execution of the given `eventGenerator`
+ * function for testing.  This is similar to the startBinlogWatcher() above but
+ * it's easier to set up and the LightrailEvents produced are guaranteed to be only
+ * from the eventGenerator.
  */
 export async function testLightrailEvents(eventGenerator: () => Promise<void>): Promise<LightrailEvent[]> {
     const sentinelUser = "binlogtest-" + Math.random().toString(36).substr(0, 5);

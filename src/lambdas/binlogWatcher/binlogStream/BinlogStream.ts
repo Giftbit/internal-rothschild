@@ -6,23 +6,15 @@ import {ZongJiOptions} from "./ZongJiOptions";
 import {QueryEvent, RotateEvent, ZongJiEvent} from "./ZongJiEvent";
 import {EventEmitter} from "events";
 
-// Oh God this is just the worst.  So MySQL doesn't have a BOOL type but
-// rather uses TINY INT storing 0 or 1.  That is the only way we use
-// TINY INT.  ZongJi parses TINY INT as a number and doesn't expose a way
-// to configure that.  So we'll do this gross hack and force it.
-const unhackedReadMysqlValue = ZongJiCommon.readMysqlValue;
-ZongJiCommon.readMysqlValue = function (parser, column, columnSchema, tableMap, zongji) {
-    if (column.type === 1) {
-        return !!unhackedReadMysqlValue.apply(this, arguments);
-    }
-    return unhackedReadMysqlValue.apply(this, arguments);
-};
-
 /**
  * Wraps ZongJi to create a stable steam of MySQL binlog events.
  *
  * Inspired by https://github.com/rodrigogs/mysql-events/
  * and https://gist.github.com/numtel/5b37b2a7f47b380c1a099596c6f3db2f
+ *
+ * Being an EventEmitter this will spew events as fast as it can with no possibility
+ * for back pressure.  That's fine as long as the consumer can keep up but if that
+ * ever stops being that case we'll have to rewrite this.
  */
 export class BinlogStream extends EventEmitter {
 
@@ -128,3 +120,18 @@ export class BinlogStream extends EventEmitter {
         return "";
     }
 }
+
+// Oh God this is just the worst.  So MySQL doesn't have a BOOL type but rather uses
+// TINY INT storing 0 or 1.  That is the only way we use TINY INT.  ZongJi parses
+// TINY INT as a number (where we want a boolean) and doesn't expose a way to
+// configure that.  So we'll do this gross hack and force it.
+const unhackedReadMysqlValue = ZongJiCommon.readMysqlValue;
+if (!unhackedReadMysqlValue) {
+    throw new Error("zongji/lib/common.readMysqlValue() not found.  The hacks are broken.");
+}
+ZongJiCommon.readMysqlValue = function (parser, column, columnSchema, tableMap, zongji) {
+    if (column.type === 1) {
+        return !!unhackedReadMysqlValue.apply(this, arguments);
+    }
+    return unhackedReadMysqlValue.apply(this, arguments);
+};

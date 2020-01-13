@@ -3,6 +3,9 @@ import * as dynameh from "dynameh";
 import {BinlogWatcherState} from "./BinlogWatcherState";
 import log = require("loglevel");
 
+/**
+ * Manages the BinlogWatcherState with loading, saving and updating the checkpoint.
+ */
 export class BinlogWatcherStateManager {
 
     state: BinlogWatcherState | null = null;

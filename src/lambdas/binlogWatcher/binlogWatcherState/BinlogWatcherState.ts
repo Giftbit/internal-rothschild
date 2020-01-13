@@ -6,6 +6,9 @@ export interface BinlogWatcherState {
      */
     id: "BinlogWatcherState";
 
+    /**
+     * The last binlog file and position that was successfully published.
+     */
     checkpoint: Checkpoint | null;
 
     /**

@@ -84,9 +84,9 @@ export class LightrailEventSnsPublisher implements LightrailEventPublisher {
                 },
                 time: {
                     DataType: "String",
-                    StringValue: event.time.toISOString()
+                    StringValue: typeof event.time === "string" ? event.time : event.time.toISOString()
                 },
-                userId: event.userid && {
+                userid: event.userid && {
                     DataType: "String",
                     StringValue: event.userid
                 },
@@ -95,7 +95,7 @@ export class LightrailEventSnsPublisher implements LightrailEventPublisher {
                     StringValue: event.datacontenttype
                 }
             },
-            TopicArn: process.env["STATE_CHANGE_TOPIC_ARN"]
+            TopicArn: process.env["LIGHTRAIL_EVENT_TOPIC_ARN"]
         });
     }
 }

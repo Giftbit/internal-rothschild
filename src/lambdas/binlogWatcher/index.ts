@@ -3,6 +3,9 @@ import * as logPrefix from "loglevel-plugin-prefix";
 import {BinlogWatcherStateManager} from "./binlogWatcherState/BinlogWatcherStateManager";
 import {startBinlogWatcher} from "./startBinlogWatcher";
 import {LightrailEventSnsPublisher} from "./lightrailEventPublisher/LightrailEventSnsPublisher";
+import {BinlogEvent} from "./binlogStream/BinlogEvent";
+import {MetricsLogger} from "../../utils/metricsLogger";
+import * as giftbitRoutes from "giftbit-cassava-routes";
 import log = require("loglevel");
 
 // Wrapping console.log instead of binding (default behaviour for loglevel)
@@ -29,8 +32,16 @@ export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, 
     const publisher = new LightrailEventSnsPublisher();
     const binlogStream = await startBinlogWatcher(stateManager, publisher);
 
-    // TODO if there's no activity for a minute also resolve this
-    await new Promise(resolve => setTimeout(resolve, ctx.getRemainingTimeInMillis() - 15000));
+    // Spin until there are 15 seconds left in execution time or there have been no events for `maxIdleMillis`.
+    const maxIdleMillis = 45000;
+    let lastBinlogEventReceivedMillis = Date.now();
+    binlogStream.on("binlog", (event: BinlogEvent) => {
+        lastBinlogEventReceivedMillis = Date.now();
+        MetricsLogger.binlogWatcherLatency(event.binlog.timestamp - lastBinlogEventReceivedMillis);
+    });
+    while (Date.now() - lastBinlogEventReceivedMillis < maxIdleMillis && ctx.getRemainingTimeInMillis() > 15001) {
+        await new Promise(resolve => setTimeout(resolve, Math.min(maxIdleMillis, ctx.getRemainingTimeInMillis() - 15000)));
+    }
 
     try {
         await Promise.race([
@@ -41,6 +52,7 @@ export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, 
         ]);
     } catch (err) {
         log.error("Error stopping BinlogWatcher", err);
+        giftbitRoutes.sentry.sendErrorNotification(err);
     }
 
     await new Promise(resolve => setTimeout(resolve, 3000));
@@ -54,5 +66,6 @@ export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, 
         ]);
     } catch (err) {
         log.error("Error saving BinlogWatcherState", err);
+        giftbitRoutes.sentry.sendErrorNotification(err);
     }
 }
