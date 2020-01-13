@@ -17,3 +17,6 @@ ALTER TABLE rothschild.Currencies
     MODIFY COLUMN createdDate DATETIME NOT NULL,
     MODIFY COLUMN updatedDate DATETIME NOT NULL,
     MODIFY COLUMN createdBy VARCHAR(64) NOT NULL;
+
+CREATE USER 'binlogwatcher'@'%' IDENTIFIED BY '${binlogwatcheruserpassword}';
+GRANT REPLICATION SLAVE ON *.* TO 'binlogwatcher'@'%';

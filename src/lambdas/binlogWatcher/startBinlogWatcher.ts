@@ -19,7 +19,7 @@ import log = require("loglevel");
  */
 export async function startBinlogWatcher(stateManager: BinlogWatcherStateManager,
                                          publisher: LightrailEventPublisher): Promise<BinlogStream> {
-    const dbCredentials = await getDbCredentials(); // TODO set up read rep user and put credentials in env
+    const dbCredentials = await getDbCredentials();
     const binlogStream = new BinlogStream({
         host: process.env["DB_ENDPOINT"],
         user: dbCredentials.username,

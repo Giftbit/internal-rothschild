@@ -277,6 +277,12 @@ Resources:
       ServiceToken: !GetAtt CredentialGenFunction.Arn
       KmsKeyId: !Ref DbEncryptionKeyId
       SsmPrefix: !Sub "${AWS::StackName}"
+  DbBinlogWatcherUserCredentials:
+    Type: Custom::DbCredentials
+    Properties:
+      ServiceToken: !GetAtt CredentialGenFunction.Arn
+      KmsKeyId: !Ref DbEncryptionKeyId
+      SsmPrefix: !Sub "${AWS::StackName}-binlogwatcher"
   DbReadUserCredentials:
     Type: Custom::DbCredentials
     Properties:
@@ -755,14 +761,13 @@ Resources:
     Type: Custom::PostDeployInvocation
     Properties:
       ServiceToken: !GetAtt PostDeployFunction.Arn
-      # This parameter isn't used, but changing it forces this function to run every time, which we want.
-      BuildDate: !Ref BuildDate
+      BinlogWatcherUserPassword: !GetAtt DbBinlogWatcherUserCredentials.Password
+      BuildDate: !Ref BuildDate # This parameter isn't used, but changing it forces this function to run every time, which we want.
       ReadOnlyUserPassword: !GetAtt DbReadUserCredentials.Password
       StripeWebhookEvents: "charge.refunded,charge.refund.updated,review.closed,charge.dispute.created"
 
   BinlogWatcherState:
     Type: AWS::DynamoDB::Table
-    Condition: IsLightrailEventTopicArnSet
     Properties:
       AttributeDefinitions:
         - AttributeName: id
@@ -787,15 +792,62 @@ Resources:
       Handler: index.handler
       Runtime: nodejs10.x
       MemorySize: 128 # if we're consistently falling behind increase the instance size
-      Timeout: 600 # seconds, 900 max
+      Timeout: 600 # same as schedule rate
       Environment:
         Variables:
           DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
           DB_PORT: !GetAtt DbCluster.Endpoint.Port
-          DB_USERNAME: "todo_create_readrep_user"
-          DB_PASSWORD_PARAMETER: "todo"
+          DB_USERNAME: "binlogwatcher"
+          DB_PASSWORD_PARAMETER: !GetAtt DbBinlogWatcherUserCredentials.PasswordParameter
           LIGHTRAIL_EVENT_TOPIC_ARN: !Ref LightrailEventTopicArn
           READ_REPLICA_SERVER_ID: 1234
+          SECURE_CONFIG_BUCKET: !Ref SecureConfigBucket
+          SECURE_CONFIG_KEY_SENTRY: sentry_lambda_services.json
+      VpcConfig:
+        SecurityGroupIds:
+          - !GetAtt LambdaSecurityGroup.GroupId
+        SubnetIds:
+          - !Ref SubnetPrivateA
+          - !Ref SubnetPrivateB
+          - !Ref SubnetPrivateC
+      Policies:
+        - AWSLambdaVPCAccessExecutionRole
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+                - ssm:GetParameters
+              Resource:
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DbBinlogWatcherUserCredentials.PasswordParameter}"
+            - Effect: Allow
+              Action:
+                - kms:Decrypt
+                - kms:DescribeKey
+              Resource:
+                - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource:
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
+            - Effect: Allow
+              Action:
+                - kms:Decrypt
+                - kms:DescribeKey
+              Resource:
+                - !Ref SecureConfigKmsArn
+              Condition:
+                StringLike:
+                  "kms:ViaService":
+                    !Sub "s3.${AWS::Region}.amazonaws.com"
+                  "kms:EncryptionContext:aws:s3:arn":
+                    !Sub "arn:aws:s3:::${SecureConfigBucket}/*"
+            - Effect: Allow
+              Action:
+                - SNS:Publish
+              Resource:
+                - !Ref LightrailEventTopicArn
       Tags:
         ShortName: BinlogWatcherFunction
         Service: Rothschild

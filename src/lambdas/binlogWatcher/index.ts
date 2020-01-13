@@ -1,11 +1,11 @@
 import * as awslambda from "aws-lambda";
+import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as logPrefix from "loglevel-plugin-prefix";
 import {BinlogWatcherStateManager} from "./binlogWatcherState/BinlogWatcherStateManager";
 import {startBinlogWatcher} from "./startBinlogWatcher";
 import {LightrailEventSnsPublisher} from "./lightrailEventPublisher/LightrailEventSnsPublisher";
 import {BinlogEvent} from "./binlogStream/BinlogEvent";
 import {MetricsLogger} from "../../utils/metricsLogger";
-import * as giftbitRoutes from "giftbit-cassava-routes";
 import log = require("loglevel");
 
 // Wrapping console.log instead of binding (default behaviour for loglevel)
@@ -26,7 +26,7 @@ logPrefix.apply(log, {
 
 log.setLevel(process.env.LOG_LEVEL as any || log.levels.INFO);
 
-export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context): Promise<any> {
+async function handleScheduleEvent(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context): Promise<any> {
     const stateManager = new BinlogWatcherStateManager();
     await stateManager.load();
     const publisher = new LightrailEventSnsPublisher();
@@ -69,3 +69,10 @@ export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, 
         giftbitRoutes.sentry.sendErrorNotification(err);
     }
 }
+
+// Export the lambda handler with Sentry error logging supported.
+export const handler = giftbitRoutes.sentry.wrapLambdaHandler({
+    handler: handleScheduleEvent,
+    logger: log.error,
+    secureConfig: giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<any>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_SENTRY")
+});
