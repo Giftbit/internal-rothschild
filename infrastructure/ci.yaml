@@ -422,7 +422,7 @@ Resources:
           - Effect: Allow
             Action:
               - application-autoscaling:*
-            Resource: *
+            Resource: "*"
           # S3
 #          - Effect: Allow
 #            Action:
