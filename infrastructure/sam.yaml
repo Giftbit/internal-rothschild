@@ -538,7 +538,7 @@ Resources:
       Runtime: nodejs10.x
       MemorySize: 512
       Timeout: 180 # seconds, 900 max
-      ReservedConcurrentExecutions: !If [HighCapacity, 500, 150]
+      ReservedConcurrentExecutions: !If [IsHighCapacity, 500, 150]
       Environment:
         Variables:
           DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
