@@ -34,14 +34,22 @@ async function handleScheduleEvent(evt: awslambda.CloudFormationCustomResourceEv
 
     // Spin until there are 15 seconds left in execution time or there have been no events for `maxIdleMillis`.
     const maxIdleMillis = 45000;
+    let binlogEventCount = 0;
     let lastBinlogEventReceivedMillis = Date.now();
+    let lastBinlogEventLatency = 0;
     binlogStream.on("binlog", (event: BinlogEvent) => {
+        binlogEventCount++;
         lastBinlogEventReceivedMillis = Date.now();
-        MetricsLogger.binlogWatcherLatency(event.binlog.timestamp - lastBinlogEventReceivedMillis);
+        lastBinlogEventLatency = lastBinlogEventReceivedMillis - event.binlog.timestamp;
     });
     while (Date.now() - lastBinlogEventReceivedMillis < maxIdleMillis && ctx.getRemainingTimeInMillis() > 15001) {
         await new Promise(resolve => setTimeout(resolve, Math.min(maxIdleMillis, ctx.getRemainingTimeInMillis() - 15000)));
+        MetricsLogger.binlogWatcherLatency(lastBinlogEventLatency);
+        lastBinlogEventLatency = 0;
     }
+
+    log.info("Stopping with", ctx.getRemainingTimeInMillis(), "remaining.", binlogEventCount, "binlog events processed.");
+    MetricsLogger.binlogWatcherEvents(binlogEventCount);
 
     try {
         await Promise.race([

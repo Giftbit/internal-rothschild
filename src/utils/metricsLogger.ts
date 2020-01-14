@@ -65,6 +65,10 @@ export namespace MetricsLogger {
     export function binlogWatcherLatency(latencyMillis: number): void {
         logMetric(latencyMillis, MetricsType.Gauge, "rothschild.binlogWatcher.latency");
     }
+
+    export function binlogWatcherEvents(eventCount: number): void {
+        logMetric(eventCount, MetricsType.Count, "rothschild.binlogWatcher.events");
+    }
 }
 
 export enum ValueAttachmentTypes {

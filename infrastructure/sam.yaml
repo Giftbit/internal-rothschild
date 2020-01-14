@@ -43,7 +43,7 @@ Parameters:
     MinValue: 1
 
 Conditions:
-  IsLightrailEventTopicArnSet: !Equals [!Ref LightrailEventTopicArn, ""]
+  IsLightrailEventTopicArnSet: !Not [!Equals [!Ref LightrailEventTopicArn, ""]]
   IsHighCapacity: !Not [!Equals [!Ref Capacity, "high"]]
 
 Mappings:
@@ -308,6 +308,7 @@ Resources:
       Description: !Sub "${AWS::StackName} cluster parameter group"
       Family: aurora5.6
       Parameters:
+        binlog_format: ROW
         innodb_strict_mode: 1
       Tags:
         - Key: Service
@@ -799,6 +800,7 @@ Resources:
           DB_PORT: !GetAtt DbCluster.Endpoint.Port
           DB_USERNAME: "binlogwatcher"
           DB_PASSWORD_PARAMETER: !GetAtt DbBinlogWatcherUserCredentials.PasswordParameter
+          DDB_TABLE: !Ref BinlogWatcherState
           LIGHTRAIL_EVENT_TOPIC_ARN: !Ref LightrailEventTopicArn
           READ_REPLICA_SERVER_ID: 1234
           SECURE_CONFIG_BUCKET: !Ref SecureConfigBucket
@@ -845,9 +847,20 @@ Resources:
                     !Sub "arn:aws:s3:::${SecureConfigBucket}/*"
             - Effect: Allow
               Action:
-                - SNS:Publish
+                - sns:Publish
               Resource:
                 - !Ref LightrailEventTopicArn
+            - Effect: Allow
+              Action:
+                - dynamodb:BatchGetItem
+                - dynamodb:DescribeTable
+                - dynamodb:DeleteItem
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:Query
+              Resource:
+                - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${BinlogWatcherState}"
+                - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${BinlogWatcherState}/*"
       Tags:
         ShortName: BinlogWatcherFunction
         Service: Rothschild
