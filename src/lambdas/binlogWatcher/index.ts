@@ -40,7 +40,10 @@ async function handleScheduleEvent(evt: awslambda.CloudFormationCustomResourceEv
     binlogStream.on("binlog", (event: BinlogEvent) => {
         binlogEventCount++;
         lastBinlogEventReceivedMillis = Date.now();
-        lastBinlogEventLatency = lastBinlogEventReceivedMillis - event.binlog.timestamp;
+        if (event.binlog.timestamp) {
+            // Rotate events have timestamp=0.
+            lastBinlogEventLatency = lastBinlogEventReceivedMillis - event.binlog.timestamp;
+        }
     });
     while (Date.now() - lastBinlogEventReceivedMillis < maxIdleMillis && ctx.getRemainingTimeInMillis() > 15001) {
         await new Promise(resolve => setTimeout(resolve, Math.min(maxIdleMillis, ctx.getRemainingTimeInMillis() - 15000)));
