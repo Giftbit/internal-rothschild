@@ -113,4 +113,62 @@ describe("BinlogWatcherStateManager", () => {
             binlogPosition: 3062
         });
     });
+
+    it("does not store the checkpoint if there is a second open checkpoint at the same position", () => {
+        const manager = new BinlogWatcherStateManager();
+        manager.state = {
+            id: "BinlogWatcherState",
+            checkpoint: {
+                binlogName: "bin.000001",
+                binlogPosition: 3062
+            }
+        };
+
+        manager.openCheckpoint("bin.000001", 4086);
+        chai.assert.deepEqual(manager.state.checkpoint, {
+            binlogName: "bin.000001",
+            binlogPosition: 3062
+        });
+
+        manager.openCheckpoint("bin.000001", 4086);
+        chai.assert.deepEqual(manager.state.checkpoint, {
+            binlogName: "bin.000001",
+            binlogPosition: 3062
+        });
+
+        manager.closeCheckpoint("bin.000001", 4086);
+        chai.assert.deepEqual(manager.state.checkpoint, {
+            binlogName: "bin.000001",
+            binlogPosition: 3062
+        });
+
+        manager.openCheckpoint("bin.000001", 5110);
+        chai.assert.deepEqual(manager.state.checkpoint, {
+            binlogName: "bin.000001",
+            binlogPosition: 3062
+        });
+
+        manager.closeCheckpoint("bin.000001", 4086);
+        chai.assert.deepEqual(manager.state.checkpoint, {
+            binlogName: "bin.000001",
+            binlogPosition: 4086
+        });
+    });
+
+    it("moves the checkpoint back when an earlier checkpoint is opened", () => {
+        const manager = new BinlogWatcherStateManager();
+        manager.state = {
+            id: "BinlogWatcherState",
+            checkpoint: {
+                binlogName: "bin.000001",
+                binlogPosition: 4086
+            }
+        };
+
+        manager.openCheckpoint("bin.000001", 256);
+        chai.assert.deepEqual(manager.state.checkpoint, {
+            binlogName: "bin.000001",
+            binlogPosition: 256
+        });
+    });
 });

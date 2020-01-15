@@ -31,10 +31,10 @@ export async function startBinlogWatcher(stateManager: BinlogWatcherStateManager
     const txBuilder = new BinlogTransactionBuilder();
     binlogStream.on("binlog", (event: BinlogEvent) => {
         txBuilder.handleBinlogEvent(event);
-        if (event.binlog.getTypeName() === "Rotate") {
-            // Checkpointing is safe here because transactions cannot span binlog files.
-            // Doing so prevents us from losing track of progress in the face of an epic
-            // string of binlog events without a transaction.
+        if (event.binlog.getTypeName() !== "Rotate" || event.binlog.getTypeName() === "Query") {
+            // Checkpointing here prevents us from losing our place in the face of a drought of SQL transactions.
+            // If we're in the middle of events about a SQL Transaction open checkpoints will prevent us from
+            // moving forward, but there's no point doing this work for events that are definitely about that.
             stateManager.openCheckpoint(event.binlogName, event.binlog.nextPosition);
             stateManager.closeCheckpoint(event.binlogName, event.binlog.nextPosition);
         }

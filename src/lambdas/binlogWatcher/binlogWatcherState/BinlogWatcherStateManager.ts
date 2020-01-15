@@ -35,10 +35,14 @@ export class BinlogWatcherStateManager {
      * the state checkpoint cannot advance past this point.
      */
     openCheckpoint(binlogName: string, binlogPosition: number): void {
-        this.openCheckpoints.push({
+        const openCheckpoint = {
             binlogName,
             binlogPosition
-        });
+        };
+        this.openCheckpoints.push(openCheckpoint);
+        if (this.state.checkpoint != null && BinlogWatcherState.Checkpoint.compare(openCheckpoint, this.state.checkpoint) < 0) {
+            this.state.checkpoint = openCheckpoint;
+        }
     }
 
     /**
@@ -65,7 +69,7 @@ export class BinlogWatcherStateManager {
 
         for (let checkpointIx = 0; checkpointIx < this.closedCheckpoints.length; checkpointIx++) {
             const closedCheckpoint = this.closedCheckpoints[checkpointIx];
-            const earlierOpenCheckpoint = this.openCheckpoints.find(c => BinlogWatcherState.Checkpoint.compare(c, closedCheckpoint) < 0);
+            const earlierOpenCheckpoint = this.openCheckpoints.find(c => BinlogWatcherState.Checkpoint.compare(c, closedCheckpoint) <= 0);
             if (!earlierOpenCheckpoint) {
                 this.closedCheckpoints.splice(checkpointIx, 1);
                 if (this.state.checkpoint == null || BinlogWatcherState.Checkpoint.compare(closedCheckpoint, this.state.checkpoint) > 0) {
@@ -76,6 +80,8 @@ export class BinlogWatcherStateManager {
     }
 
     async save(): Promise<void> {
+        log.info("BinlogWatcherStateManager saving state", this.state);
+
         const putRequest = dynameh.requestBuilder.buildPutInput(this.tableSchema, this.state);
         log.debug("BinlogWatcherStateManager putRequest=", JSON.stringify(putRequest));
 
@@ -97,6 +103,8 @@ export class BinlogWatcherStateManager {
                 id: "BinlogWatcherState",
                 checkpoint: null
             };
+        } else {
+            log.info("BinlogWatcherStateManager loaded state", this.state);
         }
     }
 }
