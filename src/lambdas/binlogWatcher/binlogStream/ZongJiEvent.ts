@@ -7,6 +7,12 @@ export interface ZongJiEventBase {
     timestamp: number;
 }
 
+export interface FormatEvent extends ZongJiEventBase {
+    getEventName(): "format";
+
+    getTypeName(): "Format";
+}
+
 export interface DeleteRowsEvent extends ZongJiEventBase {
     getEventName(): "deleterows";
 
@@ -41,6 +47,7 @@ export interface RotateEvent extends ZongJiEventBase {
     getTypeName(): "Rotate";
 
     binlogName: string;
+    position: number;
 }
 
 export interface TableMap {
@@ -123,4 +130,11 @@ export interface XidEvent extends ZongJiEventBase {
  * @see https://github.com/nevill/zongji
  * @see https://dev.mysql.com/doc/internals/en/event-meanings.html
  */
-export type ZongJiEvent = DeleteRowsEvent | QueryEvent | RotateEvent | UpdateRowsEvent | WriteRowsEvent | XidEvent;
+export type ZongJiEvent =
+    FormatEvent
+    | DeleteRowsEvent
+    | QueryEvent
+    | RotateEvent
+    | UpdateRowsEvent
+    | WriteRowsEvent
+    | XidEvent;

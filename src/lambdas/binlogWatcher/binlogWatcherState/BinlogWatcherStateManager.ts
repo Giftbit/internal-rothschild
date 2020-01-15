@@ -9,6 +9,7 @@ import log = require("loglevel");
 export class BinlogWatcherStateManager {
 
     state: BinlogWatcherState | null = null;
+    private stateAsLoaded: BinlogWatcherState | null = null;
 
     private dynamodb = new aws.DynamoDB({
         apiVersion: "2012-08-10",
@@ -80,6 +81,13 @@ export class BinlogWatcherStateManager {
     }
 
     async save(): Promise<void> {
+        if (this.state?.checkpoint?.binlogPosition === this.stateAsLoaded?.checkpoint?.binlogPosition
+            && this.state?.checkpoint?.binlogName === this.stateAsLoaded?.checkpoint?.binlogName
+        ) {
+            log.info("BinlogWatcherStateManager not saving because state hasn't changed.");
+            return;
+        }
+
         log.info("BinlogWatcherStateManager saving state", this.state);
 
         const putRequest = dynameh.requestBuilder.buildPutInput(this.tableSchema, this.state);
@@ -97,6 +105,7 @@ export class BinlogWatcherStateManager {
         log.debug("BinlogWatcherStateManager getResponse=", JSON.stringify(getResponse));
 
         this.state = dynameh.responseUnwrapper.unwrapGetOutput(getResponse);
+        this.stateAsLoaded = dynameh.responseUnwrapper.unwrapGetOutput(getResponse);
         if (this.state === null) {
             log.warn("BinlogWatcherStateManager did not find existing state.  This should only happen the very first time this Lambda runs!");
             this.state = {
