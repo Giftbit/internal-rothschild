@@ -7,7 +7,7 @@ import {QueryEvent, RotateEvent, ZongJiEvent} from "./ZongJiEvent";
 import {EventEmitter} from "events";
 
 /**
- * Wraps ZongJi to create a stable steam of MySQL binlog events.
+ * Wraps ZongJi to create a stable stream of MySQL binlog events.
  *
  * Inspired by https://github.com/rodrigogs/mysql-events/
  * and https://gist.github.com/numtel/5b37b2a7f47b380c1a099596c6f3db2f
@@ -70,6 +70,7 @@ export class BinlogStream extends EventEmitter {
             log.info("BinlogStream ZongJi ready");
         });
         this.zongJi.on("binlog", (event: ZongJiEvent) => {
+            // Useful for debugging BinlogStream but commented out normally because it's *really* noisy.
             // log.debug(event.getTypeName(), this.summarizeEventForDebugging(event), binlogName, binlogPosition);
             if (event.getTypeName() === "Rotate") {
                 binlogName = (event as RotateEvent).binlogName;
@@ -109,7 +110,7 @@ export class BinlogStream extends EventEmitter {
         log.info("BinlogStream stopped");
     }
 
-    // noinspection JSUnusedGlobalSymbols This useful for too noisy for most debugging.
+    // noinspection JSUnusedGlobalSymbols This is useful for debugging but too noisy to usually leave on.
     summarizeEventForDebugging(event: ZongJiEvent): string {
         if (event.getTypeName() === "Query") {
             if ((event as QueryEvent).query.length > 16) {
