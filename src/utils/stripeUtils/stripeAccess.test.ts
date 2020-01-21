@@ -188,6 +188,41 @@ describe("stripeAccess", () => {
             chai.assert.match(JSON.parse(checkoutResponse.bodyRaw)["stripeError"].raw.message, /An error occurred with our connection to Stripe. Request was retried 3 times./);
         });
 
+        it("global timeout = 27s: requests time out after 27s; hitting this global timeout does not trigger a retry", async function () {
+            if (testStripeLive()) {
+                // This test relies upon a special test server configuration.
+                this.skip();
+            }
+
+            // Use a non-routable IP address to artifically induce a timeout (https://stackoverflow.com/a/904609)
+            stubStripeClientTestHost(sinonSandbox, "10.255.255.1", null, "http");
+
+            const checkoutRequest: CheckoutRequest = {
+                id: testUtils.generateId(),
+                sources: [
+                    {
+                        rail: "stripe",
+                        source: "tok_visa",
+                    }
+                ],
+                lineItems: [
+                    {
+                        type: "product",
+                        productId: "xyz-123",
+                        unitPrice: 2000
+                    }
+                ],
+                currency: "USD"
+            };
+
+            const checkoutResponse = await testUtils.testAuthedRequest<StripeRestError>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+            chai.assert.equal(checkoutResponse.statusCode, 502, `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
+            chai.assert.isObject(JSON.parse(checkoutResponse.bodyRaw), `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
+            chai.assert.isObject(JSON.parse(checkoutResponse.bodyRaw)["stripeError"], `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
+            chai.assert.isString(JSON.parse(checkoutResponse.bodyRaw)["stripeError"].raw.message, `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
+            chai.assert.match(JSON.parse(checkoutResponse.bodyRaw)["stripeError"].raw.message, /Request aborted due to timeout being reached/, `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
+        }).timeout(28000);
+
         describe("updating Stripe charges - single retry; short timeout", () => {
             it("only retries once when updating a charge", async function () {
                 if (testStripeLive()) {

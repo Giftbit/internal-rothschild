@@ -97,6 +97,7 @@ export async function getStripeClient(isTestMode: boolean): Promise<Stripe> {
     }
     client.setApiVersion(stripeApiVersion);
     client.setMaxNetworkRetries(3);
+    client.setTimeout(27000);
     return client;
 }
 
