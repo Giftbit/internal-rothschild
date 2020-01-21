@@ -64,7 +64,7 @@ describe("stripeAccess", () => {
         });
     });
 
-    describe("Stripe connection errors", () => {
+    describe("Stripe connection errors (mock server only)", function () {
         const router = new cassava.Router();
 
         before(async () => {
@@ -85,11 +85,12 @@ describe("stripeAccess", () => {
         afterEach(() => {
             sinonSandbox.restore();
         });
+
         after(() => {
             unsetStubsForStripeTests();
         });
 
-        it("returns 429 on Stripe RateLimitError (mock server only)", async function () {
+        it("returns 429 on Stripe RateLimitError", async function () {
             if (testStripeLive()) {
                 // This test uses a special token only implemented in the mock server.
                 this.skip();
@@ -182,7 +183,7 @@ describe("stripeAccess", () => {
             chai.assert.isObject(JSON.parse(checkoutResponse.bodyRaw), `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
             chai.assert.isObject(JSON.parse(checkoutResponse.bodyRaw)["stripeError"], `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
             chai.assert.isString(JSON.parse(checkoutResponse.bodyRaw)["stripeError"].raw.message, `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
-            chai.assert.match(JSON.parse(checkoutResponse.bodyRaw)["stripeError"].raw.message, /An error occurred with our connection to Stripe. Request was retried \d times./);
+            chai.assert.match(JSON.parse(checkoutResponse.bodyRaw)["stripeError"].raw.message, /An error occurred with our connection to Stripe. Request was retried 3 times./);
         });
     });
 });
