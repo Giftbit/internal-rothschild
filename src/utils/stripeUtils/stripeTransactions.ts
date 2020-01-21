@@ -120,7 +120,8 @@ export async function captureCharge(chargeId: string, options: Stripe.charges.IC
 
 /**
  * Set @param shortTimeout = true when the update is a non-critical operation.
- * This will cause a 10s timeout on the call to update the charge.
+ * This will cause a 5s timeout on the call to update the charge and only a single retry
+ * in case of network failure or a 500 from Stripe.
  */
 export async function updateCharge(chargeId: string, params: Stripe.charges.IChargeUpdateOptions, isTestMode: boolean, merchantStripeAccountId: string, shortTimeout: boolean = false): Promise<any> {
     const lightrailStripe = await getStripeClient(isTestMode);
@@ -130,7 +131,8 @@ export async function updateCharge(chargeId: string, params: Stripe.charges.ICha
             chargeId,
             params, {
                 stripe_account: merchantStripeAccountId,
-                timeout: shortTimeout ? 10000 /* 10s */ : undefined
+                timeout: shortTimeout ? 5000 /* 5s */ : undefined,
+                maxNetworkRetries: shortTimeout ? 1 : undefined
             } as IHeaderOptions
         );
         log.info("Updated Stripe charge", chargeUpdate);
