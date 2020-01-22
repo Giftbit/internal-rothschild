@@ -192,83 +192,43 @@ describe("stripeAccess", () => {
                 chai.assert.equal((client as any)._api.timeout, 27000, `Stripe client global config should have 27s timeout: ${(client as any)._api}`)
             });
 
-            describe("special config for non-critical charge update calls", () => {
-                it("only retries once", async function () {
-                    if (testStripeLive()) {
-                        // This test relies upon a special test server configuration.
-                        this.skip();
-                    }
+            it("only retries once for non-critical charge updates", async function () {
+                if (testStripeLive()) {
+                    // This test relies upon a special test server configuration.
+                    this.skip();
+                }
 
-                    const checkoutRequest: CheckoutRequest = {
-                        id: testUtils.generateId(),
-                        sources: [
-                            {
-                                rail: "stripe",
-                                source: "tok_visa",
-                            }
-                        ],
-                        lineItems: [
-                            {
-                                type: "product",
-                                productId: "xyz-123",
-                                unitPrice: 2000
-                            }
-                        ],
-                        currency: "USD"
-                    };
+                const checkoutRequest: CheckoutRequest = {
+                    id: testUtils.generateId(),
+                    sources: [
+                        {
+                            rail: "stripe",
+                            source: "tok_visa",
+                        }
+                    ],
+                    lineItems: [
+                        {
+                            type: "product",
+                            productId: "xyz-123",
+                            unitPrice: 2000
+                        }
+                    ],
+                    currency: "USD"
+                };
 
-                    const checkoutResponse = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-                    chai.assert.equal(checkoutResponse.statusCode, 201, `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
+                const checkoutResponse = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+                chai.assert.equal(checkoutResponse.statusCode, 201, `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
 
-                    // If data is sent to a host that supports Discard Protocol on TCP or UDP port 9.
-                    // The data sent to the server is simply discarded and no response is returned.
-                    stubStripeClientHost(sinonSandbox, "localhost", 9, "http");
+                // If data is sent to a host that supports Discard Protocol on TCP or UDP port 9.
+                // The data sent to the server is simply discarded and no response is returned.
+                stubStripeClientHost(sinonSandbox, "localhost", 9, "http");
 
-                    try {
-                        await updateCharge((checkoutResponse.body.steps[0] as StripeTransactionStep).charge.id, {description: "this is an update"}, true, testUtils.defaultTestUser.stripeAccountId, true);
-                        chai.assert.fail("Call to update Stripe charge should have thrown an error");
-                    } catch (err) {
-                        chai.assert.match(err.additionalParams.stripeError.raw.message, /Request was retried 1 time/);
-                    }
-                });
-
-                it("uses a short timeout", async function () {
-                    if (testStripeLive()) {
-                        // This test relies upon a special test server configuration.
-                        this.skip();
-                    }
-
-                    const checkoutRequest: CheckoutRequest = {
-                        id: testUtils.generateId(),
-                        sources: [
-                            {
-                                rail: "stripe",
-                                source: "tok_visa",
-                            }
-                        ],
-                        lineItems: [
-                            {
-                                type: "product",
-                                productId: "xyz-123",
-                                unitPrice: 2000
-                            }
-                        ],
-                        currency: "USD"
-                    };
-
-                    const checkoutResponse = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-                    chai.assert.equal(checkoutResponse.statusCode, 201, `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
-
-                    // Use a non-routable IP address to artificially induce a timeout
-                    stubStripeClientHost(sinonSandbox, "192.0.2.0", null, "http");
-
-                    try {
-                        await updateCharge((checkoutResponse.body.steps[0] as StripeTransactionStep).charge.id, {description: "this is an update"}, true, testUtils.defaultTestUser.stripeAccountId, true);
-                        chai.assert.fail("Call to update Stripe charge should have timed out");
-                    } catch (err) {
-                        chai.assert.match(err.additionalParams.stripeError.raw.message, /Request aborted due to timeout being reached \(5000ms\)/ /*Error message from Stripe client for exact timeout set on non-critical update calls*/);
-                    }
-                }).timeout(6000);
+                try {
+                    await updateCharge((checkoutResponse.body.steps[0] as StripeTransactionStep).charge.id, {description: "this is an update"}, true, testUtils.defaultTestUser.stripeAccountId, true);
+                    chai.assert.fail("Call to update Stripe charge should have thrown an error");
+                } catch (err) {
+                    chai.assert.match(err.additionalParams.stripeError.raw.message, /Request was retried 1 time/);
+                }
             });
         });
     });
