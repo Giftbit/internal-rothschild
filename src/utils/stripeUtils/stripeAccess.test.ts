@@ -1,15 +1,11 @@
 import * as chai from "chai";
 import * as sinon from "sinon";
+import {SinonSandbox} from "sinon";
 import * as kvsAccess from "../kvsAccess";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {getMerchantStripeAuth, initializeAssumeCheckoutToken} from "./stripeAccess";
-import {
-    setStubsForStripeTests,
-    stubStripeClientTestHost,
-    testStripeLive,
-    unsetStubsForStripeTests
-} from "../testUtils/stripeTestUtils";
-import {CheckoutRequest} from "../../model/TransactionRequest";
+import * as stripeAccess from "./stripeAccess";
+import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../testUtils/stripeTestUtils";
+import {CheckoutRequest, transactionPartySchema} from "../../model/TransactionRequest";
 import * as testUtils from "../testUtils";
 import * as transactions from "../../lambdas/rest/transactions/transactions";
 import * as valueStores from "../../lambdas/rest/values/values";
@@ -18,6 +14,8 @@ import * as cassava from "cassava";
 import {StripeRestError} from "./StripeRestError";
 import {updateCharge} from "./stripeTransactions";
 import {StripeTransactionStep, Transaction} from "../../model/Transaction";
+import Stripe from "stripe";
+import stripe = transactionPartySchema.stripe;
 
 describe("stripeAccess", () => {
     describe("getMerchantStripeAuth", () => {
@@ -34,7 +32,7 @@ describe("stripeAccess", () => {
             const testAssumeToken: giftbitRoutes.secureConfig.AssumeScopeToken = {
                 assumeToken: "this-is-an-assume-token"
             };
-            initializeAssumeCheckoutToken(Promise.resolve(testAssumeToken));
+            stripeAccess.initializeAssumeCheckoutToken(Promise.resolve(testAssumeToken));
 
             sinonSandbox = sinon.createSandbox();
             const stubKvsGet = sinonSandbox.stub(kvsAccess, "kvsGet");
@@ -56,10 +54,10 @@ describe("stripeAccess", () => {
         });
 
         it("does not leak StripeAuths between different auth badges", async () => {
-            const stripeAuth1 = await getMerchantStripeAuth(auth1);
+            const stripeAuth1 = await stripeAccess.getMerchantStripeAuth(auth1);
             chai.assert.equal(stripeAuth1.stripe_user_id, "acct_stripe_user_id1");
 
-            const stripeAuth2 = await getMerchantStripeAuth(auth2);
+            const stripeAuth2 = await stripeAccess.getMerchantStripeAuth(auth2);
             chai.assert.equal(stripeAuth2.stripe_user_id, "acct_stripe_user_id2");
 
             chai.assert.notDeepEqual(stripeAuth1, stripeAuth2);
@@ -128,7 +126,7 @@ describe("stripeAccess", () => {
 
             // If data is sent to a host that supports Discard Protocol on TCP or UDP port 9.
             // The data sent to the server is simply discarded and no response is returned.
-            stubStripeClientTestHost(sinonSandbox, "localhost", 9, "http");
+            stubStripeClientHost(sinonSandbox, "localhost", 9, "http");
 
             const checkoutRequest: CheckoutRequest = {
                 id: testUtils.generateId(),
@@ -152,122 +150,16 @@ describe("stripeAccess", () => {
             chai.assert.equal(checkoutResponse.statusCode, 502);
         });
 
-        it("global retry count = 3: requests are retried three times if none of the tries hit the global timeout", async function () {
-            if (testStripeLive()) {
-                // This test relies upon a special test server configuration.
-                this.skip();
-            }
-
-            // If data is sent to a host that supports Discard Protocol on TCP or UDP port 9.
-            // The data sent to the server is simply discarded and no response is returned.
-            stubStripeClientTestHost(sinonSandbox, "localhost", 9, "http");
-
-            const checkoutRequest: CheckoutRequest = {
-                id: testUtils.generateId(),
-                sources: [
-                    {
-                        rail: "stripe",
-                        source: "tok_visa",
-                    }
-                ],
-                lineItems: [
-                    {
-                        type: "product",
-                        productId: "xyz-123",
-                        unitPrice: 2000
-                    }
-                ],
-                currency: "USD"
-            };
-
-            const checkoutResponse = await testUtils.testAuthedRequest<StripeRestError>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-            chai.assert.equal(checkoutResponse.statusCode, 502, `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
-            chai.assert.isObject(JSON.parse(checkoutResponse.bodyRaw), `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
-            chai.assert.isObject(JSON.parse(checkoutResponse.bodyRaw)["stripeError"], `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
-            chai.assert.isString(JSON.parse(checkoutResponse.bodyRaw)["stripeError"].raw.message, `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
-            chai.assert.match(JSON.parse(checkoutResponse.bodyRaw)["stripeError"].raw.message, /An error occurred with our connection to Stripe. Request was retried 3 times./);
-        });
-
-        it("global timeout = 27s: requests time out after 27s; hitting this global timeout does not trigger a retry", async function () {
-            if (testStripeLive()) {
-                // This test relies upon a special test server configuration.
-                this.skip();
-            }
-
-            // Use a non-routable IP address to artifically induce a timeout (https://stackoverflow.com/a/904609)
-            stubStripeClientTestHost(sinonSandbox, "10.255.255.1", null, "http");
-
-            const checkoutRequest: CheckoutRequest = {
-                id: testUtils.generateId(),
-                sources: [
-                    {
-                        rail: "stripe",
-                        source: "tok_visa",
-                    }
-                ],
-                lineItems: [
-                    {
-                        type: "product",
-                        productId: "xyz-123",
-                        unitPrice: 2000
-                    }
-                ],
-                currency: "USD"
-            };
-
-            const checkoutResponse = await testUtils.testAuthedRequest<StripeRestError>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-            chai.assert.equal(checkoutResponse.statusCode, 502, `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
-            chai.assert.isObject(JSON.parse(checkoutResponse.bodyRaw), `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
-            chai.assert.isObject(JSON.parse(checkoutResponse.bodyRaw)["stripeError"], `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
-            chai.assert.isString(JSON.parse(checkoutResponse.bodyRaw)["stripeError"].raw.message, `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
-            chai.assert.match(JSON.parse(checkoutResponse.bodyRaw)["stripeError"].raw.message, /Request aborted due to timeout being reached/, `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
-        }).timeout(28000);
-
-        describe("updating Stripe charges - single retry; short timeout", () => {
-            it("only retries once when updating a charge", async function () {
+        describe("Stripe client config", () => {
+            it("retries requests three times (if none of the tries hit the global timeout)", async function () {
                 if (testStripeLive()) {
                     // This test relies upon a special test server configuration.
                     this.skip();
                 }
-
-                const checkoutRequest: CheckoutRequest = {
-                    id: testUtils.generateId(),
-                    sources: [
-                        {
-                            rail: "stripe",
-                            source: "tok_visa",
-                        }
-                    ],
-                    lineItems: [
-                        {
-                            type: "product",
-                            productId: "xyz-123",
-                            unitPrice: 2000
-                        }
-                    ],
-                    currency: "USD"
-                };
-
-                const checkoutResponse = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-                chai.assert.equal(checkoutResponse.statusCode, 201, `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
 
                 // If data is sent to a host that supports Discard Protocol on TCP or UDP port 9.
                 // The data sent to the server is simply discarded and no response is returned.
-                stubStripeClientTestHost(sinonSandbox, "localhost", 9, "http");
-
-                try {
-                    await updateCharge((checkoutResponse.body.steps[0] as StripeTransactionStep).charge.id, {description: "this is an update"}, true, testUtils.defaultTestUser.stripeAccountId, true);
-                    chai.assert.fail("Call to update Stripe charge should have thrown an error");
-                } catch (err) {
-                    chai.assert.match(err.additionalParams.stripeError.raw.message, /Request was retried 1 time/);
-                }
-            });
-
-            it("uses a short timeout when updating a charge", async function () {
-                if (testStripeLive()) {
-                    // This test relies upon a special test server configuration.
-                    this.skip();
-                }
+                stubStripeClientHost(sinonSandbox, "localhost", 9, "http");
 
                 const checkoutRequest: CheckoutRequest = {
                     id: testUtils.generateId(),
@@ -287,19 +179,107 @@ describe("stripeAccess", () => {
                     currency: "USD"
                 };
 
-                const checkoutResponse = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-                chai.assert.equal(checkoutResponse.statusCode, 201, `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
+                const checkoutResponse = await testUtils.testAuthedRequest<StripeRestError>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+                chai.assert.equal(checkoutResponse.statusCode, 502, `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
+                chai.assert.isObject(JSON.parse(checkoutResponse.bodyRaw), `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
+                chai.assert.isObject(JSON.parse(checkoutResponse.bodyRaw)["stripeError"], `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
+                chai.assert.isString(JSON.parse(checkoutResponse.bodyRaw)["stripeError"].raw.message, `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
+                chai.assert.match(JSON.parse(checkoutResponse.bodyRaw)["stripeError"].raw.message, /An error occurred with our connection to Stripe. Request was retried 3 times./);
+            });
 
-                // Use a non-routable IP address to artifically induce a timeout (https://stackoverflow.com/a/904609)
-                stubStripeClientTestHost(sinonSandbox, "10.255.255.1", null, "http");
+            it("lets requests time out after 27s (timeouts do not trigger retries)", async function () {
+                const client = await stripeAccess.getStripeClient(true);
+                chai.assert.equal((client as any)._api.timeout, 27000, `Stripe client global config should have 27s timeout: ${(client as any)._api}`)
+            });
 
-                try {
-                    await updateCharge((checkoutResponse.body.steps[0] as StripeTransactionStep).charge.id, {description: "this is an update"}, true, testUtils.defaultTestUser.stripeAccountId, true);
-                    chai.assert.fail("Call to update Stripe charge should have timed out");
-                } catch (err) {
-                    chai.assert.match(err.additionalParams.stripeError.raw.message, /Request aborted due to timeout being reached/ /*Error message from Stripe client*/);
-                }
-            }).timeout(6000);
+            describe("special config for non-critical charge update calls", () => {
+                it("only retries once", async function () {
+                    if (testStripeLive()) {
+                        // This test relies upon a special test server configuration.
+                        this.skip();
+                    }
+
+                    const checkoutRequest: CheckoutRequest = {
+                        id: testUtils.generateId(),
+                        sources: [
+                            {
+                                rail: "stripe",
+                                source: "tok_visa",
+                            }
+                        ],
+                        lineItems: [
+                            {
+                                type: "product",
+                                productId: "xyz-123",
+                                unitPrice: 2000
+                            }
+                        ],
+                        currency: "USD"
+                    };
+
+                    const checkoutResponse = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+                    chai.assert.equal(checkoutResponse.statusCode, 201, `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
+
+                    // If data is sent to a host that supports Discard Protocol on TCP or UDP port 9.
+                    // The data sent to the server is simply discarded and no response is returned.
+                    stubStripeClientHost(sinonSandbox, "localhost", 9, "http");
+
+                    try {
+                        await updateCharge((checkoutResponse.body.steps[0] as StripeTransactionStep).charge.id, {description: "this is an update"}, true, testUtils.defaultTestUser.stripeAccountId, true);
+                        chai.assert.fail("Call to update Stripe charge should have thrown an error");
+                    } catch (err) {
+                        chai.assert.match(err.additionalParams.stripeError.raw.message, /Request was retried 1 time/);
+                    }
+                });
+
+                it("uses a short timeout", async function () {
+                    if (testStripeLive()) {
+                        // This test relies upon a special test server configuration.
+                        this.skip();
+                    }
+
+                    const checkoutRequest: CheckoutRequest = {
+                        id: testUtils.generateId(),
+                        sources: [
+                            {
+                                rail: "stripe",
+                                source: "tok_visa",
+                            }
+                        ],
+                        lineItems: [
+                            {
+                                type: "product",
+                                productId: "xyz-123",
+                                unitPrice: 2000
+                            }
+                        ],
+                        currency: "USD"
+                    };
+
+                    const checkoutResponse = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+                    chai.assert.equal(checkoutResponse.statusCode, 201, `checkoutResponse=${JSON.stringify(checkoutResponse, null, 4)}`);
+
+                    // Use a non-routable IP address to artificially induce a timeout
+                    stubStripeClientHost(sinonSandbox, "192.0.2.0", null, "http");
+
+                    try {
+                        await updateCharge((checkoutResponse.body.steps[0] as StripeTransactionStep).charge.id, {description: "this is an update"}, true, testUtils.defaultTestUser.stripeAccountId, true);
+                        chai.assert.fail("Call to update Stripe charge should have timed out");
+                    } catch (err) {
+                        chai.assert.match(err.additionalParams.stripeError.raw.message, /Request aborted due to timeout being reached \(5000ms\)/ /*Error message from Stripe client for exact timeout set on non-critical update calls*/);
+                    }
+                }).timeout(6000);
+            });
         });
     });
 });
+
+function stubStripeClientHost(sandbox: SinonSandbox, host: string, port?: number, protocol = "http"): void {
+    const getOriginalClient = stripeAccess.getStripeClient;
+    sandbox.stub(stripeAccess, "getStripeClient")
+        .callsFake(async function changeHost(): Promise<Stripe> {
+            const client = await getOriginalClient.call(stripeAccess, true);
+            client.setHost(host, port, protocol);
+            return client;
+        });
+}
