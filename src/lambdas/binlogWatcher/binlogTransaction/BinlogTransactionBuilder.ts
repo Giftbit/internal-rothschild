@@ -40,7 +40,7 @@ export class BinlogTransactionBuilder extends EventEmitter {
     private handleRotateEvent(event: BinlogEvent<RotateEvent>): void {
         if (this.txInProgress) {
             // Most likely reason is a crash in the middle of a transaction.  The transaction is not committed.
-            log.warn("BinlogTransactionBuilder received", event.binlog.getTypeName(), "when txInProgress is *not* null. event=", event, "txInProgress=", this.txInProgress);
+            log.warn("BinlogTransactionBuilder received", event.binlog.getTypeName(), "when txInProgress is *not* null.  Cancelling transaction.  event=", event, "txInProgress=", this.txInProgress);
             this.cancelTransaction();
         }
     }

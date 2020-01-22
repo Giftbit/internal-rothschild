@@ -3,7 +3,7 @@ import mysql = require("mysql");
 import ZongJi = require("zongji");
 import ZongJiCommon = require("zongji/lib/common");
 import {ZongJiOptions} from "./ZongJiOptions";
-import {QueryEvent, RotateEvent, ZongJiEvent} from "./ZongJiEvent";
+import {QueryEvent, RotateEvent, WriteRowsEvent, ZongJiEvent} from "./ZongJiEvent";
 import {EventEmitter} from "events";
 
 /**
@@ -34,20 +34,20 @@ export class BinlogStream extends EventEmitter {
 
         let connectionHasErrored = false;
         let binlogName: string | null = zongJiOptions.filename || null;
-        let binlogPosition: number | null = null;
+        let binlogRestartPosition: number | null = null;
         const onError = async () => {
             if (!connectionHasErrored) {
                 // Only reconnect on the first error for this connection.
                 connectionHasErrored = true;
 
-                log.info("BinlogStream restarting from", binlogName, binlogPosition);
+                log.info("BinlogStream restarting from", binlogName, binlogRestartPosition);
                 try {
                     await this.stop();
-                    await this.start(binlogPosition === null ? zongJiOptions : {
+                    await this.start(binlogRestartPosition === null ? zongJiOptions : {
                         ...zongJiOptions,
                         startAtEnd: false,
                         filename: binlogName,
-                        position: binlogPosition
+                        position: binlogRestartPosition
                     });
                 } catch (restartError) {
                     log.error("BinlogStream error restarting.  Letting the Lambda die.", restartError);
@@ -71,15 +71,25 @@ export class BinlogStream extends EventEmitter {
         });
         this.zongJi.on("binlog", (event: ZongJiEvent) => {
             // Useful for debugging BinlogStream but commented out normally because it's *really* noisy.
-            // log.debug(event.getTypeName(), this.summarizeEventForDebugging(event), binlogName, binlogPosition);
+            // log.debug(binlogName, binlogPosition, this.summarizeEventForDebugging(event));
+
+            // When restarting a steam we will receive a Rotate and Format event with nextPosition=0
+            // that we do not want to track as our position.  If the binlog file has actually rotated
+            // (and thus the binlogName changes) we do want to track that.
+            if ((event.getTypeName() === "Rotate" && binlogName !== (event as RotateEvent).binlogName)
+                || (event.getTypeName() !== "Rotate" && event.getTypeName() !== "Format")
+            ) {
+                binlogRestartPosition = event.nextPosition;
+            }
+
             if (event.getTypeName() === "Rotate") {
                 binlogName = (event as RotateEvent).binlogName;
             }
+
             this.emit("binlog", {
                 binlog: event,
                 binlogName: binlogName
             });
-            binlogPosition = event.nextPosition;
         });
         this.zongJi.start(zongJiOptions);
 
@@ -112,13 +122,26 @@ export class BinlogStream extends EventEmitter {
 
     // noinspection JSUnusedGlobalSymbols This is useful for debugging but too noisy to usually leave on.
     summarizeEventForDebugging(event: ZongJiEvent): string {
-        if (event.getTypeName() === "Query") {
-            if ((event as QueryEvent).query.length > 16) {
-                return (event as QueryEvent).query.substring(0, 16) + "…";
-            }
-            return (event as QueryEvent).query;
+        let summary = `${event.getTypeName()} nextPosition=${event.nextPosition}`;
+        switch (event.getTypeName()) {
+            case "Rotate":
+                summary += ` binlogName=${(event as RotateEvent).binlogName}`;
+                break;
+            case "Query":
+                if ((event as QueryEvent).query.length > 64) {
+                    summary += ` ${(event as QueryEvent).query.substring(0, 64)}…`;
+                } else {
+                    summary += ` ${(event as QueryEvent).query}`;
+                }
+                break;
+            case "WriteRows":
+            case "UpdateRows":
+            case "DeleteRows":
+                const writeRowsEvent = event as WriteRowsEvent;
+                summary += ` ${writeRowsEvent.tableMap[writeRowsEvent.tableId].parentSchema}.${writeRowsEvent.tableMap[writeRowsEvent.tableId].tableName} ${writeRowsEvent.rows.length} rows`;
+                break;
         }
-        return "";
+        return summary;
     }
 }
 

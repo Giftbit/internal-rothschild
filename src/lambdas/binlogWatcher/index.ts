@@ -58,7 +58,7 @@ async function handleScheduleEvent(evt: awslambda.CloudFormationCustomResourceEv
     try {
         await Promise.race([
             binlogStream.stop(),
-            new Promise((resolve, reject) => setTimeout(() => reject(new Error("timed out")), 5000))
+            new Promise((resolve, reject) => setTimeout(() => reject(new Error("timed out stopping binlog stream")), 5000))
         ]);
     } catch (err) {
         log.error("Error stopping BinlogWatcher", err);
@@ -70,7 +70,7 @@ async function handleScheduleEvent(evt: awslambda.CloudFormationCustomResourceEv
     try {
         await Promise.race([
             stateManager.save(),
-            new Promise((resolve, reject) => setTimeout(() => reject(new Error("timed out")), 5000))
+            new Promise((resolve, reject) => setTimeout(() => reject(new Error("timed out saving state")), 5000))
         ]);
     } catch (err) {
         log.error("Error saving BinlogWatcherState", err);
