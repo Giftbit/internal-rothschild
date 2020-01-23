@@ -72,6 +72,8 @@ async function handleScheduleEvent(evt: awslambda.CloudFormationCustomResourceEv
         giftbitRoutes.sentry.sendErrorNotification(err);
     }
 
+    // Wait a little in case any events are processing/sending after we close the stream.
+    // It's not the end of the world if they don't finish.  We'll process them next time.
     await new Promise(resolve => setTimeout(resolve, 3000));
 
     try {

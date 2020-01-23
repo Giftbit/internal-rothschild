@@ -54,10 +54,10 @@ describe("getContactEvents()", () => {
         });
         chai.assert.lengthOf(lightrailEvents, 1);
 
-        const programEvent = lightrailEvents.find(e => e.type === "lightrail.contact.updated");
-        assertIsLightrailEvent(programEvent);
-        chai.assert.deepEqual(programEvent.data.oldContact, createRes.body);
-        chai.assert.deepEqual(programEvent.data.newContact, contactUpdated);
+        const event = lightrailEvents.find(e => e.type === "lightrail.contact.updated");
+        assertIsLightrailEvent(event);
+        chai.assert.deepEqual(event.data.oldContact, createRes.body);
+        chai.assert.deepEqual(event.data.newContact, contactUpdated);
     });
 
     it("creates an event for Contact deleted", async () => {
@@ -74,8 +74,8 @@ describe("getContactEvents()", () => {
         });
         chai.assert.lengthOf(lightrailEvents, 1);
 
-        const programEvent = lightrailEvents.find(e => e.type === "lightrail.contact.deleted");
-        assertIsLightrailEvent(programEvent);
-        chai.assert.deepEqual(programEvent.data.oldContact, createRes.body);
+        const event = lightrailEvents.find(e => e.type === "lightrail.contact.deleted");
+        assertIsLightrailEvent(event);
+        chai.assert.deepEqual(event.data.oldContact, createRes.body);
     });
 });

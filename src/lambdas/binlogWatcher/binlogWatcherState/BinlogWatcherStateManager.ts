@@ -40,10 +40,10 @@ export class BinlogWatcherStateManager {
             binlogName,
             binlogPosition
         };
-        this.openCheckpoints.push(openCheckpoint);
         if (this.state.checkpoint != null && BinlogWatcherState.Checkpoint.compare(openCheckpoint, this.state.checkpoint) < 0) {
-            this.state.checkpoint = openCheckpoint;
+            throw new Error(`Cannot open checkpoint before current state. openCheckpoint=${JSON.stringify(openCheckpoint)}, this.state=${JSON.stringify(this.state)}`);
         }
+        this.openCheckpoints.push(openCheckpoint);
     }
 
     /**

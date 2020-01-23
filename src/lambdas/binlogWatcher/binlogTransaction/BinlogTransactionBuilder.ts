@@ -37,6 +37,10 @@ export class BinlogTransactionBuilder extends EventEmitter {
         }
     }
 
+    isBuildingTransaction(): boolean {
+        return !!this.txInProgress;
+    }
+
     private handleRotateEvent(event: BinlogEvent<RotateEvent>): void {
         if (this.txInProgress) {
             // Most likely reason is a crash in the middle of a transaction.  The transaction is not committed.

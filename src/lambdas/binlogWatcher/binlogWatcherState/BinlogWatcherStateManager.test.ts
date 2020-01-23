@@ -114,7 +114,7 @@ describe("BinlogWatcherStateManager", () => {
         });
     });
 
-    it("does not store the checkpoint if there is a second open checkpoint at the same position", () => {
+    it("does not store the checkpoint until any equal checkpoint is closed", () => {
         const manager = new BinlogWatcherStateManager();
         manager.state = {
             id: "BinlogWatcherState",
@@ -155,7 +155,7 @@ describe("BinlogWatcherStateManager", () => {
         });
     });
 
-    it("moves the checkpoint back when an earlier checkpoint is opened", () => {
+    it("throws an error when opening a checkpoint before the current state", () => {
         const manager = new BinlogWatcherStateManager();
         manager.state = {
             id: "BinlogWatcherState",
@@ -165,10 +165,23 @@ describe("BinlogWatcherStateManager", () => {
             }
         };
 
-        manager.openCheckpoint("bin.000001", 256);
-        chai.assert.deepEqual(manager.state.checkpoint, {
-            binlogName: "bin.000001",
-            binlogPosition: 256
+        chai.assert.throws(() => {
+            manager.openCheckpoint("bin.000001", 256);
+        });
+    });
+
+    it("throws an error when closing a checkpoint that wasn't opened", () => {
+        const manager = new BinlogWatcherStateManager();
+        manager.state = {
+            id: "BinlogWatcherState",
+            checkpoint: {
+                binlogName: "bin.000001",
+                binlogPosition: 256
+            }
+        };
+
+        chai.assert.throws(() => {
+            manager.closeCheckpoint("bin.000001", 367);
         });
     });
 });

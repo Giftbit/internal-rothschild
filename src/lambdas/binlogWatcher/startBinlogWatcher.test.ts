@@ -9,6 +9,8 @@ import {createCurrency} from "../rest/currencies";
 
 describe("startBinlogWatcher()", () => {
     it("starts a BinlogStream, wiring up the BinlogWatcherStateManager and LightrailEventPublisher", async () => {
+        process.env["READ_REPLICA_SERVER_ID"] = "1234";
+
         const stateManager = new BinlogWatcherStateManager();
         stateManager.state = {
             id: "BinlogWatcherState",

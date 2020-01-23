@@ -15,7 +15,6 @@ export async function getCurrencyCreatedEvents(tx: BinlogTransaction): Promise<L
                 source: "/lightrail/rothschild",
                 id: generateLightrailEventId("lightrail.currency.created", newCurrency.userId, newCurrency.code, newCurrency.createdDate.getTime()),
                 time: newCurrency.createdDate,
-                userid: newCurrency.userId,
                 datacontenttype: "application/json",
                 data: {
                     newCurrency: DbCurrency.toCurrency(newCurrency)
@@ -36,7 +35,6 @@ export async function getCurrencyDeletedEvents(tx: BinlogTransaction): Promise<L
                 source: "/lightrail/rothschild",
                 id: generateLightrailEventId("lightrail.currency.deleted", oldCurrency.userId, oldCurrency.code, oldCurrency.createdDate.getTime()),
                 time: new Date(),
-                userid: oldCurrency.userId,
                 datacontenttype: "application/json",
                 data: {
                     oldCurrency: DbCurrency.toCurrency(oldCurrency)
@@ -58,7 +56,6 @@ export async function getCurrencyUpdatedEvents(tx: BinlogTransaction): Promise<L
                 source: "/lightrail/rothschild",
                 id: generateLightrailEventId("lightrail.currency.updated", newCurrency.userId, newCurrency.code, newCurrency.updatedDate.getTime()),
                 time: newCurrency.updatedDate,
-                userid: newCurrency.userId,
                 datacontenttype: "application/json",
                 data: {
                     oldCurrency: DbCurrency.toCurrency(oldCurrency),

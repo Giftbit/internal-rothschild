@@ -46,15 +46,6 @@ export interface LightrailEvent {
     time: Date | string;
 
     /**
-     * The Lightrail userId of the user that generated the event (if any).
-     *
-     * Why not `userId`?  Per the CloudEvents spec: CloudEvents attribute names
-     * MUST consist of lower-case letters ('a' to 'z') or digits ('0' to '9') from
-     * the ASCII character set.
-     */
-    userid?: string;
-
-    /**
      * MIME type of the event data.  Currently we're only doing JSON payloads
      * but there may be use cases for other in the future.
      */

@@ -1,11 +1,11 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import {ZongJiOptions} from "./ZongJiOptions";
+import {QueryEvent, RotateEvent, WriteRowsEvent, ZongJiEvent} from "./ZongJiEvent";
+import {EventEmitter} from "events";
 import log = require("loglevel");
 import mysql = require("mysql");
 import ZongJi = require("zongji");
 import ZongJiCommon = require("zongji/lib/common");
-import {ZongJiOptions} from "./ZongJiOptions";
-import {QueryEvent, RotateEvent, WriteRowsEvent, ZongJiEvent} from "./ZongJiEvent";
-import {EventEmitter} from "events";
 
 /**
  * Wraps ZongJi to create a stable stream of MySQL binlog events.
@@ -82,7 +82,7 @@ export class BinlogStream extends EventEmitter {
             // Useful for debugging BinlogStream but commented out normally because it's *really* noisy.
             // log.debug(binlogName, binlogPosition, BinlogStream.summarizeEventForDebugging(event));
 
-            // When restarting a steam we will receive a Rotate and Format event with nextPosition=0
+            // When restarting a stream we will receive a Rotate and Format event with nextPosition=0
             // that we do not want to track as our position.  If the binlog file has actually rotated
             // (and thus the binlogName changes) we do want to track that.
             if ((event.getTypeName() === "Rotate" && binlogName !== (event as RotateEvent).binlogName)
@@ -199,7 +199,7 @@ if (!unhackedReadMysqlValue) {
     throw new Error("zongji/lib/common.readMysqlValue() not found.  The hacks are broken.");
 }
 ZongJiCommon.readMysqlValue = function (parser, column, columnSchema, tableMap, zongji) {
-    if (column.type === 1) {
+    if (column.type === ZongJiCommon.MysqlTypes.TINY) {
         return !!unhackedReadMysqlValue.apply(this, arguments);
     }
     return unhackedReadMysqlValue.apply(this, arguments);

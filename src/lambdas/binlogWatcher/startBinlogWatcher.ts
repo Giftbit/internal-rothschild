@@ -31,10 +31,8 @@ export async function startBinlogWatcher(stateManager: BinlogWatcherStateManager
     const txBuilder = new BinlogTransactionBuilder();
     binlogStream.on("binlog", (event: BinlogEvent) => {
         txBuilder.handleBinlogEvent(event);
-        if (event.binlog.getTypeName() === "Query") {
+        if (event.binlog.getTypeName() === "Query" && !txBuilder.isBuildingTransaction()) {
             // Checkpointing here prevents us from losing our place in the face of a drought of SQL transactions.
-            // If we're in the middle of events about a SQL Transaction open checkpoints will prevent us from
-            // moving forward, but there's no point doing this work for events that are definitely about that.
             stateManager.openCheckpoint(event.binlogName, event.binlog.nextPosition);
             stateManager.closeCheckpoint(event.binlogName, event.binlog.nextPosition);
         }
@@ -48,12 +46,17 @@ export async function startBinlogWatcher(stateManager: BinlogWatcherStateManager
             stateManager.closeCheckpoint(tx.binlogName, tx.nextPosition);
         } catch (err) {
             log.error("Error getting LightrailEvents", err);
+            log.error(JSON.stringify(tx));
             giftbitRoutes.sentry.sendErrorNotification(err);
         }
     });
 
+    const serverId = +process.env["READ_REPLICA_SERVER_ID"];
+    if (isNaN(serverId)) {
+        throw new Error("Environment variable 'READ_REPLICA_SERVER_ID' is not set or not a number.");
+    }
     await binlogStream.start({
-        serverId: +(process.env["READ_REPLICA_SERVER_ID"] ?? 1234),
+        serverId: serverId,
         filename: stateManager.state?.checkpoint?.binlogName,
         position: stateManager.state?.checkpoint?.binlogPosition,
         includeSchema: {

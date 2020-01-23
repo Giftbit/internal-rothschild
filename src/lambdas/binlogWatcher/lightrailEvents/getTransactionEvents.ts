@@ -37,7 +37,6 @@ export async function getTransactionCreatedEvents(tx: BinlogTransaction): Promis
                 source: "/lightrail/rothschild",
                 id: generateLightrailEventId("lightrail.transaction.created", dbTransaction.userId, dbTransaction.id, dbTransaction.createdDate.getTime()),
                 time: dbTransaction.createdDate,
-                userid: dbTransaction.userId,
                 datacontenttype: "application/json",
                 data: {
                     newTransaction: DbTransaction.toTransaction(dbTransaction, [...dbLightrailTransactionSteps, ...dbStripeTransactionSteps, ...dbInternalTransactionSteps])
