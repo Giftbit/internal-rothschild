@@ -1,3 +1,4 @@
+import * as giftbitRoutes from "giftbit-cassava-routes";
 import log = require("loglevel");
 import mysql = require("mysql");
 import ZongJi = require("zongji");
@@ -35,11 +36,14 @@ export class BinlogStream extends EventEmitter {
         let connectionHasErrored = false;
         let binlogName: string | null = zongJiOptions.filename || null;
         let binlogRestartPosition: number | null = null;
-        const onError = async () => {
-            if (!connectionHasErrored) {
+        const onError = async (reconnect: boolean) => {
+            if (connectionHasErrored) {
                 // Only reconnect on the first error for this connection.
-                connectionHasErrored = true;
+                return;
+            }
+            connectionHasErrored = true;
 
+            if (reconnect) {
                 log.info("BinlogStream restarting from", binlogName, binlogRestartPosition);
                 try {
                     await this.stop();
@@ -52,26 +56,31 @@ export class BinlogStream extends EventEmitter {
                 } catch (restartError) {
                     log.error("BinlogStream error restarting.  Letting the Lambda die.", restartError);
                 }
+            } else {
+                log.info("BinlogStream not restarting after error");
+                await this.logDebugInfo();
+                await this.stop();
             }
         };
 
         this.connection = mysql.createConnection(this.connectionOptions);
         this.connection.on("error", async err => {
             log.error("BinlogStream connection error", err);
-            onError();
+            onError(true);
         });
 
         this.zongJi = new ZongJi(this.connection);
         this.zongJi.on("error", err => {
             log.error("BinlogStream ZongJi error", err);
-            onError();
+            giftbitRoutes.sentry.sendErrorNotification(err);
+            onError(false);
         });
         this.zongJi.on("ready", () => {
             log.info("BinlogStream ZongJi ready");
         });
         this.zongJi.on("binlog", (event: ZongJiEvent) => {
             // Useful for debugging BinlogStream but commented out normally because it's *really* noisy.
-            // log.debug(binlogName, binlogPosition, this.summarizeEventForDebugging(event));
+            // log.debug(binlogName, binlogPosition, BinlogStream.summarizeEventForDebugging(event));
 
             // When restarting a steam we will receive a Rotate and Format event with nextPosition=0
             // that we do not want to track as our position.  If the binlog file has actually rotated
@@ -120,8 +129,44 @@ export class BinlogStream extends EventEmitter {
         log.info("BinlogStream stopped");
     }
 
+    /**
+     * Run a query on the existing MySQL connection.  Remember to be careful of SQL injection
+     * and all that jazz.
+     */
+    private queryConnection(query: string | mysql.QueryOptions): Promise<any> {
+        if (!this.connection) {
+            return Promise.reject(new Error("connection == null"));
+        }
+
+        return new Promise(((resolve, reject) => {
+            this.connection.query(query, (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(rows);
+                }
+            });
+        }));
+    }
+
+    /**
+     * Log any info from the server that might be helpful.
+     */
+    private async logDebugInfo(): Promise<void> {
+        log.info("BinlogStream fetching debug info");
+        try {
+            const binaryLogs = await this.queryConnection("SHOW BINARY LOGS");
+            log.info("SHOW BINARY LOGS", binaryLogs);
+
+            const slaveStatus = await this.queryConnection("SHOW SLAVE STATUS");
+            log.info("SHOW SLAVE STATUS", slaveStatus);
+        } catch (err) {
+            log.error("BinlogStream error logging debug info", err);
+        }
+    }
+
     // noinspection JSUnusedGlobalSymbols This is useful for debugging but too noisy to usually leave on.
-    summarizeEventForDebugging(event: ZongJiEvent): string {
+    private static summarizeEventForDebugging(event: ZongJiEvent): string {
         let summary = `${event.getTypeName()} nextPosition=${event.nextPosition}`;
         switch (event.getTypeName()) {
             case "Rotate":

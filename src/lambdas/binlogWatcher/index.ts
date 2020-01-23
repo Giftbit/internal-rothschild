@@ -6,6 +6,7 @@ import {startBinlogWatcher} from "./startBinlogWatcher";
 import {LightrailEventSnsPublisher} from "./lightrailEventPublisher/LightrailEventSnsPublisher";
 import {BinlogEvent} from "./binlogStream/BinlogEvent";
 import {MetricsLogger} from "../../utils/metricsLogger";
+import {CodeCryptographySecrets, initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils";
 import log = require("loglevel");
 
 // Wrapping console.log instead of binding (default behaviour for loglevel)
@@ -25,6 +26,12 @@ logPrefix.apply(log, {
 });
 
 log.setLevel(process.env.LOG_LEVEL as any || log.levels.INFO);
+
+// We never show the code but generic codes get decrypted automatically
+// when we fetch the Value.
+initializeCodeCryptographySecrets(
+    giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<CodeCryptographySecrets>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY")
+);
 
 async function handleScheduleEvent(evt: awslambda.CloudFormationCustomResourceEvent, ctx: awslambda.Context): Promise<any> {
     const stateManager = new BinlogWatcherStateManager();

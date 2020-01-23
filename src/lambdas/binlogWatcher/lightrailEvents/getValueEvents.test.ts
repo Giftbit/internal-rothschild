@@ -59,6 +59,35 @@ describe("getValueEvents()", () => {
         chai.assert.deepEqual(valueEvent.data.newValue, valueCreated);
     });
 
+    it("creates events for Value created with a code", async () => {
+        const createValueRequest: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balance: 50000,
+            code: generateId()
+        };
+        let valueCreated: Value = null;
+
+        const lightrailEvents = await testLightrailEvents(async () => {
+            const createRes = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", createValueRequest);
+            chai.assert.equal(createRes.statusCode, 201, `body=${JSON.stringify(createRes.body)}`);
+            valueCreated = createRes.body;
+        });
+        chai.assert.lengthOf(lightrailEvents, 2);
+
+        const txEvent = lightrailEvents.find(e => e.type === "lightrail.transaction.created");
+        assertIsLightrailEvent(txEvent);
+        chai.assert.equal(txEvent.data.newTransaction.currency, createValueRequest.currency);
+        chai.assert.lengthOf(txEvent.data.newTransaction.steps, 1);
+        chai.assert.equal(txEvent.data.newTransaction.steps[0].rail, "lightrail");
+        chai.assert.equal(txEvent.data.newTransaction.steps[0].valueId, createValueRequest.id);
+        chai.assert.equal(txEvent.data.newTransaction.steps[0].balanceAfter, createValueRequest.balance);
+
+        const valueEvent = lightrailEvents.find(e => e.type === "lightrail.value.created");
+        assertIsLightrailEvent(valueEvent);
+        chai.assert.deepEqual(valueEvent.data.newValue, valueCreated);
+    });
+
     it("creates an event for Value updated", async () => {
         const createValueRequest: Partial<Value> = {
             id: generateId(),
