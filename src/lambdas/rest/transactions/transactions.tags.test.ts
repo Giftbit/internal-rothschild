@@ -182,6 +182,8 @@ describe("/v2/transactions - tags", () => {
                     }]
                 });
                 chai.assert.equal(checkoutResp.statusCode, 201, `checkoutResp.body=${JSON.stringify(checkoutResp.body)}`);
+                chai.assert.equal(checkoutResp.body.tags.length, 1, `checkoutResp.body should have 1 tag: ${JSON.stringify(checkoutResp.body)}`);
+                chai.assert.sameDeepMembers(checkoutResp.body.tags, [`contactId:${newContact.id}`], `tags=${checkoutResp.body.tags}`);
             });
         });
 
@@ -220,10 +222,12 @@ describe("/v2/transactions - tags", () => {
                 }]
             });
             chai.assert.equal(checkoutResp.statusCode, 201, `checkoutResp.body=${JSON.stringify(checkoutResp.body)}`);
+            chai.assert.equal(checkoutResp.body.tags.length, 1, `checkoutResp.body should have 1 tag: ${JSON.stringify(checkoutResp.body)}`);
+            chai.assert.sameDeepMembers(checkoutResp.body.tags, [`contactId:${newContact.id}`], `tags=${checkoutResp.body.tags}`);
         });
     });
 
-    it("can create a credit transaction", async () => {
+    it("adds contactId tag when creating a credit transaction", async () => {
         const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", {
             id: "credit",
             currency: "USD",
@@ -234,9 +238,11 @@ describe("/v2/transactions - tags", () => {
             }
         });
         chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.tags.length, 1, `resp.body should have 1 tag: ${JSON.stringify(resp.body)}`);
+        chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`], `tags=${resp.body.tags}`);
     });
 
-    it("can create a debit transaction", async () => {
+    it("adds contactId tag when creating a debit transaction", async () => {
         const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
             id: "debit",
             currency: "USD",
@@ -247,9 +253,11 @@ describe("/v2/transactions - tags", () => {
             }
         });
         chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.tags.length, 1, `resp.body should have 1 tag: ${JSON.stringify(resp.body)}`);
+        chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`], `tags=${resp.body.tags}`);
     });
 
-    it("can create a transfer transaction", async () => {
+    it("adds contactId tag when creating a transfer transaction", async () => {
         const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
             id: "transfer",
             currency: "USD",
@@ -264,6 +272,8 @@ describe("/v2/transactions - tags", () => {
             }
         });
         chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.tags.length, 1, `resp.body should have 1 tag: ${JSON.stringify(resp.body)}`);
+        chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`], `tags=${resp.body.tags}`);
     });
 
     it("can create a reverse transaction", async () => {
@@ -336,16 +346,22 @@ describe("/v2/transactions - tags", () => {
         chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
     });
 
-    it("can create a initialBalance transaction", async () => {
-        const resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
+    it("adds contactId tag when creating a initialBalance transaction", async () => {
+        const createValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
             id: "value-with-initial-balance",
+            contactId: contact1.id,
             balance: 100,
             currency: "USD"
         });
-        chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(createValueResp.statusCode, 201, `createValueResp.body=${JSON.stringify(createValueResp.body)}`);
+
+        const initialBalanceTxResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${createValueResp.body.id}`, "GET");
+        chai.assert.equal(initialBalanceTxResp.statusCode, 200, `initialBalanceTxResp.body=${JSON.stringify(initialBalanceTxResp.body)}`);
+        chai.assert.equal(initialBalanceTxResp.body.transactionType, "initialBalance", `initialBalanceTxResp.body=${JSON.stringify(initialBalanceTxResp.body)}`);
+        chai.assert.sameDeepMembers(initialBalanceTxResp.body.tags, [`contactId:${contact1.id}`], `tags=${initialBalanceTxResp.body.tags}`);
     });
 
-    it("can create an attach transaction", async () => {
+    it("adds contactId tag when attaching a generic value with perContact options", async () => {
         const valueToAttach: Partial<Value> = {
             id: "generic-value-per-contact-options",
             currency: "USD",
@@ -364,6 +380,13 @@ describe("/v2/transactions - tags", () => {
             valueId: valueToAttach.id
         });
         chai.assert.equal(attachResp.statusCode, 200, `.body=${JSON.stringify(attachResp)}`);
+
+        const txResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?transactionType=attach&valueId=${valueToAttach.id}`, "GET");
+        chai.assert.equal(txResp.statusCode, 200, `txResp.body=${JSON.stringify(txResp.body)}`);
+        chai.assert.equal(txResp.body.length, 1, `txResp.body should only have one transaction=${JSON.stringify(txResp.body)}`);
+        chai.assert.equal(txResp.body[0].transactionType, "attach", `transactionType should be 'attach': ${txResp.body[0].transactionType}`);
+        chai.assert.equal(txResp.body[0].tags.length, 1, `txResp.body[0] should have 1 tag: ${JSON.stringify(txResp.body[0])}`);
+        chai.assert.sameDeepMembers(txResp.body[0].tags, [`contactId:${contact1.id}`], `tags=${txResp.body[0].tags}`);
     });
 
     describe("data isolation", () => {

@@ -1,9 +1,10 @@
 import {LightrailUpdateTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
-import {resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import {CreditRequest} from "../../../model/TransactionRequest";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
+import {formatContactIdTags} from "./transactions";
+import {resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
 
 export async function createCreditTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CreditRequest): Promise<TransactionPlan> {
     const steps = await resolveTransactionPlanSteps(auth, [req.destination], {
@@ -38,6 +39,7 @@ export async function createCreditTransactionPlan(auth: giftbitRoutes.jwtauth.Au
         totals: null,
         tax: null,
         lineItems: null,
-        paymentSources: null
+        paymentSources: null,
+        tags: step.value.contactId ? formatContactIdTags([step.value.contactId]) : undefined
     };
 }

@@ -14,6 +14,7 @@ import {Transaction} from "../../model/Transaction";
 import * as cassava from "cassava";
 import {initializeValue} from "./values/createValue";
 import {getIdForAttachingGenericValue} from "./contactValues";
+import {formatContactIdTags} from "./transactions/transactions";
 
 export async function attachGenericCodeWithPerContactOptions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<Value> {
     let transaction: Transaction;
@@ -90,7 +91,8 @@ export async function getAttachTransactionPlanForGenericCodeWithPerContactOption
         paymentSources: null,
         createdDate: now,
         metadata: null,
-        tax: null
+        tax: null,
+        tags: formatContactIdTags([insertStep.value.contactId])
     };
 }
 

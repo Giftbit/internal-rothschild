@@ -13,6 +13,7 @@ import {checkRulesSyntax} from "../transactions/rules/RuleContext";
 import {LightrailInsertTransactionPlanStep, TransactionPlan} from "../transactions/TransactionPlan";
 import {executeTransactionPlan} from "../transactions/executeTransactionPlans";
 import {DiscountSellerLiabilityUtils} from "../../../utils/discountSellerLiabilityUtils";
+import {formatContactIdTags} from "../transactions/transactions";
 import log = require("loglevel");
 
 export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: CreateValueParameters, trx: Knex.Transaction): Promise<Value> {
@@ -41,6 +42,7 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         pendingVoidDate: null,
         createdDate: value.createdDate,
         metadata: null,
+        tags: step.value.contactId ? formatContactIdTags([step.value.contactId]) : undefined
     };
 
     try {

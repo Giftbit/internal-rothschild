@@ -348,8 +348,8 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
     return Array.isArray(transaction) ? transaction.find(tx => tx.transactionType === "checkout") : transaction;
 }
 
-function formatContactIdTags(contactIds: string[]): string[] {
-    return contactIds.map(id => `contactId:${id}`);
+export function formatContactIdTags(contactIds: string[]): string[] {
+    return (Array.from(new Set(contactIds))).map(id => `contactId:${id}`);
 }
 
 async function getAutoAttachTransactionPlans(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valuesToAttach: Value[], valuesForCheckout: Value[], sources: TransactionParty[]): Promise<TransactionPlan[]> {

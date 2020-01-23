@@ -10,6 +10,7 @@ import {
 } from "./TransactionPlan";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {TransactionType} from "../../../model/Transaction";
+import {formatContactIdTags} from "./transactions";
 
 export interface TransferTransactionSteps {
     sourceStep: LightrailUpdateTransactionPlanStep | StripeTransactionPlanStep;
@@ -63,7 +64,11 @@ export function createTransferTransactionPlan(req: TransferRequest, steps: Trans
         paymentSources: null
     };
 
+    const lightrailSteps = [steps.destStep];
+
     if (steps.sourceStep.rail === "lightrail") {
+        lightrailSteps.push(steps.sourceStep);
+
         const amount = Math.min(req.amount, steps.sourceStep.value.balance);
 
         steps.sourceStep.amount = -amount;
@@ -88,6 +93,10 @@ export function createTransferTransactionPlan(req: TransferRequest, steps: Trans
         sourceStep.stepIdempotencyKey = `${req.id}-src`;
         steps.destStep.amount = amount;
         plan.totals.remainder = sourceStep.maxAmount ? Math.max(req.amount - sourceStep.maxAmount, 0) : 0;
+    }
+
+    if (lightrailSteps.find(s => s.value.contactId)) {
+        plan.tags = formatContactIdTags(lightrailSteps.map(s => s.value.contactId));
     }
 
     return plan;

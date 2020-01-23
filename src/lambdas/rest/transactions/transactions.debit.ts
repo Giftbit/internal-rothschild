@@ -5,6 +5,7 @@ import {LightrailUpdateTransactionPlanStep, TransactionPlan} from "./Transaction
 import {resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {DebitRequest} from "../../../model/TransactionRequest";
+import {formatContactIdTags} from "./transactions";
 
 export async function createDebitTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: DebitRequest): Promise<TransactionPlan> {
     const steps = await resolveTransactionPlanSteps(auth, [req.source], {
@@ -49,6 +50,7 @@ export async function createDebitTransactionPlan(auth: giftbitRoutes.jwtauth.Aut
         tax: null,
         pendingVoidDate: pendingTransactionUtils.getPendingVoidDate(req, now),
         lineItems: null,
-        paymentSources: null
+        paymentSources: null,
+        tags: step.value.contactId ? formatContactIdTags([step.value.contactId]) : undefined
     };
 }
