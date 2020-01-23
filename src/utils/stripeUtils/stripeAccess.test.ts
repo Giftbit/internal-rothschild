@@ -5,7 +5,7 @@ import * as kvsAccess from "../kvsAccess";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as stripeAccess from "./stripeAccess";
 import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../testUtils/stripeTestUtils";
-import {CheckoutRequest, transactionPartySchema} from "../../model/TransactionRequest";
+import {CheckoutRequest} from "../../model/TransactionRequest";
 import * as testUtils from "../testUtils";
 import * as transactions from "../../lambdas/rest/transactions/transactions";
 import * as valueStores from "../../lambdas/rest/values/values";
@@ -15,7 +15,6 @@ import {StripeRestError} from "./StripeRestError";
 import {updateCharge} from "./stripeTransactions";
 import {StripeTransactionStep, Transaction} from "../../model/Transaction";
 import Stripe from "stripe";
-import stripe = transactionPartySchema.stripe;
 
 describe("stripeAccess", () => {
     describe("getMerchantStripeAuth", () => {
