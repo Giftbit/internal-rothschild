@@ -9,8 +9,10 @@ import {createCurrency} from "../../rest/currencies";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {assertIsLightrailEvent} from "./assertIsLightrailEvent";
 import {Value} from "../../../model/Value";
-import {CreditRequest} from "../../../model/TransactionRequest";
+import {CheckoutRequest, CreditRequest, VoidRequest} from "../../../model/TransactionRequest";
 import {Transaction} from "../../../model/Transaction";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
+import {after} from "mocha";
 
 describe("getTransactionEvents()", () => {
 
@@ -31,7 +33,12 @@ describe("getTransactionEvents()", () => {
         router.route(testUtils.authRoute);
         installRestRoutes(router);
         testUtils.setCodeCryptographySecrets();
+        await setStubsForStripeTests();
         await createCurrency(testUtils.defaultTestUser.auth, currency);
+    });
+
+    after(() => {
+        unsetStubsForStripeTests();
     });
 
     it("creates events for Credit Transaction created", async () => {
@@ -74,5 +81,52 @@ describe("getTransactionEvents()", () => {
         assertIsLightrailEvent(valueEvent);
         chai.assert.deepEqual(valueEvent.data.oldValue, createValueRes.body);
         chai.assert.deepEqual(valueEvent.data.newValue, valueUpdated);
+    });
+
+    it("creates events for pending and void Checkout Transaction created", async () => {
+        const checkoutRequest: CheckoutRequest = {
+            id: generateId(),
+            currency: "CAD",
+            lineItems: [
+                {
+                    type: "product",
+                    productId: generateId(),
+                    quantity: 1,
+                    unitPrice: 2500
+                }
+            ],
+            sources: [
+                {
+                    rail: "stripe",
+                    source: "tok_visa"
+                }
+            ],
+            pending: true
+        };
+        let checkoutTransaction: Transaction = null;
+
+        const voidRequest: VoidRequest = {
+            id: generateId()
+        };
+        let voidTransaction: Transaction = null;
+
+        const lightrailEvents = await testLightrailEvents(async () => {
+            const checkoutRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+            chai.assert.equal(checkoutRes.statusCode, 201, `body=${JSON.stringify(checkoutRes.body)}`);
+            checkoutTransaction = checkoutRes.body;
+
+            const voidRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkoutRequest.id}/void`, "POST", voidRequest);
+            chai.assert.equal(voidRes.statusCode, 201, `body=${JSON.stringify(voidRes.body)}`);
+            voidTransaction = voidRes.body;
+        });
+        chai.assert.lengthOf(lightrailEvents, 2);
+
+        const checkoutEvent = lightrailEvents.find(e => e.type === "lightrail.transaction.created" && e.data.newTransaction.transactionType === "checkout");
+        assertIsLightrailEvent(checkoutEvent);
+        chai.assert.deepEqual(checkoutEvent.data.newTransaction, checkoutTransaction);
+
+        const voidEvent = lightrailEvents.find(e => e.type === "lightrail.transaction.created" && e.data.newTransaction.transactionType === "void");
+        assertIsLightrailEvent(voidEvent);
+        chai.assert.deepEqual(voidEvent.data.newTransaction, voidTransaction);
     });
 });
