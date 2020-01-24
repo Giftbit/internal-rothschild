@@ -45,10 +45,11 @@ async function handleScheduleEvent(evt: awslambda.CloudFormationCustomResourceEv
     let lastBinlogEventReceivedMillis = Date.now();
     let lastBinlogEventLatency = 0;
     binlogStream.on("binlog", (event: BinlogEvent) => {
-        binlogEventCount++;
-        lastBinlogEventReceivedMillis = Date.now();
-        if (event.binlog.timestamp && event.binlog.getTypeName() !== "Rotate" && event.binlog.getTypeName() !== "Format") {
+        if (event.binlog.getTypeName() !== "Rotate" && event.binlog.getTypeName() !== "Format") {
             // When resuming a binlog event stream mid-way through the first Rotate and Format events in the log are sent.
+            binlogEventCount++;
+            lastBinlogEventReceivedMillis = Date.now();
+            
             // Rotate doesn't have a timestamp anyways and the Format timestamp is misleading as to our latency.
             lastBinlogEventLatency = lastBinlogEventReceivedMillis - event.binlog.timestamp;
         }
