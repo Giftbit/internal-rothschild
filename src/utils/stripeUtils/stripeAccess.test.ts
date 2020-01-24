@@ -63,7 +63,7 @@ describe("stripeAccess", () => {
         });
     });
 
-    describe("Stripe connection errors (mock server only)", function () {
+    describe("Stripe connection errors", function () {
         const router = new cassava.Router();
 
         before(async () => {
@@ -118,11 +118,6 @@ describe("stripeAccess", () => {
         });
 
         it("throws a 502 if there is a StripeConnectionError", async function () {
-            if (testStripeLive()) {
-                // This test relies upon a special test server configuration.
-                this.skip();
-            }
-
             // If data is sent to a host that supports Discard Protocol on TCP or UDP port 9.
             // The data sent to the server is simply discarded and no response is returned.
             stubStripeClientHost(sinonSandbox, "localhost", 9, "http");
@@ -151,11 +146,6 @@ describe("stripeAccess", () => {
 
         describe("Stripe client config", () => {
             it("retries requests three times (if none of the tries hit the global timeout)", async function () {
-                if (testStripeLive()) {
-                    // This test relies upon a special test server configuration.
-                    this.skip();
-                }
-
                 // If data is sent to a host that supports Discard Protocol on TCP or UDP port 9.
                 // The data sent to the server is simply discarded and no response is returned.
                 stubStripeClientHost(sinonSandbox, "localhost", 9, "http");
@@ -192,11 +182,6 @@ describe("stripeAccess", () => {
             });
 
             it("only retries once for non-critical charge updates", async function () {
-                if (testStripeLive()) {
-                    // This test relies upon a special test server configuration.
-                    this.skip();
-                }
-
                 const checkoutRequest: CheckoutRequest = {
                     id: testUtils.generateId(),
                     sources: [

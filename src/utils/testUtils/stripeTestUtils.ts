@@ -10,7 +10,6 @@ import {StripeModeConfig} from "../stripeUtils/StripeConfig";
 import {defaultTestUser} from "./index";
 import {TestUser} from "./TestUser";
 
-
 const sinonSandbox = sinon.createSandbox();
 let stubKvsGet: sinon.SinonStub;
 
