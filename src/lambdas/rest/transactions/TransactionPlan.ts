@@ -306,7 +306,7 @@ export namespace TransactionPlan {
             pendingVoidDate: plan.pendingVoidDate || undefined,
             metadata: plan.metadata || null,
             createdBy: auth.teamMemberId,
-            tags: plan.tags
+            tags: plan.tags || undefined
         };
         if (simulated) {
             transaction.simulated = true;

@@ -3,9 +3,9 @@ import {GiftbitRestError} from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import * as log from "loglevel";
 import {VoidRequest} from "../../../model/TransactionRequest";
-import {TransactionPlan, TransactionPlanStep} from "./TransactionPlan";
+import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "./TransactionPlan";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
-import {getDbTransaction} from "./transactions";
+import {formatContactIdTags, getDbTransaction} from "./transactions";
 import {getReverseTransactionPlanSteps, invertTransactionTotals} from "./reverse/transactions.reverse";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 
@@ -38,12 +38,14 @@ export async function createVoidTransactionPlanForDbTransaction(auth: giftbitRou
     }
 
     const transactionToVoid: Transaction = (await DbTransaction.toTransactions([dbTransactionToVoid], auth.userId))[0];
+    const voidSteps = await getVoidTransactionPlanSteps(auth, req.id, transactionToVoid);
+    const tags = formatContactIdTags(voidSteps.filter(s => s.rail === "lightrail").map(s => (s as LightrailTransactionPlanStep).value.contactId), transactionToVoid.tags);
 
     return {
         id: req.id,
         transactionType: "void",
         currency: transactionToVoid.currency,
-        steps: await getVoidTransactionPlanSteps(auth, req.id, transactionToVoid),
+        steps: voidSteps,
         totals: transactionToVoid.totals && invertTransactionTotals(transactionToVoid.totals),
         createdDate: nowInDbPrecision(),
         metadata: req.metadata,
@@ -51,7 +53,8 @@ export async function createVoidTransactionPlanForDbTransaction(auth: giftbitRou
         lineItems: null,
         paymentSources: null,
         rootTransactionId: transactionToVoid.id,
-        previousTransactionId: transactionToVoid.id
+        previousTransactionId: transactionToVoid.id,
+        tags: tags || undefined
     };
 }
 
