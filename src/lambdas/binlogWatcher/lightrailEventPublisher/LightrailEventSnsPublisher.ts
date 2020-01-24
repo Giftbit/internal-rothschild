@@ -86,6 +86,10 @@ export class LightrailEventSnsPublisher implements LightrailEventPublisher {
                     DataType: "String",
                     StringValue: typeof event.time === "string" ? event.time : event.time.toISOString()
                 },
+                userid: event.userid && {
+                    DataType: "String",
+                    StringValue: event.userid
+                },
                 datacontenttype: {
                     DataType: "String",
                     StringValue: event.datacontenttype

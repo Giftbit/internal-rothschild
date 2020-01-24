@@ -15,6 +15,7 @@ export async function getValueCreatedEvents(tx: BinlogTransaction): Promise<Ligh
                 source: "/lightrail/rothschild",
                 id: generateLightrailEventId("lightrail.value.created", newValue.userId, newValue.id, newValue.createdDate.getTime()),
                 time: newValue.createdDate,
+                userid: newValue.userId,
                 datacontenttype: "application/json",
                 data: {
                     newValue: await DbValue.toValue(newValue, false)
@@ -36,6 +37,7 @@ export async function getValueDeletedEvents(tx: BinlogTransaction): Promise<Ligh
                 source: "/lightrail/rothschild",
                 id: generateLightrailEventId("lightrail.value.deleted", oldValue.userId, oldValue.id, oldValue.createdDate.getTime()),
                 time: new Date(),
+                userid: oldValue.userId,
                 datacontenttype: "application/json",
                 data: {
                     oldValue: await DbValue.toValue(oldValue, false)
@@ -58,6 +60,7 @@ export async function getValueUpdatedEvents(tx: BinlogTransaction): Promise<Ligh
                 source: "/lightrail/rothschild",
                 id: generateLightrailEventId("lightrail.value.updated", newValue.userId, newValue.id, newValue.updatedDate.getTime()),
                 time: newValue.updatedDate,
+                userid: oldValue.userId,
                 datacontenttype: "application/json",
                 data: {
                     oldValue: await DbValue.toValue(oldValue, false),

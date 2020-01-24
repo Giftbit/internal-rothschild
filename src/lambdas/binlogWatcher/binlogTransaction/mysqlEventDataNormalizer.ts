@@ -1,4 +1,5 @@
 // Adapted from https://github.com/rodrigogs/mysql-events/blob/master/lib/dataNormalizer.js
+// If we ever fork ZongJi this logic can probably be folded into there.
 
 const getEventType = (eventName) => {
     return {
@@ -16,12 +17,12 @@ const normalizeRow = (row) => {
         const columnValue = row[columns[i]];
 
         if (columnValue instanceof Buffer && columnValue.length === 1) { // It's a boolean
-            // <jeffg> This doesn't actually seem to happen.
+            // <jeffg> I don't see this ever getting called.  zongji/lib/common.readMysqlValue() parses TINYINT to numbers.
             row[columns[i]] = (columnValue[0] > 0);
         }
         if (columnValue instanceof Date) {
-            // <jeffg> Fix the timezone of Dates, because ZongJi constructs Dates in the
-            // local timezone, but our server is configured for UTC.
+            // <jeffg> Because ZongJi constructs Dates in the local timezone, but our server is
+            // configured for UTC, we have to adjust the timezone.
             row[columns[i]] = new Date(Date.UTC(columnValue.getFullYear(), columnValue.getMonth(), columnValue.getDate(), columnValue.getHours(), columnValue.getMinutes(), columnValue.getSeconds(), columnValue.getMilliseconds()));
         }
     }

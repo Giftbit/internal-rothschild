@@ -15,6 +15,7 @@ export async function getProgramCreatedEvents(tx: BinlogTransaction): Promise<Li
                 source: "/lightrail/rothschild",
                 id: generateLightrailEventId("lightrail.program.created", newProgram.userId, newProgram.id, newProgram.updatedDate.getTime()),
                 time: newProgram.createdDate,
+                userid: newProgram.userId,
                 datacontenttype: "application/json",
                 data: {
                     newProgram: DbProgram.toProgram(newProgram)
@@ -35,6 +36,7 @@ export async function getProgramDeletedEvents(tx: BinlogTransaction): Promise<Li
                 source: "/lightrail/rothschild",
                 id: generateLightrailEventId("lightrail.program.deleted", oldProgram.userId, oldProgram.id, oldProgram.createdDate.getTime()),
                 time: new Date(),
+                userid: oldProgram.userId,
                 datacontenttype: "application/json",
                 data: {
                     oldProgram: DbProgram.toProgram(oldProgram)
@@ -57,6 +59,7 @@ export async function getProgramUpdatedEvents(tx: BinlogTransaction): Promise<Li
                 source: "/lightrail/rothschild",
                 id: generateLightrailEventId("lightrail.program.updated", newProgram.userId, newProgram.id, newProgram.updatedDate.getTime()),
                 time: new Date(),
+                userid: oldProgram.userId,
                 datacontenttype: "application/json",
                 data: {
                     oldProgram: DbProgram.toProgram(oldProgram),

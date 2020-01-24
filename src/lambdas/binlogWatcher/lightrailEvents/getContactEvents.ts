@@ -15,6 +15,7 @@ export async function getContactCreatedEvents(tx: BinlogTransaction): Promise<Li
                 source: "/lightrail/rothschild",
                 id: generateLightrailEventId("lightrail.contact.created", newContact.userId, newContact.id, newContact.createdDate.getTime()),
                 time: newContact.createdDate,
+                userid: newContact.userId,
                 datacontenttype: "application/json",
                 data: {
                     newContact: DbContact.toContact(newContact)
@@ -35,6 +36,7 @@ export async function getContactDeletedEvents(tx: BinlogTransaction): Promise<Li
                 source: "/lightrail/rothschild",
                 id: generateLightrailEventId("lightrail.contact.deleted", oldContact.userId, oldContact.id, oldContact.createdDate.getTime()),
                 time: new Date(),
+                userid: oldContact.userId,
                 datacontenttype: "application/json",
                 data: {
                     oldContact: DbContact.toContact(oldContact)
@@ -56,6 +58,7 @@ export async function getContactUpdatedEvents(tx: BinlogTransaction): Promise<Li
                 source: "/lightrail/rothschild",
                 id: generateLightrailEventId("lightrail.contact.updated", newContact.userId, newContact.id, newContact.updatedDate.getTime()),
                 time: newContact.updatedDate,
+                userid: oldContact.userId,
                 datacontenttype: "application/json",
                 data: {
                     oldContact: DbContact.toContact(oldContact),
