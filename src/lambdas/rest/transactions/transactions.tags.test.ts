@@ -50,87 +50,136 @@ describe("/v2/transactions - tags", () => {
     });
 
     describe("checkouts", () => {
-        describe("'regular' checkouts", () => {
-            it("unique attached value as source", async () => {
-                const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
-                    id: "checkout-uq-attached-value",
-                    currency: "USD",
-                    lineItems: [{unitPrice: 100}],
-                    sources: [{rail: "lightrail", valueId: value1.id}]
-                });
-                chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
-
-                chai.assert.equal(resp.body.tags.length, 1, `resp.body should have 1 tag: ${JSON.stringify(resp.body)}`);
-                chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`], `tags=${resp.body.tags}`);
+        it("unique attached value as source", async () => {
+            const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                id: "checkout-uq-attached-value",
+                currency: "USD",
+                lineItems: [{unitPrice: 100}],
+                sources: [{rail: "lightrail", valueId: value1.id}]
             });
+            chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
 
-            it("contactId as source", async () => {
-                const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
-                    id: "checkout-cid",
-                    currency: "USD",
-                    lineItems: [{unitPrice: 100}],
-                    sources: [{rail: "lightrail", contactId: contact1.id}]
-                });
-                chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
+            chai.assert.equal(resp.body.tags.length, 1, `resp.body should have 1 tag: ${JSON.stringify(resp.body)}`);
+            chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`], `tags=${resp.body.tags}`);
+        });
 
-                chai.assert.equal(resp.body.tags.length, 1, `resp.body should have 1 tag: ${JSON.stringify(resp.body)}`);
-                chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`], `tags=${resp.body.tags}`);
+        it("contactId as source", async () => {
+            const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                id: "checkout-cid",
+                currency: "USD",
+                lineItems: [{unitPrice: 100}],
+                sources: [{rail: "lightrail", contactId: contact1.id}]
             });
+            chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
 
-            it("2nd contactId as source, doesn't get used", async () => {
-                const contact2: Partial<Contact> = {id: "contact2"};
-                const contact2Resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact2);
-                chai.assert.equal(contact2Resp.statusCode, 201, `contact2Resp.body=${JSON.stringify(contact2Resp.body)}`);
+            chai.assert.equal(resp.body.tags.length, 1, `resp.body should have 1 tag: ${JSON.stringify(resp.body)}`);
+            chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`], `tags=${resp.body.tags}`);
+        });
 
-                const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
-                    id: "checkout-2cid",
-                    currency: "USD",
-                    lineItems: [{unitPrice: 100}],
-                    sources: [{rail: "lightrail", valueId: value1.id}, {rail: "lightrail", contactId: contact2.id}]
-                });
-                chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
+        it("2nd contactId as source, doesn't get used", async () => {
+            const contact2: Partial<Contact> = {id: "contact2"};
+            const contact2Resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact2);
+            chai.assert.equal(contact2Resp.statusCode, 201, `contact2Resp.body=${JSON.stringify(contact2Resp.body)}`);
 
-                chai.assert.equal(resp.body.tags.length, 2, `resp.body should have 2 tags: ${JSON.stringify(resp.body)}`);
-                chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`, `contactId:${contact2.id}`], `tags=${resp.body.tags}`);
+            const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                id: "checkout-2cid",
+                currency: "USD",
+                lineItems: [{unitPrice: 100}],
+                sources: [{rail: "lightrail", valueId: value1.id}, {rail: "lightrail", contactId: contact2.id}]
             });
+            chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
 
-            it("2nd unique value (attached to different contact) as source, doesn't get used", async () => {
-                const newContact: Partial<Contact> = {id: generateId(5)};
-                const newContactResp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", newContact);
-                chai.assert.equal(newContactResp.statusCode, 201, `newContactResp.body=${JSON.stringify(newContactResp.body)}`);
-                const newValue: Partial<Value> = {
-                    id: generateId(5),
-                    currency: "USD",
-                    balance: 0,
+            chai.assert.equal(resp.body.tags.length, 2, `resp.body should have 2 tags: ${JSON.stringify(resp.body)}`);
+            chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`, `contactId:${contact2.id}`], `tags=${resp.body.tags}`);
+        });
+
+        it("2nd unique value (attached to different contact) as source, doesn't get used", async () => {
+            const newContact: Partial<Contact> = {id: generateId(5)};
+            const newContactResp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", newContact);
+            chai.assert.equal(newContactResp.statusCode, 201, `newContactResp.body=${JSON.stringify(newContactResp.body)}`);
+            const newValue: Partial<Value> = {
+                id: generateId(5),
+                currency: "USD",
+                balance: 0,
+                contactId: newContact.id
+            };
+            const newValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", newValue);
+            chai.assert.equal(newValueResp.statusCode, 201, `newValueResp.body=${JSON.stringify(newValueResp)}`);
+
+            const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                id: "checkout-2uq-attached",
+                currency: "USD",
+                lineItems: [{unitPrice: 100}],
+                sources: [{rail: "lightrail", valueId: value1.id}, {rail: "lightrail", valueId: newValue.id}]
+            });
+            chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
+
+            chai.assert.equal(resp.body.tags.length, 2, `resp.body should have 2 tags: ${JSON.stringify(resp.body)}`);
+            chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`, `contactId:${newContact.id}`], `tags=${resp.body.tags}`);
+        });
+
+        it("contactId that doesn't exist as source", async () => {
+            const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                id: "checkout-nonexistent-cid",
+                currency: "USD",
+                lineItems: [{unitPrice: 100}],
+                sources: [{rail: "lightrail", contactId: "gibberish"}, {rail: "lightrail", valueId: value1.id}]
+            });
+            chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
+
+            chai.assert.equal(resp.body.tags.length, 2, `resp.body should have 2 tags: ${JSON.stringify(resp.body)}`);
+            chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`, `contactId:gibberish`], `tags=${resp.body.tags}`);
+        });
+
+        it("does not tag checkouts that involve no contacts", async () => {
+            const newValue = await testUtils.createUSDValue(router);
+            const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                id: "checkout-no-contacts",
+                currency: "USD",
+                lineItems: [{unitPrice: 50}],
+                sources: [{rail: "lightrail", valueId: newValue.id}]
+            });
+            chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
+            chai.assert.isUndefined(resp.body.tags, `transaction should have no contactId tags: ${JSON.stringify(resp.body)}`);
+        });
+
+        it("can create a checkout with a shared generic code", async () => {
+            const sharedGeneric: Partial<Value> = {
+                id: "shared-generic",
+                isGenericCode: true,
+                currency: "USD",
+                balanceRule: {
+                    rule: "1000",
+                    explanation: "1000"
+                },
+                balance: null
+            };
+            await testUtils.createUSDValue(router, sharedGeneric);
+
+            const newContact: Partial<Contact> = {id: `new-contact-${generateId(4)}`};
+            const contactResp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", newContact);
+            chai.assert.equal(contactResp.statusCode, 201, `contactResp.body=${JSON.stringify(contactResp)}`);
+
+            const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${newContact.id}/values/attach`, "POST", {
+                valueId: sharedGeneric.id
+            });
+            chai.assert.equal(attachResp.statusCode, 200, `attachResp.body=${JSON.stringify(attachResp.body)}`);
+
+            const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                id: "checkout-w-shared-generic",
+                currency: "USD",
+                lineItems: [{unitPrice: 100}],
+                sources: [{
+                    rail: "lightrail",
+                    valueId: sharedGeneric.id
+                }, {
+                    rail: "lightrail",
                     contactId: newContact.id
-                };
-                const newValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", newValue);
-                chai.assert.equal(newValueResp.statusCode, 201, `newValueResp.body=${JSON.stringify(newValueResp)}`);
-
-                const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
-                    id: "checkout-2uq-attached",
-                    currency: "USD",
-                    lineItems: [{unitPrice: 100}],
-                    sources: [{rail: "lightrail", valueId: value1.id}, {rail: "lightrail", valueId: newValue.id}]
-                });
-                chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
-
-                chai.assert.equal(resp.body.tags.length, 2, `resp.body should have 2 tags: ${JSON.stringify(resp.body)}`);
-                chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`, `contactId:${newContact.id}`], `tags=${resp.body.tags}`);
+                }]
             });
-
-            it("contactId that doesn't exist as source", async () => {
-                const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
-                    id: "checkout-nonexistent-cid",
-                    currency: "USD",
-                    lineItems: [{unitPrice: 100}],
-                    sources: [{rail: "lightrail", contactId: "gibberish"}, {rail: "lightrail", valueId: value1.id}]
-                });
-                chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
-
-                chai.assert.equal(resp.body.tags.length, 2, `resp.body should have 2 tags: ${JSON.stringify(resp.body)}`);
-                chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`, `contactId:gibberish`], `tags=${resp.body.tags}`);
-            });
+            chai.assert.equal(checkoutResp.statusCode, 201, `checkoutResp.body=${JSON.stringify(checkoutResp.body)}`);
+            chai.assert.equal(checkoutResp.body.tags.length, 1, `checkoutResp.body should have 1 tag: ${JSON.stringify(checkoutResp.body)}`);
+            chai.assert.sameDeepMembers(checkoutResp.body.tags, [`contactId:${newContact.id}`], `tags=${checkoutResp.body.tags}`);
         });
 
         describe("auto attach", () => {
@@ -185,45 +234,6 @@ describe("/v2/transactions - tags", () => {
                 chai.assert.equal(checkoutResp.body.tags.length, 1, `checkoutResp.body should have 1 tag: ${JSON.stringify(checkoutResp.body)}`);
                 chai.assert.sameDeepMembers(checkoutResp.body.tags, [`contactId:${newContact.id}`], `tags=${checkoutResp.body.tags}`);
             });
-        });
-
-        it("can create a checkout with a shared generic code", async () => {
-            const sharedGeneric: Partial<Value> = {
-                id: "shared-generic",
-                isGenericCode: true,
-                currency: "USD",
-                balanceRule: {
-                    rule: "1000",
-                    explanation: "1000"
-                },
-                balance: null
-            };
-            await testUtils.createUSDValue(router, sharedGeneric);
-
-            const newContact: Partial<Contact> = {id: `new-contact-${generateId(4)}`};
-            const contactResp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", newContact);
-            chai.assert.equal(contactResp.statusCode, 201, `contactResp.body=${JSON.stringify(contactResp)}`);
-
-            const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${newContact.id}/values/attach`, "POST", {
-                valueId: sharedGeneric.id
-            });
-            chai.assert.equal(attachResp.statusCode, 200, `attachResp.body=${JSON.stringify(attachResp.body)}`);
-
-            const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
-                id: "checkout-w-shared-generic",
-                currency: "USD",
-                lineItems: [{unitPrice: 100}],
-                sources: [{
-                    rail: "lightrail",
-                    valueId: sharedGeneric.id
-                }, {
-                    rail: "lightrail",
-                    contactId: newContact.id
-                }]
-            });
-            chai.assert.equal(checkoutResp.statusCode, 201, `checkoutResp.body=${JSON.stringify(checkoutResp.body)}`);
-            chai.assert.equal(checkoutResp.body.tags.length, 1, `checkoutResp.body should have 1 tag: ${JSON.stringify(checkoutResp.body)}`);
-            chai.assert.sameDeepMembers(checkoutResp.body.tags, [`contactId:${newContact.id}`], `tags=${checkoutResp.body.tags}`);
         });
     });
 
