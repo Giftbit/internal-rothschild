@@ -34,7 +34,7 @@ describe("handling fraudulent charges", () => {
         router.route(testUtils.authRoute);
         installRestRoutes(router);
 
-        const currency: Currency = {
+        const currency: Partial<Currency> = {
             code: "CAD",
             name: "Monopoly Money",
             symbol: "$",

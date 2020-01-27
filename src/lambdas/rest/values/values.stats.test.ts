@@ -17,6 +17,7 @@ import {
 } from "../../../model/TransactionRequest";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
 
 describe("/v2/values/ - secret stats capability", () => {
 
@@ -31,7 +32,10 @@ describe("/v2/values/ - secret stats capability", () => {
             code: "USD",
             name: "The Big Bucks",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
         await setStubsForStripeTests();
     });

@@ -8,6 +8,7 @@ import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
@@ -24,7 +25,10 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
             code: "CAD",
             name: "Canadian Dollars",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
     });
 

@@ -11,7 +11,7 @@
     "test:debug": "LOG_LEVEL=trace npm run test",
     "test:stripeLive": "TEST_STRIPE_LOCAL=false npm run test",
     "test:stripeLiveDebug": "TEST_STRIPE_LOCAL=false npm run test:debug",
-    "test:startdb": "docker start rothschild-test-mysql || (docker run --name rothschild-test-mysql -e MYSQL_ROOT_PASSWORD=testpass -p 3306:3306 --health-cmd='mysqladmin ping --silent' -d mysql:5.6 mysqld --innodb-strict-mode=ON --sql_mode=IGNORE_SPACE,STRICT_TRANS_TABLES && until [ `docker inspect --format '{{.State.Health.Status}}' rothschild-test-mysql` = \"healthy\" ]; do echo 'waiting for MySQL to become healthy' && sleep 1; done)",
+    "test:startdb": "docker start rothschild-test-mysql || (docker run --name rothschild-test-mysql -e MYSQL_ROOT_PASSWORD=testpass -p 3306:3306 --health-cmd='mysqladmin ping --silent' -d mysql:5.6 mysqld --innodb-strict-mode=ON --sql_mode=IGNORE_SPACE,STRICT_TRANS_TABLES --server_id=1 --log-bin=bin.log --log-bin-index=bin-log.index --binlog_format=row && until [ `docker inspect --format '{{.State.Health.Status}}' rothschild-test-mysql` = \"healthy\" ]; do echo 'waiting for MySQL to become healthy' && sleep 1; done)",
     "test:stopdb": "docker stop rothschild-test-mysql"
   },
   "repository": {
@@ -35,6 +35,7 @@
     "@types/knex": "^0.16.1",
     "@types/loglevel": "^1.6.3",
     "@types/mocha": "^5.2.7",
+    "@types/mysql": "^2.15.8",
     "@types/node": "^10.17.5",
     "@types/papaparse": "^5.0.1",
     "@types/parse-link-header": "^1.0.0",
@@ -52,6 +53,7 @@
     "chai-match": "^1.1.1",
     "crypto-js": "^3.1.9-1",
     "dotenv-safe": "^8.1.0",
+    "dynameh": "^4.0.0",
     "file-loader": "^4.2.0",
     "giftbit-cassava-routes": "git+ssh://git@github.com/Giftbit/giftbit-cassava-routes.git#semver:^10.4.2",
     "giftbit-lambda-metricslib": "git+ssh://git@github.com/Giftbit/giftbit-lambda-metricslib.git#semver:^3.0.0",
@@ -74,10 +76,11 @@
     "ts-loader": "^6.2.1",
     "ts-node": "^8.5.0",
     "tslint": "^5.20.1",
-    "typescript": "^3.7.2",
+    "typescript": "^3.7.3",
     "uuid": "^3.3.3",
     "webpack": "^4.41.2",
     "webpack-cli": "^3.3.10",
-    "zip-webpack-plugin": "^3.0.0"
+    "zip-webpack-plugin": "^3.0.0",
+    "zongji": "^0.5.1"
   }
 }

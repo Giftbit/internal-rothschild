@@ -56,7 +56,7 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
     const transactionToReverse: Transaction =
         lastDbTransaction.transactionType === "capture"
             ? await getTransaction(auth, lastDbTransaction.rootTransactionId)
-            : (await DbTransaction.toTransactions([lastDbTransaction], auth.userId))[0];
+            : (await DbTransaction.toTransactionsUsingDb([lastDbTransaction], auth.userId))[0];
 
     const values = await getDbValuesByTransaction(auth, transactionToReverse);
     const frozenValue = values.find(value => value.frozen);
