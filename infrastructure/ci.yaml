@@ -104,7 +104,7 @@ Resources:
       Environment:
         Type: linuxContainer
         # ComputeType options: BUILD_GENERAL1_SMALL, BUILD_GENERAL1_MEDIUM, BUILD_GENERAL1_LARGE
-        ComputeType: BUILD_GENERAL1_SMALL
+        ComputeType: BUILD_GENERAL1_MEDIUM
         # Run `aws codebuild list-curated-environment-images` for a complete list of images provided.
         Image: !Ref CodeBuildImageNodeSSH
         EnvironmentVariables:
