@@ -9,6 +9,7 @@ import {Value} from "../../../model/Value";
 import {installRestRoutes} from "../installRestRoutes";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
@@ -24,7 +25,10 @@ describe("/v2/transactions", () => {
             code: "CAD",
             name: "Canadian bucks",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
     });
 
@@ -207,9 +211,11 @@ describe("/v2/transactions", () => {
                 code: "CAD",
                 name: "Canadian bucks",
                 symbol: "$",
-                decimalPlaces: 2
+                decimalPlaces: 2,
+                createdDate: nowInDbPrecision(),
+                updatedDate: nowInDbPrecision(),
+                createdBy: testUtils.defaultTestUser.teamMemberId
             });
-
 
             const postValueResp1 = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/values", "POST", {
                 headers: {Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`},

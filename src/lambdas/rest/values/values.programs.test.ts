@@ -6,7 +6,7 @@ import {installRestRoutes} from "../installRestRoutes";
 import {createCurrency} from "../currencies";
 import {Program} from "../../../model/Program";
 import {Value} from "../../../model/Value";
-import {dateInDbPrecision} from "../../../utils/dbUtils/index";
+import {dateInDbPrecision, nowInDbPrecision} from "../../../utils/dbUtils/index";
 
 describe("/v2/values create from program", () => {
 
@@ -20,13 +20,19 @@ describe("/v2/values create from program", () => {
             code: "USD",
             name: "US Dollars",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
         await createCurrency(testUtils.defaultTestUser.auth, {
             code: "CAD",
             name: "Canadian Dollars",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
     });
 

@@ -303,7 +303,7 @@ describe("/v2/contacts", () => {
     });
 
     it("409s on deleting a Contact in use", async () => {
-        const currency: Currency = {
+        const currency: Partial<Currency> = {
             code: "USD",
             name: "Eagle Feathers",
             symbol: "$",

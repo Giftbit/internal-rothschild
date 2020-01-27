@@ -26,7 +26,7 @@ describe("/v2/currencies", () => {
         chai.assert.deepEqual(resp.body, []);
     });
 
-    const funbux: Currency = {
+    const funbux: Partial<Currency> = {
         code: "FUNBUX",
         name: "Fun bux",
         symbol: "⭐",
@@ -36,25 +36,35 @@ describe("/v2/currencies", () => {
     it("can create a currency", async () => {
         const resp = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", funbux);
         chai.assert.equal(resp.statusCode, 201, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.deepEqual(resp.body, funbux);
+        chai.assert.deepEqualExcluding(resp.body, funbux, ["createdDate", "updatedDate", "createdBy"]);
+        chai.assert.isString(resp.body.createdDate);
+        chai.assert.isString(resp.body.updatedDate);
+        chai.assert.equal(resp.body.createdBy, testUtils.defaultTestUser.teamMemberId);
     });
 
     it("can get the currency", async () => {
         const resp = await testUtils.testAuthedRequest<Currency>(router, `/v2/currencies/${funbux.code}`, "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.deepEqual(resp.body, funbux);
+        chai.assert.deepEqualExcluding(resp.body, funbux, ["createdDate", "updatedDate", "createdBy"]);
+        chai.assert.isString(resp.body.createdDate);
+        chai.assert.isString(resp.body.updatedDate);
+        chai.assert.equal(resp.body.createdBy, testUtils.defaultTestUser.teamMemberId);
     });
 
     it("can list 1 currency", async () => {
         const resp = await testUtils.testAuthedRequest<Currency[]>(router, "/v2/currencies", "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.deepEqual(resp.body, [funbux]);
+        chai.assert.deepEqualExcludingEvery(resp.body, [funbux], ["createdDate", "updatedDate", "createdBy"]);
+        chai.assert.isString(resp.body[0].createdDate);
+        chai.assert.isString(resp.body[0].updatedDate);
+        chai.assert.equal(resp.body[0].createdBy, testUtils.defaultTestUser.teamMemberId);
     });
 
     it("can list 1 currency in csv", async () => {
         const resp = await testUtils.testAuthedCsvRequest<Currency>(router, "/v2/currencies", "GET");
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.deepEqual(resp.body, [funbux]);
+        chai.assert.deepEqualExcludingEvery(resp.body, [funbux], ["createdDate", "updatedDate", "createdBy"]);
+        chai.assert.equal(resp.body[0].createdBy, testUtils.defaultTestUser.teamMemberId);
     });
 
     it("can't create a currency with non-ascii characters in the code", async () => {
@@ -109,11 +119,11 @@ describe("/v2/currencies", () => {
             name: funbux.name = "Funner buxes"
         });
         chai.assert.equal(resp.statusCode, 200);
-        chai.assert.deepEqual(resp.body, funbux);
+        chai.assert.deepEqualExcluding(resp.body, funbux, ["createdDate", "updatedDate", "createdBy"]);
 
         const resp2 = await testUtils.testAuthedRequest<Currency>(router, `/v2/currencies/${funbux.code}`, "GET");
         chai.assert.equal(resp2.statusCode, 200);
-        chai.assert.deepEqual(resp2.body, funbux);
+        chai.assert.deepEqualExcludingEvery(resp2.body, funbux, ["createdDate", "updatedDate", "createdBy"]);
     });
 
     it("can delete an unused currency", async () => {
@@ -143,7 +153,7 @@ describe("/v2/currencies", () => {
     });
 
     describe("test common requests involving currency", () => {
-        const currencies: Currency[] = [
+        const currencies: Partial<Currency>[] = [
             {
                 code: "NPR",
                 name: "Nepalese Rupee",
@@ -180,7 +190,7 @@ describe("/v2/currencies", () => {
             it(`can create currency ${currency.code}`, async () => {
                 const resp = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", currency);
                 chai.assert.equal(resp.statusCode, 201, `body=${JSON.stringify(resp.body)}`);
-                chai.assert.deepEqual(resp.body, currency);
+                chai.assert.deepEqualExcluding(resp.body, currency, ["createdDate", "updatedDate", "createdBy"]);
             });
 
             let valueId: string;

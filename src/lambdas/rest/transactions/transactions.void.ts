@@ -37,7 +37,7 @@ export async function createVoidTransactionPlanForDbTransaction(auth: giftbitRou
         throw new Error(`Transaction '${dbTransactionToVoid.id}' has nextTransactionId '${dbTransactionToVoid.nextTransactionId}' with unexpected transactionType '${nextTransaction.transactionType}'.`);
     }
 
-    const transactionToVoid: Transaction = (await DbTransaction.toTransactions([dbTransactionToVoid], auth.userId))[0];
+    const transactionToVoid: Transaction = (await DbTransaction.toTransactionsUsingDb([dbTransactionToVoid], auth.userId))[0];
 
     return {
         id: req.id,

@@ -12,6 +12,7 @@ import {Rule, Value} from "../../model/Value";
 import {Transaction} from "../../model/Transaction";
 import {ProgramStats} from "../../model/ProgramStats";
 import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
@@ -27,7 +28,10 @@ describe("/v2/programs", () => {
             code: "USD",
             name: "USDees",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
 
         await setStubsForStripeTests();
@@ -138,7 +142,10 @@ describe("/v2/programs", () => {
             code: "CAD",
             name: "CAD",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
         const newProgram = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
             id: "one-cad",

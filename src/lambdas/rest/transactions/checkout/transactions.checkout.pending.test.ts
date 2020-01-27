@@ -20,6 +20,7 @@ import chaiExclude from "chai-exclude";
 import {TestUser} from "../../../../utils/testUtils/TestUser";
 import {getStripeClient} from "../../../../utils/stripeUtils/stripeAccess";
 import {createCurrency} from "../../currencies";
+import {nowInDbPrecision} from "../../../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
@@ -36,7 +37,10 @@ describe("/v2/transactions/checkout - pending", () => {
             code: "CAD",
             name: "Canadian Tire Money",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
         setCodeCryptographySecrets();
         await setStubsForStripeTests();
@@ -980,7 +984,10 @@ describe("/v2/transactions/checkout - pending", () => {
                 code: "CAD",
                 name: "Canadian bucks",
                 symbol: "$",
-                decimalPlaces: 2
+                decimalPlaces: 2,
+                createdDate: nowInDbPrecision(),
+                updatedDate: nowInDbPrecision(),
+                createdBy: testUtils.defaultTestUser.teamMemberId
             });
 
             const stripeCheckoutTx: CheckoutRequest = {
@@ -1032,7 +1039,10 @@ describe("/v2/transactions/checkout - pending", () => {
                 code: "CAD",
                 name: "Canadian bucks",
                 symbol: "$",
-                decimalPlaces: 2
+                decimalPlaces: 2,
+                createdDate: nowInDbPrecision(),
+                updatedDate: nowInDbPrecision(),
+                createdBy: testUtils.defaultTestUser.teamMemberId
             });
 
             const stripeCheckoutTx: CheckoutRequest = {

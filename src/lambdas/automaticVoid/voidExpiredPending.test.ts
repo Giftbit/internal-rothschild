@@ -45,7 +45,10 @@ describe("voidExpiredPending()", () => {
             code: "CAD",
             name: "Canadian bucks",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
     });
 
@@ -319,7 +322,10 @@ describe("voidExpiredPending()", () => {
             code: "CAD",
             name: "Canadian bucks",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
 
         const stripeCheckoutTx: CheckoutRequest = {

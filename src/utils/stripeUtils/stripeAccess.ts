@@ -141,7 +141,7 @@ export async function getRootTransactionFromStripeCharge(stripeCharge: Stripe.ch
 
     if (roots.length === 1) {
         const dbTransaction = roots[0];
-        const [transaction] = await DbTransaction.toTransactions([dbTransaction], dbTransaction.createdBy);
+        const [transaction] = await DbTransaction.toTransactionsUsingDb([dbTransaction], dbTransaction.createdBy);
         return transaction;
 
     } else if (roots.length === 0) {

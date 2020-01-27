@@ -195,7 +195,7 @@ export const getTransactionsForReport: ReportDelegate<ReportTransaction> = async
         tableName: "Transactions"
     }, pagination);
 
-    const transactions = await DbTransaction.toTransactions(res.body, auth.userId);
+    const transactions = await DbTransaction.toTransactionsUsingDb(res.body, auth.userId);
 
     return {
         results: transactions.map(txn => ({
