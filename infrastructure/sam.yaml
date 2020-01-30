@@ -44,7 +44,7 @@ Parameters:
 
 Conditions:
   IsLightrailEventTopicArnSet: !Not [!Equals [!Ref LightrailEventTopicArn, ""]]
-  IsHighCapacity: !Not [!Equals [!Ref Capacity, "high"]]
+  IsHighCapacity: !Equals [!Ref Capacity, "high"]
 
 Mappings:
   RegionBastionHostImageMap:
@@ -352,10 +352,10 @@ Resources:
     Properties:
       Engine: aurora
       DBClusterIdentifier: !Ref DbCluster
-      DBInstanceClass: !If [IsHighCapacity, db.r4.xlarge, db.t2.medium]
+      DBInstanceClass: !If [IsHighCapacity, db.r4.xlarge, db.t3.medium]
       DBSubnetGroupName: !Ref DbSubnetGroup
       DBParameterGroupName: !Ref DbInstanceParameterGroup
-      EnablePerformanceInsights: !If [IsHighCapacity, true, !Ref "AWS::NoValue"]
+      EnablePerformanceInsights: !If [IsHighCapacity, true, false]
       PerformanceInsightsRetentionPeriod: !If [IsHighCapacity, 731, !Ref "AWS::NoValue"]
       PerformanceInsightsKMSKeyId: !If [IsHighCapacity, !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}", !Ref "AWS::NoValue"]
       Tags:
