@@ -96,6 +96,8 @@ export async function getStripeClient(isTestMode: boolean): Promise<Stripe> {
         client = new Stripe(stripeModeConfig.secretKey);
     }
     client.setApiVersion(stripeApiVersion);
+    client.setMaxNetworkRetries(3); // Retries in case of network errors or 500s or 429s from Stripe. Timeouts do not trigger retries.
+    client.setTimeout(27000); // API Gateway has a 29s timeout so we shouldn't let requests run longer than that. Timeouts do not trigger retries.
     return client;
 }
 
