@@ -41,10 +41,16 @@ export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, 
     if (!evt.ResourceProperties.ReadOnlyUserPassword) {
         throw new Error("ResourceProperties.ReadOnlyUserPassword is undefined");
     }
+    if (!evt.ResourceProperties.BinlogWatcherUserPassword) {
+        throw new Error("ResourceProperties.BinlogWatcherUserPassword is undefined");
+    }
 
     try {
         await setStripeWebhookEvents(evt);
-        const res = await migrateDatabase(ctx, evt.ResourceProperties.ReadOnlyUserPassword);
+        const res = await migrateDatabase(ctx, {
+            readonlyuserpassword: evt.ResourceProperties.ReadOnlyUserPassword,
+            binlogwatcheruserpassword: evt.ResourceProperties.BinlogWatcherUserPassword
+        });
         return sendCloudFormationResponse(evt, ctx, true, res);
     } catch (err) {
         log.error(JSON.stringify(err, null, 2));
@@ -52,7 +58,7 @@ export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, 
     }
 }
 
-async function migrateDatabase(ctx: awslambda.Context, readonlyUserPassword: string): Promise<any> {
+async function migrateDatabase(ctx: awslambda.Context, placeholders: { [key: string]: string }): Promise<any> {
     log.info("downloading flyway", flywayVersion);
     await spawn("curl", ["-o", `/tmp/flyway-commandline-${flywayVersion}.tar.gz`, `https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/${flywayVersion}/flyway-commandline-${flywayVersion}.tar.gz`]);
 
@@ -65,17 +71,21 @@ async function migrateDatabase(ctx: awslambda.Context, readonlyUserPassword: str
 
     log.info("invoking flyway");
     const credentials = await getDbCredentials();
+    const env: { [key: string]: string } = {
+        FLYWAY_USER: credentials.username,
+        FLYWAY_PASSWORD: credentials.password,
+        FLYWAY_DRIVER: "com.mysql.jdbc.Driver",
+        FLYWAY_URL: `jdbc:mysql://${process.env["DB_ENDPOINT"]}:${process.env["DB_PORT"]}/`,
+        FLYWAY_LOCATIONS: `filesystem:${path.resolve(".", "schema")}`,
+        FLYWAY_SCHEMAS: "rothschild"
+    };
+    for (const placeholderKey in placeholders) {
+        // Flyway makes FLYWAY_PLACEHOLDERS_FOOBAR accessible as ${foobar} in mysql files.
+        env[`FLYWAY_PLACEHOLDERS_${placeholderKey.toUpperCase()}`] = placeholders[placeholderKey];
+    }
     try {
         await spawn(`/tmp/flyway-${flywayVersion}/flyway`, ["-X", "migrate"], {
-            env: {
-                FLYWAY_USER: credentials.username,
-                FLYWAY_PASSWORD: credentials.password,
-                FLYWAY_DRIVER: "com.mysql.jdbc.Driver",
-                FLYWAY_URL: `jdbc:mysql://${process.env["DB_ENDPOINT"]}:${process.env["DB_PORT"]}/`,
-                FLYWAY_LOCATIONS: `filesystem:${path.resolve(".", "schema")}`,
-                FLYWAY_SCHEMAS: "rothschild",
-                FLYWAY_PLACEHOLDERS_READONLYUSERPASSWORD: readonlyUserPassword // Flyway makes this accessible via ${readonlyuserpassword} in mysql files.
-            }
+            env: env
         });
     } catch (err) {
         log.error("error performing flyway migrate, attempting to fetch schema history table");

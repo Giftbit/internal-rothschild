@@ -8,6 +8,7 @@ import {generateId} from "../../../utils/testUtils";
 import * as testUtils from "../../../utils/testUtils/index";
 import {CheckoutRequest, ReverseRequest} from "../../../model/TransactionRequest";
 import {Transaction} from "../../../model/Transaction";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
@@ -30,7 +31,10 @@ describe("transactions concurrency tests", () => {
             code: "USD",
             name: "US Dollars",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
         chai.assert.equal(currency.code, "USD");
     });

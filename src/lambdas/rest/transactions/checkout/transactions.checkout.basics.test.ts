@@ -10,6 +10,7 @@ import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import {Contact} from "../../../../model/Contact";
 import {installRestRoutes} from "../../installRestRoutes";
 import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
@@ -26,7 +27,10 @@ describe("/v2/transactions/checkout - basics", () => {
             code: "CAD",
             name: "Canadian Tire Money",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
     });
 

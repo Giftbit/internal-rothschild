@@ -17,6 +17,7 @@ import {AttachedContactValueScenario, setupAttachedContactValueScenario} from ".
 import {LightrailTransactionParty, TransactionParty} from "../../../model/TransactionRequest";
 import {Value} from "../../../model/Value";
 import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
 
 describe("resolveTransactionPlanSteps", () => {
 
@@ -26,7 +27,10 @@ describe("resolveTransactionPlanSteps", () => {
         code: "AUD",
         decimalPlaces: 2,
         symbol: "$",
-        name: "Dollarydoo"
+        name: "Dollarydoo",
+        createdDate: nowInDbPrecision(),
+        updatedDate: nowInDbPrecision(),
+        createdBy: testUtils.defaultTestUser.teamMemberId
     };
 
     const contact: Contact = {
@@ -35,8 +39,8 @@ describe("resolveTransactionPlanSteps", () => {
         lastName: null,
         email: null,
         metadata: null,
-        createdDate: new Date(),
-        updatedDate: new Date(),
+        createdDate: nowInDbPrecision(),
+        updatedDate: nowInDbPrecision(),
         createdBy: defaultTestUser.auth.teamMemberId
     };
 
@@ -410,7 +414,7 @@ describe("resolveTransactionPlanSteps", () => {
             });
 
             it("properly excludes sources when nonTransactableHandling='exclude'", async () => {
-                const currency2: Currency = {
+                const currency2: Partial<Currency> = {
                     code: "123",
                     name: "Currency123",
                     symbol: "$",

@@ -78,6 +78,7 @@ export async function resetDb(): Promise<void> {
     });
 
     try {
+        await connection.query("RESET MASTER");     // Resets the binary log.
         if (!fullMigrationHasRun) {
             await runSqlMigrations(connection);
             fullMigrationHasRun = true;
@@ -111,6 +112,10 @@ async function runSqlMigrations(connection: any): Promise<void> {
             await connection.query("DROP USER readonly");
         } catch (err) {
             // Can error because the user didn't exist. There isn't a great way to do `DROP USER IF EXISTS readonly` in mysql 5.6.
+        }
+        try {
+            await connection.query("DROP USER binlogwatcher");
+        } catch (err) {
         }
         await connection.query("DROP DATABASE rothschild");
     }

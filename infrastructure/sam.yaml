@@ -23,6 +23,11 @@ Parameters:
     Type: String
     Description: The domain of the Lightrail REST API
     AllowedPattern: (\w+\.)+\w{3}
+  LightrailEventTopicArn:
+    Type: String
+    Description: Optional ARN of the SNS topic on Lightrail Events
+    AllowedPattern: (arn:aws:sns:[a-zA-Z_0-9\-]+:\d{12}:[a-zA-Z_0-9+=,.@\-_/]+)?
+    Default: ""
   SecureConfigBucket:
     Type: String
     Description: Name of the S3 bucket holding the JWT secure config
@@ -38,7 +43,8 @@ Parameters:
     MinValue: 1
 
 Conditions:
-  HighCapacity: !Equals [!Ref Capacity, "high"]
+  IsLightrailEventTopicArnSet: !Not [!Equals [!Ref LightrailEventTopicArn, ""]]
+  IsHighCapacity: !Equals [!Ref Capacity, "high"]
 
 Mappings:
   RegionBastionHostImageMap:
@@ -271,6 +277,12 @@ Resources:
       ServiceToken: !GetAtt CredentialGenFunction.Arn
       KmsKeyId: !Ref DbEncryptionKeyId
       SsmPrefix: !Sub "${AWS::StackName}"
+  DbBinlogWatcherUserCredentials:
+    Type: Custom::DbCredentials
+    Properties:
+      ServiceToken: !GetAtt CredentialGenFunction.Arn
+      KmsKeyId: !Ref DbEncryptionKeyId
+      SsmPrefix: !Sub "${AWS::StackName}-binlogwatcher"
   DbReadUserCredentials:
     Type: Custom::DbCredentials
     Properties:
@@ -296,6 +308,7 @@ Resources:
       Description: !Sub "${AWS::StackName} cluster parameter group"
       Family: aurora5.6
       Parameters:
+        binlog_format: ROW
         innodb_strict_mode: 1
       Tags:
         - Key: Service
@@ -328,9 +341,9 @@ Resources:
       Parameters:
         sql_mode: IGNORE_SPACE,STRICT_TRANS_TABLES
         slow_query_log: 1
-        performance_schema: !If [HighCapacity, 1, !Ref "AWS::NoValue"]
-        performance-schema-consumer-events-waits-current: !If [HighCapacity, "ON", !Ref "AWS::NoValue"]
-        performance-schema-instrument: !If [HighCapacity, 'wait/%=ON', !Ref "AWS::NoValue"]
+        performance_schema: !If [IsHighCapacity, 1, !Ref "AWS::NoValue"]
+        performance-schema-consumer-events-waits-current: !If [IsHighCapacity, "ON", !Ref "AWS::NoValue"]
+        performance-schema-instrument: !If [IsHighCapacity, 'wait/%=ON', !Ref "AWS::NoValue"]
       Tags:
         - Key: Service
           Value: Rothschild
@@ -339,12 +352,12 @@ Resources:
     Properties:
       Engine: aurora
       DBClusterIdentifier: !Ref DbCluster
-      DBInstanceClass: !If [HighCapacity, db.r4.xlarge, db.t2.medium]
+      DBInstanceClass: !If [IsHighCapacity, db.r4.xlarge, db.t3.medium]
       DBSubnetGroupName: !Ref DbSubnetGroup
       DBParameterGroupName: !Ref DbInstanceParameterGroup
-      EnablePerformanceInsights: !If [HighCapacity, true, !Ref "AWS::NoValue"]
-      PerformanceInsightsRetentionPeriod: !If [HighCapacity, 731, !Ref "AWS::NoValue"]
-      PerformanceInsightsKMSKeyId: !If [HighCapacity, !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}", !Ref "AWS::NoValue"]
+      EnablePerformanceInsights: !If [IsHighCapacity, true, false]
+      PerformanceInsightsRetentionPeriod: !If [IsHighCapacity, 731, !Ref "AWS::NoValue"]
+      PerformanceInsightsKMSKeyId: !If [IsHighCapacity, !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}", !Ref "AWS::NoValue"]
       Tags:
         - Key: Service
           Value: Rothschild
@@ -526,7 +539,7 @@ Resources:
       Runtime: nodejs10.x
       MemorySize: 512
       Timeout: 180 # seconds, 900 max
-      ReservedConcurrentExecutions: !If [HighCapacity, 500, 150]
+      ReservedConcurrentExecutions: !If [IsHighCapacity, 500, 150]
       Environment:
         Variables:
           DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
@@ -749,7 +762,113 @@ Resources:
     Type: Custom::PostDeployInvocation
     Properties:
       ServiceToken: !GetAtt PostDeployFunction.Arn
-      # This parameter isn't used, but changing it forces this function to run every time, which we want.
-      BuildDate: !Ref BuildDate
+      BinlogWatcherUserPassword: !GetAtt DbBinlogWatcherUserCredentials.Password
+      BuildDate: !Ref BuildDate # This parameter isn't used, but changing it forces this function to run every time, which we want.
       ReadOnlyUserPassword: !GetAtt DbReadUserCredentials.Password
       StripeWebhookEvents: "charge.refunded,charge.refund.updated,review.closed,charge.dispute.created"
+
+  BinlogWatcherState:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+      Tags:
+        - Key: ShortName
+          Value: BinlogWatcherState
+        - Key: Service
+          Value: Rothschild
+
+  BinlogWatcherFunction:
+    Type: AWS::Serverless::Function
+    Condition: IsLightrailEventTopicArnSet
+    Properties:
+      CodeUri: ../dist/binlogWatcher/binlogWatcher.zip
+      Handler: index.handler
+      Runtime: nodejs10.x
+      MemorySize: 128 # if we're consistently falling behind increase the instance size
+      Timeout: 600 # same as schedule rate
+      Environment:
+        Variables:
+          DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
+          DB_PORT: !GetAtt DbCluster.Endpoint.Port
+          DB_USERNAME: "binlogwatcher"
+          DB_PASSWORD_PARAMETER: !GetAtt DbBinlogWatcherUserCredentials.PasswordParameter
+          DDB_TABLE: !Ref BinlogWatcherState
+          LIGHTRAIL_EVENT_TOPIC_ARN: !Ref LightrailEventTopicArn
+          READ_REPLICA_SERVER_ID: 1234
+          SECURE_CONFIG_BUCKET: !Ref SecureConfigBucket
+          SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY: code_cryptography_secrets.json
+          SECURE_CONFIG_KEY_SENTRY: sentry_lambda_services.json
+      VpcConfig:
+        SecurityGroupIds:
+          - !GetAtt LambdaSecurityGroup.GroupId
+        SubnetIds:
+          - !Ref SubnetPrivateA
+          - !Ref SubnetPrivateB
+          - !Ref SubnetPrivateC
+      Policies:
+        - AWSLambdaVPCAccessExecutionRole
+        - Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+                - ssm:GetParameters
+              Resource:
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DbBinlogWatcherUserCredentials.PasswordParameter}"
+            - Effect: Allow
+              Action:
+                - kms:Decrypt
+                - kms:DescribeKey
+              Resource:
+                - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource:
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/code_cryptography_secrets.json"
+                - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
+            - Effect: Allow
+              Action:
+                - kms:Decrypt
+                - kms:DescribeKey
+              Resource:
+                - !Ref SecureConfigKmsArn
+              Condition:
+                StringLike:
+                  "kms:ViaService":
+                    !Sub "s3.${AWS::Region}.amazonaws.com"
+                  "kms:EncryptionContext:aws:s3:arn":
+                    !Sub "arn:aws:s3:::${SecureConfigBucket}/*"
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource:
+                - !Ref LightrailEventTopicArn
+            - Effect: Allow
+              Action:
+                - dynamodb:BatchGetItem
+                - dynamodb:DescribeTable
+                - dynamodb:DeleteItem
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:Query
+              Resource:
+                - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${BinlogWatcherState}"
+                - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${BinlogWatcherState}/*"
+      Tags:
+        ShortName: BinlogWatcherFunction
+        Service: Rothschild
+      Events:
+        CheckVoidSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: rate(10 minutes)
+            Input: !Sub ""

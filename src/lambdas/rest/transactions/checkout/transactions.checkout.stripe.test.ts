@@ -73,7 +73,7 @@ describe("split tender checkout with Stripe", () => {
         valueStores.installValuesRest(router);
         currencies.installCurrenciesRest(router);
 
-        const currency: Currency = {
+        const currency: Partial<Currency> = {
             code: "CAD",
             name: "Monopoly Money",
             symbol: "$",

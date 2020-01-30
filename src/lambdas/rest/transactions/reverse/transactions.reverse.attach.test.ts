@@ -9,6 +9,7 @@ import {Transaction} from "../../../../model/Transaction";
 import {ReverseRequest} from "../../../../model/TransactionRequest";
 import {Contact} from "../../../../model/Contact";
 import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
@@ -26,7 +27,10 @@ describe("/v2/transactions/reverse - attach", () => {
             code: "USD",
             name: "US Dollars",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
         chai.assert.equal(currency.code, "USD");
     });

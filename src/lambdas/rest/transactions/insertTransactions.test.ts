@@ -12,6 +12,7 @@ import {insertTransaction} from "./insertTransactions";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import {getDbTransaction} from "./transactions";
 import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
@@ -28,7 +29,10 @@ describe("insertTransactions", () => {
             code: "USD",
             name: "US Dollars",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
         chai.assert.equal(currency.code, "USD");
     });

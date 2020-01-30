@@ -13,6 +13,7 @@ import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {TransferRequest} from "../../../model/TransactionRequest";
 import chaiExclude from "chai-exclude";
 import {retrieveCharge} from "../../../utils/stripeUtils/stripeTransactions";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
@@ -46,7 +47,10 @@ describe("/v2/transactions/transfer", () => {
         code: "CAD",
         name: "Beaver pelts",
         symbol: "$",
-        decimalPlaces: 2
+        decimalPlaces: 2,
+        createdDate: nowInDbPrecision(),
+        updatedDate: nowInDbPrecision(),
+        createdBy: testUtils.defaultTestUser.teamMemberId
     };
 
     const valueCad1: Partial<Value> = {
