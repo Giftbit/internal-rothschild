@@ -227,7 +227,7 @@ describe("/v2/transactions/reverse - transfer", () => {
                 pending: false,
                 "metadata": null,
                 "createdBy": "default-test-user-TEST"
-            }, ["createdDate"]
+            }, ["createdDate", "payment_intent"]
         );
 
         // check value is same as before
