@@ -2,13 +2,13 @@ import * as chai from "chai";
 import chaiExclude from "chai-exclude";
 import * as cassava from "cassava";
 import * as testUtils from "../../../utils/testUtils";
-import {generateId} from "../../../utils/testUtils";
 import {installRestRoutes} from "../installRestRoutes";
 import {Value} from "../../../model/Value";
 import {Contact} from "../../../model/Contact";
 import {Transaction} from "../../../model/Transaction";
 import {CheckoutRequest} from "../../../model/TransactionRequest";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
+import {Tag} from "../../../model/Tag";
 
 chai.use(chaiExclude);
 
@@ -96,11 +96,11 @@ describe("/v2/transactions - tags", () => {
         });
 
         it("2nd unique value (attached to different contact) as source, doesn't get used", async () => {
-            const newContact: Partial<Contact> = {id: generateId(5)};
+            const newContact: Partial<Contact> = {id: testUtils.generateId(5)};
             const newContactResp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", newContact);
             chai.assert.equal(newContactResp.statusCode, 201, `newContactResp.body=${JSON.stringify(newContactResp.body)}`);
             const newValue: Partial<Value> = {
-                id: generateId(5),
+                id: testUtils.generateId(5),
                 currency: "USD",
                 balance: 0,
                 contactId: newContact.id
@@ -158,7 +158,7 @@ describe("/v2/transactions - tags", () => {
             };
             await testUtils.createUSDValue(router, sharedGeneric);
 
-            const newContact: Partial<Contact> = {id: `new-contact-${generateId(4)}`};
+            const newContact: Partial<Contact> = {id: `new-contact-${testUtils.generateId(4)}`};
             const contactResp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", newContact);
             chai.assert.equal(contactResp.statusCode, 201, `contactResp.body=${JSON.stringify(contactResp)}`);
 
@@ -186,7 +186,7 @@ describe("/v2/transactions - tags", () => {
 
         describe("auto attach", () => {
             it("can create a checkout with auto-attaches", async () => {
-                const newContact: Partial<Contact> = {id: `new-contact-${generateId(4)}`};
+                const newContact: Partial<Contact> = {id: `new-contact-${testUtils.generateId(4)}`};
                 const contactResp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", newContact);
                 chai.assert.equal(contactResp.statusCode, 201, `contactResp.body=${JSON.stringify(contactResp)}`);
 
@@ -321,7 +321,7 @@ describe("/v2/transactions - tags", () => {
             const newValue = await testUtils.createUSDValue(router);
             chai.assert.isNull(newValue.contactId);
             const firstTx = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", {
-                id: generateId(),
+                id: testUtils.generateId(),
                 currency: "USD",
                 destination: {
                     rail: "lightrail",
@@ -339,7 +339,7 @@ describe("/v2/transactions - tags", () => {
             chai.assert.equal(attachResp.body.contactId, contact1.id);
 
             const reverseResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${firstTx.body.id}/reverse`, "POST", {
-                id: generateId()
+                id: testUtils.generateId()
             });
             chai.assert.equal(reverseResp.statusCode, 201, `reverseResp.body=${JSON.stringify(reverseResp.body)}`);
             chai.assert.isArray(reverseResp.body.tags, "reverse should have tags");
@@ -393,7 +393,7 @@ describe("/v2/transactions - tags", () => {
             chai.assert.equal(attachResp.body.contactId, contact1.id);
 
             const captureResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${firstTx.body.id}/capture`, "POST", {
-                id: generateId()
+                id: testUtils.generateId()
             });
             chai.assert.equal(captureResp.statusCode, 201, `captureResp.body=${JSON.stringify(captureResp.body)}`);
             chai.assert.isArray(captureResp.body.tags, "capture transaction should have tags");
@@ -447,7 +447,7 @@ describe("/v2/transactions - tags", () => {
             chai.assert.equal(attachResp.body.contactId, contact1.id);
 
             const voidResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${firstTx.body.id}/void`, "POST", {
-                id: generateId()
+                id: testUtils.generateId()
             });
             chai.assert.equal(voidResp.statusCode, 201, `voidResp.body=${JSON.stringify(voidResp.body)}`);
             chai.assert.isArray(voidResp.body.tags, "void transaction should have tags");
@@ -500,7 +500,7 @@ describe("/v2/transactions - tags", () => {
     });
 
     it("does not save new tag data for simulated transactions", async () => {
-        const contactId = generateId();
+        const contactId = testUtils.generateId();
         const tag = `contactId:${contactId}`;
 
         const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
@@ -536,7 +536,88 @@ describe("/v2/transactions - tags", () => {
     });
 
     describe("data isolation", () => {
-        it("allows two users to create transactions with the same tags");
-        it("maps the right tags to the right transactions - create; get");
+        before(async () => {
+            const usdUser2 = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/currencies", "POST", {
+                headers: {
+                    Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`
+                },
+                body: JSON.stringify({
+                    code: "USD",
+                    decimalPlaces: 2,
+                    name: "USD User2",
+                    symbol: "$"
+                })
+            }));
+            chai.assert.equal(usdUser2.statusCode, 201, `usdUser2.body=${JSON.stringify(usdUser2.body)}`);
+        });
+
+        it("keeps tags & joins separate for separate users", async () => {
+            // these properties will be shared by object created for user1 (default test user) and user2 (alt. test user)
+            const contactId = testUtils.generateId();
+            const valueProps = {id: testUtils.generateId(), currency: "USD", balance: 50};
+            const txRequest: CheckoutRequest = {
+                id: "tx1",
+                currency: "USD",
+                lineItems: [{unitPrice: 50}],
+                sources: [{rail: "lightrail", contactId}, {rail: "lightrail", valueId: valueProps.id}]
+            };
+
+            // create user1 transaction
+            await testUtils.createUSDValue(router, valueProps);
+            const txUser1 = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", txRequest);
+            chai.assert.equal(txUser1.statusCode, 201, `txUser1.body=${JSON.stringify(txUser1.body)}`);
+            chai.assert.isArray(txUser1.body.tags, `txUser1 should have tags: ${JSON.stringify(txUser1.body)}`);
+            chai.assert.equal(txUser1.body.tags.length, 1);
+            chai.assert.equal(txUser1.body.tags[0], `contactId:${contactId}`);
+
+            // create user2 transaction
+            const valueUser2Resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/values", "POST", {
+                headers: {
+                    Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`,
+
+                },
+                body: JSON.stringify(valueProps)
+            }));
+            chai.assert.equal(valueUser2Resp.statusCode, 201, `valueUser2Resp.body=${JSON.stringify(valueUser2Resp.body)}`);
+            const txUser2Resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/transactions/checkout", "POST", {
+                headers: {
+                    Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`,
+
+                },
+                body: JSON.stringify(txRequest)
+            }));
+            chai.assert.equal(txUser2Resp.statusCode, 201, `txUser2Resp.body=${JSON.stringify(txUser2Resp.body)}`);
+            const txUser2 = JSON.parse(txUser2Resp.body);
+            chai.assert.isArray(txUser2.tags, `txUser2 should have tags: ${JSON.stringify(txUser2.body)}`);
+            chai.assert.equal(txUser2.tags.length, 1);
+            chai.assert.equal(txUser2.tags[0], `contactId:${contactId}`);
+
+            // check what was actually written to tags table
+            const knex = await getKnexRead();
+            const tagRes: Tag[] = await knex("Tags")
+                .select()
+                .where({
+                    tag: `contactId:${contactId}`
+                });
+            chai.assert.equal(tagRes.length, 2, `tag table should have an entry for this tag value for each test user: ${JSON.stringify(tagRes)}`);
+            chai.assert.equal(tagRes[0].tag, tagRes[1].tag, `tags should have the same 'tag' value: ${JSON.stringify(tagRes)}`);
+            chai.assert.sameMembers(tagRes.map(t => t.userId), [testUtils.defaultTestUser.auth.userId, testUtils.alternateTestUser.auth.userId], `tag table should have an entry for this tag value for each test user: ${JSON.stringify(tagRes)}`);
+
+            // ...and what was actually written to TransactionsTags join table
+            const transactionsTagsRes = await knex("TransactionsTags")
+                .select()
+                .where({
+                    transactionId: txRequest.id,
+                });
+            chai.assert.equal(transactionsTagsRes.length, 2, `TransactionsTags table should have an entry for each test user's transaction: ${JSON.stringify(transactionsTagsRes)}`);
+
+            const txTagUser1 = transactionsTagsRes.find(t => t.userId === testUtils.defaultTestUser.auth.userId);
+            chai.assert.isObject(txTagUser1, `TransactionsTags should have entry for user1's transaction: ${JSON.stringify(transactionsTagsRes)}`);
+            chai.assert.equal(txTagUser1.tagId, tagRes.find(t => t.userId === txTagUser1.userId).id);
+
+            const txTagUser2 = transactionsTagsRes.find(t => t.userId === testUtils.alternateTestUser.auth.userId);
+            chai.assert.isObject(txTagUser2, `TransactionsTags should have entry for user2's transaction: ${JSON.stringify(transactionsTagsRes)}`);
+            chai.assert.equal(txTagUser2.tagId, tagRes.find(t => t.userId === txTagUser2.userId).id);
+        });
     });
 });

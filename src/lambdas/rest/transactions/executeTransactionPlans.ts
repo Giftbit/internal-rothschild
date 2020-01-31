@@ -23,6 +23,7 @@ import {Value} from "../../../model/Value";
 import {transactionPartySchema} from "../../../model/TransactionRequest";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {generateCode} from "../../../utils/codeGenerator";
+import {Tag} from "../../../model/Tag";
 import log = require("loglevel");
 import Knex = require("knex");
 import lightrail = transactionPartySchema.lightrail;
@@ -137,7 +138,7 @@ async function insertTransactionTags(auth: giftbitRoutes.jwtauth.AuthorizationBa
     const now = nowInDbPrecision();
 
     for (let tag of transactionPlan.tags) {
-        const tagData = {
+        const tagData: Tag = {
             userId: auth.userId,
             id: `_tag-${generateCode({})}`,
             tag: tag,
