@@ -22,6 +22,7 @@ import * as cassava from "cassava";
 import {Value} from "../../../model/Value";
 import {transactionPartySchema} from "../../../model/TransactionRequest";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
+import {generateCode} from "../../../utils/codeGenerator";
 import log = require("loglevel");
 import Knex = require("knex");
 import lightrail = transactionPartySchema.lightrail;
@@ -138,7 +139,7 @@ async function insertTransactionTags(auth: giftbitRoutes.jwtauth.AuthorizationBa
     for (let tag of transactionPlan.tags) {
         const tagData = {
             userId: auth.userId,
-            id: tag, // TODO address this: uuid? special prefix for lr-generated, so as not to conflict with cust-supplied later on?
+            id: `_tag-${generateCode({})}`,
             tag: tag,
             createdDate: now,
             updatedDate: now,

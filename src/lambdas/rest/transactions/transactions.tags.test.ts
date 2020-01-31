@@ -7,6 +7,8 @@ import {installRestRoutes} from "../installRestRoutes";
 import {Value} from "../../../model/Value";
 import {Contact} from "../../../model/Contact";
 import {Transaction} from "../../../model/Transaction";
+import {CheckoutRequest} from "../../../model/TransactionRequest";
+import {getKnexRead} from "../../../utils/dbUtils/connection";
 
 chai.use(chaiExclude);
 
@@ -495,6 +497,42 @@ describe("/v2/transactions - tags", () => {
         chai.assert.equal(txResp.body[0].transactionType, "attach", `transactionType should be 'attach': ${txResp.body[0].transactionType}`);
         chai.assert.equal(txResp.body[0].tags.length, 1, `txResp.body[0] should have 1 tag: ${JSON.stringify(txResp.body[0])}`);
         chai.assert.sameDeepMembers(txResp.body[0].tags, [`contactId:${contact1.id}`], `tags=${txResp.body[0].tags}`);
+    });
+
+    it("does not save new tag data for simulated transactions", async () => {
+        const contactId = generateId();
+        const tag = `contactId:${contactId}`;
+
+        const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+            id: "checkout-simulated",
+            currency: "USD",
+            lineItems: [{unitPrice: 100}],
+            sources: [{rail: "lightrail", contactId}, {rail: "stripe", source: "tok_visa"}],
+            simulate: true
+        });
+        chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
+
+        chai.assert.equal(resp.body.tags.length, 1, `resp.body should have 1 tag: ${JSON.stringify(resp.body)}`);
+        chai.assert.sameDeepMembers(resp.body.tags, [tag], `tags=${resp.body.tags}`);
+        const fetchSimulatedResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/transactions/${resp.body.id}`, "GET");
+        chai.assert.equal(fetchSimulatedResp.statusCode, cassava.httpStatusCode.clientError.NOT_FOUND, `fetchSimulatedResp.body=${JSON.stringify(fetchSimulatedResp.body)}`);
+
+        const knex = await getKnexRead();
+        const tagRes = await knex("Tags")
+            .select()
+            .where({
+                userId: testUtils.defaultTestUser.userId,
+                tag
+            });
+        chai.assert.equal(tagRes.length, 0, `tag should not exist: ${JSON.stringify(tagRes)}`);
+
+        const transactionsTagsRes = await knex("TransactionsTags")
+            .select()
+            .where({
+                userId: testUtils.defaultTestUser.userId,
+                transactionId: resp.body.id
+            });
+        chai.assert.equal(transactionsTagsRes.length, 0, `TransactionsTags record should not exist: ${JSON.stringify(transactionsTagsRes)}`);
     });
 
     describe("data isolation", () => {
