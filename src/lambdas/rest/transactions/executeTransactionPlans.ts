@@ -130,7 +130,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
     return TransactionPlan.toTransaction(auth, plan);
 }
 
-async function insertTransactionTags(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, transactionPlan: TransactionPlan): Promise<void> {
+export async function insertTransactionTags(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, transactionPlan: TransactionPlan): Promise<void> {
     if (!transactionPlan.tags || transactionPlan.tags.length === 0) {
         return;
     }

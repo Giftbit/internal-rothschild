@@ -9,6 +9,7 @@ import {Transaction} from "../../../model/Transaction";
 import {CheckoutRequest} from "../../../model/TransactionRequest";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {Tag} from "../../../model/Tag";
+import {formatContactIdTags} from "./transactions";
 
 chai.use(chaiExclude);
 
@@ -61,8 +62,11 @@ describe("/v2/transactions - tags", () => {
             });
             chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
 
-            chai.assert.equal(resp.body.tags.length, 1, `resp.body should have 1 tag: ${JSON.stringify(resp.body)}`);
-            chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`], `tags=${resp.body.tags}`);
+            assertTxHasContactIdTags(resp.body, [contact1.id]);
+
+            const getTxResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${resp.body.id}`, "GET");
+            chai.assert.equal(getTxResp.statusCode, 200, `getTxResp.body=${JSON.stringify(getTxResp)}`);
+            chai.assert.deepEqual(getTxResp.body, resp.body);
         });
 
         it("contactId as source", async () => {
@@ -74,8 +78,11 @@ describe("/v2/transactions - tags", () => {
             });
             chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
 
-            chai.assert.equal(resp.body.tags.length, 1, `resp.body should have 1 tag: ${JSON.stringify(resp.body)}`);
-            chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`], `tags=${resp.body.tags}`);
+            assertTxHasContactIdTags(resp.body, [contact1.id]);
+
+            const getTxResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${resp.body.id}`, "GET");
+            chai.assert.equal(getTxResp.statusCode, 200, `getTxResp.body=${JSON.stringify(getTxResp)}`);
+            chai.assert.deepEqual(getTxResp.body, resp.body);
         });
 
         it("2nd contactId as source, doesn't get used", async () => {
@@ -91,8 +98,7 @@ describe("/v2/transactions - tags", () => {
             });
             chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
 
-            chai.assert.equal(resp.body.tags.length, 2, `resp.body should have 2 tags: ${JSON.stringify(resp.body)}`);
-            chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`, `contactId:${contact2.id}`], `tags=${resp.body.tags}`);
+            assertTxHasContactIdTags(resp.body, [contact1.id, contact2.id])
         });
 
         it("2nd unique value (attached to different contact) as source, doesn't get used", async () => {
@@ -116,8 +122,12 @@ describe("/v2/transactions - tags", () => {
             });
             chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
 
-            chai.assert.equal(resp.body.tags.length, 2, `resp.body should have 2 tags: ${JSON.stringify(resp.body)}`);
-            chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`, `contactId:${newContact.id}`], `tags=${resp.body.tags}`);
+            assertTxHasContactIdTags(resp.body, [contact1.id, newContact.id]);
+
+            const getTxResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${resp.body.id}`, "GET");
+            chai.assert.equal(getTxResp.statusCode, 200, `getTxResp.body=${JSON.stringify(getTxResp)}`);
+            chai.assert.deepEqualExcluding(getTxResp.body, resp.body, ["tags"]);
+            chai.assert.sameDeepMembers(getTxResp.body.tags, resp.body.tags);
         });
 
         it("contactId that doesn't exist as source", async () => {
@@ -129,8 +139,12 @@ describe("/v2/transactions - tags", () => {
             });
             chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
 
-            chai.assert.equal(resp.body.tags.length, 2, `resp.body should have 2 tags: ${JSON.stringify(resp.body)}`);
-            chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`, `contactId:gibberish`], `tags=${resp.body.tags}`);
+            assertTxHasContactIdTags(resp.body, [contact1.id, "gibberish"]);
+
+            const getTxResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${resp.body.id}`, "GET");
+            chai.assert.equal(getTxResp.statusCode, 200, `getTxResp.body=${JSON.stringify(getTxResp)}`);
+            chai.assert.deepEqualExcluding(getTxResp.body, resp.body, ["tags"]);
+            chai.assert.sameDeepMembers(getTxResp.body.tags, resp.body.tags);
         });
 
         it("does not tag checkouts that involve no contacts", async () => {
@@ -180,62 +194,95 @@ describe("/v2/transactions - tags", () => {
                 }]
             });
             chai.assert.equal(checkoutResp.statusCode, 201, `checkoutResp.body=${JSON.stringify(checkoutResp.body)}`);
-            chai.assert.equal(checkoutResp.body.tags.length, 1, `checkoutResp.body should have 1 tag: ${JSON.stringify(checkoutResp.body)}`);
-            chai.assert.sameDeepMembers(checkoutResp.body.tags, [`contactId:${newContact.id}`], `tags=${checkoutResp.body.tags}`);
+            assertTxHasContactIdTags(checkoutResp.body, [newContact.id]);
+
+            const getTxResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkoutResp.body.id}`, "GET");
+            chai.assert.equal(getTxResp.statusCode, 200, `getTxResp.body=${JSON.stringify(getTxResp)}`);
+            chai.assert.deepEqual(getTxResp.body, checkoutResp.body);
+        });
+    });
+
+    describe("attach transactions", () => {
+        it("adds contactId tag to both the checkout and the attach transaction if auto-attach is used", async () => {
+            const newContact: Partial<Contact> = {id: `new-contact-${testUtils.generateId(4)}`};
+            const contactResp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", newContact);
+            chai.assert.equal(contactResp.statusCode, 201, `contactResp.body=${JSON.stringify(contactResp)}`);
+
+            const perContactValue1: Partial<Value> = {
+                id: "gen-val-per-contact-1",
+                currency: "USD",
+                isGenericCode: true,
+                genericCodeOptions: {
+                    perContact: {
+                        balance: 100,
+                        usesRemaining: null
+                    }
+                }
+            };
+            const v1SetupResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", perContactValue1);
+            chai.assert.equal(v1SetupResp.statusCode, 201, `v1SetupResp.body=${JSON.stringify(v1SetupResp.body)}`);
+
+            const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                id: "checkout-w-auto-attach",
+                currency: "USD",
+                lineItems: [{unitPrice: 100}],
+                sources: [{
+                    rail: "lightrail",
+                    valueId: perContactValue1.id
+                }, {
+                    rail: "lightrail",
+                    contactId: newContact.id
+                }]
+            });
+            chai.assert.equal(checkoutResp.statusCode, 201, `checkoutResp.body=${JSON.stringify(checkoutResp.body)}`);
+            assertTxHasContactIdTags(checkoutResp.body, [newContact.id]);
+
+            const getTxResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkoutResp.body.id}`, "GET");
+            chai.assert.equal(getTxResp.statusCode, 200, `getTxResp.body=${JSON.stringify(getTxResp)}`);
+            chai.assert.deepEqual(getTxResp.body, checkoutResp.body);
+
+            const getAttachTxResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?transactionType=attach&calueId=${perContactValue1.id}`, "GET");
+            chai.assert.equal(getAttachTxResp.statusCode, 200, `getAttachTxResp.body=${JSON.stringify(getAttachTxResp)}`);
+            chai.assert.equal(getAttachTxResp.body.length, 1, `getAttachTxResp.body=${JSON.stringify(getAttachTxResp)}`);
+            assertTxHasContactIdTags(getAttachTxResp.body[0], [newContact.id]);
         });
 
-        describe("auto attach", () => {
-            it("can create a checkout with auto-attaches", async () => {
-                const newContact: Partial<Contact> = {id: `new-contact-${testUtils.generateId(4)}`};
-                const contactResp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", newContact);
-                chai.assert.equal(contactResp.statusCode, 201, `contactResp.body=${JSON.stringify(contactResp)}`);
-
-                const perContactValue1: Partial<Value> = {
-                    id: "gen-val-per-contact-1",
-                    currency: "USD",
-                    isGenericCode: true,
-                    genericCodeOptions: {
-                        perContact: {
-                            balance: 50,
-                            usesRemaining: null
-                        }
+        it("adds contactId tag to attach transaction when the /attach endpoint is used for a value with perContact properties", async () => {
+            const genericValue = await testUtils.createUSDValue(router, {
+                isGenericCode: true,
+                genericCodeOptions: {
+                    perContact: {
+                        balance: 1,
+                        usesRemaining: null
                     }
-                };
-                const v1SetupResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", perContactValue1);
-                chai.assert.equal(v1SetupResp.statusCode, 201, `v1SetupResp.body=${JSON.stringify(v1SetupResp.body)}`);
-                const perContactValue2: Partial<Value> = {
-                    id: "gen-val-per-contact-2",
-                    currency: "USD",
-                    isGenericCode: true,
-                    genericCodeOptions: {
-                        perContact: {
-                            balance: 50,
-                            usesRemaining: null
-                        }
-                    }
-                };
-                const v2SetupResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", perContactValue2);
-                chai.assert.equal(v2SetupResp.statusCode, 201, `v2SetupResp.body=${JSON.stringify(v2SetupResp.body)}`);
-
-                const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
-                    id: "checkout-w-auto-attach",
-                    currency: "USD",
-                    lineItems: [{unitPrice: 100}],
-                    sources: [{
-                        rail: "lightrail",
-                        valueId: perContactValue1.id
-                    }, {
-                        rail: "lightrail",
-                        valueId: perContactValue2.id
-                    }, {
-                        rail: "lightrail",
-                        contactId: newContact.id
-                    }]
-                });
-                chai.assert.equal(checkoutResp.statusCode, 201, `checkoutResp.body=${JSON.stringify(checkoutResp.body)}`);
-                chai.assert.equal(checkoutResp.body.tags.length, 1, `checkoutResp.body should have 1 tag: ${JSON.stringify(checkoutResp.body)}`);
-                chai.assert.sameDeepMembers(checkoutResp.body.tags, [`contactId:${newContact.id}`], `tags=${checkoutResp.body.tags}`);
+                }
             });
+
+            const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1.id}/values/attach`, "POST", {
+                valueId: genericValue.id
+            });
+            chai.assert.equal(attachResp.statusCode, 200, `attachResp.body=${JSON.stringify(attachResp.body)}`);
+
+            const attachTxResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${genericValue.id}&transactionType=attach`, "GET");
+            chai.assert.equal(attachTxResp.statusCode, 200, `attachTxResp.body=${JSON.stringify(attachTxResp.body)}`);
+            assertTxHasContactIdTags(attachTxResp.body[0], [contact1.id]);
+        });
+
+        it("adds contactId tag to attach transaction when using legacy 'attachGenericAsNewValue' flag", async () => {
+            const sharedGenericValue = await testUtils.createUSDValue(router, {
+                isGenericCode: true
+            });
+
+            const attachSharedResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1.id}/values/attach`, "POST", {
+                valueId: sharedGenericValue.id,
+                attachGenericAsNewValue: true
+            });
+            chai.assert.equal(attachSharedResp.statusCode, 200, `attachSharedResp.body=${JSON.stringify(attachSharedResp.body)}`);
+
+            const attachSharedTxResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${sharedGenericValue.id}&transactionType=attach`, "GET");
+            chai.assert.equal(attachSharedTxResp.statusCode, 200, `attachSharedTxResp.body=${JSON.stringify(attachSharedTxResp.body)}`);
+            chai.assert.equal(attachSharedTxResp.body.length, 1, `attachSharedTxResp.body=${JSON.stringify(attachSharedTxResp.body)}`);
+            assertTxHasContactIdTags(attachSharedTxResp.body[0], [contact1.id]);
         });
     });
 
@@ -250,8 +297,11 @@ describe("/v2/transactions - tags", () => {
             }
         });
         chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
-        chai.assert.equal(resp.body.tags.length, 1, `resp.body should have 1 tag: ${JSON.stringify(resp.body)}`);
-        chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`], `tags=${resp.body.tags}`);
+        assertTxHasContactIdTags(resp.body, [contact1.id]);
+
+        const getTxResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${resp.body.id}`, "GET");
+        chai.assert.equal(getTxResp.statusCode, 200, `getTxResp.body=${JSON.stringify(getTxResp)}`);
+        chai.assert.deepEqual(getTxResp.body, resp.body);
     });
 
     it("adds contactId tag when creating a debit transaction", async () => {
@@ -265,8 +315,12 @@ describe("/v2/transactions - tags", () => {
             }
         });
         chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
-        chai.assert.equal(resp.body.tags.length, 1, `resp.body should have 1 tag: ${JSON.stringify(resp.body)}`);
-        chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`], `tags=${resp.body.tags}`);
+
+        assertTxHasContactIdTags(resp.body, [contact1.id]);
+
+        const getTxResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${resp.body.id}`, "GET");
+        chai.assert.equal(getTxResp.statusCode, 200, `getTxResp.body=${JSON.stringify(getTxResp)}`);
+        chai.assert.deepEqual(getTxResp.body, resp.body);
     });
 
     it("adds contactId tag when creating a transfer transaction", async () => {
@@ -284,8 +338,12 @@ describe("/v2/transactions - tags", () => {
             }
         });
         chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
-        chai.assert.equal(resp.body.tags.length, 1, `resp.body should have 1 tag: ${JSON.stringify(resp.body)}`);
-        chai.assert.sameDeepMembers(resp.body.tags, [`contactId:${contact1.id}`], `tags=${resp.body.tags}`);
+
+        assertTxHasContactIdTags(resp.body, [contact1.id]);
+
+        const getTxResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${resp.body.id}`, "GET");
+        chai.assert.equal(getTxResp.statusCode, 200, `getTxResp.body=${JSON.stringify(getTxResp)}`);
+        chai.assert.deepEqual(getTxResp.body, resp.body);
     });
 
     describe("transactions later in chain: reverse, capture pending, void pending", () => {
@@ -304,9 +362,7 @@ describe("/v2/transactions - tags", () => {
                 }]
             });
             chai.assert.equal(setupResp.statusCode, 201, `setupResp.body=${JSON.stringify(setupResp.body)}`);
-            chai.assert.isArray(setupResp.body.tags, `setupResp.body should have tags: ${JSON.stringify(setupResp.body)}`);
-            chai.assert.equal(setupResp.body.tags.length, 2, `setupResp.body should have 2 tags: ${JSON.stringify(setupResp.body)}`);
-            chai.assert.sameDeepMembers(setupResp.body.tags, [`contactId:${value1.contactId}`, `contactId:${contactIdNotCharged}`], `tags=${setupResp.body.tags}`);
+            assertTxHasContactIdTags(setupResp.body, [value1.contactId, contactIdNotCharged]);
 
             const resp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${setupResp.body.id}/reverse`, "POST", {
                 id: "reverse"
@@ -342,9 +398,7 @@ describe("/v2/transactions - tags", () => {
                 id: testUtils.generateId()
             });
             chai.assert.equal(reverseResp.statusCode, 201, `reverseResp.body=${JSON.stringify(reverseResp.body)}`);
-            chai.assert.isArray(reverseResp.body.tags, "reverse should have tags");
-            chai.assert.equal(reverseResp.body.tags.length, 1);
-            chai.assert.equal(reverseResp.body.tags[0], `contactId:${contact1.id}`);
+            assertTxHasContactIdTags(reverseResp.body, [contact1.id])
         });
 
         it("adds contactId tag when creating a capture transaction", async () => {
@@ -359,8 +413,7 @@ describe("/v2/transactions - tags", () => {
                 pending: true
             });
             chai.assert.equal(setupResp.statusCode, 201, `setupResp.body=${JSON.stringify(setupResp.body)}`);
-            chai.assert.isArray(setupResp.body.tags, `pending transaction should have tags: ${JSON.stringify(setupResp.body)}`);
-            chai.assert.sameDeepMembers(setupResp.body.tags, [`contactId:${value1.contactId}`]);
+            assertTxHasContactIdTags(setupResp.body, [value1.contactId]);
 
             const resp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${setupResp.body.id}/capture`, "POST", {
                 id: "capture"
@@ -396,9 +449,7 @@ describe("/v2/transactions - tags", () => {
                 id: testUtils.generateId()
             });
             chai.assert.equal(captureResp.statusCode, 201, `captureResp.body=${JSON.stringify(captureResp.body)}`);
-            chai.assert.isArray(captureResp.body.tags, "capture transaction should have tags");
-            chai.assert.equal(captureResp.body.tags.length, 1);
-            chai.assert.equal(captureResp.body.tags[0], `contactId:${contact1.id}`);
+            assertTxHasContactIdTags(captureResp.body, [contact1.id]);
         });
 
         it("adds contactId tag when creating a void transaction", async () => {
@@ -413,8 +464,7 @@ describe("/v2/transactions - tags", () => {
                 pending: true
             });
             chai.assert.equal(setupResp.statusCode, 201, `setupResp.body=${JSON.stringify(setupResp.body)}`);
-            chai.assert.isArray(setupResp.body.tags, `pending transaction should have tags: ${JSON.stringify(setupResp.body)}`);
-            chai.assert.sameDeepMembers(setupResp.body.tags, [`contactId:${value1.contactId}`]);
+            assertTxHasContactIdTags(setupResp.body, [value1.contactId]);
 
             const resp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${setupResp.body.id}/void`, "POST", {
                 id: "void"
@@ -450,9 +500,7 @@ describe("/v2/transactions - tags", () => {
                 id: testUtils.generateId()
             });
             chai.assert.equal(voidResp.statusCode, 201, `voidResp.body=${JSON.stringify(voidResp.body)}`);
-            chai.assert.isArray(voidResp.body.tags, "void transaction should have tags");
-            chai.assert.equal(voidResp.body.tags.length, 1);
-            chai.assert.equal(voidResp.body.tags[0], `contactId:${contact1.id}`);
+            assertTxHasContactIdTags(voidResp.body, [contact1.id]);
         });
     });
 
@@ -468,35 +516,7 @@ describe("/v2/transactions - tags", () => {
         const initialBalanceTxResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${createValueResp.body.id}`, "GET");
         chai.assert.equal(initialBalanceTxResp.statusCode, 200, `initialBalanceTxResp.body=${JSON.stringify(initialBalanceTxResp.body)}`);
         chai.assert.equal(initialBalanceTxResp.body.transactionType, "initialBalance", `initialBalanceTxResp.body=${JSON.stringify(initialBalanceTxResp.body)}`);
-        chai.assert.sameDeepMembers(initialBalanceTxResp.body.tags, [`contactId:${contact1.id}`], `tags=${initialBalanceTxResp.body.tags}`);
-    });
-
-    it("adds contactId tag when attaching a generic value with perContact options", async () => {
-        const valueToAttach: Partial<Value> = {
-            id: "generic-value-per-contact-options",
-            currency: "USD",
-            isGenericCode: true,
-            genericCodeOptions: {
-                perContact: {
-                    balance: 1000,
-                    usesRemaining: null
-                }
-            }
-        };
-        const valueSetupResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueToAttach);
-        chai.assert.equal(valueSetupResp.statusCode, 201, `valueSetupResp.body=${JSON.stringify(valueSetupResp.body)}`);
-
-        const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1.id}/values/attach`, "POST", {
-            valueId: valueToAttach.id
-        });
-        chai.assert.equal(attachResp.statusCode, 200, `.body=${JSON.stringify(attachResp)}`);
-
-        const txResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?transactionType=attach&valueId=${valueToAttach.id}`, "GET");
-        chai.assert.equal(txResp.statusCode, 200, `txResp.body=${JSON.stringify(txResp.body)}`);
-        chai.assert.equal(txResp.body.length, 1, `txResp.body should only have one transaction=${JSON.stringify(txResp.body)}`);
-        chai.assert.equal(txResp.body[0].transactionType, "attach", `transactionType should be 'attach': ${txResp.body[0].transactionType}`);
-        chai.assert.equal(txResp.body[0].tags.length, 1, `txResp.body[0] should have 1 tag: ${JSON.stringify(txResp.body[0])}`);
-        chai.assert.sameDeepMembers(txResp.body[0].tags, [`contactId:${contact1.id}`], `tags=${txResp.body[0].tags}`);
+        assertTxHasContactIdTags(initialBalanceTxResp.body, [contact1.id]);
     });
 
     it("does not save new tag data for simulated transactions", async () => {
@@ -566,9 +586,7 @@ describe("/v2/transactions - tags", () => {
             await testUtils.createUSDValue(router, valueProps);
             const txUser1 = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", txRequest);
             chai.assert.equal(txUser1.statusCode, 201, `txUser1.body=${JSON.stringify(txUser1.body)}`);
-            chai.assert.isArray(txUser1.body.tags, `txUser1 should have tags: ${JSON.stringify(txUser1.body)}`);
-            chai.assert.equal(txUser1.body.tags.length, 1);
-            chai.assert.equal(txUser1.body.tags[0], `contactId:${contactId}`);
+            assertTxHasContactIdTags(txUser1.body, [contactId]);
 
             // create user2 transaction
             const valueUser2Resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/values", "POST", {
@@ -588,9 +606,7 @@ describe("/v2/transactions - tags", () => {
             }));
             chai.assert.equal(txUser2Resp.statusCode, 201, `txUser2Resp.body=${JSON.stringify(txUser2Resp.body)}`);
             const txUser2 = JSON.parse(txUser2Resp.body);
-            chai.assert.isArray(txUser2.tags, `txUser2 should have tags: ${JSON.stringify(txUser2.body)}`);
-            chai.assert.equal(txUser2.tags.length, 1);
-            chai.assert.equal(txUser2.tags[0], `contactId:${contactId}`);
+            assertTxHasContactIdTags(txUser2, [contactId]);
 
             // check what was actually written to tags table
             const knex = await getKnexRead();
@@ -621,3 +637,9 @@ describe("/v2/transactions - tags", () => {
         });
     });
 });
+
+function assertTxHasContactIdTags(tx: Transaction, contactIds: string[]) {
+    chai.assert.isArray(tx.tags, `expected transaction to have tags: ${JSON.stringify(tx)}`);
+    const contactIdTags = formatContactIdTags(contactIds);
+    chai.assert.sameDeepMembers(tx.tags, contactIdTags, `expected transaction to have all contactId tags: expected tags=${JSON.stringify(contactIdTags)} tx.tags=${JSON.stringify(tx.tags)}`);
+}

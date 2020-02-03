@@ -17,6 +17,9 @@ import {
     attachGenericCodeWithPerContactOptions,
     generateUrlSafeHashFromValueIdContactId
 } from "./genericCodeWithPerContactOptions";
+import {formatContactIdTags} from "./transactions/transactions";
+import {insertTransactionTags} from "./transactions/executeTransactionPlans";
+import {TransactionPlan} from "./transactions/TransactionPlan";
 import log = require("loglevel");
 import {GiftbitRestError} from "giftbit-cassava-routes";
 
@@ -327,7 +330,8 @@ async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.Authoriz
         createdDate: now,
         createdBy: auth.teamMemberId,
         metadata: null,
-        tax: null
+        tax: null,
+        tags: formatContactIdTags([contactId])
     };
     const dbAttachTransaction: DbTransaction = Transaction.toDbTransaction(auth, attachTransaction, attachTransaction.id);
 
@@ -397,6 +401,7 @@ async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.Authoriz
             .insert(dbLightrailTransactionStep0);
         await trx("LightrailTransactionSteps")
             .insert(dbLightrailTransactionStep1);
+        await insertTransactionTags(auth, trx, attachTransaction as unknown as TransactionPlan);
     });
 
     return DbValue.toValue(dbNewAttachedValue);
