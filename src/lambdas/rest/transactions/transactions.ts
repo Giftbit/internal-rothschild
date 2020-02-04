@@ -200,6 +200,7 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
     const knex = await getKnexRead();
     const valueId = filterParams["valueId"];
     const contactId = filterParams["contactId"];
+    const tags = filterParams["tags"];
     let query = knex("Transactions")
         .select("Transactions.*")
         .where("Transactions.userId", "=", auth.userId);
@@ -215,6 +216,21 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
             query.where("LightrailTransactionSteps.contactId", "=", contactId);
             query.groupBy("Transactions.id"); // A Contact may have two steps in the same Transaction.
         }
+    }
+    if (tags) {
+        query.innerJoin("TransactionsTags", {
+            "TransactionsTags.userId": "Transactions.userId",
+            "TransactionsTags.transactionId": "Transactions.id"
+        })
+            .innerJoin("Tags", {
+                "Tags.userId": "Transactions.userId",
+                "Tags.id": "TransactionsTags.tagId"
+            })
+            .where({
+                "Tags.userId": auth.userId,
+                "Tags.tag": tags
+            });
+        query.groupBy("Transactions.id");
     }
 
     const res = await filterAndPaginateQuery<DbTransaction>(

@@ -5,7 +5,7 @@ import * as testUtils from "../../../utils/testUtils";
 import {installRestRoutes} from "../installRestRoutes";
 import {Value} from "../../../model/Value";
 import {Contact} from "../../../model/Contact";
-import {Transaction} from "../../../model/Transaction";
+import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
 import {CheckoutRequest} from "../../../model/TransactionRequest";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {Tag} from "../../../model/Tag";
@@ -635,6 +635,261 @@ describe("/v2/transactions - tags", () => {
             chai.assert.isObject(txTagUser2, `TransactionsTags should have entry for user2's transaction: ${JSON.stringify(transactionsTagsRes)}`);
             chai.assert.equal(txTagUser2.tagId, tagRes.find(t => t.userId === txTagUser2.userId).id);
         });
+    });
+
+    describe("searching by tags", () => {
+        it("fetches the transactions for a contact that actually gets charged (contactId on step)", async () => {
+            const newContactResp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: `new-contact-${testUtils.generateId(5)}`});
+            chai.assert.equal(newContactResp.statusCode, 201, `newContactResp.body=${JSON.stringify(newContactResp.body)}`);
+            const newContact = newContactResp.body;
+
+            // setup: create one of each type of transaction for our new contact
+            const newValue = await testUtils.createUSDValue(router, {
+                id: `new-value-${testUtils.generateId(6)}`,
+                contactId: newContact.id,
+                balanceRule: {
+                    rule: "500",
+                    explanation: "$5"
+                },
+                balance: null,
+                usesRemaining: 25 // arbitrary-ish - only exists so the value can be credited/debited without affecting balance available per transaction
+            });
+            const initialBalance = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${newValue.id}`, "GET");
+            chai.assert.equal(initialBalance.statusCode, 200, `initialBalance.body=${JSON.stringify(initialBalance.body)}`);
+            chai.assert.equal(initialBalance.body.transactionType, "initialBalance");
+            assertTxHasContactIdTags(initialBalance.body, [newContact.id]);
+
+            const creditResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", {
+                id: `credit-${testUtils.generateId(6)}`,
+                currency: "USD",
+                destination: {
+                    rail: "lightrail",
+                    valueId: newValue.id
+                },
+                uses: 1
+            });
+            chai.assert.equal(creditResp.statusCode, 201, `creditResp.body=${JSON.stringify(creditResp.body)}`);
+            assertTxHasContactIdTags(creditResp.body, [newContact.id]);
+
+            const debitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
+                id: `debit-${testUtils.generateId(6)}`,
+                currency: "USD",
+                source: {
+                    rail: "lightrail",
+                    valueId: newValue.id
+                },
+                uses: 1
+            });
+            chai.assert.equal(debitResp.statusCode, 201, `debitResp.body=${JSON.stringify(debitResp.body)}`);
+            assertTxHasContactIdTags(debitResp.body, [newContact.id]);
+
+            const valueForTransfer = await testUtils.createUSDValue(router, {
+                id: `value-for-transfer-${testUtils.generateId(6)}`,
+                balance: 1, // this is going to be transferred away so that it doesn't affect how much value this contact has available in later transactions
+                contactId: newContact.id
+            });
+            const valueForTransferInitialBalanceTx = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${valueForTransfer.id}`, "GET");
+            chai.assert.equal(valueForTransferInitialBalanceTx.statusCode, 200, `valueForTransferInitialBalanceTx.body=${JSON.stringify(valueForTransferInitialBalanceTx.body)}`);
+            assertTxHasContactIdTags(valueForTransferInitialBalanceTx.body, [newContact.id]);
+
+            const anotherValueForTransfer = await testUtils.createUSDValue(router, {
+                id: `another-value-for-transfer-${testUtils.generateId(6)}`,
+            });
+            const transferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
+                id: `transfer-${testUtils.generateId(6)}`,
+                currency: "USD",
+                source: {
+                    rail: "lightrail",
+                    valueId: valueForTransfer.id
+                },
+                destination: {
+                    rail: "lightrail",
+                    valueId: anotherValueForTransfer.id
+                },
+                amount: 1
+            });
+            chai.assert.equal(transferResp.statusCode, 201, `transferResp.body=${JSON.stringify(transferResp.body)}`);
+            assertTxHasContactIdTags(transferResp.body, [newContact.id]);
+
+            const genericValue = await testUtils.createUSDValue(router, {
+                id: `generic-value-${testUtils.generateId(6)}`,
+                isGenericCode: true,
+                genericCodeOptions: {
+                    perContact: {
+                        balance: 1,
+                        usesRemaining: null
+                    }
+                }
+            });
+            const checkoutAutoAttachResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                id: `checkout-auto-attach-${testUtils.generateId(6)}`,
+                currency: "USD",
+                lineItems: [{unitPrice: 501}],
+                sources: [{rail: "lightrail", contactId: newContact.id}, {rail: "lightrail", valueId: genericValue.id}]
+            });
+            chai.assert.equal(checkoutAutoAttachResp.statusCode, 201, `checkoutAutoAttachResp.body=${JSON.stringify(checkoutAutoAttachResp.body)}`);
+            assertTxHasContactIdTags(checkoutAutoAttachResp.body, [newContact.id]);
+            const attachTx = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?transactionType=attach&valueId=${genericValue.id}`, "GET");
+            chai.assert.equal(attachTx.statusCode, 200, `attachTx.body=${JSON.stringify(attachTx.body)}`);
+            chai.assert.equal(attachTx.body.length, 1, `should have exactly one transaction - attachTx.body=${JSON.stringify(attachTx.body)}`);
+            assertTxHasContactIdTags(attachTx.body[0], [newContact.id]);
+
+            const reverseResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkoutAutoAttachResp.body.id}/reverse`, "POST", {
+                id: `reverse-${testUtils.generateId(6)}`
+            });
+            chai.assert.equal(reverseResp.statusCode, 201, `reverseResp.body=${JSON.stringify(reverseResp.body)}`);
+            assertTxHasContactIdTags(reverseResp.body, [newContact.id]);
+
+            const pendingResp1 = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                id: `pending1-${testUtils.generateId(6)}`,
+                pending: true,
+                currency: "USD",
+                lineItems: [{unitPrice: 100}],
+                sources: [{rail: "lightrail", contactId: newContact.id}]
+            });
+            chai.assert.equal(pendingResp1.statusCode, 201, `pendingResp1.body=${JSON.stringify(pendingResp1.body)}`);
+            assertTxHasContactIdTags(pendingResp1.body, [newContact.id]);
+
+            const captureResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingResp1.body.id}/capture`, "POST", {
+                id: `capture-${testUtils.generateId(6)}`
+            });
+            chai.assert.equal(captureResp.statusCode, 201, `captureResp.body=${JSON.stringify(captureResp.body)}`);
+            assertTxHasContactIdTags(captureResp.body, [newContact.id]);
+
+            const pendingResp2 = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                id: `pending2-${testUtils.generateId(6)}`,
+                pending: true,
+                currency: "USD",
+                lineItems: [{unitPrice: 100}],
+                sources: [{rail: "lightrail", contactId: newContact.id}]
+            });
+            chai.assert.equal(pendingResp2.statusCode, 201, `pendingResp2.body=${JSON.stringify(pendingResp2.body)}`);
+            assertTxHasContactIdTags(pendingResp2.body, [newContact.id]);
+
+            const voidResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingResp2.body.id}/void`, "POST", {
+                id: `void-${testUtils.generateId(6)}`
+            });
+            chai.assert.equal(voidResp.statusCode, 201, `voidResp.body=${JSON.stringify(voidResp.body)}`);
+            assertTxHasContactIdTags(voidResp.body, [newContact.id]);
+
+            // look at the tags records
+            const knex = await getKnexRead();
+            const txTagsRes = await knex.select("TransactionsTags.*").from("TransactionsTags").join("Tags", {
+                "TransactionsTags.userId": "Tags.userId",
+                "TransactionsTags.tagId": "Tags.id"
+            }).where({
+                "Tags.userId": testUtils.defaultTestUser.auth.userId,
+                "Tags.tag": `contactId:${newContact.id}`
+            });
+            chai.assert.equal(txTagsRes.length, 12, `there should be exactly 12 transactions with the contact1 tag: ${JSON.stringify(txTagsRes, null, 4)}`);
+
+            // actually the point of the test: get back all the transactions we created above
+            const transactionsResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?tags=contactId:${newContact.id}`, "GET");
+            chai.assert.equal(transactionsResp.statusCode, 200, `transactionsResp.body=${JSON.stringify(transactionsResp)}`);
+            chai.assert.equal(transactionsResp.body.length, txTagsRes.length, `should have same number of transactions for contact1 as there are TxTags records for contact1 tag: tx IDs=${transactionsResp.body.map(t => t.id)}`);
+        }).timeout(8000);
+
+        it("fetches the transactions for a contact that does not get charged (contactId in payment sources only)", async () => {
+            const newContactResp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: `new-contact-${testUtils.generateId(5)}`});
+            chai.assert.equal(newContactResp.statusCode, 201, `newContactResp.body=${JSON.stringify(newContactResp.body)}`);
+            const newContact = newContactResp.body;
+
+            // setup: create transactions with the contactId as a source (won't appear in steps because it has no attached values)
+            const unattachedValue = await testUtils.createUSDValue(router, {
+                id: `discount-covers-entire-transaction-amount`,
+                discount: true,
+                balanceRule: {
+                    rule: "totals.subtotal",
+                    explanation: "100% of transaction"
+                },
+                balance: null
+            });
+            const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                id: `checkout-${testUtils.generateId(6)}`,
+                currency: "USD",
+                lineItems: [{unitPrice: 501}],
+                sources: [{rail: "lightrail", contactId: newContact.id}, {
+                    rail: "lightrail",
+                    valueId: unattachedValue.id
+                }]
+            });
+            chai.assert.equal(checkoutResp.statusCode, 201, `checkoutResp.body=${JSON.stringify(checkoutResp.body)}`);
+            chai.assert.isUndefined(checkoutResp.body.steps.find(s => (s as LightrailTransactionStep).contactId === newContact.id), `contactId should not appear in any steps: steps=${JSON.stringify(checkoutResp.body.steps)}`);
+            assertTxHasContactIdTags(checkoutResp.body, [newContact.id]);
+
+            const reverseResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkoutResp.body.id}/reverse`, "POST", {
+                id: `reverse-${testUtils.generateId(6)}`
+            });
+            chai.assert.equal(reverseResp.statusCode, 201, `reverseResp.body=${JSON.stringify(reverseResp.body)}`);
+            chai.assert.isUndefined(reverseResp.body.steps.find(s => (s as LightrailTransactionStep).contactId === newContact.id), `contactId should not appear in any steps: steps=${JSON.stringify(reverseResp.body.steps)}`);
+            assertTxHasContactIdTags(reverseResp.body, [newContact.id]);
+
+            const pendingResp1 = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                id: `pending1-${testUtils.generateId(6)}`,
+                pending: true,
+                currency: "USD",
+                lineItems: [{unitPrice: 100}],
+                sources: [{rail: "lightrail", contactId: newContact.id}, {
+                    rail: "lightrail",
+                    valueId: unattachedValue.id
+                }]
+            });
+            chai.assert.equal(pendingResp1.statusCode, 201, `pendingResp1.body=${JSON.stringify(pendingResp1.body)}`);
+            chai.assert.isUndefined(pendingResp1.body.steps.find(s => (s as LightrailTransactionStep).contactId === newContact.id), `contactId should not appear in any steps: steps=${JSON.stringify(pendingResp1.body.steps)}`);
+            assertTxHasContactIdTags(pendingResp1.body, [newContact.id]);
+
+            const captureResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingResp1.body.id}/capture`, "POST", {
+                id: `capture-${testUtils.generateId(6)}`
+            });
+            chai.assert.equal(captureResp.statusCode, 201, `captureResp.body=${JSON.stringify(captureResp.body)}`);
+            assertTxHasContactIdTags(captureResp.body, [newContact.id]);
+
+            const pendingResp2 = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                id: `pending2-${testUtils.generateId(6)}`,
+                pending: true,
+                currency: "USD",
+                lineItems: [{unitPrice: 100}],
+                sources: [{rail: "lightrail", contactId: newContact.id}, {
+                    rail: "lightrail",
+                    valueId: unattachedValue.id
+                }]
+            });
+            chai.assert.equal(pendingResp2.statusCode, 201, `pendingResp2.body=${JSON.stringify(pendingResp2.body)}`);
+            chai.assert.isUndefined(pendingResp2.body.steps.find(s => (s as LightrailTransactionStep).contactId === newContact.id), `contactId should not appear in any steps: steps=${JSON.stringify(pendingResp2.body.steps)}`);
+            assertTxHasContactIdTags(pendingResp2.body, [newContact.id]);
+
+            const voidResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingResp2.body.id}/void`, "POST", {
+                id: `void-${testUtils.generateId(6)}`
+            });
+            chai.assert.equal(voidResp.statusCode, 201, `voidResp.body=${JSON.stringify(voidResp.body)}`);
+            chai.assert.isUndefined(voidResp.body.steps.find(s => (s as LightrailTransactionStep).contactId === newContact.id), `contactId should not appear in any steps: steps=${JSON.stringify(voidResp.body.steps)}`);
+            assertTxHasContactIdTags(voidResp.body, [newContact.id]);
+
+            // look at the tags records
+            const knex = await getKnexRead();
+            const txTagsRes = await knex.select("TransactionsTags.*").from("TransactionsTags").join("Tags", {
+                "TransactionsTags.userId": "Tags.userId",
+                "TransactionsTags.tagId": "Tags.id"
+            }).where({
+                "Tags.userId": testUtils.defaultTestUser.auth.userId,
+                "Tags.tag": `contactId:${newContact.id}`
+            });
+            chai.assert.equal(txTagsRes.length, 6, `there should be exactly 6 transactions with the contact1 tag: ${JSON.stringify(txTagsRes, null, 4)}`);
+
+            // actually the point of the test: get back all the transactions we created above
+            const transactionsResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?tags=contactId:${newContact.id}`, "GET");
+            chai.assert.equal(transactionsResp.statusCode, 200, `transactionsResp.body=${JSON.stringify(transactionsResp)}`);
+            chai.assert.equal(transactionsResp.body.length, txTagsRes.length, `should have same number of transactions for newContact as there are TxTags records for newContact tag: tx IDs=${JSON.stringify(transactionsResp.body.map(t => ({
+                id: t.id,
+                tags: t.tags
+            })), null, 4)}`);
+        }).timeout(8000);
+
+        it("fetches 0 transactions if the tag does not exist", async () => {
+            const transactionsResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?tags=${testUtils.generateId()}`, "GET");
+            chai.assert.equal(transactionsResp.statusCode, 200, `transactionsResp.body=${JSON.stringify(transactionsResp.body)}`);
+            chai.assert.equal(transactionsResp.body.length, 0, `no transactions should be returned when searching by a tag value that doesn't exist: transactions=${JSON.stringify(transactionsResp.body)}`);
+        })
     });
 });
 
