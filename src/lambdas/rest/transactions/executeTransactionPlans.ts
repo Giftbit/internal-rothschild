@@ -13,7 +13,8 @@ import {
     insertInternalTransactionSteps,
     insertLightrailTransactionSteps,
     insertStripeTransactionSteps,
-    insertTransaction
+    insertTransaction,
+    insertTransactionTags
 } from "./insertTransactions";
 import {rollbackStripeChargeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
 import {StripeRestError} from "../../../utils/stripeUtils/StripeRestError";
@@ -21,9 +22,6 @@ import {MetricsLogger} from "../../../utils/metricsLogger";
 import * as cassava from "cassava";
 import {Value} from "../../../model/Value";
 import {transactionPartySchema} from "../../../model/TransactionRequest";
-import {nowInDbPrecision} from "../../../utils/dbUtils";
-import {generateCode} from "../../../utils/codeGenerator";
-import {Tag} from "../../../model/Tag";
 import log = require("loglevel");
 import Knex = require("knex");
 import lightrail = transactionPartySchema.lightrail;
@@ -128,45 +126,6 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
     // Call TransactionPlan.toTransaction again because TransactionSteps may change during execution to fill in results.
     // Note that the top-level Transaction may not change.
     return TransactionPlan.toTransaction(auth, plan);
-}
-
-export async function insertTransactionTags(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, transactionPlan: TransactionPlan): Promise<void> {
-    if (!transactionPlan.tags || transactionPlan.tags.length === 0) {
-        return;
-    }
-
-    const now = nowInDbPrecision();
-
-    for (let tag of transactionPlan.tags) {
-        const tagData: Tag = {
-            userId: auth.userId,
-            id: `_tag-${generateCode({})}`,
-            tag: tag,
-            createdDate: now,
-            updatedDate: now,
-        };
-
-        let dbTagRes = await trx("Tags").where({
-            userId: auth.userId,
-            tag
-        });
-        if (dbTagRes.length === 0) {
-            await trx.into("Tags").insert(tagData);
-        }
-        dbTagRes = await trx("Tags").where({
-            userId: auth.userId,
-            tag
-        }); // todo clean up this weird duplication
-
-
-        const txsTagsData = {
-            userId: auth.userId,
-            transactionId: transactionPlan.id,
-            tagId: dbTagRes[0].id
-        };
-        await trx.into("TransactionsTags")
-            .insert(txsTagsData);
-    }
 }
 
 /**

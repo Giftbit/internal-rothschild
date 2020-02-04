@@ -11,9 +11,10 @@ import {TransactionPlanError} from "./TransactionPlanError";
 import {DbValue, Value} from "../../../model/Value";
 import {DbTransaction, StripeDbTransactionStep, Transaction} from "../../../model/Transaction";
 import {executeStripeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
-import {getSqlErrorColumnName, getSqlErrorConstraintName} from "../../../utils/dbUtils";
+import {getSqlErrorColumnName, getSqlErrorConstraintName, nowInDbPrecision} from "../../../utils/dbUtils";
 import {generateCode} from "../../../utils/codeGenerator";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
+import {Tag} from "../../../model/Tag";
 import Knex = require("knex");
 import log = require("loglevel");
 
@@ -216,4 +217,44 @@ export async function insertInternalTransactionSteps(auth: giftbitRoutes.jwtauth
     await trx.into("InternalTransactionSteps")
         .insert(internalSteps);
     return plan;
+}
+
+export async function insertTransactionTags(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, transactionPlan: TransactionPlan): Promise<void> {
+    if (!transactionPlan.tags || transactionPlan.tags.length === 0) {
+        return;
+    }
+
+    const now = nowInDbPrecision();
+
+    for (let tagValue of transactionPlan.tags) {
+        let dbTagRes = await trx("Tags").where({
+            userId: auth.userId,
+            tag: tagValue
+        });
+
+        if (dbTagRes.length === 0) {
+            const tagData: Tag = {
+                userId: auth.userId,
+                id: `_tag-${generateCode({})}`,
+                tag: tagValue,
+                createdDate: now,
+                updatedDate: now,
+            };
+
+            await trx.into("Tags").insert(tagData);
+
+            dbTagRes = await trx("Tags").where({
+                userId: auth.userId,
+                tag: tagValue
+            }); // todo: clean this up if possible, would be nice if we could just have the inserted row returned from the call above
+        }
+
+        const txsTagsData = {
+            userId: auth.userId,
+            transactionId: transactionPlan.id,
+            tagId: dbTagRes[0].id
+        };
+        await trx.into("TransactionsTags")
+            .insert(txsTagsData);
+    }
 }

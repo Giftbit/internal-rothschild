@@ -18,8 +18,8 @@ import {
     generateUrlSafeHashFromValueIdContactId
 } from "./genericCodeWithPerContactOptions";
 import {formatContactIdTags} from "./transactions/transactions";
-import {insertTransactionTags} from "./transactions/executeTransactionPlans";
 import {TransactionPlan} from "./transactions/TransactionPlan";
+import {insertTransactionTags} from "./transactions/insertTransactions";
 import log = require("loglevel");
 import {GiftbitRestError} from "giftbit-cassava-routes";
 
