@@ -69,6 +69,33 @@ describe("/v2/transactions - tags", () => {
             chai.assert.deepEqual(getTxResp.body, resp.body);
         });
 
+        it("unique attached value as source: value not charged", async () => {
+            const zeroBalanceValue = await testUtils.createUSDValue(router, {
+                balance: 0,
+                contactId: contact1.id
+            });
+            const unattachedValue = await testUtils.createUSDValue(router);
+
+            const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                id: "checkout-uq-attached-value-0-balance",
+                currency: "USD",
+                lineItems: [{unitPrice: 50}],
+                sources: [{
+                    rail: "lightrail", valueId: zeroBalanceValue.id
+                }, {
+                    rail: "lightrail",
+                    valueId: unattachedValue.id
+                }]
+            });
+            chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
+
+            assertTxHasContactIdTags(resp.body, [contact1.id]);
+
+            const getTxResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${resp.body.id}`, "GET");
+            chai.assert.equal(getTxResp.statusCode, 200, `getTxResp.body=${JSON.stringify(getTxResp)}`);
+            chai.assert.deepEqual(getTxResp.body, resp.body);
+        });
+
         it("contactId as source", async () => {
             const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
                 id: "checkout-cid",
