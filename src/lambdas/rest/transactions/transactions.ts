@@ -200,7 +200,7 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
     const knex = await getKnexRead();
     const valueId = filterParams["valueId"];
     const contactId = filterParams["contactId"];
-    const tags = filterParams["tags"];
+    const tag = filterParams["tag"];
     let query = knex("Transactions")
         .select("Transactions.*")
         .where("Transactions.userId", "=", auth.userId);
@@ -217,7 +217,7 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
             query.groupBy("Transactions.id"); // A Contact may have two steps in the same Transaction.
         }
     }
-    if (tags) {
+    if (tag) {
         query.innerJoin("TransactionsTags", {
             "TransactionsTags.userId": "Transactions.userId",
             "TransactionsTags.transactionId": "Transactions.id"
@@ -228,7 +228,7 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
             })
             .where({
                 "Tags.userId": auth.userId,
-                "Tags.tag": tags
+                "Tags.tag": tag
             });
         query.groupBy("Transactions.id");
     }
