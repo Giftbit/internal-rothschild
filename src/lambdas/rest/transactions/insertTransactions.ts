@@ -233,7 +233,7 @@ export async function insertTransactionTags(auth: giftbitRoutes.jwtauth.Authoriz
         });
 
         if (dbTagRes.length === 0) {
-            const tagData: Tag = {
+            let tagData: Tag = {
                 userId: auth.userId,
                 id: `_tag-${generateCode({})}`,
                 tag: tagValue,
@@ -241,12 +241,29 @@ export async function insertTransactionTags(auth: giftbitRoutes.jwtauth.Authoriz
                 updatedDate: now,
             };
 
-            await trx.into("Tags").insert(tagData);
+            try {
+                await trx.into("Tags").insert(tagData);
+                dbTagRes = [tagData];
+            } catch (err) {
+                log.info(err);
+                const constraint = getSqlErrorConstraintName(err);
+                if (constraint === "uq_ix_Tags_tag") {
+                    dbTagRes = await trx("Tags").where({
+                        userId: auth.userId,
+                        tag: tagValue
+                    });
+                } else if (constraint === "pk_Tags") {
+                    tagData = {
+                        ...tagData,
+                        id: `_tag-${generateCode({})}`,
+                    };
+                    await trx.into("Tags").insert(tagData);
+                    dbTagRes = [tagData];
+                } else {
+                    throw err;
+                }
+            }
 
-            dbTagRes = await trx("Tags").where({
-                userId: auth.userId,
-                tag: tagValue
-            }); // todo: clean this up if possible, would be nice if we could just have the inserted row returned from the call above
         }
 
         const txsTagsData = {

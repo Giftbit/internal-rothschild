@@ -6,7 +6,7 @@ CREATE TABLE rothschild.Tags
     createdDate DATETIME    NOT NULL,
     updatedDate DATETIME    NOT NULL,
     PRIMARY KEY pk_Tags (userId, id),
-    INDEX ix_Tags_tag (userId, tag)
+    UNIQUE INDEX uq_ix_Tags_tag (userId, tag)
 );
 
 CREATE TABLE rothschild.TransactionsTags
