@@ -19,7 +19,6 @@ export interface FilterQueryProperty {
      * The column name that is filtered.  By default the column name is the query parameter name.
      */
     columnName?: string;
-
     // TODO when tagging is a thing this will need to support searching for the IDs matching the tags in another table
 
     /**

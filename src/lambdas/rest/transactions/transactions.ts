@@ -218,6 +218,7 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
         }
     }
     if (tag) {
+        // When we support filter operators (eg startsWith) on tags, this will need to be handled in filterQuery
         query.innerJoin("TransactionsTags", {
             "TransactionsTags.userId": "Transactions.userId",
             "TransactionsTags.transactionId": "Transactions.id"
