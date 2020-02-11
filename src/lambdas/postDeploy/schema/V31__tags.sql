@@ -1,12 +1,12 @@
 CREATE TABLE rothschild.Tags
 (
-    userId      VARCHAR(64) NOT NULL,
-    id          VARCHAR(64) NOT NULL,
-    tag         VARCHAR(64) NOT NULL,
-    createdDate DATETIME    NOT NULL,
-    updatedDate DATETIME    NOT NULL,
+    userId      VARCHAR(64)                       NOT NULL,
+    id          VARCHAR(64)                       NOT NULL,
+    displayName VARCHAR(96) CHARACTER SET utf8mb4 NOT NULL,
+    createdDate DATETIME                          NOT NULL,
+    updatedDate DATETIME                          NOT NULL,
     PRIMARY KEY pk_Tags (userId, id),
-    UNIQUE INDEX uq_ix_Tags_tag (userId, tag)
+    UNIQUE INDEX uq_ix_Tags_displayName (userId, displayName)
 );
 
 CREATE TABLE rothschild.TransactionsTags

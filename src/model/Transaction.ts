@@ -103,7 +103,7 @@ export namespace DbTransaction {
             "TransactionsTags.userId": "Tags.userId",
             "TransactionsTags.tagId": "Tags.id"
         }).where("TransactionsTags.userId", userId).whereIn("TransactionsTags.transactionId", txIds);
-        dbTxTags.forEach(t => transactionsTags[t.transactionId].push(t.tag));
+        dbTxTags.forEach(t => transactionsTags[t.transactionId].push(t.displayName));
 
         return txns.map(dbT => {
             let t: Transaction = {

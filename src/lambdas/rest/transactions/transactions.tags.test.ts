@@ -569,7 +569,7 @@ describe("/v2/transactions - tags", () => {
             .select()
             .where({
                 userId: testUtils.defaultTestUser.userId,
-                tag
+                displayName: tag
             });
         chai.assert.equal(tagRes.length, 0, `tag should not exist: ${JSON.stringify(tagRes)}`);
 
@@ -640,10 +640,10 @@ describe("/v2/transactions - tags", () => {
             const tagRes: Tag[] = await knex("Tags")
                 .select()
                 .where({
-                    tag: `contactId:${contactId}`
+                    displayName: `contactId:${contactId}`
                 });
             chai.assert.equal(tagRes.length, 2, `tag table should have an entry for this tag value for each test user: ${JSON.stringify(tagRes)}`);
-            chai.assert.equal(tagRes[0].tag, tagRes[1].tag, `tags should have the same 'tag' value: ${JSON.stringify(tagRes)}`);
+            chai.assert.equal(tagRes[0].displayName, tagRes[1].displayName, `tags should have the same 'displayName' value: ${JSON.stringify(tagRes)}`);
             chai.assert.sameMembers(tagRes.map(t => t.userId), [testUtils.defaultTestUser.auth.userId, testUtils.alternateTestUser.auth.userId], `tag table should have an entry for this tag value for each test user: ${JSON.stringify(tagRes)}`);
 
             // ...and what was actually written to TransactionsTags join table
@@ -887,7 +887,7 @@ describe("/v2/transactions - tags", () => {
                 "TransactionsTags.tagId": "Tags.id"
             }).where({
                 "Tags.userId": testUtils.defaultTestUser.auth.userId,
-                "Tags.tag": `contactId:${newContact.id}`
+                "Tags.displayName": `contactId:${newContact.id}`
             });
             chai.assert.equal(txTagsRes.length, 12, `there should be exactly 12 transactions with the newContact.id tag: ${JSON.stringify(txTagsRes, null, 4)}`);
 
@@ -903,7 +903,7 @@ describe("/v2/transactions - tags", () => {
                 "TransactionsTags.tagId": "Tags.id"
             }).where({
                 "Tags.userId": testUtils.defaultTestUser.auth.userId,
-                "Tags.tag": `contactId:${fakeContactId}`
+                "Tags.displayName": `contactId:${fakeContactId}`
             });
             chai.assert.equal(txTagsRes.length, 6, `there should be exactly 6 transactions with the fakeContactId tag: ${JSON.stringify(txTagsRes, null, 4)}`);
 

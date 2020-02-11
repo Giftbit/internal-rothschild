@@ -229,7 +229,7 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
             })
             .where({
                 "Tags.userId": auth.userId,
-                "Tags.tag": tag
+                "Tags.displayName": tag
             });
         query.groupBy("Transactions.id");
     }
