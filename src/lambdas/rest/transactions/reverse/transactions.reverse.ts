@@ -79,7 +79,7 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
         paymentSources: null,
         rootTransactionId: transactionToReverse.id,
         previousTransactionId: lastDbTransaction.id,
-        tags: tags || undefined
+        tags: tags
     };
 }
 

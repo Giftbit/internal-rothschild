@@ -19,7 +19,7 @@ export function getCheckoutTransactionPlan(checkout: CheckoutRequest, steps: Tra
     log.info(`optimized checkout transaction\nsortedPretaxSteps: ${JSON.stringify(sortedPretaxSteps)}\nsortedPostTaxSteps: ${JSON.stringify(sortedPostTaxSteps)}`);
 
     const plan = calculateCheckoutTransactionPlanForOrderedSteps(checkout, sortedPretaxSteps, sortedPostTaxSteps, now);
-    if (tags.length) {
+    if (tags && tags.length) {
         plan.tags = tags
     }
     return plan;

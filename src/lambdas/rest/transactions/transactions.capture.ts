@@ -62,7 +62,7 @@ export async function createCaptureTransactionPlan(auth: giftbitRoutes.jwtauth.A
         paymentSources: null,
         rootTransactionId: transactionToCapture.id,
         previousTransactionId: transactionToCapture.id,
-        tags: tags || undefined
+        tags: tags
     };
 }
 

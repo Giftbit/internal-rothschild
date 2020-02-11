@@ -42,7 +42,7 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         pendingVoidDate: null,
         createdDate: value.createdDate,
         metadata: null,
-        tags: step.value.contactId ? formatContactIdTags([step.value.contactId]) : undefined
+        tags: formatContactIdTags([step.value.contactId])
     };
 
     try {

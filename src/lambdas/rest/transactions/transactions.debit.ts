@@ -51,6 +51,6 @@ export async function createDebitTransactionPlan(auth: giftbitRoutes.jwtauth.Aut
         pendingVoidDate: pendingTransactionUtils.getPendingVoidDate(req, now),
         lineItems: null,
         paymentSources: null,
-        tags: step.value.contactId ? formatContactIdTags([step.value.contactId]) : undefined
+        tags: formatContactIdTags([step.value.contactId])
     };
 }

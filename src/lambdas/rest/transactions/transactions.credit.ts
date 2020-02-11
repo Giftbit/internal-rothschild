@@ -40,6 +40,6 @@ export async function createCreditTransactionPlan(auth: giftbitRoutes.jwtauth.Au
         tax: null,
         lineItems: null,
         paymentSources: null,
-        tags: step.value.contactId ? formatContactIdTags([step.value.contactId]) : undefined
+        tags: formatContactIdTags([step.value.contactId])
     };
 }

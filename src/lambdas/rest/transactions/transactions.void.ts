@@ -54,7 +54,7 @@ export async function createVoidTransactionPlanForDbTransaction(auth: giftbitRou
         paymentSources: null,
         rootTransactionId: transactionToVoid.id,
         previousTransactionId: transactionToVoid.id,
-        tags: tags || undefined
+        tags: tags
     };
 }
 
