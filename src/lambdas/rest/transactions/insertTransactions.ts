@@ -15,6 +15,7 @@ import {getSqlErrorColumnName, getSqlErrorConstraintName, nowInDbPrecision} from
 import {generateCode} from "../../../utils/codeGenerator";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
 import {Tag} from "../../../model/Tag";
+import uuid from "uuid";
 import Knex = require("knex");
 import log = require("loglevel");
 
@@ -235,7 +236,7 @@ export async function insertTransactionTags(auth: giftbitRoutes.jwtauth.Authoriz
         if (dbTagRes.length === 0) {
             let tagData: Tag = {
                 userId: auth.userId,
-                id: `_tag-${generateCode({})}`,
+                id: `tag-${uuid.v4()}`,
                 tag: tagValue,
                 createdDate: now,
                 updatedDate: now,
@@ -255,7 +256,7 @@ export async function insertTransactionTags(auth: giftbitRoutes.jwtauth.Authoriz
                 } else if (constraint === "pk_Tags") {
                     tagData = {
                         ...tagData,
-                        id: `_tag-${generateCode({})}`,
+                        id: `tag-${uuid.v4()}`,
                     };
                     await trx.into("Tags").insert(tagData);
                     dbTagRes = [tagData];
