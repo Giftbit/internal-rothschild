@@ -25,7 +25,7 @@ export class LightrailEventSnsPublisher implements LightrailEventPublisher {
                 success = true;
                 this.publishCount++;
             } catch (e) {
-                log.debug("Error publishing LightrailEvent", e);
+                log.warn("Error publishing LightrailEvent", e);
                 await new Promise(resolve => setTimeout(resolve, backoff + (Math.random() * 500) | 0));
                 backoff = Math.min(16000, backoff * 2);
                 if (backoff === 16000) {
@@ -106,6 +106,9 @@ export class LightrailEventSnsPublisher implements LightrailEventPublisher {
             },
             TopicArn: process.env["LIGHTRAIL_EVENT_TOPIC_ARN"]
         };
-        return this.sns.publish(publishInput).promise();
+        log.info("publish request", publishInput);
+        const response = await this.sns.publish(publishInput).promise();
+        log.info("publish response", response);
+        return response;
     }
 }

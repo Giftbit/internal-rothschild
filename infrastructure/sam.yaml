@@ -507,14 +507,6 @@ Resources:
                 - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
             - Effect: Allow
               Action:
-                - kms:Decrypt
-                - kms:DescribeKey
-                - kms:Encrypt
-                - kms:GenerateDataKey*
-              Resource:
-                - !Ref LightrailEventEncryptionKeyArn
-            - Effect: Allow
-              Action:
                 - s3:GetObject
               Resource:
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
@@ -841,6 +833,14 @@ Resources:
                 - kms:DescribeKey
               Resource:
                 - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
+            - Effect: Allow
+              Action:
+                - kms:Decrypt
+                - kms:DescribeKey
+                - kms:Encrypt
+                - kms:GenerateDataKey*
+              Resource:
+                - !Ref LightrailEventEncryptionKeyArn
             - Effect: Allow
               Action:
                 - s3:GetObject
