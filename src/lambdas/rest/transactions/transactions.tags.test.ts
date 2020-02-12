@@ -400,6 +400,50 @@ describe("/v2/transactions - tags", () => {
             chai.assert.sameDeepMembers(resp.body.tags, setupResp.body.tags, `reverse should have same contactId tags as original transaction: ${JSON.stringify(resp.body.tags)}`);
         });
 
+        it("adds contactId tag when creating a capture transaction", async () => {
+            const setupResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                id: "pending-to-capture",
+                currency: "USD",
+                lineItems: [{unitPrice: 100}],
+                sources: [{
+                    rail: "lightrail",
+                    valueId: value1.id
+                }],
+                pending: true
+            });
+            chai.assert.equal(setupResp.statusCode, 201, `setupResp.body=${JSON.stringify(setupResp.body)}`);
+            assertTxHasContactIdTags(setupResp.body, [value1.contactId]);
+
+            const resp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${setupResp.body.id}/capture`, "POST", {
+                id: "capture"
+            });
+            chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
+            chai.assert.isArray(resp.body.tags, `capture transaction should have tags: ${JSON.stringify(resp.body)}`);
+            chai.assert.sameDeepMembers(resp.body.tags, setupResp.body.tags, `capture transaction should have same tags as original pending transaction`);
+        });
+
+        it("adds contactId tag when creating a void transaction", async () => {
+            const setupResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                id: "pending-to-void",
+                currency: "USD",
+                lineItems: [{unitPrice: 100}],
+                sources: [{
+                    rail: "lightrail",
+                    valueId: value1.id
+                }],
+                pending: true
+            });
+            chai.assert.equal(setupResp.statusCode, 201, `setupResp.body=${JSON.stringify(setupResp.body)}`);
+            assertTxHasContactIdTags(setupResp.body, [value1.contactId]);
+
+            const resp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${setupResp.body.id}/void`, "POST", {
+                id: "void"
+            });
+            chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
+            chai.assert.isArray(resp.body.tags, `void transaction should have tags: ${JSON.stringify(resp.body)}`);
+            chai.assert.sameDeepMembers(resp.body.tags, setupResp.body.tags, `void transaction should have same tags as original pending transaction`);
+        });
+
         it("adds contactId tag when value attached after original transaction but before reverse", async () => {
             const newValue = await testUtils.createUSDValue(router);
             chai.assert.isNull(newValue.contactId);
@@ -426,28 +470,6 @@ describe("/v2/transactions - tags", () => {
             });
             chai.assert.equal(reverseResp.statusCode, 201, `reverseResp.body=${JSON.stringify(reverseResp.body)}`);
             assertTxHasContactIdTags(reverseResp.body, [contact1.id])
-        });
-
-        it("adds contactId tag when creating a capture transaction", async () => {
-            const setupResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
-                id: "pending-to-capture",
-                currency: "USD",
-                lineItems: [{unitPrice: 100}],
-                sources: [{
-                    rail: "lightrail",
-                    valueId: value1.id
-                }],
-                pending: true
-            });
-            chai.assert.equal(setupResp.statusCode, 201, `setupResp.body=${JSON.stringify(setupResp.body)}`);
-            assertTxHasContactIdTags(setupResp.body, [value1.contactId]);
-
-            const resp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${setupResp.body.id}/capture`, "POST", {
-                id: "capture"
-            });
-            chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
-            chai.assert.isArray(resp.body.tags, `capture transaction should have tags: ${JSON.stringify(resp.body)}`);
-            chai.assert.sameDeepMembers(resp.body.tags, setupResp.body.tags, `capture transaction should have same tags as original pending transaction`);
         });
 
         it("adds contactId tag when value attached after original transaction but before capture", async () => {
@@ -479,28 +501,6 @@ describe("/v2/transactions - tags", () => {
             assertTxHasContactIdTags(captureResp.body, [contact1.id]);
         });
 
-        it("adds contactId tag when creating a void transaction", async () => {
-            const setupResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
-                id: "pending-to-void",
-                currency: "USD",
-                lineItems: [{unitPrice: 100}],
-                sources: [{
-                    rail: "lightrail",
-                    valueId: value1.id
-                }],
-                pending: true
-            });
-            chai.assert.equal(setupResp.statusCode, 201, `setupResp.body=${JSON.stringify(setupResp.body)}`);
-            assertTxHasContactIdTags(setupResp.body, [value1.contactId]);
-
-            const resp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${setupResp.body.id}/void`, "POST", {
-                id: "void"
-            });
-            chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
-            chai.assert.isArray(resp.body.tags, `void transaction should have tags: ${JSON.stringify(resp.body)}`);
-            chai.assert.sameDeepMembers(resp.body.tags, setupResp.body.tags, `void transaction should have same tags as original pending transaction`);
-        });
-
         it("adds contactId tag when value attached after original transaction but before void", async () => {
             const newValue = await testUtils.createUSDValue(router);
             chai.assert.isNull(newValue.contactId);
@@ -528,6 +528,39 @@ describe("/v2/transactions - tags", () => {
             });
             chai.assert.equal(voidResp.statusCode, 201, `voidResp.body=${JSON.stringify(voidResp.body)}`);
             assertTxHasContactIdTags(voidResp.body, [contact1.id]);
+        });
+
+        it("adds contactId tag when value attached after capture transaction but before reverse", async () => {
+            const newValue = await testUtils.createUSDValue(router);
+            chai.assert.isNull(newValue.contactId);
+            const firstTx = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                id: "pending-to-capture-&-reverse",
+                currency: "USD",
+                lineItems: [{unitPrice: 25}],
+                sources: [{
+                    rail: "lightrail",
+                    valueId: newValue.id
+                }],
+                pending: true
+            });
+            chai.assert.equal(firstTx.statusCode, 201, `firstTx.body=${JSON.stringify(firstTx.body)}`);
+            chai.assert.isUndefined(firstTx.body.tags, `pending transaction should have no tags`);
+
+            const captureResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${firstTx.body.id}/capture`, "POST", {
+                id: testUtils.generateId()
+            });
+            chai.assert.equal(captureResp.statusCode, 201, `captureResp.body=${JSON.stringify(captureResp.body)}`);
+            chai.assert.isUndefined(captureResp.body.tags, `capture transaction should have no tags`);
+
+            const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1.id}/values/attach`, "POST", {
+                valueId: newValue.id
+            });
+            chai.assert.equal(attachResp.statusCode, 200, `attachResp.body=${JSON.stringify(attachResp.body)}`);
+            chai.assert.equal(attachResp.body.contactId, contact1.id);
+
+            const reverseResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${captureResp.body.id}/reverse`, "POST", {id: testUtils.generateId()});
+            chai.assert.equal(reverseResp.statusCode, 201, `reverseResp.body=${JSON.stringify(reverseResp.body)}`);
+            assertTxHasContactIdTags(reverseResp.body, [contact1.id]);
         });
     });
 
