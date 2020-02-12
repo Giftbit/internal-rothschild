@@ -55,6 +55,7 @@ export class BinlogStream extends EventEmitter {
                     });
                 } catch (restartError) {
                     log.error("BinlogStream error restarting.  Letting the Lambda die.", restartError);
+                    giftbitRoutes.sentry.sendErrorNotification(restartError);
                 }
             } else {
                 log.info("BinlogStream not restarting after error");

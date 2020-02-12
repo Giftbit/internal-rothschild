@@ -62,8 +62,8 @@ export class LightrailEventSnsPublisher implements LightrailEventPublisher {
         return this.pendingPublishCount;
     }
 
-    private async publishOnce(event: LightrailEvent): Promise<void> {
-        await this.sns.publish({
+    private async publishOnce(event: LightrailEvent): Promise<aws.SNS.Types.PublishResponse> {
+        const publishInput: aws.SNS.PublishInput = {
             Message: JSON.stringify(event.data),
             MessageAttributes: {
                 specversion: {
@@ -96,6 +96,7 @@ export class LightrailEventSnsPublisher implements LightrailEventPublisher {
                 }
             },
             TopicArn: process.env["LIGHTRAIL_EVENT_TOPIC_ARN"]
-        });
+        };
+        return this.sns.publish(publishInput).promise();
     }
 }
