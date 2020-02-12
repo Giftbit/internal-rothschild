@@ -49,7 +49,7 @@ async function handleScheduleEvent(evt: awslambda.CloudFormationCustomResourceEv
             // When resuming a binlog event stream mid-way through the first Rotate and Format events in the log are sent.
             binlogEventCount++;
             lastBinlogEventReceivedMillis = Date.now();
-            
+
             // Rotate doesn't have a timestamp anyways and the Format timestamp is misleading as to our latency.
             lastBinlogEventLatency = lastBinlogEventReceivedMillis - event.binlog.timestamp;
         }
@@ -60,7 +60,7 @@ async function handleScheduleEvent(evt: awslambda.CloudFormationCustomResourceEv
         lastBinlogEventLatency = 0;
     }
 
-    log.info("Stopping with", ctx.getRemainingTimeInMillis(), "millis remaining,", binlogEventCount, "binlog events processed.");
+    log.info("Stopping with", ctx.getRemainingTimeInMillis(), "millis remaining,", binlogEventCount, "Binlog events processed,", publisher.getPublishCount(), "Lightrail events published.");
     MetricsLogger.binlogWatcherEvents(binlogEventCount);
 
     try {

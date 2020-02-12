@@ -11,6 +11,7 @@ export class LightrailEventSnsPublisher implements LightrailEventPublisher {
         region: process.env["AWS_REGION"]
     });
 
+    private publishCount = 0;
     private pendingPublishCount = 0;
 
     async publish(event: LightrailEvent): Promise<void> {
@@ -22,6 +23,7 @@ export class LightrailEventSnsPublisher implements LightrailEventPublisher {
             try {
                 await this.publishOnce(event);
                 success = true;
+                this.publishCount++;
             } catch (e) {
                 log.debug("Error publishing LightrailEvent", e);
                 await new Promise(resolve => setTimeout(resolve, backoff + (Math.random() * 500) | 0));
@@ -51,6 +53,13 @@ export class LightrailEventSnsPublisher implements LightrailEventPublisher {
         for (const msg of events) {
             await this.publish(msg);
         }
+    }
+
+    /**
+     * Get the number of events that have been published.
+     */
+    getPublishCount(): number {
+        return this.publishCount;
     }
 
     /**

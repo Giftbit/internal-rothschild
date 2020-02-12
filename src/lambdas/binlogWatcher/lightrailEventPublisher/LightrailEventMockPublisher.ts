@@ -9,6 +9,10 @@ export class LightrailEventMockPublisher implements LightrailEventPublisher {
         return 0;
     }
 
+    getPublishCount(): number {
+        return this.events.length;
+    }
+
     async publish(event: LightrailEvent): Promise<void> {
         this.events.push(event);
     }
