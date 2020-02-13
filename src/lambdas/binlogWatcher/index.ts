@@ -40,7 +40,7 @@ async function handleScheduleEvent(evt: awslambda.CloudFormationCustomResourceEv
     const binlogStream = await startBinlogWatcher(stateManager, publisher);
 
     // Spin until there are 15 seconds left in execution time or there have been no events for `maxIdleMillis`.
-    const maxIdleMillis = 45000;
+    const maxIdleMillis = 30000;
     let binlogEventCount = 0;
     let lastBinlogEventReceivedMillis = Date.now();
     let lastBinlogEventLatency = 0;
@@ -49,18 +49,19 @@ async function handleScheduleEvent(evt: awslambda.CloudFormationCustomResourceEv
             // When resuming a binlog event stream mid-way through the first Rotate and Format events in the log are sent.
             binlogEventCount++;
             lastBinlogEventReceivedMillis = Date.now();
-            
+
             // Rotate doesn't have a timestamp anyways and the Format timestamp is misleading as to our latency.
             lastBinlogEventLatency = lastBinlogEventReceivedMillis - event.binlog.timestamp;
         }
     });
-    while (Date.now() - lastBinlogEventReceivedMillis < maxIdleMillis && ctx.getRemainingTimeInMillis() > 15001) {
+    while ((Date.now() - lastBinlogEventReceivedMillis < maxIdleMillis || publisher.getPendingPublishCount() !== 0) && ctx.getRemainingTimeInMillis() > 15001) {
         await new Promise(resolve => setTimeout(resolve, Math.min(maxIdleMillis, ctx.getRemainingTimeInMillis() - 15000)));
+        log.info(ctx.getRemainingTimeInMillis(), "millis remaining,", publisher.getPendingPublishCount(), "events pending publishing,", binlogEventCount, "Binlog events processed,", publisher.getPublishCount(), "Lightrail events published,", (process.memoryUsage().rss / 1024 / 1024) | 0, "MB memory used.");
         MetricsLogger.binlogWatcherLatency(lastBinlogEventLatency);
         lastBinlogEventLatency = 0;
     }
 
-    log.info("Stopping with", ctx.getRemainingTimeInMillis(), "millis remaining,", binlogEventCount, "binlog events processed.");
+    log.info("Stopping with", ctx.getRemainingTimeInMillis(), "millis remaining,", binlogEventCount, "Binlog events processed,", publisher.getPublishCount(), "Lightrail events published.");
     MetricsLogger.binlogWatcherEvents(binlogEventCount);
 
     try {

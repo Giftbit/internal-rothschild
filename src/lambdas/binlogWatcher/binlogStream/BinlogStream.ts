@@ -55,6 +55,7 @@ export class BinlogStream extends EventEmitter {
                     });
                 } catch (restartError) {
                     log.error("BinlogStream error restarting.  Letting the Lambda die.", restartError);
+                    giftbitRoutes.sentry.sendErrorNotification(restartError);
                 }
             } else {
                 log.info("BinlogStream not restarting after error");
@@ -80,7 +81,7 @@ export class BinlogStream extends EventEmitter {
         });
         this.zongJi.on("binlog", (event: ZongJiEvent) => {
             // Useful for debugging BinlogStream but commented out normally because it's *really* noisy.
-            // log.debug(binlogName, binlogPosition, BinlogStream.summarizeEventForDebugging(event));
+            // log.debug(binlogName, binlogRestartPosition, BinlogStream.summarizeEventForDebugging(event));
 
             // When restarting a stream we will receive a Rotate and Format event with nextPosition=0
             // that we do not want to track as our position.  If the binlog file has actually rotated

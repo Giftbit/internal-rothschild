@@ -792,7 +792,7 @@ Resources:
       CodeUri: ../dist/binlogWatcher/binlogWatcher.zip
       Handler: index.handler
       Runtime: nodejs10.x
-      MemorySize: 128 # if we're consistently falling behind increase the instance size
+      MemorySize: 512 # if we're consistently falling behind increase the instance size
       Timeout: 600 # same as schedule rate
       Environment:
         Variables:

@@ -178,7 +178,7 @@ describe("stripeAccess", () => {
 
             it("lets requests time out after 27s (timeouts do not trigger retries)", async function () {
                 const client = await stripeAccess.getStripeClient(true);
-                chai.assert.equal((client as any)._api.timeout, 27000, `Stripe client global config should have 27s timeout: ${(client as any)._api}`)
+                chai.assert.equal((client as any)._api.timeout, 27000, `Stripe client global config should have 27s timeout: ${(client as any)._api}`);
             });
 
             it("only retries once for non-critical charge updates", async function () {
