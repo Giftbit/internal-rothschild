@@ -40,7 +40,7 @@ async function handleScheduleEvent(evt: awslambda.CloudFormationCustomResourceEv
     const binlogStream = await startBinlogWatcher(stateManager, publisher);
 
     // Spin until there are 15 seconds left in execution time or there have been no events for `maxIdleMillis`.
-    const maxIdleMillis = 45000;
+    const maxIdleMillis = 30000;
     let binlogEventCount = 0;
     let lastBinlogEventReceivedMillis = Date.now();
     let lastBinlogEventLatency = 0;
@@ -54,8 +54,9 @@ async function handleScheduleEvent(evt: awslambda.CloudFormationCustomResourceEv
             lastBinlogEventLatency = lastBinlogEventReceivedMillis - event.binlog.timestamp;
         }
     });
-    while (Date.now() - lastBinlogEventReceivedMillis < maxIdleMillis && ctx.getRemainingTimeInMillis() > 15001) {
+    while ((Date.now() - lastBinlogEventReceivedMillis < maxIdleMillis || publisher.getPendingPublishCount() !== 0) && ctx.getRemainingTimeInMillis() > 15001) {
         await new Promise(resolve => setTimeout(resolve, Math.min(maxIdleMillis, ctx.getRemainingTimeInMillis() - 15000)));
+        log.info(ctx.getRemainingTimeInMillis(), "millis remaining", publisher.getPendingPublishCount(), "events pending publishing", (process.memoryUsage().rss / 1024 / 1024) | 0, "MB memory used", binlogEventCount, "Binlog events processed,", publisher.getPublishCount(), "Lightrail events published.");
         MetricsLogger.binlogWatcherLatency(lastBinlogEventLatency);
         lastBinlogEventLatency = 0;
     }

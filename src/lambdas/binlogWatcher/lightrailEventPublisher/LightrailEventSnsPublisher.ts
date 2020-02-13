@@ -106,9 +106,9 @@ export class LightrailEventSnsPublisher implements LightrailEventPublisher {
             },
             TopicArn: process.env["LIGHTRAIL_EVENT_TOPIC_ARN"]
         };
-        log.info("publish request", publishInput);
+        log.debug("publish request", publishInput);
         const response = await this.sns.publish(publishInput).promise();
-        log.info("publish response", response);
+        log.debug("publish response", response);
         return response;
     }
 }

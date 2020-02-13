@@ -28,10 +28,6 @@ Parameters:
     Description: Optional ARN of the SNS topic on Lightrail Events
     AllowedPattern: (arn:aws:sns:[a-zA-Z_0-9\-]+:\d{12}:[a-zA-Z_0-9+=,.@\-_/]+)?
     Default: ""
-  LightrailEventEncryptionKeyArn:
-    Type: String
-    Description: Optional ARN of the KMS key encrypting Lightrail Events
-    AllowedPattern: (arn:aws:kms:[a-z0-9-]+:\d{12}:key/[a-z0-9-]+)?
   SecureConfigBucket:
     Type: String
     Description: Name of the S3 bucket holding the JWT secure config
@@ -796,7 +792,7 @@ Resources:
       CodeUri: ../dist/binlogWatcher/binlogWatcher.zip
       Handler: index.handler
       Runtime: nodejs10.x
-      MemorySize: 128 # if we're consistently falling behind increase the instance size
+      MemorySize: 1024 # if we're consistently falling behind increase the instance size
       Timeout: 600 # same as schedule rate
       Environment:
         Variables:
@@ -833,14 +829,6 @@ Resources:
                 - kms:DescribeKey
               Resource:
                 - !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${DbEncryptionKeyId}"
-            - Effect: Allow
-              Action:
-                - kms:Decrypt
-                - kms:DescribeKey
-                - kms:Encrypt
-                - kms:GenerateDataKey*
-              Resource:
-                - !Ref LightrailEventEncryptionKeyArn
             - Effect: Allow
               Action:
                 - s3:GetObject
