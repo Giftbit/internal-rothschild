@@ -40,10 +40,12 @@ export async function startBinlogWatcher(stateManager: BinlogWatcherStateManager
 
     txBuilder.on("transaction", async (tx: BinlogTransaction) => {
         try {
-            stateManager.openCheckpoint(tx.binlogName, tx.nextPosition);
+            const {binlogName, nextPosition} = tx;
+            stateManager.openCheckpoint(binlogName, nextPosition);
             const events = await getLightrailEvents(tx);
+            tx = null;  // Free this up for garbage collection.
             await publisher.publishAllAtOnce(events);
-            stateManager.closeCheckpoint(tx.binlogName, tx.nextPosition);
+            stateManager.closeCheckpoint(binlogName, nextPosition);
         } catch (err) {
             log.error("Error getting LightrailEvents", err);
             log.error(JSON.stringify(tx));

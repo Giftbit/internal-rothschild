@@ -10,4 +10,6 @@ export interface LightrailEventPublisher {
 
     getPendingPublishCount(): number;
 
+    getPublishCount(): number;
+
 }
