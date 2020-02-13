@@ -37,12 +37,23 @@ export class LightrailEventSnsPublisher implements LightrailEventPublisher {
     }
 
     /**
-     * Publish all events simultaneously.  SNS events are not guaranteed to arrive in
-     * the same order anyways so this is usually the right idea.
+     * Publish all events as quickly as possible.  SNS events are not guaranteed to
+     * arrive in the same order anyways so this is usually the right idea.
      * @param events
      */
     async publishAllAtOnce(events: LightrailEvent[]): Promise<void> {
-        await Promise.all(events.map(e => this.publish(e)));
+        // If the number of events is huge (issuance can trigger 20,000) then trying to publish
+        // all events at once eats up all the resources and nothing gets sent quickly if at all.
+        // Publishing in reasonably sized blocks is the fastest way to get it done.
+        // This number has been tried with 10, 20 and 30 and 20 was by far quickest.
+        const maxSimultaneousPublishCount = 20;
+
+        this.pendingPublishCount += events.length;
+        for (let i = 0; i < events.length; i += maxSimultaneousPublishCount) {
+            const publishBlock = events.slice(i, i + maxSimultaneousPublishCount);
+            this.pendingPublishCount -= publishBlock.length;
+            await Promise.all(publishBlock.map(e => this.publish(e)));
+        }
     }
 
     /**

@@ -56,7 +56,7 @@ async function handleScheduleEvent(evt: awslambda.CloudFormationCustomResourceEv
     });
     while ((Date.now() - lastBinlogEventReceivedMillis < maxIdleMillis || publisher.getPendingPublishCount() !== 0) && ctx.getRemainingTimeInMillis() > 15001) {
         await new Promise(resolve => setTimeout(resolve, Math.min(maxIdleMillis, ctx.getRemainingTimeInMillis() - 15000)));
-        log.info(ctx.getRemainingTimeInMillis(), "millis remaining", publisher.getPendingPublishCount(), "events pending publishing", (process.memoryUsage().rss / 1024 / 1024) | 0, "MB memory used", binlogEventCount, "Binlog events processed,", publisher.getPublishCount(), "Lightrail events published.");
+        log.info(ctx.getRemainingTimeInMillis(), "millis remaining,", publisher.getPendingPublishCount(), "events pending publishing,", binlogEventCount, "Binlog events processed,", publisher.getPublishCount(), "Lightrail events published,", (process.memoryUsage().rss / 1024 / 1024) | 0, "MB memory used.");
         MetricsLogger.binlogWatcherLatency(lastBinlogEventLatency);
         lastBinlogEventLatency = 0;
     }
