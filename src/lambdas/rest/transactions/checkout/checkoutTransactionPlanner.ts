@@ -20,7 +20,7 @@ export function getCheckoutTransactionPlan(checkout: CheckoutRequest, steps: Tra
 
     const plan = calculateCheckoutTransactionPlanForOrderedSteps(checkout, sortedPretaxSteps, sortedPostTaxSteps, now);
     if (tags && tags.length) {
-        plan.tags = tags
+        plan.tags = tags;
     }
     return plan;
 }

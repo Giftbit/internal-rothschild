@@ -217,7 +217,8 @@ describe("/v2/values - generic code with per contact properties", () => {
                 "tax": null,
                 "pending": false,
                 "createdDate": null,
-                "createdBy": "default-test-user-TEST"
+                "createdBy": "default-test-user-TEST",
+                "tags": [`contactId:${contacts[2].id}`]
             }, ["id", "createdDate"]);
 
         const getNewAttachedValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?attachedFromValueId=${genericValue.id}`, "GET");
@@ -349,7 +350,8 @@ describe("/v2/values - generic code with per contact properties", () => {
                 "tax": null,
                 "pending": false,
                 "createdDate": null,
-                "createdBy": "default-test-user-TEST"
+                "createdBy": "default-test-user-TEST",
+                "tags": [`contactId:${createContact.body.id}`]
             }, ["id", "createdDate"]);
     });
 
@@ -798,7 +800,8 @@ describe("/v2/values - generic code with per contact properties", () => {
                 "paymentSources": null,
                 "pending": false,
                 "metadata": null,
-                "createdBy": "default-test-user-TEST"
+                "createdBy": "default-test-user-TEST",
+                "tags": [`contactId:${contact.id}`]
             } as Transaction, ["createdDate"]
         );
 

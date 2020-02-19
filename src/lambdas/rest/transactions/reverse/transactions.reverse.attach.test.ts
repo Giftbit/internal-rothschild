@@ -91,7 +91,8 @@ describe("/v2/transactions/reverse - attach", () => {
                 "paymentSources": null,
                 "pending": false,
                 "metadata": null,
-                "createdBy": "default-test-user-TEST"
+                "createdBy": "default-test-user-TEST",
+                "tags": [`contactId:${contact.id}`]
             } as Transaction, ["createdDate"]
         );
         chai.assert.deepEqualExcluding(simulate.body, postReverse.body, ["simulated", "createdDate"]);
@@ -183,7 +184,8 @@ describe("/v2/transactions/reverse - attach", () => {
                 "paymentSources": null,
                 "pending": false,
                 "metadata": null,
-                "createdBy": "default-test-user-TEST"
+                "createdBy": "default-test-user-TEST",
+                "tags": [`contactId:${contact.id}`]
             } as Transaction, ["createdDate"]
         );
 

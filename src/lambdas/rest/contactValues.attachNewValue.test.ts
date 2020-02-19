@@ -112,7 +112,8 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
             createdDate: attachResp.body.createdDate,
             createdBy: attachResp.body.createdBy,
             metadata: null,
-            tax: null
+            tax: null,
+            tags: [`contactId:${contact.id}`]
         });
     });
 
@@ -246,7 +247,8 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
             createdDate: attachResp.body.createdDate,
             createdBy: attachResp.body.createdBy,
             metadata: null,
-            tax: null
+            tax: null,
+            tags: [`contactId:${contact.id}`]
         });
     });
 
@@ -325,7 +327,8 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
             createdDate: attachResp.body.createdDate,
             createdBy: attachResp.body.createdBy,
             metadata: null,
-            tax: null
+            tax: null,
+            tags: [`contactId:${contact.id}`]
         });
     });
 

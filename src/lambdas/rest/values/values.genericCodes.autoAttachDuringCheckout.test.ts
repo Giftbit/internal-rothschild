@@ -65,7 +65,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             chai.assert.deepNestedInclude(create.body, genericValue);
         });
 
-        it("can checkout against with code and contact", async () => {
+        it("can checkout with code and contact", async () => {
             const checkoutRequest: CheckoutRequest = {
                 id: generateId(),
                 currency: "USD",
@@ -140,7 +140,8 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
                     ],
                     "pending": false,
                     "metadata": null,
-                    "createdBy": "default-test-user-TEST"
+                    "createdBy": "default-test-user-TEST",
+                    "tags": [`contactId:${contactId}`]
                 }, ["createdDate"]
             );
 
@@ -360,7 +361,8 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
                     ],
                     "pending": false,
                     "metadata": null,
-                    "createdBy": "default-test-user-TEST"
+                    "createdBy": "default-test-user-TEST",
+                    "tags": [`contactId:${contactId}`]
                 }, ["createdDate"]
             );
         });

@@ -14,7 +14,6 @@ import chaiExclude from "chai-exclude";
 chai.use(chaiExclude);
 
 describe("/v2/transactions/checkout - basics", () => {
-
     const router = new cassava.Router();
 
     before(async function () {
@@ -662,7 +661,7 @@ describe("/v2/transactions/checkout - basics", () => {
             chai.assert.equal(attachValue.statusCode, 200);
         });
 
-        it("can checkout with a attached generic value", async () => {
+        it("can checkout with an attached generic value", async () => {
             const checkout: CheckoutRequest = {
                 id: generateId(),
                 sources: [
@@ -751,7 +750,8 @@ describe("/v2/transactions/checkout - basics", () => {
                     ],
                     "pending": false,
                     "metadata": null,
-                    "createdBy": "default-test-user-TEST"
+                    "createdBy": "default-test-user-TEST",
+                    "tags": [`contactId:${contact.id}`]
                 }, ["createdDate"]);
             chai.assert.equal((createCheckout.body.steps[0] as LightrailTransactionStep).contactId, contact.id, "The contactId is not directly on the Value, but attached to the Value via ContactValues. It's important for tracking reasons that the contactId is persisted onto the transaction step.");
 
@@ -836,5 +836,4 @@ describe("/v2/transactions/checkout - basics", () => {
             chai.assert.isNull((createCheckout.body.steps[0] as LightrailTransactionStep).contactId, "The contactId should be null since contactId was not passed in as a source. This is even though the Value has been attached to a Contact.");
         });
     });
-
 });

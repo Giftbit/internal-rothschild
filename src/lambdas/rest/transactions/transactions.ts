@@ -372,7 +372,7 @@ export function formatContactIdTags(currentContactIds: string[], tagsOnEarlierTr
 
     let tags = Array.from(new Set(currentContactIds.filter(id => !!id).map(id => `contactId:${id}`)));
     if (tagsOnEarlierTransaction.length) {
-        tags = Array.from(new Set([...tagsOnEarlierTransaction, ...tags]))
+        tags = Array.from(new Set([...tagsOnEarlierTransaction, ...tags]));
     }
     return tags.length ? tags : undefined;
 }

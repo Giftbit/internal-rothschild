@@ -163,17 +163,17 @@ function handleNonTransactableValues(values: Value[], options: ResolveTransactio
             v.active &&
             (!v.startDate || v.startDate <= now) &&
             (!v.endDate || v.endDate >= now)
-        )
+        );
     } else if (options.nonTransactableHandling === "include") {
         // all values should be returned
     }
 
     if (!options.includeZeroBalance) {
-        result.values = result.values.filter(v => (v.balance === null) || (v.balance === 0 && options.includeZeroBalance) || (v.balance > 0))
+        result.values = result.values.filter(v => (v.balance === null) || (v.balance === 0 && options.includeZeroBalance) || (v.balance > 0));
     }
 
     if (!options.includeZeroUsesRemaining) {
-        result.values = result.values.filter(v => (v.usesRemaining === null) || (v.usesRemaining === 0 && options.includeZeroUsesRemaining) || (v.usesRemaining > 0))
+        result.values = result.values.filter(v => (v.usesRemaining === null) || (v.usesRemaining === 0 && options.includeZeroUsesRemaining) || (v.usesRemaining > 0));
     }
 
     if (!returnNonTransactableContactIds) {
