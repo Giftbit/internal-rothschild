@@ -10,6 +10,11 @@ import {CheckoutRequest} from "../../../model/TransactionRequest";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {Tag} from "../../../model/Tag";
 import {formatContactIdTags} from "./transactions";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
+import {after} from "mocha";
+import * as sinon from "sinon";
+import * as InsertTransactions from "./insertTransactions";
+import log = require("loglevel");
 
 chai.use(chaiExclude);
 
@@ -125,7 +130,7 @@ describe("/v2/transactions - tags", () => {
             });
             chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
 
-            assertTxHasContactIdTags(resp.body, [contact1.id, contact2.id])
+            assertTxHasContactIdTags(resp.body, [contact1.id, contact2.id]);
         });
 
         it("2nd unique value (attached to different contact) as source, doesn't get used", async () => {
@@ -469,7 +474,7 @@ describe("/v2/transactions - tags", () => {
                 id: testUtils.generateId()
             });
             chai.assert.equal(reverseResp.statusCode, 201, `reverseResp.body=${JSON.stringify(reverseResp.body)}`);
-            assertTxHasContactIdTags(reverseResp.body, [contact1.id])
+            assertTxHasContactIdTags(reverseResp.body, [contact1.id]);
         });
 
         it("adds contactId tag when value attached after original transaction but before capture", async () => {
@@ -952,7 +957,57 @@ describe("/v2/transactions - tags", () => {
             const transactionsResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?tag=${testUtils.generateId()}`, "GET");
             chai.assert.equal(transactionsResp.statusCode, 200, `transactionsResp.body=${JSON.stringify(transactionsResp.body)}`);
             chai.assert.equal(transactionsResp.body.length, 0, `no transactions should be returned when searching by a tag value that doesn't exist: transactions=${JSON.stringify(transactionsResp.body)}`);
-        })
+        });
+    });
+
+    describe("error handling", () => {
+        const sinonSandbox = sinon.createSandbox();
+
+        before(() => {
+            sinonSandbox.stub(InsertTransactions, "insertTransactionTags")
+                .rejects(new Error("Error for testing - tag insertion failure"));
+        });
+
+        after(() => {
+            sinonSandbox.restore();
+            unsetStubsForStripeTests();
+        });
+
+        it("rolls back the transaction if tag insertion fails", async () => {
+            const checkoutFailureResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/checkout", "POST", {
+                id: "this-checkout-will-fail",
+                currency: "USD",
+                lineItems: [{unitPrice: 50}],
+                sources: [{rail: "lightrail", contactId: contact1.id}]
+            });
+            chai.assert.equal(checkoutFailureResp.statusCode, 409, `checkoutFailureResp.body=${JSON.stringify(checkoutFailureResp)}`);
+            chai.assert.match(checkoutFailureResp.body.message, /An error occurred processing tags for transaction/, `checkoutFailureResp.body=${JSON.stringify(checkoutFailureResp.body)}`);
+
+            const transactionNotFoundResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/this-checkout-will-fail", "GET");
+            chai.assert.equal(transactionNotFoundResp.statusCode, 404);
+        });
+
+        it("rolls back the Stripe step if tag insertion fails", async () => {
+            await setStubsForStripeTests();
+
+            const logSpy = sinonSandbox.spy(log, "warn");
+
+            const checkoutFailureResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/checkout", "POST", {
+                id: testUtils.generateId(),
+                currency: "USD",
+                lineItems: [{unitPrice: 500}],
+                sources: [{
+                    rail: "lightrail",
+                    contactId: testUtils.generateId()
+                }, {
+                    rail: "stripe",
+                    source: "tok_visa"
+                }]
+            });
+            chai.assert.equal(checkoutFailureResp.statusCode, 409, `checkoutFailureResp.body=${JSON.stringify(checkoutFailureResp)}`);
+
+            chai.assert.isDefined(logSpy.args.find(argsPerCall => argsPerCall.find(arg => arg.match(/An error occurred while processing transaction '.+'. The Stripe charge\(s\) '.+' have been refunded./))));
+        });
     });
 });
 

@@ -121,7 +121,14 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
         }
     }
 
-    await insertTransactionTags(auth, trx, plan);
+    try {
+        await insertTransactionTags(auth, trx, plan);
+    } catch (err) {
+        log.error(`Error occurred while processing transaction tags: ${err}`);
+        await rollbackTransactionPlan(auth, plan, trx, err);
+        giftbitRoutes.sentry.sendErrorNotification(err);
+        throw new giftbitRoutes.GiftbitRestError(409, `An error occurred processing tags for transaction '${plan.id}'`);
+    }
 
     // Call TransactionPlan.toTransaction again because TransactionSteps may change during execution to fill in results.
     // Note that the top-level Transaction may not change.
