@@ -114,6 +114,7 @@ function getKnex(username: string, password: string, endpoint: string, port: str
             password: password,
             database: "rothschild",
             timezone: "Z",
+            // charset: "utf8mb4_unicode_ci",
             typeCast: function (field, next) {
                 if (field.type === "TINY" && field.length === 1) {
                     // MySQL does not have a true boolean type.  Convert tinyint(1) to boolean.

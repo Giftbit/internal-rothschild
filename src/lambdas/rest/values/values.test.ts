@@ -1,5 +1,6 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
+import * as sinon from "sinon";
 import * as testUtils from "../../../utils/testUtils/index";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../utils/testUtils/index";
 import {DbValue, formatCodeForLastFourDisplay, Rule, Value} from "../../../model/Value";
@@ -13,7 +14,6 @@ import {createCurrency} from "../currencies";
 import {computeCodeLookupHash, decryptCode} from "../../../utils/codeCryptoUtils";
 import * as codeGenerator from "../../../utils/codeGenerator";
 import {generateCode} from "../../../utils/codeGenerator";
-import * as sinon from "sinon";
 import chaiExclude from "chai-exclude";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import parseLinkHeader = require("parse-link-header");
@@ -481,7 +481,6 @@ describe("/v2/values/", () => {
         chai.assert.isNull(createValue.body.endDate);
     });
 
-
     it("can update a Value with a startDate and no endDate", async () => {
         const value: Partial<Value> = {
             id: generateId(),
@@ -497,6 +496,40 @@ describe("/v2/values/", () => {
         chai.assert.equal(updateValue.statusCode, 200);
         chai.assert.equal(updateValue.body.startDate as any, "2030-01-01T00:00:00.000Z");
         chai.assert.isNull(updateValue.body.endDate);
+    });
+
+    it.only("gets Value ID case sensitive", async () => {
+        const value1: Partial<Value> = {
+            id: generateId() + "-A",
+            balance: 5,
+            currency: "USD"
+        };
+        const value2: Partial<Value> = {
+            id: value1.id.toLowerCase(),
+            balance: 5,
+            currency: "USD"
+        };
+        chai.assert.notEqual(value1.id, value2.id);
+
+        const postValue1Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
+        chai.assert.equal(postValue1Resp.statusCode, 201);
+
+        const postValue2Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value2);
+        chai.assert.equal(postValue2Resp.statusCode, 201, postValue2Resp.bodyRaw);
+
+        const getValue1Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "GET");
+        chai.assert.equal(getValue1Resp.statusCode, 200);
+        chai.assert.equal(getValue1Resp.body.id, value1.id);
+
+        const getValue2Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value2.id}`, "GET");
+        chai.assert.equal(getValue2Resp.statusCode, 200);
+        chai.assert.equal(getValue2Resp.body.id, value2.id);
+        chai.assert.notEqual(getValue1Resp.body.id, getValue2Resp.body.id);
+    });
+
+    it.only("does not error getting a Value by a string with weird encoding", async () => {
+        const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values/%22%3E%3Cimg%20src%3D1%20onerror%3Dprompt(document.cookie)%3B%3E%F0%9F%98%82", "GET");
+        chai.assert.equal(valueResp.statusCode, 404);
     });
 
     describe("discountSellerLiability", () => {
