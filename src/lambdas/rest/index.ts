@@ -3,7 +3,6 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as logPrefix from "loglevel-plugin-prefix";
 import {installRestRoutes} from "./installRestRoutes";
 import {CodeCryptographySecrets, initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils"; // Prefix log messages with the level.
-import {initializeIntercomSecrets, IntercomSecrets} from "../../utils/intercomUtils";
 import {initializeAssumeCheckoutToken, initializeLightrailStripeConfig} from "../../utils/stripeUtils/stripeAccess";
 import {StripeConfig} from "../../utils/stripeUtils/StripeConfig";
 import log = require("loglevel");
@@ -50,10 +49,6 @@ router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute({
 
 initializeCodeCryptographySecrets(
     giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<CodeCryptographySecrets>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY")
-);
-
-initializeIntercomSecrets(
-    giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<IntercomSecrets>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_INTERCOM_SECRET")
 );
 
 initializeAssumeCheckoutToken(
