@@ -1,7 +1,12 @@
 import * as awslambda from "aws-lambda";
 import * as childProcess from "child_process";
+import * as fs from "fs";
+import * as http from "http";
+import * as https from "https";
 import * as mysql from "mysql2/promise";
 import * as path from "path";
+import * as tar from "tar";
+import * as url from "url";
 import {sendCloudFormationResponse} from "../../utils/sendCloudFormationResponse";
 import {getDbCredentials} from "../../utils/dbUtils/connection";
 // Expands to an import of all files matching the glob using the import-glob-loader.
@@ -60,10 +65,15 @@ export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, 
 
 async function migrateDatabase(ctx: awslambda.Context, placeholders: { [key: string]: string }): Promise<any> {
     log.info("downloading flyway", flywayVersion);
-    await spawn("curl", ["-o", `/tmp/flyway-commandline-${flywayVersion}.tar.gz`, `https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/${flywayVersion}/flyway-commandline-${flywayVersion}.tar.gz`]);
+    // await spawn("curl", ["-o", `/tmp/flyway-commandline-${flywayVersion}.tar.gz`, `https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/${flywayVersion}/flyway-commandline-${flywayVersion}.tar.gz`]);
+    await downloadFile(
+        `https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/${flywayVersion}/flyway-commandline-${flywayVersion}.tar.gz`,
+        `/tmp/flyway-commandline-${flywayVersion}.tar.gz`
+    );
 
     log.info("extracting flyway");
-    await spawn("tar", ["-xf", `/tmp/flyway-commandline-${flywayVersion}.tar.gz`, "-C", "/tmp"]);
+    // await spawn("tar", ["-xf", `/tmp/flyway-commandline-${flywayVersion}.tar.gz`, "-C", "/tmp"]);
+    await untar(`/tmp/flyway-commandline-${flywayVersion}.tar.gz`);
 
     log.info("waiting for database to be connectable");
     const conn = await getConnection(ctx);
@@ -92,6 +102,49 @@ async function migrateDatabase(ctx: awslambda.Context, placeholders: { [key: str
         await logFlywaySchemaHistory(ctx);
         throw err;
     }
+}
+
+function downloadFile(sourceUrl: string, fileDestination: string): Promise<void> {
+    const file = fs.createWriteStream(fileDestination);
+    const protocol: (typeof http | typeof https) = sourceUrl.startsWith("http:") ? http : https;
+    const parsedSourceUrl = url.parse(sourceUrl);
+    return new Promise<void>((resolve, reject) => {
+        protocol.get(
+            {
+                host: parsedSourceUrl.host,
+                path: parsedSourceUrl.path
+            },
+            res => {
+                res.on("data", data => {
+                    file.write(data);
+                });
+                res.on("end", () => {
+                    file.end();
+                    const fileStats = fs.statSync(fileDestination);
+                    log.info(fileDestination, "downloaded", fileStats.size, "bytes");
+                    resolve();
+                });
+                res.on("error", err => {
+                    file.end();
+                    log.error("error downloading", sourceUrl, "to", fileDestination, err);
+                    reject(err);
+                });
+            }
+        );
+    });
+}
+
+function untar(filename: string): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+        tar.x({file: filename}, [], err => {
+            if (err) {
+                log.error("error untarring", filename, err);
+                reject(err);
+            } else {
+                resolve();
+            }
+        });
+    });
 }
 
 function spawn(cmd: string, args?: string[], options?: childProcess.SpawnOptions): Promise<{ stdout: string[], stderr: string[] }> {
