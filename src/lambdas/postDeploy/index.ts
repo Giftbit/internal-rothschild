@@ -64,19 +64,18 @@ export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, 
 }
 
 async function migrateDatabase(ctx: awslambda.Context, placeholders: { [key: string]: string }): Promise<any> {
-    log.info("downloading flyway", flywayVersion);
-    // await spawn("curl", ["-o", `/tmp/flyway-commandline-${flywayVersion}.tar.gz`, `https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/${flywayVersion}/flyway-commandline-${flywayVersion}.tar.gz`]);
+    log.info("setting up flyway");
     await downloadFile(
         `https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/${flywayVersion}/flyway-commandline-${flywayVersion}.tar.gz`,
         `/tmp/flyway-commandline-${flywayVersion}.tar.gz`
     );
-
-    log.info("extracting flyway");
-    // await spawn("tar", ["-xf", `/tmp/flyway-commandline-${flywayVersion}.tar.gz`, "-C", "/tmp"]);
-    await untar(`/tmp/flyway-commandline-${flywayVersion}.tar.gz`);
+    await spawn("mkdir", [`/tmp/flyway-commandline-${flywayVersion}`]);
+    await untar(`/tmp/flyway-commandline-${flywayVersion}.tar.gz`, `/tmp/flyway-commandline-${flywayVersion}`);
 
     log.info("waiting for database to be connectable");
     const conn = await getConnection(ctx);
+
+    log.info("closing database connection");
     conn.end();
 
     log.info("invoking flyway");
@@ -105,6 +104,8 @@ async function migrateDatabase(ctx: awslambda.Context, placeholders: { [key: str
 }
 
 function downloadFile(sourceUrl: string, fileDestination: string): Promise<void> {
+    log.info("downloading", sourceUrl, "to", fileDestination);
+
     const file = fs.createWriteStream(fileDestination);
     const protocol: (typeof http | typeof https) = sourceUrl.startsWith("http:") ? http : https;
     const parsedSourceUrl = url.parse(sourceUrl);
@@ -115,18 +116,26 @@ function downloadFile(sourceUrl: string, fileDestination: string): Promise<void>
                 path: parsedSourceUrl.path
             },
             res => {
+                if (res.statusCode !== 200) {
+                    log.error("error downloading, statusCode=", res.statusCode);
+                    res.resume();
+                    reject(new Error("statusCode=" + res.statusCode));
+                    return;
+                }
+
                 res.on("data", data => {
                     file.write(data);
                 });
                 res.on("end", () => {
-                    file.end();
-                    const fileStats = fs.statSync(fileDestination);
-                    log.info(fileDestination, "downloaded", fileStats.size, "bytes");
-                    resolve();
+                    file.end(() => {
+                        const fileStats = fs.statSync(fileDestination);
+                        log.info(fileDestination, "downloaded", fileStats.size, "bytes");
+                        resolve();
+                    });
                 });
                 res.on("error", err => {
                     file.end();
-                    log.error("error downloading", sourceUrl, "to", fileDestination, err);
+                    log.error("error downloading", err);
                     reject(err);
                 });
             }
@@ -134,11 +143,13 @@ function downloadFile(sourceUrl: string, fileDestination: string): Promise<void>
     });
 }
 
-function untar(filename: string): Promise<void> {
+function untar(tarFile: string, destDir: string): Promise<void> {
+    log.info("untar", tarFile, "to", destDir);
+
     return new Promise<void>((resolve, reject) => {
-        tar.x({file: filename}, [], err => {
+        tar.x({file: tarFile, cwd: destDir}, [], err => {
             if (err) {
-                log.error("error untarring", filename, err);
+                log.error("error untarring", tarFile, err);
                 reject(err);
             } else {
                 resolve();
@@ -148,22 +159,21 @@ function untar(filename: string): Promise<void> {
 }
 
 function spawn(cmd: string, args?: string[], options?: childProcess.SpawnOptions): Promise<{ stdout: string[], stderr: string[] }> {
-    const child = childProcess.spawn(cmd, args, options);
+    log.info(cmd, args?.join(" "));
 
+    const child = childProcess.spawn(cmd, args, options);
     const stdout: string[] = [];
     const stderr: string[] = [];
     child.stdout.on("data", data => stdout.push(data.toString()));
     child.stderr.on("data", data => stderr.push(data.toString()));
     return new Promise<{ stdout: string[], stderr: string[] }>((resolve, reject) => {
         child.on("error", error => {
-            log.error("Error running", cmd, args.join(" "));
             log.error(error);
             stdout.length && log.info("stdout:", stdout.join(""));
             stderr.length && log.error("stderr:", stderr.join(""));
             reject(error);
         });
         child.on("close", code => {
-            log.info(cmd, args.join(" "));
             stdout.length && log.info("stdout:", stdout.join(""));
             stderr.length && log.error("stderr:", stderr.join(""));
             code === 0 ? resolve({
