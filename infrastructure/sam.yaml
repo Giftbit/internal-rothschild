@@ -552,7 +552,6 @@ Resources:
           SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH: assumeRetrieveStripeAuth.json
           SECURE_CONFIG_KEY_ASSUME_STORAGE_SCOPE_TOKEN: assumeStorageScopeToken.json
           SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY: code_cryptography_secrets.json
-          SECURE_CONFIG_KEY_INTERCOM_SECRET: intercom_secrets.json
           SECURE_CONFIG_KEY_JWT: authentication_badge_key.json
           SECURE_CONFIG_KEY_ROLE_DEFINITIONS: RoleDefinitions.json
           SECURE_CONFIG_KEY_SENTRY: sentry_lambda_services.json
@@ -588,7 +587,6 @@ Resources:
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/RoleDefinitions.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/code_cryptography_secrets.json"
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/intercom_secrets.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/stripe_connect.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeRetrieveStripeAuth.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeStorageScopeToken.json"
@@ -701,8 +699,8 @@ Resources:
     Properties:
       CodeUri: ../dist/postDeploy/postDeploy.zip
       Handler: index.handler
-      Runtime: nodejs8.10
-      MemorySize: 256
+      Runtime: nodejs12.x
+      MemorySize: 512
       Timeout: 900 # seconds, 900 max
       Environment:
         Variables:
