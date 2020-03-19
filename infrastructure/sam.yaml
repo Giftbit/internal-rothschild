@@ -700,7 +700,7 @@ Resources:
       CodeUri: ../dist/postDeploy/postDeploy.zip
       Handler: index.handler
       Runtime: nodejs12.x
-      MemorySize: 256
+      MemorySize: 512
       Timeout: 900 # seconds, 900 max
       Environment:
         Variables:

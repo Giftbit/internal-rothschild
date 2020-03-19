@@ -64,13 +64,14 @@ export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, 
 }
 
 async function migrateDatabase(ctx: awslambda.Context, placeholders: { [key: string]: string }): Promise<any> {
+    await spawn("uname", ["-a"]);
+
     log.info("setting up flyway");
     await downloadFile(
-        `https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/${flywayVersion}/flyway-commandline-${flywayVersion}.tar.gz`,
-        `/tmp/flyway-commandline-${flywayVersion}.tar.gz`
+        `https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/${flywayVersion}/flyway-commandline-${flywayVersion}-linux-x64.tar.gz`,
+        `/tmp/flyway-commandline-${flywayVersion}-linux-x64.tar.gz`
     );
-    await spawn("mkdir", [`/tmp/flyway-commandline-${flywayVersion}`]);
-    await untar(`/tmp/flyway-commandline-${flywayVersion}.tar.gz`, `/tmp/flyway-commandline-${flywayVersion}`);
+    await untar(`/tmp/flyway-commandline-${flywayVersion}-linux-x64.tar.gz`, `/tmp`);
 
     log.info("waiting for database to be connectable");
     const conn = await getConnection(ctx);
@@ -93,7 +94,7 @@ async function migrateDatabase(ctx: awslambda.Context, placeholders: { [key: str
         env[`FLYWAY_PLACEHOLDERS_${placeholderKey.toUpperCase()}`] = placeholders[placeholderKey];
     }
     try {
-        await spawn(`/tmp/flyway-${flywayVersion}/flyway`, ["-X", "migrate"], {
+        await spawn(`/tmp/flyway-${flywayVersion}/flyway`, ["migrate"], {
             env: env
         });
     } catch (err) {
