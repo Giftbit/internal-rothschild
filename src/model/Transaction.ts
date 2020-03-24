@@ -82,7 +82,53 @@ export namespace Transaction {
 }
 
 export namespace DbTransaction {
-    export async function toTransactions(txns: DbTransaction[], userId: string): Promise<Transaction[]> {
+    export function toTransaction(dbTx: DbTransaction, dbSteps: DbTransactionStep[]): Transaction {
+        let t: Transaction = {
+            id: dbTx.id,
+            transactionType: dbTx.transactionType,
+            currency: dbTx.currency,
+            totals: null,
+            lineItems: JSON.parse(dbTx.lineItems),
+            paymentSources: JSON.parse(dbTx.paymentSources),
+            steps: dbSteps.map(DbTransactionStep.toTransactionStep),
+            metadata: JSON.parse(dbTx.metadata),
+            tax: JSON.parse(dbTx.tax),
+            pending: !!dbTx.pendingVoidDate,
+            pendingVoidDate: dbTx.pendingVoidDate || undefined,
+            createdDate: dbTx.createdDate,
+            createdBy: dbTx.createdBy
+        };
+        if (hasNonNullTotals(dbTx)) {
+            let payable: number;
+            if (dbTx.totals_subtotal !== null && dbTx.totals_tax !== null && dbTx.totals_discountLightrail !== null) {
+                payable = dbTx.totals_subtotal + dbTx.totals_tax - dbTx.totals_discountLightrail;
+            }
+            t.totals = {
+                subtotal: dbTx.totals_subtotal !== null ? dbTx.totals_subtotal : undefined,
+                tax: dbTx.totals_tax !== null ? dbTx.totals_tax : undefined,
+                discount: dbTx.totals_discountLightrail !== null ? dbTx.totals_discountLightrail : undefined,
+                discountLightrail: dbTx.totals_discountLightrail !== null ? dbTx.totals_discountLightrail : undefined,
+                payable: payable !== null ? payable : undefined,
+                paidLightrail: dbTx.totals_paidLightrail !== null ? dbTx.totals_paidLightrail : undefined,
+                paidStripe: dbTx.totals_paidStripe !== null ? dbTx.totals_paidStripe : undefined,
+                paidInternal: dbTx.totals_paidInternal !== null ? dbTx.totals_paidInternal : undefined,
+                remainder: dbTx.totals_remainder !== null ? dbTx.totals_remainder : undefined,
+                forgiven: dbTx.totals_forgiven !== null ? dbTx.totals_forgiven : undefined,
+                marketplace: undefined
+            };
+
+            if (dbTx.totals_marketplace_sellerNet !== null) {
+                t.totals.marketplace = {
+                    sellerGross: dbTx.totals_marketplace_sellerGross,
+                    sellerDiscount: dbTx.totals_marketplace_sellerDiscount,
+                    sellerNet: dbTx.totals_marketplace_sellerNet,
+                };
+            }
+        }
+        return t;
+    }
+
+    export async function toTransactionsUsingDb(txns: DbTransaction[], userId: string): Promise<Transaction[]> {
         const knex = await getKnexRead();
         let txIds: string[] = txns.map(tx => tx.id);
         let dbSteps: any[] = await knex("LightrailTransactionSteps")
@@ -105,52 +151,7 @@ export namespace DbTransaction {
         }).where("TransactionsTags.userId", userId).whereIn("TransactionsTags.transactionId", txIds);
         dbTxTags.forEach(t => transactionsTags[t.transactionId].push(t.displayName));
 
-        return txns.map(dbT => {
-            let t: Transaction = {
-                id: dbT.id,
-                transactionType: dbT.transactionType,
-                currency: dbT.currency,
-                totals: null,
-                lineItems: JSON.parse(dbT.lineItems),
-                paymentSources: JSON.parse(dbT.paymentSources),
-                steps: dbSteps.filter(s => s.transactionId === dbT.id).map(DbTransactionStep.toTransactionStep),
-                metadata: JSON.parse(dbT.metadata),
-                tax: JSON.parse(dbT.tax),
-                pending: !!dbT.pendingVoidDate,
-                pendingVoidDate: dbT.pendingVoidDate || undefined,
-                createdDate: dbT.createdDate,
-                createdBy: dbT.createdBy,
-                tags: transactionsTags[dbT.id].length > 0 ? transactionsTags[dbT.id] : undefined,
-            };
-            if (hasNonNullTotals(dbT)) {
-                let payable: number;
-                if (dbT.totals_subtotal !== null && dbT.totals_tax !== null && dbT.totals_discountLightrail !== null) {
-                    payable = dbT.totals_subtotal + dbT.totals_tax - dbT.totals_discountLightrail;
-                }
-                t.totals = {
-                    subtotal: dbT.totals_subtotal !== null ? dbT.totals_subtotal : undefined,
-                    tax: dbT.totals_tax !== null ? dbT.totals_tax : undefined,
-                    discount: dbT.totals_discountLightrail !== null ? dbT.totals_discountLightrail : undefined,
-                    discountLightrail: dbT.totals_discountLightrail !== null ? dbT.totals_discountLightrail : undefined,
-                    payable: payable !== null ? payable : undefined,
-                    paidLightrail: dbT.totals_paidLightrail !== null ? dbT.totals_paidLightrail : undefined,
-                    paidStripe: dbT.totals_paidStripe !== null ? dbT.totals_paidStripe : undefined,
-                    paidInternal: dbT.totals_paidInternal !== null ? dbT.totals_paidInternal : undefined,
-                    remainder: dbT.totals_remainder !== null ? dbT.totals_remainder : undefined,
-                    forgiven: dbT.totals_forgiven !== null ? dbT.totals_forgiven : undefined,
-                    marketplace: undefined
-                };
-
-                if (dbT.totals_marketplace_sellerNet !== null) {
-                    t.totals.marketplace = {
-                        sellerGross: dbT.totals_marketplace_sellerGross,
-                        sellerDiscount: dbT.totals_marketplace_sellerDiscount,
-                        sellerNet: dbT.totals_marketplace_sellerNet,
-                    };
-                }
-            }
-            return t;
-        });
+        return txns.map(dbTx => toTransaction(dbTx, dbSteps.filter(step => step.transactionId === dbTx.id)));
     }
 }
 

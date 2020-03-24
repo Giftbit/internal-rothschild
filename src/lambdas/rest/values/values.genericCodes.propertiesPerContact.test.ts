@@ -14,6 +14,7 @@ import {generateCode} from "../../../utils/codeGenerator";
 import {generateLegacyHashForValueIdContactId} from "../contactValues";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
@@ -30,7 +31,10 @@ describe("/v2/values - generic code with per contact properties", () => {
             code: "USD",
             name: "US Dollars",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
     });
 

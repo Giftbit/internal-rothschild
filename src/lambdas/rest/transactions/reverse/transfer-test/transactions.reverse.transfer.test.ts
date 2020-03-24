@@ -11,6 +11,7 @@ import {CreditRequest, DebitRequest, ReverseRequest, TransferRequest} from "../.
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
 import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../../../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
@@ -27,7 +28,10 @@ describe("/v2/transactions/reverse - transfer", () => {
             code: "USD",
             name: "US Dollars",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
         chai.assert.equal(currency.code, "USD");
         await setStubsForStripeTests();
@@ -223,7 +227,7 @@ describe("/v2/transactions/reverse - transfer", () => {
                 pending: false,
                 "metadata": null,
                 "createdBy": "default-test-user-TEST"
-            }, ["createdDate"]
+            }, ["createdDate", "payment_intent"]
         );
 
         // check value is same as before

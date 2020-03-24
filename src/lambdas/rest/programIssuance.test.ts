@@ -13,6 +13,7 @@ import {Transaction} from "../../model/Transaction";
 import * as sinon from "sinon";
 import * as codeGenerator from "../../utils/codeGenerator";
 import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
@@ -55,7 +56,10 @@ describe("/v2/issuances", () => {
             code: "USD",
             name: "US Dollars",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
 
         const createProgram = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);

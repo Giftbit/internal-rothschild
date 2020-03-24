@@ -38,7 +38,7 @@ export async function createCaptureTransactionPlan(auth: giftbitRoutes.jwtauth.A
         throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot capture Transaction that passed the pendingVoidDate.  It is in the process of being automatically voided.`, "TransactionVoiding");
     }
 
-    const transactionToCapture: Transaction = (await DbTransaction.toTransactions([dbTransactionToCapture], auth.userId))[0];
+    const transactionToCapture: Transaction = (await DbTransaction.toTransactionsUsingDb([dbTransactionToCapture], auth.userId))[0];
 
     const values = await getDbValuesByTransaction(auth, transactionToCapture);
     const frozenValue = values.find(value => value.frozen);

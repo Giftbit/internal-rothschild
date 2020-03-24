@@ -2,6 +2,7 @@ import {StripeRestError} from "./StripeRestError";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import {getStripeClient} from "./stripeAccess";
+import {IHeaderOptions} from "stripe";
 import log = require("loglevel");
 import Stripe = require("stripe");
 
@@ -117,7 +118,12 @@ export async function captureCharge(chargeId: string, options: Stripe.charges.IC
     }
 }
 
-export async function updateCharge(chargeId: string, params: Stripe.charges.IChargeUpdateOptions, isTestMode: boolean, merchantStripeAccountId: string): Promise<any> {
+/**
+ * Set @param shortTimeout = true when the update is a non-critical operation.
+ * This will cause a 5s timeout on the call to update the charge and only a single retry
+ * in case of network failure or a 500 from Stripe.
+ */
+export async function updateCharge(chargeId: string, params: Stripe.charges.IChargeUpdateOptions, isTestMode: boolean, merchantStripeAccountId: string, shortTimeout: boolean = false): Promise<any> {
     const lightrailStripe = await getStripeClient(isTestMode);
     log.info("Updating Stripe charge", chargeId, params, merchantStripeAccountId);
     try {
@@ -125,7 +131,9 @@ export async function updateCharge(chargeId: string, params: Stripe.charges.ICha
             chargeId,
             params, {
                 stripe_account: merchantStripeAccountId,
-            }
+                timeout: shortTimeout ? 5000 /* 5s */ : undefined,
+                maxNetworkRetries: shortTimeout ? 1 : undefined
+            } as IHeaderOptions
         );
         log.info("Updated Stripe charge", chargeUpdate);
         return chargeUpdate;

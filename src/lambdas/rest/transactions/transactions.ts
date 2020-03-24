@@ -265,7 +265,7 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
         pagination
     );
     return {
-        transactions: await DbTransaction.toTransactions(res.body, auth.userId),
+        transactions: await DbTransaction.toTransactionsUsingDb(res.body, auth.userId),
         pagination: res.pagination
     };
 }
@@ -293,7 +293,7 @@ export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBa
     auth.requireIds("userId");
     const dbTransaction = await getDbTransaction(auth, id);
 
-    const transactions: Transaction[] = await DbTransaction.toTransactions([dbTransaction], auth.userId);
+    const transactions: Transaction[] = await DbTransaction.toTransactionsUsingDb([dbTransaction], auth.userId);
     return transactions[0];   // at this point there will only ever be one
 }
 

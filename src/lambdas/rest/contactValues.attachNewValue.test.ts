@@ -11,6 +11,7 @@ import {Transaction} from "../../model/Transaction";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
 import {generateUrlSafeHashFromValueIdContactId} from "./genericCodeWithPerContactOptions";
 import {CheckoutRequest} from "../../model/TransactionRequest";
+import {nowInDbPrecision} from "../../utils/dbUtils";
 
 describe("/v2/contacts/values - attachNewValue=true", () => {
 
@@ -20,7 +21,10 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
         code: "USD",
         decimalPlaces: 2,
         symbol: "$",
-        name: "US Dollars"
+        name: "US Dollars",
+        createdDate: nowInDbPrecision(),
+        updatedDate: nowInDbPrecision(),
+        createdBy: testUtils.defaultTestUser.teamMemberId
     };
 
     let contact: Contact;

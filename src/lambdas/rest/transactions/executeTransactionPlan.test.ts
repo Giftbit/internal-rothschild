@@ -30,7 +30,10 @@ describe("rest/transactions/executeTransactionPlan", () => {
             code: "CAD",
             name: "Monopoly money",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         };
 
         const value: DbValue = {

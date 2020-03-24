@@ -98,7 +98,7 @@ module.exports = function (env) {
                 'mssql': 'mssql',
                 'mssql/lib/base': 'mssql/lib/base',
                 'mssql/package.json': 'mssql/package.json',
-                'mysql': 'mysql',
+                // 'mysql': 'mysql', // This is used by zongji which I would rather migrate to mysql2.
                 'oracle': 'oracle',
                 'oracledb': 'oracledb',
                 'pg': 'pg',

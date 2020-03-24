@@ -11,6 +11,7 @@ import {CheckoutRequest} from "../../../model/TransactionRequest";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
 import {generateUrlSafeHashFromValueIdContactId} from "../genericCodeWithPerContactOptions";
 import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
@@ -27,7 +28,10 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             code: "USD",
             name: "US Dollars",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
         await setStubsForStripeTests();
     });

@@ -9,6 +9,7 @@ import {installRestRoutes} from "../installRestRoutes";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {CreditRequest} from "../../../model/TransactionRequest";
 import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
@@ -26,7 +27,10 @@ describe("/v2/transactions/credit", () => {
             code: "CAD",
             name: "Canadian bucks",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
     });
 

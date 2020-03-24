@@ -104,7 +104,7 @@ Resources:
       Environment:
         Type: linuxContainer
         # ComputeType options: BUILD_GENERAL1_SMALL, BUILD_GENERAL1_MEDIUM, BUILD_GENERAL1_LARGE
-        ComputeType: BUILD_GENERAL1_SMALL
+        ComputeType: BUILD_GENERAL1_MEDIUM
         # Run `aws codebuild list-curated-environment-images` for a complete list of images provided.
         Image: !Ref CodeBuildImageNodeSSH
         EnvironmentVariables:
@@ -399,30 +399,30 @@ Resources:
 #              - dynamodb:GetRecords
 #            Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/*"
           # DynamoDB tables
-#          - Effect: Allow
-#            Action:
-#              - dynamodb:CreateTable
-#              - dynamodb:DeleteTable
-#              - dynamodb:DescribeTable
-#              - dynamodb:DescribeTimeToLive
-#              - dynamodb:ListTagsOfResource
-#              - dynamodb:TagResource
-#              - dynamodb:UntagResource
-#              - dynamodb:UpdateTable
-#              - dynamodb:UpdateTimeToLive
-#            Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ProjectName}-*"
+          - Effect: Allow
+            Action:
+              - dynamodb:CreateTable
+              - dynamodb:DeleteTable
+              - dynamodb:DescribeTable
+              - dynamodb:DescribeTimeToLive
+              - dynamodb:ListTagsOfResource
+              - dynamodb:TagResource
+              - dynamodb:UntagResource
+              - dynamodb:UpdateTable
+              - dynamodb:UpdateTimeToLive
+            Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ProjectName}-*"
           # DynamoDB table tagging
-#          - Effect: Allow
-#            Action:
-#              - dynamodb:ListTags
-#              - dynamodb:TagResource
-#              - dynamodb:UntagResource
-#            Resource: "*"
+          - Effect: Allow
+            Action:
+              - dynamodb:ListTags
+              - dynamodb:TagResource
+              - dynamodb:UntagResource
+            Resource: "*"
           # DynamoDB autoscaling
-#          - Effect: Allow
-#            Action:
-#              - application-autoscaling:*
-#            Resource: *
+          - Effect: Allow
+            Action:
+              - application-autoscaling:*
+            Resource: "*"
           # S3
 #          - Effect: Allow
 #            Action:

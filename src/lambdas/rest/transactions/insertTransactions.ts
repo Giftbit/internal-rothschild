@@ -33,12 +33,17 @@ export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.A
             let updateProperties: { [P in keyof DbTransaction]?: DbTransaction[P] | Knex.Raw } = {
                 nextTransactionId: plan.id,
             };
-            await trx.into("Transactions")
+            const updateRes = await trx.into("Transactions")
                 .where({
                     userId: auth.userId,
                     id: plan.previousTransactionId,
                     nextTransactionId: null
                 }).update(updateProperties);
+            if (updateRes !== 1) {
+                throw new TransactionPlanError(`Transaction execution canceled because Transaction updated ${updateRes} rows when setting nextTransactionId on previous transaction ${plan.previousTransactionId}. userId=${auth.userId}.`, {
+                    isReplanable: true // replanning it will detect that the transaction has already been reversed.
+                });
+            }
         }
         return transaction;
     } catch (err) {

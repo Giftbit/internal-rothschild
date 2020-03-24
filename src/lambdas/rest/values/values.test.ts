@@ -15,6 +15,7 @@ import * as codeGenerator from "../../../utils/codeGenerator";
 import {generateCode} from "../../../utils/codeGenerator";
 import * as sinon from "sinon";
 import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
 import parseLinkHeader = require("parse-link-header");
 
 chai.use(chaiExclude);
@@ -33,7 +34,10 @@ describe("/v2/values/", () => {
             code: "USD",
             name: "The Big Bucks",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
     });
 
@@ -261,7 +265,10 @@ describe("/v2/values/", () => {
             code: "XYZZY",
             name: "XYZZY",
             symbol: "X",
-            decimalPlaces: 0
+            decimalPlaces: 0,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         };
 
         const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency2);
