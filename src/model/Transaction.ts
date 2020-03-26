@@ -82,7 +82,7 @@ export namespace Transaction {
 }
 
 export namespace DbTransaction {
-    export function toTransaction(dbTx: DbTransaction, dbSteps: DbTransactionStep[]): Transaction {
+    export function toTransaction(dbTx: DbTransaction, dbSteps: DbTransactionStep[], dbTags: string[]): Transaction {
         let t: Transaction = {
             id: dbTx.id,
             transactionType: dbTx.transactionType,
@@ -96,7 +96,8 @@ export namespace DbTransaction {
             pending: !!dbTx.pendingVoidDate,
             pendingVoidDate: dbTx.pendingVoidDate || undefined,
             createdDate: dbTx.createdDate,
-            createdBy: dbTx.createdBy
+            createdBy: dbTx.createdBy,
+            tags: dbTags.length > 0 ? dbTags : undefined
         };
         if (hasNonNullTotals(dbTx)) {
             let payable: number;
@@ -151,7 +152,7 @@ export namespace DbTransaction {
         }).where("TransactionsTags.userId", userId).whereIn("TransactionsTags.transactionId", txIds);
         dbTxTags.forEach(t => transactionsTags[t.transactionId].push(t.displayName));
 
-        return txns.map(dbTx => toTransaction(dbTx, dbSteps.filter(step => step.transactionId === dbTx.id)));
+        return txns.map(dbTx => toTransaction(dbTx, dbSteps.filter(step => step.transactionId === dbTx.id), transactionsTags[dbTx.id]));
     }
 }
 

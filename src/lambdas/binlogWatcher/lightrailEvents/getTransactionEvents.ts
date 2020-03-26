@@ -43,7 +43,7 @@ export async function getTransactionCreatedEvents(tx: BinlogTransaction): Promis
                 userid: dbTransaction.userId,
                 datacontenttype: "application/json",
                 data: {
-                    newTransaction: DbTransaction.toTransaction(dbTransaction, [...dbLightrailTransactionSteps, ...dbStripeTransactionSteps, ...dbInternalTransactionSteps])
+                    newTransaction: DbTransaction.toTransaction(dbTransaction, [...dbLightrailTransactionSteps, ...dbStripeTransactionSteps, ...dbInternalTransactionSteps], []) // todo: include tags
                 }
             };
         });

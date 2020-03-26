@@ -129,4 +129,37 @@ describe("getTransactionEvents()", () => {
         assertIsLightrailEvent(voidEvent);
         chai.assert.deepEqual(voidEvent.data.newTransaction, voidTransaction);
     });
+
+    it("includes tags in Transaction event", async () => {
+        const checkoutRequest: CheckoutRequest = {
+            id: generateId(),
+            currency: "CAD",
+            lineItems: [
+                {
+                    unitPrice: 2500
+                }
+            ],
+            sources: [
+                {
+                    rail: "stripe",
+                    source: "tok_visa"
+                }, {
+                    rail: "lightrail",
+                    contactId: "any-id"
+                }
+            ],
+        };
+        let checkoutTransaction: Transaction = null;
+
+        const lightrailEvents = await testLightrailEvents(async () => {
+            const checkoutRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
+            chai.assert.equal(checkoutRes.statusCode, 201, `body=${JSON.stringify(checkoutRes.body)}`);
+            checkoutTransaction = checkoutRes.body;
+        });
+        chai.assert.lengthOf(lightrailEvents, 1);
+
+        const checkoutEvent = lightrailEvents.find(e => e.type === "lightrail.transaction.created" && e.data.newTransaction.transactionType === "checkout");
+        assertIsLightrailEvent(checkoutEvent);
+        chai.assert.deepEqual(checkoutEvent.data.newTransaction, checkoutTransaction);
+    });
 });
