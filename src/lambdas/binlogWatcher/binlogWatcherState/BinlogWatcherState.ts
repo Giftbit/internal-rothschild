@@ -12,6 +12,11 @@ export interface BinlogWatcherState {
     checkpoint: Checkpoint | null;
 
     /**
+     * The last time the binlog was flushed.  In ISO format.
+     */
+    flushBinlogDate?: string;
+
+    /**
      * Track version of the state to prevent bad overwriting.  This is managed automatically
      * by Dynameh.
      */

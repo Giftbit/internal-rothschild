@@ -44,10 +44,10 @@ export class BinlogStream extends EventEmitter {
             connectionHasErrored = true;
 
             if (!reconnect) {
-                const state = await this.getServerBinlogState();
-                log.info(state);
+                const serverBinlogState = await this.getServerBinlogState();
+                log.info("serverBinlogState=", serverBinlogState);
 
-                const earliestBinlogName = state?.binaryLogs
+                const earliestBinlogName = serverBinlogState?.binaryLogs
                     ?.map(b => b.Log_name)
                     ?.reduce((prev, cur) => !prev || cur < prev ? cur : prev);
                 if (earliestBinlogName && earliestBinlogName < binlogName) {
@@ -177,6 +177,15 @@ export class BinlogStream extends EventEmitter {
             log.error("BinlogStream error fetching binlog state", err);
             return null;
         }
+    }
+
+    /**
+     * Rotate the binlog (closes the existing and starts the next one).
+     * This creates non-trivial work for the database and shouldn't be
+     * done unnecessarily.
+     */
+    async flushBinlog(): Promise<void> {
+        await this.queryConnection("FLUSH BINARY LOGS");
     }
 
     // noinspection JSUnusedGlobalSymbols This is useful for debugging but too noisy to usually leave on.
