@@ -2,6 +2,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {ZongJiOptions} from "./ZongJiOptions";
 import {QueryEvent, RotateEvent, WriteRowsEvent, ZongJiEvent} from "./ZongJiEvent";
 import {EventEmitter} from "events";
+import {incrementBinlogName} from "./incrementBinlogName";
 import log = require("loglevel");
 import mysql = require("mysql");
 import ZongJi = require("zongji");
@@ -43,6 +44,19 @@ export class BinlogStream extends EventEmitter {
             }
             connectionHasErrored = true;
 
+            if (!reconnect) {
+                const state = await this.getServerBinlogState();
+                log.info(state);
+
+                const nextBinlogName = incrementBinlogName(binlogName);
+                if (!state?.binaryLogs?.find(b => b.Log_name === binlogName) && state?.binaryLogs?.find(b => b.Log_name === nextBinlogName)) {
+                    log.info("Detected that the server has moved on to the next consecutive binlog.  Restarting from there.");
+                    reconnect = true;
+                    binlogName = nextBinlogName;
+                    binlogRestartPosition = 0;
+                }
+            }
+
             if (reconnect) {
                 log.info("BinlogStream restarting from", binlogName, binlogRestartPosition);
                 try {
@@ -59,7 +73,6 @@ export class BinlogStream extends EventEmitter {
                 }
             } else {
                 log.info("BinlogStream not restarting after error");
-                await this.logDebugInfo();
                 await this.stop();
             }
         };
@@ -153,16 +166,15 @@ export class BinlogStream extends EventEmitter {
     /**
      * Log any info from the server that might be helpful.
      */
-    private async logDebugInfo(): Promise<void> {
-        log.info("BinlogStream fetching debug info");
+    private async getServerBinlogState(): Promise<{ binaryLogs: { Log_name: string, File_size: string }[], slaveStatus: any[] } | null> {
+        log.info("BinlogStream fetching binlog state");
         try {
-            const binaryLogs = await this.queryConnection("SHOW BINARY LOGS");
-            log.info("SHOW BINARY LOGS", binaryLogs);
-
-            const slaveStatus = await this.queryConnection("SHOW SLAVE STATUS");
-            log.info("SHOW SLAVE STATUS", slaveStatus);
+            const binaryLogs: { Log_name: string, File_size: string }[] = await this.queryConnection("SHOW BINARY LOGS");
+            const slaveStatus: any[] = await this.queryConnection("SHOW SLAVE STATUS");
+            return {binaryLogs, slaveStatus};
         } catch (err) {
-            log.error("BinlogStream error logging debug info", err);
+            log.error("BinlogStream error fetching binlog state", err);
+            return null;
         }
     }
 
