@@ -2,7 +2,6 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {ZongJiOptions} from "./ZongJiOptions";
 import {QueryEvent, RotateEvent, WriteRowsEvent, ZongJiEvent} from "./ZongJiEvent";
 import {EventEmitter} from "events";
-import {incrementBinlogName} from "./incrementBinlogName";
 import log = require("loglevel");
 import mysql = require("mysql");
 import ZongJi = require("zongji");
@@ -48,11 +47,13 @@ export class BinlogStream extends EventEmitter {
                 const state = await this.getServerBinlogState();
                 log.info(state);
 
-                const nextBinlogName = incrementBinlogName(binlogName);
-                if (!state?.binaryLogs?.find(b => b.Log_name === binlogName) && state?.binaryLogs?.find(b => b.Log_name === nextBinlogName)) {
-                    log.info("Detected that the server has moved on to the next consecutive binlog.  Restarting from there.");
+                const earliestBinlogName = state?.binaryLogs
+                    ?.map(b => b.Log_name)
+                    ?.reduce((prev, cur) => !prev || cur < prev ? cur : prev);
+                if (earliestBinlogName && earliestBinlogName < binlogName) {
+                    log.info("Detected that the server has moved on to the next binlog.  Restarting from there.");
                     reconnect = true;
-                    binlogName = nextBinlogName;
+                    binlogName = earliestBinlogName;
                     binlogRestartPosition = 0;
                 }
             }
