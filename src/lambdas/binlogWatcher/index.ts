@@ -56,7 +56,7 @@ async function handleScheduleEvent(evt: awslambda.CloudFormationCustomResourceEv
             // If the binlog is started more than the max retention period ago when it is
             // rotated then it will be immediately deleted and events can be lost.  Forcing
             // rotation early ensures we do not lose events during the rotation.
-            if (binlogEventCount === 1) {
+            if (binlogEventCount === 1 && stateManager.shouldFlushBinlog()) {
                 log.info("Flushing binlog.");
                 binlogStream.flushBinlog()
                     .then(() => {
