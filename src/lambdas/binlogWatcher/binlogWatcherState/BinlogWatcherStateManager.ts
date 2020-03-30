@@ -80,9 +80,26 @@ export class BinlogWatcherStateManager {
         }
     }
 
+    /**
+     * Returns true if the binlog is old enough to justify flushing.
+     */
+    shouldFlushBinlog(): boolean {
+        const twoDaysAgo = new Date();
+        twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+        return !this.state.flushBinlogDate || this.state.flushBinlogDate < twoDaysAgo.toISOString();
+    }
+
+    /**
+     * Note in the state that the binlog has been flushed.
+     */
+    binlogFlushed(): void {
+        this.state.flushBinlogDate = new Date().toISOString();
+    }
+
     async save(): Promise<void> {
         if (this.state?.checkpoint?.binlogPosition === this.stateAsLoaded?.checkpoint?.binlogPosition
             && this.state?.checkpoint?.binlogName === this.stateAsLoaded?.checkpoint?.binlogName
+            && this.state?.flushBinlogDate === this.stateAsLoaded?.flushBinlogDate
         ) {
             log.info("BinlogWatcherStateManager not saving because state hasn't changed.");
             return;

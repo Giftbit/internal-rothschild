@@ -184,4 +184,71 @@ describe("BinlogWatcherStateManager", () => {
             manager.closeCheckpoint("bin.000001", 367);
         });
     });
+
+    describe("shouldFlushBinlog()", () => {
+        it("is true when flushBinlogDate is undefined", () => {
+            const manager = new BinlogWatcherStateManager();
+            manager.state = {
+                id: "BinlogWatcherState",
+                checkpoint: {
+                    binlogName: "bin.000000",
+                    binlogPosition: 0
+                }
+            };
+
+            chai.assert.isTrue(manager.shouldFlushBinlog());
+        });
+
+        it("is true when flushBinlogDate is more than 2 days old", () => {
+            const manager = new BinlogWatcherStateManager();
+            manager.state = {
+                id: "BinlogWatcherState",
+                checkpoint: {
+                    binlogName: "bin.000000",
+                    binlogPosition: 0
+                }
+            };
+
+            const d = new Date();
+            d.setDate(d.getDate() - 2);
+            d.setMinutes(d.getMinutes() - 10);
+            manager.state.flushBinlogDate = d.toISOString();
+
+            chai.assert.isTrue(manager.shouldFlushBinlog());
+        });
+
+        it("is false when flushBinlogDate is less than 2 days old", () => {
+            const manager = new BinlogWatcherStateManager();
+            manager.state = {
+                id: "BinlogWatcherState",
+                checkpoint: {
+                    binlogName: "bin.000000",
+                    binlogPosition: 0
+                }
+            };
+
+            const d = new Date();
+            d.setDate(d.getDate() - 2);
+            d.setMinutes(d.getMinutes() + 10);
+            manager.state.flushBinlogDate = d.toISOString();
+
+            chai.assert.isFalse(manager.shouldFlushBinlog());
+        });
+    });
+
+    describe("binlogFlushed()", () => {
+        it("saves the current date in flushBinlogDate", () => {
+            const manager = new BinlogWatcherStateManager();
+            manager.state = {
+                id: "BinlogWatcherState",
+                checkpoint: {
+                    binlogName: "bin.000000",
+                    binlogPosition: 0
+                }
+            };
+            manager.binlogFlushed();
+            chai.assert.isString(manager.state.flushBinlogDate);
+            chai.assert.isFalse(manager.shouldFlushBinlog());
+        });
+    });
 });
