@@ -52,6 +52,22 @@ async function handleScheduleEvent(evt: awslambda.CloudFormationCustomResourceEv
 
             // Rotate doesn't have a timestamp anyways and the Format timestamp is misleading as to our latency.
             lastBinlogEventLatency = lastBinlogEventReceivedMillis - event.binlog.timestamp;
+
+            // If the binlog is started more than the max retention period ago when it is
+            // rotated then it will be immediately deleted and events can be lost.  Forcing
+            // rotation early ensures we do not lose events during the rotation.
+            if (binlogEventCount === 1 && stateManager.shouldFlushBinlog()) {
+                log.info("Flushing binlog.");
+                binlogStream.flushBinlog()
+                    .then(() => {
+                        log.info("Binlog flushed.");
+                        stateManager.binlogFlushed();
+                    })
+                    .catch(err => {
+                        log.error("Error flushing binlog", err);
+                        giftbitRoutes.sentry.sendErrorNotification(err);
+                    });
+            }
         }
     });
     while ((Date.now() - lastBinlogEventReceivedMillis < maxIdleMillis || publisher.getPendingPublishCount() !== 0) && ctx.getRemainingTimeInMillis() > 15001) {

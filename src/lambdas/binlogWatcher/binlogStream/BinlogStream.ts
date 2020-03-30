@@ -43,6 +43,23 @@ export class BinlogStream extends EventEmitter {
             }
             connectionHasErrored = true;
 
+            if (!reconnect) {
+                const serverBinlogState = await this.getServerBinlogState();
+                log.info("serverBinlogState=", serverBinlogState);
+
+                const earliestBinlogName = serverBinlogState?.binaryLogs
+                    ?.map(b => b.Log_name)
+                    ?.reduce((prev, cur) => !prev || cur < prev ? cur : prev);
+                if (earliestBinlogName && earliestBinlogName < binlogName) {
+                    const message = `Detected that the server has moved on to the next binlog.  Restarting from there. binlogName=${binlogName} binlogRestartPosition=${binlogRestartPosition} earliestBinlogName=${earliestBinlogName}`;
+                    log.warn(message);
+                    giftbitRoutes.sentry.sendErrorNotification(new Error(message));
+                    reconnect = true;
+                    binlogName = earliestBinlogName;
+                    binlogRestartPosition = 0;
+                }
+            }
+
             if (reconnect) {
                 log.info("BinlogStream restarting from", binlogName, binlogRestartPosition);
                 try {
@@ -59,7 +76,6 @@ export class BinlogStream extends EventEmitter {
                 }
             } else {
                 log.info("BinlogStream not restarting after error");
-                await this.logDebugInfo();
                 await this.stop();
             }
         };
@@ -153,17 +169,25 @@ export class BinlogStream extends EventEmitter {
     /**
      * Log any info from the server that might be helpful.
      */
-    private async logDebugInfo(): Promise<void> {
-        log.info("BinlogStream fetching debug info");
+    private async getServerBinlogState(): Promise<{ binaryLogs: { Log_name: string, File_size: string }[], slaveStatus: any[] } | null> {
+        log.info("BinlogStream fetching binlog state");
         try {
-            const binaryLogs = await this.queryConnection("SHOW BINARY LOGS");
-            log.info("SHOW BINARY LOGS", binaryLogs);
-
-            const slaveStatus = await this.queryConnection("SHOW SLAVE STATUS");
-            log.info("SHOW SLAVE STATUS", slaveStatus);
+            const binaryLogs: { Log_name: string, File_size: string }[] = await this.queryConnection("SHOW BINARY LOGS");
+            const slaveStatus: any[] = await this.queryConnection("SHOW SLAVE STATUS");
+            return {binaryLogs, slaveStatus};
         } catch (err) {
-            log.error("BinlogStream error logging debug info", err);
+            log.error("BinlogStream error fetching binlog state", err);
+            return null;
         }
+    }
+
+    /**
+     * Rotate the binlog (closes the existing and starts the next one).
+     * This creates non-trivial work for the database and shouldn't be
+     * done unnecessarily.
+     */
+    async flushBinlog(): Promise<void> {
+        await this.queryConnection("FLUSH BINARY LOGS");
     }
 
     // noinspection JSUnusedGlobalSymbols This is useful for debugging but too noisy to usually leave on.
