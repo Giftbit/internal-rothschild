@@ -50,7 +50,7 @@ export class BinlogStream extends EventEmitter {
                 const earliestBinlogName = serverBinlogState?.binaryLogs
                     ?.map(b => b.Log_name)
                     ?.reduce((prev, cur) => !prev || cur < prev ? cur : prev);
-                if (earliestBinlogName && earliestBinlogName < binlogName) {
+                if (earliestBinlogName && earliestBinlogName > binlogName) {
                     const message = `Detected that the server has moved on to the next binlog.  Restarting from there. binlogName=${binlogName} binlogRestartPosition=${binlogRestartPosition} earliestBinlogName=${earliestBinlogName}`;
                     log.warn(message);
                     giftbitRoutes.sentry.sendErrorNotification(new Error(message));
