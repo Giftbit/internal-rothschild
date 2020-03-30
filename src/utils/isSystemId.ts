@@ -1,5 +1,6 @@
 /**
- * Tests whether the given string is a legal system ID.
+ * Tests whether the given string only contains valid
+ * system ID characters.
  */
 export function isSystemId(id: string): boolean {
     return isSystemId.regex.test(id);

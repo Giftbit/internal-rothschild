@@ -8,6 +8,7 @@ import {csvSerializer} from "../../utils/serializers";
 import {filterAndPaginateQuery, nowInDbPrecision} from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import * as knex from "knex";
+import {isSystemId} from "../../utils/isSystemId";
 
 export function installContactsRest(router: cassava.Router): void {
     router.route("/v2/contacts")
@@ -157,7 +158,8 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             properties: {
                 "id": {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 "firstName": {
                     type: "string"
@@ -166,7 +168,8 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
                     type: "string"
                 },
                 "email": {
-                    type: "string"
+                    type: "string",
+                    valueFilter: isSystemId
                 },
                 "createdDate": {
                     type: "Date",
@@ -202,6 +205,10 @@ export async function createContact(auth: giftbitRoutes.jwtauth.AuthorizationBad
 export async function getContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Contact> {
     auth.requireIds("userId");
 
+    if (!isSystemId(id)) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${id}' not found.`, "ContactNotFound");
+    }
+
     const knex = await getKnexRead();
     const res: DbContact[] = await knex("Contacts")
         .select()
@@ -220,6 +227,10 @@ export async function getContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
 
 export async function updateContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, contactUpdates: Partial<Contact>): Promise<Contact> {
     auth.requireIds("userId");
+
+    if (!isSystemId(id)) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${id}' not found.`, "ContactNotFound");
+    }
 
     const knex = await getKnexWrite();
     return await knex.transaction(async trx => {
@@ -262,6 +273,10 @@ export async function updateContact(auth: giftbitRoutes.jwtauth.AuthorizationBad
 export async function deleteContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<{ success: true }> {
     auth.requireIds("userId");
 
+    if (!isSystemId(id)) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${id}' not found.`, "ContactNotFound");
+    }
+
     try {
         const knex = await getKnexWrite();
         const res: number = await knex("Contacts")
@@ -293,7 +308,7 @@ const contactSchema: jsonschema.Schema = {
             type: "string",
             maxLength: 64,
             minLength: 1,
-            pattern: "^[ -~]*$"
+            pattern: isSystemId.regexString
         },
         firstName: {
             type: ["string", "null"],
@@ -306,7 +321,7 @@ const contactSchema: jsonschema.Schema = {
         email: {
             type: ["string", "null"],
             maxLength: 320,
-            pattern: "^[ -~]*$"
+            pattern: isSystemId.regexString
         },
         metadata: {
             type: ["object", "null"]
