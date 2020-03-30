@@ -248,6 +248,7 @@ describe("BinlogWatcherStateManager", () => {
             };
             manager.binlogFlushed();
             chai.assert.isString(manager.state.flushBinlogDate);
+            chai.assert.isFalse(manager.shouldFlushBinlog());
         });
     });
 });
