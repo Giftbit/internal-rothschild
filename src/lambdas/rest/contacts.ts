@@ -1,14 +1,15 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
+import * as knex from "knex";
 import {Contact, DbContact} from "../../model/Contact";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {pick, pickOrDefault} from "../../utils/pick";
 import {csvSerializer} from "../../utils/serializers";
 import {filterAndPaginateQuery, nowInDbPrecision} from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
-import * as knex from "knex";
 import {isSystemId} from "../../utils/isSystemId";
+import {MetricsLogger} from "../../utils/metricsLogger";
 
 export function installContactsRest(router: cassava.Router): void {
     router.route("/v2/contacts")
@@ -222,6 +223,9 @@ export async function getContact(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
+    if (res[0].id !== id) {
+        MetricsLogger.caseInsensitiveRetrieval("getContact", res[0].id, id, auth);
+    }
     return DbContact.toContact(res[0]);
 }
 
@@ -265,6 +269,9 @@ export async function updateContact(auth: giftbitRoutes.jwtauth.AuthorizationBad
         }
         if (patchRes > 1) {
             throw new Error(`Illegal UPDATE query.  Updated ${patchRes} values.`);
+        }
+        if (existingContact.id !== id) {
+            MetricsLogger.caseInsensitiveRetrieval("updateContact", existingContact.id, id, auth);
         }
         return updatedContact;
     });

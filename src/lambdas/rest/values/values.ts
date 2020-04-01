@@ -393,6 +393,9 @@ export async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, i
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
+    if (res[0].id !== id) {
+        MetricsLogger.caseInsensitiveRetrieval("getValue", res[0].id, id, auth);
+    }
     return DbValue.toValue(res[0], showCode);
 }
 
@@ -498,6 +501,9 @@ export async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             throw new Error(`Illegal UPDATE query.  Updated ${updateRes} values.`);
         }
         MetricsLogger.valueUpdated(valueUpdates, auth);
+        if (existingValue.id !== id) {
+            MetricsLogger.caseInsensitiveRetrieval("updateValue", existingValue.id, id, auth);
+        }
         return updatedValue;
     });
 }
