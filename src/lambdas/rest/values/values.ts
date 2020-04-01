@@ -299,19 +299,23 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                 },
                 programId: {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 issuanceId: {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 attachedFromValueId: {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 currency: {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 balance: {
                     type: "number"

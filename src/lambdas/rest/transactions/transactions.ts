@@ -230,7 +230,8 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
                 },
                 "transactionType": {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 "createdDate": {
                     type: "Date",
@@ -238,7 +239,8 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
                 },
                 "currency": {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 "rootTransactionId": { // only used internally for looking up transaction chain and not exposed publicly
                     type: "string",

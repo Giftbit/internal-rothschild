@@ -501,13 +501,13 @@ describe("/v2/values/", () => {
 
     describe("handling unicode in IDs", () => {
         it("404s getting a Value by ID with unicode", async () => {
-            const valueResp = await testUtils.testAuthedRequest<any>(router, "/v2/values/%22%3E%3Cimg%20src%3D1%20onerror%3Dprompt(document.cookie)%3B%3E%F0%9F%98%82", "GET");
+            const valueResp = await testUtils.testAuthedRequest<any>(router, "/v2/values/%F0%9F%92%A9", "GET");
             chai.assert.equal(valueResp.statusCode, 404);
             chai.assert.equal(valueResp.body.messageCode, "ValueNotFound");
         });
 
         it("returns an empty list searching Value by ID with unicode", async () => {
-            const valuesResp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/values?id=%22%3E%3Cimg%20src%3D1%20onerror%3Dprompt(document.cookie)%3B%3E%F0%9F%98%82", "GET");
+            const valuesResp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/values?id=%F0%9F%92%A9", "GET");
             chai.assert.equal(valuesResp.statusCode, 200);
             chai.assert.deepEqual(valuesResp.body, []);
         });
@@ -521,19 +521,19 @@ describe("/v2/values/", () => {
             const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
             chai.assert.equal(createValue.statusCode, 201);
 
-            const valuesResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?id.in=%22%3E%3Cimg%20src%3D1%20onerror%3Dprompt(document.cookie)%3B%3E%F0%9F%98%82,${value.id}`, "GET");
+            const valuesResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?id.in=%F0%9F%92%A9,${value.id}`, "GET");
             chai.assert.equal(valuesResp.statusCode, 200);
             chai.assert.deepEqual(valuesResp.body, [createValue.body]);
         });
 
         it("404s patching a Value by ID with unicode", async () => {
-            const patchResp = await testUtils.testAuthedRequest<any>(router, "/v2/values/%22%3E%3Cimg%20src%3D1%20onerror%3Dprompt(document.cookie)%3B%3E%F0%9F%98%82", "PATCH", {pretax: true});
+            const patchResp = await testUtils.testAuthedRequest<any>(router, "/v2/values/%F0%9F%92%A9", "PATCH", {pretax: true});
             chai.assert.equal(patchResp.statusCode, 404);
             chai.assert.equal(patchResp.body.messageCode, "ValueNotFound");
         });
 
         it("404s deleting a Value by ID with unicode", async () => {
-            const deleteResp = await testUtils.testAuthedRequest<any>(router, "/v2/values/%22%3E%3Cimg%20src%3D1%20onerror%3Dprompt(document.cookie)%3B%3E%F0%9F%98%82", "DELETE");
+            const deleteResp = await testUtils.testAuthedRequest<any>(router, "/v2/values/%F0%9F%92%A9", "DELETE");
             chai.assert.equal(deleteResp.statusCode, 404);
             chai.assert.equal(deleteResp.body.messageCode, "ValueNotFound");
         });

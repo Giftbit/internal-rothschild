@@ -353,19 +353,19 @@ describe("/v2/contacts", () => {
 
     describe("handling unicode in IDs", () => {
         it("404s getting a Contact by ID with unicode", async () => {
-            const contactResp = await testUtils.testAuthedRequest<any>(router, "/v2/contacts/%22%3E%3Cimg%20src%3D1%20onerror%3Dprompt(document.cookie)%3B%3E%F0%9F%98%82", "GET");
+            const contactResp = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/%F0%9F%92%A9`, "GET");
             chai.assert.equal(contactResp.statusCode, 404);
             chai.assert.equal(contactResp.body.messageCode, "ContactNotFound");
         });
 
         it("returns an empty list searching Contact by ID with unicode", async () => {
-            const contactsResp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/contacts?id=%22%3E%3Cimg%20src%3D1%20onerror%3Dprompt(document.cookie)%3B%3E%F0%9F%98%82", "GET");
+            const contactsResp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/contacts?id=%F0%9F%92%A9", "GET");
             chai.assert.equal(contactsResp.statusCode, 200);
             chai.assert.deepEqual(contactsResp.body, []);
         });
 
         it("returns an empty list searching Contact by email with unicode", async () => {
-            const contactsResp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/contacts?email=%22%3E%3Cimg%20src%3D1%20onerror%3Dprompt(document.cookie)%3B%3E%F0%9F%98%82", "GET");
+            const contactsResp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/contacts?email=%F0%9F%92%A9", "GET");
             chai.assert.equal(contactsResp.statusCode, 200);
             chai.assert.deepEqual(contactsResp.body, []);
         });
@@ -383,7 +383,7 @@ describe("/v2/contacts", () => {
         });
 
         it("404s patching a Contact by ID with unicode", async () => {
-            const patchResp = await testUtils.testAuthedRequest<any>(router, "/v2/contacts/%22%3E%3Cimg%20src%3D1%20onerror%3Dprompt(document.cookie)%3B%3E%F0%9F%98%82", "PATCH", {
+            const patchResp = await testUtils.testAuthedRequest<any>(router, "/v2/contacts/%F0%9F%92%A9", "PATCH", {
                 firstName: "Joey Jo-Jo Jr",
                 lastName: "Shabadoo"
             });
@@ -392,7 +392,7 @@ describe("/v2/contacts", () => {
         });
 
         it("404s deleting a Contact by ID with unicode", async () => {
-            const deleteResp = await testUtils.testAuthedRequest<any>(router, "/v2/contacts/%22%3E%3Cimg%20src%3D1%20onerror%3Dprompt(document.cookie)%3B%3E%F0%9F%98%82", "DELETE");
+            const deleteResp = await testUtils.testAuthedRequest<any>(router, "/v2/contacts/%F0%9F%92%A9", "DELETE");
             chai.assert.equal(deleteResp.statusCode, 404);
             chai.assert.equal(deleteResp.body.messageCode, "ContactNotFound");
         });

@@ -587,13 +587,13 @@ describe("/v2/programs", () => {
 
     describe("handling unicode in IDs", () => {
         it("404s getting a Value by ID with unicode", async () => {
-            const programResp = await testUtils.testAuthedRequest<any>(router, "/v2/programs/%22%3E%3Cimg%20src%3D1%20onerror%3Dprompt(document.cookie)%3B%3E%F0%9F%98%82", "GET");
+            const programResp = await testUtils.testAuthedRequest<any>(router, "/v2/programs/%F0%9F%92%A9", "GET");
             chai.assert.equal(programResp.statusCode, 404);
             chai.assert.equal(programResp.body.messageCode, "ProgramNotFound");
         });
 
         it("returns an empty list searching Program by ID with unicode", async () => {
-            const programsResp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/programs?id=%22%3E%3Cimg%20src%3D1%20onerror%3Dprompt(document.cookie)%3B%3E%F0%9F%98%82", "GET");
+            const programsResp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/programs?id=%F0%9F%92%A9", "GET");
             chai.assert.equal(programsResp.statusCode, 200);
             chai.assert.deepEqual(programsResp.body, []);
         });
@@ -608,19 +608,19 @@ describe("/v2/programs", () => {
             const createProgram = await testUtils.testAuthedRequest<Value>(router, "/v2/programs", "POST", program);
             chai.assert.equal(createProgram.statusCode, 201, createProgram.bodyRaw);
 
-            const programsResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/programs?id.in=%22%3E%3Cimg%20src%3D1%20onerror%3Dprompt(document.cookie)%3B%3E%F0%9F%98%82,${program.id}`, "GET");
+            const programsResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/programs?id.in=%F0%9F%92%A9,${program.id}`, "GET");
             chai.assert.equal(programsResp.statusCode, 200);
             chai.assert.deepEqual(programsResp.body, [createProgram.body]);
         });
 
         it("404s patching a Program by ID with unicode", async () => {
-            const patchResp = await testUtils.testAuthedRequest<any>(router, "/v2/programs/%22%3E%3Cimg%20src%3D1%20onerror%3Dprompt(document.cookie)%3B%3E%F0%9F%98%82", "PATCH", {discount: false});
+            const patchResp = await testUtils.testAuthedRequest<any>(router, "/v2/programs/%F0%9F%92%A9", "PATCH", {discount: false});
             chai.assert.equal(patchResp.statusCode, 404);
             chai.assert.equal(patchResp.body.messageCode, "ProgramNotFound");
         });
 
         it("404s deleting a Program by ID with unicode", async () => {
-            const deleteResp = await testUtils.testAuthedRequest<any>(router, "/v2/programs/%22%3E%3Cimg%20src%3D1%20onerror%3Dprompt(document.cookie)%3B%3E%F0%9F%98%82", "DELETE");
+            const deleteResp = await testUtils.testAuthedRequest<any>(router, "/v2/programs/%F0%9F%92%A9", "DELETE");
             chai.assert.equal(deleteResp.statusCode, 404);
             chai.assert.equal(deleteResp.body.messageCode, "ProgramNotFound");
         });

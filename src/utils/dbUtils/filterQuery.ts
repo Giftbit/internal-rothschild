@@ -111,12 +111,15 @@ async function parseFilters(filterParams: { [key: string]: string }, options: Fi
         if (property.valueFilter) {
             if (op === "in") {
                 filterValue = filterValue.split(",").filter(property.valueFilter).join(",");
+                if (filterValue === "") {
+                    return null;
+                }
             } else {
                 filterValue = property.valueFilter(filterValue) ? filterValue : null;
+                if (filterValue == null) {
+                    return null;
+                }
             }
-        }
-        if (filterValue === null || filterValue === "") {
-            return null;
         }
 
         const filter: Filter = {

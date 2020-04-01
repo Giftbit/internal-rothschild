@@ -585,7 +585,7 @@ describe("/v2/issuances", () => {
     });
 
     it("404s getting a ProgramIssuance by ID with unicode", async () => {
-        const getResp = await testUtils.testAuthedRequest<any>(router, `/v2/programs/${program.id}/issuances/%22%3E%3Cimg%20src%3D1%20onerror%3Dprompt(document.cookie)%3B%3E%F0%9F%98%82`, "GET");
+        const getResp = await testUtils.testAuthedRequest<any>(router, `/v2/programs/${program.id}/issuances/%F0%9F%92%A9`, "GET");
         chai.assert.equal(getResp.statusCode, 404);
         chai.assert.equal(getResp.body.messageCode, "IssuanceNotFound");
     });
