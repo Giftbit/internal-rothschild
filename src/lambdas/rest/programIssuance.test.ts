@@ -73,7 +73,7 @@ describe("/v2/issuances", () => {
         sinonSandbox.restore();
     });
 
-    it(`basic issuances with varying counts. POST, GET and LIST`, async () => {
+    it("basic issuances with varying counts. POST, GET and LIST", async () => {
         const valuesToIssues = [1, 10, 11, 100, 1000];
 
         const issuances: Issuance[] = [];
@@ -146,8 +146,8 @@ describe("/v2/issuances", () => {
         chai.assert.sameDeepMembers(listIssuances.body, issuances);
     }).timeout(15000);
 
-    it(`issuing from program that has a balanceRule`, async () => {
-        let issuance: Partial<Issuance> = {
+    it("issuing from program that has a balanceRule", async () => {
+        const issuance: Partial<Issuance> = {
             id: generateId(),
             name: "name",
             count: 1
@@ -169,8 +169,8 @@ describe("/v2/issuances", () => {
         chai.assert.equal(listResponse.body[0].endDate.toString(), programWithRulesAndDates.endDate.toISOString(), "endDate from program is copied over to the Value");
     });
 
-    it(`can overwrite balanceRule, redemptionRule, startDate and endDate`, async () => {
-        let issuance: Partial<Issuance> = {
+    it("can overwrite balanceRule, redemptionRule, startDate and endDate", async () => {
+        const issuance: Partial<Issuance> = {
             id: generateId(),
             count: 1,
             name: "name",
@@ -206,8 +206,8 @@ describe("/v2/issuances", () => {
         chai.assert.equal(listResponse.body[0].endDate.toString(), issuance.endDate.toISOString());
     });
 
-    it(`issuance with generic code`, async () => {
-        let issuance = {
+    it("issuance with generic code", async () => {
+        const issuance = {
             id: generateId(),
             name: "name",
             count: 1,
@@ -225,8 +225,8 @@ describe("/v2/issuances", () => {
         chai.assert.isTrue(listResponse.body[0].isGenericCode);
     });
 
-    it(`issuance with code`, async () => {
-        let issuance = {
+    it("issuance with code", async () => {
+        const issuance = {
             id: generateId(),
             name: "name",
             count: 1,
@@ -243,8 +243,8 @@ describe("/v2/issuances", () => {
         chai.assert.isFalse(listResponse.body[0].isGenericCode);
     });
 
-    it(`422 if no name`, async () => {
-        let issuance = {
+    it("422 if no name", async () => {
+        const issuance = {
             id: generateId(),
             count: 2,
             isGenericCode: true
@@ -255,8 +255,8 @@ describe("/v2/issuances", () => {
         chai.assert.include(createIssuance.body.message, "requestBody requires property \"name\"");
     });
 
-    it(`422 if isGenericCode: true and count > 1`, async () => {
-        let issuance = {
+    it("422 if isGenericCode: true and count > 1", async () => {
+        const issuance = {
             id: generateId(),
             name: "name",
             count: 2,
@@ -268,8 +268,8 @@ describe("/v2/issuances", () => {
         chai.assert.include(createIssuance.body.message, "Issuance count must be 1 if isGenericCode:true.");
     });
 
-    it(`422 if provided code and count > 1`, async () => {
-        let issuance = {
+    it("422 if provided code and count > 1", async () => {
+        const issuance = {
             id: generateId(),
             name: "name",
             count: 2,
@@ -281,8 +281,8 @@ describe("/v2/issuances", () => {
         chai.assert.include(createIssuance.body.message, "Issuance count must be 1 if code is set");
     });
 
-    it(`422 if generateCode and code parameters are provided`, async () => {
-        let issuance = {
+    it("422 if generateCode and code parameters are provided", async () => {
+        const issuance = {
             id: generateId(),
             name: "name",
             count: 1,
@@ -295,7 +295,7 @@ describe("/v2/issuances", () => {
         chai.assert.include(createIssuance.body.message, "Parameter generateCode is not allowed with parameters code or isGenericCode:true.");
     });
 
-    it(`422 if program has balanceRule and try to issue with balance`, async () => {
+    it("422 if program has balanceRule and try to issue with balance", async () => {
         const program: Partial<Program> = {
             id: generateId(),
             name: "program-name",
@@ -320,16 +320,16 @@ describe("/v2/issuances", () => {
         chai.assert.include(createIssuance.body.message, "Value can't have both a balance and balanceRule.");
     });
 
-    it(`404 on invalid programId`, async () => {
-        let issuance: Partial<Issuance> = {
+    it("404s on invalid programId", async () => {
+        const issuance: Partial<Issuance> = {
             id: generateId(),
             name: "name",
             count: 1,
             balance: 1
         };
 
-        const createIssuance = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${generateId()}/issuances`, "POST", issuance);
-        chai.assert.equal(createIssuance.statusCode, 404, JSON.stringify(createIssuance.body));
+        const createIssuance = await testUtils.testAuthedRequest<any>(router, `/v2/programs/${generateId()}/issuances`, "POST", issuance);
+        chai.assert.equal(createIssuance.statusCode, 404, createIssuance.bodyRaw);
     });
 
     describe("ensure programId is considered", () => {
@@ -366,12 +366,12 @@ describe("/v2/issuances", () => {
             chai.assert.equal(issuanceProgramB.statusCode, 201);
         });
 
-        it(`GET using wrong programId 404s`, async () => {
+        it("GET using wrong programId 404s", async () => {
             const get = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${programA.id}/issuances/${issuanceProgramB.body.id}`, "GET");
             chai.assert.equal(get.statusCode, 404);
         });
 
-        it(`LIST only returns issuances from provided programId`, async () => {
+        it("LIST only returns issuances from provided programId", async () => {
             const list = await testUtils.testAuthedRequest<Issuance[]>(router, `/v2/programs/${programA.id}/issuances`, "GET");
             chai.assert.equal(list.statusCode, 200);
             chai.assert.equal(list.body.length, 1);
@@ -466,7 +466,7 @@ describe("/v2/issuances", () => {
         chai.assert.sameOrderedMembers(resp.body.map(tx => tx.id), idAndDates.reverse().map(tx => tx.id) /* reversed since createdDate desc*/);
     });
 
-    describe(`creating Issuance with metadata from Program with metadata`, () => {
+    describe("creating Issuance with metadata from Program with metadata", () => {
         let program: Partial<Program> = {
             id: generateId(),
             name: "program with balanceRule",
@@ -582,6 +582,12 @@ describe("/v2/issuances", () => {
         chai.assert.equal(getValues.statusCode, 200);
         chai.assert.equal((getValues.body[0]).startDate as any, program.startDate.toISOString());
         chai.assert.isNull(getValues.body[0].endDate);
+    });
+
+    it("404s getting a ProgramIssuance by ID with unicode", async () => {
+        const getResp = await testUtils.testAuthedRequest<any>(router, `/v2/programs/${program.id}/issuances/%F0%9F%92%A9`, "GET");
+        chai.assert.equal(getResp.statusCode, 404);
+        chai.assert.equal(getResp.body.messageCode, "IssuanceNotFound");
     });
 
     describe("value active status scenarios", () => {
