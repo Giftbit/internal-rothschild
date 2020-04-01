@@ -75,11 +75,10 @@ export namespace MetricsLogger {
      * path.  This is a temporary metric in place while we investigate
      * whether we can make the database searches case-sensitive.
      */
-    export function caseInsensitiveRetrieval(operation: string, objectId: string, operationId: string, auth: giftbitRoutes.jwtauth.AuthorizationBadge): void {
+    export function caseInsensitiveRetrieval(operation: string, actualObjectId: string, searchObjectId: string, auth: giftbitRoutes.jwtauth.AuthorizationBadge): void {
+        log.info("Detected case insensitive retrieval operation=", operation, "actualObjectId=", actualObjectId, "searchObjectId=", searchObjectId);
         logMetric(1, MetricsType.Histogram, "rothschild.caseInsensitiveRetrieval", {
-            operation,
-            objectId,
-            operationId
+            operation
         }, auth);
     }
 }
