@@ -28,6 +28,14 @@ export interface FilterQueryProperty {
     operators?: FilterQueryOperator[];
 
     /**
+     * Filters the value passed in through the query param.  Values filtered
+     * out are taken to have 0 results.  If that implies the filter could never
+     * return any results then an empty result set is immediately returned.
+     * This filter is applied before the `valueMap`.
+     */
+    valueFilter?: (value: string) => boolean;
+
+    /**
      * Maps the value passed in through the query param to a value that will
      * be used in the SQL query.  The type of the value passed in will match the
      * `type` property of this object.  The type of the value returned by
@@ -73,6 +81,10 @@ interface ArrayValueFilter extends BasicFilterProps {
 export async function filterQuery(query: knex.QueryBuilder, filterParams: { [key: string]: string }, options: FilterQueryOptions): Promise<[knex.QueryBuilder]> {
     const filters = await parseFilters(filterParams, options);
 
+    if (filters === null) {
+        return [query.where(0, "=", 1)];
+    }
+
     query = addFiltersToQuery(query, filters.filter(f => f.op !== "orNull"), filters.filter(f => f.op === "orNull"), options);
 
     // We have to return the query in an array (or object or something) because the query is
@@ -80,11 +92,11 @@ export async function filterQuery(query: knex.QueryBuilder, filterParams: { [key
     return [query];
 }
 
-async function parseFilters(filterParams: { [key: string]: string }, options: FilterQueryOptions): Promise<Filter[]> {
+async function parseFilters(filterParams: { [key: string]: string }, options: FilterQueryOptions): Promise<Filter[] | null> {
     const filters: Filter[] = [];
     for (const queryKey of Object.keys(filterParams)) {
         const {filterKey, op} = splitFilterKeyAndOp(queryKey);
-        const filterValue = filterParams[queryKey];
+        let filterValue = filterParams[queryKey];
 
         if (!options.properties.hasOwnProperty(filterKey)) {
             // Not a filterable property.
@@ -94,6 +106,20 @@ async function parseFilters(filterParams: { [key: string]: string }, options: Fi
         const property = options.properties[filterKey];
         if (!filterQueryPropertyAllowsOperator(property, op)) {
             throw new giftbitRoutes.GiftbitRestError(400, `Query filter key '${filterKey}' does not support operator '${op}'.`);
+        }
+
+        if (property.valueFilter) {
+            if (op === "in") {
+                filterValue = filterValue.split(",").filter(property.valueFilter).join(",");
+                if (filterValue === "") {
+                    return null;
+                }
+            } else {
+                filterValue = property.valueFilter(filterValue) ? filterValue : null;
+                if (filterValue == null) {
+                    return null;
+                }
+            }
         }
 
         const filter: Filter = {
