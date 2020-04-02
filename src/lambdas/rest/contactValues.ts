@@ -42,7 +42,7 @@ export function installContactValuesRest(router: cassava.Router): void {
                 contactId: evt.pathParameters.id
             }, Pagination.getPaginationParams(evt), showCode);
             for (const value of res.values) {
-                if (value.contactId !== evt.pathParameters.id) {
+                if (value.contactId && value.contactId !== evt.pathParameters.id) {
                     MetricsLogger.caseInsensitiveRetrieval("getContactsValues", value.contactId, evt.pathParameters.id, auth);
                 }
             }
