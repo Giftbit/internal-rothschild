@@ -29,7 +29,8 @@ log.setLevel(log.levels.INFO);
 const router = new cassava.Router();
 
 router.route(new cassava.routes.LoggingRoute({
-    logFunction: log.info
+    logFunction: log.info,
+    logRequestHeaders: ["User-Agent"]
 }));
 
 router.route(new giftbitRoutes.MetricsRoute({
