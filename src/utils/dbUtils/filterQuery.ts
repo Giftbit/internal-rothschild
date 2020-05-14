@@ -82,7 +82,7 @@ export async function filterQuery(query: knex.QueryBuilder, filterParams: { [key
     const filters = await parseFilters(filterParams, options);
 
     if (filters === null) {
-        return [query.where(0, "=", 1)];
+        return [query.whereRaw("0 = 1")];
     }
 
     query = addFiltersToQuery(query, filters.filter(f => f.op !== "orNull"), filters.filter(f => f.op === "orNull"), options);
