@@ -238,7 +238,7 @@ export async function getProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
             id: id
         });
     if (res.length === 0) {
-        throw new cassava.RestError(404);
+        throw new giftbitRoutes.GiftbitRestError(404, `Program with id '${id}' not found.`, "ProgramNotFound");
     }
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
