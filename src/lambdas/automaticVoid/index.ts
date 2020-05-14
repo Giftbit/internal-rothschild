@@ -48,5 +48,5 @@ async function handleScheduleEvent(evt: awslambda.ScheduledEvent, ctx: awslambda
 export const handler = giftbitRoutes.sentry.wrapLambdaHandler({
     handler: handleScheduleEvent,
     logger: log.error,
-    secureConfig: giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<any>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_SENTRY")
+    sentryDsn: process.env["SENTRY_DSN"]
 });

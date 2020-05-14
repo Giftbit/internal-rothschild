@@ -10,7 +10,7 @@ import {
     filterAndPaginateQuery,
     getSqlErrorConstraintName,
     nowInDbPrecision
-} from "../../../utils/dbUtils/index";
+} from "../../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../../utils/dbUtils/connection";
 import {DbCode} from "../../../model/DbCode";
 import {generateCode} from "../../../utils/codeGenerator";
