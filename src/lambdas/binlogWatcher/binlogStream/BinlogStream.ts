@@ -119,7 +119,7 @@ export class BinlogStream extends EventEmitter {
         });
         this.zongJi.start(zongJiOptions);
 
-        log.info("BinlogStream started");
+        this.emit("BinlogStream started");
     }
 
     async stop(): Promise<void> {
@@ -198,8 +198,8 @@ export class BinlogStream extends EventEmitter {
                 summary += ` binlogName=${(event as RotateEvent).binlogName}`;
                 break;
             case "Query":
-                if ((event as QueryEvent).query.length > 256) {
-                    summary += ` ${(event as QueryEvent).query.substring(0, 256)}…`;
+                if ((event as QueryEvent).query.length > 64) {
+                    summary += ` ${(event as QueryEvent).query.substring(0, 64)}…`;
                 } else {
                     summary += ` ${(event as QueryEvent).query}`;
                 }

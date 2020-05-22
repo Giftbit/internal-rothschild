@@ -86,7 +86,7 @@ export class BinlogWatcherStateManager {
     shouldFlushBinlog(): boolean {
         const twoDaysAgo = new Date();
         twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-        return this.state && (!this.state.flushBinlogDate || this.state.flushBinlogDate < twoDaysAgo.toISOString());
+        return !this.state.flushBinlogDate || this.state.flushBinlogDate < twoDaysAgo.toISOString();
     }
 
     /**
