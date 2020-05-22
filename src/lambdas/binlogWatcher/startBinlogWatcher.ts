@@ -43,7 +43,7 @@ export async function startBinlogWatcher(stateManager: BinlogWatcherStateManager
         if (event.binlog.getTypeName() === "Rotate" && event.binlogName !== stateManager.state?.checkpoint?.binlogName) {
             // The log has rotated.  We should checkpoint here in case this is not followed
             // by more events to trigger other checkpointing.
-            log.info("Detected log rotation, checkpointing stateManager", JSON.stringify(event));
+            log.info("Detected log rotation, checkpointing stateManager");
             stateManager.openCheckpoint(event.binlogName, 0);
             stateManager.closeCheckpoint(event.binlogName, 0);
             stateManager.binlogFlushed();

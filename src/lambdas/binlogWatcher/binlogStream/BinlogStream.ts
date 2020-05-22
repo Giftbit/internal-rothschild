@@ -191,7 +191,7 @@ export class BinlogStream extends EventEmitter {
     }
 
     // noinspection JSUnusedGlobalSymbols This is useful for debugging but too noisy to usually leave on.
-    private static summarizeEventForDebugging(event: ZongJiEvent): string {
+    public static summarizeEventForDebugging(event: ZongJiEvent): string {
         let summary = `${event.getTypeName()} nextPosition=${event.nextPosition}`;
         switch (event.getTypeName()) {
             case "Rotate":
