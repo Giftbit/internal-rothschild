@@ -10,7 +10,7 @@ import {
     filterAndPaginateQuery,
     getSqlErrorConstraintName,
     nowInDbPrecision
-} from "../../../utils/dbUtils/index";
+} from "../../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../../utils/dbUtils/connection";
 import {DbCode} from "../../../model/DbCode";
 import {generateCode} from "../../../utils/codeGenerator";
@@ -36,6 +36,7 @@ import {QueryBuilder} from "knex";
 import {MetricsLogger} from "../../../utils/metricsLogger";
 import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
 import {ruleSchema} from "../transactions/rules/ruleSchema";
+import {isSystemId} from "../../../utils/isSystemId";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -293,23 +294,28 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
             properties: {
                 id: {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 programId: {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 issuanceId: {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 attachedFromValueId: {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 currency: {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 balance: {
                     type: "number"
@@ -370,6 +376,10 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 export async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, showCode: boolean = false): Promise<Value> {
     auth.requireIds("userId");
 
+    if (!isSystemId(id)) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${id}' not found.`, "ValueNotFound");
+    }
+
     const knex = await getKnexRead();
     const res: DbValue[] = await knex("Values")
         .select()
@@ -382,6 +392,9 @@ export async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, i
     }
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
+    }
+    if (res[0].id !== id) {
+        MetricsLogger.caseInsensitiveRetrieval("getValue", res[0].id, id, auth);
     }
     return DbValue.toValue(res[0], showCode);
 }
@@ -442,6 +455,10 @@ export async function getDbValuesByTransaction(auth: giftbitRoutes.jwtauth.Autho
 export async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, valueUpdates: Partial<Value>): Promise<Value> {
     auth.requireIds("userId");
 
+    if (!isSystemId(id)) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${id}' not found.`, "ValueNotFound");
+    }
+
     const knex = await getKnexWrite();
     return await knex.transaction(async trx => {
         // Get the master version of the Value and lock it.
@@ -484,6 +501,9 @@ export async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             throw new Error(`Illegal UPDATE query.  Updated ${updateRes} values.`);
         }
         MetricsLogger.valueUpdated(valueUpdates, auth);
+        if (existingValue.id !== id) {
+            MetricsLogger.caseInsensitiveRetrieval("updateValue", existingValue.id, id, auth);
+        }
         return updatedValue;
     });
 }
@@ -552,6 +572,10 @@ async function updateDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
 async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<{ success: true }> {
     auth.requireIds("userId");
 
+    if (!isSystemId(id)) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${id}' not found.`, "ValueNotFound");
+    }
+
     try {
         const knex = await getKnexWrite();
         const res: number = await knex("Values")
@@ -561,7 +585,7 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
             })
             .delete();
         if (res === 0) {
-            throw new cassava.RestError(404);
+            throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${id}' not found.`, "ValueNotFound");
         }
         if (res > 1) {
             throw new Error(`Illegal DELETE query.  Deleted ${res} values.`);
@@ -767,7 +791,7 @@ const valueSchema: jsonschema.Schema = {
             type: "string",
             maxLength: 64,
             minLength: 1,
-            pattern: "^[ -~]*$"
+            pattern: isSystemId.regexString
         },
         currency: {
             type: "string",

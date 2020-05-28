@@ -13,6 +13,7 @@ import {Value} from "../../model/Value";
 import {CodeParameters} from "../../model/CodeParameters";
 import {createValue} from "./values/createValue";
 import {ruleSchema} from "./transactions/rules/ruleSchema";
+import {isSystemId} from "../../utils/isSystemId";
 import log = require("loglevel");
 
 export function installIssuancesRest(router: cassava.Router): void {
@@ -214,6 +215,10 @@ export async function getIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     auth.requireIds("userId");
     log.info(`Getting issuance by id ${id}`);
 
+    if (!isSystemId(id)) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Issuance with id '${id}' in Program with id '${programId}' not found.`, "IssuanceNotFound");
+    }
+
     const knex = await getKnexRead();
     const res: DbIssuance[] = await knex("Issuances")
         .select()
@@ -223,7 +228,7 @@ export async function getIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             id: id
         });
     if (res.length === 0) {
-        throw new cassava.RestError(404);
+        throw new giftbitRoutes.GiftbitRestError(404, `Issuance with id '${id}' in Program with id '${programId}' not found.`, "IssuanceNotFound");
     }
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
@@ -239,7 +244,7 @@ const issuanceSchema: jsonschema.Schema = {
             type: "string",
             maxLength: 58, /* Values created are based off this id. Leaves room for suffixing the Values index. ie `${id}-${index}` */
             minLength: 1,
-            pattern: "^[ -~]*$"
+            pattern: isSystemId.regexString
         },
         name: {
             type: "string",

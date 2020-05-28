@@ -17,6 +17,7 @@ import {checkRulesSyntax} from "./transactions/rules/RuleContext";
 import {MetricsLogger} from "../../utils/metricsLogger";
 import {ruleSchema} from "./transactions/rules/ruleSchema";
 import {DiscountSellerLiabilityUtils} from "../../utils/discountSellerLiabilityUtils";
+import {isSystemId} from "../../utils/isSystemId";
 import log = require("loglevel");
 
 export function installProgramsRest(router: cassava.Router): void {
@@ -164,7 +165,8 @@ async function getPrograms(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filte
             properties: {
                 "id": {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 "currency": {
                     type: "string",
@@ -224,6 +226,10 @@ async function createProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pro
 export async function getProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<Program> {
     auth.requireIds("userId");
 
+    if (!isSystemId(id)) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Program with id '${id}' not found.`, "ProgramNotFound");
+    }
+
     const knex = await getKnexRead();
     const res: DbProgram[] = await knex("Programs")
         .select()
@@ -232,16 +238,23 @@ export async function getProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
             id: id
         });
     if (res.length === 0) {
-        throw new cassava.RestError(404);
+        throw new giftbitRoutes.GiftbitRestError(404, `Program with id '${id}' not found.`, "ProgramNotFound");
     }
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
+    }
+    if (res[0].id !== id) {
+        MetricsLogger.caseInsensitiveRetrieval("getProgram", res[0].id, id, auth);
     }
     return DbProgram.toProgram(res[0]);
 }
 
 async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, programUpdates: Partial<Program>): Promise<Program> {
     auth.requireIds("userId");
+
+    if (!isSystemId(id)) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Program with id '${id}' not found.`, "ProgramNotFound");
+    }
 
     if (programUpdates.startDate) {
         programUpdates.startDate = dateInDbPrecision(new Date(programUpdates.startDate));
@@ -294,12 +307,19 @@ async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
         if (patchRes > 1) {
             throw new Error(`Illegal UPDATE query.  Updated ${patchRes} values.`);
         }
+        if (existingProgram.id !== id) {
+            MetricsLogger.caseInsensitiveRetrieval("updateProgram", existingProgram.id, id, auth);
+        }
         return updatedProgram;
     });
 }
 
 async function deleteProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<{ success: true }> {
     auth.requireIds("userId");
+
+    if (!isSystemId(id)) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Program with id '${id}' not found.`, "ProgramNotFound");
+    }
 
     try {
         const knex = await getKnexWrite();
@@ -310,7 +330,7 @@ async function deleteProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
             })
             .delete();
         if (res === 0) {
-            throw new cassava.RestError(404);
+            throw new giftbitRoutes.GiftbitRestError(404, `Program with id '${id}' not found.`, "ProgramNotFound");
         }
         if (res > 1) {
             throw new Error(`Illegal DELETE query.  Deleted ${res} values.`);
@@ -554,7 +574,7 @@ const programSchema: jsonschema.Schema = {
             type: "string",
             maxLength: 64,
             minLength: 1,
-            pattern: "^[ -~]*$"
+            pattern: isSystemId.regexString
         },
         name: {
             type: "string",

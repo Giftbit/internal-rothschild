@@ -152,6 +152,26 @@ describe("/v2/currencies", () => {
         chai.assert.equal(resp3.body.messageCode, "CurrencyInUse");
     });
 
+    describe("handling unicode in IDs", () => {
+        it("404s getting a Currency by code with unicode", async () => {
+            const valueResp = await testUtils.testAuthedRequest<any>(router, "/v2/currencies/%F0%9F%92%A9", "GET");
+            chai.assert.equal(valueResp.statusCode, 404);
+            chai.assert.equal(valueResp.body.messageCode, "CurrencyNotFound");
+        });
+
+        it("404s patching a Currency by code with unicode", async () => {
+            const patchResp = await testUtils.testAuthedRequest<any>(router, "/v2/currencies/%F0%9F%92%A9", "PATCH", {pretax: true});
+            chai.assert.equal(patchResp.statusCode, 404);
+            chai.assert.equal(patchResp.body.messageCode, "CurrencyNotFound");
+        });
+
+        it("404s deleting a Currency by code with unicode", async () => {
+            const deleteResp = await testUtils.testAuthedRequest<any>(router, "/v2/currencies/%F0%9F%92%A9", "DELETE");
+            chai.assert.equal(deleteResp.statusCode, 404);
+            chai.assert.equal(deleteResp.body.messageCode, "CurrencyNotFound", deleteResp.bodyRaw);
+        });
+    });
+
     describe("test common requests involving currency", () => {
         const currencies: Partial<Currency>[] = [
             {

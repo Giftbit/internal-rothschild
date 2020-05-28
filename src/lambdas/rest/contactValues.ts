@@ -1,6 +1,7 @@
 import * as cassava from "cassava";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import {GiftbitRestError} from "giftbit-cassava-routes";
 import {getValue, getValueByCode, getValues, injectValueStats, updateValue, valueExists} from "./values/values";
 import {csvSerializer} from "../../utils/serializers";
 import {Pagination} from "../../model/Pagination";
@@ -18,7 +19,6 @@ import {
     generateUrlSafeHashFromValueIdContactId
 } from "./genericCodeWithPerContactOptions";
 import log = require("loglevel");
-import {GiftbitRestError} from "giftbit-cassava-routes";
 
 export function installContactValuesRest(router: cassava.Router): void {
     router.route("/v2/contacts/{id}/values")
@@ -41,6 +41,11 @@ export function installContactValuesRest(router: cassava.Router): void {
                 ...evt.queryStringParameters,
                 contactId: evt.pathParameters.id
             }, Pagination.getPaginationParams(evt), showCode);
+            for (const value of res.values) {
+                if (value.contactId && value.contactId !== evt.pathParameters.id) {
+                    MetricsLogger.caseInsensitiveRetrieval("getContactsValues", value.contactId, evt.pathParameters.id, auth);
+                }
+            }
 
             if (evt.queryStringParameters.stats === "true") {
                 // For now this is a secret param only Yervana knows about.
