@@ -1,6 +1,7 @@
 import {LineItemRequest} from "./LineItem";
 import {TaxRequestProperties} from "./TaxProperties";
 import * as jsonschema from "jsonschema";
+import {isSystemId} from "../utils/isSystemId";
 
 export interface CheckoutRequest {
     id: string;
@@ -118,13 +119,15 @@ export namespace transactionPartySchema {
                 enum: ["lightrail"]
             },
             contactId: {
-                type: "string"
+                type: "string",
+                pattern: isSystemId.regexString
             },
             code: {
                 type: "string"
             },
             valueId: {
-                type: "string"
+                type: "string",
+                pattern: isSystemId.regexString
             }
         },
         oneOf: [
@@ -160,7 +163,8 @@ export namespace transactionPartySchema {
                 type: "string"
             },
             valueId: {
-                type: "string"
+                type: "string",
+                pattern: isSystemId.regexString
             }
         },
         oneOf: [

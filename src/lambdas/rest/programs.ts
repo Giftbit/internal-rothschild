@@ -170,7 +170,8 @@ async function getPrograms(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filte
                 },
                 "currency": {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 "name": {
                     type: "string",
@@ -584,7 +585,8 @@ const programSchema: jsonschema.Schema = {
         currency: {
             type: "string",
             minLength: 1,
-            maxLength: 16
+            maxLength: 16,
+            pattern: isSystemId.regexString
         },
         discount: {
             type: "boolean"

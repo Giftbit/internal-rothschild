@@ -480,7 +480,8 @@ const creditSchema: jsonschema.Schema = {
         currency: {
             type: "string",
             minLength: 1,
-            maxLength: 16
+            maxLength: 16,
+            pattern: isSystemId.regexString
         },
         simulate: {
             type: "boolean"
@@ -527,7 +528,8 @@ const debitSchema: jsonschema.Schema = {
         currency: {
             type: "string",
             minLength: 1,
-            maxLength: 16
+            maxLength: 16,
+            pattern: isSystemId.regexString
         },
         simulate: {
             type: "boolean"
@@ -582,7 +584,8 @@ const transferSchema: jsonschema.Schema = {
         currency: {
             type: "string",
             minLength: 1,
-            maxLength: 16
+            maxLength: 16,
+            pattern: isSystemId.regexString
         },
         simulate: {
             type: "boolean"
@@ -648,7 +651,8 @@ const checkoutSchema: jsonschema.Schema = {
         currency: {
             type: "string",
             minLength: 1,
-            maxLength: 16
+            maxLength: 16,
+            pattern: isSystemId.regexString
         },
         sources: {
             type: "array",
