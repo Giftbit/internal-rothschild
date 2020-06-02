@@ -73,7 +73,6 @@ describe("whitespace handling - all resources", () => {
                         contactId: `${contact.id} `
                     }]
                 });
-                console.log(JSON.stringify(txResp.body));
                 chai.assert.equal(txResp.statusCode, 409, `txResp.body=${JSON.stringify(txResp.body)}`);
             });
 
@@ -101,14 +100,102 @@ describe("whitespace handling - all resources", () => {
 
     describe("values", () => {
         describe("valueIds", () => {
-            it("does not allow valueIds to be created with leading/trailing whitespace");
-            it("404s when looking up a value by id with leading/trailing whitespace");
+            it("does not allow valueIds to be created with leading/trailing whitespace", async () => {
+                const createLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", {
+                    id: `\t${testUtils.generateId()}`,
+                    currency: "USD",
+                    balance: 1
+                });
+                chai.assert.equal(createLeadingResp.statusCode, 422, `createLeadingResp.body=${JSON.stringify(createLeadingResp.body)}`);
+
+                const createTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", {
+                    id: `${testUtils.generateId()}\n`,
+                    currency: "USD",
+                    balance: 1
+                });
+                chai.assert.equal(createTrailingResp.statusCode, 422, `createTrailingResp.body=${JSON.stringify(createTrailingResp.body)}`);
+            });
+
+            it("404s when looking up a value by id with leading/trailing whitespace", async () => {
+                const fetchLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/values/%20${value.id}`, "GET");
+                chai.assert.equal(fetchLeadingResp.statusCode, 404, `fetchLeadingResp.body=${JSON.stringify(fetchLeadingResp.body)}`);
+                const fetchTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/values/${value.id}%20`, "GET");
+                chai.assert.equal(fetchTrailingResp.statusCode, 404, `fetchLeadingResp.body=${JSON.stringify(fetchTrailingResp.body)}`);
+            });
 
             describe("FK references to valueIds", () => {
-                it("does not attach valueIds wih whitespace");
-                it("does not transact against valueIds with whitespace");
-                it("does not return contacts when searching by valueId with whitespace");
-                it("does not return transactions when searching by valueId with whitespace");
+                it("does not attach valueIds wih whitespace", async () => {
+                    const attachLeadingResp = await testUtils.testAuthedRequest<GiftbitRestError>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+                        valueId: `%20${value.id}`
+                    });
+                    chai.assert.equal(attachLeadingResp.statusCode, 404, `attachLeadingResp.body=${JSON.stringify(attachLeadingResp.body)}`);
+                    chai.assert.equal(attachLeadingResp.body["messageCode"], "ValueNotFound", `attachLeadingResp.body=${JSON.stringify(attachLeadingResp.body)}`);
+                    const attachTrailingResp = await testUtils.testAuthedRequest<GiftbitRestError>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+                        valueId: `${value.id}%20`
+                    });
+                    chai.assert.equal(attachTrailingResp.statusCode, 404, `attachTrailingResp.body=${JSON.stringify(attachTrailingResp.body)}`);
+                    chai.assert.equal(attachTrailingResp.body["messageCode"], "ValueNotFound", `attachTrailingResp.body=${JSON.stringify(attachTrailingResp.body)}`);
+                });
+
+                it.skip("does not transact against valueIds with whitespace", async () => {
+                    // todo tx party schema validation vs nicer error
+                    const creditResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/credit", "POST", {
+                        currency: "USD",
+                        amount: 1,
+                        destination: {
+                            rail: "lightrail",
+                            valueId: ` ${value.id}`
+                        }
+                    });
+                    chai.assert.equal(creditResp.statusCode, 409, `creditResp.body=${JSON.stringify(creditResp.body)}`);
+                    chai.assert.equal(creditResp.body["messageCode"], "InvalidParty", `creditResp.body=${JSON.stringify(creditResp.body)}`);
+
+                    const debitResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/debit", "POST", {
+                        currency: "USD",
+                        amount: 1,
+                        source: {
+                            rail: "lightrail",
+                            valueId: `${value.id}\n`
+                        }
+                    });
+                    chai.assert.equal(debitResp.statusCode, 409, `debitResp.body=${JSON.stringify(debitResp.body)}`);
+                    chai.assert.equal(debitResp.body["messageCode"], "InvalidParty", `debitResp.body=${JSON.stringify(debitResp.body)}`);
+                });
+
+                it("does not return contacts when searching by valueId with whitespace", async () => {
+                    const generic = await testUtils.createUSDValue(router, {
+                        isGenericCode: true,
+                        balance: null,
+                        balanceRule: {
+                            rule: "500",
+                            explanation: "$5"
+                        }
+                    });
+                    const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+                        valueId: generic.id
+                    });
+                    chai.assert.equal(attachResp.statusCode, 200, `attachResp.body=${JSON.stringify(attachResp.body)}`);
+                    const fetchLeadingResp = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?valueId=%20${generic.id}`, "GET");
+                    chai.assert.equal(fetchLeadingResp.statusCode, 200, `fetchLeadingResp.body=${JSON.stringify(fetchLeadingResp.body)}`);
+                    chai.assert.equal(fetchLeadingResp.body.length, 0, `fetchLeadingResp.body=${JSON.stringify(fetchLeadingResp.body)}`);
+                    const fetchTrailingResp = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?valueId=${generic.id}%20`, "GET");
+                    chai.assert.equal(fetchTrailingResp.statusCode, 200, `fetchTrailingResp.body=${JSON.stringify(fetchTrailingResp.body)}`);
+                    chai.assert.equal(fetchTrailingResp.body.length, 0, `fetchTrailingResp.body=${JSON.stringify(fetchTrailingResp.body)}`);
+                });
+
+                it("does not return transactions when searching by valueId with whitespace", async () => {
+                    const txs = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${value.id}`, "GET"); // initialBalance
+                    chai.assert.equal(txs.statusCode, 200, `txs.body=${JSON.stringify(txs.body)}`);
+                    chai.assert.isAtLeast(txs.body.length, 1, `txs.body=${JSON.stringify(txs.body)}`);
+
+                    const txsLeading = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=%20${value.id}`, "GET");
+                    chai.assert.equal(txsLeading.statusCode, 200, `txsLeading.body=${JSON.stringify(txsLeading.body)}`);
+                    chai.assert.equal(txsLeading.body.length, 0, `txsLeading.body=${JSON.stringify(txsLeading.body)}`);
+
+                    const txsTrailing = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${value.id}%20`, "GET");
+                    chai.assert.equal(txsTrailing.statusCode, 200, `txsTrailing.body=${JSON.stringify(txsTrailing.body)}`);
+                    chai.assert.equal(txsTrailing.body.length, 0, `txsTrailing.body=${JSON.stringify(txsTrailing.body)}`);
+                });
             });
         });
 
