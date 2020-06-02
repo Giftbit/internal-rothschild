@@ -258,6 +258,10 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     let query: QueryBuilder;
     const contactId = filterParams["contactId"] || filterParams["contactId.eq"];
     if (contactId) {
+        if (!isSystemId(contactId)) {
+            return {values: [], pagination};
+        }
+
         // Wrap the UNION query in another select so we can apply WHERE clauses to it below.
         query = knex.select("*").from(
             // This UNION query has two parts that each use a different index.  It replaces an earlier
