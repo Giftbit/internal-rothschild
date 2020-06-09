@@ -250,7 +250,7 @@ describe("/v2/values/", () => {
         chai.assert.deepEqual(resp.body, value1);
     });
 
-    it.only("treats valueId as case sensitive", async () => {
+    it("treats valueId as case sensitive", async () => {
         const value1: Partial<Value> = {
             id: generateId() + "-A",
             balance: 5,

@@ -277,6 +277,43 @@ describe("/v2/programs", () => {
         chai.assert.sameOrderedMembers(resp.body.map(tx => tx.id), idAndDates.reverse().map(tx => tx.id) /* reversed since createdDate desc */);
     });
 
+    it("treats programId as case sensitive", async () => {
+        const program1: Partial<Program> = {
+            id: generateId() + "-A",
+            currency: "USD",
+            name: "program with upper case"
+        };
+        const program: Partial<Program> = {
+            id: program1.id.toLowerCase(),
+            currency: "USD",
+            name: "program in lower case"
+        };
+        chai.assert.notEqual(program1.id, program.id);
+
+        const postProgram1Resp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program1);
+        chai.assert.equal(postProgram1Resp.statusCode, 201, postProgram1Resp.bodyRaw);
+
+        const postProgram2Resp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
+        chai.assert.equal(postProgram2Resp.statusCode, 201, postProgram2Resp.bodyRaw);
+
+        const getProgram1Resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${program1.id}`, "GET");
+        chai.assert.equal(getProgram1Resp.statusCode, 200);
+        chai.assert.equal(getProgram1Resp.body.id, program1.id);
+
+        const getProgram2Resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${program.id}`, "GET");
+        chai.assert.equal(getProgram2Resp.statusCode, 200);
+        chai.assert.equal(getProgram2Resp.body.id, program.id);
+        chai.assert.notEqual(getProgram1Resp.body.id, getProgram2Resp.body.id);
+
+        const getPrograms1Resp = await testUtils.testAuthedRequest<Program[]>(router, `/v2/programs?id=${program1.id}`, "GET");
+        chai.assert.equal(getPrograms1Resp.statusCode, 200);
+        chai.assert.deepEqual(getPrograms1Resp.body, [getProgram1Resp.body]);
+
+        const getPrograms2Resp = await testUtils.testAuthedRequest<Program[]>(router, `/v2/programs?id=${program.id}`, "GET");
+        chai.assert.equal(getPrograms2Resp.statusCode, 200);
+        chai.assert.deepEqual(getPrograms2Resp.body, [getProgram2Resp.body]);
+    });
+
     describe("create validation", () => {
         it("422s creating a program with non-ascii characters in the ID", async () => {
             const request: Partial<Program> = {

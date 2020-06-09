@@ -75,6 +75,7 @@ export function installProgramsRest(router: cassava.Router): void {
                 createdBy: auth.teamMemberId,
             };
 
+            program.currency = program.currency?.toUpperCase();
             program.startDate = program.startDate ? dateInDbPrecision(new Date(program.startDate)) : null;
             program.endDate = program.endDate ? dateInDbPrecision(new Date(program.endDate)) : null;
 

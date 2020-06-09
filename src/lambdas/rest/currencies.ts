@@ -220,7 +220,7 @@ const currencySchema: jsonschema.Schema = {
             type: "string",
             maxLength: 16,
             minLength: 1,
-            pattern: isSystemId.regexString
+            pattern: "^[A-Z]+$"
         },
         name: {
             type: "string",

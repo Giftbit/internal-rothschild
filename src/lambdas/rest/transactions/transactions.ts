@@ -324,7 +324,7 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
         },
         async () => {
             const resolveOptions: ResolveTransactionPartiesOptions = {
-                currency: checkout.currency,
+                currency: checkout.currency?.toUpperCase(),
                 transactionId: checkout.id,
                 nonTransactableHandling: "exclude",
                 includeZeroBalance: !!checkout.allowRemainder,

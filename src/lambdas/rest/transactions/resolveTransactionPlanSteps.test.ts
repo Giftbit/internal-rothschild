@@ -415,7 +415,7 @@ describe("resolveTransactionPlanSteps", () => {
 
             it("properly excludes sources when nonTransactableHandling='exclude'", async () => {
                 const currency2: Partial<Currency> = {
-                    code: "123",
+                    code: "CCC",
                     name: "Currency123",
                     symbol: "$",
                     decimalPlaces: 3
