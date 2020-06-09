@@ -56,7 +56,7 @@ export function installValuesRest(router: cassava.Router): void {
             const res = await getValues(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt), showCode);
 
             if (evt.queryStringParameters.stats === "true") {
-                // For now this is a secret param only Yervana knows about.
+                // For now this is a secret param only Yervana and Chairish know about.
                 await injectValueStats(auth, res.values);
             }
 
@@ -130,7 +130,7 @@ export function installValuesRest(router: cassava.Router): void {
             const value = await getValue(auth, evt.pathParameters.id, showCode);
 
             if (evt.queryStringParameters.stats === "true") {
-                // For now this is a secret param only Yervana knows about.
+                // For now this is a secret param only Yervana and Chairish know about.
                 await injectValueStats(auth, [value]);
             }
 
@@ -600,7 +600,7 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
 }
 
 /**
- * This is currently a secret operation only Yervana knows about.
+ * For now this is a secret param only Yervana and Chairish know about.
  */
 export async function injectValueStats(auth: giftbitRoutes.jwtauth.AuthorizationBadge, values: Value[]): Promise<void> {
     auth.requireIds("userId");
