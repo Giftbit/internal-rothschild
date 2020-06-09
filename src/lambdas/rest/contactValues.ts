@@ -48,7 +48,7 @@ export function installContactValuesRest(router: cassava.Router): void {
             }
 
             if (evt.queryStringParameters.stats === "true") {
-                // For now this is a secret param only Yervana knows about.
+                // For now this is a secret param only Yervana and Chairish know about.
                 await injectValueStats(auth, res.values);
             }
 
