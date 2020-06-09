@@ -1,7 +1,7 @@
 ALTER DATABASE rothschild DEFAULT CHARSET ascii;
 ALTER DATABASE rothschild DEFAULT COLLATE ascii_bin;
 
-# Updates to currency code do not user an indexed key in the WHERE clause.
+# Updates to currency code do not use an indexed key in the WHERE clause and are thus unsafe.
 SET SQL_SAFE_UPDATES = 0;
 
 UPDATE rothschild.`Values`

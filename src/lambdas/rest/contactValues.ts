@@ -41,11 +41,6 @@ export function installContactValuesRest(router: cassava.Router): void {
                 ...evt.queryStringParameters,
                 contactId: evt.pathParameters.id
             }, Pagination.getPaginationParams(evt), showCode);
-            for (const value of res.values) {
-                if (value.contactId && value.contactId !== evt.pathParameters.id) {
-                    MetricsLogger.caseInsensitiveRetrieval("getContactsValues", value.contactId, evt.pathParameters.id, auth);
-                }
-            }
 
             if (evt.queryStringParameters.stats === "true") {
                 // For now this is a secret param only Yervana knows about.
