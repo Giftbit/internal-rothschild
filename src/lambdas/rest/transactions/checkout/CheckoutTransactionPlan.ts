@@ -47,7 +47,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
         }
         this.id = checkout.id;
         this.transactionType = "checkout";
-        this.currency = checkout.currency;
+        this.currency = checkout.currency?.toUpperCase();
         this.lineItems = lineItemResponses.sort((a, b) => b.lineTotal.subtotal - a.lineTotal.subtotal);
         this.steps = steps;
         this.paymentSources = checkout.sources; // TODO if secure code, only return last four

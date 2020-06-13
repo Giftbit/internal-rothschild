@@ -67,6 +67,16 @@ describe("/v2/currencies", () => {
         chai.assert.equal(resp.body[0].createdBy, testUtils.defaultTestUser.teamMemberId);
     });
 
+    it("can't create a currency with lower-case characters in the code", async () => {
+        const resp = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", {
+            code: "Euro",
+            name: "Euro",
+            symbol: "€",
+            decimalPlaces: 2
+        });
+        chai.assert.equal(resp.statusCode, 422);
+    });
+
     it("can't create a currency with non-ascii characters in the code", async () => {
         const resp = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", {
             code: "🐱",
