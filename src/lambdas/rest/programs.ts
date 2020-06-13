@@ -75,6 +75,7 @@ export function installProgramsRest(router: cassava.Router): void {
                 createdBy: auth.teamMemberId,
             };
 
+            program.currency = program.currency?.toUpperCase();
             program.startDate = program.startDate ? dateInDbPrecision(new Date(program.startDate)) : null;
             program.endDate = program.endDate ? dateInDbPrecision(new Date(program.endDate)) : null;
 
@@ -243,9 +244,6 @@ export async function getProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
-    if (res[0].id !== id) {
-        MetricsLogger.caseInsensitiveRetrieval("getProgram", res[0].id, id, auth);
-    }
     return DbProgram.toProgram(res[0]);
 }
 
@@ -306,9 +304,6 @@ async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
         }
         if (patchRes > 1) {
             throw new Error(`Illegal UPDATE query.  Updated ${patchRes} values.`);
-        }
-        if (existingProgram.id !== id) {
-            MetricsLogger.caseInsensitiveRetrieval("updateProgram", existingProgram.id, id, auth);
         }
         return updatedProgram;
     });

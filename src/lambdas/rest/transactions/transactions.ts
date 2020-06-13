@@ -38,7 +38,6 @@ import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {Value} from "../../../model/Value";
 import {getAttachTransactionPlanForGenericCodeWithPerContactOptions} from "../genericCodeWithPerContactOptions";
 import {isSystemId} from "../../../utils/isSystemId";
-import {MetricsLogger} from "../../../utils/metricsLogger";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -279,9 +278,6 @@ export async function getDbTransaction(auth: giftbitRoutes.jwtauth.Authorization
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
-    if (res[0].id !== id) {
-        MetricsLogger.caseInsensitiveRetrieval("getDbTransaction", res[0].id, id, auth);
-    }
     return res[0];
 }
 
@@ -324,7 +320,7 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
         },
         async () => {
             const resolveOptions: ResolveTransactionPartiesOptions = {
-                currency: checkout.currency,
+                currency: checkout.currency?.toUpperCase(),
                 transactionId: checkout.id,
                 nonTransactableHandling: "exclude",
                 includeZeroBalance: !!checkout.allowRemainder,
