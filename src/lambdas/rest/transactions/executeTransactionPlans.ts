@@ -20,7 +20,6 @@ import {StripeRestError} from "../../../utils/stripeUtils/StripeRestError";
 import {MetricsLogger} from "../../../utils/metricsLogger";
 import * as cassava from "cassava";
 import {Value} from "../../../model/Value";
-import {transactionPartySchema} from "../../../model/TransactionRequest";
 import log = require("loglevel");
 import Knex = require("knex");
 
@@ -155,8 +154,8 @@ async function rollbackTransactionPlan(auth: giftbitRoutes.jwtauth.Authorization
 }
 
 function validateTransactionPlan(plan: TransactionPlan, options: ExecuteTransactionPlannerOptions): void {
-    if (!/^[A-Z]+$/.test(plan.currency)) {
-        throw new Error(`Transaction plan currency must be upper case A-Z, found ${plan.currency}`);
+    if (plan.currency.toUpperCase() !== plan.currency) {
+        throw new Error(`Transaction plan currency must be upper case, found ${plan.currency}`);
     }
 
     if ((plan.totals && plan.totals.remainder && !options.allowRemainder) ||
