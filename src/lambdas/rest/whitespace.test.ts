@@ -321,15 +321,15 @@ describe("whitespace handling - all resources", () => {
         });
 
         it("404s fetching a currency by code with leading/trailing whitespace", async () => {
-            const resp = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", {
+            const createCurrencyResp = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", {
                 ...currWithTrailing,
-                code: "abc"
+                code: "ABC"
             });
-            chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
+            chai.assert.equal(createCurrencyResp.statusCode, 201, `createCurrencyResp.body=${JSON.stringify(createCurrencyResp.body)}`);
 
-            const fetchLeading = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/currencies/%20${resp.body.code}`, "GET");
+            const fetchLeading = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/currencies/%20${createCurrencyResp.body.code}`, "GET");
             chai.assert.equal(fetchLeading.statusCode, 404, `fetchLeading.body=${JSON.stringify(fetchLeading.body)}`);
-            const fetchTrailing = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/currencies/${resp.body.code}%20`, "GET");
+            const fetchTrailing = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/currencies/${createCurrencyResp.body.code}%20`, "GET");
             chai.assert.equal(fetchTrailing.statusCode, 404, `fetchTrailing.body=${JSON.stringify(fetchTrailing.body)}`);
         });
 
