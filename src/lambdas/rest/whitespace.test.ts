@@ -226,6 +226,18 @@ describe("whitespace handling - all resources", () => {
                 chai.assert.equal(createTrailingResp.statusCode, 422, `createTrailingResp.body=${JSON.stringify(createTrailingResp.body)}`);
             });
 
+            it("does not allow codes to be updated to have leading/trailing whitespace", async () => {
+                const updateLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/values/${value.id}/changeCode`, "POST", {
+                    code: `\rLEADINGSPACE`
+                });
+                chai.assert.equal(updateLeadingResp.statusCode, 422, `updateLeadingResp.body=${JSON.stringify(updateLeadingResp.body)}`);
+
+                const updateTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/values/${value.id}/changeCode`, "POST", {
+                    code: `TRAILINGSPACE\t`
+                });
+                chai.assert.equal(updateTrailingResp.statusCode, 422, `updateTrailingResp.body=${JSON.stringify(updateTrailingResp.body)}`);
+            });
+
             it("transacts against value by code with leading/trailing whitespace", async () => {
                 const debitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
                     id: "debit-" + testUtils.generateId(),
@@ -255,7 +267,7 @@ describe("whitespace handling - all resources", () => {
                     lineItems: [{unitPrice: 1}],
                     sources: [{
                         rail: "lightrail",
-                        code: `\t${value.code}`
+                        code: `\t${value.code} \n`
                     }]
                 });
                 chai.assert.equal(checkoutResp.statusCode, 201, `checkoutResp.body=${JSON.stringify(checkoutResp.body)}`);
@@ -294,6 +306,12 @@ describe("whitespace handling - all resources", () => {
                 chai.assert.equal(fetchTrailingResp2.statusCode, 200, `fetchTrailingResp2.body=${JSON.stringify(fetchTrailingResp2.body)}`);
                 chai.assert.equal(fetchTrailingResp2.body.length, 1, `fetchTrailingResp2.body=${JSON.stringify(fetchTrailingResp2.body)}`);
                 chai.assert.equal(fetchTrailingResp2.body[0].id, value.id, `fetchTrailingResp2.body=${JSON.stringify(fetchTrailingResp2.body)}`);
+
+                const fetchWithLotsOfWhitespaceResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?code=%0D%0A${value.code}%20%20`, "GET");
+                chai.assert.equal(fetchWithLotsOfWhitespaceResp.statusCode, 200, `fetchWithLotsOfWhitespaceResp.body=${JSON.stringify(fetchWithLotsOfWhitespaceResp.body)}`);
+                chai.assert.equal(fetchWithLotsOfWhitespaceResp.body.length, 1, `fetchWithLotsOfWhitespaceResp.body=${JSON.stringify(fetchWithLotsOfWhitespaceResp.body)}`);
+                chai.assert.equal(fetchWithLotsOfWhitespaceResp.body[0].id, value.id, `fetchWithLotsOfWhitespaceResp.body=${JSON.stringify(fetchWithLotsOfWhitespaceResp.body)}`);
+
             });
         });
     });
