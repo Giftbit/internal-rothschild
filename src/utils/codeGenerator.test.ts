@@ -41,20 +41,56 @@ describe("code generator tests", () => {
         }
     });
 
-    it("test prefix and suffix", async () => {
-        const prefix = "prefix";
-        const suffix = "suffix";
-        for (let i = 0; i < 100; i++) {
-            const length = 6 + (i % 20);
-            const res = generateCode({length: length, prefix: prefix, suffix: suffix});
-            chai.assert.isNotNull(res);
-            chai.assert.equal(res.substring(0, prefix.length), prefix);
-            const generatedCode = res.substring(prefix.length, prefix.length + length);
-            for (let j = 0; j < length; j++) {
-                chai.assert.include(ALPHANUMERIC_CHARSET, generatedCode.charAt(j));
+    describe("prefix and suffix", () => {
+        it("generates codes using prefix & suffix", async () => {
+            const prefix = "prefix";
+            const suffix = "suffix";
+            for (let i = 0; i < 100; i++) {
+                const length = 6 + (i % 20);
+                const res = generateCode({length: length, prefix: prefix, suffix: suffix});
+                chai.assert.isNotNull(res);
+                chai.assert.equal(res.substring(0, prefix.length), prefix);
+                const generatedCode = res.substring(prefix.length, prefix.length + length);
+                for (let j = 0; j < length; j++) {
+                    chai.assert.include(ALPHANUMERIC_CHARSET, generatedCode.charAt(j));
+                }
+                chai.assert.equal(res.substring(prefix.length + length), suffix);
             }
-            chai.assert.equal(res.substring(prefix.length + length), suffix);
-        }
+        });
+
+        it("does not allow leading space in prefix", async () => {
+            let prefix1 = " ABC";
+            chai.assert.throws(() => {
+                generateCode({prefix: prefix1});
+            }, `Requested prefix ${prefix1} cannot have leading whitespace.`);
+
+            let prefix2 = `\tABC`;
+            chai.assert.throws(() => {
+                generateCode({prefix: prefix2});
+            }, `Requested prefix ${prefix2} cannot have leading whitespace.`);
+
+            let prefix3 = `\nABC`;
+            chai.assert.throws(() => {
+                generateCode({prefix: prefix3});
+            }, `Requested prefix ${prefix3} cannot have leading whitespace.`);
+        });
+
+        it("does not allow trailing space in suffix", async () => {
+            let suffix1 = "ABC ";
+            chai.assert.throws(() => {
+                generateCode({suffix: suffix1});
+            }, `Requested suffix ${suffix1} cannot have trailing whitespace.`);
+
+            let suffix2 = "ABC\t";
+            chai.assert.throws(() => {
+                generateCode({suffix: suffix2});
+            }, `Requested suffix ${suffix2} cannot have trailing whitespace.`);
+
+            let suffix3 = "ABC\n";
+            chai.assert.throws(() => {
+                generateCode({suffix: suffix3});
+            }, `Requested suffix ${suffix3} cannot have trailing whitespace.`);
+        });
     });
 
     it("test custom charset", async () => {
@@ -79,7 +115,7 @@ describe("code generator tests", () => {
         }
     });
 
-    it("contains duplciates", async () => {
+    it("contains duplicates", async () => {
         const charset = "AABCDE";
         chai.assert.throws(() => {
             generateCode({charset: charset});
@@ -98,6 +134,16 @@ describe("code generator tests", () => {
         chai.assert.throws(() => {
             generateCode({charset: charset});
         }, `Requested charset ${charset} cannot contain whitespace.`);
+
+        const charsetTab = `ABCD\tE`;
+        chai.assert.throws(() => {
+            generateCode({charset: charsetTab});
+        }, `Requested charset ${charsetTab} cannot contain whitespace.`);
+
+        const charsetNewline = `ABC\nDE`;
+        chai.assert.throws(() => {
+            generateCode({charset: charsetNewline});
+        }, `Requested charset ${charsetNewline} cannot contain whitespace.`);
     });
 
     it("minimum length is 6", async () => {

@@ -36,6 +36,13 @@ export function generateCode(params: GenerateCodeParameters): string {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested code length ${length} doesn't meet minimum requirement of 6.`, "InvalidGenerateCodeParameters");
     }
 
+    if (params.prefix && /^\s/.test(params.prefix)) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested prefix ${params.prefix} cannot have leading whitespace.`, "InvalidGenerateCodeParameters");
+    }
+    if (params.suffix && /\s$/.test(params.suffix)) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested suffix ${params.suffix} cannot have trailing whitespace.`, "InvalidGenerateCodeParameters");
+    }
+
     return (params.prefix ? params.prefix : "") + generateRandomString(length, charset) + (params.suffix ? params.suffix : "");
 }
 

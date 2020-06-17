@@ -198,4 +198,7 @@ export function checkCodeParameters(generateCode: GenerateCodeParameters, code: 
     if (generateCode && code) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Parameter generateCode is not allowed with parameters code or isGenericCode:true.`);
     }
+    if (/^[\s+]/.test(code) || /[\s+]$/.test(code)) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Code may not have leading or trailing whitespace.`);
+    }
 }
