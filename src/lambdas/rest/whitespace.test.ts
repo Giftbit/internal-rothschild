@@ -8,6 +8,7 @@ import {Value} from "../../model/Value";
 import {Program} from "../../model/Program";
 import {Contact} from "../../model/Contact";
 import {GiftbitRestError} from "giftbit-cassava-routes";
+import {setCodeCryptographySecrets} from "../../utils/testUtils";
 
 describe("whitespace handling - all resources", () => {
     const router = new cassava.Router();
@@ -19,7 +20,15 @@ describe("whitespace handling - all resources", () => {
         router.route(testUtils.authRoute);
         installRestRoutes(router);
         await testUtils.createUSD(router);
-        value = await testUtils.createUSDValue(router);
+
+        testUtils.setCodeCryptographySecrets();
+        const code = "ABCDEF";
+        await testUtils.createUSDValue(router, {code});
+        const fetchValueResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?code=${code}&showCode=true`, "GET");
+        chai.assert.equal(fetchValueResp.statusCode, 200, `fetchValueResp.body=${JSON.stringify(fetchValueResp.body)}`);
+        chai.assert.equal(fetchValueResp.body[0].code, code, `fetchValueResp.body=${JSON.stringify(fetchValueResp.body)}`);
+        value = fetchValueResp.body[0];
+
         const contactResp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {
             id: testUtils.generateId()
         });
@@ -200,11 +209,92 @@ describe("whitespace handling - all resources", () => {
         });
 
         describe("codes", () => {
-            it("does not allow codes to be create with leading/trailing whitespace");
-            it("does not allow leading/trailing whitespace in code-generation params");
+            it("does not allow codes to be created with leading/trailing whitespace", async () => {
+                const createLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", {
+                    id: testUtils.generateId(),
+                    currency: "USD",
+                    balance: 1,
+                    code: ` ${testUtils.generateFullcode()}`
+                });
+                chai.assert.equal(createLeadingResp.statusCode, 422, `createLeadingResp.body=${JSON.stringify(createLeadingResp.body)}`);
+                const createTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", {
+                    id: testUtils.generateId(),
+                    currency: "USD",
+                    balance: 1,
+                    code: `${testUtils.generateFullcode()} `
+                });
+                chai.assert.equal(createTrailingResp.statusCode, 422, `createTrailingResp.body=${JSON.stringify(createTrailingResp.body)}`);
+            });
 
-            it("transacts against value by code with leading/trailing whitespace");
-            it("fetches value by code with leading/trailing whitespace");
+            it("transacts against value by code with leading/trailing whitespace", async () => {
+                const debitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
+                    id: "debit-" + testUtils.generateId(),
+                    currency: "USD",
+                    amount: 1,
+                    source: {
+                        rail: "lightrail",
+                        code: `\t${value.code}`
+                    }
+                });
+                chai.assert.equal(debitResp.statusCode, 201, `debitResp.body=${JSON.stringify(debitResp.body)}`);
+
+                const creditResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", {
+                    id: "credit-" + testUtils.generateId(),
+                    currency: "USD",
+                    amount: 1,
+                    destination: {
+                        rail: "lightrail",
+                        code: `${value.code} `
+                    }
+                });
+                chai.assert.equal(creditResp.statusCode, 201, `creditResp.body=${JSON.stringify(creditResp.body)}`);
+
+                const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                    id: "checkout-" + testUtils.generateId(),
+                    currency: "USD",
+                    lineItems: [{unitPrice: 1}],
+                    sources: [{
+                        rail: "lightrail",
+                        code: `\t${value.code}`
+                    }]
+                });
+                chai.assert.equal(checkoutResp.statusCode, 201, `checkoutResp.body=${JSON.stringify(checkoutResp.body)}`);
+
+                const otherCode = "12345";
+                await testUtils.createUSDValue(router, {code: otherCode});
+                const transferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
+                    id: "transfer-" + testUtils.generateId(),
+                    currency: "USD",
+                    amount: 1,
+                    source: {
+                        rail: "lightrail",
+                        code: `\n${otherCode}`
+                    },
+                    destination: {
+                        rail: "lightrail",
+                        code: `${value.code}\r`
+                    }
+                });
+                chai.assert.equal(transferResp.statusCode, 201, `transferResp.body=${JSON.stringify(transferResp.body)}`);
+
+            });
+
+            it("fetches value by code with leading/trailing whitespace", async () => {
+                const fetchLeadingResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?code=%20${value.code}`, "GET");
+                chai.assert.equal(fetchLeadingResp.statusCode, 200, `fetchLeadingResp.body=${JSON.stringify(fetchLeadingResp.body)}`);
+                chai.assert.equal(fetchLeadingResp.body.length, 1, `fetchLeadingResp.body=${JSON.stringify(fetchLeadingResp.body)}`);
+                chai.assert.equal(fetchLeadingResp.body[0].id, value.id, `fetchLeadingResp.body=${JSON.stringify(fetchLeadingResp.body)}`);
+
+                const fetchTrailingResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?code=${value.code}%20`, "GET");
+                chai.assert.equal(fetchTrailingResp.statusCode, 200, `fetchTrailingResp.body=${JSON.stringify(fetchTrailingResp.body)}`);
+                chai.assert.equal(fetchTrailingResp.body.length, 1, `fetchTrailingResp.body=${JSON.stringify(fetchTrailingResp.body)}`);
+                chai.assert.equal(fetchTrailingResp.body[0].id, value.id, `fetchTrailingResp.body=${JSON.stringify(fetchTrailingResp.body)}`);
+
+                const fetchTrailingResp2 = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?code=${value.code}&nbsp`, "GET");
+                chai.assert.equal(fetchTrailingResp2.statusCode, 200, `fetchTrailingResp2.body=${JSON.stringify(fetchTrailingResp2.body)}`);
+                chai.assert.equal(fetchTrailingResp2.body.length, 1, `fetchTrailingResp2.body=${JSON.stringify(fetchTrailingResp2.body)}`);
+                chai.assert.equal(fetchTrailingResp2.body[0].id, value.id, `fetchTrailingResp2.body=${JSON.stringify(fetchTrailingResp2.body)}`);
+            });
         });
     });
 

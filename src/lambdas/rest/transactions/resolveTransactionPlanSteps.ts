@@ -18,6 +18,7 @@ import {computeCodeLookupHash} from "../../../utils/codeCryptoUtils";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {getContact} from "../contacts";
 import {getStripeMinCharge} from "../../../utils/stripeUtils/getStripeMinCharge";
+import {trimCodeIfPresent} from "../values/values";
 
 /**
  * Options to resolving transaction parties.
@@ -115,7 +116,8 @@ export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRou
         .map(p => (p as LightrailTransactionParty).valueId);
 
     const hashedCodesPromises = parties.filter(p => p.rail === "lightrail" && p.code)
-        .map(p => (p as LightrailTransactionParty).code)
+        .map(p => trimCodeIfPresent(p as LightrailTransactionParty))
+        .map(p => p.code)
         .map(code => computeCodeLookupHash(code, auth));
     const hashedCodes = await Promise.all(hashedCodesPromises);
 
