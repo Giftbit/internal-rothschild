@@ -31,7 +31,6 @@ import {
     createValue,
     setDiscountSellerLiabilityPropertiesForLegacySupport
 } from "./createValue";
-import {hasContactValues} from "../contactValues";
 import {QueryBuilder} from "knex";
 import {MetricsLogger} from "../../../utils/metricsLogger";
 import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
@@ -256,36 +255,9 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     const knex = await getKnexRead();
 
     let query: QueryBuilder;
-    const contactId = filterParams["contactId"] || filterParams["contactId.eq"];
-    if (contactId) {
-        // Wrap the UNION query in another select so we can apply WHERE clauses to it below.
-        query = knex.select("*").from(
-            // This UNION query has two parts that each use a different index.  It replaces an earlier
-            // OR query that could only use one of the two indexes and was thus slow.
-            knex.select("*")
-                .from("Values")
-                .where({
-                    "Values.userId": auth.userId,
-                    "Values.contactId": contactId
-                })
-                .union(k => k.select("Values.*")
-                    .from("Values")
-                    .leftJoin("ContactValues", {
-                        "Values.userId": "ContactValues.userId",
-                        "Values.id": "ContactValues.valueId"
-                    })
-                    .where({
-                        "Values.userId": auth.userId,
-                        "ContactValues.contactId": contactId
-                    })
-                )
-                .as("UnionTempTable")
-        );
-    } else {
-        query = knex("Values")
-            .select("*")
-            .where("Values.userId", "=", auth.userId);
-    }
+    query = knex("Values")
+        .select("*")
+        .where("Values.userId", "=", auth.userId);
 
     const paginatedRes = await filterAndPaginateQuery<DbValue>(
         query,
@@ -300,6 +272,11 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                 programId: {
                     type: "string",
                     operators: ["eq", "in"],
+                    valueFilter: isSystemId
+                },
+                contactId: {
+                    type: "string",
+                    operators: ["eq"],
                     valueFilter: isSystemId
                 },
                 issuanceId: {
@@ -521,11 +498,6 @@ function setValueUpdates(existingValue: Value, valueUpdates: Partial<Value>): Va
 }
 
 async function checkForRestrictedUpdates(auth: giftbitRoutes.jwtauth.AuthorizationBadge, existingValue: Value, updatedValue: Value): Promise<void> {
-    if (!Value.isGenericCodeWithPropertiesPerContact(existingValue) && Value.isGenericCodeWithPropertiesPerContact(updatedValue)) {
-        if (await hasContactValues(auth, existingValue.id)) {
-            throw new giftbitRoutes.GiftbitRestError(422, "A shared generic value without genericCodeOptions cannot be updated to have genericCodeOptions.");
-        }
-    }
     if (Value.isGenericCodeWithPropertiesPerContact(existingValue) && !Value.isGenericCodeWithPropertiesPerContact(updatedValue)) {
         throw new giftbitRoutes.GiftbitRestError(422, "A value with genericCodeOptions cannot be updated to no longer have genericCodeOptions.");
     }
@@ -662,14 +634,6 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
     };
 
     const knex = await getKnexRead();
-    const attachedContactValues = await knex("ContactValues")
-        .where({
-            "userId": auth.userId,
-            "valueId": valueId
-        })
-        .count({count: "*"});
-    stats.attachedContacts.count = attachedContactValues[0].count;
-
     const attachedFromGenericValueStats = await knex("Values")
         .where({
             "userId": auth.userId,

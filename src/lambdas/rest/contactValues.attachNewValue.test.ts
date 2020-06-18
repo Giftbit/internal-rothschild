@@ -9,7 +9,7 @@ import * as chai from "chai";
 import {Value} from "../../model/Value";
 import {Transaction} from "../../model/Transaction";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
-import {generateUrlSafeHashFromValueIdContactId} from "./genericCodeWithPerContactOptions";
+import {generateUrlSafeHashFromValueIdContactId} from "./genericCode";
 import {CheckoutRequest} from "../../model/TransactionRequest";
 import {nowInDbPrecision} from "../../utils/dbUtils";
 

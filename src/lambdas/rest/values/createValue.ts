@@ -163,6 +163,14 @@ export function checkValueProperties(value: Value, program: Program = null): voi
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `If using a generic code with genericCodeOption.perContact properties either genericCodeOptions.perContact.balance or balanceRule must be set.`);
     }
 
+    /* todo - Uncomment when `attachGenericAsNewValue: true` is removed.
+    if (value.isGenericCode && value.balance != null && value.genericCodeOptions?.perContact?.balance == null) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value must have \`genericCodeOptions.perContact.balance\` set if balance is set.`);
+    }
+    if (value.isGenericCode && value.usesRemaining != null && value.genericCodeOptions?.perContact?.usesRemaining == null) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value must have \`genericCodeOptions.perContact.usesRemaining\` set if usesRemaining is set.`);
+    }
+    */
     checkRulesSyntax(value, "Value");
 }
 

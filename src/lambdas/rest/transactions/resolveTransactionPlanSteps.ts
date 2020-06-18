@@ -137,15 +137,7 @@ export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRou
     let query = knex.select("*").from(queryBuilder => {
         if (contactIds.length) {
             queryBuilder.union(
-                knex.select("V.*", "CV.contactId AS contactIdForResult") // contactId returned in an extra column so it can be tracked for shared generics looked up by contactId
-                    .from("Values AS V")
-                    .join("ContactValues AS CV", {"V.userId": "CV.userId", "V.id": "CV.valueId"})
-                    .where({"CV.userId": auth.userId})
-                    .andWhere("CV.contactId", "in", contactIds)
-            );
-
-            queryBuilder.union(
-                knex.select("*", "contactId as contactIdForResult")
+                knex.select("*")
                     .from("Values")
                     .where({"userId": auth.userId})
                     .andWhere("contactId", "in", contactIds)
@@ -154,7 +146,7 @@ export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRou
 
         if (hashedCodes.length) {
             queryBuilder.union(
-                knex.select("*", "contactId as contactIdForResult")
+                knex.select("*")
                     .from("Values")
                     .where({"userId": auth.userId})
                     .andWhere("codeHashed", "in", hashedCodes)
@@ -163,7 +155,7 @@ export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRou
 
         if (valueIds.length) {
             queryBuilder.union(
-                knex.select("*", "contactId as contactIdForResult")
+                knex.select("*")
                     .from("Values")
                     .where({"userId": auth.userId})
                     .andWhere("id", "in", valueIds)
@@ -191,7 +183,7 @@ export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRou
         query = query.where(q => q.whereNull("balance").orWhere("balance", ">", 0));
     }
 
-    const dbValues: (DbValue & { contactIdForResult: string | null })[] = await query;
+    const dbValues: DbValue[] = await query;
     const dedupedDbValues = consolidateValueQueryResults(dbValues);
     const values = await Promise.all(dedupedDbValues.map(value => DbValue.toValue(value)));
 
@@ -251,12 +243,8 @@ export async function getContactIdFromSources(auth: giftbitRoutes.jwtauth.Author
     }
 }
 
-function consolidateValueQueryResults(values: (DbValue & { contactIdForResult: string | null })[]): DbValue[] {
+function consolidateValueQueryResults(values: DbValue[]): DbValue[] {
     return values
-        .map((v) => ({
-            ...v,
-            contactId: v.contactId || v.contactIdForResult // Persist the contactId to the value record if it was looked up via the ContactValues table
-        }))
         .filter((v, index, dbValues) => {
             if (v.contactId) {
                 const firstValue = dbValues.find(firstValue => firstValue.id === v.id && firstValue.contactId === v.contactId);

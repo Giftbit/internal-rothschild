@@ -36,7 +36,7 @@ import {createCaptureTransactionPlan} from "./transactions.capture";
 import {createVoidTransactionPlan} from "./transactions.void";
 import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {Value} from "../../../model/Value";
-import {getAttachTransactionPlanForGenericCodeWithPerContactOptions} from "../genericCodeWithPerContactOptions";
+import {getAttachTransactionPlanForGenericCodeWithPerContactOptions} from "../genericCode";
 import {isSystemId} from "../../../utils/isSystemId";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;

@@ -8,7 +8,7 @@ import {createCurrency} from "../currencies";
 import {Contact} from "../../../model/Contact";
 import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
 import {CheckoutRequest, CreditRequest, ReverseRequest} from "../../../model/TransactionRequest";
-import {generateUrlSafeHashFromValueIdContactId} from "../genericCodeWithPerContactOptions";
+import {generateUrlSafeHashFromValueIdContactId} from "../genericCode";
 import {Program} from "../../../model/Program";
 import {generateCode} from "../../../utils/codeGenerator";
 import {generateLegacyHashForValueIdContactId} from "../contactValues";

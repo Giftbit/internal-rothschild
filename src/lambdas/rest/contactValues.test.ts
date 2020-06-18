@@ -11,7 +11,7 @@ import {createCurrency} from "./currencies";
 import {generateCode} from "../../utils/codeGenerator";
 import chaiExclude from "chai-exclude";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
-import {generateUrlSafeHashFromValueIdContactId} from "./genericCodeWithPerContactOptions";
+import {generateUrlSafeHashFromValueIdContactId} from "./genericCode";
 import {generateLegacyHashForValueIdContactId} from "./contactValues";
 import {nowInDbPrecision} from "../../utils/dbUtils";
 import {updateValue} from "./values/values";
@@ -379,7 +379,8 @@ describe("/v2/contacts/values", () => {
         });
     });
 
-    describe("Shared Generic code scenario", () => {
+    // why can't all generic codes with usesRemaining set, no balance, and no perContact.usesRemaining be set to have perContact.usesRemaining: 1 (this is what's happening in the migration).
+    describe("shared generic code scenario", () => {
         const value: Partial<Value> = {
             id: generateId(),
             currency: currency.code,
@@ -388,8 +389,7 @@ describe("/v2/contacts/values", () => {
                 explanation: "$5 done the hard way"
             },
             code: generateFullcode(),
-            isGenericCode: true,
-            usesRemaining: 20
+            isGenericCode: true
         };
 
         before(async () => {
@@ -400,9 +400,9 @@ describe("/v2/contacts/values", () => {
         it("can attach", async () => {
             const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: value.code});
             chai.assert.equal(attach.statusCode, 200, `body=${JSON.stringify(attach.body)}`);
-            chai.assert.isNull(attach.body.contactId);
-            chai.assert.equal(attach.body.id, value.id);
-            chai.assert.equal(attach.body.usesRemaining, value.usesRemaining, "uses remaining is not reduced during attach");
+            chai.assert.equal(contact.id, attach.body.contactId);
+            chai.assert.isFalse(attach.body.isGenericCode);
+            chai.assert.isNull(attach.body.usesRemaining);
         });
 
         it("can detach", async () => {

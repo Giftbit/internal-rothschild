@@ -9,7 +9,7 @@ import {Contact} from "../../../model/Contact";
 import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
 import {CheckoutRequest} from "../../../model/TransactionRequest";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
-import {generateUrlSafeHashFromValueIdContactId} from "../genericCodeWithPerContactOptions";
+import {generateUrlSafeHashFromValueIdContactId} from "../genericCode";
 import chaiExclude from "chai-exclude";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 
