@@ -68,10 +68,7 @@ describe("whitespace handling - all resources", () => {
                 chai.assert.equal(attachResp.body["messageCode"], "ContactNotFound", `attachResp.body=${JSON.stringify(attachResp.body)}`);
             });
 
-            it.skip("does not transact against contactIds with whitespace", async () => {
-                // todo change tx party evaluation? using json schema to validate results in a confusing error:
-                //  {"message":"The POST body has 1 validation error(s):
-                //  requestBody.sources[0] is not exactly one from \"lightrail\",\"stripe\",\"internal\".","statusCode":422}
+            it("does not transact against contactIds with whitespace", async () => {
                 await testUtils.createUSDValue(router, {contactId: contact.id}); // 'contact not found' is indistinguishable from 'contact has no attached values' in checkout failures
                 const txResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/checkout", "POST", {
                     id: testUtils.generateId(),
@@ -83,6 +80,7 @@ describe("whitespace handling - all resources", () => {
                     }]
                 });
                 chai.assert.equal(txResp.statusCode, 409, `txResp.body=${JSON.stringify(txResp.body)}`);
+                chai.assert.equal(txResp.body["messageCode"], "InsufficientBalance", `txResp.body=${JSON.stringify(txResp.body)}`);
             });
 
             it("does not return values when searching by contactId with whitespace", async () => {
@@ -146,9 +144,9 @@ describe("whitespace handling - all resources", () => {
                     chai.assert.equal(attachTrailingResp.body["messageCode"], "ValueNotFound", `attachTrailingResp.body=${JSON.stringify(attachTrailingResp.body)}`);
                 });
 
-                it.skip("does not transact against valueIds with whitespace", async () => {
-                    // todo tx party schema validation vs nicer error
+                it("does not transact against valueIds with whitespace", async () => {
                     const creditResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/credit", "POST", {
+                        id: testUtils.generateId(),
                         currency: "USD",
                         amount: 1,
                         destination: {
@@ -160,6 +158,7 @@ describe("whitespace handling - all resources", () => {
                     chai.assert.equal(creditResp.body["messageCode"], "InvalidParty", `creditResp.body=${JSON.stringify(creditResp.body)}`);
 
                     const debitResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/debit", "POST", {
+                        id: testUtils.generateId(),
                         currency: "USD",
                         amount: 1,
                         source: {
@@ -169,6 +168,18 @@ describe("whitespace handling - all resources", () => {
                     });
                     chai.assert.equal(debitResp.statusCode, 409, `debitResp.body=${JSON.stringify(debitResp.body)}`);
                     chai.assert.equal(debitResp.body["messageCode"], "InvalidParty", `debitResp.body=${JSON.stringify(debitResp.body)}`);
+
+                    const checkoutResponse = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/transactions/checkout`, "POST", {
+                        id: testUtils.generateId(),
+                        currency: "USD",
+                        lineItems: [{unitPrice: 1}],
+                        sources: [{
+                            rail: "lightrail",
+                            valueId: `${value.id}\n`
+                        }]
+                    });
+                    chai.assert.equal(checkoutResponse.statusCode, 409, `checkoutResponse.body=${checkoutResponse.body}`);
+                    chai.assert.equal(checkoutResponse.body["messageCode"], "InsufficientBalance", `checkoutResponse.body=${checkoutResponse.body}`);
                 });
 
                 it("does not return contacts when searching by valueId with whitespace", async () => {

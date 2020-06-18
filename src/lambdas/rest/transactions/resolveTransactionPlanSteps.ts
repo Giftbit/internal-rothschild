@@ -19,6 +19,7 @@ import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {getContact} from "../contacts";
 import {getStripeMinCharge} from "../../../utils/stripeUtils/getStripeMinCharge";
 import {trimCodeIfPresent} from "../values/values";
+import {isSystemId} from "../../../utils/isSystemId";
 
 /**
  * Options to resolving transaction parties.
@@ -112,7 +113,7 @@ export function getTransactionPlanStepsFromSources(lightrailSources: Value[], no
 }
 
 export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[], options: ResolveTransactionPartiesOptions): Promise<Value[]> {
-    const valueIds = parties.filter(p => p.rail === "lightrail" && p.valueId)
+    const valueIds = parties.filter(p => p.rail === "lightrail" && p.valueId && isSystemId(p.valueId))
         .map(p => (p as LightrailTransactionParty).valueId);
 
     const hashedCodesPromises = parties.filter(p => p.rail === "lightrail" && p.code)
@@ -121,7 +122,7 @@ export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRou
         .map(code => computeCodeLookupHash(code, auth));
     const hashedCodes = await Promise.all(hashedCodesPromises);
 
-    const contactIds = parties.filter(p => p.rail === "lightrail" && p.contactId)
+    const contactIds = parties.filter(p => p.rail === "lightrail" && p.contactId && isSystemId(p.contactId))
         .map(p => (p as LightrailTransactionParty).contactId);
 
     if (!valueIds.length && !hashedCodes.length && !contactIds.length) {

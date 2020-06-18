@@ -1,7 +1,6 @@
 import {LineItemRequest} from "./LineItem";
 import {TaxRequestProperties} from "./TaxProperties";
 import * as jsonschema from "jsonschema";
-import {isSystemId} from "../utils/isSystemId";
 
 export interface CheckoutRequest {
     id: string;
@@ -120,14 +119,12 @@ export namespace transactionPartySchema {
             },
             contactId: {
                 type: "string",
-                pattern: isSystemId.regexString
             },
             code: {
                 type: "string"
             },
             valueId: {
                 type: "string",
-                pattern: isSystemId.regexString
             }
         },
         oneOf: [
@@ -164,7 +161,6 @@ export namespace transactionPartySchema {
             },
             valueId: {
                 type: "string",
-                pattern: isSystemId.regexString
             }
         },
         oneOf: [
