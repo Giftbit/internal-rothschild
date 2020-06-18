@@ -453,12 +453,61 @@ describe("whitespace handling - all resources", () => {
     });
 
     describe("programs", () => {
-        it("does not allow programIds to be created with leading/trailing whitespace");
-        it("404s when looking up a program by id with leading/trailing whitespace");
+        let program;
+        before(async () => {
+            const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
+                id: testUtils.generateId(),
+                currency: "USD",
+                name: "Irreverent test program"
+            });
+            chai.assert.equal(programResp.statusCode, 201, `programResp.body=${JSON.stringify(programResp.body)}`);
+            program = programResp.body;
+        });
+
+        it("does not allow programIds to be created with leading/trailing whitespace", async () => {
+            const createLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", {
+                id: `\r${testUtils.generateId()}`,
+                currency: "USD",
+                name: "Irrelevant test program"
+            });
+            chai.assert.equal(createLeadingResp.statusCode, 422, `createLeadingResp.body=${JSON.stringify(createLeadingResp.body)}`);
+
+            const createTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", {
+                id: `${testUtils.generateId()}\v`,
+                currency: "USD",
+                name: "Irrelevant test program"
+            });
+            chai.assert.equal(createTrailingResp.statusCode, 422, `createTrailingResp.body=${JSON.stringify(createTrailingResp.body)}`);
+        });
+
+        it("404s when looking up a program by id with leading/trailing whitespace", async () => {
+            const fetchLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/%20${program.id}`, "GET");
+            chai.assert.equal(fetchLeadingResp.statusCode, 404, `fetchLeadingResp.body=${JSON.stringify(fetchLeadingResp.body)}`);
+            const fetchTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${program.id}%20`, "GET");
+            chai.assert.equal(fetchTrailingResp.statusCode, 404, `fetchLeadingResp.body=${JSON.stringify(fetchTrailingResp.body)}`);
+        });
 
         describe("FK references to programIds", () => {
-            it("does not allow values to be created from programIds with whitespace");
-            it("does not return values when searching by programId with whitespace");
+            it("does not allow values to be created from programIds with whitespace", async () => {
+                const createValueResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", {
+                    id: testUtils.generateId(),
+                    programId: `\t${program.id}`,
+                    balance: 1
+                });
+                chai.assert.equal(createValueResp.statusCode, 422, `createValueResp.body=${JSON.stringify(createValueResp.body)}`);
+            });
+
+            it("does not return values when searching by programId with whitespace", async () => {
+                const createValueResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", {
+                    id: testUtils.generateId(),
+                    programId: program.id,
+                    balance: 1
+                });
+                chai.assert.equal(createValueResp.statusCode, 201, `createValueResp.body=${JSON.stringify(createValueResp.body)}`);
+                const searchValuesResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?programId=${program.id}%20`, "GET");
+                chai.assert.equal(searchValuesResp.statusCode, 200, `searchValuesResp.body=${JSON.stringify(searchValuesResp.body)}`);
+                chai.assert.equal(searchValuesResp.body.length, 0, `searchValuesResp.body=${JSON.stringify(searchValuesResp.body)}`);
+            });
 
             it("does not allow issuances to be created from programIds with whitespace");
             // todo: is this a thing?
