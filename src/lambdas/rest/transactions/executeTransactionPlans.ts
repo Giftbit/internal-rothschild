@@ -24,6 +24,7 @@ import {transactionPartySchema} from "../../../model/TransactionRequest";
 import log = require("loglevel");
 import Knex = require("knex");
 import lightrail = transactionPartySchema.lightrail;
+import {isSystemId} from "../../../utils/isSystemId";
 
 export interface ExecuteTransactionPlannerOptions {
     allowRemainder: boolean;
@@ -156,6 +157,10 @@ async function rollbackTransactionPlan(auth: giftbitRoutes.jwtauth.Authorization
 }
 
 function validateTransactionPlan(plan: TransactionPlan, options: ExecuteTransactionPlannerOptions): void {
+    if (!isSystemId(plan.currency)) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${plan.currency}' does not exist. See the documentation on creating currencies.`, "CurrencyNotFound");
+    }
+
     if ((plan.totals && plan.totals.remainder && !options.allowRemainder) ||
         plan.steps.find(step => step.rail === "lightrail" && step.action === "update" && step.value.balance != null && step.value.balance + step.amount < 0)) {
         throw new giftbitRoutes.GiftbitRestError(409, "Insufficient balance for the transaction.", "InsufficientBalance");

@@ -379,6 +379,10 @@ function checkProgramProperties(program: Program): void {
     }
 
     checkRulesSyntax(program, "Program");
+
+    if (!isSystemId(program.currency)) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${program.currency}' does not exist. See the documentation on creating currencies.`, "CurrencyNotFound");
+    }
 }
 
 function hasDuplicates(array) {
@@ -585,8 +589,7 @@ const programSchema: jsonschema.Schema = {
         currency: {
             type: "string",
             minLength: 1,
-            maxLength: 16,
-            pattern: isSystemId.regexString
+            maxLength: 16
         },
         discount: {
             type: "boolean"

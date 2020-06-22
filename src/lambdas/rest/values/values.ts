@@ -805,13 +805,11 @@ const valueSchema: jsonschema.Schema = {
             type: "string",
             minLength: 1,
             maxLength: 16,
-            pattern: isSystemId.regexString
         },
         programId: {
             type: ["string", null],
             maxLength: 64,
             minLength: 1,
-            pattern: isSystemId.regexString
         },
         balance: {
             type: ["integer", "null"],
@@ -878,7 +876,6 @@ const valueSchema: jsonschema.Schema = {
             type: ["string", "null"],
             minLength: 1,
             maxLength: 64,
-            pattern: isSystemId.regexString
         },
         active: {
             type: "boolean"
