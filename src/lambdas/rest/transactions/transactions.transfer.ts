@@ -48,7 +48,7 @@ export function createTransferTransactionPlan(req: TransferRequest, steps: Trans
     const plan: TransactionPlan = {
         id: req.id,
         transactionType: "transfer" as TransactionType,
-        currency: req.currency,
+        currency: req.currency?.toUpperCase(),
         steps: [
             steps.sourceStep,
             steps.destStep

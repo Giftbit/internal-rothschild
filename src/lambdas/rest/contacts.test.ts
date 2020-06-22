@@ -398,6 +398,39 @@ describe("/v2/contacts", () => {
         });
     });
 
+    it("treats contactId as case sensitive", async () => {
+        const contact1: Partial<Contact> = {
+            id: generateId() + "-A"
+        };
+        const contact2: Partial<Contact> = {
+            id: contact1.id.toLowerCase()
+        };
+        chai.assert.notEqual(contact1.id, contact2.id);
+
+        const postContact1Resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact1);
+        chai.assert.equal(postContact1Resp.statusCode, 201);
+
+        const postContact2Resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact2);
+        chai.assert.equal(postContact2Resp.statusCode, 201, postContact2Resp.bodyRaw);
+
+        const getContact1Resp = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/${contact1.id}`, "GET");
+        chai.assert.equal(getContact1Resp.statusCode, 200);
+        chai.assert.equal(getContact1Resp.body.id, contact1.id);
+
+        const getContact2Resp = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/${contact2.id}`, "GET");
+        chai.assert.equal(getContact2Resp.statusCode, 200);
+        chai.assert.equal(getContact2Resp.body.id, contact2.id);
+        chai.assert.notEqual(getContact1Resp.body.id, getContact2Resp.body.id);
+
+        const getContacts1Resp = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?id=${contact1.id}`, "GET");
+        chai.assert.equal(getContacts1Resp.statusCode, 200);
+        chai.assert.deepEqual(getContacts1Resp.body, [getContact1Resp.body]);
+
+        const getContacts2Resp = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?id=${contact2.id}`, "GET");
+        chai.assert.equal(getContacts2Resp.statusCode, 200);
+        chai.assert.deepEqual(getContacts2Resp.body, [getContact2Resp.body]);
+    });
+
     describe("filters and pagination", () => {
         const contacts: Partial<DbContact>[] = [
             {

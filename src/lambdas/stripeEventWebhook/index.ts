@@ -54,5 +54,5 @@ installStripeEventWebhookRest(router);
 export const handler = giftbitRoutes.sentry.wrapLambdaHandler({
     router,
     logger: log.error,
-    secureConfig: giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<any>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_SENTRY")
+    sentryDsn: process.env["SENTRY_DSN"]
 });

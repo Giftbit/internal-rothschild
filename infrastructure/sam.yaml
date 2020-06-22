@@ -35,6 +35,10 @@ Parameters:
     Type: String
     Description: Optional ARN of the KMS encrypting SecureConfigBucket
     AllowedPattern: arn:aws:kms:[a-zA-Z_0-9\-]+:\d{12}:key/[a-zA-Z_0-9+=,.@\-_/]+
+  SentryDsn:
+    Type: String
+    Description: You can find your project’s DSN in the “Client Keys” section of your “Project Settings” in Sentry.
+    AllowedPattern: https://[0-9a-f]+@o[0-9a-f]+.ingest.sentry.io/[0-9]+
   VpcUniqueNumber:
     Type: Number
     Description: The value to prefix the regions subnets with
@@ -474,10 +478,10 @@ Resources:
           DB_PASSWORD_PARAMETER: !GetAtt DbCredentials.PasswordParameter
           LIGHTRAIL_DOMAIN: !Ref LightrailDomain
           SECURE_CONFIG_BUCKET: !Ref SecureConfigBucket
-          SECURE_CONFIG_KEY_SENTRY: sentry_lambda_services.json
           SECURE_CONFIG_KEY_STRIPE: stripe_connect.json
           SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH: assumeRetrieveStripeAuth.json
           SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY: code_cryptography_secrets.json
+          SENTRY_DSN: !Ref SentryDsn
       VpcConfig:
         SecurityGroupIds:
           - !GetAtt LambdaSecurityGroup.GroupId
@@ -505,7 +509,6 @@ Resources:
               Action:
                 - s3:GetObject
               Resource:
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/stripe_connect.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeRetrieveStripeAuth.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/code_cryptography_secrets.json"
@@ -554,8 +557,8 @@ Resources:
           SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY: code_cryptography_secrets.json
           SECURE_CONFIG_KEY_JWT: authentication_badge_key.json
           SECURE_CONFIG_KEY_ROLE_DEFINITIONS: RoleDefinitions.json
-          SECURE_CONFIG_KEY_SENTRY: sentry_lambda_services.json
           SECURE_CONFIG_KEY_STRIPE: stripe_connect.json
+          SENTRY_DSN: !Ref SentryDsn
       VpcConfig:
         SecurityGroupIds:
           - !GetAtt LambdaSecurityGroup.GroupId
@@ -585,7 +588,6 @@ Resources:
               Resource:
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/authentication_badge_key.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/RoleDefinitions.json"
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/code_cryptography_secrets.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/stripe_connect.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeRetrieveStripeAuth.json"
@@ -636,8 +638,8 @@ Resources:
           SECURE_CONFIG_BUCKET: !Ref SecureConfigBucket
           SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH: assumeRetrieveStripeAuth.json
           SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY: code_cryptography_secrets.json
-          SECURE_CONFIG_KEY_SENTRY: sentry_lambda_services.json
           SECURE_CONFIG_KEY_STRIPE: stripe_connect.json
+          SENTRY_DSN: !Ref SentryDsn
       VpcConfig:
         SecurityGroupIds:
           - !GetAtt LambdaSecurityGroup.GroupId
@@ -667,7 +669,6 @@ Resources:
               Resource:
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/assumeRetrieveStripeAuth.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/code_cryptography_secrets.json"
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/stripe_connect.json"
             - Effect: Allow
               Action:
@@ -803,7 +804,7 @@ Resources:
           READ_REPLICA_SERVER_ID: 1234
           SECURE_CONFIG_BUCKET: !Ref SecureConfigBucket
           SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY: code_cryptography_secrets.json
-          SECURE_CONFIG_KEY_SENTRY: sentry_lambda_services.json
+          SENTRY_DSN: !Ref SentryDsn
       VpcConfig:
         SecurityGroupIds:
           - !GetAtt LambdaSecurityGroup.GroupId
@@ -832,7 +833,6 @@ Resources:
                 - s3:GetObject
               Resource:
                 - !Sub "arn:aws:s3:::${SecureConfigBucket}/code_cryptography_secrets.json"
-                - !Sub "arn:aws:s3:::${SecureConfigBucket}/sentry_lambda_services.json"
             - Effect: Allow
               Action:
                 - kms:Decrypt

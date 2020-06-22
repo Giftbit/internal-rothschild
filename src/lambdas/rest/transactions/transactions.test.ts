@@ -4,7 +4,7 @@ import * as testUtils from "../../../utils/testUtils";
 import {alternateTestUser, defaultTestUser, generateId} from "../../../utils/testUtils";
 import * as currencies from "../currencies";
 import {Transaction} from "../../../model/Transaction";
-import {DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
+import {CreditRequest, DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
 import {Value} from "../../../model/Value";
 import {installRestRoutes} from "../installRestRoutes";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
@@ -179,6 +179,51 @@ describe("/v2/transactions", () => {
         chai.assert.equal(resp.body.messageCode, "CannotDeleteTransaction");
     });
 
+    it("treats valueId as case sensitive", async () => {
+        const tx1: Partial<CreditRequest> = {
+            id: generateId() + "-A",
+            destination: {
+                rail: "lightrail",
+                valueId: value1.id
+            },
+            amount: 2,
+            currency: "CAD"
+        };
+        const tx2: Partial<CreditRequest> = {
+            id: tx1.id.toLowerCase(),
+            destination: {
+                rail: "lightrail",
+                valueId: value1.id
+            },
+            amount: 2,
+            currency: "CAD"
+        };
+        chai.assert.notEqual(tx1.id, tx2.id);
+
+        const postTx1Resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", tx1);
+        chai.assert.equal(postTx1Resp.statusCode, 201, postTx1Resp.bodyRaw);
+
+        const postTx2Resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", tx2);
+        chai.assert.equal(postTx2Resp.statusCode, 201, postTx2Resp.bodyRaw);
+
+        const getTx1Resp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${tx1.id}`, "GET");
+        chai.assert.equal(getTx1Resp.statusCode, 200);
+        chai.assert.equal(getTx1Resp.body.id, tx1.id);
+
+        const getTx2Resp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${tx2.id}`, "GET");
+        chai.assert.equal(getTx2Resp.statusCode, 200);
+        chai.assert.equal(getTx2Resp.body.id, tx2.id);
+        chai.assert.notEqual(getTx1Resp.body.id, getTx2Resp.body.id);
+
+        const getTxs1Resp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?id=${tx1.id}`, "GET");
+        chai.assert.equal(getTxs1Resp.statusCode, 200);
+        chai.assert.deepEqual(getTxs1Resp.body, [getTx1Resp.body]);
+
+        const getTxs2Resp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?id=${tx2.id}`, "GET");
+        chai.assert.equal(getTxs2Resp.statusCode, 200);
+        chai.assert.deepEqual(getTxs2Resp.body, [getTx2Resp.body]);
+    });
+
     describe("userId isolation", () => {
         it("doesn't leak /transactions", async () => {
             const resp1 = await testUtils.testAuthedRequest<Transaction[]>(router, "/v2/transactions", "GET");
@@ -301,8 +346,8 @@ describe("/v2/transactions", () => {
                         valueId: value1.id,
                         code: null,
                         contactId: null,
-                        balanceBefore: 995,
-                        balanceAfter: 946,
+                        balanceBefore: 999,
+                        balanceAfter: 950,
                         balanceChange: -49,
                         usesRemainingBefore: null,
                         usesRemainingAfter: null,

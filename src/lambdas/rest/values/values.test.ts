@@ -250,6 +250,43 @@ describe("/v2/values/", () => {
         chai.assert.deepEqual(resp.body, value1);
     });
 
+    it("treats valueId as case sensitive", async () => {
+        const value1: Partial<Value> = {
+            id: generateId() + "-A",
+            balance: 5,
+            currency: "USD"
+        };
+        const value2: Partial<Value> = {
+            id: value1.id.toLowerCase(),
+            balance: 5,
+            currency: "USD"
+        };
+        chai.assert.notEqual(value1.id, value2.id);
+
+        const postValue1Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
+        chai.assert.equal(postValue1Resp.statusCode, 201);
+
+        const postValue2Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value2);
+        chai.assert.equal(postValue2Resp.statusCode, 201, postValue2Resp.bodyRaw);
+
+        const getValue1Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "GET");
+        chai.assert.equal(getValue1Resp.statusCode, 200);
+        chai.assert.equal(getValue1Resp.body.id, value1.id);
+
+        const getValue2Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value2.id}`, "GET");
+        chai.assert.equal(getValue2Resp.statusCode, 200);
+        chai.assert.equal(getValue2Resp.body.id, value2.id);
+        chai.assert.notEqual(getValue1Resp.body.id, getValue2Resp.body.id);
+
+        const getValues1Resp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?id=${value1.id}`, "GET");
+        chai.assert.equal(getValues1Resp.statusCode, 200);
+        chai.assert.deepEqual(getValues1Resp.body, [getValue1Resp.body]);
+
+        const getValues2Resp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?id=${value2.id}`, "GET");
+        chai.assert.equal(getValues2Resp.statusCode, 200);
+        chai.assert.deepEqual(getValues2Resp.body, [getValue2Resp.body]);
+    });
+
     it("409s on creating a value with a duplicate id", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", {
             id: value1.id,

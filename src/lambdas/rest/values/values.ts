@@ -10,7 +10,7 @@ import {
     filterAndPaginateQuery,
     getSqlErrorConstraintName,
     nowInDbPrecision
-} from "../../../utils/dbUtils/index";
+} from "../../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../../utils/dbUtils/connection";
 import {DbCode} from "../../../model/DbCode";
 import {generateCode} from "../../../utils/codeGenerator";
@@ -56,7 +56,7 @@ export function installValuesRest(router: cassava.Router): void {
             const res = await getValues(auth, trimCodeIfPresent(evt.queryStringParameters), Pagination.getPaginationParams(evt), showCode);
 
             if (evt.queryStringParameters.stats === "true") {
-                // For now this is a secret param only Yervana knows about.
+                // For now this is a secret param only Yervana and Chairish know about.
                 await injectValueStats(auth, res.values);
             }
 
@@ -130,7 +130,7 @@ export function installValuesRest(router: cassava.Router): void {
             const value = await getValue(auth, evt.pathParameters.id, showCode);
 
             if (evt.queryStringParameters.stats === "true") {
-                // For now this is a secret param only Yervana knows about.
+                // For now this is a secret param only Yervana and Chairish know about.
                 await injectValueStats(auth, [value]);
             }
 
@@ -397,9 +397,6 @@ export async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, i
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
     }
-    if (res[0].id !== id) {
-        MetricsLogger.caseInsensitiveRetrieval("getValue", res[0].id, id, auth);
-    }
     return DbValue.toValue(res[0], showCode);
 }
 
@@ -505,9 +502,6 @@ export async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             throw new Error(`Illegal UPDATE query.  Updated ${updateRes} values.`);
         }
         MetricsLogger.valueUpdated(valueUpdates, auth);
-        if (existingValue.id !== id) {
-            MetricsLogger.caseInsensitiveRetrieval("updateValue", existingValue.id, id, auth);
-        }
         return updatedValue;
     });
 }
@@ -604,7 +598,7 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
 }
 
 /**
- * This is currently a secret operation only Yervana knows about.
+ * For now this is a secret param only Yervana and Chairish know about.
  */
 export async function injectValueStats(auth: giftbitRoutes.jwtauth.AuthorizationBadge, values: Value[]): Promise<void> {
     auth.requireIds("userId");
