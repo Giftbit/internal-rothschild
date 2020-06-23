@@ -17,7 +17,7 @@ import {nowInDbPrecision} from "../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
-describe("/v2/issuances", () => {
+describe("/v2/programs/{id}/issuances", () => {
 
     const router = new cassava.Router();
     const sinonSandbox = sinon.createSandbox();
@@ -816,5 +816,60 @@ describe("/v2/issuances", () => {
         chai.assert.equal(generateCodeStub.callCount, 4);
         chai.assert.sameDeepMembers(values.body.map(v => v.code), [code1, code2]);
         generateCodeStub.restore();
+    });
+
+    describe("whitespace handling", () => {
+        let program;
+        before(async () => {
+            const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
+                id: testUtils.generateId(),
+                currency: "USD",
+                name: "Irreverent test program"
+            });
+            chai.assert.equal(programResp.statusCode, 201, `programResp.body=${JSON.stringify(programResp.body)}`);
+            program = programResp.body;
+        });
+
+        it("422s creating issuanceIds with leading/trailing whitespace", async () => {
+            const issuanceResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${program.id}/issuances`, "POST", {
+                id: `\r${testUtils.generateId()}`,
+                name: testUtils.generateId(),
+                count: 1
+            });
+            chai.assert.equal(issuanceResp.statusCode, 422, `issuanceResp.body=${JSON.stringify(issuanceResp.body)}`);
+        });
+
+        it("404s looking up an issuance by id with leading/trailing whitespace", async () => {
+            const createIssuanceResp = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", {
+                id: testUtils.generateId(),
+                name: testUtils.generateId(),
+                count: 5
+            });
+            chai.assert.equal(createIssuanceResp.statusCode, 201, `createIssuanceResp.body=${JSON.stringify(createIssuanceResp.body)}`);
+
+            const fetchIssuanceLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${program.id}/issuances/%0D%0A${createIssuanceResp.body.id}`, "GET");
+            chai.assert.equal(fetchIssuanceLeadingResp.statusCode, 404, `fetchIssuanceLeadingResp.body=${JSON.stringify(fetchIssuanceLeadingResp.body)}`);
+            const fetchIssuanceTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${program.id}/issuances/${createIssuanceResp.body.id}%20`, "GET");
+            chai.assert.equal(fetchIssuanceTrailingResp.statusCode, 404, `fetchIssuanceTrailingResp.body=${JSON.stringify(fetchIssuanceTrailingResp.body)}`);
+        });
+
+        describe("FK references to issuanceIds", () => {
+            it("does not find values when searching by issuanceId with whitespace", async () => {
+                const issuanceProps = {
+                    id: testUtils.generateId(),
+                    name: testUtils.generateId(),
+                    count: 5
+                };
+                const createIssuanceResp = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", issuanceProps);
+                chai.assert.equal(createIssuanceResp.statusCode, 201, `createIssuanceResp.body=${JSON.stringify(createIssuanceResp.body)}`);
+
+                const getValuesLeadingResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?issuanceId=%20${issuanceProps.id}`, "GET");
+                chai.assert.equal(getValuesLeadingResp.statusCode, 200, `getValuesLeadingResp.body=${JSON.stringify(getValuesLeadingResp.body)}`);
+                chai.assert.equal(getValuesLeadingResp.body.length, 0, `getValuesLeadingResp.body=${JSON.stringify(getValuesLeadingResp.body)}`);
+                const getValuesTrailingResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?issuanceId=${issuanceProps.id}%0D%0A`, "GET");
+                chai.assert.equal(getValuesTrailingResp.statusCode, 200, `getValuesTrailingResp.body=${JSON.stringify(getValuesTrailingResp.body)}`);
+                chai.assert.equal(getValuesTrailingResp.body.length, 0, `getValuesTrailingResp.body=${JSON.stringify(getValuesTrailingResp.body)}`);
+            });
+        });
     });
 });
