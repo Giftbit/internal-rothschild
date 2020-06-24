@@ -854,7 +854,7 @@ describe("/v2/programs/{id}/issuances", () => {
         });
 
         describe("FK references to issuanceIds", () => {
-            it("does not find values when searching by issuanceId with whitespace", async () => {
+            it("does not find values when searching by issuanceId with leading/trailing whitespace", async () => {
                 const issuanceProps = {
                     id: testUtils.generateId(),
                     name: testUtils.generateId(),

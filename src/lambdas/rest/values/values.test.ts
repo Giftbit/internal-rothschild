@@ -2155,7 +2155,7 @@ describe("/v2/values/", () => {
             });
 
             describe("FK references to valueIds", () => {
-                it("404s attaching valueIds with whitespace", async () => {
+                it("404s attaching valueIds with leading/trailing whitespace", async () => {
                     const attachLeadingResp = await testUtils.testAuthedRequest<GiftbitRestError>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
                         valueId: `%20${value.id}`
                     });
@@ -2168,7 +2168,7 @@ describe("/v2/values/", () => {
                     chai.assert.equal(attachTrailingResp.body["messageCode"], "ValueNotFound", `attachTrailingResp.body=${JSON.stringify(attachTrailingResp.body)}`);
                 });
 
-                it("409s transacting against valueIds with whitespace", async () => {
+                it("409s transacting against valueIds with leading/trailing whitespace", async () => {
                     const creditResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/credit", "POST", {
                         id: testUtils.generateId(),
                         currency: "USD",
@@ -2206,7 +2206,7 @@ describe("/v2/values/", () => {
                     chai.assert.equal(checkoutResponse.body["messageCode"], "InsufficientBalance", `checkoutResponse.body=${checkoutResponse.body}`);
                 });
 
-                it("does not return contacts when searching by valueId with whitespace", async () => {
+                it("does not return contacts when searching by valueId with leading/trailing whitespace", async () => {
                     const generic = await testUtils.createUSDValue(router, {
                         isGenericCode: true,
                         balance: null,
@@ -2227,7 +2227,7 @@ describe("/v2/values/", () => {
                     chai.assert.equal(fetchTrailingResp.body.length, 0, `fetchTrailingResp.body=${JSON.stringify(fetchTrailingResp.body)}`);
                 });
 
-                it("does not return transactions when searching by valueId with whitespace", async () => {
+                it("does not return transactions when searching by valueId with leading/trailing whitespace", async () => {
                     const txs = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${value.id}`, "GET"); // initialBalance
                     chai.assert.equal(txs.statusCode, 200, `txs.body=${JSON.stringify(txs.body)}`);
                     chai.assert.isAtLeast(txs.body.length, 1, `txs.body=${JSON.stringify(txs.body)}`);
