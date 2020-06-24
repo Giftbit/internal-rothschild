@@ -2290,18 +2290,7 @@ describe("/v2/programs", () => {
         chai.assert.equal(list.statusCode, 200, "The orNull functionality is tested through filterQuery tests. This test just ensures the orNull operator is allowed on endDate.");
     });
 
-    describe("programs", () => {
-        let program;
-        before(async () => {
-            const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
-                id: testUtils.generateId(),
-                currency: "USD",
-                name: "Irreverent test program"
-            });
-            chai.assert.equal(programResp.statusCode, 201, `programResp.body=${JSON.stringify(programResp.body)}`);
-            program = programResp.body;
-        });
-
+    describe("whitespace handling", () => {
         it("422s creating programIds with leading/trailing whitespace", async () => {
             const createLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", {
                 id: `\r${testUtils.generateId()}`,
@@ -2319,6 +2308,14 @@ describe("/v2/programs", () => {
         });
 
         it("404s when looking up a program by id with leading/trailing whitespace", async () => {
+            const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
+                id: testUtils.generateId(),
+                currency: "USD",
+                name: "Another test program"
+            });
+            chai.assert.equal(programResp.statusCode, 201, `programResp.body=${JSON.stringify(programResp.body)}`);
+            const program = programResp.body;
+
             const fetchLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/%20${program.id}`, "GET");
             chai.assert.equal(fetchLeadingResp.statusCode, 404, `fetchLeadingResp.body=${JSON.stringify(fetchLeadingResp.body)}`);
             const fetchTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${program.id}%20`, "GET");
@@ -2326,10 +2323,21 @@ describe("/v2/programs", () => {
         });
 
         describe("FK references to programIds", () => {
+            let programForFKReferences;
+            before(async () => {
+                const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
+                    id: testUtils.generateId(),
+                    currency: "USD",
+                    name: "Irreverent test program"
+                });
+                chai.assert.equal(programResp.statusCode, 201, `programResp.body=${JSON.stringify(programResp.body)}`);
+                programForFKReferences = programResp.body;
+            });
+
             it("404s creating values from programIds with whitespace", async () => {
                 const createValueResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", {
                     id: testUtils.generateId(),
-                    programId: `\t${program.id}`,
+                    programId: `\t${programForFKReferences.id}`,
                     balance: 1
                 });
                 chai.assert.equal(createValueResp.statusCode, 404, `createValueResp.body=${JSON.stringify(createValueResp.body)}`);
@@ -2339,17 +2347,17 @@ describe("/v2/programs", () => {
             it("does not find values when searching by programId with whitespace", async () => {
                 const createValueResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", {
                     id: testUtils.generateId(),
-                    programId: program.id,
+                    programId: programForFKReferences.id,
                     balance: 1
                 });
                 chai.assert.equal(createValueResp.statusCode, 201, `createValueResp.body=${JSON.stringify(createValueResp.body)}`);
-                const searchValuesResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?programId=${program.id}%20`, "GET");
+                const searchValuesResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?programId=${programForFKReferences.id}%20`, "GET");
                 chai.assert.equal(searchValuesResp.statusCode, 200, `searchValuesResp.body=${JSON.stringify(searchValuesResp.body)}`);
                 chai.assert.equal(searchValuesResp.body.length, 0, `searchValuesResp.body=${JSON.stringify(searchValuesResp.body)}`);
             });
 
             it("404s creating issuances from programIds with whitespace", async () => {
-                const issuanceResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${program.id}%20/issuances`, "POST", {
+                const issuanceResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${programForFKReferences.id}%20/issuances`, "POST", {
                     id: testUtils.generateId(),
                     name: testUtils.generateId(),
                     count: 1

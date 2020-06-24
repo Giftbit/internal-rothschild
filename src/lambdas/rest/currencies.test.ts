@@ -327,13 +327,6 @@ describe("/v2/currencies", () => {
     });
 
     describe("whitespace handling", () => {
-        let value: Value;
-
-        before(async function () {
-            await testUtils.createUSD(router);
-            value = await testUtils.createUSDValue(router);
-        });
-
         const currWithLeading: Partial<Currency> = {
             name: "Whitespace test currency",
             symbol: "$",
@@ -370,6 +363,8 @@ describe("/v2/currencies", () => {
 
         describe("FK references to currency codes", () => {
             it("409s creating transactions that use currency codes with whitespace", async () => {
+                const value = await testUtils.createUSDValue(router);
+
                 const txLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/credit", "POST", {
                     id: testUtils.generateId(),
                     currency: " USD",
@@ -444,7 +439,7 @@ describe("/v2/currencies", () => {
             });
 
             it("does not find programs when searching by currency code with whitespace", async () => {
-                const program = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
+                await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
                     id: testUtils.generateId(),
                     name: "example",
                     currency: "USD"
@@ -462,6 +457,7 @@ describe("/v2/currencies", () => {
             });
 
             it("does not find values when searching by currency code with whitespace", async () => {
+                await testUtils.createUSDValue(router);
                 const fetchValuesResp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/values?currency=USD", "GET");
                 chai.assert.equal(fetchValuesResp.statusCode, 200, `fetchValuesResp.body=${JSON.stringify(fetchValuesResp.body)}`);
                 chai.assert.isAtLeast(fetchValuesResp.body.length, 1);

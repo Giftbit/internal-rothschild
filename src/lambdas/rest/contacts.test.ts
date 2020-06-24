@@ -920,16 +920,6 @@ describe("/v2/contacts", () => {
     });
 
     describe("whitespace handling", () => {
-        let contact: Contact;
-
-        before(async () => {
-            const contactResp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {
-                id: testUtils.generateId()
-            });
-            chai.assert.equal(contactResp.statusCode, 201, `contactResp.body=${JSON.stringify(contactResp.body)}`);
-            contact = contactResp.body;
-        });
-
         it("422s creating contactIds with leading/trailing whitespace", async () => {
             const contactLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/contacts", "POST", {
                 id: `\t${testUtils.generateId()}`
@@ -953,8 +943,18 @@ describe("/v2/contacts", () => {
         });
 
         describe("FK references to contactIds", () => {
+            let contactForFKReferences: Contact;
+
+            before(async () => {
+                const contactResp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {
+                    id: testUtils.generateId()
+                });
+                chai.assert.equal(contactResp.statusCode, 201, `contactResp.body=${JSON.stringify(contactResp.body)}`);
+                contactForFKReferences = contactResp.body;
+            });
+
             it("404s attaching values to contactIds with whitespace", async () => {
-                const attachResp = await testUtils.testAuthedRequest<GiftbitRestError>(router, `/v2/contacts/${contact.id}%20/values/attach`, "POST", {
+                const attachResp = await testUtils.testAuthedRequest<GiftbitRestError>(router, `/v2/contacts/${contactForFKReferences.id}%20/values/attach`, "POST", {
                     valueId: "irrelevant"
                 });
                 chai.assert.equal(attachResp.statusCode, 404, `attachResp.body=${JSON.stringify(attachResp.body)}`);
@@ -962,14 +962,14 @@ describe("/v2/contacts", () => {
             });
 
             it("does not transact against contactIds with whitespace", async () => {
-                await testUtils.createUSDValue(router, {contactId: contact.id}); // 'contact not found' is indistinguishable from 'contact has no attached values' in checkout failures
+                await testUtils.createUSDValue(router, {contactId: contactForFKReferences.id}); // 'contact not found' is indistinguishable from 'contact has no attached values' in checkout failures
                 const txResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/checkout", "POST", {
                     id: testUtils.generateId(),
                     currency: "USD",
                     lineItems: [{unitPrice: 1}],
                     sources: [{
                         rail: "lightrail",
-                        contactId: `${contact.id} `
+                        contactId: `${contactForFKReferences.id} `
                     }]
                 });
                 chai.assert.equal(txResp.statusCode, 409, `txResp.body=${JSON.stringify(txResp.body)}`);
@@ -977,21 +977,21 @@ describe("/v2/contacts", () => {
             });
 
             it("does not find values when searching by contactId with whitespace", async () => {
-                await testUtils.createUSDValue(router, {contactId: contact.id});
-                const fetchResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?contactId=${contact.id}%20`, "GET");
+                await testUtils.createUSDValue(router, {contactId: contactForFKReferences.id});
+                const fetchResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?contactId=${contactForFKReferences.id}%20`, "GET");
                 chai.assert.equal(fetchResp.statusCode, 200, `fetchResp.body=${JSON.stringify(fetchResp.body)}`);
                 chai.assert.equal(fetchResp.body.length, 0, `fetchResp.body=${JSON.stringify(fetchResp.body)}`);
             });
 
             it("does not find transactions when searching by contactId with whitespace", async () => {
-                await testUtils.createUSDValue(router, {balance: 1000, contactId: contact.id});
+                await testUtils.createUSDValue(router, {balance: 1000, contactId: contactForFKReferences.id});
                 await testUtils.createUSDCheckout(router, {
                     sources: [{
                         rail: "lightrail",
-                        contactId: contact.id
+                        contactId: contactForFKReferences.id
                     }]
                 }, false);
-                const fetchResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?contactId=${contact.id}%20`, "GET");
+                const fetchResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?contactId=${contactForFKReferences.id}%20`, "GET");
                 chai.assert.equal(fetchResp.statusCode, 200, `fetchResp.body=${JSON.stringify(fetchResp.body)}`);
                 chai.assert.equal(fetchResp.body.length, 0, `fetchResp.body=${JSON.stringify(fetchResp.body)}`);
             });
