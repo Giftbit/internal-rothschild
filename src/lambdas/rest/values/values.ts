@@ -53,7 +53,7 @@ export function installValuesRest(router: cassava.Router): void {
             auth.requireScopes("lightrailV2:values:list");
 
             const showCode: boolean = (evt.queryStringParameters.showCode === "true");
-            const res = await getValues(auth, trimCodeIfPresent(evt.queryStringParameters), Pagination.getPaginationParams(evt), showCode);
+            const res = await getValues(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt), showCode);
 
             if (evt.queryStringParameters.stats === "true") {
                 // For now this is a secret param only Yervana and Chairish know about.
@@ -337,7 +337,10 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                     type: "string",
                     operators: ["eq", "in"],
                     columnName: "codeHashed",
-                    valueMap: code => computeCodeLookupHash(code, auth)
+                    valueMap: code => {
+                        const c = trimCodeIfPresent({code});
+                        return computeCodeLookupHash(c.code, auth);
+                    }
                 },
                 active: {
                     type: "boolean"
