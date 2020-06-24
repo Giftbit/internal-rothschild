@@ -798,12 +798,12 @@ const valueSchema: jsonschema.Schema = {
         currency: {
             type: "string",
             minLength: 1,
-            maxLength: 16,
+            maxLength: 16
         },
         programId: {
             type: ["string", null],
             maxLength: 64,
-            minLength: 1,
+            minLength: 1
         },
         balance: {
             type: ["integer", "null"],
@@ -869,7 +869,7 @@ const valueSchema: jsonschema.Schema = {
         contactId: {
             type: ["string", "null"],
             minLength: 1,
-            maxLength: 64,
+            maxLength: 64
         },
         active: {
             type: "boolean"

@@ -118,13 +118,13 @@ export namespace transactionPartySchema {
                 enum: ["lightrail"]
             },
             contactId: {
-                type: "string",
+                type: "string"
             },
             code: {
                 type: "string"
             },
             valueId: {
-                type: "string",
+                type: "string"
             }
         },
         oneOf: [
@@ -160,7 +160,7 @@ export namespace transactionPartySchema {
                 type: "string"
             },
             valueId: {
-                type: "string",
+                type: "string"
             }
         },
         oneOf: [
