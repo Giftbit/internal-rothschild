@@ -18,6 +18,7 @@ import {
     attachGenericCodeWithPerContactOptions,
     generateUrlSafeHashFromValueIdContactId
 } from "./genericCodeWithPerContactOptions";
+import {attachSharedGenericValue} from "./sharedGenericCodeMigration.test";
 import log = require("loglevel");
 
 export function installContactValuesRest(router: cassava.Router): void {
@@ -263,37 +264,6 @@ export async function detachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         }
         return value;
     }
-}
-
-async function attachSharedGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, value: Value): Promise<DbContactValue> {
-    const dbContactValue: DbContactValue = {
-        userId: auth.userId,
-        valueId: value.id,
-        contactId: contactId,
-        createdDate: nowInDbPrecision(),
-    };
-
-    const knex = await getKnexWrite();
-    await knex.transaction(async trx => {
-        try {
-            await trx("ContactValues")
-                .insert(dbContactValue);
-        } catch (err) {
-            const constraint = getSqlErrorConstraintName(err);
-            if (constraint === "PRIMARY") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${value.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
-            }
-            if (constraint === "fk_ContactValues_Contacts") {
-                throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${contactId}' not found.`, "ContactNotFound");
-            }
-            if (constraint === "fk_ContactValues_Values") {
-                throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${value.id}' not found.`, "ValueNotFound");
-            }
-            log.error(`An error occurred while attempting to insert ContactValue ${JSON.stringify(dbContactValue)}. err: ${err}.`);
-            throw err;
-        }
-    });
-    return dbContactValue;
 }
 
 /**
