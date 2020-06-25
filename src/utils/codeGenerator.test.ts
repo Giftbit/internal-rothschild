@@ -115,7 +115,7 @@ describe("code generator tests", () => {
         }
     });
 
-    it("contains duplicates", async () => {
+    it("does not allow charset to contain duplicates", async () => {
         const charset = "AABCDE";
         chai.assert.throws(() => {
             generateCode({charset: charset});
@@ -129,7 +129,7 @@ describe("code generator tests", () => {
         }, `Requested charset ${charset} doesn't meet minimum charset size requirement of 5.`);
     });
 
-    it("cannot contain a space", async () => {
+    it("cannot contain whitespace", async () => {
         const charset = "A BCDE";
         chai.assert.throws(() => {
             generateCode({charset: charset});
