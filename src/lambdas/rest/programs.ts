@@ -171,7 +171,8 @@ async function getPrograms(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filte
                 },
                 "currency": {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 "name": {
                     type: "string",
@@ -373,6 +374,10 @@ function checkProgramProperties(program: Program): void {
     }
 
     checkRulesSyntax(program, "Program");
+
+    if (!isSystemId(program.currency)) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${program.currency}' does not exist. See the documentation on creating currencies.`, "CurrencyNotFound");
+    }
 }
 
 function hasDuplicates(array) {

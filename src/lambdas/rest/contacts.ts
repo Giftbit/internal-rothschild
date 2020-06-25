@@ -129,6 +129,9 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         .where("Contacts.userId", "=", auth.userId);
     const valueId = filterParams["valueId"];
     if (valueId) {
+        if (!isSystemId(valueId)) {
+            return {contacts: [], pagination};
+        }
 
         // join ContactValues
         query.leftJoin("ContactValues", {

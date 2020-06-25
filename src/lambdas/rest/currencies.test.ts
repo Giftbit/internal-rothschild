@@ -7,6 +7,8 @@ import {Value} from "../../model/Value";
 import {installRestRoutes} from "./installRestRoutes";
 import {DebitRequest} from "../../model/TransactionRequest";
 import chaiExclude from "chai-exclude";
+import {Transaction} from "../../model/Transaction";
+import {Program} from "../../model/Program";
 
 chai.use(chaiExclude);
 
@@ -322,5 +324,155 @@ describe("/v2/currencies", () => {
                 "level": "zero1"
             }
         ]);
+    });
+
+    describe("whitespace handling", () => {
+        const currWithLeading: Partial<Currency> = {
+            name: "Whitespace test currency",
+            symbol: "$",
+            decimalPlaces: 2,
+            code: " abc"
+        };
+        const currWithTrailing: Partial<Currency> = {
+            name: "Whitespace test currency",
+            symbol: "$",
+            decimalPlaces: 2,
+            code: "abc "
+        };
+
+        it("422s creating currency codes with leading/trailing whitespace", async () => {
+            const resp1 = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/currencies", "POST", currWithLeading);
+            chai.assert.equal(resp1.statusCode, 422, JSON.stringify(resp1.body));
+
+            const resp2 = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/currencies", "POST", currWithTrailing);
+            chai.assert.equal(resp2.statusCode, 422, JSON.stringify(resp2.body));
+        });
+
+        it("404s fetching a currency by code with leading/trailing whitespace", async () => {
+            const createCurrencyResp = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", {
+                ...currWithTrailing,
+                code: "NEW"
+            });
+            chai.assert.equal(createCurrencyResp.statusCode, 201, `createCurrencyResp.body=${JSON.stringify(createCurrencyResp.body)}`);
+
+            const fetchLeading = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/currencies/%20${createCurrencyResp.body.code}`, "GET");
+            chai.assert.equal(fetchLeading.statusCode, 404, `fetchLeading.body=${JSON.stringify(fetchLeading.body)}`);
+            const fetchTrailing = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/currencies/${createCurrencyResp.body.code}%20`, "GET");
+            chai.assert.equal(fetchTrailing.statusCode, 404, `fetchTrailing.body=${JSON.stringify(fetchTrailing.body)}`);
+        });
+
+        describe("FK references to currency codes", () => {
+            before(async () => {
+                await testUtils.createUSD(router);
+            });
+
+            it("409s creating transactions that use currency codes with leading/trailing whitespace", async () => {
+                const value = await testUtils.createUSDValue(router);
+
+                const txLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/credit", "POST", {
+                    id: testUtils.generateId(),
+                    currency: " USD",
+                    amount: 1,
+                    destination: {
+                        rail: "lightrail",
+                        valueId: value.id
+                    }
+                });
+                chai.assert.equal(txLeadingResp.statusCode, 409, `txLeadingResp.body=${JSON.stringify(txLeadingResp.body)}`);
+                chai.assert.equal(txLeadingResp.body["messageCode"], "WrongCurrency", `txLeadingResp.body=${JSON.stringify(txLeadingResp.body)}`);
+
+                const txTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/credit", "POST", {
+                    id: testUtils.generateId(),
+                    currency: "USD ",
+                    amount: 1,
+                    destination: {
+                        rail: "lightrail",
+                        valueId: value.id
+                    }
+                });
+                chai.assert.equal(txTrailingResp.statusCode, 409, `txTrailingResp.body=${JSON.stringify(txTrailingResp.body)}`);
+                chai.assert.equal(txTrailingResp.body["messageCode"], "WrongCurrency", `txTrailingResp.body=${JSON.stringify(txTrailingResp.body)}`);
+            });
+
+            it("409s creating programs that use currency codes with leading/trailing whitespace", async () => {
+                const programLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", {
+                    id: testUtils.generateId(),
+                    name: "Leading whitespace test",
+                    currency: " USD"
+                });
+                chai.assert.equal(programLeadingResp.statusCode, 409, `programLeadingResp.body=${JSON.stringify(programLeadingResp.body)}`);
+                chai.assert.equal(programLeadingResp.body["messageCode"], "CurrencyNotFound", `programLeadingResp.body=${JSON.stringify(programLeadingResp.body)}`);
+                const programTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", {
+                    id: testUtils.generateId(),
+                    name: "Trailing whitespace test",
+                    currency: "USD "
+                });
+                chai.assert.equal(programTrailingResp.statusCode, 409, `programTrailingResp.body=${JSON.stringify(programTrailingResp.body)}`);
+                chai.assert.equal(programTrailingResp.body["messageCode"], "CurrencyNotFound", `programTrailingResp.body=${JSON.stringify(programTrailingResp.body)}`);
+            });
+
+            it("409s creating values that use currency codes with leading/trailing whitespace", async () => {
+                const valueLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", {
+                    id: testUtils.generateId(),
+                    currency: " USD",
+                    balance: 50
+                });
+                chai.assert.equal(valueLeadingResp.statusCode, 409, `valueLeadingResp.body=${JSON.stringify(valueLeadingResp.body)}`);
+                chai.assert.equal(valueLeadingResp.body["messageCode"], "CurrencyNotFound", `valueLeadingResp.body=${JSON.stringify(valueLeadingResp.body)}`);
+                const valueTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", {
+                    id: testUtils.generateId(),
+                    currency: "USD ",
+                    balance: 50
+                });
+                chai.assert.equal(valueTrailingResp.statusCode, 409, `valueTrailingResp.body=${JSON.stringify(valueTrailingResp.body)}`);
+                chai.assert.equal(valueTrailingResp.body["messageCode"], "CurrencyNotFound", `valueTrailingResp.body=${JSON.stringify(valueTrailingResp.body)}`);
+            });
+
+            it("does not find transactions when searching by currency code with leading/trailing whitespace", async () => {
+                await testUtils.createUSDCheckout(router, {}, false);
+                const fetchTxResp = await testUtils.testAuthedRequest<Transaction[]>(router, "/v2/transactions?currency=USD", "GET");
+                chai.assert.equal(fetchTxResp.statusCode, 200, `fetchTxResp.body=${JSON.stringify(fetchTxResp.body)}`);
+                chai.assert.isAtLeast(fetchTxResp.body.length, 1);
+
+                const fetchTxLeadingResp = await testUtils.testAuthedRequest<Transaction[]>(router, "/v2/transactions?currency=%20USD", "GET");
+                chai.assert.equal(fetchTxLeadingResp.statusCode, 200, `fetchTxLeadingResp.body=${JSON.stringify(fetchTxLeadingResp.body)}`);
+                chai.assert.equal(fetchTxLeadingResp.body.length, 0, `fetchTxLeadingResp.body=${JSON.stringify(fetchTxLeadingResp.body)}`);
+                const fetchTxTrailingResp = await testUtils.testAuthedRequest<Transaction[]>(router, "/v2/transactions?currency=USD%20", "GET");
+                chai.assert.equal(fetchTxTrailingResp.statusCode, 200, `fetchTxTrailingResp.body=${JSON.stringify(fetchTxTrailingResp.body)}`);
+                chai.assert.equal(fetchTxTrailingResp.body.length, 0, `fetchTxTrailingResp.body=${JSON.stringify(fetchTxTrailingResp.body)}`);
+            });
+
+            it("does not find programs when searching by currency code with leading/trailing whitespace", async () => {
+                await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
+                    id: testUtils.generateId(),
+                    name: "example",
+                    currency: "USD"
+                });
+                const fetchProgramResp = await testUtils.testAuthedRequest<Program[]>(router, "/v2/programs?currency=USD", "GET");
+                chai.assert.equal(fetchProgramResp.statusCode, 200, `fetchProgramResp.body=${JSON.stringify(fetchProgramResp.body)}`);
+                chai.assert.isAtLeast(fetchProgramResp.body.length, 1);
+
+                const fetchProgramsLeadingResp = await testUtils.testAuthedRequest<Program[]>(router, "/v2/programs?currency=%20USD", "GET");
+                chai.assert.equal(fetchProgramsLeadingResp.statusCode, 200, `fetchProgramsLeadingResp.body=${JSON.stringify(fetchProgramsLeadingResp.body)}`);
+                chai.assert.equal(fetchProgramsLeadingResp.body.length, 0, `fetchProgramsLeadingResp.body=${JSON.stringify(fetchProgramsLeadingResp.body)}`);
+                const fetchProgramsTrailingResp = await testUtils.testAuthedRequest<Program[]>(router, "/v2/programs?currency=USD%20", "GET");
+                chai.assert.equal(fetchProgramsTrailingResp.statusCode, 200, `fetchProgramsTrailingResp.body=${JSON.stringify(fetchProgramsTrailingResp.body)}`);
+                chai.assert.equal(fetchProgramsTrailingResp.body.length, 0, `fetchProgramsTrailingResp.body=${JSON.stringify(fetchProgramsTrailingResp.body)}`);
+            });
+
+            it("does not find values when searching by currency code with leading/trailing whitespace", async () => {
+                await testUtils.createUSDValue(router);
+                const fetchValuesResp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/values?currency=USD", "GET");
+                chai.assert.equal(fetchValuesResp.statusCode, 200, `fetchValuesResp.body=${JSON.stringify(fetchValuesResp.body)}`);
+                chai.assert.isAtLeast(fetchValuesResp.body.length, 1);
+
+                const fetchValuesLeadingResp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/values?currency=%20USD", "GET");
+                chai.assert.equal(fetchValuesLeadingResp.statusCode, 200, `fetchValuesLeadingResp.body=${JSON.stringify(fetchValuesLeadingResp.body)}`);
+                chai.assert.equal(fetchValuesLeadingResp.body.length, 0, `fetchValuesLeadingResp.body=${JSON.stringify(fetchValuesLeadingResp.body)}`);
+                const fetchValuesTrailingResp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/values?currency=USD%20", "GET");
+                chai.assert.equal(fetchValuesTrailingResp.statusCode, 200, `fetchValuesTrailingResp.body=${JSON.stringify(fetchValuesTrailingResp.body)}`);
+                chai.assert.equal(fetchValuesTrailingResp.body.length, 0, `fetchValuesTrailingResp.body=${JSON.stringify(fetchValuesTrailingResp.body)}`);
+            });
+        });
     });
 });

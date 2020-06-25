@@ -7,6 +7,6 @@ export function isSystemId(id: string): boolean {
 }
 
 export namespace isSystemId {
-    export const regex = /^[ -~]*$/;
-    export const regexString = "^[ -~]*$";
+    export const regex = /^[!-~]+([ -~]*[!-~]+)?$/;
+    export const regexString = "^[!-~]+([ -~]*[!-~]+)?$";
 }

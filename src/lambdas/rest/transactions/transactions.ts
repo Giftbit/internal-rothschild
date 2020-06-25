@@ -205,6 +205,10 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
         .select("Transactions.*")
         .where("Transactions.userId", "=", auth.userId);
     if (valueId || contactId) {
+        if (!isSystemId(contactId) || !isSystemId(valueId)) {
+            return {transactions: [], pagination};
+        }
+
         query.join("LightrailTransactionSteps", {
             "Transactions.id": "LightrailTransactionSteps.transactionId",
             "Transactions.userId": "LightrailTransactionSteps.userId"
