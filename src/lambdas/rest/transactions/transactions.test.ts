@@ -427,4 +427,47 @@ describe("/v2/transactions", () => {
         chai.assert.equal(resp.body.length, 4);
         chai.assert.sameOrderedMembers(resp.body.map(tx => tx.id), idAndDates.reverse().map(tx => tx.id) /* reversed since createdDate desc*/);
     });
+
+    describe("whitespace handling", () => {
+        let value: Value;
+        before(async function () {
+            await testUtils.createUSD(router);
+            value = await testUtils.createUSDValue(router);
+        });
+
+        it("422s creating transactionIds to be created with leading/trailing whitespace", async () => {
+            const txLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/checkout", "POST", {
+                id: `\n${testUtils.generateId()}`,
+                currency: "USD",
+                lineItems: [{unitPrice: 1}],
+                sources: [{rail: "lightrail", valueId: value.id}]
+            });
+            chai.assert.equal(txLeadingResp.statusCode, 422, `txLeadingResp.body=${JSON.stringify(txLeadingResp.body)}`);
+
+            const txTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/checkout", "POST", {
+                id: `${testUtils.generateId()}\n`,
+                currency: "USD",
+                lineItems: [{unitPrice: 1}],
+                sources: [{rail: "lightrail", valueId: value.id}]
+            });
+            chai.assert.equal(txTrailingResp.statusCode, 422, `txTrailingResp.body=${JSON.stringify(txTrailingResp.body)}`);
+        });
+
+        it("404s when looking up a transaction by id with leading/trailing whitespace", async () => {
+            const txId = testUtils.generateId();
+            const txResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                id: txId,
+                currency: "USD",
+                lineItems: [{unitPrice: 1}],
+                sources: [{rail: "lightrail", valueId: value.id}]
+            });
+            chai.assert.equal(txResp.statusCode, 201, `txResp.body=${JSON.stringify(txResp.body)}`);
+            chai.assert.equal(txResp.body.id, txId, `txResp.body=${JSON.stringify(txResp.body)}`);
+
+            const fetchLeadingResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/%20${txId}`, "GET");
+            chai.assert.equal(fetchLeadingResp.statusCode, 404, `fetchLeadingResp.body=${JSON.stringify(fetchLeadingResp.body)}`);
+            const fetchTrailingResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${txId}%20`, "GET");
+            chai.assert.equal(fetchTrailingResp.statusCode, 404, `fetchTrailingResp.body=${JSON.stringify(fetchTrailingResp.body)}`);
+        });
+    });
 });
