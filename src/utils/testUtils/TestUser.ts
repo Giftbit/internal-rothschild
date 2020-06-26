@@ -75,7 +75,7 @@ export class TestUser {
         }));
         resp.body = resp.body.substr(1); // clear universal bom from tests.
 
-        const parseRes = papaparse.parse(resp.body, {
+        const parseRes = papaparse.parse<T>(resp.body, {
             dynamicTyping: true,
             header: true,
             delimiter: ","
