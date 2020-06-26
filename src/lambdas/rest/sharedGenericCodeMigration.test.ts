@@ -16,7 +16,7 @@ import {Transaction} from "../../model/Transaction";
 
 chai.use(chaiExclude);
 
-describe("/v2/sharedGenericCodeMigration", () => {
+describe.only("/v2/sharedGenericCodeMigration", () => {
 
     const router = new cassava.Router();
 

@@ -14,11 +14,7 @@ import {DbContactValue} from "../../model/DbContactValue";
 import {AttachValueParameters} from "../../model/internal/AttachValueParameters";
 import {ValueIdentifier} from "../../model/internal/ValueIdentifier";
 import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
-import {
-    attachGenericCodeWithPerContactOptions,
-    generateUrlSafeHashFromValueIdContactId
-} from "./genericCodeWithPerContactOptions";
-import {attachSharedGenericValue} from "./sharedGenericCodeMigration.test";
+import {attachGenericCode, generateUrlSafeHashFromValueIdContactId} from "./genericCodeWithPerContactOptions";
 import log = require("loglevel");
 
 export function installContactValuesRest(router: cassava.Router): void {
@@ -178,16 +174,23 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 
     if (value.isGenericCode) {
         try {
-            if (Value.isGenericCodeWithPropertiesPerContact(value)) {
-                MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericPerContactProps, auth);
-                return await attachGenericCodeWithPerContactOptions(auth, contact.id, value);
-            } else if (params.attachGenericAsNewValue) /* legacy case to eventually be removed */ {
-                MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, auth);
+            // temporary - phase 1 shared generic code migration
+            try {
+                const contactValue = await getContactValue(auth, value.id, contact.id);
+            } catch (err) {
+                if ((err as GiftbitRestError).statusCode === 404 && err.additionalParams.messageCode === "ContactValueNotFound") {
+                    // this is good, can carry on with the attach
+                } else {
+                    // See below comment "when a shared generic code is being re-attached, do nothing."
+                    // Apparently we do nothing and return.
+                    return;
+                }
+            }
+            // remove the above block for phase 2
+            if (!Value.isGenericCodeWithPropertiesPerContact(value) && params.attachGenericAsNewValue) {
                 return await attachGenericValueAsNewValue(auth, contact.id, value);
             } else {
-                MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, auth);
-                await attachSharedGenericValue(auth, contact.id, value);
-                return value;
+                return await attachGenericCode(auth, contact.id, value);
             }
         } catch (err) {
             if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "ValueAlreadyExists") {
