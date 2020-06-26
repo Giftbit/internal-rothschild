@@ -59,7 +59,7 @@ export interface TableMap {
                 CHARACTER_SET_NAME: string | null;
                 COLUMN_COMMENT: string;
                 COLUMN_TYPE: string;
-            }
+            };
         };
         parentSchema: string;
         tableName: string;
@@ -70,7 +70,7 @@ export interface TableMap {
             metadata: {
                 max_length?: number;
                 decimals?: number;
-            }
+            };
         }[];
     };
 }

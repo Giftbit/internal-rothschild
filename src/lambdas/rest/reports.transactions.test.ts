@@ -1,14 +1,13 @@
+import * as cassava from "cassava";
+import * as chai from "chai";
+import sinon from "sinon";
 import {Transaction} from "../../model/Transaction";
 import {installRestRoutes} from "./installRestRoutes";
-import * as cassava from "cassava";
 import * as testUtils from "../../utils/testUtils";
 import {generateId} from "../../utils/testUtils";
 import {Program} from "../../model/Program";
-import * as chai from "chai";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
-import {after} from "mocha";
 import {ReportTransaction} from "./transactions/ReportTransaction";
-import sinon from "sinon";
 import * as Reports from "./reports";
 import parseLinkHeader = require("parse-link-header");
 
@@ -22,7 +21,7 @@ describe("/v2/reports/transactions/", () => {
         name: "test program"
     };
 
-    function getTransactionReportHeadersForAssertions(limit: number = 10000) {
+    function getTransactionReportHeadersForAssertions(limit: number = 10000): { [key: string]: string } {
         return {
             "Limit": limit.toString(),
             "Max-Limit": "10000",
@@ -70,7 +69,7 @@ describe("/v2/reports/transactions/", () => {
     it("can download a csv of Transactions", async () => {
         const resp = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, "/v2/reports/transactions", "GET");
         chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-        chai.assert.deepInclude(resp.headers as any, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
+        chai.assert.deepInclude(resp.headers, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
         chai.assert.equal(resp.body.length, 9, `transactions in resp.body=${resp.body.map(txn => txn.transactionType)}`);
 
         const checkouts = resp.body.filter(txn => txn.transactionType === "checkout");
@@ -129,17 +128,17 @@ describe("/v2/reports/transactions/", () => {
         chai.assert.equal(getAllTransactions.statusCode, 200, `getAllTransactions.body=${JSON.stringify(getAllTransactions.body)}`);
         chai.assert.isAbove(getAllTransactions.body.length, 3, `getAllTransactions.body.length=${getAllTransactions.body.length}`);
 
-        let returnedTransactionIds = [];
+        const returnedTransactionIds: string[] = [];
         let resp = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, `/v2/reports/transactions?limit=3&suppressLimitError=true`, "GET");
         chai.assert.equal(resp.statusCode, 200);
         returnedTransactionIds.push(...resp.body.map(t => t.id));
-        let linkHeaders = parseLinkHeader(resp.headers["Link"]);
+        const linkHeaders = parseLinkHeader(resp.headers["Link"]);
         let nextLink = linkHeaders.next.url;
         while (nextLink) {
             resp = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, nextLink, "GET");
             chai.assert.equal(resp.statusCode, 200);
             returnedTransactionIds.push(...resp.body.map(t => t.id));
-            let linkHeaders = parseLinkHeader(resp.headers["Link"]);
+            const linkHeaders = parseLinkHeader(resp.headers["Link"]);
             nextLink = (linkHeaders && linkHeaders.next) ? linkHeaders.next.url : null;
         }
 
@@ -193,7 +192,7 @@ describe("/v2/reports/transactions/", () => {
             it("returns success if results count <= limit", async () => {
                 const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/transactions?limit=${transactionCount}`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.deepInclude(resp.headers as any, getTransactionReportHeadersForAssertions(transactionCount), `resp.headers=${JSON.stringify(resp.headers)}`);
+                chai.assert.deepInclude(resp.headers, getTransactionReportHeadersForAssertions(transactionCount), `resp.headers=${JSON.stringify(resp.headers)}`);
                 chai.assert.equal(resp.body.length, transactionCount, `resp.body=${JSON.stringify(resp.body)}`);
             });
 
@@ -205,7 +204,7 @@ describe("/v2/reports/transactions/", () => {
             it("returns success if results count < default limit", async () => {
                 const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/transactions`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.deepInclude(resp.headers as any, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
+                chai.assert.deepInclude(resp.headers, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
                 chai.assert.equal(resp.body.length, transactionCount, `resp.body=${JSON.stringify(resp.body)}`);
             });
 
@@ -245,7 +244,7 @@ describe("/v2/reports/transactions/", () => {
             it("returns success if results count > limit", async () => {
                 const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/transactions?limit=${transactionCount - 1}&suppressLimitError=true`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.deepInclude(resp.headers as any, getTransactionReportHeadersForAssertions(transactionCount - 1), `resp.headers=${JSON.stringify(resp.headers)}`);
+                chai.assert.deepInclude(resp.headers, getTransactionReportHeadersForAssertions(transactionCount - 1), `resp.headers=${JSON.stringify(resp.headers)}`);
                 chai.assert.equal(resp.body.length, transactionCount - 1, `resp.body=${JSON.stringify(resp.body)}`);
             });
 
@@ -262,7 +261,7 @@ describe("/v2/reports/transactions/", () => {
 
                 const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/transactions?suppressLimitError=true`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.deepInclude(resp.headers as any, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
+                chai.assert.deepInclude(resp.headers, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
                 chai.assert.equal(resp.body.length, 10000, `resp.body.length=${JSON.stringify(resp.body.length)}`);
             });
         });
@@ -272,7 +271,7 @@ describe("/v2/reports/transactions/", () => {
         it("can download a csv of checkout Transactions", async () => {
             const resp = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, "/v2/reports/transactions?transactionType=checkout", "GET");
             chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-            chai.assert.deepInclude(resp.headers as any, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
+            chai.assert.deepInclude(resp.headers, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
             chai.assert.equal(resp.body.length, 3, `transactions in resp.body=${resp.body.map(txn => txn.transactionType)}`);
             for (const [index, txn] of resp.body.entries()) {
                 chai.assert.deepEqualExcluding(txn, {
@@ -301,7 +300,7 @@ describe("/v2/reports/transactions/", () => {
         it("can download a csv of initialBalance Transactions", async () => {
             const resp = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, "/v2/reports/transactions?transactionType=initialBalance", "GET");
             chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-            chai.assert.deepInclude(resp.headers as any, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
+            chai.assert.deepInclude(resp.headers, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
             chai.assert.equal(resp.body.length, 4, `transactions in resp.body=${resp.body.map(txn => txn.transactionType)}`);
             for (const [index, txn] of resp.body.entries()) {
                 chai.assert.deepEqualExcluding(txn, {
@@ -330,7 +329,7 @@ describe("/v2/reports/transactions/", () => {
         it("can download a csv of credit and debit Transactions (two types)", async () => {
             const resp = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, "/v2/reports/transactions?transactionType.in=credit,debit", "GET");
             chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-            chai.assert.deepInclude(resp.headers as any, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
+            chai.assert.deepInclude(resp.headers, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
             chai.assert.equal(resp.body.length, 2, `transactions in resp.body=${resp.body.map(txn => txn.transactionType)}`);
 
             const credit = resp.body.find(txn => txn.transactionType === "credit");
@@ -496,7 +495,7 @@ describe("/v2/reports/transactions/", () => {
 
             const transferReportResp = await testUtils.testAuthedCsvRequest<ReportTransaction[]>(router, "/v2/reports/transactions?transactionType=transfer", "GET");
             chai.assert.equal(transferReportResp.statusCode, 200, `transferReportResp.body=${JSON.stringify(transferReportResp.body)}`);
-            chai.assert.deepInclude(transferReportResp.headers as any, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(transferReportResp.headers)}`);
+            chai.assert.deepInclude(transferReportResp.headers, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(transferReportResp.headers)}`);
             chai.assert.deepEqualExcluding(transferReportResp.body[0], {
                 id: "",
                 transactionType: "transfer",
@@ -539,7 +538,7 @@ describe("/v2/reports/transactions/", () => {
 
             const checkoutReportResp = await testUtils.testAuthedCsvRequest<ReportTransaction[]>(router, "/v2/reports/transactions?transactionType=checkout", "GET");
             chai.assert.equal(checkoutReportResp.statusCode, 200, `checkoutReportResp.body=${JSON.stringify(checkoutReportResp.body)}`);
-            chai.assert.deepInclude(checkoutReportResp.headers as any, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(checkoutReportResp.headers)}`);
+            chai.assert.deepInclude(transferReportResp.headers, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(checkoutReportResp.headers)}`);
             chai.assert.deepEqualExcluding(checkoutReportResp.body[0], {
                 id: "",
                 transactionType: "checkout",
@@ -570,7 +569,7 @@ describe("/v2/reports/transactions/", () => {
             await testUtils.createUSDCheckout(router, null, true);
             const checkoutReportResp = await testUtils.testAuthedCsvRequest<ReportTransaction[]>(router, "/v2/reports/transactions?transactionType=checkout", "GET");
             chai.assert.equal(checkoutReportResp.statusCode, 200, `checkoutReportResp.body=${JSON.stringify(checkoutReportResp)}`);
-            chai.assert.deepInclude(checkoutReportResp.headers as any, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(checkoutReportResp.headers)}`);
+            chai.assert.deepInclude(checkoutReportResp.headers, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(checkoutReportResp.headers)}`);
             chai.assert.equal(checkoutReportResp.statusCode, 200, `checkoutReportResp.body=${JSON.stringify(checkoutReportResp.body)}`);
             chai.assert.deepEqualExcluding(checkoutReportResp.body[0], {
                 id: "",
@@ -598,7 +597,7 @@ describe("/v2/reports/transactions/", () => {
     it("can format currencies", async () => {
         const resp = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, "/v2/reports/transactions?transactionType=initialBalance&formatCurrencies=true", "GET");
         chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-        chai.assert.deepInclude(resp.headers as any, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
+        chai.assert.deepInclude(resp.headers, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
         chai.assert.deepEqualExcluding(resp.body.find(tx => tx.id === initialBalanceId), {
             id: "",
             createdDate: null,

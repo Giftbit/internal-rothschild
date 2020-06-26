@@ -157,6 +157,7 @@ export namespace LightrailTransactionPlanStep {
         };
     }
 
+    // TODO yeah this is not type-safe and maybe we should nuke it
     function getSharedProperties(step: LightrailTransactionPlanStep) {
         let sharedProperties = {
             valueId: step.value.id,

@@ -13,7 +13,6 @@ import {Transaction} from "../../model/Transaction";
 import {ProgramStats} from "../../model/ProgramStats";
 import chaiExclude from "chai-exclude";
 import {nowInDbPrecision} from "../../utils/dbUtils";
-import {Issuance} from "../../model/Issuance";
 
 chai.use(chaiExclude);
 
@@ -104,7 +103,7 @@ describe("/v2/programs", () => {
         const resp = await testUtils.testAuthedRequest<Program[]>(router, `/v2/programs`, "GET");
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.equal(resp.body.length, 2);
-        let indexOfNewProgram = resp.body[0].id === newProgram.body.id ? 0 : 1;
+        const indexOfNewProgram = resp.body[0].id === newProgram.body.id ? 0 : 1;
         chai.assert.deepEqual(resp.body[indexOfNewProgram], newProgram.body);
         chai.assert.deepEqual(resp.body[(indexOfNewProgram + 1) % 2], programResponse);
     });
@@ -250,7 +249,7 @@ describe("/v2/programs", () => {
             {id: generateId(), createdDate: new Date("3030-02-03")},
             {id: generateId(), createdDate: new Date("3030-02-04")}
         ];
-        for (let idAndDate of idAndDates) {
+        for (const idAndDate of idAndDates) {
             const response = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
                 id: idAndDate.id,
                 currency: "USD",
@@ -494,7 +493,7 @@ describe("/v2/programs", () => {
         });
 
         it("422s updating a program id", async () => {
-            let request = {
+            const request = {
                 id: generateId()
             };
             const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${updateableProgram.id}`, "PATCH", request);
@@ -1142,6 +1141,7 @@ describe("/v2/programs", () => {
                             }
                         ]
                     });
+                    chai.assert.equal(checkout.statusCode, 201);
                 },
                 result: {
                     outstanding: {
@@ -1257,6 +1257,7 @@ describe("/v2/programs", () => {
                             }
                         ]
                     });
+                    chai.assert.equal(checkout.statusCode, 201);
                 },
                 result: {
                     outstanding: {
@@ -1310,6 +1311,7 @@ describe("/v2/programs", () => {
                         ],
                         allowRemainder: true
                     });
+                    chai.assert.equal(checkout.statusCode, 201);
                 },
                 result: {
                     outstanding: {
@@ -1757,7 +1759,8 @@ describe("/v2/programs", () => {
     });
 
     describe("filter by name", () => {
-        let programA: Program, programB: Program, programC: Program;
+        let programA: Program, programB: Program;
+
         before(async () => {
             const createA = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
                 id: generateId(),
@@ -1775,13 +1778,12 @@ describe("/v2/programs", () => {
             chai.assert.equal(createB.statusCode, 201);
             programB = createB.body;
 
-            const createC = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
+            const createOther = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
                 id: generateId(),
                 name: "c",
                 currency: "USD"
             });
-            chai.assert.equal(createC.statusCode, 201);
-            programC = createC.body;
+            chai.assert.equal(createOther.statusCode, 201);
         });
 
         it("filter by name with no operator", async () => {

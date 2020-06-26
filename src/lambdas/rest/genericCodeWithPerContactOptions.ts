@@ -1,8 +1,9 @@
-import {Value} from "../../model/Value";
-import {nowInDbPrecision} from "../../utils/dbUtils/index";
+import * as cassava from "cassava";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
+import {Value} from "../../model/Value";
+import {nowInDbPrecision} from "../../utils/dbUtils";
 import {
     LightrailInsertTransactionPlanStep,
     LightrailTransactionPlanStep,
@@ -10,16 +11,13 @@ import {
     TransactionPlan
 } from "./transactions/TransactionPlan";
 import {executeTransactionPlanner} from "./transactions/executeTransactionPlans";
-import {Transaction} from "../../model/Transaction";
-import * as cassava from "cassava";
 import {initializeValue} from "./values/createValue";
 import {getIdForAttachingGenericValue} from "./contactValues";
 
 export async function attachGenericCodeWithPerContactOptions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<Value> {
-    let transaction: Transaction;
     let transactionPlan: TransactionPlan;
     try {
-        transaction = await executeTransactionPlanner(auth, {
+        await executeTransactionPlanner(auth, {
             allowRemainder: false,
             simulate: false
         }, async () => transactionPlan = await getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth, contactId, genericValue));
@@ -97,6 +95,6 @@ export async function getAttachTransactionPlanForGenericCodeWithPerContactOption
 /**
  * This function encodes to the RFC 4648 Spec where '+' is encoded as '-' and '/' is encoded as '_'. The padding character '=' is removed.
  */
-export function generateUrlSafeHashFromValueIdContactId(genericValueId: string, contactId: string) {
+export function generateUrlSafeHashFromValueIdContactId(genericValueId: string, contactId: string): string {
     return crypto.createHash("sha1").update(genericValueId + "/" + contactId).digest("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }

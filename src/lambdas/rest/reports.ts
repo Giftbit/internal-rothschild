@@ -105,7 +105,7 @@ async function getReportResults<T>(auth: giftbitRoutes.jwtauth.AuthorizationBadg
     const requestedLimit = +evt.queryStringParameters["limit"] || reportRowLimit;
     const suppressLimitError = evt.queryStringParameters["suppressLimitError"] === "true";
 
-    let paginationParams = Pagination.getPaginationParams(evt, {
+    const paginationParams = Pagination.getPaginationParams(evt, {
         defaultLimit: requestedLimit,
         maxLimit: reportRowLimit
     });
@@ -118,7 +118,7 @@ async function getReportResults<T>(auth: giftbitRoutes.jwtauth.AuthorizationBadg
     // This behaviour can be overridden by passing in suppressLimitError=true.
     if (results.length === requestedLimit && !suppressLimitError) {
         // do extra call using after & limit 1.
-        let paginationParamsToCheckForMoreResults = {
+        const paginationParamsToCheckForMoreResults = {
             ...paginationParams,
             limit: 1,
             after: res.pagination.after
@@ -135,7 +135,7 @@ async function getReportResults<T>(auth: giftbitRoutes.jwtauth.AuthorizationBadg
 }
 
 // exported for testing
-export const getValuesForReport: ReportDelegate<ReportValue> = async (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams, showCode: boolean = false): Promise<{ results: ReportValue[], pagination: Pagination }> => {
+export async function getValuesForReport(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams, showCode: boolean = false): Promise<{ results: ReportValue[], pagination: Pagination }> {
     const res = await getValues(auth, filterParams, pagination, showCode);
     return {
         results: res.values.map((v): ReportValue => {
@@ -149,11 +149,10 @@ export const getValuesForReport: ReportDelegate<ReportValue> = async (auth: gift
         }),
         pagination: res.pagination
     };
-};
-
+}
 
 // exported for testing
-export const getTransactionsForReport: ReportDelegate<ReportTransaction> = async (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ results: ReportTransaction[], pagination: Pagination }> => {
+export async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ results: ReportTransaction[], pagination: Pagination }> {
     auth.requireIds("userId");
 
     const knex = await getKnexRead();
@@ -220,7 +219,7 @@ export const getTransactionsForReport: ReportDelegate<ReportTransaction> = async
         })),
         pagination: res.pagination
     };
-};
+}
 
 function addStepAmounts(txn: Transaction): number {
     if (txn.transactionType === "transfer") {

@@ -36,7 +36,7 @@ export class BinlogStream extends EventEmitter {
         let connectionHasErrored = false;
         let binlogName: string | null = zongJiOptions.filename || null;
         let binlogRestartPosition: number | null = null;
-        const onError = async (reconnect: boolean) => {
+        const onError = async (reconnect: boolean): Promise<void> => {
             if (connectionHasErrored) {
                 // Only reconnect on the first error for this connection.
                 return;
@@ -207,8 +207,7 @@ export class BinlogStream extends EventEmitter {
             case "WriteRows":
             case "UpdateRows":
             case "DeleteRows":
-                const writeRowsEvent = event as WriteRowsEvent;
-                summary += ` ${writeRowsEvent.tableMap[writeRowsEvent.tableId].parentSchema}.${writeRowsEvent.tableMap[writeRowsEvent.tableId].tableName} ${writeRowsEvent.rows.length} rows`;
+                summary += ` ${(event as WriteRowsEvent).tableMap[(event as WriteRowsEvent).tableId].parentSchema}.${(event as WriteRowsEvent).tableMap[(event as WriteRowsEvent).tableId].tableName} ${(event as WriteRowsEvent).rows.length} rows`;
                 break;
         }
         return summary;

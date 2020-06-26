@@ -207,7 +207,7 @@ async function createProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pro
     auth.requireIds("userId");
     checkProgramProperties(program);
     try {
-        let dbProgram = Program.toDbProgram(auth, program);
+        const dbProgram = Program.toDbProgram(auth, program);
         const knex = await getKnexWrite();
         await knex("Programs")
             .insert(dbProgram);
@@ -380,7 +380,7 @@ function checkProgramProperties(program: Program): void {
     }
 }
 
-function hasDuplicates(array) {
+function hasDuplicates(array: any[]): boolean {
     return (new Set(array)).size !== array.length;
 }
 
@@ -450,9 +450,9 @@ export async function getProgramStats(auth: giftbitRoutes.jwtauth.AuthorizationB
     log.info(`injectProgramStats got value stats ${Date.now() - startTime}ms`);
 
     const redeemedStatsRes: {
-        balance: number,
-        transactionCount: number,
-        valueCount: number
+        balance: number;
+        transactionCount: number;
+        valueCount: number;
     }[] = await knex("Values")
         .where({
             "Values.userId": auth.userId,
@@ -483,11 +483,11 @@ export async function getProgramStats(auth: giftbitRoutes.jwtauth.AuthorizationB
     log.info(`injectProgramStats got redeemed stats ${Date.now() - startTime}ms`);
 
     const overspendStatsRes: {
-        lrBalance: number,
-        iBalance: number,
-        sBalance: number,
-        remainder: number,
-        transactionCount: number
+        lrBalance: number;
+        iBalance: number;
+        sBalance: number;
+        remainder: number;
+        transactionCount: number;
     }[] = await knex
         .from(knex.raw("? as Txs", [
             // Get unique Transaction IDs of Transactions with a root checkout Transaction and steps with Values in this Program
