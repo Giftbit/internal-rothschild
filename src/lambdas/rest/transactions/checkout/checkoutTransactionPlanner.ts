@@ -63,6 +63,8 @@ function optimizeSteps(pretax: boolean, unsortedSteps: TransactionPlanStep[], ch
     (pretax ? sortedPretaxSteps : sortedPostTaxSteps).push(...splitUnsortedSteps.internalAfterLightrailSteps, ...splitUnsortedSteps.stripeSteps);
 }
 
+// Often not ideal but we'll let it slide here.
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function splitNonLightrailSteps(steps: TransactionPlanStep[]) {
     return {
         internalBeforeLightrailSteps: steps.filter(step => step.rail === "internal" && step.beforeLightrail),

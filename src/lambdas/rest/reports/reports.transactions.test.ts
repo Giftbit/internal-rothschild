@@ -210,14 +210,16 @@ describe("/v2/reports/transactions/", () => {
 
             it("returns error if results count > default limit", async () => {
                 sinonSandbox.stub(getTransactionsForReport, "getTransactionsForReport")
-                    .onFirstCall().resolves({
-                    results: mockResults10000,
-                    pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
-                })
-                    .onSecondCall().resolves({
-                    results: mockResults1,
-                    pagination: {limit: 1, maxLimit: 1, after: "", before: null}
-                });
+                    .onFirstCall()
+                    .resolves({
+                        results: mockResults10000,
+                        pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
+                    })
+                    .onSecondCall()
+                    .resolves({
+                        results: mockResults1,
+                        pagination: {limit: 1, maxLimit: 1, after: "", before: null}
+                    });
 
                 const resp = await testUtils.testAuthedRequest(router, `/v2/reports/transactions`, "GET");
                 chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
@@ -225,14 +227,16 @@ describe("/v2/reports/transactions/", () => {
 
             it("returns success if results count == default limit", async () => {
                 sinonSandbox.stub(getTransactionsForReport, "getTransactionsForReport")
-                    .onFirstCall().resolves({
-                    results: mockResults10000,
-                    pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
-                })
-                    .onSecondCall().resolves({
-                    results: mockResults0,
-                    pagination: {limit: 1, maxLimit: 1, after: null, before: null}
-                });
+                    .onFirstCall()
+                    .resolves({
+                        results: mockResults10000,
+                        pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
+                    })
+                    .onSecondCall()
+                    .resolves({
+                        results: mockResults0,
+                        pagination: {limit: 1, maxLimit: 1, after: null, before: null}
+                    });
 
                 const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/transactions`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
@@ -250,14 +254,16 @@ describe("/v2/reports/transactions/", () => {
 
             it("returns success if results count > default limit", async () => {
                 sinonSandbox.stub(getTransactionsForReport, "getTransactionsForReport")
-                    .onFirstCall().resolves({
-                    results: mockResults10000,
-                    pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
-                })
-                    .onSecondCall().resolves({
-                    results: mockResults1,
-                    pagination: {limit: 1, maxLimit: 1, after: "", before: null}
-                });
+                    .onFirstCall()
+                    .resolves({
+                        results: mockResults10000,
+                        pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
+                    })
+                    .onSecondCall()
+                    .resolves({
+                        results: mockResults1,
+                        pagination: {limit: 1, maxLimit: 1, after: "", before: null}
+                    });
 
                 const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/transactions?suppressLimitError=true`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);

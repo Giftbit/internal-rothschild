@@ -151,6 +151,7 @@ describe("resolveTransactionPlanSteps", () => {
             /**
              * Returns enough identifers to assert that the value is the one we expect without needing to exclude dates etc
              */
+            // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
             function mapValueIdentifiers(value: Value) {
                 return {
                     id: value.id,

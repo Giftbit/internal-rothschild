@@ -157,9 +157,22 @@ export namespace LightrailTransactionPlanStep {
         };
     }
 
-    // This is kinda hard to reason about and not ideal.
-    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-    function getSharedProperties(step: LightrailTransactionPlanStep) {
+    /**
+     * Shared between LightrailDbTransactionStep and LightrailTransactionStep.
+     */
+    interface SharedStepProperties {
+        valueId: string;
+        contactId: string;
+        code: string | null;
+        balanceBefore: number;
+        balanceChange: number;
+        balanceAfter: number;
+        usesRemainingBefore: number;
+        usesRemainingChange: number;
+        usesRemainingAfter: number;
+    }
+
+    function getSharedProperties(step: LightrailTransactionPlanStep): SharedStepProperties {
         const sharedProperties = {
             valueId: step.value.id,
             contactId: step.value.contactId,
@@ -281,7 +294,17 @@ export namespace InternalTransactionPlanStep {
         };
     }
 
-    function getSharedProperties(step: InternalTransactionPlanStep) {
+    /**
+     * Shared between InternalDbTransactionStep and InternalTransactionStep.
+     */
+    interface SharedStepProperties {
+        internalId: string;
+        balanceBefore: number;
+        balanceAfter: number;
+        balanceChange: number;
+    }
+
+    function getSharedProperties(step: InternalTransactionPlanStep): SharedStepProperties {
         return {
             internalId: step.internalId,
             balanceBefore: step.balance,

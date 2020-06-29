@@ -224,7 +224,9 @@ if (!unhackedReadMysqlValue) {
 }
 ZongJiCommon.readMysqlValue = function (parser, column, columnSchema, tableMap, zongji) {
     if (column.type === ZongJiCommon.MysqlTypes.TINY) {
+        // eslint-disable-next-line prefer-rest-params
         return !!unhackedReadMysqlValue.apply(this, arguments);
     }
+    // eslint-disable-next-line prefer-rest-params
     return unhackedReadMysqlValue.apply(this, arguments);
 };
