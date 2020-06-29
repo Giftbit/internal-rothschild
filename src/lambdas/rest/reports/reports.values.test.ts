@@ -1,12 +1,12 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import sinon from "sinon";
-import * as testUtils from "../../utils/testUtils";
-import * as Reports from "./reports";
-import {installRestRoutes} from "./installRestRoutes";
-import {Value} from "../../model/Value";
-import {Program} from "../../model/Program";
-import {ReportValue} from "./values/ReportValue";
+import * as testUtils from "../../../utils/testUtils";
+import * as getValuesForReport from "./getValuesForReport";
+import {installRestRoutes} from "../installRestRoutes";
+import {Value} from "../../../model/Value";
+import {Program} from "../../../model/Program";
+import {ReportValue} from "../values/ReportValue";
 import parseLinkHeader = require("parse-link-header");
 
 describe("/v2/reports/values/", () => {
@@ -351,31 +351,34 @@ describe("/v2/reports/values/", () => {
             });
 
             it("returns error if results count > default limit", async () => {
-                sinonSandbox.stub(Reports, "getValuesForReport")
-                    .onFirstCall().resolves({
-                    results: (mockResults10000),
-                    pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
-                })
-                    .onSecondCall().resolves({
-                    results: (mockResults1),
-                    pagination: {limit: 1, maxLimit: 1, after: "", before: null}
-                });
+                sinonSandbox.stub(getValuesForReport, "getValuesForReport")
+                    .onFirstCall()
+                    .resolves({
+                        results: (mockResults10000),
+                        pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
+                    })
+                    .onSecondCall()
+                    .resolves({
+                        results: (mockResults1),
+                        pagination: {limit: 1, maxLimit: 1, after: "", before: null}
+                    });
 
                 const resp = await testUtils.testAuthedRequest(router, `/v2/reports/values`, "GET");
                 chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
             });
 
             it("returns success if results count == default limit", async () => {
-                sinonSandbox.stub(Reports, "getValuesForReport")
-                    .onFirstCall().resolves({
-                    results: (mockResults10000),
-                    pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
-                })
-                    .onSecondCall().resolves({
-                    results: (mockResults0),
-                    pagination: {limit: 1, maxLimit: 1, after: null, before: null}
-                });
-
+                sinonSandbox.stub(getValuesForReport, "getValuesForReport")
+                    .onFirstCall()
+                    .resolves({
+                        results: (mockResults10000),
+                        pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
+                    })
+                    .onSecondCall()
+                    .resolves({
+                        results: (mockResults0),
+                        pagination: {limit: 1, maxLimit: 1, after: null, before: null}
+                    });
 
                 const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
@@ -392,7 +395,7 @@ describe("/v2/reports/values/", () => {
             });
 
             it("returns success if results count == default limit", async () => {
-                sinonSandbox.stub(Reports, "getValuesForReport")
+                sinonSandbox.stub(getValuesForReport, "getValuesForReport")
                     .resolves({
                         results: (mockResults10000),
                         pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}

@@ -98,7 +98,7 @@ async function parseFilters(filterParams: { [key: string]: string }, options: Fi
         const {filterKey, op} = splitFilterKeyAndOp(queryKey);
         let filterValue = filterParams[queryKey];
 
-        if (!options[filterKey] !== undefined) {
+        if (options.properties[filterKey] == null) {
             // Not a filterable property.
             continue;
         }

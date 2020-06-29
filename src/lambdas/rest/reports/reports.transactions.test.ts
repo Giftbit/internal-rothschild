@@ -1,14 +1,14 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import sinon from "sinon";
-import {Transaction} from "../../model/Transaction";
-import {installRestRoutes} from "./installRestRoutes";
-import * as testUtils from "../../utils/testUtils";
-import {generateId} from "../../utils/testUtils";
-import {Program} from "../../model/Program";
-import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
-import {ReportTransaction} from "./transactions/ReportTransaction";
-import * as Reports from "./reports";
+import * as getTransactionsForReport from "./getTransactionsForReport";
+import * as testUtils from "../../../utils/testUtils";
+import {generateId} from "../../../utils/testUtils";
+import {Transaction} from "../../../model/Transaction";
+import {installRestRoutes} from "../installRestRoutes";
+import {Program} from "../../../model/Program";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
+import {ReportTransaction} from "../transactions/ReportTransaction";
 import parseLinkHeader = require("parse-link-header");
 
 describe("/v2/reports/transactions/", () => {
@@ -209,7 +209,7 @@ describe("/v2/reports/transactions/", () => {
             });
 
             it("returns error if results count > default limit", async () => {
-                sinonSandbox.stub(Reports, "getTransactionsForReport")
+                sinonSandbox.stub(getTransactionsForReport, "getTransactionsForReport")
                     .onFirstCall().resolves({
                     results: mockResults10000,
                     pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
@@ -224,7 +224,7 @@ describe("/v2/reports/transactions/", () => {
             });
 
             it("returns success if results count == default limit", async () => {
-                sinonSandbox.stub(Reports, "getTransactionsForReport")
+                sinonSandbox.stub(getTransactionsForReport, "getTransactionsForReport")
                     .onFirstCall().resolves({
                     results: mockResults10000,
                     pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
@@ -249,7 +249,7 @@ describe("/v2/reports/transactions/", () => {
             });
 
             it("returns success if results count > default limit", async () => {
-                sinonSandbox.stub(Reports, "getTransactionsForReport")
+                sinonSandbox.stub(getTransactionsForReport, "getTransactionsForReport")
                     .onFirstCall().resolves({
                     results: mockResults10000,
                     pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
