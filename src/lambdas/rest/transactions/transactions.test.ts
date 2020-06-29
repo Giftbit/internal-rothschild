@@ -391,7 +391,7 @@ describe("/v2/transactions", () => {
             {id: generateId(), createdDate: new Date("3030-02-03")},
             {id: generateId(), createdDate: new Date("3030-02-04")}
         ];
-        for (let idAndDate of idAndDates) {
+        for (const idAndDate of idAndDates) {
             const response = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
                 id: idAndDate.id,
                 source: {

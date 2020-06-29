@@ -400,7 +400,7 @@ describe("/v2/contacts", () => {
         });
     });
 
-    it("treats contactId as case sensitive", async () => {
+    it.only("treats contactId as case sensitive", async () => {
         const contact1: Partial<Contact> = {
             id: generateId() + "-A"
         };

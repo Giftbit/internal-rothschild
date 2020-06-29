@@ -16,7 +16,6 @@ import {
     TransferRequest
 } from "../../../model/TransactionRequest";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
-import {after} from "mocha";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 
 describe("/v2/values/ - secret stats capability", () => {
@@ -524,7 +523,6 @@ describe("/v2/values/ - secret stats capability", () => {
 
     async function createTransactionData(transactionRequests: TransactionRequestData[]): Promise<void> {
         for (const transactionRequest of transactionRequests) {
-            let charge;
             const postTransaction = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transactionRequest.type}`, "POST", transactionRequest.request);
             chai.assert.equal(postTransaction.statusCode, 201);
 

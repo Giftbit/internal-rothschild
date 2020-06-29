@@ -1,9 +1,9 @@
+import * as cassava from "cassava";
+import * as Knex from "knex";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
-import * as Knex from "knex";
 import {Value} from "../../../model/Value";
 import {dateInDbPrecision, nowInDbPrecision} from "../../../utils/dbUtils/index";
-import * as cassava from "cassava";
 import {MetricsLogger, ValueAttachmentTypes} from "../../../utils/metricsLogger";
 import {Program} from "../../../model/Program";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
@@ -12,12 +12,12 @@ import {CreateValueParameters} from "./values";
 import {checkRulesSyntax} from "../transactions/rules/RuleContext";
 import {LightrailInsertTransactionPlanStep, TransactionPlan} from "../transactions/TransactionPlan";
 import {executeTransactionPlan} from "../transactions/executeTransactionPlans";
-import {DiscountSellerLiabilityUtils} from "../../../utils/discountSellerLiabilityUtils";
+import {discountSellerLiabilityUtils} from "../../../utils/discountSellerLiabilityUtils";
 import log = require("loglevel");
 
 export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: CreateValueParameters, trx: Knex.Transaction): Promise<Value> {
     auth.requireIds("userId", "teamMemberId");
-    let value: Value = initializeValue(auth, params.partialValue, params.program, params.generateCodeParameters);
+    const value: Value = initializeValue(auth, params.partialValue, params.program, params.generateCodeParameters);
     log.info(`Create Value requested for user: ${auth.userId}. Value`, Value.toStringSanitized(value));
 
     value.startDate = value.startDate ? dateInDbPrecision(new Date(value.startDate)) : null;
@@ -121,9 +121,9 @@ export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
  */
 export function setDiscountSellerLiabilityPropertiesForLegacySupport(v: Value): Value {
     if (v.discountSellerLiabilityRule != null) {
-        v.discountSellerLiability = DiscountSellerLiabilityUtils.ruleToNumber(v.discountSellerLiabilityRule);
+        v.discountSellerLiability = discountSellerLiabilityUtils.ruleToNumber(v.discountSellerLiabilityRule);
     } else if (v.discountSellerLiability != null) {
-        v.discountSellerLiabilityRule = DiscountSellerLiabilityUtils.numberToRule(v.discountSellerLiability);
+        v.discountSellerLiabilityRule = discountSellerLiabilityUtils.numberToRule(v.discountSellerLiability);
     }
     return v;
 }

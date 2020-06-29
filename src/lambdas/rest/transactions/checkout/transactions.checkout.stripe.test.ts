@@ -30,8 +30,6 @@ import {
 import chaiExclude from "chai-exclude";
 import {TestUser} from "../../../../utils/testUtils/TestUser";
 import log = require("loglevel");
-import Stripe = require("stripe");
-import ICharge = Stripe.charges.ICharge;
 
 chai.use(chaiExclude);
 
@@ -43,7 +41,7 @@ describe("split tender checkout with Stripe", () => {
         currency: "CAD",
         balance: 100
     };
-    const source: string = "tok_visa";
+    const source = "tok_visa";
     const basicRequest: CheckoutRequest = {
         id: generateId(),
         sources: [
@@ -571,7 +569,7 @@ describe("split tender checkout with Stripe", () => {
         const stripeStep = postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep;
         chai.assert.isObject(stripeStep, "found stripe step");
 
-        const stripeCharge = stripeStep.charge as ICharge;
+        const stripeCharge = stripeStep.charge as stripe.charges.ICharge;
         chai.assert.equal(stripeCharge.description, "eee");
         chai.assert.equal(stripeCharge.on_behalf_of, onBehalfOf);
         chai.assert.equal(stripeCharge.receipt_email, "bbb@example.com");
@@ -609,7 +607,7 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
         chai.assert.equal(createValue.body.balance, 100, `body=${JSON.stringify(createValue.body)}`);
 
-        let request = {
+        const request = {
             ...basicRequest,
             id: "CO-simulation-w-stripe",
             simulate: true

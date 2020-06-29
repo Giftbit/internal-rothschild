@@ -122,7 +122,7 @@ function lightrailTransactionPlanStepComparer(a: LightrailTransactionPlanStep, b
     }
     if (a.value.endDate && b.value.endDate) {
         // Earlier expiration before later expiration.
-        let dateDifference = (a.value.endDate as any) - (b.value.endDate as any); // subtracting Dates really does work
+        const dateDifference = (a.value.endDate as any) - (b.value.endDate as any); // subtracting Dates really does work
         if (dateDifference !== 0) {
             return dateDifference;
         }

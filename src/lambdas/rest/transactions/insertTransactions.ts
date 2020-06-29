@@ -28,7 +28,7 @@ export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.A
         await trx.into("Transactions")
             .insert(dbTransaction);
         if (plan.previousTransactionId) {
-            let updateProperties: { [P in keyof DbTransaction]?: DbTransaction[P] | Knex.Raw } = {
+            const updateProperties: { [P in keyof DbTransaction]?: DbTransaction[P] | Knex.Raw } = {
                 nextTransactionId: plan.id,
             };
             const updateRes = await trx.into("Transactions")
@@ -126,7 +126,7 @@ export async function insertValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 }
 
 async function updateLightrailValueForStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, step: LightrailUpdateTransactionPlanStep, plan: TransactionPlan): Promise<void> {
-    let updateProperties: { [P in keyof DbValue]?: DbValue[P] | Knex.Raw } = {
+    const updateProperties: { [P in keyof DbValue]?: DbValue[P] | Knex.Raw } = {
         updatedDate: plan.createdDate
     };
 

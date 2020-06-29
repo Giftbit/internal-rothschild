@@ -46,7 +46,7 @@ describe("/v2/transactions", () => {
 
     it("can filter by valueId", async () => {
         await resetDbAndAddCurrencies();
-        let createdValues: Value[] = [];
+        const createdValues: Value[] = [];
         for (let i = 0; i < 3; i++) {
             const newValue = {
                 id: generateId(),
@@ -132,8 +132,8 @@ describe("/v2/transactions", () => {
     });
 
     describe("filtering queries", () => {
-        let transactionsUSD: Transaction[] = [];
-        let transactionsCAD: Transaction[] = [];
+        const transactionsUSD: Transaction[] = [];
+        const transactionsCAD: Transaction[] = [];
         // setup data
         before(async function () {
             await resetDbAndAddCurrencies();

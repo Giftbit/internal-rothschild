@@ -98,7 +98,7 @@ async function parseFilters(filterParams: { [key: string]: string }, options: Fi
         const {filterKey, op} = splitFilterKeyAndOp(queryKey);
         let filterValue = filterParams[queryKey];
 
-        if (!options.properties.hasOwnProperty(filterKey)) {
+        if (!options[filterKey] !== undefined) {
             // Not a filterable property.
             continue;
         }
@@ -155,7 +155,7 @@ function addFiltersToQuery(query: knex.QueryBuilder, filters: Filter[], orNullFi
 }
 
 function splitFilterKeyAndOp(filterKey: string): { filterKey: string, op: string } {
-    let op: string = "eq";
+    let op = "eq";
     if (filterKey.indexOf(".") !== -1) {
         const keyAndOp = filterKey.split(".", 2);
         filterKey = keyAndOp[0];
@@ -234,23 +234,25 @@ async function convertValue(prop: FilterQueryProperty, value: string, operator: 
     }
     let result: number | string | boolean | Date;
     switch (prop.type) {
-        case "number":
+        case "number": {
             const numValue = +value;
             if (isNaN(numValue)) {
                 throw new giftbitRoutes.GiftbitRestError(400, `Query filter value '${value}' could not be parsed as a number.`);
             }
             result = numValue;
             break;
+        }
         case "boolean":
             result = value.toLowerCase() === "true";
             break;
-        case "Date":
+        case "Date": {
             const dateValue = new Date(value);
             if (isNaN(dateValue.getTime())) {
                 throw new giftbitRoutes.GiftbitRestError(400, `Query filter value '${value}' could not be parsed as an ISO Date.`);
             }
             result = dateValue;
             break;
+        }
         case "string":
         default:
             result = value;

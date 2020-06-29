@@ -1,10 +1,11 @@
 import * as cassava from "cassava";
+import * as chai from "chai";
+import sinon from "sinon";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as testUtils from "../../utils/testUtils";
 import {setCodeCryptographySecrets} from "../../utils/testUtils";
 import {installRestRoutes} from "../rest/installRestRoutes";
 import {installStripeEventWebhookRest} from "./installStripeEventWebhookRest";
-import * as chai from "chai";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
 import {StripeTransactionStep} from "../../model/Transaction";
 import {
@@ -15,7 +16,6 @@ import {
     setupForWebhookEvent,
     testSignedWebhookRequest
 } from "../../utils/testUtils/webhookHandlerTestUtils";
-import sinon from "sinon";
 
 describe("/v2/stripeEventWebhook - Stripe Refund events", () => {
     const restRouter = new cassava.Router();
@@ -48,7 +48,7 @@ describe("/v2/stripeEventWebhook - Stripe Refund events", () => {
     }).timeout(12000);
 
     it("throws Sentry error for Stripe refunds with 'status: failed'", async () => {
-        let sandbox = sinon.createSandbox();
+        const sandbox = sinon.createSandbox();
         (giftbitRoutes.sentry.sendErrorNotification as any).restore();
         const stub = sandbox.stub(giftbitRoutes.sentry, "sendErrorNotification");
 

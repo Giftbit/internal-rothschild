@@ -46,16 +46,16 @@ export function generateCode(params: GenerateCodeParameters): string {
     return (params.prefix ? params.prefix : "") + generateRandomString(length, charset) + (params.suffix ? params.suffix : "");
 }
 
-function generateRandomString(length: number, charset: string[]) {
+function generateRandomString(length: number, charset: string[]): string {
     const randomBytes = crypto.randomBytes(length);
-    let randomString: string = "";
+    let randomString = "";
     for (let i = 0; i < length; i++) {
         randomString += charset[randomBytes[i] % charset.length];
     }
     return randomString;
 }
 
-export function containsDuplicates(str: string[]) {
+export function containsDuplicates(str: string[]): boolean {
     const hash = new Map();
 
     for (const char of str) {

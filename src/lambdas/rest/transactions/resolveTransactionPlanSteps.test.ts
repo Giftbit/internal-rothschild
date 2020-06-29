@@ -145,8 +145,8 @@ describe("resolveTransactionPlanSteps", () => {
                     }
                 }
             };
-            let contact1_attachedValues: Value[] = [];
-            let contact2_attachedValues: Value[] = [];
+            const contact1_attachedValues: Value[] = [];
+            const contact2_attachedValues: Value[] = [];
 
             /**
              * Returns enough identifers to assert that the value is the one we expect without needing to exclude dates etc

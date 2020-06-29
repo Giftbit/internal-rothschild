@@ -59,34 +59,34 @@ describe("code generator tests", () => {
         });
 
         it("does not allow leading space in prefix", async () => {
-            let prefix1 = " ABC";
+            const prefix1 = " ABC";
             chai.assert.throws(() => {
                 generateCode({prefix: prefix1});
             }, `Requested prefix ${prefix1} cannot have leading whitespace.`);
 
-            let prefix2 = `\tABC`;
+            const prefix2 = `\tABC`;
             chai.assert.throws(() => {
                 generateCode({prefix: prefix2});
             }, `Requested prefix ${prefix2} cannot have leading whitespace.`);
 
-            let prefix3 = `\nABC`;
+            const prefix3 = `\nABC`;
             chai.assert.throws(() => {
                 generateCode({prefix: prefix3});
             }, `Requested prefix ${prefix3} cannot have leading whitespace.`);
         });
 
         it("does not allow trailing space in suffix", async () => {
-            let suffix1 = "ABC ";
+            const suffix1 = "ABC ";
             chai.assert.throws(() => {
                 generateCode({suffix: suffix1});
             }, `Requested suffix ${suffix1} cannot have trailing whitespace.`);
 
-            let suffix2 = "ABC\t";
+            const suffix2 = "ABC\t";
             chai.assert.throws(() => {
                 generateCode({suffix: suffix2});
             }, `Requested suffix ${suffix2} cannot have trailing whitespace.`);
 
-            let suffix3 = "ABC\n";
+            const suffix3 = "ABC\n";
             chai.assert.throws(() => {
                 generateCode({suffix: suffix3});
             }, `Requested suffix ${suffix3} cannot have trailing whitespace.`);

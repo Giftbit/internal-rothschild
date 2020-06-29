@@ -157,9 +157,10 @@ export namespace LightrailTransactionPlanStep {
         };
     }
 
-    // TODO yeah this is not type-safe and maybe we should nuke it
+    // This is kinda hard to reason about and not ideal.
+    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
     function getSharedProperties(step: LightrailTransactionPlanStep) {
-        let sharedProperties = {
+        const sharedProperties = {
             valueId: step.value.id,
             contactId: step.value.contactId,
             code: step.value.code ? formatCodeForLastFourDisplay(step.value.code) : null,

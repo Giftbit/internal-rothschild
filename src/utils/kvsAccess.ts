@@ -21,7 +21,7 @@ export async function kvsDelete(token: string, key: string): Promise<void> {
 
 export async function kvsGet(token: string, key: string, authorizeAs?: string): Promise<any> {
     try {
-        let request = superagent.get(`https://${getLightrailDomain()}/v1/storage/${key}`)
+        const request = superagent.get(`https://${getLightrailDomain()}/v1/storage/${key}`)
             .set("Authorization", `Bearer ${token}`)
             .ok(r => r.ok || r.status === 404)
             .timeout({

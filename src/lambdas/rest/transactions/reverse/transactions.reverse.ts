@@ -1,5 +1,4 @@
 import * as cassava from "cassava";
-import * as stripe from "stripe";
 import {ReverseRequest} from "../../../../model/TransactionRequest";
 import {
     InternalTransactionPlanStep,

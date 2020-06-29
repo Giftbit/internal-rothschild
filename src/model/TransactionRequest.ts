@@ -89,7 +89,7 @@ export interface AdditionalStripeChargeParams {
             line2?: string;
             postal_code?: string;
             state?: string;
-        }
+        };
         carrier?: string;
         name?: string;
         phone?: string;

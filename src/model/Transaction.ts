@@ -82,7 +82,7 @@ export namespace Transaction {
 
 export namespace DbTransaction {
     export function toTransaction(dbTx: DbTransaction, dbSteps: DbTransactionStep[]): Transaction {
-        let t: Transaction = {
+        const t: Transaction = {
             id: dbTx.id,
             transactionType: dbTx.transactionType,
             currency: dbTx.currency,
@@ -129,7 +129,7 @@ export namespace DbTransaction {
 
     export async function toTransactionsUsingDb(txns: DbTransaction[], userId: string): Promise<Transaction[]> {
         const knex = await getKnexRead();
-        let txIds: string[] = txns.map(tx => tx.id);
+        const txIds: string[] = txns.map(tx => tx.id);
         let dbSteps: any[] = await knex("LightrailTransactionSteps")
             .where("userId", userId)
             .whereIn("transactionId", txIds);

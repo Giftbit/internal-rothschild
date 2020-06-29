@@ -112,7 +112,7 @@ interface PaginationCursor {
 namespace PaginationCursor {
     export function build(before: boolean, resBody: any[], paginationParams: PaginationParams): PaginationCursor {
         const ix = before ? 0 : resBody.length - 1;
-        let cursor: PaginationCursor = {
+        const cursor: PaginationCursor = {
             id: resBody[ix].id
         };
         if (paginationParams.sort) {

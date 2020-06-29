@@ -1,7 +1,6 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
-import * as knex from "knex";
 import {Contact, DbContact} from "../../model/Contact";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {pick, pickOrDefault} from "../../utils/pick";
@@ -124,7 +123,7 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 
     const knex = await getKnexRead();
 
-    let query: knex.QueryBuilder = knex("Contacts")
+    const query = knex("Contacts")
         .select("Contacts.*")
         .where("Contacts.userId", "=", auth.userId);
     const valueId = filterParams["valueId"];

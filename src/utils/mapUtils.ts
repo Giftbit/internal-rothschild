@@ -31,7 +31,7 @@ export namespace mapUtils {
      * set(obj, "nested.prop2", "d")
      */
     export function set(obj: object, path: string, value: any): object {
-        let objClone = JSON.parse(JSON.stringify(obj)); // avoids mutating obj
+        const objClone = JSON.parse(JSON.stringify(obj)); // avoids mutating obj
         let current = objClone;  // a moving reference to internal objects within obj
         const paths = path.split(".");
         while (paths.length > 1) {

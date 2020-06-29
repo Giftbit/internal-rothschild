@@ -8,6 +8,7 @@ import {createCurrency} from "../../currencies";
 import {installRestRoutes} from "../../installRestRoutes";
 import chaiExclude from "chai-exclude";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
+import {CheckoutRequest} from "../../../../model/TransactionRequest";
 
 chai.use(chaiExclude);
 
@@ -50,7 +51,7 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
         const createPromotion1Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", preTaxPromotion);
         chai.assert.equal(createPromotion1Resp.statusCode, 201, `body=${JSON.stringify(createPromotion1Resp.body)}`);
 
-        let request: any = {
+        const request: CheckoutRequest = {
             id: "checkout-4",
             sources: [
                 {

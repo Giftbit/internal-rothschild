@@ -15,7 +15,7 @@ export async function freezeLightrailSources(auth: giftbitRoutes.jwtauth.Authori
         return;
     }
 
-    let chargedValueIds: string[] = lightrailSteps.map(step => step.valueId);
+    const chargedValueIds: string[] = lightrailSteps.map(step => step.valueId);
     const chargedContactIds: string[] = fraudulentTransaction.paymentSources.filter(src => src.rail === "lightrail" && src.contactId).map(src => (src as LightrailTransactionStep).contactId);
 
     log.info(`Freezing charged Values: '${chargedValueIds}' and all Values attached to charged Contacts: '${chargedContactIds}'`);

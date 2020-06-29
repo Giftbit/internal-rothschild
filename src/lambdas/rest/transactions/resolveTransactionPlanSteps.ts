@@ -230,7 +230,7 @@ export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRou
     return values;
 }
 
-export function filterForUsedAttaches(attachTransactionPlans: TransactionPlan[], transactionPlan: TransactionPlan) {
+export function filterForUsedAttaches(attachTransactionPlans: TransactionPlan[], transactionPlan: TransactionPlan): TransactionPlan[] {
     const attachTransactionsToPersist: TransactionPlan[] = [];
     for (const attach of attachTransactionPlans) {
         const newAttachedValue: LightrailTransactionPlanStep = attach.steps.find(s => (s as LightrailTransactionPlanStep).action === "insert") as LightrailTransactionPlanStep;
