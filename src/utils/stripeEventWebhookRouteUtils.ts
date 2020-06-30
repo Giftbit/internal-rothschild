@@ -1,8 +1,9 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {getKnexRead, getKnexWrite} from "./dbUtils/connection";
 import {DbValue, Value} from "../model/Value";
-import {DbTransaction, LightrailTransactionStep, Transaction} from "../model/Transaction";
+import {DbTransaction, Transaction} from "../model/Transaction";
 import {QueryBuilder} from "knex";
+import {LightrailTransactionStep} from "../model/TransactionStep";
 import log = require("loglevel");
 import Stripe = require("stripe");
 

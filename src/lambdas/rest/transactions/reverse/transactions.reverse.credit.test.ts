@@ -5,10 +5,11 @@ import {generateId, setCodeCryptographySecrets} from "../../../../utils/testUtil
 import {installRestRoutes} from "../../installRestRoutes";
 import {createCurrency} from "../../currencies";
 import {Value} from "../../../../model/Value";
-import {LightrailTransactionStep, Transaction} from "../../../../model/Transaction";
+import {Transaction} from "../../../../model/Transaction";
 import {CreditRequest, DebitRequest, ReverseRequest} from "../../../../model/TransactionRequest";
 import chaiExclude from "chai-exclude";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
+import {LightrailTransactionStep} from "../../../../model/TransactionStep";
 
 chai.use(chaiExclude);
 

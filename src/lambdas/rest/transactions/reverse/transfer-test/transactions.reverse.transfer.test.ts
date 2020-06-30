@@ -6,12 +6,13 @@ import {generateId} from "../../../../../utils/testUtils";
 import {installRestRoutes} from "../../../installRestRoutes";
 import {createCurrency} from "../../../currencies";
 import {Value} from "../../../../../model/Value";
-import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../../../model/Transaction";
+import {Transaction} from "../../../../../model/Transaction";
 import {CreditRequest, DebitRequest, ReverseRequest, TransferRequest} from "../../../../../model/TransactionRequest";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
 import chaiExclude from "chai-exclude";
 import {nowInDbPrecision} from "../../../../../utils/dbUtils";
+import {LightrailTransactionStep, StripeTransactionStep} from "../../../../../model/TransactionStep";
 
 chai.use(chaiExclude);
 

@@ -5,11 +5,12 @@ import * as stripe from "stripe";
 import {createUSDCheckout, generateId, testAuthedRequest} from "../../utils/testUtils";
 import {getLightrailStripeModeConfig} from "../../utils/stripeUtils/stripeAccess";
 import {stripeApiVersion} from "../../utils/stripeUtils/StripeConfig";
-import {StripeTransactionStep, Transaction, TransactionType} from "../../model/Transaction";
+import {Transaction, TransactionType} from "../../model/Transaction";
 import {Value} from "../../model/Value";
 import {CheckoutRequest} from "../../model/TransactionRequest";
 import {createRefund, retrieveCharge} from "../stripeUtils/stripeTransactions";
 import * as testUtils from "./index";
+import {StripeTransactionStep} from "../../model/TransactionStep";
 
 /**
  * See https://stripe.com/docs/webhooks/signatures#verify-manually for details about generating signed requests

@@ -7,7 +7,6 @@ import {setCodeCryptographySecrets} from "../../utils/testUtils";
 import {installRestRoutes} from "../rest/installRestRoutes";
 import {installStripeEventWebhookRest} from "./installStripeEventWebhookRest";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
-import {StripeTransactionStep} from "../../model/Transaction";
 import {
     assertTransactionChainContainsTypes,
     assertValuesRestoredAndFrozen,
@@ -16,6 +15,7 @@ import {
     setupForWebhookEvent,
     testSignedWebhookRequest
 } from "../../utils/testUtils/webhookHandlerTestUtils";
+import {StripeTransactionStep} from "../../model/TransactionStep";
 
 describe("/v2/stripeEventWebhook - Stripe Refund events", () => {
     const restRouter = new cassava.Router();

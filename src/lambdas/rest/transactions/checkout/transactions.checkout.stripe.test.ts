@@ -7,13 +7,12 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as sinon from "sinon";
 import * as stripe from "stripe";
 import {Value} from "../../../../model/Value";
-import {StripeTransactionStep, Transaction} from "../../../../model/Transaction";
+import {Transaction} from "../../../../model/Transaction";
 import {Currency} from "../../../../model/Currency";
 import {TransactionPlanError} from "../TransactionPlanError";
 import * as insertTransaction from "../insertTransactions";
 import * as testUtils from "../../../../utils/testUtils";
 import {defaultTestUser, generateId} from "../../../../utils/testUtils";
-import {after} from "mocha";
 import {
     setStubbedStripeUserId,
     setStubsForStripeTests,
@@ -29,6 +28,7 @@ import {
 } from "../../../../utils/stripeUtils/stripeTransactions";
 import chaiExclude from "chai-exclude";
 import {TestUser} from "../../../../utils/testUtils/TestUser";
+import {StripeTransactionStep} from "../../../../model/TransactionStep";
 import log = require("loglevel");
 
 chai.use(chaiExclude);

@@ -9,7 +9,7 @@ import {Currency} from "../../../model/Currency";
 import {Contact} from "../../../model/Contact";
 import {getCodeLastFourNoPrefix} from "../../../model/DbCode";
 import {getKnexRead, getKnexWrite} from "../../../utils/dbUtils/connection";
-import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {Transaction} from "../../../model/Transaction";
 import {installRestRoutes} from "../installRestRoutes";
 import {createCurrency} from "../currencies";
 import {computeCodeLookupHash, decryptCode} from "../../../utils/codeCryptoUtils";
@@ -17,6 +17,7 @@ import * as codeGenerator from "../../../utils/codeGenerator";
 import {generateCode} from "../../../utils/codeGenerator";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {GiftbitRestError} from "giftbit-cassava-routes";
+import {LightrailTransactionStep} from "../../../model/TransactionStep";
 import parseLinkHeader = require("parse-link-header");
 
 chai.use(chaiExclude);

@@ -4,13 +4,8 @@ import {ReportTransaction} from "../transactions/ReportTransaction";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {filterQuery} from "../../../utils/dbUtils/filterQuery";
 import {filterAndPaginateQuery} from "../../../utils/dbUtils";
-import {
-    DbTransaction,
-    InternalTransactionStep,
-    LightrailTransactionStep,
-    StripeTransactionStep,
-    Transaction
-} from "../../../model/Transaction";
+import {DbTransaction, Transaction} from "../../../model/Transaction";
+import {InternalTransactionStep, LightrailTransactionStep, StripeTransactionStep} from "../../../model/TransactionStep";
 
 export async function getTransactionsForReport(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams): Promise<{ results: ReportTransaction[], pagination: Pagination }> {
     auth.requireIds("userId");

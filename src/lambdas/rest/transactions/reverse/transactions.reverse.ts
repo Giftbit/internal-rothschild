@@ -7,19 +7,18 @@ import {
     TransactionPlan,
     TransactionPlanStep
 } from "../TransactionPlan";
-import {
-    DbTransaction,
-    InternalTransactionStep,
-    LightrailTransactionStep,
-    StripeTransactionStep,
-    Transaction
-} from "../../../../model/Transaction";
+import {DbTransaction, Transaction} from "../../../../model/Transaction";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
 import {getDbTransaction, getTransaction} from "../transactions";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
 import {Value} from "../../../../model/Value";
 import {getDbValuesByTransaction, getValues} from "../../values/values";
+import {
+    InternalTransactionStep,
+    LightrailTransactionStep,
+    StripeTransactionStep
+} from "../../../../model/TransactionStep";
 import log = require("loglevel");
 
 export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: ReverseRequest, transactionIdToReverse: string): Promise<TransactionPlan> {

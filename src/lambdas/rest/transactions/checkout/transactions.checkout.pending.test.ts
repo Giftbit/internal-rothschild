@@ -1,11 +1,13 @@
 import * as cassava from "cassava";
+import chaiExclude from "chai-exclude";
 import * as chai from "chai";
+import * as Stripe from "stripe";
 import * as transactions from "../transactions";
 import * as valueStores from "../../values/values";
 import * as testUtils from "../../../../utils/testUtils";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
-import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../../model/Transaction";
+import {Transaction} from "../../../../model/Transaction";
 import {CaptureRequest, CheckoutRequest, VoidRequest} from "../../../../model/TransactionRequest";
 import {
     setStubbedStripeUserId,
@@ -13,14 +15,12 @@ import {
     testStripeLive,
     unsetStubsForStripeTests
 } from "../../../../utils/testUtils/stripeTestUtils";
-import {after} from "mocha";
-import * as Stripe from "stripe";
 import {captureCharge, createRefund} from "../../../../utils/stripeUtils/stripeTransactions";
-import chaiExclude from "chai-exclude";
 import {TestUser} from "../../../../utils/testUtils/TestUser";
 import {getStripeClient} from "../../../../utils/stripeUtils/stripeAccess";
 import {createCurrency} from "../../currencies";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
+import {LightrailTransactionStep, StripeTransactionStep} from "../../../../model/TransactionStep";
 
 chai.use(chaiExclude);
 

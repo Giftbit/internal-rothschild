@@ -1,6 +1,6 @@
+import * as jsonschema from "jsonschema";
 import {LineItemRequest} from "./LineItem";
 import {TaxRequestProperties} from "./TaxProperties";
-import * as jsonschema from "jsonschema";
 
 export interface CheckoutRequest {
     id: string;

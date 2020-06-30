@@ -1,12 +1,13 @@
+import * as cassava from "cassava";
+import * as chai from "chai";
 import * as testUtils from "../../../../utils/testUtils";
 import {generateId} from "../../../../utils/testUtils";
 import {Contact} from "../../../../model/Contact";
-import * as chai from "chai";
 import {Value} from "../../../../model/Value";
 import {LightrailTransactionParty} from "../../../../model/TransactionRequest";
-import {LightrailTransactionStep, Transaction} from "../../../../model/Transaction";
-import * as cassava from "cassava";
+import {Transaction} from "../../../../model/Transaction";
 import {installRestRoutes} from "../../installRestRoutes";
+import {LightrailTransactionStep} from "../../../../model/TransactionStep";
 
 describe("checkout - handling limited balance/uses on generic values", () => {
     const router = new cassava.Router();

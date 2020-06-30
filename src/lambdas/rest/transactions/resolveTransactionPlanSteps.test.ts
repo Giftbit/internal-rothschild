@@ -16,8 +16,9 @@ import {LightrailTransactionPlanStep} from "./TransactionPlan";
 import {AttachedContactValueScenario, setupAttachedContactValueScenario} from "../contactValues.test";
 import {LightrailTransactionParty, TransactionParty} from "../../../model/TransactionRequest";
 import {Value} from "../../../model/Value";
-import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {Transaction} from "../../../model/Transaction";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
+import {LightrailTransactionStep} from "../../../model/TransactionStep";
 
 describe("resolveTransactionPlanSteps", () => {
 

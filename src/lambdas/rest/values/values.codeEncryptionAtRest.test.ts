@@ -4,14 +4,15 @@ import chaiExclude from "chai-exclude";
 import * as sinon from "sinon";
 import * as codeGenerator from "../../../utils/codeGenerator";
 import * as testUtils from "../../../utils/testUtils/index";
-import {generateId, setCodeCryptographySecrets} from "../../../utils/testUtils/index";
+import {generateId, setCodeCryptographySecrets} from "../../../utils/testUtils";
 import {DbValue, Value} from "../../../model/Value";
-import {DbTransaction, LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {installRestRoutes} from "../installRestRoutes";
 import {createCurrency} from "../currencies";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {CheckoutRequest, LightrailTransactionParty} from "../../../model/TransactionRequest";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
+import {LightrailTransactionStep} from "../../../model/TransactionStep";
 
 chai.use(chaiExclude);
 

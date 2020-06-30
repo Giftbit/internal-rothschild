@@ -1,8 +1,9 @@
+import * as cassava from "cassava";
 import * as chai from "chai";
-import * as sinon from "sinon";
-import {SinonSandbox} from "sinon";
-import * as kvsAccess from "../kvsAccess";
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import Stripe from "stripe";
+import * as sinon from "sinon";
+import * as kvsAccess from "../kvsAccess";
 import * as stripeAccess from "./stripeAccess";
 import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../testUtils/stripeTestUtils";
 import {CheckoutRequest} from "../../model/TransactionRequest";
@@ -10,11 +11,10 @@ import * as testUtils from "../testUtils";
 import * as transactions from "../../lambdas/rest/transactions/transactions";
 import * as valueStores from "../../lambdas/rest/values/values";
 import * as currencies from "../../lambdas/rest/currencies";
-import * as cassava from "cassava";
 import {StripeRestError} from "./StripeRestError";
 import {updateCharge} from "./stripeTransactions";
-import {StripeTransactionStep, Transaction} from "../../model/Transaction";
-import Stripe from "stripe";
+import {Transaction} from "../../model/Transaction";
+import {StripeTransactionStep} from "../../model/TransactionStep";
 
 describe("stripeAccess", () => {
     describe("getMerchantStripeAuth", () => {
@@ -218,7 +218,7 @@ describe("stripeAccess", () => {
     });
 });
 
-function stubStripeClientHost(sandbox: SinonSandbox, host: string, port?: number, protocol = "http"): void {
+function stubStripeClientHost(sandbox: sinon.SinonSandbox, host: string, port?: number, protocol = "http"): void {
     const getOriginalClient = stripeAccess.getStripeClient;
     sandbox.stub(stripeAccess, "getStripeClient")
         .callsFake(async function changeHost(): Promise<Stripe> {

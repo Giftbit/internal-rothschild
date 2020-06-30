@@ -3,6 +3,36 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {QueryOptions} from "./QueryOptions";
 
+interface PaginationCursor {
+    id: string;
+    sort?: string | number;
+}
+
+namespace PaginationCursor {
+    export function build(before: boolean, resBody: any[], paginationParams: PaginationParams): PaginationCursor {
+        const ix = before ? 0 : resBody.length - 1;
+        const cursor: PaginationCursor = {
+            id: resBody[ix].id
+        };
+        if (paginationParams.sort) {
+            cursor.sort = resBody[ix][paginationParams.sort.field];
+        }
+        return cursor;
+    }
+
+    export function decode(s: string): PaginationCursor {
+        try {
+            return JSON.parse(Buffer.from(s.replace(/_/g, "="), "base64").toString());
+        } catch (unused) {
+            throw new giftbitRoutes.GiftbitRestError(400);
+        }
+    }
+
+    export function encode(c: PaginationCursor): string {
+        return Buffer.from(JSON.stringify(c)).toString("base64").replace(/=/g, "_");
+    }
+}
+
 /**
  * Apply cursor-based pagination to the given query.  All filtering is supported but sorting (ORDER BY)
  * must be done through PaginationParams.
@@ -102,34 +132,4 @@ export async function paginateQuery<T extends { id: string }>(query: knex.QueryB
             after: !atLast && resBody.length && PaginationCursor.encode(PaginationCursor.build(false, resBody, paginationParams))
         }
     };
-}
-
-interface PaginationCursor {
-    id: string;
-    sort?: string | number;
-}
-
-namespace PaginationCursor {
-    export function build(before: boolean, resBody: any[], paginationParams: PaginationParams): PaginationCursor {
-        const ix = before ? 0 : resBody.length - 1;
-        const cursor: PaginationCursor = {
-            id: resBody[ix].id
-        };
-        if (paginationParams.sort) {
-            cursor.sort = resBody[ix][paginationParams.sort.field];
-        }
-        return cursor;
-    }
-
-    export function decode(s: string): PaginationCursor {
-        try {
-            return JSON.parse(Buffer.from(s.replace(/_/g, "="), "base64").toString());
-        } catch (unused) {
-            throw new giftbitRoutes.GiftbitRestError(400);
-        }
-    }
-
-    export function encode(c: PaginationCursor): string {
-        return Buffer.from(JSON.stringify(c)).toString("base64").replace(/=/g, "_");
-    }
 }

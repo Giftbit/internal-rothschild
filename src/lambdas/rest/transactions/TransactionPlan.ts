@@ -1,16 +1,5 @@
 import * as stripe from "stripe";
-import {
-    InternalDbTransactionStep,
-    InternalTransactionStep,
-    LightrailDbTransactionStep,
-    LightrailTransactionStep,
-    StripeDbTransactionStep,
-    StripeTransactionStep,
-    Transaction,
-    TransactionStep,
-    TransactionTotals,
-    TransactionType
-} from "../../../model/Transaction";
+import {Transaction, TransactionTotals, TransactionType} from "../../../model/Transaction";
 import {formatCodeForLastFourDisplay, Value} from "../../../model/Value";
 import {LineItemResponse} from "../../../model/LineItem";
 import {AdditionalStripeChargeParams, TransactionParty} from "../../../model/TransactionRequest";
@@ -18,6 +7,15 @@ import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {TaxRequestProperties} from "../../../model/TaxProperties";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
+import {
+    InternalDbTransactionStep,
+    InternalTransactionStep,
+    LightrailDbTransactionStep,
+    LightrailTransactionStep,
+    StripeDbTransactionStep,
+    StripeTransactionStep,
+    TransactionStep
+} from "../../../model/TransactionStep";
 
 export interface TransactionPlan {
     id: string;

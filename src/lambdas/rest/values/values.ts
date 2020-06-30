@@ -29,9 +29,10 @@ import {
 import {hasContactValues} from "../contactValues";
 import {QueryBuilder} from "knex";
 import {MetricsLogger} from "../../../utils/metricsLogger";
-import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {Transaction} from "../../../model/Transaction";
 import {ruleSchema} from "../transactions/rules/ruleSchema";
 import {isSystemId} from "../../../utils/isSystemId";
+import {LightrailTransactionStep} from "../../../model/TransactionStep";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 

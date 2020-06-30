@@ -14,7 +14,7 @@ import {
 import {installRestRoutes} from "../rest/installRestRoutes";
 import * as stripeAccess from "../../utils/stripeUtils/stripeAccess";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
-import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../model/Transaction";
+import {Transaction} from "../../model/Transaction";
 import {Value} from "../../model/Value";
 import {CheckoutRequest} from "../../model/TransactionRequest";
 import {Contact} from "../../model/Contact";
@@ -32,6 +32,7 @@ import {installStripeEventWebhookRest} from "./installStripeEventWebhookRest";
 import * as webhookUtils from "../../utils/stripeEventWebhookRouteUtils";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {createCharge, createRefund, retrieveCharge} from "../../utils/stripeUtils/stripeTransactions";
+import {LightrailTransactionStep, StripeTransactionStep} from "../../model/TransactionStep";
 
 /**
  * Webhook handling tests follow this format:
