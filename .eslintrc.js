@@ -10,9 +10,10 @@ module.exports = {
         "plugin:@typescript-eslint/recommended",
     ],
     rules: {
-        // Using `object` has caused us any confusion so far.
+        // Using `object` has not caused us any confusion so far.
         "@typescript-eslint/ban-types": "off",
 
+        // Sometimes `any` is the right answer.
         "@typescript-eslint/explicit-module-boundary-types": ["error", {
             allowArgumentsExplicitlyTypedAsAny: true
         }],
@@ -36,6 +37,7 @@ module.exports = {
         // That's just stupid.
         "@typescript-eslint/no-empty-function": "off",
 
+        // Sometimes `any` is the right answer.
         "@typescript-eslint/no-explicit-any": "off",
 
         "@typescript-eslint/no-inferrable-types": ["error", {
@@ -46,22 +48,34 @@ module.exports = {
         "@typescript-eslint/no-namespace": "off",
 
         "@typescript-eslint/no-use-before-define": ["error", {
+            // Functions are hoisted.  This is not a logic error.
             functions: false
         }],
-
-        // It's occasionally useful to inline a require; especially json.
-        "@typescript-eslint/no-var-requires": "off",
 
         "@typescript-eslint/no-unused-vars": ["error", {
             // Often useful to document functions.
             args: "none"
         }],
 
+        // Use the logger instead.
+        "no-console": "error",
+
         // Needed to allow functions exported from namespaces.
         "no-inner-declarations": "off",
 
         "no-constant-condition": ["error", {
+            // Allow the while(true) pattern.
             checkLoops: false
+        }],
+
+        "no-restricted-properties": [2, {
+            object: "describe",
+            property: "only",
+            message: "This is ok for development but should not be checked in."
+        }, {
+            object: "it",
+            property: "only",
+            message: "This is ok for development but should not be checked in."
         }],
 
         // Not everybody understands the regex spec in that level of detail to recognize

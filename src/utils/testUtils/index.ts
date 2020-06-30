@@ -16,6 +16,7 @@ import {ParsedCsvProxyResponse} from "./ParsedCsvProxyResponse";
 import log = require("loglevel");
 import uuid = require("uuid");
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const rolesConfig = require("./rolesConfig.json");
 
 if (!process.env["TEST_ENV"]) {
