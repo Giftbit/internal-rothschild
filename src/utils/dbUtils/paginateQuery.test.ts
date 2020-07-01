@@ -9,7 +9,7 @@ describe("paginateQuery()", () => {
         id: string;
         a: string;
         b: number;
-        c: boolean;
+        c: number;
     }
 
     before(async () => {
@@ -21,7 +21,7 @@ describe("paginateQuery()", () => {
             "  id     VARCHAR(32)  NOT NULL," +
             "  a      VARCHAR(255) NOT NULL,\n" +
             "  b      INT          NOT NULL,\n" +
-            "  c      BOOLEAN      NOT NULL,\n" +
+            "  c      INT          NOT NULL,\n" +
             "  PRIMARY KEY pk_Row (userId, id)\n" +
             ");");
 
@@ -33,7 +33,7 @@ describe("paginateQuery()", () => {
                 id: `id-${i}`,
                 a: Math.abs(Math.sin(i)).toString(36).substring(2),
                 b: Math.floor(Math.abs(Math.tan(i))) * 10,
-                c: !!(i % 3)
+                c: i % 3
             });
         }
 

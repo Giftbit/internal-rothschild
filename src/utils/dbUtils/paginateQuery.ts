@@ -1,10 +1,24 @@
+import * as jsonschema from "jsonschema";
 import * as knex from "knex";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {QueryOptions} from "./QueryOptions";
 
+/**
+ * The information necessary to fetch the next page in pagination.
+ * This gets encoded in PaginationParams `before` and `after`.
+ */
 interface PaginationCursor {
+    /**
+     * The `id` value of the last (first) item on the page that will define
+     * what goes on the next (previous) page.
+     */
     id: string;
+
+    /**
+     * The sort field value of the last (first) item on the page that will define
+     * what goes on the next (previous) page.
+     */
     sort?: string | number;
 }
 
@@ -22,7 +36,27 @@ namespace PaginationCursor {
 
     export function decode(s: string): PaginationCursor {
         try {
-            return JSON.parse(Buffer.from(s.replace(/_/g, "="), "base64").toString());
+            const cursor: PaginationCursor = JSON.parse(Buffer.from(s.replace(/_/g, "="), "base64").toString());
+
+            // Catch tampering that could create silly 500s.
+            const validation = jsonschema.validate(cursor, {
+                properties: {
+                    id: {
+                        type: "string",
+                        minLength: 1
+                    },
+                    sort: {
+                        type: ["string", "number"],
+                        minLength: 1
+                    }
+                },
+                required: ["id"],
+                additionalProperties: false
+            });
+            if (validation.errors.length) {
+                throw new Error();
+            }
+            return cursor;
         } catch (unused) {
             throw new giftbitRoutes.GiftbitRestError(400);
         }
@@ -38,6 +72,10 @@ namespace PaginationCursor {
  * must be done through PaginationParams.
  */
 export async function paginateQuery<T extends { id: string }>(query: knex.QueryBuilder, paginationParams: PaginationParams, options: QueryOptions = null): Promise<{ body: T[], pagination: Pagination }> {
+    if (paginationParams.limit > paginationParams.maxLimit) {
+        paginationParams.limit = paginationParams.maxLimit;
+    }
+
     let reverse = false;
     let atFirst = false;
     let atLast = false;
@@ -50,15 +88,16 @@ export async function paginateQuery<T extends { id: string }>(query: knex.QueryB
     if (paginationParams.after) {
         const after = PaginationCursor.decode(paginationParams.after);
         if (after.sort != null && paginationParams.sort) {
-            query = query
-                .where(query => query
-                    .where(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? ">" : "<", after.sort)
-                    .orWhere(query =>
-                        query
-                            .where(columnPrefix + paginationParams.sort.field, "=", after.sort)
-                            .where(columnPrefix + "id", paginationParams.sort.asc ? ">" : "<", after.id)
-                    )
-                )
+            query = query.client.queryBuilder()
+                .union([
+                    query.clone()
+                        .where(query =>
+                            query
+                                .where(columnPrefix + paginationParams.sort.field, "=", after.sort)
+                                .where(columnPrefix + "id", paginationParams.sort.asc ? ">" : "<", after.id)),
+                    query.clone()
+                        .where(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? ">" : "<", after.sort)
+                ])
                 .orderBy(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? "ASC" : "DESC")
                 .orderBy(columnPrefix + "id", paginationParams.sort.asc ? "ASC" : "DESC");
         } else {
@@ -69,15 +108,17 @@ export async function paginateQuery<T extends { id: string }>(query: knex.QueryB
     } else if (paginationParams.before) {
         const before = PaginationCursor.decode(paginationParams.before);
         if (before.sort != null && paginationParams.sort) {
-            query = query
-                .where(query => query
-                    .where(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? "<" : ">", before.sort)
-                    .orWhere(query =>
-                        query
-                            .where(columnPrefix + paginationParams.sort.field, "=", before.sort)
-                            .where(columnPrefix + "id", paginationParams.sort.asc ? "<" : ">", before.id)
-                    )
-                )
+            query = query.client.queryBuilder()
+                .union([
+                    query.clone()
+                        .where(query =>
+                            query
+                                .where(columnPrefix + paginationParams.sort.field, "=", before.sort)
+                                .where(columnPrefix + "id", paginationParams.sort.asc ? "<" : ">", before.id)
+                        ),
+                    query.clone()
+                        .where(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? "<" : ">", before.sort)
+                ])
                 .orderBy(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? "DESC" : "ASC")
                 .orderBy(columnPrefix + "id", paginationParams.sort.asc ? "DESC" : "ASC");
         } else {
