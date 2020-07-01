@@ -43,7 +43,7 @@ export interface PaginationParams {
 }
 
 /**
- * Controls
+ * Controls pagination capabilities.
  */
 export interface PaginationParamOptions {
     /**
@@ -75,7 +75,7 @@ export class Pagination {
     limit: number;
 
     /**
-     * The maximum limit that can be used.
+     * The maximum limit that can be used in future calls.
      */
     maxLimit: number;
 

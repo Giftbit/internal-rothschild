@@ -5,8 +5,7 @@ import {Pagination, PaginationParams} from "../../model/Pagination";
 import {QueryOptions} from "./QueryOptions";
 
 /**
- * The information necessary to fetch the next page in pagination.
- * This gets encoded in PaginationParams `before` and `after`.
+ * The state necessary to fetch the next page in pagination.
  */
 interface PaginationCursor {
     /**
@@ -89,7 +88,7 @@ export async function paginateQuery<T extends { id: string }>(query: knex.QueryB
         const after = PaginationCursor.decode(paginationParams.after);
         if (after.sort != null && paginationParams.sort) {
             query = query.client.queryBuilder()
-                .union([
+                .unionAll([
                     query.clone()
                         .where(query =>
                             query
@@ -98,8 +97,9 @@ export async function paginateQuery<T extends { id: string }>(query: knex.QueryB
                     query.clone()
                         .where(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? ">" : "<", after.sort)
                 ])
-                .orderBy(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? "ASC" : "DESC")
-                .orderBy(columnPrefix + "id", paginationParams.sort.asc ? "ASC" : "DESC");
+                // These ORDER BYs are outside the UNION and can't have the table prefix.
+                .orderBy(paginationParams.sort.field, paginationParams.sort.asc ? "ASC" : "DESC")
+                .orderBy("id", paginationParams.sort.asc ? "ASC" : "DESC");
         } else {
             query = query
                 .where(columnPrefix + "id", ">", after.id)
@@ -109,7 +109,7 @@ export async function paginateQuery<T extends { id: string }>(query: knex.QueryB
         const before = PaginationCursor.decode(paginationParams.before);
         if (before.sort != null && paginationParams.sort) {
             query = query.client.queryBuilder()
-                .union([
+                .unionAll([
                     query.clone()
                         .where(query =>
                             query
@@ -119,8 +119,9 @@ export async function paginateQuery<T extends { id: string }>(query: knex.QueryB
                     query.clone()
                         .where(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? "<" : ">", before.sort)
                 ])
-                .orderBy(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? "DESC" : "ASC")
-                .orderBy(columnPrefix + "id", paginationParams.sort.asc ? "DESC" : "ASC");
+                // These ORDER BYs are outside the UNION and can't have the table prefix.
+                .orderBy(paginationParams.sort.field, paginationParams.sort.asc ? "DESC" : "ASC")
+                .orderBy("id", paginationParams.sort.asc ? "DESC" : "ASC");
         } else {
             query = query
                 .where(columnPrefix + "id", "<", before.id)
