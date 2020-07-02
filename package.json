@@ -59,7 +59,7 @@
     "dynameh": "^4.3.1",
     "eslint": "^7.3.1",
     "file-loader": "^6.0.0",
-    "giftbit-cassava-routes": "git+ssh://git@github.com/Giftbit/giftbit-cassava-routes.git#semver:^11.0.0",
+    "giftbit-cassava-routes": "git+ssh://git@github.com/Giftbit/giftbit-cassava-routes.git#semver:^11.1.1",
     "giftbit-lambda-metricslib": "git+ssh://git@github.com/Giftbit/giftbit-lambda-metricslib.git#semver:^3.0.0",
     "giftbit-ruleslib": "git+ssh://git@github.com/Giftbit/giftbit-ruleslib.git#semver:^4.3.0",
     "import-glob-loader": "^1.1.0",
