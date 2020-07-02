@@ -1,7 +1,6 @@
 import * as cassava from "cassava";
-import * as kvsAccess from "../kvsAccess";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {GiftbitRestError} from "giftbit-cassava-routes";
+import * as kvsAccess from "../kvsAccess";
 import {stripeApiVersion, StripeConfig, StripeModeConfig} from "./StripeConfig";
 import {StripeAuth} from "./StripeAuth";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
@@ -42,10 +41,17 @@ export async function getMerchantStripeAuth(auth: giftbitRoutes.jwtauth.Authoriz
     log.info("got retrieve stripe auth assume token");
 
     log.info("fetching merchant stripe auth");
-    const merchantStripeAuth: StripeAuth = await kvsAccess.kvsGet(assumeToken, "stripeAuth", authorizeAs);
+    let merchantStripeAuth: StripeAuth;
+    try {
+        merchantStripeAuth = await kvsAccess.kvsGet(assumeToken, "stripeAuth", authorizeAs);
+    } catch (err) {
+        log.error("error accessing stripeAuth from KVS", err);
+        throw new giftbitRoutes.GiftbitRestError(503, "An internal service is temporarily unavailable.");
+    }
+
     log.info("got merchant stripe auth");
     if (!merchantStripeAuth || !merchantStripeAuth.stripe_user_id) {
-        throw new GiftbitRestError(424, "Merchant stripe config stripe_user_id must be set.", "MissingStripeUserId");
+        throw new giftbitRoutes.GiftbitRestError(424, "Merchant stripe config stripe_user_id must be set.", "MissingStripeUserId");
     }
 
     cachedMerchantStripeAuth.auth = auth;

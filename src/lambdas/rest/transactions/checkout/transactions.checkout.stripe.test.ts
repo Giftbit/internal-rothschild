@@ -29,6 +29,8 @@ import {
 import chaiExclude from "chai-exclude";
 import {TestUser} from "../../../../utils/testUtils/TestUser";
 import {StripeTransactionStep} from "../../../../model/TransactionStep";
+import * as superagent from "superagent";
+import * as kvsAccess from "../../../../utils/kvsAccess";
 import log = require("loglevel");
 
 chai.use(chaiExclude);
@@ -684,6 +686,39 @@ describe("split tender checkout with Stripe", () => {
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 404, "the transaction was not actually created");
+    });
+
+    it("returns 503 when merchant auth token is not available from KVS", async () => {
+        // By default the test is setup so that it works.
+        unsetStubsForStripeTests();
+
+        const superAgentError: superagent.HTTPError = new Error("Error") as any;
+        superAgentError.status = 500;
+        superAgentError.method = "GET";
+        superAgentError.text = "Error";
+
+        sinonSandbox.stub(kvsAccess, "kvsGet")
+            .throwsException(superAgentError);
+
+        const request: CheckoutRequest = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "stripe",
+                    source: source
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "xyz-123",
+                    unitPrice: 500
+                }
+            ],
+            currency: "CAD"
+        };
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+        chai.assert.equal(postCheckoutResp.statusCode, 503);
     });
 
     describe("rollback", () => {
