@@ -6,12 +6,13 @@ import {formatCodeForLastFourDisplay, Value} from "../../../model/Value";
 import {installRestRoutes} from "../installRestRoutes";
 import {createCurrency} from "../currencies";
 import {Contact} from "../../../model/Contact";
-import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {Transaction} from "../../../model/Transaction";
 import {CheckoutRequest} from "../../../model/TransactionRequest";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
 import {generateUrlSafeHashFromValueIdContactId} from "../genericCodeWithPerContactOptions";
 import chaiExclude from "chai-exclude";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
+import {LightrailTransactionStep} from "../../../model/TransactionStep";
 
 chai.use(chaiExclude);
 

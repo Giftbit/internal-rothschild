@@ -1,16 +1,5 @@
 import * as stripe from "stripe";
-import {
-    InternalDbTransactionStep,
-    InternalTransactionStep,
-    LightrailDbTransactionStep,
-    LightrailTransactionStep,
-    StripeDbTransactionStep,
-    StripeTransactionStep,
-    Transaction,
-    TransactionStep,
-    TransactionTotals,
-    TransactionType
-} from "../../../model/Transaction";
+import {Transaction, TransactionTotals, TransactionType} from "../../../model/Transaction";
 import {formatCodeForLastFourDisplay, Value} from "../../../model/Value";
 import {LineItemResponse} from "../../../model/LineItem";
 import {AdditionalStripeChargeParams, TransactionParty} from "../../../model/TransactionRequest";
@@ -18,6 +7,15 @@ import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {TaxRequestProperties} from "../../../model/TaxProperties";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
+import {
+    InternalDbTransactionStep,
+    InternalTransactionStep,
+    LightrailDbTransactionStep,
+    LightrailTransactionStep,
+    StripeDbTransactionStep,
+    StripeTransactionStep,
+    TransactionStep
+} from "../../../model/TransactionStep";
 
 export interface TransactionPlan {
     id: string;
@@ -157,8 +155,23 @@ export namespace LightrailTransactionPlanStep {
         };
     }
 
-    function getSharedProperties(step: LightrailTransactionPlanStep) {
-        let sharedProperties = {
+    /**
+     * Shared between LightrailDbTransactionStep and LightrailTransactionStep.
+     */
+    interface SharedStepProperties {
+        valueId: string;
+        contactId: string;
+        code: string | null;
+        balanceBefore: number;
+        balanceChange: number;
+        balanceAfter: number;
+        usesRemainingBefore: number;
+        usesRemainingChange: number;
+        usesRemainingAfter: number;
+    }
+
+    function getSharedProperties(step: LightrailTransactionPlanStep): SharedStepProperties {
+        const sharedProperties = {
             valueId: step.value.id,
             contactId: step.value.contactId,
             code: step.value.code ? formatCodeForLastFourDisplay(step.value.code) : null,
@@ -279,7 +292,17 @@ export namespace InternalTransactionPlanStep {
         };
     }
 
-    function getSharedProperties(step: InternalTransactionPlanStep) {
+    /**
+     * Shared between InternalDbTransactionStep and InternalTransactionStep.
+     */
+    interface SharedStepProperties {
+        internalId: string;
+        balanceBefore: number;
+        balanceAfter: number;
+        balanceChange: number;
+    }
+
+    function getSharedProperties(step: InternalTransactionPlanStep): SharedStepProperties {
         return {
             internalId: step.internalId,
             balanceBefore: step.balance,

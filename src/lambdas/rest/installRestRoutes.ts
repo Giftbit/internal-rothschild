@@ -6,7 +6,7 @@ import {installTransactionsRest} from "./transactions/transactions";
 import {installContactValuesRest} from "./contactValues";
 import {installProgramsRest} from "./programs";
 import {installIssuancesRest} from "./programIssuance";
-import {installReportsRest} from "./reports";
+import {installReportsRest} from "./reports/reports";
 
 /**
  * Install all the rest api routes.

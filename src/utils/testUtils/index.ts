@@ -16,6 +16,7 @@ import {ParsedCsvProxyResponse} from "./ParsedCsvProxyResponse";
 import log = require("loglevel");
 import uuid = require("uuid");
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const rolesConfig = require("./rolesConfig.json");
 
 if (!process.env["TEST_ENV"]) {
@@ -116,6 +117,7 @@ async function runSqlMigrations(connection: any): Promise<void> {
         try {
             await connection.query("DROP USER binlogwatcher");
         } catch (err) {
+            // Ditto.
         }
         await connection.query("DROP DATABASE rothschild");
     }
@@ -234,7 +236,7 @@ export async function createUSDValue(router: cassava.Router, valueProps?: Partia
 export async function createUSDCheckout(router: cassava.Router, checkoutProps?: Partial<CheckoutRequest>, chargeStripe: boolean = true): Promise<{ checkout: Transaction, valuesCharged: Value[] }> {
     await createUSD(router);
 
-    let baseCheckoutProps: Partial<CheckoutRequest> = {
+    const baseCheckoutProps: Partial<CheckoutRequest> = {
         id: generateId(),
         currency: "USD",
         lineItems: [{

@@ -77,8 +77,8 @@ describe("/v2/programs/{id}/issuances", () => {
         const valuesToIssues = [1, 10, 11, 100, 1000];
 
         const issuances: Issuance[] = [];
-        for (let count of valuesToIssues) {
-            let issuance = {
+        for (const count of valuesToIssues) {
+            const issuance = {
                 id: generateId(),
                 name: "name",
                 count: count,
@@ -308,7 +308,7 @@ describe("/v2/programs/{id}/issuances", () => {
         const createProgram = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
         chai.assert.equal(createProgram.statusCode, 201, JSON.stringify(createProgram.body));
 
-        let issuance: Partial<Issuance> = {
+        const issuance: Partial<Issuance> = {
             id: generateId(),
             name: "name",
             count: 1,
@@ -437,7 +437,7 @@ describe("/v2/programs/{id}/issuances", () => {
             {id: generateId(), createdDate: new Date("3030-02-03")},
             {id: generateId(), createdDate: new Date("3030-02-04")}
         ];
-        for (let idAndDate of idAndDates) {
+        for (const idAndDate of idAndDates) {
             const response = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", {
                 id: idAndDate.id,
                 name: idAndDate.id + "-name",
@@ -467,7 +467,7 @@ describe("/v2/programs/{id}/issuances", () => {
     });
 
     describe("creating Issuance with metadata from Program with metadata", () => {
-        let program: Partial<Program> = {
+        const program: Partial<Program> = {
             id: generateId(),
             name: "program with balanceRule",
             currency: "USD",
@@ -477,17 +477,17 @@ describe("/v2/programs/{id}/issuances", () => {
             }
         };
 
-        let programProperties = Object.keys(program);
+        const programProperties = Object.keys(program);
         it("can create Program", async () => {
             const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
             chai.assert.equal(programResp.statusCode, 201, JSON.stringify(programResp.body));
-            for (let prop of programProperties) {
+            for (const prop of programProperties) {
                 chai.assert.equal(JSON.stringify(programResp.body[prop]), JSON.stringify(program[prop]));
             }
         });
 
         it("can create Issuance and Program's metadata is copied to Issuance and Values metadata", async () => {
-            let issuance: Partial<Issuance> = {
+            const issuance: Partial<Issuance> = {
                 id: generateId(),
                 name: "issuance name",
                 count: 1
@@ -503,7 +503,7 @@ describe("/v2/programs/{id}/issuances", () => {
         });
 
         it("can create Issuance with metadata and Program's metadata is copied to Issuance and Value metadata. Issuance metadata takes precedence.", async () => {
-            let issuance: Partial<Issuance> = {
+            const issuance: Partial<Issuance> = {
                 id: generateId(),
                 name: "issuance name",
                 count: 1,
@@ -527,7 +527,7 @@ describe("/v2/programs/{id}/issuances", () => {
     });
 
     it("creating Issuance with no balance results in values with balance of 0.", async () => {
-        let issuance: Partial<Issuance> = {
+        const issuance: Partial<Issuance> = {
             id: generateId(),
             name: "issuance name",
             count: 1
@@ -550,7 +550,7 @@ describe("/v2/programs/{id}/issuances", () => {
         const createProgram = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs`, "POST", minInitialBalanceProgram);
         chai.assert.equal(createProgram.statusCode, 201, JSON.stringify(createProgram.body));
 
-        let issuance: Partial<Issuance> = {
+        const issuance: Partial<Issuance> = {
             id: generateId(),
             name: "issuance name",
             count: 1
@@ -570,7 +570,7 @@ describe("/v2/programs/{id}/issuances", () => {
         const createProgram = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs`, "POST", program);
         chai.assert.equal(createProgram.statusCode, 201, JSON.stringify(createProgram.body));
 
-        let issuance: Partial<Issuance> = {
+        const issuance: Partial<Issuance> = {
             id: generateId(),
             name: "issuance name",
             count: 1

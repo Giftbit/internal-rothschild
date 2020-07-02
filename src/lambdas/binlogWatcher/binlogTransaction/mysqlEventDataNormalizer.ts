@@ -1,7 +1,7 @@
 // Adapted from https://github.com/rodrigogs/mysql-events/blob/master/lib/dataNormalizer.js
 // If we ever fork ZongJi this logic can probably be folded into there.
 
-const getEventType = (eventName) => {
+const getEventType = (eventName: string): string => {
     return {
         writerows: "INSERT",
         updaterows: "UPDATE",
@@ -9,7 +9,7 @@ const getEventType = (eventName) => {
     }[eventName];
 };
 
-const normalizeRow = (row) => {
+const normalizeRow = (row: any): any => {
     if (!row) return undefined;
 
     const columns = Object.getOwnPropertyNames(row);
@@ -30,7 +30,7 @@ const normalizeRow = (row) => {
     return row;
 };
 
-const hasDifference = (beforeValue, afterValue) => {
+const hasDifference = (beforeValue: any, afterValue: any): boolean => {
     if ((beforeValue && afterValue) && beforeValue instanceof Date) {
         return beforeValue.getTime() !== afterValue.getTime();
     }
@@ -38,7 +38,7 @@ const hasDifference = (beforeValue, afterValue) => {
     return beforeValue !== afterValue;
 };
 
-const fixRowStructure = (type, row) => {
+const fixRowStructure = (type: string, row: any): any => {
     if (type === "INSERT") {
         row = {
             before: undefined,
@@ -55,7 +55,7 @@ const fixRowStructure = (type, row) => {
     return row;
 };
 
-const resolveAffectedColumns = (normalizedEvent, normalizedRows) => {
+const resolveAffectedColumns = (normalizedEvent: any, normalizedRows: any): void => {
     const columns = Object.getOwnPropertyNames((normalizedRows.after || normalizedRows.before));
     for (let i = 0, len = columns.length; i < len; i += 1) {
         const columnName = columns[i];
@@ -70,7 +70,7 @@ const resolveAffectedColumns = (normalizedEvent, normalizedRows) => {
     }
 };
 
-export const mysqlEventDataNormalizer = (event) => {
+export const mysqlEventDataNormalizer = (event: any): any => {
     const type = getEventType(event.getEventName());
     const schema = event.tableMap[event.tableId].parentSchema;
     const table = event.tableMap[event.tableId].tableName;

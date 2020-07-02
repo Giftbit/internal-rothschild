@@ -156,7 +156,7 @@ export async function testLightrailEvents(eventGenerator: () => Promise<void>): 
 
     await eventGenerator();
 
-    await new Promise(async resolve => {
+    await new Promise((resolve, reject) => {
         binlogStream.on("binlog", (event: BinlogEvent) => {
             // Look for a specific binlog event that marks the end of the events we care about.
             if (event.binlog.getTypeName() === "Query" && (event as BinlogEvent<QueryEvent>).binlog.query.startsWith(`DROP USER '${sentinelUser}'@'localhost'`)) {
@@ -167,9 +167,10 @@ export async function testLightrailEvents(eventGenerator: () => Promise<void>): 
 
         // Block on all previous SQL transactions completing and then trigger
         // a binlog event we will look for to mark the end of events we care about.
-        await knex.raw("FLUSH TABLE WITH READ LOCK");
-        await knex.raw("UNLOCK TABLES");
-        await knex.raw(`DROP USER '${sentinelUser}'@'localhost'`);
+        knex.raw("FLUSH TABLE WITH READ LOCK")
+            .then(() => knex.raw("UNLOCK TABLES"))
+            .then(() => knex.raw(`DROP USER '${sentinelUser}'@'localhost'`))
+            .catch(reject);
     });
 
     await binlogStream.stop();

@@ -1,15 +1,15 @@
-import log = require("loglevel");
-import Stripe = require("stripe");
+import * as cassava from "cassava";
+import * as kvsAccess from "../kvsAccess";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
 import {stripeApiVersion, StripeConfig, StripeModeConfig} from "./StripeConfig";
 import {StripeAuth} from "./StripeAuth";
-import * as cassava from "cassava";
-import * as kvsAccess from "../kvsAccess";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
 import {generateCode} from "../codeGenerator";
 import {DbTransaction, Transaction} from "../../model/Transaction";
 import {getKnexRead} from "../dbUtils/connection";
+import log = require("loglevel");
+import Stripe = require("stripe");
 
 let assumeCheckoutToken: Promise<giftbitRoutes.secureConfig.AssumeScopeToken>;
 
@@ -106,7 +106,7 @@ export async function getStripeClient(isTestMode: boolean): Promise<Stripe> {
  * When that happens we'll be able to build the badge solely from the accountId and test/live flag on the event.
  */
 export async function getAuthBadgeFromStripeCharge(stripeAccountId: string, stripeCharge: Stripe.charges.ICharge, event: Stripe.events.IEvent & { account: string }): Promise<giftbitRoutes.jwtauth.AuthorizationBadge> {
-    let lightrailUserId = await getLightrailUserIdFromStripeCharge(stripeAccountId, stripeCharge, !event.livemode);
+    const lightrailUserId = await getLightrailUserIdFromStripeCharge(stripeAccountId, stripeCharge, !event.livemode);
 
     return new AuthorizationBadge({
         g: {

@@ -1,17 +1,18 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
+import chaiExclude from "chai-exclude";
+import * as sinon from "sinon";
+import * as codeGenerator from "../../../utils/codeGenerator";
 import * as testUtils from "../../../utils/testUtils/index";
-import {generateId, setCodeCryptographySecrets} from "../../../utils/testUtils/index";
+import {generateId, setCodeCryptographySecrets} from "../../../utils/testUtils";
 import {DbValue, Value} from "../../../model/Value";
-import {DbTransaction, LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {installRestRoutes} from "../installRestRoutes";
 import {createCurrency} from "../currencies";
-import * as sinon from "sinon";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
-import * as codeGenerator from "../../../utils/codeGenerator";
 import {CheckoutRequest, LightrailTransactionParty} from "../../../model/TransactionRequest";
-import chaiExclude from "chai-exclude";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
+import {LightrailTransactionStep} from "../../../model/TransactionStep";
 
 chai.use(chaiExclude);
 
@@ -57,7 +58,7 @@ describe("/v2/values/", () => {
             const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
             chai.assert.equal(createValue.body.code, "…ZXCV");
             chai.assert.notInclude(JSON.stringify(createValue.body), fullcode);
-            let valueQuery = knex("Values")
+            const valueQuery = knex("Values")
                 .select("*")
                 .where({
                     "userId": testUtils.defaultTestUser.userId,
@@ -75,7 +76,7 @@ describe("/v2/values/", () => {
             const getTransaction = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${value.id}`, "GET");
             chai.assert.equal((getTransaction.body[0].steps[0] as LightrailTransactionStep).code, "…ZXCV");
             chai.assert.notInclude(JSON.stringify(getTransaction.body), fullcode);
-            let transactionQuery = knex("Transactions")
+            const transactionQuery = knex("Transactions")
                 .select("*")
                 .where({
                     "userId": testUtils.defaultTestUser.userId,
@@ -84,7 +85,7 @@ describe("/v2/values/", () => {
             const dbTrx: DbTransaction[] = await transactionQuery;
             chai.assert.notInclude(JSON.stringify(dbTrx), fullcode);
 
-            let stepQuery = knex("LightrailTransactionSteps")
+            const stepQuery = knex("LightrailTransactionSteps")
                 .select("*")
                 .where({
                     "userId": testUtils.defaultTestUser.userId,
@@ -118,7 +119,7 @@ describe("/v2/values/", () => {
             chai.assert.equal((createCheckout.body.steps[0] as LightrailTransactionStep).code, "…ZXCV");
             chai.assert.notInclude(JSON.stringify(createCheckout), fullcode);
 
-            let transactionQuery = knex("Transactions")
+            const transactionQuery = knex("Transactions")
                 .select("*")
                 .where({
                     "userId": testUtils.defaultTestUser.userId,
@@ -127,7 +128,7 @@ describe("/v2/values/", () => {
             const dbTrx: DbTransaction[] = await transactionQuery;
             chai.assert.notInclude(JSON.stringify(dbTrx), fullcode);
 
-            let stepQuery = knex("LightrailTransactionSteps")
+            const stepQuery = knex("LightrailTransactionSteps")
                 .select("*")
                 .where({
                     "userId": testUtils.defaultTestUser.userId,

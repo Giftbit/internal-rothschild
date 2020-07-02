@@ -1,17 +1,17 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
+import chaiExclude from "chai-exclude";
 import * as transactions from "../transactions";
 import * as valueStores from "../../values/values";
 import * as testUtils from "../../../../utils/testUtils";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../../utils/testUtils";
-import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../../model/Transaction";
+import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import {formatCodeForLastFourDisplay, Value} from "../../../../model/Value";
-import {after} from "mocha";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../utils/testUtils/stripeTestUtils";
 import {CheckoutRequest, InternalTransactionParty} from "../../../../model/TransactionRequest";
-import chaiExclude from "chai-exclude";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
+import {LightrailTransactionStep, StripeTransactionStep} from "../../../../model/TransactionStep";
 
 chai.use(chaiExclude);
 

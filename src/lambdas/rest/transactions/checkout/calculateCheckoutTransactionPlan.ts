@@ -30,7 +30,7 @@ export function calculateCheckoutTransactionPlanForOrderedSteps(checkout: Checko
         }
     }
 
-    let transactionPlan = new CheckoutTransactionPlan(checkout, preTaxSteps.concat(postTaxSteps), now);
+    const transactionPlan = new CheckoutTransactionPlan(checkout, preTaxSteps.concat(postTaxSteps), now);
     log.info(`Build checkout transaction plan: ${JSON.stringify(transactionPlan)}`);
     calculateAmountsForTransactionSteps(preTaxSteps, transactionPlan);
     transactionPlan.calculateTaxAndSetOnLineItems();
@@ -81,7 +81,7 @@ function calculateAmountsForTransactionSteps(steps: TransactionPlanStep[], trans
 function calculateAmountForLightrailTransactionStep(step: LightrailUpdateTransactionPlanStep, transactionPlan: TransactionPlan): void {
     log.info(`calculateAmountForLightrailTransactionStep ${JSON.stringify(step)}.`);
 
-    let value = step.value;
+    const value = step.value;
     if (!isValueRedeemable(value)) {
         log.info(`Value ${value.id} CANNOT be redeemed.`);
         return;
@@ -128,12 +128,12 @@ function calculateAmountForLightrailTransactionStep(step: LightrailUpdateTransac
  * Returns a number between 0 and 1.
  */
 function getDiscountSellerLiability(transactionPlan: TransactionPlan, step: LightrailUpdateTransactionPlanStep, item: LineItemResponse): number {
-    let discountSellerLiability = getRuleContext(transactionPlan, step, item).evaluateDiscountSellerLiabilityRule(step.value.discountSellerLiabilityRule);
+    const discountSellerLiability = getRuleContext(transactionPlan, step, item).evaluateDiscountSellerLiabilityRule(step.value.discountSellerLiabilityRule);
     return MathUtils.constrain(0, discountSellerLiability, 1);
 }
 
 function calculateAmountForStripeTransactionStep(step: StripeChargeTransactionPlanStep, transactionPlan: TransactionPlan): void {
-    let stepAmount: number = 0;
+    let stepAmount = 0;
 
     for (const item of transactionPlan.lineItems) {
         let stepItemAmount = item.lineTotal.remainder;

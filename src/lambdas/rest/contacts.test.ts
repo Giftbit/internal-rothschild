@@ -8,9 +8,9 @@ import {Value} from "../../model/Value";
 import {Currency} from "../../model/Currency";
 import {installRestRoutes} from "./installRestRoutes";
 import chaiExclude from "chai-exclude";
-import parseLinkHeader = require("parse-link-header");
 import {GiftbitRestError} from "giftbit-cassava-routes";
 import {Transaction} from "../../model/Transaction";
+import parseLinkHeader = require("parse-link-header");
 
 chai.use(chaiExclude);
 
@@ -148,7 +148,7 @@ describe("/v2/contacts", () => {
         contact2 = resp.body;
     });
 
-    let contact3: Partial<Contact> & { userId: string } = {
+    const contact3: Partial<Contact> & { userId: string } = {
         id: "c3",
         userId: "malicious"
     };
@@ -870,7 +870,7 @@ describe("/v2/contacts", () => {
             {id: generateId(), createdDate: new Date("3030-02-03")},
             {id: generateId(), createdDate: new Date("3030-02-04")}
         ];
-        for (let idAndDate of idAndDates) {
+        for (const idAndDate of idAndDates) {
             const response = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {
                 id: idAndDate.id,
                 email: "user@example.com"

@@ -1,4 +1,6 @@
 import * as cassava from "cassava";
+import * as chai from "chai";
+import sinon from "sinon";
 import * as testUtils from "../../utils/testUtils";
 import {
     createUSD,
@@ -11,12 +13,10 @@ import {
 } from "../../utils/testUtils";
 import {installRestRoutes} from "../rest/installRestRoutes";
 import * as stripeAccess from "../../utils/stripeUtils/stripeAccess";
-import * as chai from "chai";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
-import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../model/Transaction";
+import {Transaction} from "../../model/Transaction";
 import {Value} from "../../model/Value";
 import {CheckoutRequest} from "../../model/TransactionRequest";
-import * as stripe from "stripe";
 import {Contact} from "../../model/Contact";
 import {
     assertTransactionChainContainsTypes,
@@ -26,13 +26,13 @@ import {
     setupForWebhookEvent,
     testSignedWebhookRequest
 } from "../../utils/testUtils/webhookHandlerTestUtils";
-import sinon from "sinon";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
 import {generateCode} from "../../utils/codeGenerator";
 import {installStripeEventWebhookRest} from "./installStripeEventWebhookRest";
 import * as webhookUtils from "../../utils/stripeEventWebhookRouteUtils";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {createCharge, createRefund, retrieveCharge} from "../../utils/stripeUtils/stripeTransactions";
+import {LightrailTransactionStep, StripeTransactionStep} from "../../model/TransactionStep";
 
 /**
  * Webhook handling tests follow this format:
@@ -239,7 +239,7 @@ describe("/v2/stripeEventWebhook", () => {
 
     describe("generic values", () => {
         it("does not freeze generic values - attached or unattached", async () => {
-            let sandbox = sinon.createSandbox();
+            const sandbox = sinon.createSandbox();
             (giftbitRoutes.sentry.sendErrorNotification as any).restore();
             const stub = sandbox.stub(giftbitRoutes.sentry, "sendErrorNotification");
 
@@ -320,7 +320,7 @@ describe("/v2/stripeEventWebhook", () => {
         }).timeout(12000);
 
         it("freezes unique values only when both generic and unique are used", async () => {
-            let sandbox = sinon.createSandbox();
+            const sandbox = sinon.createSandbox();
             (giftbitRoutes.sentry.sendErrorNotification as any).restore();
             const stub = sandbox.stub(giftbitRoutes.sentry, "sendErrorNotification");
 
@@ -473,7 +473,7 @@ describe("/v2/stripeEventWebhook", () => {
         }).timeout(8000);
 
         it("returns success if can't find Lightrail transaction", async () => {
-            let sandbox = sinon.createSandbox();
+            const sandbox = sinon.createSandbox();
             const stub = sandbox.stub(stripeAccess, "getAuthBadgeFromStripeCharge");
             stub.resolves(new AuthorizationBadge({
                 g: {
@@ -505,7 +505,7 @@ describe("/v2/stripeEventWebhook", () => {
         }).timeout(12000);
 
         it("returns failure response if can't freeze all Lightrail values", async () => {
-            let sandbox = sinon.createSandbox();
+            const sandbox = sinon.createSandbox();
             const stub = sandbox.stub(webhookUtils, "freezeLightrailSources");
             stub.rejects(new Error("End of the world, at least for now "));
 
@@ -521,7 +521,7 @@ describe("/v2/stripeEventWebhook", () => {
         }).timeout(8000);
 
         it("passes 5XX through to Stripe", async () => {
-            let sandbox = sinon.createSandbox();
+            const sandbox = sinon.createSandbox();
             const stub = sandbox.stub(stripeAccess, "getAuthBadgeFromStripeCharge");
             stub.rejects(new Error("End of the world, at least for now "));
 

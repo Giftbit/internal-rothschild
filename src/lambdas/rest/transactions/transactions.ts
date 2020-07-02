@@ -201,7 +201,7 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
     const knex = await getKnexRead();
     const valueId = filterParams["valueId"];
     const contactId = filterParams["contactId"];
-    let query = knex("Transactions")
+    const query = knex("Transactions")
         .select("Transactions.*")
         .where("Transactions.userId", "=", auth.userId);
     if (valueId || contactId) {
