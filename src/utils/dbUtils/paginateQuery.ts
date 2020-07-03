@@ -68,11 +68,14 @@ namespace PaginationCursor {
 
 /**
  * Apply cursor-based pagination to the given query.  All filtering is supported but sorting (ORDER BY)
- * must be done through PaginationParams.
+ * must be done through PaginationParams and not be part of the query.
  */
 export async function paginateQuery<T extends { id: string }>(query: knex.QueryBuilder, paginationParams: PaginationParams, options: QueryOptions = null): Promise<{ body: T[], pagination: Pagination }> {
     if (paginationParams.limit > paginationParams.maxLimit) {
-        paginationParams.limit = paginationParams.maxLimit;
+        throw new Error(`limit ${paginationParams.limit} > maxLimit ${paginationParams.maxLimit}, this should already be sanitized`);
+    }
+    if (paginationParams.limit < 1) {
+        throw new Error(`limit ${paginationParams.limit} < 1, this should already be sanitized`);
     }
 
     let reverse = false;
