@@ -10,7 +10,7 @@ export async function kvsDelete(token: string, key: string): Promise<void> {
                 response: 3000,
                 deadline: 6000
             })
-            .retry(3);  // Delete is idempotent so retry is ok.
+            .retry(5);  // Delete is idempotent so retry is ok.
     } catch (err) {
         if (err.timeout) {
             err.message = `Timeout on KVS delete: ${err.message}`;
@@ -29,7 +29,7 @@ export async function kvsGet(token: string, key: string, authorizeAs?: string): 
                 response: 3000,
                 deadline: 6000
             })
-            .retry(3);
+            .retry(5);
         if (authorizeAs) {
             request.set("AuthorizeAs", authorizeAs);
         }
@@ -57,7 +57,7 @@ export async function kvsPut(token: string, key: string, value: any): Promise<vo
                 response: 3000,
                 deadline: 6000
             })
-            .retry(3);  // Put is idempotent so retry is ok.
+            .retry(5);  // Put is idempotent so retry is ok.
     } catch (err) {
         if (err.timeout) {
             err.message = `Timeout on KVS put: ${err.message}`;
