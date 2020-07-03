@@ -79,15 +79,8 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
 }
 
 export async function getReverseTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, planId: string, tx: Transaction): Promise<TransactionPlanStep[]> {
-    const valueIdsArrayString: string = tx.steps.filter(step => step.rail === "lightrail").map(lrStep => (lrStep as LightrailTransactionStep).valueId).join(",");
-    const lrValues: Value[] = (await getValues(auth, {"id.in": valueIdsArrayString}, {
-        limit: valueIdsArrayString.length,
-        maxLimit: 1000,
-        sort: null,
-        before: null,
-        after: null,
-        last: false
-    })).values;
+    const lrValues = await getValuesForReverseTransactionPlan(auth, tx);
+
     return tx.steps.map(step => {
         switch (step.rail) {
             case "lightrail":
@@ -100,6 +93,22 @@ export async function getReverseTransactionPlanSteps(auth: giftbitRoutes.jwtauth
                 throw Error(`Unexpected step rail type found in transaction for reverse. ${JSON.stringify(tx)}.`);
         }
     });
+}
+
+async function getValuesForReverseTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, tx: Transaction): Promise<Value[]> {
+    const valueIdsArrayString: string = tx.steps.filter(step => step.rail === "lightrail").map(lrStep => (lrStep as LightrailTransactionStep).valueId).join(",");
+    if (valueIdsArrayString.length === 0) {
+        return [];
+    }
+
+    return (await getValues(auth, {"id.in": valueIdsArrayString}, {
+        limit: valueIdsArrayString.length,
+        maxLimit: 1000,
+        sort: null,
+        before: null,
+        after: null,
+        last: false
+    })).values;
 }
 
 function getReverseForLightrailTransactionStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: LightrailTransactionStep, value: Value): LightrailTransactionPlanStep {
