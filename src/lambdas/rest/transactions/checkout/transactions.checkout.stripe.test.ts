@@ -85,17 +85,17 @@ describe("split tender checkout with Stripe", () => {
         const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
 
-        await setStubsForStripeTests();
-    });
-
-    after(() => {
-        unsetStubsForStripeTests();
     });
 
     const sinonSandbox = sinon.createSandbox();
 
+    beforeEach(async () => {
+        await setStubsForStripeTests();
+    });
+
     afterEach(() => {
         sinonSandbox.restore();
+        unsetStubsForStripeTests();
     });
 
     it("processes basic checkout with Stripe only", async () => {
@@ -686,6 +686,39 @@ describe("split tender checkout with Stripe", () => {
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 404, "the transaction was not actually created");
+    });
+
+    it("returns 503 when unable to access KVS to get merchant auth token", async () => {
+        // By default the tests are setup so that it works.
+        unsetStubsForStripeTests();
+
+        const superAgentError: superagent.HTTPError = new Error("Error") as any;
+        superAgentError.status = 500;
+        superAgentError.method = "GET";
+        superAgentError.text = "Error";
+
+        sinonSandbox.stub(kvsAccess, "kvsGet")
+            .throwsException(superAgentError);
+
+        const request: CheckoutRequest = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "stripe",
+                    source: source
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "xyz-123",
+                    unitPrice: 500
+                }
+            ],
+            currency: "CAD"
+        };
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+        chai.assert.equal(postCheckoutResp.statusCode, 503);
     });
 
     describe("rollback", () => {
@@ -1381,48 +1414,6 @@ describe("split tender checkout with Stripe", () => {
             chai.assert.equal(checkout.statusCode, 201);
             chai.assert.equal(checkout.body.steps[0]["amount"], -500);
             chai.assert.equal(checkout.body.steps[0]["charge"]["source"]["id"], source.id);
-        });
-    });
-
-    describe("broken KVS handling", () => {
-        before(() => {
-            // By default the tests are setup so that it works.
-            unsetStubsForStripeTests();
-
-            const superAgentError: superagent.HTTPError = new Error("Error") as any;
-            superAgentError.status = 500;
-            superAgentError.method = "GET";
-            superAgentError.text = "Error";
-
-            sinonSandbox.stub(kvsAccess, "kvsGet")
-                .throwsException(superAgentError);
-        });
-
-        after(() => {
-            // Return things so they don't break other tests.
-            setStubsForStripeTests();
-        });
-
-        it("returns 503 when merchant auth token is not available from KVS", async () => {
-            const request: CheckoutRequest = {
-                id: generateId(),
-                sources: [
-                    {
-                        rail: "stripe",
-                        source: source
-                    }
-                ],
-                lineItems: [
-                    {
-                        type: "product",
-                        productId: "xyz-123",
-                        unitPrice: 500
-                    }
-                ],
-                currency: "CAD"
-            };
-            const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
-            chai.assert.equal(postCheckoutResp.statusCode, 503);
         });
     });
 }).timeout(10000);

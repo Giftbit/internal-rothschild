@@ -11,7 +11,6 @@ import {defaultTestUser} from "./index";
 import {TestUser} from "./TestUser";
 
 const sinonSandbox = sinon.createSandbox();
-let stubKvsGet: sinon.SinonStub;
 
 /**
  * See .env.example for Stripe config details
@@ -53,23 +52,23 @@ export async function setStubsForStripeTests(): Promise<void> {
         };
     }
 
-    stubKvsGet = sinonSandbox.stub(kvsAccess, "kvsGet");
-    stubKvsGet.callsFake((token: string, key: string, authorizeAs?: string) => {
-        if (key !== "stripeAuth") {
-            throw new Error("We haven't mocked any other KVS keys yet.");
-        }
-        if (!authorizeAs) {
-            throw new Error("We haven't mocked calls without authorizeAs.");
-        }
-        const userId = JSON.parse(Buffer.from(authorizeAs, "base64").toString("ascii")).g.gui;
-        if (!stripeUserIds[userId]) {
-            return Promise.resolve(null);
-        }
-        return Promise.resolve({
-            token_type: "bearer",
-            stripe_user_id: stripeUserIds[userId]
+    sinonSandbox.stub(kvsAccess, "kvsGet")
+        .callsFake((token: string, key: string, authorizeAs?: string) => {
+            if (key !== "stripeAuth") {
+                throw new Error("We haven't mocked any other KVS keys yet.");
+            }
+            if (!authorizeAs) {
+                throw new Error("We haven't mocked calls without authorizeAs.");
+            }
+            const userId = JSON.parse(Buffer.from(authorizeAs, "base64").toString("ascii")).g.gui;
+            if (!stripeUserIds[userId]) {
+                return Promise.resolve(null);
+            }
+            return Promise.resolve({
+                token_type: "bearer",
+                stripe_user_id: stripeUserIds[userId]
+            });
         });
-    });
 }
 
 export function setStubbedStripeUserId(testUser: TestUser): void {
@@ -81,7 +80,6 @@ export function setStubbedStripeUserId(testUser: TestUser): void {
 
 export function unsetStubsForStripeTests(): void {
     sinonSandbox.restore();
-    stubKvsGet = null;
 }
 
 export function testStripeLive(): boolean {
