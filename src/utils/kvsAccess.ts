@@ -6,11 +6,11 @@ export async function kvsDelete(token: string, key: string): Promise<void> {
             .set("Authorization", `Bearer ${token}`)
             .set("Content-Type", "application/json")
             .timeout({
-                // When things are healthy our P99 latency is between 2 and 4 seconds.
-                response: 4000,
+                // When things are healthy our P99 latency is between 0.5 and 1.5 seconds.
+                response: 3000,
                 deadline: 6000
             })
-            .retry(3);  // Delete is idempotent so retry is ok.
+            .retry(5);  // Delete is idempotent so retry is ok.
     } catch (err) {
         if (err.timeout) {
             err.message = `Timeout on KVS delete: ${err.message}`;
@@ -25,11 +25,11 @@ export async function kvsGet(token: string, key: string, authorizeAs?: string): 
             .set("Authorization", `Bearer ${token}`)
             .ok(r => r.ok || r.status === 404)
             .timeout({
-                // When things are healthy our P99 latency is between 2 and 4 seconds.
-                response: 4000,
+                // When things are healthy our P99 latency is between 0.5 and 1.5 seconds.
+                response: 3000,
                 deadline: 6000
             })
-            .retry(3);
+            .retry(5);
         if (authorizeAs) {
             request.set("AuthorizeAs", authorizeAs);
         }
@@ -53,11 +53,11 @@ export async function kvsPut(token: string, key: string, value: any): Promise<vo
             .set("Content-Type", "application/json")
             .send(value)
             .timeout({
-                // When things are healthy our P99 latency is between 2 and 4 seconds.
-                response: 4000,
+                // When things are healthy our P99 latency is between 0.5 and 1.5 seconds.
+                response: 3000,
                 deadline: 6000
             })
-            .retry(3);  // Put is idempotent so retry is ok.
+            .retry(5);  // Put is idempotent so retry is ok.
     } catch (err) {
         if (err.timeout) {
             err.message = `Timeout on KVS put: ${err.message}`;
