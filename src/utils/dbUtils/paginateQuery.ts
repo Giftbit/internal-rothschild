@@ -1,10 +1,23 @@
+import * as jsonschema from "jsonschema";
 import * as knex from "knex";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {QueryOptions} from "./QueryOptions";
 
+/**
+ * The state necessary to fetch the next page in pagination.
+ */
 interface PaginationCursor {
+    /**
+     * The `id` value of the last (first) item on the page that will define
+     * what goes on the next (previous) page.
+     */
     id: string;
+
+    /**
+     * The sort field value of the last (first) item on the page that will define
+     * what goes on the next (previous) page.
+     */
     sort?: string | number;
 }
 
@@ -22,7 +35,27 @@ namespace PaginationCursor {
 
     export function decode(s: string): PaginationCursor {
         try {
-            return JSON.parse(Buffer.from(s.replace(/_/g, "="), "base64").toString());
+            const cursor: PaginationCursor = JSON.parse(Buffer.from(s.replace(/_/g, "="), "base64").toString());
+
+            // Catch tampering that could create silly 500s.
+            const validation = jsonschema.validate(cursor, {
+                properties: {
+                    id: {
+                        type: "string",
+                        minLength: 1
+                    },
+                    sort: {
+                        type: ["string", "number"],
+                        minLength: 1
+                    }
+                },
+                required: ["id"],
+                additionalProperties: false
+            });
+            if (validation.errors.length) {
+                throw new Error();
+            }
+            return cursor;
         } catch (unused) {
             throw new giftbitRoutes.GiftbitRestError(400);
         }
@@ -35,9 +68,16 @@ namespace PaginationCursor {
 
 /**
  * Apply cursor-based pagination to the given query.  All filtering is supported but sorting (ORDER BY)
- * must be done through PaginationParams.
+ * must be done through PaginationParams and not be part of the query.
  */
 export async function paginateQuery<T extends { id: string }>(query: knex.QueryBuilder, paginationParams: PaginationParams, options: QueryOptions = null): Promise<{ body: T[], pagination: Pagination }> {
+    if (paginationParams.limit > paginationParams.maxLimit) {
+        throw new Error(`limit ${paginationParams.limit} > maxLimit ${paginationParams.maxLimit}, this should already be sanitized`);
+    }
+    if (paginationParams.limit < 1) {
+        throw new Error(`limit ${paginationParams.limit} < 1, this should already be sanitized`);
+    }
+
     let reverse = false;
     let atFirst = false;
     let atLast = false;
@@ -50,17 +90,19 @@ export async function paginateQuery<T extends { id: string }>(query: knex.QueryB
     if (paginationParams.after) {
         const after = PaginationCursor.decode(paginationParams.after);
         if (after.sort != null && paginationParams.sort) {
-            query = query
-                .where(query => query
-                    .where(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? ">" : "<", after.sort)
-                    .orWhere(query =>
-                        query
-                            .where(columnPrefix + paginationParams.sort.field, "=", after.sort)
-                            .where(columnPrefix + "id", paginationParams.sort.asc ? ">" : "<", after.id)
-                    )
-                )
-                .orderBy(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? "ASC" : "DESC")
-                .orderBy(columnPrefix + "id", paginationParams.sort.asc ? "ASC" : "DESC");
+            query = query.client.queryBuilder()
+                .unionAll([
+                    query.clone()
+                        .where(query =>
+                            query
+                                .where(columnPrefix + paginationParams.sort.field, "=", after.sort)
+                                .where(columnPrefix + "id", paginationParams.sort.asc ? ">" : "<", after.id)),
+                    query.clone()
+                        .where(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? ">" : "<", after.sort)
+                ])
+                // These ORDER BYs are outside the UNION and can't have the table prefix.
+                .orderBy(paginationParams.sort.field, paginationParams.sort.asc ? "ASC" : "DESC")
+                .orderBy("id", paginationParams.sort.asc ? "ASC" : "DESC");
         } else {
             query = query
                 .where(columnPrefix + "id", ">", after.id)
@@ -69,17 +111,20 @@ export async function paginateQuery<T extends { id: string }>(query: knex.QueryB
     } else if (paginationParams.before) {
         const before = PaginationCursor.decode(paginationParams.before);
         if (before.sort != null && paginationParams.sort) {
-            query = query
-                .where(query => query
-                    .where(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? "<" : ">", before.sort)
-                    .orWhere(query =>
-                        query
-                            .where(columnPrefix + paginationParams.sort.field, "=", before.sort)
-                            .where(columnPrefix + "id", paginationParams.sort.asc ? "<" : ">", before.id)
-                    )
-                )
-                .orderBy(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? "DESC" : "ASC")
-                .orderBy(columnPrefix + "id", paginationParams.sort.asc ? "DESC" : "ASC");
+            query = query.client.queryBuilder()
+                .unionAll([
+                    query.clone()
+                        .where(query =>
+                            query
+                                .where(columnPrefix + paginationParams.sort.field, "=", before.sort)
+                                .where(columnPrefix + "id", paginationParams.sort.asc ? "<" : ">", before.id)
+                        ),
+                    query.clone()
+                        .where(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? "<" : ">", before.sort)
+                ])
+                // These ORDER BYs are outside the UNION and can't have the table prefix.
+                .orderBy(paginationParams.sort.field, paginationParams.sort.asc ? "DESC" : "ASC")
+                .orderBy("id", paginationParams.sort.asc ? "DESC" : "ASC");
         } else {
             query = query
                 .where(columnPrefix + "id", "<", before.id)

@@ -76,10 +76,12 @@ export function getSqlErrorColumnName(err: any): string {
     return null;
 }
 
-export async function filterAndPaginateQuery<T extends { id: string }>(query: knex.QueryBuilder,
-                                                                       filterParams: { [key: string]: string },
-                                                                       filterOptions: FilterQueryOptions,
-                                                                       paginationParams: PaginationParams): Promise<{ body: T[], pagination: Pagination }> {
+export async function filterAndPaginateQuery<T extends { id: string }>(
+    query: knex.QueryBuilder,
+    filterParams: { [key: string]: string },
+    filterOptions: FilterQueryOptions,
+    paginationParams: PaginationParams
+): Promise<{ body: T[], pagination: Pagination }> {
     const [filteredQuery] = await filterQuery(query, filterParams, filterOptions);
     return paginateQuery<T>(
         filteredQuery,
