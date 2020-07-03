@@ -109,7 +109,10 @@ describe("MetricsLogger", () => {
                 const value: Partial<Value> = {
                     id: generateId(),
                     currency: "USD",
-                    balance: 0,
+                    balanceRule: {
+                        rule: "500 + value.balanceChange",
+                        explanation: "$5 off"
+                    },
                     isGenericCode: true
                 };
                 const createValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
@@ -127,8 +130,11 @@ describe("MetricsLogger", () => {
                 const value: Partial<Value> = {
                     id: generateId(),
                     currency: "USD",
-                    balance: 0,
-                    isGenericCode: true
+                    isGenericCode: true,
+                    balanceRule: {
+                        rule: "500 + value.balanceChange",
+                        explanation: "$5 off"
+                    }
                 };
                 const createValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
                 chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);

@@ -1387,48 +1387,4 @@ describe("/v2/values - generic code with per contact properties", () => {
             chai.assert.equal(attachAgain.body.attachedFromValueId, genericCode.id);
         });
     });
-
-    describe("can't add generic code options to a shared generic code that's been attached to a contact", () => {
-        const genericCode: Partial<Value> = {
-            id: generateId(),
-            currency: "USD",
-            code: generateCode({}),
-            isGenericCode: true,
-            balanceRule: {
-                rule: "500 + value.balanceChange",
-                explanation: "five bucks"
-            }
-        };
-        const contact: Partial<Contact> = {
-            id: generateId()
-        };
-
-        before(async function () {
-            const createCode = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericCode);
-            chai.assert.equal(createCode.statusCode, 201);
-
-            const createContact = await testUtils.testAuthedRequest<Value>(router, "/v2/contacts", "POST", contact);
-            chai.assert.equal(createContact.statusCode, 201);
-
-            const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
-                code: genericCode.code
-            });
-            chai.assert.equal(attach.statusCode, 200);
-        });
-
-        it("can't add generic code options", async () => {
-            const updateRequest: Partial<Value> = {
-                genericCodeOptions: {
-                    perContact: {
-                        balance: null,
-                        usesRemaining: 1
-                    }
-                }
-            };
-
-            const update = await testUtils.testAuthedRequest<any>(router, `/v2/values/${genericCode.id}`, "PATCH", updateRequest);
-            chai.assert.equal(update.statusCode, 422);
-            chai.assert.equal(update.body.message, "A shared generic value without genericCodeOptions cannot be updated to have genericCodeOptions.");
-        });
-    });
 });

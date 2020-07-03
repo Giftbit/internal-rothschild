@@ -379,51 +379,6 @@ describe("/v2/contacts/values", () => {
         });
     });
 
-    describe("Shared Generic code scenario", () => {
-        const value: Partial<Value> = {
-            id: generateId(),
-            currency: currency.code,
-            balanceRule: {
-                rule: "500",
-                explanation: "$5 done the hard way"
-            },
-            code: generateFullcode(),
-            isGenericCode: true,
-            usesRemaining: 20
-        };
-
-        before(async () => {
-            const createValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
-            chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
-        });
-
-        it("can attach", async () => {
-            const attach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: value.code});
-            chai.assert.equal(attach.statusCode, 200, `body=${JSON.stringify(attach.body)}`);
-            chai.assert.isNull(attach.body.contactId);
-            chai.assert.equal(attach.body.id, value.id);
-            chai.assert.equal(attach.body.usesRemaining, value.usesRemaining, "uses remaining is not reduced during attach");
-        });
-
-        it("can detach", async () => {
-            const detach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/detach`, "POST", {valueId: value.id});
-            chai.assert.equal(detach.statusCode, 200, `body=${JSON.stringify(detach.body)}`);
-
-            const getContactValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${contact.id}/values?id=${value.id}`, "GET");
-            chai.assert.equal(getContactValues.statusCode, 200);
-            chai.assert.notInclude(getContactValues.body.map(v => v.id), detach.body.valueId);
-        });
-
-        it("can re-attach", async () => {
-            const reattach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: value.code});
-            chai.assert.equal(reattach.statusCode, 200, `body=${JSON.stringify(reattach.body)}`);
-
-            const getContactValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${contact.id}/values?id=${value.id}`, "GET");
-            chai.assert.equal(getContactValues.statusCode, 200);
-            chai.assert.include(getContactValues.body.map(v => v.id), reattach.body.id);
-        });
-    });
-
     describe("can attach and detach a generic code but can't re-attach if the value is frozen after detach", () => {
         const value: Partial<Value> = {
             id: generateId(),
@@ -535,7 +490,11 @@ describe("/v2/contacts/values", () => {
                 const value: Partial<Value> = {
                     id: generateId(),
                     currency: currency.code,
-                    isGenericCode: isGenericCode
+                    isGenericCode: isGenericCode,
+                    balanceRule: {
+                        rule: "500 + value.balanceChange",
+                        explanation: "$5 off"
+                    }
                 };
                 const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
                 chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
@@ -555,7 +514,11 @@ describe("/v2/contacts/values", () => {
                 const value: Partial<Value> = {
                     id: generateId(),
                     currency: currency.code,
-                    isGenericCode: isGenericCode
+                    isGenericCode: isGenericCode,
+                    balanceRule: {
+                        rule: "500 + value.balanceChange",
+                        explanation: "$5 off"
+                    }
                 };
                 const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
                 chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
@@ -576,6 +539,10 @@ describe("/v2/contacts/values", () => {
                     id: generateId(),
                     currency: currency.code,
                     isGenericCode: isGenericCode,
+                    balanceRule: {
+                        rule: "500 + value.balanceChange",
+                        explanation: "$5 off"
+                    },
                     startDate: new Date("2077-01-01")
                 };
                 const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
@@ -590,6 +557,10 @@ describe("/v2/contacts/values", () => {
                     id: generateId(),
                     currency: currency.code,
                     isGenericCode: isGenericCode,
+                    balanceRule: {
+                        rule: "500 + value.balanceChange",
+                        explanation: "$5 off"
+                    },
                     endDate: new Date("2011-01-01")
                 };
                 const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
@@ -671,7 +642,11 @@ describe("/v2/contacts/values", () => {
             const value: Partial<Value> = {
                 id: generateId(),
                 currency: currency.code,
-                isGenericCode: true
+                isGenericCode: true,
+                balanceRule: {
+                    rule: "1",
+                    explanation: "$0.01 off everything!"
+                }
             };
             const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
             chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
@@ -684,8 +659,7 @@ describe("/v2/contacts/values", () => {
         it("can't detach frozen Values", async () => {
             const value: Partial<Value> = {
                 id: generateId(),
-                currency: currency.code,
-                isGenericCode: true
+                currency: currency.code
             };
             const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
             chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
@@ -704,8 +678,7 @@ describe("/v2/contacts/values", () => {
         it("can detach canceled Values", async () => {
             const value: Partial<Value> = {
                 id: generateId(),
-                currency: currency.code,
-                isGenericCode: true
+                currency: currency.code
             };
             const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
             chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
@@ -840,7 +813,7 @@ export async function setupAttachedContactValueScenario(router: cassava.Router, 
     // attach genVal2 to ContactA
     const attach_genVal2_contactA = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${data.contactA.id}/values/attach`, "POST", {valueId: data.genVal2_sharedGenericValue.id});
     chai.assert.equal(attach_genVal2_contactA.statusCode, 200);
-    data.valuesAttachedToContactA.push(createGenVal2.body /* original value attached */);
+    data.valuesAttachedToContactA.push(attach_genVal2_contactA.body);
 
     // attach genVal3 to ContactA
     const attach_genVal3_contactA = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${data.contactA.id}/values/attach`, "POST", {valueId: data.genVal3_perContactProperties.id});
@@ -857,7 +830,7 @@ export async function setupAttachedContactValueScenario(router: cassava.Router, 
 
     const attach_genVal2_contactB = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${data.contactB.id}/values/attach`, "POST", {valueId: data.genVal2_sharedGenericValue.id});
     chai.assert.equal(attach_genVal2_contactB.statusCode, 200);
-    data.valuesAttachedToContactB.push(createGenVal2.body /* original value attached */);
+    data.valuesAttachedToContactB.push(attach_genVal2_contactB.body);
 
     return data;
 }

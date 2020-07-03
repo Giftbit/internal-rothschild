@@ -13,7 +13,7 @@ import {generateUrlSafeHashFromValueIdContactId} from "./genericCodeWithPerConta
 import {CheckoutRequest} from "../../model/TransactionRequest";
 import {nowInDbPrecision} from "../../utils/dbUtils";
 
-describe.only("/v2/contacts/values - attachNewValue=true", () => {
+describe("/v2/contacts/values - attachNewValue=true", () => {
 
     const router = new cassava.Router();
 
