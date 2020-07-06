@@ -44,7 +44,7 @@ export function addCodebasePepperToCode(code: string): string {
     return code + CODEBASE_ENCRYPTION_PEPPER;
 }
 
-export function removeCodebasePepperFromDecryptedCode(decryptedCode: string) {
+export function removeCodebasePepperFromDecryptedCode(decryptedCode: string): string {
     return decryptedCode.replace(CODEBASE_ENCRYPTION_PEPPER, "");
 }
 

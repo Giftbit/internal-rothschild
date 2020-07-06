@@ -4,7 +4,7 @@ import * as stripe from "stripe";
 import * as testUtils from "../../../utils/testUtils";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../utils/testUtils";
 import {formatCodeForLastFourDisplay, Value} from "../../../model/Value";
-import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../model/Transaction";
+import {Transaction} from "../../../model/Transaction";
 import {Currency} from "../../../model/Currency";
 import {installRestRoutes} from "../installRestRoutes";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
@@ -14,34 +14,13 @@ import {TransferRequest} from "../../../model/TransactionRequest";
 import chaiExclude from "chai-exclude";
 import {retrieveCharge} from "../../../utils/stripeUtils/stripeTransactions";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
+import {LightrailTransactionStep, StripeTransactionStep} from "../../../model/TransactionStep";
 
 chai.use(chaiExclude);
 
 describe("/v2/transactions/transfer", () => {
 
     const router = new cassava.Router();
-
-    before(async function () {
-        await testUtils.resetDb();
-        router.route(testUtils.authRoute);
-        installRestRoutes(router);
-        setCodeCryptographySecrets();
-
-        const postCurrencyResp = await createCurrency(defaultTestUser.auth, currency);
-        chai.assert.equal(postCurrencyResp.code, "CAD", `currencyResp=${JSON.stringify(postCurrencyResp)}`);
-
-        const postValue1Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueCad1);
-        chai.assert.equal(postValue1Resp.statusCode, 201, `body=${JSON.stringify(postValue1Resp.body)}`);
-
-        const postValue2Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueCad2);
-        chai.assert.equal(postValue2Resp.statusCode, 201, `body=${JSON.stringify(postValue2Resp.body)}`);
-
-        const postValue3Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueCadForStripeTests);
-        chai.assert.equal(postValue3Resp.statusCode, 201, `body=${JSON.stringify(postValue3Resp.body)}`);
-
-        const postValue4Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueCad2ForStripeTests);
-        chai.assert.equal(postValue4Resp.statusCode, 201, `body=${JSON.stringify(postValue4Resp.body)}`);
-    });
 
     const currency: Currency = {
         code: "CAD",
@@ -80,6 +59,28 @@ describe("/v2/transactions/transfer", () => {
         id: "v-transfer-stripe-2",
         currency: "CAD",
     };
+
+    before(async function () {
+        await testUtils.resetDb();
+        router.route(testUtils.authRoute);
+        installRestRoutes(router);
+        setCodeCryptographySecrets();
+
+        const postCurrencyResp = await createCurrency(defaultTestUser.auth, currency);
+        chai.assert.equal(postCurrencyResp.code, "CAD", `currencyResp=${JSON.stringify(postCurrencyResp)}`);
+
+        const postValue1Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueCad1);
+        chai.assert.equal(postValue1Resp.statusCode, 201, `body=${JSON.stringify(postValue1Resp.body)}`);
+
+        const postValue2Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueCad2);
+        chai.assert.equal(postValue2Resp.statusCode, 201, `body=${JSON.stringify(postValue2Resp.body)}`);
+
+        const postValue3Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueCadForStripeTests);
+        chai.assert.equal(postValue3Resp.statusCode, 201, `body=${JSON.stringify(postValue3Resp.body)}`);
+
+        const postValue4Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueCad2ForStripeTests);
+        chai.assert.equal(postValue4Resp.statusCode, 201, `body=${JSON.stringify(postValue4Resp.body)}`);
+    });
 
     it("can transfer between valueIds", async () => {
         const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {

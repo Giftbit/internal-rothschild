@@ -1,17 +1,16 @@
-import {MetricsLogger, ValueAttachmentTypes} from "./metricsLogger";
+import * as cassava from "cassava";
+import * as chai from "chai";
+import sinon from "sinon";
 import * as testUtils from "./testUtils";
 import {defaultTestUser, generateId} from "./testUtils";
-import * as cassava from "cassava";
+import {MetricsLogger, ValueAttachmentTypes} from "./metricsLogger";
 import {installRestRoutes} from "../lambdas/rest/installRestRoutes";
-import sinon from "sinon";
-import * as chai from "chai";
 import {Value} from "../model/Value";
 import {Contact} from "../model/Contact";
 import {Transaction, TransactionType} from "../model/Transaction";
 import {StripeChargeTransactionPlanStep, TransactionPlan} from "../lambdas/rest/transactions/TransactionPlan";
 import {CheckoutRequest} from "../model/TransactionRequest";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "./testUtils/stripeTestUtils";
-import {after} from "mocha";
 import {Currency} from "../model/Currency";
 import log = require("loglevel");
 

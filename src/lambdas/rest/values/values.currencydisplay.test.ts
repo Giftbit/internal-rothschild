@@ -1,9 +1,9 @@
-import * as chai from "chai";
-import * as testUtils from "../../../utils/testUtils/index";
-import {defaultTestUser, generateId} from "../../../utils/testUtils/index";
-import {Value} from "../../../model/Value";
-import * as currencies from "../currencies";
 import * as cassava from "cassava";
+import * as chai from "chai";
+import * as currencies from "../currencies";
+import * as testUtils from "../../../utils/testUtils/index";
+import {defaultTestUser, generateId} from "../../../utils/testUtils";
+import {Value} from "../../../model/Value";
 import {installRestRoutes} from "../installRestRoutes";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 
@@ -64,7 +64,7 @@ describe("values currency display tests", () => {
         };
 
         const values: Partial<Value>[] = [valueBalance0, valueBalance40, valueBalance549, valueBalance1549, valueBalance15490, valueBalanceRule];
-        for (let value of values) {
+        for (const value of values) {
             const res = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
             chai.assert.equal(res.statusCode, 201);
         }
@@ -118,7 +118,7 @@ describe("values currency display tests", () => {
         };
 
         const values: Partial<Value>[] = [valueBalance0, valueBalance40, valueBalance549, valueBalance1549, valueBalance15490];
-        for (let value of values) {
+        for (const value of values) {
             const res = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
             chai.assert.equal(res.statusCode, 201);
         }
@@ -171,7 +171,7 @@ describe("values currency display tests", () => {
         };
 
         const values: Partial<Value>[] = [valueBalance0, valueBalance40, valueBalance549, valueBalance1549, valueBalance15490];
-        for (let value of values) {
+        for (const value of values) {
             const res = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
             chai.assert.equal(res.statusCode, 201);
         }

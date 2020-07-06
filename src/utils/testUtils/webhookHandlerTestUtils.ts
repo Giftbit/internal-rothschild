@@ -1,22 +1,23 @@
 import * as cassava from "cassava";
+import * as chai from "chai";
 import * as cryptojs from "crypto-js";
+import * as stripe from "stripe";
 import {createUSDCheckout, generateId, testAuthedRequest} from "../../utils/testUtils";
 import {getLightrailStripeModeConfig} from "../../utils/stripeUtils/stripeAccess";
 import {stripeApiVersion} from "../../utils/stripeUtils/StripeConfig";
-import * as stripe from "stripe";
-import {StripeTransactionStep, Transaction, TransactionType} from "../../model/Transaction";
+import {Transaction, TransactionType} from "../../model/Transaction";
 import {Value} from "../../model/Value";
 import {CheckoutRequest} from "../../model/TransactionRequest";
-import * as chai from "chai";
 import {createRefund, retrieveCharge} from "../stripeUtils/stripeTransactions";
 import * as testUtils from "./index";
+import {StripeTransactionStep} from "../../model/TransactionStep";
 
 /**
  * See https://stripe.com/docs/webhooks/signatures#verify-manually for details about generating signed requests
  * @param router The webhook event router
  * @param body To test handling Stripe events, use the Event object structure: https://stripe.com/docs/api/events
  */
-export async function testSignedWebhookRequest(router: cassava.Router, body: any) {
+export async function testSignedWebhookRequest(router: cassava.Router, body: any): Promise<cassava.ProxyResponse> {
     const lightrailStripeConfig = await getLightrailStripeModeConfig(true);
     const t = (Math.floor(Date.now() / 1000));
     const bodyString = JSON.stringify(body);
@@ -63,14 +64,13 @@ export interface SetupForWebhookEventLightrailOptions {
 }
 
 export async function setupForWebhookEvent(router: cassava.Router, lightrailOptions?: SetupForWebhookEventLightrailOptions): Promise<{
-    checkout: Transaction,
-    valuesCharged: Value[],
-    stripeStep: StripeTransactionStep,
-    nextLightrailTransaction?: Transaction,
-    nextStripeStep?: StripeTransactionStep
-    finalStateStripeCharge: stripe.charges.ICharge
+    checkout: Transaction;
+    valuesCharged: Value[];
+    stripeStep: StripeTransactionStep;
+    nextLightrailTransaction?: Transaction;
+    nextStripeStep?: StripeTransactionStep;
+    finalStateStripeCharge: stripe.charges.ICharge;
 }> {
-    let checkout: Transaction;
     let nextLightrailTransaction: Transaction;
     let nextStripeStep: StripeTransactionStep;
 
@@ -82,7 +82,7 @@ export async function setupForWebhookEvent(router: cassava.Router, lightrailOpti
     const checkoutSetup = await createStripeUSDCheckout(router, checkoutProps);
     const valuesCharged: Value[] = checkoutSetup.valuesCharged;
     chai.assert.isObject(checkoutSetup.checkout);
-    checkout = checkoutSetup.checkout;
+    const checkout = checkoutSetup.checkout;
     chai.assert.isObject(checkoutSetup.checkout.steps.find(step => step.rail === "stripe"));
     const stripeStep = checkoutSetup.checkout.steps.find(step => step.rail === "stripe") as StripeTransactionStep;
 
@@ -157,7 +157,7 @@ export async function assertTransactionChainContainsTypes(router: cassava.Router
     return fetchTransactionChainResp.body;
 }
 
-export async function assertValuesRestoredAndFrozen(router: cassava.Router, originalValues: Value[], withMetadata?: boolean) {
+export async function assertValuesRestoredAndFrozen(router: cassava.Router, originalValues: Value[], withMetadata?: boolean): Promise<void> {
     for (const v of originalValues) {
         const current = await testAuthedRequest<Value>(router, `/v2/values/${v.id}`, "GET");
         chai.assert.equal(current.statusCode, 200, `current value: ${JSON.stringify(current.body)}`);

@@ -1,5 +1,3 @@
-import {StripeAuth} from "./StripeAuth";
-
 /**
  * Stripe configuration values stored in secure config.
  */
@@ -29,9 +27,4 @@ export interface StripeModeConfig {
     connectWebhookSigningSecret: string;
 }
 
-export interface LightrailAndMerchantStripeConfig {
-    lightrailStripeConfig: StripeModeConfig;
-    merchantStripeConfig: StripeAuth;
-}
-
-export const stripeApiVersion: string = "2018-05-21";
+export const stripeApiVersion = "2018-05-21";

@@ -1,14 +1,13 @@
 import * as cassava from "cassava";
-import * as testUtils from "../../utils/testUtils";
-import {installRestRoutes} from "./installRestRoutes";
-import {Value} from "../../model/Value";
-import {Program} from "../../model/Program";
 import * as chai from "chai";
 import sinon from "sinon";
-import * as Reports from "./reports";
-import {ReportValue} from "./values/ReportValue";
+import * as testUtils from "../../../utils/testUtils";
+import * as getValuesForReport from "./getValuesForReport";
+import {installRestRoutes} from "../installRestRoutes";
+import {Value} from "../../../model/Value";
+import {Program} from "../../../model/Program";
+import {ReportValue} from "../values/ReportValue";
 import parseLinkHeader = require("parse-link-header");
-
 
 describe("/v2/reports/values/", () => {
     const router = new cassava.Router();
@@ -28,7 +27,7 @@ describe("/v2/reports/values/", () => {
     const program1Id = "program1";
     let valueFromProgram1: Value;
 
-    function getValueReportHeadersForAssertions(limit: number = 10000) {
+    function getValueReportHeadersForAssertions(limit: number = 10000): { [key: string]: string } {
         return {
             "Limit": limit.toString(),
             "Max-Limit": "10000",
@@ -77,7 +76,7 @@ describe("/v2/reports/values/", () => {
     it("can download a csv of Values", async () => {
         const resp = await testUtils.testAuthedCsvRequest<ReportValue>(router, `/v2/reports/values`, "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.deepInclude(resp.headers as any, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
+        chai.assert.deepInclude(resp.headers, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
         chai.assert.equal(resp.body.length, 6);
 
         chai.assert.isObject(resp.body.find(v => v.id === genericValue.id, `generic value not in results: ${JSON.stringify(resp.body)}`));
@@ -143,17 +142,17 @@ describe("/v2/reports/values/", () => {
         chai.assert.equal(getAllValues.statusCode, 200);
         chai.assert.isAbove(getAllValues.body.length, 3);
 
-        let returnedValueIds = [];
+        const returnedValueIds: string[] = [];
         let resp = await testUtils.testAuthedCsvRequest<ReportValue>(router, `/v2/reports/values?limit=3&suppressLimitError=true`, "GET");
         chai.assert.equal(resp.statusCode, 200);
         returnedValueIds.push(...resp.body.map(v => v.id));
-        let linkHeaders = parseLinkHeader(resp.headers["Link"]);
+        const linkHeaders = parseLinkHeader(resp.headers["Link"]);
         let nextLink = linkHeaders.next.url;
         while (nextLink) {
             resp = await testUtils.testAuthedCsvRequest<ReportValue>(router, nextLink, "GET");
             chai.assert.equal(resp.statusCode, 200);
             returnedValueIds.push(...resp.body.map(v => v.id));
-            let linkHeaders = parseLinkHeader(resp.headers["Link"]);
+            const linkHeaders = parseLinkHeader(resp.headers["Link"]);
             nextLink = (linkHeaders && linkHeaders.next) ? linkHeaders.next.url : null;
         }
 
@@ -164,7 +163,7 @@ describe("/v2/reports/values/", () => {
     it("can download a csv of Values - filtered by programId", async () => {
         const resp1 = await testUtils.testAuthedCsvRequest<ReportValue>(router, `/v2/reports/values?programId=program1`, "GET");
         chai.assert.equal(resp1.statusCode, 200, `resp1.body=${JSON.stringify(resp1.body)}`);
-        chai.assert.deepInclude(resp1.headers as any, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp1.headers)}`);
+        chai.assert.deepInclude(resp1.headers, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp1.headers)}`);
         chai.assert.equal(resp1.body.length, 1, `resp1.body=${JSON.stringify(resp1.body)}`);
         chai.assert.deepEqualExcluding(resp1.body[0], {
             id: "",
@@ -202,7 +201,7 @@ describe("/v2/reports/values/", () => {
 
         const resp2and3 = await testUtils.testAuthedCsvRequest<ReportValue>(router, `/v2/reports/values?programId.in=program2,program3`, "GET");
         chai.assert.equal(resp2and3.statusCode, 200, `resp2and3.body=${JSON.stringify(resp2and3.body)}`);
-        chai.assert.deepInclude(resp2and3.headers as any, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp2and3.headers)}`);
+        chai.assert.deepInclude(resp2and3.headers, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp2and3.headers)}`);
         chai.assert.equal(resp2and3.body.length, 3);
         chai.assert.equal(resp2and3.body.filter(value => value.programId === "program2").length, 2, `resp2and3.body=${JSON.stringify(resp2and3.body)}`);
         chai.assert.isObject(resp2and3.body.find(value => value.programId === "program3"), `resp2and3.body=${JSON.stringify(resp2and3.body)}`);
@@ -335,7 +334,7 @@ describe("/v2/reports/values/", () => {
             it("returns success if results count <= limit", async () => {
                 const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values?limit=${valueCount}`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.deepInclude(resp.headers as any, getValueReportHeadersForAssertions(valueCount), `resp.headers=${JSON.stringify(resp.headers)}`);
+                chai.assert.deepInclude(resp.headers, getValueReportHeadersForAssertions(valueCount), `resp.headers=${JSON.stringify(resp.headers)}`);
                 chai.assert.equal(resp.body.length, valueCount, `resp.body=${JSON.stringify(resp.body)}`);
             });
 
@@ -347,36 +346,39 @@ describe("/v2/reports/values/", () => {
             it("returns success if results count < default limit", async () => {
                 const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.deepInclude(resp.headers as any, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
+                chai.assert.deepInclude(resp.headers, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
                 chai.assert.equal(resp.body.length, valueCount, `resp.body=${JSON.stringify(resp.body)}`);
             });
 
             it("returns error if results count > default limit", async () => {
-                sinonSandbox.stub(Reports, "getValuesForReport")
-                    .onFirstCall().resolves({
-                    results: (mockResults10000),
-                    pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
-                })
-                    .onSecondCall().resolves({
-                    results: (mockResults1),
-                    pagination: {limit: 1, maxLimit: 1, after: "", before: null}
-                });
+                sinonSandbox.stub(getValuesForReport, "getValuesForReport")
+                    .onFirstCall()
+                    .resolves({
+                        results: (mockResults10000),
+                        pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
+                    })
+                    .onSecondCall()
+                    .resolves({
+                        results: (mockResults1),
+                        pagination: {limit: 1, maxLimit: 1, after: "", before: null}
+                    });
 
                 const resp = await testUtils.testAuthedRequest(router, `/v2/reports/values`, "GET");
                 chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
             });
 
             it("returns success if results count == default limit", async () => {
-                sinonSandbox.stub(Reports, "getValuesForReport")
-                    .onFirstCall().resolves({
-                    results: (mockResults10000),
-                    pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
-                })
-                    .onSecondCall().resolves({
-                    results: (mockResults0),
-                    pagination: {limit: 1, maxLimit: 1, after: null, before: null}
-                });
-
+                sinonSandbox.stub(getValuesForReport, "getValuesForReport")
+                    .onFirstCall()
+                    .resolves({
+                        results: (mockResults10000),
+                        pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
+                    })
+                    .onSecondCall()
+                    .resolves({
+                        results: (mockResults0),
+                        pagination: {limit: 1, maxLimit: 1, after: null, before: null}
+                    });
 
                 const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
@@ -388,12 +390,12 @@ describe("/v2/reports/values/", () => {
             it("returns success if results count > limit", async () => {
                 const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values?limit=${valueCount - 1}&suppressLimitError=true`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.deepInclude(resp.headers as any, getValueReportHeadersForAssertions(valueCount - 1), `resp.headers=${JSON.stringify(resp.headers)}`);
+                chai.assert.deepInclude(resp.headers, getValueReportHeadersForAssertions(valueCount - 1), `resp.headers=${JSON.stringify(resp.headers)}`);
                 chai.assert.equal(resp.body.length, valueCount - 1, `resp.body=${JSON.stringify(resp.body)}`);
             });
 
             it("returns success if results count == default limit", async () => {
-                sinonSandbox.stub(Reports, "getValuesForReport")
+                sinonSandbox.stub(getValuesForReport, "getValuesForReport")
                     .resolves({
                         results: (mockResults10000),
                         pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
@@ -401,7 +403,7 @@ describe("/v2/reports/values/", () => {
 
                 const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values?suppressLimitError=true`, "GET");
                 chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.deepInclude(resp.headers as any, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
+                chai.assert.deepInclude(resp.headers, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
                 chai.assert.equal(resp.body.length, 10000, `resp.body.length=${resp.body.length}`);
             });
         });
@@ -410,7 +412,7 @@ describe("/v2/reports/values/", () => {
     it("can query by programId and createdDate", async () => {
         const queryReports = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values?programId=program1&createdDate.gte=2007-04-05T14:30:00.000Z`, "GET");
         chai.assert.equal(queryReports.statusCode, 200);
-        chai.assert.deepInclude(queryReports.headers as any, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(queryReports.headers)}`);
+        chai.assert.deepInclude(queryReports.headers, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(queryReports.headers)}`);
         chai.assert.include(JSON.stringify(queryReports.body), valueFromProgram1.id);
     });
 });

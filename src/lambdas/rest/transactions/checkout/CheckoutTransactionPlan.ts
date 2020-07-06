@@ -27,11 +27,11 @@ export class CheckoutTransactionPlan implements TransactionPlan {
     metadata: object | null;
 
     constructor(checkout: CheckoutRequest, steps: TransactionPlanStep[], now: Date) {
-        let lineItemResponses: LineItemResponse[] = [];
-        for (let lineItem of checkout.lineItems) {
+        const lineItemResponses: LineItemResponse[] = [];
+        for (const lineItem of checkout.lineItems) {
             lineItem.quantity = lineItem.quantity ? lineItem.quantity : 1;
             const subtotal = lineItem.unitPrice * lineItem.quantity;
-            let lineItemResponse: LineItemResponse = {
+            const lineItemResponse: LineItemResponse = {
                 ...lineItem,
                 lineTotal: {
                     subtotal: subtotal,
@@ -118,7 +118,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
         if (!this.tax) {
             this.tax = {roundingMode: "HALF_EVEN"};
         }
-        for (let item of this.lineItems) {
+        for (const item of this.lineItems) {
             let tax = 0;
             item.lineTotal.taxable = item.lineTotal.remainder;
             if (item.taxRate >= 0) {

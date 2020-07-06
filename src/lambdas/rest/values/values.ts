@@ -19,12 +19,7 @@ import {getProgram} from "../programs";
 import {Program} from "../../../model/Program";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
 import {getTransactions} from "../transactions/transactions";
-import {
-    Currency,
-    formatAmountForCurrencyDisplay,
-    formatObjectsAmountPropertiesForCurrencyDisplay
-} from "../../../model/Currency";
-import {getCurrency} from "../currencies";
+import {formatObjectsAmountPropertiesForCurrencyDisplay} from "../../../model/Currency";
 import {
     checkCodeParameters,
     checkValueProperties,
@@ -34,9 +29,10 @@ import {
 import {hasContactValues} from "../contactValues";
 import {QueryBuilder} from "knex";
 import {MetricsLogger} from "../../../utils/metricsLogger";
-import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {Transaction} from "../../../model/Transaction";
 import {ruleSchema} from "../transactions/rules/ruleSchema";
 import {isSystemId} from "../../../utils/isSystemId";
+import {LightrailTransactionStep} from "../../../model/TransactionStep";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -230,7 +226,7 @@ export function installValuesRest(router: cassava.Router): void {
                 code = generateCode(evt.body.generateCode);
             }
 
-            let updateProps: Partial<DbValue> = {
+            const updateProps: Partial<DbValue> = {
                 codeLastFour: null,
                 codeEncrypted: null,
                 codeHashed: null,
@@ -695,7 +691,7 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
      * This will need to be updated once partial capture becomes a thing since joining to the last Transaction in the chain
      * will no longer give a complete picture regarding what happened.
      */
-    let query = knex("Values as V")
+    const query = knex("Values as V")
         .where({
             "V.userId": auth.userId,
         })
@@ -764,24 +760,6 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
 
     log.info(`Calculating value stats finished and took ${Date.now() - startTime}ms`);
     return stats;
-}
-
-type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
-export type StringBalanceValue = Omit<Value, "balance"> & { balance: string | number };
-
-async function formatValueForCurrencyDisplay(auth: giftbitRoutes.jwtauth.AuthorizationBadge, values: Value[]): Promise<StringBalanceValue[]> {
-    const formattedValues: StringBalanceValue[] = [];
-    const retrievedCurrencies: { [key: string]: Currency } = {};
-    for (const value of values) {
-        if (!retrievedCurrencies[value.currency]) {
-            retrievedCurrencies[value.currency] = await getCurrency(auth, value.currency);
-        }
-        formattedValues.push({
-            ...value,
-            balance: value.balance != null ? formatAmountForCurrencyDisplay(value.balance, retrievedCurrencies[value.currency]) : value.balance
-        });
-    }
-    return formattedValues;
 }
 
 export function trimCodeIfPresent<T extends { code?: string }>(request: T): T {

@@ -140,7 +140,7 @@ async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, prog
 
 async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, issuance: Issuance, codeParameters: CodeParameters): Promise<Issuance> {
     auth.requireIds("userId", "teamMemberId");
-    let program: Program = await getProgram(auth, issuance.programId);
+    const program: Program = await getProgram(auth, issuance.programId);
     log.info(`Creating issuance for userId: ${auth.userId}. Issuance:`, issuance);
 
     // copy over properties from program that may be null.
@@ -193,9 +193,9 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
     }
 }
 
-export function padValueIdForIssuance(num: number, width: number) {
+export function padValueIdForIssuance(num: number, width: number): string {
     const numLength = num.toString().length;
-    return numLength >= width ? num : new Array(width - numLength + 1).join("0") + num;
+    return numLength >= width ? num + "" : new Array(width - numLength + 1).join("0") + num;
 }
 
 function checkIssuanceConstraints(issuance: Issuance, program: Program, codeParameters: CodeParameters): void {

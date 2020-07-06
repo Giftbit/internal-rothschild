@@ -1,15 +1,16 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import {Value} from "../../../../model/Value";
-import {StripeTransactionStep, Transaction} from "../../../../model/Transaction";
-import {Currency} from "../../../../model/Currency";
+import * as stripe from "stripe";
 import * as testUtils from "../../../../utils/testUtils";
+import {Value} from "../../../../model/Value";
+import {Transaction} from "../../../../model/Transaction";
+import {Currency} from "../../../../model/Currency";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../utils/testUtils/stripeTestUtils";
 import {installRestRoutes} from "../../installRestRoutes";
 import {LineItem} from "../../../../model/LineItem";
-import * as stripe from "stripe";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import chaiExclude from "chai-exclude";
+import {StripeTransactionStep} from "../../../../model/TransactionStep";
 
 chai.use(chaiExclude);
 

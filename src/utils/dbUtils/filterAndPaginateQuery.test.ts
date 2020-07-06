@@ -1,10 +1,9 @@
+import * as chai from "chai";
 import * as testUtils from "../testUtils";
 import {FilterQueryOptions} from "./filterQuery";
-import * as chai from "chai";
 import {PaginationParams} from "../../model/Pagination";
 import {filterAndPaginateQuery} from "./index";
 import {getKnexRead, getKnexWrite} from "./connection";
-import * as knex from "knex";
 
 describe("filterAndPaginateQuery", () => {
 
@@ -24,27 +23,6 @@ describe("filterAndPaginateQuery", () => {
     const provinceFilterQueryOptions: FilterQueryOptions = {
         properties: {
             id: {
-                type: "string",
-                operators: ["eq", "in"]
-            },
-            population: {
-                type: "number",
-                operators: ["lt", "lte", "gt", "gte", "eq", "ne", "in"]
-            },
-            area: {
-                type: "number",
-                operators: ["lt", "lte", "gt", "gte", "eq", "ne", "in"]
-            }
-        }
-    };
-
-    const cityFilterQueryOptions: FilterQueryOptions = {
-        properties: {
-            id: {
-                type: "string",
-                operators: ["eq", "in"]
-            },
-            provinceId: {
                 type: "string",
                 operators: ["eq", "in"]
             },
@@ -155,21 +133,23 @@ describe("filterAndPaginateQuery", () => {
 
         const knex = await getKnexWrite();
         await knex.raw(`
-            CREATE TABLE rothschild.Province (
-              id          VARCHAR(32) NOT NULL,
-              population    INT         NOT NULL,
-              area    INT         NOT NULL,
-              PRIMARY KEY pk_id (id)
+            CREATE TABLE rothschild.Province
+            (
+                id         VARCHAR(32) NOT NULL,
+                population INT         NOT NULL,
+                area       INT         NOT NULL,
+                PRIMARY KEY pk_id (id)
             );
         `);
         await knex.raw(`
-            CREATE TABLE rothschild.City (
-              id         VARCHAR(32) NOT NULL,
-              provinceId     VARCHAR(32) NOT NULL,
-              population   INT         NOT NULL,
-              area         INT         NOT NULL,
-              PRIMARY KEY  pk_id (id),
-              CONSTRAINT fk_province FOREIGN KEY (provinceId) REFERENCES rothschild.Province (id)
+            CREATE TABLE rothschild.City
+            (
+                id         VARCHAR(32) NOT NULL,
+                provinceId VARCHAR(32) NOT NULL,
+                population INT         NOT NULL,
+                area       INT         NOT NULL,
+                PRIMARY KEY pk_id (id),
+                CONSTRAINT fk_province FOREIGN KEY (provinceId) REFERENCES rothschild.Province (id)
             )
         `);
 
@@ -184,7 +164,7 @@ describe("filterAndPaginateQuery", () => {
 
     it("join: find province that Calgary belongs to", async () => {
         const knex = await getKnexRead();
-        let query: knex.QueryBuilder = knex("Province")
+        const query = knex("Province")
             .select("Province.*")
             .join("City", {"Province.id": "City.provinceId"})
             .where("City.id", "=", "Calgary");
@@ -195,7 +175,7 @@ describe("filterAndPaginateQuery", () => {
 
     it("filterAndPaginateQuery: find provinces that have cities with population over 1 million", async () => {
         const knex = await getKnexRead();
-        let query: knex.QueryBuilder = knex("Province")
+        const query = knex("Province")
             .select("Province.*")
             .join("City", {"Province.id": "City.provinceId"})
             .where("City.population", ">", 1000000);
@@ -216,9 +196,9 @@ describe("filterAndPaginateQuery", () => {
 
     it("filterAndPaginateQuery: find provinces that have area less than 1 million square kms", async () => {
         const knex = await getKnexRead();
-        let query: knex.QueryBuilder = knex("Province");
+        const query = knex("Province");
 
-        let filterParams: { [key: string]: string } = {
+        const filterParams: { [key: string]: string } = {
             "area.lt": "1000000"
         };
 
@@ -238,12 +218,12 @@ describe("filterAndPaginateQuery", () => {
     describe("filterAndPaginateQuery: find provinces that have area less than 1 million square kms and city area > 0", () => {
         it("without tableName argument throws exception", async () => {
             const knex = await getKnexRead();
-            let query: knex.QueryBuilder = knex("Province")
+            const query = knex("Province")
                 .select("Province.*")
                 .join("City", {"Province.id": "City.provinceId"})
                 .where("City.area", ">", 0);
 
-            let filterParams: { [key: string]: string } = {
+            const filterParams: { [key: string]: string } = {
                 "area.lt": "1000000"
             };
             // query WITHOUT tableName argument - should throw an exception
@@ -263,12 +243,12 @@ describe("filterAndPaginateQuery", () => {
 
         it("with tableName succeeds", async () => {
             const knex = await getKnexRead();
-            let query: knex.QueryBuilder = knex("Province")
+            let query = knex("Province")
                 .select("Province.*")
                 .join("City", {"Province.id": "City.provinceId"})
                 .where("City.area", ">", 0);
 
-            let filterParams: { [key: string]: string } = {
+            const filterParams: { [key: string]: string } = {
                 "area.lt": "1000000"
             };
 
@@ -309,7 +289,7 @@ describe("filterAndPaginateQuery", () => {
 
     it("filterAndPaginateQuery: order provinces by population descending", async () => {
         const knex = await getKnexRead();
-        let query: knex.QueryBuilder = knex("Province");
+        const query = knex("Province");
 
         // query WITHOUT tableName argument - throws exception
         let results = await filterAndPaginateQuery<Province>(
@@ -348,7 +328,7 @@ describe("filterAndPaginateQuery", () => {
 
         it("filterAndPaginateQuery: filter for provinces that have city with area over 500 and order provinces by area asc", async () => {
             const knex = await getKnexRead();
-            let query: knex.QueryBuilder = knex("Province")
+            const query = knex("Province")
                 .select("Province.*")
                 .join("City", {"Province.id": "City.provinceId"})
                 .where("City.population", ">", 1000000);

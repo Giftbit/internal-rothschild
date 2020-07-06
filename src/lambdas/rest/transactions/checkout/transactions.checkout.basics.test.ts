@@ -3,7 +3,7 @@ import * as chai from "chai";
 import * as testUtils from "../../../../utils/testUtils";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../../utils/testUtils";
 import {formatCodeForLastFourDisplay, Value} from "../../../../model/Value";
-import {LightrailTransactionStep, Transaction} from "../../../../model/Transaction";
+import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import {getKnexRead} from "../../../../utils/dbUtils/connection";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
@@ -11,6 +11,7 @@ import {Contact} from "../../../../model/Contact";
 import {installRestRoutes} from "../../installRestRoutes";
 import chaiExclude from "chai-exclude";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
+import {LightrailTransactionStep} from "../../../../model/TransactionStep";
 
 chai.use(chaiExclude);
 

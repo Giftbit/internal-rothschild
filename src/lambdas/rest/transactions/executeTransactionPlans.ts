@@ -20,9 +20,9 @@ import {StripeRestError} from "../../../utils/stripeUtils/StripeRestError";
 import {MetricsLogger} from "../../../utils/metricsLogger";
 import * as cassava from "cassava";
 import {Value} from "../../../model/Value";
+import {isSystemId} from "../../../utils/isSystemId";
 import log = require("loglevel");
 import Knex = require("knex");
-import {isSystemId} from "../../../utils/isSystemId";
 
 export interface ExecuteTransactionPlannerOptions {
     allowRemainder: boolean;
