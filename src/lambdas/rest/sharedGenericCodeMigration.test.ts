@@ -16,7 +16,7 @@ import {Transaction} from "../../model/Transaction";
 
 chai.use(chaiExclude);
 
-describe("/v2/sharedGenericCodeMigration", () => {
+describe.skip("/v2/sharedGenericCodeMigration", () => {
 
     const router = new cassava.Router();
 
@@ -319,6 +319,7 @@ describe("/v2/sharedGenericCodeMigration", () => {
     }).timeout(15000);
 });
 
+// Legacy function moved from contactValues.ts, now used to test that existing shared generic codes will still function correctly.   
 export async function attachSharedGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, value: Value): Promise<DbContactValue> {
     const dbContactValue: DbContactValue = {
         userId: auth.userId,

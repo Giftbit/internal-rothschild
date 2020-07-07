@@ -195,7 +195,13 @@ describe("/v2/transactions/debit", () => {
             ...value1,
             id: generateId(),
             code: "CODE-IS-GENERIC",
-            isGenericCode: true
+            isGenericCode: true,
+            genericCodeOptions: {
+                perContact: {
+                    balance: 1,
+                    usesRemaining: null
+                }
+            }
         };
         const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueWithGenericCode);
         chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);

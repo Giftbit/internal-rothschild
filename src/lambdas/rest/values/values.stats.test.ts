@@ -135,7 +135,13 @@ describe("/v2/values/ - secret stats capability", () => {
             const value: Partial<Value> = {
                 id: "4",
                 currency: "USD",
-                balance: 500,
+                genericCodeOptions: {
+                    perContact: {
+                        balance: 500,
+                        usesRemaining: 1
+                    }
+                },
+                balance: 10000,
                 usesRemaining: 20,
                 code: "FREE-MONEY!",
                 isGenericCode: true
@@ -158,9 +164,9 @@ describe("/v2/values/ - secret stats capability", () => {
             const getOriginalValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}?stats=true`, "GET");
             chai.assert.equal(getOriginalValueResp.statusCode, 200, `body=${JSON.stringify(getOriginalValueResp.body)}`);
             chai.assert.equal(getOriginalValueResp.body.id, value.id);
-            chai.assert.equal(getOriginalValueResp.body.balance, 500);
+            chai.assert.equal(getOriginalValueResp.body.balance, 9500);
             chai.assert.deepEqual((getOriginalValueResp.body as any).stats, {
-                initialBalance: 500,
+                initialBalance: 10000,
                 initialUsesRemaining: 20
             });
 
@@ -168,6 +174,7 @@ describe("/v2/values/ - secret stats capability", () => {
             chai.assert.equal(getClaimedValueResp.statusCode, 200, `body=${JSON.stringify(getClaimedValueResp.body)}`);
             chai.assert.equal(getClaimedValueResp.body.id, claimValueResp.body.id);
             chai.assert.equal(getClaimedValueResp.body.balance, 500);
+            chai.assert.equal(getClaimedValueResp.body.usesRemaining, 1);
             chai.assert.deepEqual((getClaimedValueResp.body as any).stats, {
                 initialBalance: 500,
                 initialUsesRemaining: 1
@@ -209,7 +216,7 @@ describe("/v2/values/ - secret stats capability", () => {
 
     it("/value/{id}/stats - generic code performance stats", async () => {
         const fullcode = "SUMMER2022";
-        const value: Partial<Value> = {
+        const genericCode: Partial<Value> = {
             id: fullcode + "-id",
             currency: "USD",
             balanceRule: {
@@ -220,8 +227,8 @@ describe("/v2/values/ - secret stats capability", () => {
             isGenericCode: true,
             discount: true
         };
-        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
-        chai.assert.equal(createValue.statusCode, 201);
+        const createGenericCode = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericCode);
+        chai.assert.equal(createGenericCode.statusCode, 201);
 
         // create contact A and attach
         const contactA: Partial<Contact> = {
@@ -257,9 +264,9 @@ describe("/v2/values/ - secret stats capability", () => {
             rail: "stripe",
             source: "tok_visa"
         };
-        const genericCodeSrc: LightrailTransactionParty = {
+        const contactASource: LightrailTransactionParty = {
             rail: "lightrail",
-            code: fullcode
+            contactId: contactA.id
         };
         const giftCardSrc: LightrailTransactionParty = {
             rail: "lightrail",
@@ -272,7 +279,7 @@ describe("/v2/values/ - secret stats capability", () => {
                 request: {
                     id: generateId(),
                     lineItems: [{unitPrice: 101}], // discountLightrail: 50, remainder: 51
-                    sources: [genericCodeSrc],
+                    sources: [contactASource],
                     currency: "USD",
                     allowRemainder: true
                 }
@@ -281,7 +288,7 @@ describe("/v2/values/ - secret stats capability", () => {
                 request: {
                     id: generateId(),
                     lineItems: [{unitPrice: 102}], // discountLightrail: 50, paidStripe: 52
-                    sources: [genericCodeSrc, creditCardSource],
+                    sources: [contactASource, creditCardSource],
                     currency: "USD"
                 }
             }, {
@@ -289,7 +296,7 @@ describe("/v2/values/ - secret stats capability", () => {
                 request: {
                     id: generateId(),
                     lineItems: [{unitPrice: 103}],
-                    sources: [genericCodeSrc, creditCardSource],
+                    sources: [contactASource, creditCardSource],
                     currency: "USD",
                     pending: true,
                 },
@@ -299,7 +306,7 @@ describe("/v2/values/ - secret stats capability", () => {
                 request: {
                     id: generateId(),
                     lineItems: [{unitPrice: 104}],
-                    sources: [genericCodeSrc, creditCardSource],
+                    sources: [contactASource, creditCardSource],
                     currency: "USD",
                     pending: true,
                 },
@@ -309,7 +316,7 @@ describe("/v2/values/ - secret stats capability", () => {
                 request: {
                     id: generateId(),
                     lineItems: [{unitPrice: 105}],
-                    sources: [genericCodeSrc, creditCardSource],
+                    sources: [contactASource, creditCardSource],
                     currency: "USD",
                 },
                 reversed: true // no change
@@ -318,7 +325,7 @@ describe("/v2/values/ - secret stats capability", () => {
                 request: {
                     id: generateId(),
                     lineItems: [{unitPrice: 106}],
-                    sources: [genericCodeSrc, giftCardSrc], // discountLightrail: 50, paidLightrail: 56
+                    sources: [contactASource, giftCardSrc], // discountLightrail: 50, paidLightrail: 56
                     currency: "USD",
                 }
             }, {
@@ -326,7 +333,7 @@ describe("/v2/values/ - secret stats capability", () => {
                 request: {
                     id: generateId(),
                     lineItems: [{unitPrice: 107}],
-                    sources: [genericCodeSrc, creditCardSource],
+                    sources: [contactASource, creditCardSource],
                     currency: "USD",
                     pending: true,
                 },
@@ -337,7 +344,7 @@ describe("/v2/values/ - secret stats capability", () => {
 
         await createTransactionData(transactionRequests);
 
-        const getStats = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.id}/stats`, "GET");
+        const getStats = await testUtils.testAuthedRequest<any>(router, `/v2/values/${genericCode.id}/stats`, "GET");
         chai.assert.deepEqual(getStats.body, {
             "redeemed": {
                 "balance": 200,
@@ -524,7 +531,6 @@ describe("/v2/values/ - secret stats capability", () => {
 
     async function createTransactionData(transactionRequests: TransactionRequestData[]): Promise<void> {
         for (const transactionRequest of transactionRequests) {
-            let charge;
             const postTransaction = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transactionRequest.type}`, "POST", transactionRequest.request);
             chai.assert.equal(postTransaction.statusCode, 201);
 

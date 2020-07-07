@@ -273,6 +273,7 @@ export async function detachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
  * Legacy functionality. This makes a new Value and attaches it to the Contact. Yervana as well as others are using this.
  */
 async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, originalValue: Value): Promise<Value> {
+    MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, auth);
     const now = nowInDbPrecision();
     const newAttachedValue: Value = {
         ...originalValue,

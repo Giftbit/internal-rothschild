@@ -120,6 +120,12 @@ describe("/v2/transactions/reverse - attach", () => {
                 explanation: "$1"
             },
             usesRemaining: 4,
+            genericCodeOptions: {
+                perContact: {
+                    balance: null,
+                    usesRemaining: 1
+                }
+            },
             discount: true,
             isGenericCode: true
         };
@@ -166,7 +172,7 @@ describe("/v2/transactions/reverse - attach", () => {
                         "code": null,
                         "balanceBefore": null,
                         "balanceAfter": null,
-                        "balanceChange": 0,
+                        "balanceChange": null,
                         "usesRemainingBefore": 3,
                         "usesRemainingAfter": 4,
                         "usesRemainingChange": 1
@@ -178,7 +184,7 @@ describe("/v2/transactions/reverse - attach", () => {
                         "code": null,
                         "balanceBefore": null,
                         "balanceAfter": null,
-                        "balanceChange": 0,
+                        "balanceChange": null,
                         "usesRemainingBefore": 1,
                         "usesRemainingAfter": 0,
                         "usesRemainingChange": -1

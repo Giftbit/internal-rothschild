@@ -292,7 +292,10 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             code: `${generateId()}-GENERIC`,
             isGenericCode: true,
             currency: "CAD",
-            balance: 2000
+            balanceRule: {
+                rule: "2000 + value.balanceChange",
+                explanation: "$20"
+            }
         };
 
         const postValueResp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueSecretCode);
@@ -398,8 +401,8 @@ describe("/v2/transactions/checkout - mixed sources", () => {
                 valueId: valueGenericCode.id,
                 contactId: null,
                 code: formatCodeForLastFourDisplay(valueGenericCode.code),
-                balanceBefore: 2000,
-                balanceAfter: 0,
+                balanceBefore: null,
+                balanceAfter: null,
                 balanceChange: -2000,
                 usesRemainingBefore: null,
                 usesRemainingAfter: null,

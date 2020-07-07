@@ -18,6 +18,7 @@ import {LightrailTransactionParty, TransactionParty} from "../../../model/Transa
 import {Value} from "../../../model/Value";
 import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
+import {attachSharedGenericValue} from "../sharedGenericCodeMigration.test";
 
 describe("resolveTransactionPlanSteps", () => {
 
@@ -174,9 +175,8 @@ describe("resolveTransactionPlanSteps", () => {
                 value3_sharedGeneric = await testUtils.createUSDValue(router, value3_sharedGeneric);
                 value4_perContactGeneric = await testUtils.createUSDValue(router, value4_perContactGeneric);
 
-                const attachSharedResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1.id}/values/attach`, "POST", {valueId: value3_sharedGeneric.id});
-                chai.assert.equal(attachSharedResp.statusCode, 200);
-                contact1_attachedValues.push(attachSharedResp.body);
+                const attachSharedResp = await attachSharedGenericValue(testUtils.defaultTestUser.auth, contact1.id, value3_sharedGeneric as Value);
+                contact1_attachedValues.push(value3_sharedGeneric as Value);
 
                 const attachPerContactResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact2.id}/values/attach`, "POST", {valueId: value4_perContactGeneric.id});
                 chai.assert.equal(attachPerContactResp.statusCode, 200);
