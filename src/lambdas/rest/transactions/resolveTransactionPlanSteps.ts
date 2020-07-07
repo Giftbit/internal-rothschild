@@ -18,6 +18,8 @@ import {computeCodeLookupHash} from "../../../utils/codeCryptoUtils";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {getContact} from "../contacts";
 import {getStripeMinCharge} from "../../../utils/stripeUtils/getStripeMinCharge";
+import {trimCodeIfPresent} from "../values/values";
+import {isSystemId} from "../../../utils/isSystemId";
 
 /**
  * Options to resolving transaction parties.
@@ -111,15 +113,16 @@ export function getTransactionPlanStepsFromSources(lightrailSources: Value[], no
 }
 
 export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[], options: ResolveTransactionPartiesOptions): Promise<Value[]> {
-    const valueIds = parties.filter(p => p.rail === "lightrail" && p.valueId)
+    const valueIds = parties.filter(p => p.rail === "lightrail" && p.valueId && isSystemId(p.valueId))
         .map(p => (p as LightrailTransactionParty).valueId);
 
     const hashedCodesPromises = parties.filter(p => p.rail === "lightrail" && p.code)
-        .map(p => (p as LightrailTransactionParty).code)
+        .map(p => trimCodeIfPresent(p as LightrailTransactionParty))
+        .map(p => p.code)
         .map(code => computeCodeLookupHash(code, auth));
     const hashedCodes = await Promise.all(hashedCodesPromises);
 
-    const contactIds = parties.filter(p => p.rail === "lightrail" && p.contactId)
+    const contactIds = parties.filter(p => p.rail === "lightrail" && p.contactId && isSystemId(p.contactId))
         .map(p => (p as LightrailTransactionParty).contactId);
 
     if (!valueIds.length && !hashedCodes.length && !contactIds.length) {
@@ -227,7 +230,7 @@ export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRou
     return values;
 }
 
-export function filterForUsedAttaches(attachTransactionPlans: TransactionPlan[], transactionPlan: TransactionPlan) {
+export function filterForUsedAttaches(attachTransactionPlans: TransactionPlan[], transactionPlan: TransactionPlan): TransactionPlan[] {
     const attachTransactionsToPersist: TransactionPlan[] = [];
     for (const attach of attachTransactionPlans) {
         const newAttachedValue: LightrailTransactionPlanStep = attach.steps.find(s => (s as LightrailTransactionPlanStep).action === "insert") as LightrailTransactionPlanStep;

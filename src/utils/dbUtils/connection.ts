@@ -80,8 +80,8 @@ export async function getKnexRead(): Promise<knex> {
         };
 
         const originalQueryBuilder = knexReadClient.queryBuilder;
-        Object.defineProperty(knexReadClient, "queryBuilder", function () {
-            const qb = originalQueryBuilder.apply(knexReadClient, arguments);
+        Object.defineProperty(knexReadClient, "queryBuilder", function (...args) {
+            const qb = originalQueryBuilder.apply(knexReadClient, args);
             qb.decrement = qb.increment = qb.insert = qb.into = qb.update = () => {
                 throw new Error("Attempting to modify database from read-only connection.");
             };
@@ -90,8 +90,8 @@ export async function getKnexRead(): Promise<knex> {
 
         // Knex 0.16 keeps a private context instance that is accessed when calling Knex("TableName").
         const originalContextQueryBuilder = (knexReadClient as any).context.queryBuilder;
-        (knexReadClient as any).context.queryBuilder = function () {
-            const qb = originalContextQueryBuilder.apply((knexReadClient as any).context, arguments);
+        (knexReadClient as any).context.queryBuilder = function (...args) {
+            const qb = originalContextQueryBuilder.apply((knexReadClient as any).context, args);
             qb.decrement = qb.increment = qb.insert = qb.into = qb.update = () => {
                 throw new Error("Attempting to modify database from read-only connection.");
             };

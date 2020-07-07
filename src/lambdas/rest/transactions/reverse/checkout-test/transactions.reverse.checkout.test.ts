@@ -5,18 +5,17 @@ import {generateId, setCodeCryptographySecrets} from "../../../../../utils/testU
 import {installRestRoutes} from "../../../installRestRoutes";
 import {createCurrency} from "../../../currencies";
 import {Value} from "../../../../../model/Value";
-import {
-    InternalTransactionStep,
-    LightrailTransactionStep,
-    StripeTransactionStep,
-    Transaction
-} from "../../../../../model/Transaction";
+import {Transaction} from "../../../../../model/Transaction";
 import {CheckoutRequest, ReverseRequest} from "../../../../../model/TransactionRequest";
-import {after} from "mocha";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../../utils/testUtils/stripeTestUtils";
 import {createRefund} from "../../../../../utils/stripeUtils/stripeTransactions";
 import chaiExclude from "chai-exclude";
 import {nowInDbPrecision} from "../../../../../utils/dbUtils";
+import {
+    InternalTransactionStep,
+    LightrailTransactionStep,
+    StripeTransactionStep
+} from "../../../../../model/TransactionStep";
 
 chai.use(chaiExclude);
 

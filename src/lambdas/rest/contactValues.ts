@@ -9,12 +9,16 @@ import {DbValue, Value} from "../../model/Value";
 import {getContact, getContacts} from "./contacts";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
-import {DbTransaction, LightrailDbTransactionStep, Transaction} from "../../model/Transaction";
+import {DbTransaction, Transaction} from "../../model/Transaction";
 import {DbContactValue} from "../../model/DbContactValue";
 import {AttachValueParameters} from "../../model/internal/AttachValueParameters";
 import {ValueIdentifier} from "../../model/internal/ValueIdentifier";
 import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
-import {attachGenericCode, generateUrlSafeHashFromValueIdContactId} from "./genericCodeWithPerContactOptions";
+import {
+    attachGenericCodeWithPerContactOptions,
+    generateUrlSafeHashFromValueIdContactId
+} from "./genericCodeWithPerContactOptions";
+import {LightrailDbTransactionStep} from "../../model/TransactionStep";
 import log = require("loglevel");
 
 export function installContactValuesRest(router: cassava.Router): void {

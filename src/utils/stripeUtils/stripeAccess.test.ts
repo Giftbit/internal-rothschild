@@ -1,8 +1,10 @@
+import * as cassava from "cassava";
 import * as chai from "chai";
-import * as sinon from "sinon";
-import {SinonSandbox} from "sinon";
-import * as kvsAccess from "../kvsAccess";
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import Stripe from "stripe";
+import * as sinon from "sinon";
+import * as superagent from "superagent";
+import * as kvsAccess from "../kvsAccess";
 import * as stripeAccess from "./stripeAccess";
 import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../testUtils/stripeTestUtils";
 import {CheckoutRequest} from "../../model/TransactionRequest";
@@ -10,14 +12,13 @@ import * as testUtils from "../testUtils";
 import * as transactions from "../../lambdas/rest/transactions/transactions";
 import * as valueStores from "../../lambdas/rest/values/values";
 import * as currencies from "../../lambdas/rest/currencies";
-import * as cassava from "cassava";
 import {StripeRestError} from "./StripeRestError";
 import {updateCharge} from "./stripeTransactions";
-import {StripeTransactionStep, Transaction} from "../../model/Transaction";
-import Stripe from "stripe";
+import {Transaction} from "../../model/Transaction";
+import {StripeTransactionStep} from "../../model/TransactionStep";
 
 describe("stripeAccess", () => {
-    describe("getMerchantStripeAuth", () => {
+    describe("getMerchantStripeAuth()", () => {
 
         let sinonSandbox: sinon.SinonSandbox;
 
@@ -34,8 +35,7 @@ describe("stripeAccess", () => {
             stripeAccess.initializeAssumeCheckoutToken(Promise.resolve(testAssumeToken));
 
             sinonSandbox = sinon.createSandbox();
-            const stubKvsGet = sinonSandbox.stub(kvsAccess, "kvsGet");
-            stubKvsGet
+            sinonSandbox.stub(kvsAccess, "kvsGet")
                 .withArgs(sinon.match(testAssumeToken.assumeToken), sinon.match("stripeAuth"), sinon.match(auth1.getAuthorizeAsPayload()))
                 .resolves({
                     token_type: "bearer",
@@ -60,6 +60,29 @@ describe("stripeAccess", () => {
             chai.assert.equal(stripeAuth2.stripe_user_id, "acct_stripe_user_id2");
 
             chai.assert.notDeepEqual(stripeAuth1, stripeAuth2);
+        });
+
+        it("returns 503 if KVS is inaccessible", async () => {
+            const superAgentError: superagent.HTTPError = new Error("Error") as any;
+            superAgentError.status = 500;
+            superAgentError.method = "GET";
+            superAgentError.text = "Error";
+
+            sinonSandbox.restore();
+            sinonSandbox.stub(kvsAccess, "kvsGet")
+                .throwsException(superAgentError);
+
+            let error: giftbitRoutes.GiftbitRestError = null;
+            try {
+                await stripeAccess.getMerchantStripeAuth(auth1);
+                chai.assert.fail("if you are here the stub failed to do its job");
+            } catch (e) {
+                error = e;
+            }
+
+            chai.assert.isDefined(error);
+            chai.assert.isTrue(error.isRestError, "is a giftbit rest error");
+            chai.assert.equal(error.statusCode, 503);
         });
     });
 
@@ -218,7 +241,7 @@ describe("stripeAccess", () => {
     });
 });
 
-function stubStripeClientHost(sandbox: SinonSandbox, host: string, port?: number, protocol = "http"): void {
+function stubStripeClientHost(sandbox: sinon.SinonSandbox, host: string, port?: number, protocol = "http"): void {
     const getOriginalClient = stripeAccess.getStripeClient;
     sandbox.stub(stripeAccess, "getStripeClient")
         .callsFake(async function changeHost(): Promise<Stripe> {

@@ -708,7 +708,7 @@ export interface AttachedContactValueScenario {
     genVal3_perContactProperties: Partial<Value>;
 }
 
-export async function setupAttachedContactValueScenario(router: cassava.Router, currency: Currency) {
+export async function setupAttachedContactValueScenario(router: cassava.Router, currency: Currency): Promise<AttachedContactValueScenario> {
     const contactAId = generateId(5) + "A";
     const data: AttachedContactValueScenario = {
         contactA: {

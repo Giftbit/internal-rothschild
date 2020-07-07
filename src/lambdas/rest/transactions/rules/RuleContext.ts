@@ -4,7 +4,7 @@ import {Rule} from "../../../../model/Value";
 import {getRuleFromCache} from "../getRuleFromCache";
 import {ValueContext} from "./ValueContext";
 import * as cassava from "cassava";
-import {DiscountSellerLiabilityUtils} from "../../../../utils/discountSellerLiabilityUtils";
+import {discountSellerLiabilityUtils} from "../../../../utils/discountSellerLiabilityUtils";
 
 export interface RuleContextParams {
     totals: TransactionTotals;
@@ -75,6 +75,6 @@ export function checkRulesSyntax(holder: { redemptionRule?: Rule, balanceRule?: 
                 column: rule.compileError.column
             });
         }
-        DiscountSellerLiabilityUtils.checkNumericOnlyRuleConstraints(holder.discountSellerLiabilityRule);
+        discountSellerLiabilityUtils.checkNumericOnlyRuleConstraints(holder.discountSellerLiabilityRule);
     }
 }

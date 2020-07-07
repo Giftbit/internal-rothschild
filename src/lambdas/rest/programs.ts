@@ -16,7 +16,7 @@ import {ProgramStats} from "../../model/ProgramStats";
 import {checkRulesSyntax} from "./transactions/rules/RuleContext";
 import {MetricsLogger} from "../../utils/metricsLogger";
 import {ruleSchema} from "./transactions/rules/ruleSchema";
-import {DiscountSellerLiabilityUtils} from "../../utils/discountSellerLiabilityUtils";
+import {discountSellerLiabilityUtils} from "../../utils/discountSellerLiabilityUtils";
 import {isSystemId} from "../../utils/isSystemId";
 import log = require("loglevel");
 
@@ -81,9 +81,9 @@ export function installProgramsRest(router: cassava.Router): void {
 
             if (program.discountSellerLiability != null) {
                 MetricsLogger.legacyDiscountSellerLiabilitySet("programCreate", auth);
-                program.discountSellerLiabilityRule = DiscountSellerLiabilityUtils.numberToRule(program.discountSellerLiability);
+                program.discountSellerLiabilityRule = discountSellerLiabilityUtils.numberToRule(program.discountSellerLiability);
             } else if (program.discountSellerLiabilityRule != null) {
-                program.discountSellerLiability = DiscountSellerLiabilityUtils.ruleToNumber(program.discountSellerLiabilityRule);
+                program.discountSellerLiability = discountSellerLiabilityUtils.ruleToNumber(program.discountSellerLiabilityRule);
             }
 
             return {
@@ -171,7 +171,8 @@ async function getPrograms(auth: giftbitRoutes.jwtauth.AuthorizationBadge, filte
                 },
                 "currency": {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 "name": {
                     type: "string",
@@ -206,7 +207,7 @@ async function createProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, pro
     auth.requireIds("userId");
     checkProgramProperties(program);
     try {
-        let dbProgram = Program.toDbProgram(auth, program);
+        const dbProgram = Program.toDbProgram(auth, program);
         const knex = await getKnexWrite();
         await knex("Programs")
             .insert(dbProgram);
@@ -284,10 +285,10 @@ async function updateProgram(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
         };
         // Can be removed when discountSellerLiability is removed from API.
         if (programUpdates.discountSellerLiability != null) {
-            updatedProgram.discountSellerLiabilityRule = DiscountSellerLiabilityUtils.numberToRule(updatedProgram.discountSellerLiability);
+            updatedProgram.discountSellerLiabilityRule = discountSellerLiabilityUtils.numberToRule(updatedProgram.discountSellerLiability);
             MetricsLogger.legacyDiscountSellerLiabilitySet("programUpdate", auth);
         } else if (programUpdates.discountSellerLiabilityRule != null) {
-            updatedProgram.discountSellerLiability = DiscountSellerLiabilityUtils.ruleToNumber(programUpdates.discountSellerLiabilityRule);
+            updatedProgram.discountSellerLiability = discountSellerLiabilityUtils.ruleToNumber(programUpdates.discountSellerLiabilityRule);
         }
 
         checkProgramProperties(updatedProgram);
@@ -373,9 +374,13 @@ function checkProgramProperties(program: Program): void {
     }
 
     checkRulesSyntax(program, "Program");
+
+    if (!isSystemId(program.currency)) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Currency '${program.currency}' does not exist. See the documentation on creating currencies.`, "CurrencyNotFound");
+    }
 }
 
-function hasDuplicates(array) {
+function hasDuplicates(array: any[]): boolean {
     return (new Set(array)).size !== array.length;
 }
 
@@ -445,9 +450,9 @@ export async function getProgramStats(auth: giftbitRoutes.jwtauth.AuthorizationB
     log.info(`injectProgramStats got value stats ${Date.now() - startTime}ms`);
 
     const redeemedStatsRes: {
-        balance: number,
-        transactionCount: number,
-        valueCount: number
+        balance: number;
+        transactionCount: number;
+        valueCount: number;
     }[] = await knex("Values")
         .where({
             "Values.userId": auth.userId,
@@ -478,11 +483,11 @@ export async function getProgramStats(auth: giftbitRoutes.jwtauth.AuthorizationB
     log.info(`injectProgramStats got redeemed stats ${Date.now() - startTime}ms`);
 
     const overspendStatsRes: {
-        lrBalance: number,
-        iBalance: number,
-        sBalance: number,
-        remainder: number,
-        transactionCount: number
+        lrBalance: number;
+        iBalance: number;
+        sBalance: number;
+        remainder: number;
+        transactionCount: number;
     }[] = await knex
         .from(knex.raw("? as Txs", [
             // Get unique Transaction IDs of Transactions with a root checkout Transaction and steps with Values in this Program

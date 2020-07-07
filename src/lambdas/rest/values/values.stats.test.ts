@@ -16,7 +16,6 @@ import {
     TransferRequest
 } from "../../../model/TransactionRequest";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
-import {after} from "mocha";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 
 describe("/v2/values/ - secret stats capability", () => {

@@ -1,7 +1,7 @@
-import * as testUtils from "../../../utils/testUtils/index";
-import {generateId} from "../../../utils/testUtils/index";
 import * as cassava from "cassava";
 import * as chai from "chai";
+import * as testUtils from "../../../utils/testUtils/index";
+import {generateId} from "../../../utils/testUtils/index";
 import {installRestRoutes} from "../installRestRoutes";
 import {createCurrency} from "../currencies";
 import {Program} from "../../../model/Program";
@@ -37,7 +37,7 @@ describe("/v2/values create from program", () => {
     });
 
     it("can create a value with programId = null", async () => {
-        let value: Partial<Value> = {
+        const value: Partial<Value> = {
             id: generateId(),
             currency: "USD",
             programId: null
@@ -48,7 +48,7 @@ describe("/v2/values create from program", () => {
     });
 
     it("can't create a value with a programId that doesn't exist", async () => {
-        let value: Partial<Value> = {
+        const value: Partial<Value> = {
             id: generateId(),
             currency: "USD",
             programId: generateId()
@@ -59,22 +59,22 @@ describe("/v2/values create from program", () => {
     });
 
     describe(`creating Values from Program with no balance constraints or value balanceRule`, () => {
-        let program: Partial<Program> = {
+        const program: Partial<Program> = {
             id: generateId(),
             name: "program with no balance constraints or balanceRule",
             currency: "USD"
         };
 
-        let programProperties = Object.keys(program);
+        const programProperties = Object.keys(program);
         it("can create Program", async () => {
             const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
             chai.assert.equal(programResp.statusCode, 201, JSON.stringify(programResp.body));
-            for (let prop of programProperties) {
+            for (const prop of programProperties) {
                 chai.assert.equal(programResp.body[prop], program[prop]);
             }
         });
 
-        let value: Partial<Value> = {
+        const value: Partial<Value> = {
             programId: program.id
         };
 
@@ -98,23 +98,23 @@ describe("/v2/values create from program", () => {
     });
 
     describe(`creating Values from Program with fixedInitialBalance constraints`, () => {
-        let program: Partial<Program> = {
+        const program: Partial<Program> = {
             id: generateId(),
             name: "program with fixedInitialBalance constraints",
             currency: "USD",
             fixedInitialBalances: [100, 200]
         };
 
-        let programProperties = Object.keys(program);
+        const programProperties = Object.keys(program);
         it("can create Program", async () => {
             const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
             chai.assert.equal(programResp.statusCode, 201, JSON.stringify(programResp.body));
-            for (let prop of programProperties) {
+            for (const prop of programProperties) {
                 chai.assert.equal(JSON.stringify(programResp.body[prop]), JSON.stringify(program[prop]));
             }
         });
 
-        let value: Partial<Value> = {
+        const value: Partial<Value> = {
             programId: program.id
         };
 
@@ -157,23 +157,23 @@ describe("/v2/values create from program", () => {
     });
 
     describe(`creating Values from Program with fixedInitialUses constraints`, () => {
-        let program: Partial<Program> = {
+        const program: Partial<Program> = {
             id: generateId(),
             name: "program with fixedInitialUses constraints",
             currency: "USD",
             fixedInitialUsesRemaining: [100, 200]
         };
 
-        let programProperties = Object.keys(program);
+        const programProperties = Object.keys(program);
         it("can create Program", async () => {
             const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
             chai.assert.equal(programResp.statusCode, 201, JSON.stringify(programResp.body));
-            for (let prop of programProperties) {
+            for (const prop of programProperties) {
                 chai.assert.equal(JSON.stringify(programResp.body[prop]), JSON.stringify(program[prop]));
             }
         });
 
-        let value: Partial<Value> = {
+        const value: Partial<Value> = {
             programId: program.id
         };
 
@@ -216,7 +216,7 @@ describe("/v2/values create from program", () => {
     });
 
     describe(`creating Values from Program with minInitialBalance and maxInitialBalance set`, () => {
-        let program: Partial<Program> = {
+        const program: Partial<Program> = {
             id: generateId(),
             name: "program with minInitialBalance and maxInitialBalance constraints",
             currency: "USD",
@@ -224,16 +224,16 @@ describe("/v2/values create from program", () => {
             maxInitialBalance: 200
         };
 
-        let programProperties = Object.keys(program);
+        const programProperties = Object.keys(program);
         it("can create Program", async () => {
             const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
             chai.assert.equal(programResp.statusCode, 201, JSON.stringify(programResp.body));
-            for (let prop of programProperties) {
+            for (const prop of programProperties) {
                 chai.assert.equal(JSON.stringify(programResp.body[prop]), JSON.stringify(program[prop]));
             }
         });
 
-        let value: Partial<Value> = {
+        const value: Partial<Value> = {
             programId: program.id
         };
 
@@ -298,23 +298,23 @@ describe("/v2/values create from program", () => {
     });
 
     describe(`creating Values from Program with minInitialBalance=0`, () => {
-        let program: Partial<Program> = {
+        const program: Partial<Program> = {
             id: generateId(),
             name: "program with minInitialBalance and maxInitialBalance constraints",
             currency: "USD",
             minInitialBalance: 0
         };
 
-        let programProperties = Object.keys(program);
+        const programProperties = Object.keys(program);
         it("can create Program", async () => {
             const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
             chai.assert.equal(programResp.statusCode, 201, JSON.stringify(programResp.body));
-            for (let prop of programProperties) {
+            for (const prop of programProperties) {
                 chai.assert.equal(JSON.stringify(programResp.body[prop]), JSON.stringify(program[prop]));
             }
         });
 
-        let value: Partial<Value> = {
+        const value: Partial<Value> = {
             programId: program.id
         };
 
@@ -425,7 +425,7 @@ describe("/v2/values create from program", () => {
     });
 
     it("can't create a Program with minInitialBalance > maxInitialBalance", async () => {
-        let program: Partial<Program> = {
+        const program: Partial<Program> = {
             id: generateId(),
             name: "program with minInitialBalance and maxInitialBalance constraints",
             currency: "USD",
@@ -439,23 +439,23 @@ describe("/v2/values create from program", () => {
     });
 
     describe(`creating Values from Program with balanceRule set`, () => {
-        let program: Partial<Program> = {
+        const program: Partial<Program> = {
             id: generateId(),
             name: "program with balanceRule",
             currency: "USD",
             balanceRule: {rule: "500", explanation: "$5 the hard way"}
         };
 
-        let programProperties = Object.keys(program);
+        const programProperties = Object.keys(program);
         it("can create Program", async () => {
             const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
             chai.assert.equal(programResp.statusCode, 201, JSON.stringify(programResp.body));
-            for (let prop of programProperties) {
+            for (const prop of programProperties) {
                 chai.assert.equal(JSON.stringify(programResp.body[prop]), JSON.stringify(program[prop]));
             }
         });
 
-        let value: Partial<Value> = {
+        const value: Partial<Value> = {
             programId: program.id
         };
 
@@ -491,7 +491,7 @@ describe("/v2/values create from program", () => {
 
     describe(`create Values from complex Program`, () => {
         const now = new Date();
-        let program = {
+        const program = {
             id: generateId(),
             name: "program with fixedInitialBalance constraints",
             currency: "USD",
@@ -507,21 +507,18 @@ describe("/v2/values create from program", () => {
             metadata: {notes: "this is a program note"}
         };
 
-        let startDateDbPrecision, endDateDbPrecision;
-        let programProperties = Object.keys(program);
+        const programProperties = Object.keys(program);
         it("can create Program", async () => {
             const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
             chai.assert.equal(programResp.statusCode, 201, JSON.stringify(programResp.body));
             program.startDate = dateInDbPrecision(new Date(program.startDate)).toJSON();
             program.endDate = dateInDbPrecision(new Date(program.endDate)).toJSON();
-            for (let prop of programProperties) {
+            for (const prop of programProperties) {
                 chai.assert.equal(JSON.stringify(programResp.body[prop]), JSON.stringify(program[prop]));
             }
-            startDateDbPrecision = programResp.body.startDate;
-            endDateDbPrecision = programResp.body.startDate;
         });
 
-        let value: Partial<Value> = {
+        const value: Partial<Value> = {
             id: generateId(),
             programId: program.id,
             usesRemaining: 3,
@@ -544,7 +541,7 @@ describe("/v2/values create from program", () => {
         it("can create Value and override Program properties", async () => {
             chai.assert.isTrue(program.discount);
 
-            let value2 = {
+            const value2 = {
                 id: generateId(),
                 programId: program.id,
                 currency: "USD",
@@ -583,7 +580,7 @@ describe("/v2/values create from program", () => {
     });
 
     describe(`creating Values from Program with metadata`, () => {
-        let program: Partial<Program> = {
+        const program: Partial<Program> = {
             id: generateId(),
             name: "program with balanceRule",
             currency: "USD",
@@ -593,17 +590,17 @@ describe("/v2/values create from program", () => {
             }
         };
 
-        let programProperties = Object.keys(program);
+        const programProperties = Object.keys(program);
         it("can create Program", async () => {
             const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
             chai.assert.equal(programResp.statusCode, 201, JSON.stringify(programResp.body));
-            for (let prop of programProperties) {
+            for (const prop of programProperties) {
                 chai.assert.equal(JSON.stringify(programResp.body[prop]), JSON.stringify(program[prop]));
             }
         });
 
         it("can create Value and metadata from Program is copied over", async () => {
-            let value: Partial<Value> = {
+            const value: Partial<Value> = {
                 id: generateId(),
                 programId: program.id
             };
@@ -613,7 +610,7 @@ describe("/v2/values create from program", () => {
         });
 
         it("can create Value with metadata and override parts of Program's metadata", async () => {
-            let value: Partial<Value> = {
+            const value: Partial<Value> = {
                 id: generateId(),
                 programId: program.id,
                 metadata: {
@@ -648,7 +645,7 @@ describe("/v2/values create from program", () => {
         chai.assert.deepEqual(createProgram.body.discountSellerLiabilityRule, program.discountSellerLiabilityRule);
         chai.assert.isNull(createProgram.body.discountSellerLiability);
 
-        let value: Partial<Value> = {
+        const value: Partial<Value> = {
             id: generateId(),
             programId: program.id,
             balance: 100
@@ -681,7 +678,7 @@ describe("/v2/values create from program", () => {
 
         it("can override discountSellerLiability by setting number during value creation", async () => {
             // set discountSellerLiability as number
-            let value: Partial<Value> = {
+            const value: Partial<Value> = {
                 id: generateId(),
                 programId: program.id,
                 balance: 100,
@@ -699,7 +696,7 @@ describe("/v2/values create from program", () => {
 
         it("can override discountSellerLiability by setting rule during value creation", async () => {
             // set discountSellerLiability as rule
-            let value: Partial<Value> = {
+            const value: Partial<Value> = {
                 id: generateId(),
                 programId: program.id,
                 balance: 100,
@@ -736,7 +733,7 @@ describe("/v2/values create from program", () => {
         });
 
         it("can override discountSellerLiability by setting number during value creation", async () => {
-            let value: Partial<Value> = {
+            const value: Partial<Value> = {
                 id: generateId(),
                 programId: program.id,
                 balance: 100,
@@ -753,7 +750,7 @@ describe("/v2/values create from program", () => {
         });
 
         it("can override discountSellerLiability by setting rule during value creation", async () => {
-            let value: Partial<Value> = {
+            const value: Partial<Value> = {
                 id: generateId(),
                 programId: program.id,
                 balance: 100,

@@ -16,9 +16,10 @@ import {LightrailTransactionPlanStep} from "./TransactionPlan";
 import {AttachedContactValueScenario, setupAttachedContactValueScenario} from "../contactValues.test";
 import {LightrailTransactionParty, TransactionParty} from "../../../model/TransactionRequest";
 import {Value} from "../../../model/Value";
-import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {Transaction} from "../../../model/Transaction";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {attachSharedGenericValue} from "../sharedGenericCodeMigration.test";
+import {LightrailTransactionStep} from "../../../model/TransactionStep";
 
 describe("resolveTransactionPlanSteps", () => {
 
@@ -146,12 +147,13 @@ describe("resolveTransactionPlanSteps", () => {
                     }
                 }
             };
-            let contact1_attachedValues: Value[] = [];
-            let contact2_attachedValues: Value[] = [];
+            const contact1_attachedValues: Value[] = [];
+            const contact2_attachedValues: Value[] = [];
 
             /**
              * Returns enough identifers to assert that the value is the one we expect without needing to exclude dates etc
              */
+            // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
             function mapValueIdentifiers(value: Value) {
                 return {
                     id: value.id,

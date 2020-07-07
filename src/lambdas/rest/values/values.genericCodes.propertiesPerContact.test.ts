@@ -1,12 +1,12 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as testUtils from "../../../utils/testUtils/index";
-import {generateFullcode, generateId, setCodeCryptographySecrets} from "../../../utils/testUtils/index";
+import {generateFullcode, generateId, setCodeCryptographySecrets} from "../../../utils/testUtils";
 import {formatCodeForLastFourDisplay, Value} from "../../../model/Value";
 import {installRestRoutes} from "../installRestRoutes";
 import {createCurrency} from "../currencies";
 import {Contact} from "../../../model/Contact";
-import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {Transaction} from "../../../model/Transaction";
 import {CheckoutRequest, CreditRequest, ReverseRequest} from "../../../model/TransactionRequest";
 import {generateUrlSafeHashFromValueIdContactId} from "../genericCodeWithPerContactOptions";
 import {Program} from "../../../model/Program";
@@ -15,6 +15,7 @@ import {generateLegacyHashForValueIdContactId} from "../contactValues";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import chaiExclude from "chai-exclude";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
+import {LightrailTransactionStep} from "../../../model/TransactionStep";
 
 chai.use(chaiExclude);
 

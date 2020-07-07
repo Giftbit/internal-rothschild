@@ -33,7 +33,7 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
     });
 
     it("roundingMode HALF_UP breaks ties by rounding up", async () => {
-        let request: Partial<CheckoutRequest> = {
+        const request: Partial<CheckoutRequest> = {
             id: generateId(),
             allowRemainder: true,
             sources: [],
@@ -121,7 +121,7 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
     });
 
     it("roundingMode HALF_EVEN breaks ties by rounding to the nearest even number", async () => {
-        let request: Partial<CheckoutRequest> = {
+        const request: Partial<CheckoutRequest> = {
             id: generateId(),
             allowRemainder: true,
             sources: [],
@@ -209,7 +209,7 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
     });
 
     it("default rounding mode is HALF_EVEN and breaks ties by rounding to the nearest even number", async () => {
-        let request: Partial<CheckoutRequest> = {
+        const request: Partial<CheckoutRequest> = {
             id: generateId(),
             allowRemainder: true,
             sources: [],
@@ -294,7 +294,7 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
     });
 
     it("unrecognized rounding mode returns 422", async () => {
-        let request: Partial<CheckoutRequest> = {
+        const request: Partial<CheckoutRequest> = {
             id: generateId(),
             allowRemainder: true,
             sources: [],

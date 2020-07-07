@@ -57,7 +57,7 @@ export namespace DbCurrency {
     }
 }
 
-export function formatAmountForCurrencyDisplay(amountInSmallestUnits: number, c: Currency) {
+export function formatAmountForCurrencyDisplay(amountInSmallestUnits: number, c: Currency): string {
     const converted = amountInSmallestUnits / (Math.pow(10, c.decimalPlaces));
     return c.symbol + converted.toFixed(c.decimalPlaces);
 }
@@ -84,7 +84,7 @@ export async function formatObjectsAmountPropertiesForCurrencyDisplay(auth: gift
 
         let objectClone = JSON.parse(JSON.stringify(object));
         for (const path of pathsToAmountProperties) {
-            let valueAtPath = mapUtils.get(object, path);
+            const valueAtPath = mapUtils.get(object, path);
             if (valueAtPath != null) {
                 objectClone = mapUtils.set(objectClone, path, formatAmountForCurrencyDisplay(valueAtPath, retrievedCurrencies[currency]));
             }

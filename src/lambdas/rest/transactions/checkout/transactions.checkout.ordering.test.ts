@@ -6,8 +6,9 @@ import {createCurrency} from "../../currencies";
 import {LineItem} from "../../../../model/LineItem";
 import {Value} from "../../../../model/Value";
 import {installRestRoutes} from "../../installRestRoutes";
-import {LightrailTransactionStep, Transaction} from "../../../../model/Transaction";
+import {Transaction} from "../../../../model/Transaction";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
+import {LightrailTransactionStep} from "../../../../model/TransactionStep";
 
 describe("/v2/transactions/checkout - lightrail ordering", () => {
 

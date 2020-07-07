@@ -1,5 +1,3 @@
-import Checkpoint = BinlogWatcherState.Checkpoint;
-
 export interface BinlogWatcherState {
     /**
      * A database of one row.  DynamoDB doesn't care.  DynamoDB is cool.
@@ -9,7 +7,7 @@ export interface BinlogWatcherState {
     /**
      * The last binlog file and position that was successfully published.
      */
-    checkpoint: Checkpoint | null;
+    checkpoint: BinlogWatcherState.Checkpoint | null;
 
     /**
      * The last time the binlog was flushed.  In ISO format.

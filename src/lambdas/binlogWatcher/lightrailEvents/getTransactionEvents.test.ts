@@ -12,7 +12,6 @@ import {Value} from "../../../model/Value";
 import {CheckoutRequest, CreditRequest, VoidRequest} from "../../../model/TransactionRequest";
 import {Transaction} from "../../../model/Transaction";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
-import {after} from "mocha";
 
 describe("getTransactionEvents()", () => {
 

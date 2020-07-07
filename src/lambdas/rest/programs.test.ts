@@ -103,7 +103,7 @@ describe("/v2/programs", () => {
         const resp = await testUtils.testAuthedRequest<Program[]>(router, `/v2/programs`, "GET");
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.equal(resp.body.length, 2);
-        let indexOfNewProgram = resp.body[0].id === newProgram.body.id ? 0 : 1;
+        const indexOfNewProgram = resp.body[0].id === newProgram.body.id ? 0 : 1;
         chai.assert.deepEqual(resp.body[indexOfNewProgram], newProgram.body);
         chai.assert.deepEqual(resp.body[(indexOfNewProgram + 1) % 2], programResponse);
     });
@@ -249,7 +249,7 @@ describe("/v2/programs", () => {
             {id: generateId(), createdDate: new Date("3030-02-03")},
             {id: generateId(), createdDate: new Date("3030-02-04")}
         ];
-        for (let idAndDate of idAndDates) {
+        for (const idAndDate of idAndDates) {
             const response = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
                 id: idAndDate.id,
                 currency: "USD",
@@ -493,7 +493,7 @@ describe("/v2/programs", () => {
         });
 
         it("422s updating a program id", async () => {
-            let request = {
+            const request = {
                 id: generateId()
             };
             const resp = await testUtils.testAuthedRequest<Program>(router, `/v2/programs/${updateableProgram.id}`, "PATCH", request);
@@ -1141,6 +1141,7 @@ describe("/v2/programs", () => {
                             }
                         ]
                     });
+                    chai.assert.equal(checkout.statusCode, 201);
                 },
                 result: {
                     outstanding: {
@@ -1256,6 +1257,7 @@ describe("/v2/programs", () => {
                             }
                         ]
                     });
+                    chai.assert.equal(checkout.statusCode, 201);
                 },
                 result: {
                     outstanding: {
@@ -1309,6 +1311,7 @@ describe("/v2/programs", () => {
                         ],
                         allowRemainder: true
                     });
+                    chai.assert.equal(checkout.statusCode, 201);
                 },
                 result: {
                     outstanding: {
@@ -1756,7 +1759,8 @@ describe("/v2/programs", () => {
     });
 
     describe("filter by name", () => {
-        let programA: Program, programB: Program, programC: Program;
+        let programA: Program, programB: Program;
+
         before(async () => {
             const createA = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
                 id: generateId(),
@@ -1774,13 +1778,12 @@ describe("/v2/programs", () => {
             chai.assert.equal(createB.statusCode, 201);
             programB = createB.body;
 
-            const createC = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
+            const createOther = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
                 id: generateId(),
                 name: "c",
                 currency: "USD"
             });
-            chai.assert.equal(createC.statusCode, 201);
-            programC = createC.body;
+            chai.assert.equal(createOther.statusCode, 201);
         });
 
         it("filter by name with no operator", async () => {
@@ -2287,5 +2290,104 @@ describe("/v2/programs", () => {
     it("can filter by orNull", async () => {
         const list = await testUtils.testAuthedRequest<Program[]>(router, "/v2/programs?endDate.gt=2019-01-01&endDate.orNull=true", "GET");
         chai.assert.equal(list.statusCode, 200, "The orNull functionality is tested through filterQuery tests. This test just ensures the orNull operator is allowed on endDate.");
+    });
+
+    describe("whitespace handling", () => {
+        it("422s creating programIds with leading/trailing whitespace", async () => {
+            const createLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/programs", "POST", {
+                id: `\r${testUtils.generateId()}`,
+                currency: "USD",
+                name: "Irrelevant test program"
+            });
+            chai.assert.equal(createLeadingResp.statusCode, 422, `createLeadingResp.body=${JSON.stringify(createLeadingResp.body)}`);
+
+            const createTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", {
+                id: `${testUtils.generateId()}\v`,
+                currency: "USD",
+                name: "Irrelevant test program"
+            });
+            chai.assert.equal(createTrailingResp.statusCode, 422, `createTrailingResp.body=${JSON.stringify(createTrailingResp.body)}`);
+        });
+
+        it("404s when looking up a program by id with leading/trailing whitespace", async () => {
+            const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
+                id: testUtils.generateId(),
+                currency: "USD",
+                name: "Another test program"
+            });
+            chai.assert.equal(programResp.statusCode, 201, `programResp.body=${JSON.stringify(programResp.body)}`);
+            const program = programResp.body;
+
+            const fetchLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/%20${program.id}`, "GET");
+            chai.assert.equal(fetchLeadingResp.statusCode, 404, `fetchLeadingResp.body=${JSON.stringify(fetchLeadingResp.body)}`);
+            const fetchTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${program.id}%20`, "GET");
+            chai.assert.equal(fetchTrailingResp.statusCode, 404, `fetchLeadingResp.body=${JSON.stringify(fetchTrailingResp.body)}`);
+        });
+
+        describe("FK references to programIds", () => {
+            let programForFKReferences;
+            before(async () => {
+                const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
+                    id: testUtils.generateId(),
+                    currency: "USD",
+                    name: "Irreverent test program"
+                });
+                chai.assert.equal(programResp.statusCode, 201, `programResp.body=${JSON.stringify(programResp.body)}`);
+                programForFKReferences = programResp.body;
+            });
+
+            it("404s creating values from programIds with leading/trailing whitespace", async () => {
+                const createValueLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", {
+                    id: testUtils.generateId(),
+                    programId: `\t${programForFKReferences.id}`,
+                    balance: 1
+                });
+                chai.assert.equal(createValueLeadingResp.statusCode, 404, `createValueLeadingResp.body=${JSON.stringify(createValueLeadingResp.body)}`);
+                chai.assert.equal(createValueLeadingResp.body["messageCode"], "ProgramNotFound", `createValueLeadingResp.body=${JSON.stringify(createValueLeadingResp.body)}`);
+
+                const createValueTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", {
+                    id: testUtils.generateId(),
+                    programId: `${programForFKReferences.id}\t`,
+                    balance: 1
+                });
+                chai.assert.equal(createValueTrailingResp.statusCode, 404, `createValueTrailingResp.body=${JSON.stringify(createValueTrailingResp.body)}`);
+                chai.assert.equal(createValueTrailingResp.body["messageCode"], "ProgramNotFound", `createValueTrailingResp.body=${JSON.stringify(createValueTrailingResp.body)}`);
+            });
+
+            it("does not find values when searching by programId with leading/trailing whitespace", async () => {
+                const createValueResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", {
+                    id: testUtils.generateId(),
+                    programId: programForFKReferences.id,
+                    balance: 1
+                });
+                chai.assert.equal(createValueResp.statusCode, 201, `createValueResp.body=${JSON.stringify(createValueResp.body)}`);
+
+                const searchValuesLeadingResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?programId=$%20{programForFKReferences.id}`, "GET");
+                chai.assert.equal(searchValuesLeadingResp.statusCode, 200, `searchValuesLeadingResp.body=${JSON.stringify(searchValuesLeadingResp.body)}`);
+                chai.assert.equal(searchValuesLeadingResp.body.length, 0, `searchValuesLeadingResp.body=${JSON.stringify(searchValuesLeadingResp.body)}`);
+
+                const searchValuesTrailingResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?programId=${programForFKReferences.id}%20`, "GET");
+                chai.assert.equal(searchValuesTrailingResp.statusCode, 200, `searchValuesTrailingResp.body=${JSON.stringify(searchValuesTrailingResp.body)}`);
+                chai.assert.equal(searchValuesTrailingResp.body.length, 0, `searchValuesTrailingResp.body=${JSON.stringify(searchValuesTrailingResp.body)}`);
+            });
+
+            it("404s creating issuances from programIds with leading/trailing whitespace", async () => {
+                const issuanceLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/%0D%0A${programForFKReferences.id}/issuances`, "POST", {
+                    id: testUtils.generateId(),
+                    name: testUtils.generateId(),
+                    count: 1
+                });
+                chai.assert.equal(issuanceLeadingResp.statusCode, 404, `issuanceLeadingResp.body=${JSON.stringify(issuanceLeadingResp.body)}`);
+                chai.assert.equal(issuanceLeadingResp.body["messageCode"], "ProgramNotFound", `issuanceLeadingResp.body=${JSON.stringify(issuanceLeadingResp.body)}`);
+
+                const issuanceTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${programForFKReferences.id}%20/issuances`, "POST", {
+                    id: testUtils.generateId(),
+                    name: testUtils.generateId(),
+                    count: 1
+                });
+                chai.assert.equal(issuanceTrailingResp.statusCode, 404, `issuanceTrailingResp.body=${JSON.stringify(issuanceTrailingResp.body)}`);
+                chai.assert.equal(issuanceTrailingResp.body["messageCode"], "ProgramNotFound", `issuanceTrailingResp.body=${JSON.stringify(issuanceTrailingResp.body)}`);
+            });
+        });
     });
 });

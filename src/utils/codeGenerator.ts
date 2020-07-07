@@ -36,19 +36,26 @@ export function generateCode(params: GenerateCodeParameters): string {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested code length ${length} doesn't meet minimum requirement of 6.`, "InvalidGenerateCodeParameters");
     }
 
+    if (params.prefix && /^\s/.test(params.prefix)) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested prefix ${params.prefix} cannot have leading whitespace.`, "InvalidGenerateCodeParameters");
+    }
+    if (params.suffix && /\s$/.test(params.suffix)) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Requested suffix ${params.suffix} cannot have trailing whitespace.`, "InvalidGenerateCodeParameters");
+    }
+
     return (params.prefix ? params.prefix : "") + generateRandomString(length, charset) + (params.suffix ? params.suffix : "");
 }
 
-function generateRandomString(length: number, charset: string[]) {
+function generateRandomString(length: number, charset: string[]): string {
     const randomBytes = crypto.randomBytes(length);
-    let randomString: string = "";
+    let randomString = "";
     for (let i = 0; i < length; i++) {
         randomString += charset[randomBytes[i] % charset.length];
     }
     return randomString;
 }
 
-export function containsDuplicates(str: string[]) {
+export function containsDuplicates(str: string[]): boolean {
     const hash = new Map();
 
     for (const char of str) {
