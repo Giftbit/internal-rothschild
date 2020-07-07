@@ -90,19 +90,14 @@ export async function paginateQuery<T extends { id: string }>(query: knex.QueryB
     if (paginationParams.after) {
         const after = PaginationCursor.decode(paginationParams.after);
         if (after.sort != null && paginationParams.sort) {
-            query = query.client.queryBuilder()
-                .unionAll([
-                    query.clone()
-                        .where(query =>
-                            query
-                                .where(columnPrefix + paginationParams.sort.field, "=", after.sort)
-                                .where(columnPrefix + "id", paginationParams.sort.asc ? ">" : "<", after.id)),
-                    query.clone()
-                        .where(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? ">" : "<", after.sort)
-                ])
-                // These ORDER BYs are outside the UNION and can't have the table prefix.
-                .orderBy(paginationParams.sort.field, paginationParams.sort.asc ? "ASC" : "DESC")
-                .orderBy("id", paginationParams.sort.asc ? "ASC" : "DESC");
+            query = query
+                .where(query => query
+                    .where(columnPrefix + paginationParams.sort.field, "=", after.sort)
+                    .where(columnPrefix + "id", paginationParams.sort.asc ? ">" : "<", after.id)
+                    .orWhere(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? ">" : "<", after.sort)
+                )
+                .orderBy(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? "ASC" : "DESC")
+                .orderBy(columnPrefix + "id", paginationParams.sort.asc ? "ASC" : "DESC");
         } else {
             query = query
                 .where(columnPrefix + "id", ">", after.id)
@@ -111,20 +106,14 @@ export async function paginateQuery<T extends { id: string }>(query: knex.QueryB
     } else if (paginationParams.before) {
         const before = PaginationCursor.decode(paginationParams.before);
         if (before.sort != null && paginationParams.sort) {
-            query = query.client.queryBuilder()
-                .unionAll([
-                    query.clone()
-                        .where(query =>
-                            query
-                                .where(columnPrefix + paginationParams.sort.field, "=", before.sort)
-                                .where(columnPrefix + "id", paginationParams.sort.asc ? "<" : ">", before.id)
-                        ),
-                    query.clone()
-                        .where(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? "<" : ">", before.sort)
-                ])
-                // These ORDER BYs are outside the UNION and can't have the table prefix.
-                .orderBy(paginationParams.sort.field, paginationParams.sort.asc ? "DESC" : "ASC")
-                .orderBy("id", paginationParams.sort.asc ? "DESC" : "ASC");
+            query = query
+                .where(query => query
+                    .where(columnPrefix + paginationParams.sort.field, "=", before.sort)
+                    .where(columnPrefix + "id", paginationParams.sort.asc ? "<" : ">", before.id)
+                    .orWhere(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? "<" : ">", before.sort)
+                )
+                .orderBy(columnPrefix + paginationParams.sort.field, paginationParams.sort.asc ? "DESC" : "ASC")
+                .orderBy(columnPrefix + "id", paginationParams.sort.asc ? "DESC" : "ASC");
         } else {
             query = query
                 .where(columnPrefix + "id", "<", before.id)
