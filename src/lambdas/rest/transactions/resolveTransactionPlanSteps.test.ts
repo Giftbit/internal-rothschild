@@ -177,7 +177,7 @@ describe("resolveTransactionPlanSteps", () => {
                 value3_sharedGeneric = await testUtils.createUSDValue(router, value3_sharedGeneric);
                 value4_perContactGeneric = await testUtils.createUSDValue(router, value4_perContactGeneric);
 
-                const attachSharedResp = await attachSharedGenericValue(testUtils.defaultTestUser.auth, contact1.id, value3_sharedGeneric as Value);
+                await attachSharedGenericValue(testUtils.defaultTestUser.auth, contact1.id, value3_sharedGeneric as Value);
                 contact1_attachedValues.push(value3_sharedGeneric as Value);
 
                 const attachPerContactResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact2.id}/values/attach`, "POST", {valueId: value4_perContactGeneric.id});

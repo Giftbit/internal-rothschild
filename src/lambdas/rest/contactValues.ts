@@ -14,10 +14,7 @@ import {DbContactValue} from "../../model/DbContactValue";
 import {AttachValueParameters} from "../../model/internal/AttachValueParameters";
 import {ValueIdentifier} from "../../model/internal/ValueIdentifier";
 import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
-import {
-    attachGenericCodeWithPerContactOptions,
-    generateUrlSafeHashFromValueIdContactId
-} from "./genericCodeWithPerContactOptions";
+import {attachGenericCode, generateUrlSafeHashFromValueIdContactId} from "./genericCodeWithPerContactOptions";
 import {LightrailDbTransactionStep} from "../../model/TransactionStep";
 import log = require("loglevel");
 
@@ -180,14 +177,16 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         try {
             // temporary - phase 1 shared generic code migration
             try {
-                const contactValue = await getContactValue(auth, value.id, contact.id);
+                await getContactValue(auth, value.id, contact.id);
+                // See below comment "when a shared generic code is being re-attached, do nothing."
+                // Apparently we do nothing and return.
+                return;
             } catch (err) {
                 if ((err as GiftbitRestError).statusCode === 404 && err.additionalParams.messageCode === "ContactValueNotFound") {
                     // this is good, can carry on with the attach
                 } else {
-                    // See below comment "when a shared generic code is being re-attached, do nothing."
-                    // Apparently we do nothing and return.
-                    return;
+                    // unexpected and shouldn't happen
+                    throw err;
                 }
             }
             // remove the above block for phase 2

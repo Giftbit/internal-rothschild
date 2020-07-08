@@ -16,7 +16,7 @@ import {Transaction} from "../../model/Transaction";
 
 chai.use(chaiExclude);
 
-describe.skip("/v2/sharedGenericCodeMigration", () => {
+describe("/v2/sharedGenericCodeMigration", () => {
 
     const router = new cassava.Router();
 
@@ -62,7 +62,13 @@ describe.skip("/v2/sharedGenericCodeMigration", () => {
             genericCode: {
                 ...genericCodeBaseProps,
                 id: generateId() + "0",
-                balance: 500
+                // before migration V35 this would have had a balance = 500
+                genericCodeOptions: {
+                    perContact: {
+                        balance: 500,
+                        usesRemaining: null
+                    }
+                }
             },
             attachedContacts: [contact1]
         },
@@ -70,7 +76,13 @@ describe.skip("/v2/sharedGenericCodeMigration", () => {
             genericCode: {
                 ...genericCodeBaseProps,
                 id: generateId() + "1",
-                balance: 0
+                // before migration V35 this would have had a balance = 0
+                genericCodeOptions: {
+                    perContact: {
+                        balance: 0,
+                        usesRemaining: null
+                    }
+                }
             },
             attachedContacts: [contact1]
         },
@@ -79,7 +91,13 @@ describe.skip("/v2/sharedGenericCodeMigration", () => {
                 ...genericCodeBaseProps,
                 id: generateId() + "2",
                 balanceRule: {rule: "2", explanation: "2 cents off all items"},
-                usesRemaining: 50
+                usesRemaining: 50, // migration V35 will set perContact.usesRemaining = 1
+                genericCodeOptions: {
+                    perContact: {
+                        balance: null,
+                        usesRemaining: 1
+                    }
+                }
             },
             attachedContacts: [contact1, contact2]
         },
@@ -93,10 +111,10 @@ describe.skip("/v2/sharedGenericCodeMigration", () => {
         }
     ];
 
-    it("shared generic code migration", async () => {
+    it("can migrate shared generic codes", async () => {
         for (const data of testData) {
             const createGenericCode = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", data.genericCode);
-            chai.assert.equal(createGenericCode.statusCode, 201);
+            chai.assert.equal(createGenericCode.statusCode, 201, `Failed creating: ${JSON.stringify(createGenericCode.body)}`);
 
             for (const contact of data.attachedContacts) {
                 await attachSharedGenericValue(testUtils.defaultTestUser.auth, contact.id, createGenericCode.body);
@@ -317,6 +335,44 @@ describe.skip("/v2/sharedGenericCodeMigration", () => {
             }
         ]);
     }).timeout(15000);
+
+    it.skip("can migrate 10,000 contact vales", async () => {
+        const gc: Partial<Value> = {
+            ...genericCodeBaseProps,
+            id: generateId() + "0",
+            // before migration V35 this would have had a balance = 500
+            genericCodeOptions: {
+                perContact: {
+                    balance: 500,
+                    usesRemaining: null
+                }
+            }
+        };
+        const createGenericCode = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", gc);
+        chai.assert.equal(createGenericCode.statusCode, 201, `Failed creating: ${JSON.stringify(createGenericCode.body)}`);
+
+        for (let i = 0; i < 10000; i++) {
+            const contactId = generateId();
+            const createContact = await testUtils.testAuthedRequest<Value>(router, "/v2/contacts", "POST", {
+                id: contactId
+            });
+            chai.assert.equal(createContact.statusCode, 201, `Failed creating: ${JSON.stringify(createContact.body)}`);
+            await attachSharedGenericValue(testUtils.defaultTestUser.auth, contactId, createGenericCode.body);
+        }
+
+        const migrate = await testAuthedRequest(router, "/v2/sharedGenericCodeMigration", "POST", {userId: testUtils.defaultTestUser.userId});
+        chai.assert.deepEqual(migrate.body, {
+            migrated: {
+                contactValues: 10000,
+                sharedGenericCodes: 1
+            }
+        });
+    }).timeout(300000);
+
+    it("can try to migrate a user that doesn't exist - nothing to migrate", async () => {
+        const migrate = await testAuthedRequest(router, "/v2/sharedGenericCodeMigration", "POST", {userId: "notARealUserId"});
+        chai.assert.deepEqual(migrate.statusCode, 404);
+    });
 });
 
 // Legacy function moved from contactValues.ts, now used to test that existing shared generic codes will still function correctly.   

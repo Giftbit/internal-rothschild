@@ -1,11 +1,12 @@
 SET SQL_SAFE_UPDATES = 0;
 
-# balance on generic codes represent a perContact balance
-# - attach generic as new value copied over the balance
-# - the migration of shared generic codes also copied over the balance since it doesn't make sense
+# Having a balance on generic codes represents a perContact balance. Why?
+# - attachGenericAsNewValue sets the balance on the new value = generic code's balance
+# - the migration of shared generic codes also copies over the balance since it doesn't make sense
 #   to have "shared" balance.
 UPDATE rothschild.`Values`
-SET genericCodeOptions_perContact_balance = balance
+SET genericCodeOptions_perContact_balance = balance,
+    balance                               = NULL
 WHERE isGenericCode = TRUE
   AND balance IS NOT NULL
   AND genericCodeOptions_perContact_balance IS NULL;

@@ -5,7 +5,8 @@ import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {DbValue, formatCodeForLastFourDisplay} from "../../model/Value";
 import {getSqlErrorConstraintName} from "../../utils/dbUtils";
 import {generateUrlSafeHashFromValueIdContactId} from "./genericCodeWithPerContactOptions";
-import {DbTransaction, DbTransactionStep} from "../../model/Transaction";
+import {DbTransaction} from "../../model/Transaction";
+import {DbTransactionStep} from "../../model/TransactionStep";
 import Knex = require("knex");
 import log = require("loglevel");
 
@@ -84,19 +85,12 @@ export function installSharedGenericMigration(router: cassava.Router): void {
                     }
                 }
 
-                for (const valueId of Object.keys(genericCodes)) {
-                    const genericCode = genericCodes[valueId];
-                    await migrateGenericCode(trx, genericCode);
-                }
-
                 const del = await trx("ContactValues")
                     .delete()
                     .where({
                         userId: userIdToMigrate
                     });
-                if (contactValues.length === 0) {
-                    throw new giftbitRoutes.GiftbitRestError(404, `No shared generic codes found for userId: ${userIdToMigrate}.`, "NoSharedGenericCodes");
-                }
+                log.info(`deleted ${del} contactValues`);
             });
 
             return {
@@ -135,6 +129,7 @@ function getObjectsForMigratingContactValue(contactValue: DbContactValue, generi
         ...genericCode,
         id: id,
         contactId: contactValue.contactId,
+        balance: genericCode.genericCodeOptions_perContact_balance,
         usesRemaining: genericCode.usesRemaining == null ? null : genericCode.usesRemaining === 0 ? 0 : 1,
         createdDate: contactValue.createdDate,
         updatedDate: contactValue.createdDate,
@@ -212,8 +207,7 @@ function getObjectsForMigratingContactValue(contactValue: DbContactValue, generi
     };
 }
 
-async function insertValue(trx: Knex, dbValue: DbValue) {
-    console.log("inserting value " + JSON.stringify(dbValue, null, 4));
+async function insertValue(trx: Knex, dbValue: DbValue): Promise<void> {
     try {
         await trx("Values")
             .insert(dbValue);
@@ -227,7 +221,7 @@ async function insertValue(trx: Knex, dbValue: DbValue) {
     }
 }
 
-async function insertTransaction(trx: Knex, dbTransaction: DbTransaction) {
+async function insertTransaction(trx: Knex, dbTransaction: DbTransaction): Promise<void> {
     try {
         await trx("Transactions")
             .insert(dbTransaction);
@@ -241,40 +235,13 @@ async function insertTransaction(trx: Knex, dbTransaction: DbTransaction) {
     }
 }
 
-async function insertTransactionSteps(trx: Knex, dbSteps: DbTransactionStep[]) {
+async function insertTransactionSteps(trx: Knex, dbSteps: DbTransactionStep[]): Promise<void> {
     try {
         await trx("LightrailTransactionSteps")
             .insert(dbSteps);
     } catch (err) {
         log.debug(`Error inserting steps ${JSON.stringify(dbSteps)}`, err);
         throw err;
-    }
-}
-
-async function migrateGenericCode(trx: Knex, genericCode: DbValue) {
-    let shouldUpdate = false;
-    if (genericCode.balance != null && genericCode.genericCodeOptions_perContact_balance == null) {
-        genericCode.genericCodeOptions_perContact_balance = genericCode.balance;
-        shouldUpdate = true;
-    }
-    if (genericCode.usesRemaining != null && genericCode.genericCodeOptions_perContact_usesRemaining == null) {
-        genericCode.genericCodeOptions_perContact_usesRemaining = 1;
-        shouldUpdate = true;
-    }
-
-    if (shouldUpdate) {
-        const updateRes: number = await trx("Values")
-            .where({
-                userId: genericCode.userId,
-                id: genericCode.id
-            })
-            .update(genericCode);
-        if (updateRes === 0) {
-            throw new cassava.RestError(404);
-        }
-        if (updateRes > 1) {
-            throw new Error(`Illegal UPDATE query.  Updated ${updateRes} values.`);
-        }
     }
 }
 
