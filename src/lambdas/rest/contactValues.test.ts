@@ -606,6 +606,7 @@ describe("/v2/contacts/values", () => {
 
         it("can list values attached to contactB", async () => {
             const contactListValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/contacts/${data.contactB.id}/values`, "GET");
+            console.log("data.valuesAttachedToContactB", JSON.stringify(data.valuesAttachedToContactB, null, 4));
             chai.assert.sameDeepMembers(contactListValues.body, data.valuesAttachedToContactB);
 
             const listValuesByContact = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?contactId=${data.contactB.id}`, "GET");

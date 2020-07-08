@@ -34,86 +34,17 @@ export async function attachGenericCode(auth: giftbitRoutes.jwtauth.Authorizatio
     return (transactionPlan.steps.find((step: LightrailTransactionPlanStep) => step.action === "insert") as LightrailInsertTransactionPlanStep).value;
 }
 
-export async function getAttachTransactionPlanForGenericCode(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericCode: Value): Promise<TransactionPlan> {
-    if (Value.isGenericCodeWithPropertiesPerContact(genericCode)) {
-        return getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth, contactId, genericCode);
+export async function getAttachTransactionPlanForGenericCode(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<TransactionPlan> {
+    if (Value.isGenericCodeWithPropertiesPerContact(genericValue)) {
+        MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericPerContactProps, auth);
     } else {
-        return getAttachTransactionPlanForGenericCodeWithoutPerContactOptions(auth, contactId, genericCode);
+        MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, auth);
     }
-}
-
-export async function getAttachTransactionPlanForGenericCodeWithoutPerContactOptions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericCode: Value): Promise<TransactionPlan> {
-    if (Value.isGenericCodeWithPropertiesPerContact(genericCode)) {
-        throw new Error(`Invalid value passed in. ${genericCode.id}`);
-    }
-    MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, auth);
-
-    const now = nowInDbPrecision();
-    const newAttachedValueId = await getIdForAttachingGenericValue(auth, contactId, genericCode);
-    const initialBalance = genericCode.balance;
-    const initialUsesRemaining = genericCode.usesRemaining != null ? 1 : null; // if generic code has usesRemaining set, assume the attached values should get 1 usesRemaining.
-
-    const newValue = initializeValue(auth, {
-        ...genericCode,
-        id: newAttachedValueId,
-        code: null,
-        isGenericCode: false,
-        contactId: contactId,
-        balance: initialBalance,
-        usesRemaining: initialUsesRemaining,
-        genericCodeOptions: undefined,
-        metadata: {
-            ...genericCode.metadata,
-            attachedFromGenericValue: {
-                code: genericCode.code
-            }
-        },
-        attachedFromValueId: genericCode.id,
-        createdDate: now,
-        updatedDate: now,
-        updatedContactIdDate: now,
-        createdBy: auth.teamMemberId,
-    });
-
-    const updateStep: LightrailUpdateTransactionPlanStep = {
-        rail: "lightrail",
-        action: "update",
-        value: genericCode,
-        amount: genericCode.balance !== null ? 0 : null,
-        uses: initialUsesRemaining != null ? -initialUsesRemaining : null,
-        allowCanceled: false,
-        allowFrozen: false
-    };
-    const insertStep: LightrailInsertTransactionPlanStep = {
-        rail: "lightrail",
-        action: "insert",
-        value: newValue
-    };
-
-    return {
-        id: newAttachedValueId,
-        transactionType: "attach",
-        currency: genericCode.currency,
-        steps: [updateStep, insertStep],
-        totals: null,
-        lineItems: null,
-        paymentSources: null,
-        createdDate: now,
-        metadata: null,
-        tax: null
-    };
-}
-
-export async function getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<TransactionPlan> {
-    if (!Value.isGenericCodeWithPropertiesPerContact(genericValue)) {
-        throw new Error(`Invalid value passed in. ${genericValue.id}`);
-    }
-    MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericPerContactProps, auth);
 
     const now = nowInDbPrecision();
     const newAttachedValueId = await getIdForAttachingGenericValue(auth, contactId, genericValue);
-    const amount = genericValue.genericCodeOptions.perContact.balance;
-    const uses = genericValue.genericCodeOptions.perContact.usesRemaining;
+    const amount = genericValue.genericCodeOptions?.perContact?.balance != null ? genericValue.genericCodeOptions.perContact.balance : null;
+    const uses = genericValue.genericCodeOptions?.perContact?.usesRemaining != null ? genericValue.genericCodeOptions.perContact.usesRemaining : null;
 
     const newValue = initializeValue(auth, {
         ...genericValue,
@@ -121,8 +52,8 @@ export async function getAttachTransactionPlanForGenericCodeWithPerContactOption
         code: null,
         isGenericCode: false,
         contactId: contactId,
-        balance: amount != null ? amount : null, // balance is initiated rather than being adjusted during inserting the step. this makes auto-attach during checkout work
-        usesRemaining: uses != null ? uses : null, // likewise
+        balance: amount, // balance is initiated rather than being adjusted during inserting the step. this makes auto-attach during checkout work
+        usesRemaining: uses, // likewise
         genericCodeOptions: undefined,
         metadata: {
             ...genericValue.metadata,
