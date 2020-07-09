@@ -619,7 +619,7 @@ describe("/v2/contacts/values", () => {
         });
 
         it("can list contacts who have attached genVal2", async () => {
-            const contactListValues = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?valueId=${data.genVal2_sharedGenericValue.id}`, "GET");
+            const contactListValues = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?valueId=${data.genVal2_genericValue.id}`, "GET");
             chai.assert.sameDeepMembers(contactListValues.body, data.contacts);
         });
     });
@@ -705,7 +705,7 @@ export interface AttachedContactValueScenario {
     uniqueValueWithContact: Partial<Value>;
     uniqueValue: Partial<Value>;
     genVal1_attachGenericAsNewValue: Partial<Value>;
-    genVal2_sharedGenericValue: Partial<Value>;
+    genVal2_genericValue: Partial<Value>;
     genVal3_perContactProperties: Partial<Value>;
 }
 
@@ -742,7 +742,7 @@ export async function setupAttachedContactValueScenario(router: cassava.Router, 
                 explanation: "$5 off"
             }
         },
-        genVal2_sharedGenericValue: {
+        genVal2_genericValue: {
             id: generateId(5) + "-GEN2",
             currency: currency.code,
             isGenericCode: true,
@@ -780,7 +780,7 @@ export async function setupAttachedContactValueScenario(router: cassava.Router, 
     chai.assert.equal(createGenericVal1.statusCode, 201);
 
     // create a genericVal2
-    const createGenVal2 = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", data.genVal2_sharedGenericValue);
+    const createGenVal2 = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", data.genVal2_genericValue);
     chai.assert.equal(createGenVal2.statusCode, 201);
     chai.assert.isNull(createGenVal2.body.genericCodeOptions);
 
@@ -812,7 +812,7 @@ export async function setupAttachedContactValueScenario(router: cassava.Router, 
     data.valuesAttachedToContactA.push(attachNew_genVal1_contactA.body /* new value from attach */);
 
     // attach genVal2 to ContactA
-    const attach_genVal2_contactA = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${data.contactA.id}/values/attach`, "POST", {valueId: data.genVal2_sharedGenericValue.id});
+    const attach_genVal2_contactA = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${data.contactA.id}/values/attach`, "POST", {valueId: data.genVal2_genericValue.id});
     chai.assert.equal(attach_genVal2_contactA.statusCode, 200);
     data.valuesAttachedToContactA.push(attach_genVal2_contactA.body);
 
@@ -829,7 +829,7 @@ export async function setupAttachedContactValueScenario(router: cassava.Router, 
     chai.assert.equal(attachNew_genVal1_contactB.statusCode, 200);
     data.valuesAttachedToContactB.push(attachNew_genVal1_contactB.body /* new value from attach */);
 
-    const attach_genVal2_contactB = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${data.contactB.id}/values/attach`, "POST", {valueId: data.genVal2_sharedGenericValue.id});
+    const attach_genVal2_contactB = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${data.contactB.id}/values/attach`, "POST", {valueId: data.genVal2_genericValue.id});
     chai.assert.equal(attach_genVal2_contactB.statusCode, 200);
     data.valuesAttachedToContactB.push(attach_genVal2_contactB.body);
 

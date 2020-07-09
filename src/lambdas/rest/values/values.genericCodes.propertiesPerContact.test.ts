@@ -620,9 +620,10 @@ describe("/v2/values - generic code with per contact properties", () => {
             const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", legacyGenericValue);
             chai.assert.equal(create.statusCode, 201);
 
-            // attach as shared
+            // attach as generic
             const attachContact1 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1Id}/values/attach`, "POST", {code: legacyGenericValue.code});
             chai.assert.equal(attachContact1.statusCode, 200);
+            chai.assert.notEqual(attachContact1.body.id, legacyGenericValue.id);
 
             // attachGenericAsNewValue
             const attachContact2 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact2Id}/values/attach`, "POST", {

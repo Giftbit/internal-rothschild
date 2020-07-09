@@ -20,6 +20,7 @@ import {
 } from "../../utils/stripeUtils/stripeAccess";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {StripeConfig} from "../../utils/stripeUtils/StripeConfig";
+import {migrateContactValues} from "./contactValueMigration";
 import log = require("loglevel");
 
 // Wrapping console.log instead of binding (default behaviour for loglevel)
@@ -56,7 +57,7 @@ export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, 
             readonlyuserpassword: evt.ResourceProperties.ReadOnlyUserPassword,
             binlogwatcheruserpassword: evt.ResourceProperties.BinlogWatcherUserPassword
         });
-        migrateContactValues(ctx,);
+        await migrateContactValues();
         return sendCloudFormationResponse(evt, ctx, true, res);
     } catch (err) {
         log.error(JSON.stringify(err, null, 2));
