@@ -1,10 +1,14 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import {installRestRoutes} from "./installRestRoutes";
 import * as testUtils from "../../utils/testUtils";
-import {generateId, setCodeCryptographySecrets, testAuthedRequest} from "../../utils/testUtils";
+import {
+    alternateTestUser,
+    defaultTestUser,
+    generateId,
+    setCodeCryptographySecrets,
+    testAuthedRequest
+} from "../../utils/testUtils";
 import {Currency} from "../../model/Currency";
-import {createCurrency} from "./currencies";
 import chaiExclude from "chai-exclude";
 import {getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
 import * as giftbitRoutes from "giftbit-cassava-routes";
@@ -13,10 +17,13 @@ import {DbContactValue} from "../../model/DbContactValue";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
 import {Contact} from "../../model/Contact";
 import {Transaction} from "../../model/Transaction";
+import {migrateContactValues, migrateContactValuesForUser} from "./contactValueMigration";
+import {installRestRoutes} from "../rest/installRestRoutes";
+import {createCurrency} from "../rest/currencies";
 
 chai.use(chaiExclude);
 
-describe("/v2/sharedGenericCodeMigration", () => {
+describe("contact value migration", () => {
 
     const router = new cassava.Router();
 
@@ -121,13 +128,11 @@ describe("/v2/sharedGenericCodeMigration", () => {
             }
         }
 
-        const migrate = await testAuthedRequest(router, "/v2/sharedGenericCodeMigration", "POST", {userId: testUtils.defaultTestUser.userId});
-        chai.assert.deepEqual(migrate.body, {
-            migrated: {
-                contactValues: 6,
-                sharedGenericCodes: 4
-            }
-        });
+        const migrate = await migrateContactValuesForUser(testUtils.defaultTestUser.userId);
+        chai.assert.equal(migrate.userId, defaultTestUser.userId);
+        chai.assert.equal(migrate.countOfContactValues, 6);
+        chai.assert.equal(migrate.countOfSharedGenericCodes, 4);
+        chai.assert.sameMembers(migrate.genericCodeIdList, [testData[0].genericCode.id, testData[1].genericCode.id, testData[2].genericCode.id, testData[3].genericCode.id]);
 
         // contact 1 assertions
         const contact1Values = await testAuthedRequest<Value[]>(router, `/v2/values?contactId=${contact1.id}`, "GET");
@@ -336,16 +341,13 @@ describe("/v2/sharedGenericCodeMigration", () => {
         ]);
     }).timeout(15000);
 
-    it.skip("can migrate 10,000 contact vales", async () => {
+    it("can migrate 10,000 contact vales", async () => {
         const gc: Partial<Value> = {
             ...genericCodeBaseProps,
-            id: generateId() + "0",
-            // before migration V35 this would have had a balance = 500
-            genericCodeOptions: {
-                perContact: {
-                    balance: 500,
-                    usesRemaining: null
-                }
+            id: generateId(),
+            balanceRule: {
+                rule: "500 + value.balanceChange",
+                explanation: "$5 off"
             }
         };
         const createGenericCode = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", gc);
@@ -360,22 +362,78 @@ describe("/v2/sharedGenericCodeMigration", () => {
             await attachSharedGenericValue(testUtils.defaultTestUser.auth, contactId, createGenericCode.body);
         }
 
-        const migrate = await testAuthedRequest(router, "/v2/sharedGenericCodeMigration", "POST", {userId: testUtils.defaultTestUser.userId});
-        chai.assert.deepEqual(migrate.body, {
-            migrated: {
-                contactValues: 10000,
-                sharedGenericCodes: 1
+        const migrate = await migrateContactValuesForUser(testUtils.defaultTestUser.userId);
+        chai.assert.deepEqual(migrate,
+            {
+                userId: testUtils.defaultTestUser.userId,
+                countOfContactValues: 10000,
+                countOfSharedGenericCodes: 1,
+                genericCodeIdList: [gc.id]
             }
-        });
+        );
     }).timeout(300000);
 
-    it("can try to migrate a user that doesn't exist - nothing to migrate", async () => {
-        const migrate = await testAuthedRequest(router, "/v2/sharedGenericCodeMigration", "POST", {userId: "notARealUserId"});
-        chai.assert.deepEqual(migrate.statusCode, 404);
+    it("can migrate all shared generic codes for all users", async () => {
+        // user1
+        const gc: Partial<Value> = {
+            ...genericCodeBaseProps,
+            id: generateId(),
+            balanceRule: {
+                rule: "500 + value.balanceChange",
+                explanation: "$5 off"
+            }
+        };
+        const createGenericCodeUser1 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", gc);
+        chai.assert.equal(createGenericCodeUser1.statusCode, 201);
+
+        const createContactUser1 = await testUtils.testAuthedRequest<Value>(router, "/v2/contacts", "POST", {
+            id: generateId()
+        });
+        chai.assert.equal(createContactUser1.statusCode, 201, `Failed creating: ${JSON.stringify(createContactUser1.body)}`);
+
+        await attachSharedGenericValue(testUtils.defaultTestUser.auth, createContactUser1.body.id, createGenericCodeUser1.body);
+
+        // user2
+        const createCurrencyUser2 = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/currencies", "POST", {
+            headers: {Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`},
+            body: JSON.stringify(currency)
+        }));
+        chai.assert.equal(createCurrencyUser2.statusCode, 201);
+
+        const createGenericCodeUser2 = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/values", "POST", {
+            headers: {Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`},
+            body: JSON.stringify(gc)
+        }));
+        console.log(JSON.stringify(createGenericCodeUser2));
+        chai.assert.equal(createGenericCodeUser2.statusCode, 201);
+
+        const createContactUser2 = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/contacts", "POST", {
+            headers: {Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`},
+            body: JSON.stringify({id: generateId()})
+        }));
+        chai.assert.equal(createContactUser2.statusCode, 201, `Failed creating: ${JSON.stringify(createContactUser1.body)}`);
+
+        await attachSharedGenericValue(testUtils.alternateTestUser.auth, JSON.parse(createContactUser2.body).id, JSON.parse(createGenericCodeUser2.body));
+
+        const res = await migrateContactValues();
+        chai.assert.sameDeepMembers(res, [
+            {
+                userId: defaultTestUser.userId,
+                countOfContactValues: 1,
+                countOfSharedGenericCodes: 1,
+                genericCodeIdList: [createGenericCodeUser1.body.id]
+            },
+            {
+                userId: alternateTestUser.userId,
+                countOfContactValues: 1,
+                countOfSharedGenericCodes: 1,
+                genericCodeIdList: [JSON.parse(createGenericCodeUser2.body).id]
+            }
+        ]);
     });
 });
 
-// Legacy function moved from contactValues.ts, now used to test that existing shared generic codes will still function correctly.   
+// Legacy function moved from contactValues.ts, now used to test that existing shared generic codes will still function correctly.
 export async function attachSharedGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, value: Value): Promise<DbContactValue> {
     const dbContactValue: DbContactValue = {
         userId: auth.userId,

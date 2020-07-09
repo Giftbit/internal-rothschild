@@ -1,27 +1,14 @@
 import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import * as jsonschema from "jsonschema";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {DbValue, formatCodeForLastFourDisplay} from "../../model/Value";
 import {getSqlErrorConstraintName} from "../../utils/dbUtils";
-import {generateUrlSafeHashFromValueIdContactId} from "./genericCode";
 import {DbTransaction} from "../../model/Transaction";
 import {DbTransactionStep} from "../../model/TransactionStep";
+import {generateUrlSafeHashFromValueIdContactId} from "../rest/genericCode";
+import {DbContactValue} from "../../model/DbContactValue";
 import Knex = require("knex");
 import log = require("loglevel");
-
-const timProductionUserId = "user-8c999f89a3874e43863d1b037b3459d9";
-
-export interface DbContactValue {
-    userId: string;
-    valueId: string;
-    contactId: string;
-    createdDate: Date;
-}
-
-const allowedUsers = [
-    "default-test-user-TEST", "user-8c999f89a3874e43863d1b037b3459d9"
-];
 
 interface DbObjectsForNewAttach {
     value: DbValue;
@@ -29,80 +16,84 @@ interface DbObjectsForNewAttach {
     steps: DbTransactionStep[];
 }
 
-export function installSharedGenericMigration(router: cassava.Router): void {
-    router.route("/v2/sharedGenericCodeMigration")
-        .method("POST")
-        .handler(async evt => {
-            const auth: giftbitRoutes.jwtauth.AuthorizationBadge = evt.meta["auth"];
-            if (allowedUsers.indexOf(auth.userId) === -1) {
-                throw new cassava.RestError(cassava.httpStatusCode.clientError.FORBIDDEN);
-            }
+interface ContactValueMigration {
+    userId: string;
+    countOfContactValues: number;
+    countOfSharedGenericCodes: number;
+    genericCodeIdList: string[];
+}
 
-            evt.validateBody(migrationSchema);
-            const userIdToMigrate = evt.body.userId;
-            const stats = {
-                countOfContactValues: 0,
-                genericCodesMigrated: 0,
-                genericCodeIdList: []
-            };
+export async function migrateContactValues(): Promise<ContactValueMigration[]> {
+    const knexRead = await getKnexRead();
+    const results: ContactValueMigration[] = [];
+    const users: { userId: string }[] = await knexRead("ContactValues")
+        .select("userId")
+        .groupBy("userId");
+    for (const user of users) {
+        results.push(await migrateContactValuesForUser(user.userId));
+    }
+    return results;
+}
 
-            // lookup ContactValues
-            const knexRead = await getKnexRead();
-            const contactValues: DbContactValue[] = await knexRead("ContactValues")
-                .select()
-                .where({
-                    userId: userIdToMigrate
-                });
-            if (contactValues.length === 0) {
-                throw new giftbitRoutes.GiftbitRestError(404, `No shared generic codes found for userId: ${userIdToMigrate}.`, "NoSharedGenericCodes");
-            }
-            stats.countOfContactValues = contactValues.length;
+// exported for test purposes
+export async function migrateContactValuesForUser(userId: string): Promise<ContactValueMigration> {
+    const stats: ContactValueMigration = {
+        userId: userId,
+        countOfContactValues: 0,
+        countOfSharedGenericCodes: 0,
+        genericCodeIdList: []
+    };
 
-            let genericCodes: { [valueId: string]: DbValue } = {};
-            const newValueAttaches: DbObjectsForNewAttach[] = [];
-            for (const contactValue of contactValues) {
-                if (!genericCodes[contactValue.valueId]) {
-                    genericCodes[contactValue.valueId] = await getGenericCode(knexRead, userIdToMigrate, contactValue.valueId);
-                }
-
-                const genericCode = genericCodes[contactValue.valueId];
-                newValueAttaches.push(getObjectsForMigratingContactValue(contactValue, genericCode));
-            }
-
-            const knexWrite = await getKnexWrite();
-            await knexWrite.transaction(async trx => {
-                for (const newValueAttach of newValueAttaches) {
-                    try {
-                        await insertValue(trx, newValueAttach.value);
-                        await insertTransaction(trx, newValueAttach.transaction);
-                        await insertTransactionSteps(trx, newValueAttach.steps);
-                    } catch (err) {
-                        if (err instanceof cassava.RestError && err.statusCode === cassava.httpStatusCode.clientError.CONFLICT) {
-                            log.info("While migrating a contactValue it appears it may have already been attached as a new value.");
-                        } else {
-                            throw err;
-                        }
-                    }
-                }
-
-                const del = await trx("ContactValues")
-                    .delete()
-                    .where({
-                        userId: userIdToMigrate
-                    });
-                log.info(`deleted ${del} contactValues`);
-            });
-
-            return {
-                body: {
-                    migrated: {
-                        contactValues: contactValues.length,
-                        sharedGenericCodes: Object.keys(genericCodes).length
-                    }
-                }
-            };
+    // lookup ContactValues
+    const knexRead = await getKnexRead();
+    const contactValues: DbContactValue[] = await knexRead("ContactValues")
+        .select()
+        .where({
+            userId: userId
         });
+    stats.countOfContactValues = contactValues.length;
 
+    let genericCodes: { [valueId: string]: DbValue } = {};
+    const newValueAttaches: DbObjectsForNewAttach[] = [];
+    for (const contactValue of contactValues) {
+        if (!genericCodes[contactValue.valueId]) {
+            genericCodes[contactValue.valueId] = await getGenericCode(knexRead, userId, contactValue.valueId);
+        }
+
+        const genericCode = genericCodes[contactValue.valueId];
+        newValueAttaches.push(getObjectsForMigratingContactValue(contactValue, genericCode));
+    }
+
+    const knexWrite = await getKnexWrite();
+    await knexWrite.transaction(async trx => {
+        for (const newValueAttach of newValueAttaches) {
+            try {
+                await insertValue(trx, newValueAttach.value);
+                await insertTransaction(trx, newValueAttach.transaction);
+                await insertTransactionSteps(trx, newValueAttach.steps);
+            } catch (err) {
+                if (err instanceof cassava.RestError && err.statusCode === cassava.httpStatusCode.clientError.CONFLICT) {
+                    log.info("While migrating a contactValue it appears it may have already been attached as a new value.");
+                } else {
+                    throw err;
+                }
+            }
+        }
+
+        const del = await trx("ContactValues")
+            .delete()
+            .where({
+                userId: userId
+            });
+        log.info(`deleted ${del} contactValues`);
+    });
+
+    return {
+        userId: userId,
+        countOfContactValues: contactValues.length,
+        countOfSharedGenericCodes: Object.keys(genericCodes).length,
+        genericCodeIdList: Object.keys(genericCodes)
+    };
 }
 
 async function getGenericCode(knex: Knex, userId: string, id: string): Promise<DbValue> {
@@ -244,14 +235,3 @@ async function insertTransactionSteps(trx: Knex, dbSteps: DbTransactionStep[]): 
         throw err;
     }
 }
-
-const migrationSchema: jsonschema.Schema = {
-    type: "object",
-    additionalProperties: false,
-    properties: {
-        userId: {
-            type: "string"
-        }
-    },
-    required: ["userId"]
-};

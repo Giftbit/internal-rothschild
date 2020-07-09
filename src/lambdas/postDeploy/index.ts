@@ -56,6 +56,7 @@ export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, 
             readonlyuserpassword: evt.ResourceProperties.ReadOnlyUserPassword,
             binlogwatcheruserpassword: evt.ResourceProperties.BinlogWatcherUserPassword
         });
+        migrateContactValues(ctx,);
         return sendCloudFormationResponse(evt, ctx, true, res);
     } catch (err) {
         log.error(JSON.stringify(err, null, 2));

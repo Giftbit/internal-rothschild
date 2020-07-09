@@ -18,8 +18,8 @@ import {LightrailTransactionParty, TransactionParty} from "../../../model/Transa
 import {Value} from "../../../model/Value";
 import {Transaction} from "../../../model/Transaction";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
-import {attachSharedGenericValue} from "../sharedGenericCodeMigration.test";
 import {LightrailTransactionStep} from "../../../model/TransactionStep";
+import {attachSharedGenericValue} from "../../postDeploy/contactValueMigration.test";
 
 describe("resolveTransactionPlanSteps", () => {
 
