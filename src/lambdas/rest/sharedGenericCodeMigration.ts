@@ -4,7 +4,7 @@ import * as jsonschema from "jsonschema";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {DbValue, formatCodeForLastFourDisplay} from "../../model/Value";
 import {getSqlErrorConstraintName} from "../../utils/dbUtils";
-import {generateUrlSafeHashFromValueIdContactId} from "./genericCodeWithPerContactOptions";
+import {generateUrlSafeHashFromValueIdContactId} from "./genericCode";
 import {DbTransaction} from "../../model/Transaction";
 import {DbTransactionStep} from "../../model/TransactionStep";
 import Knex = require("knex");

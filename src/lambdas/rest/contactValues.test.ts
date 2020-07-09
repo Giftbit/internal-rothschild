@@ -11,7 +11,7 @@ import {createCurrency} from "./currencies";
 import {generateCode} from "../../utils/codeGenerator";
 import chaiExclude from "chai-exclude";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
-import {generateUrlSafeHashFromValueIdContactId} from "./genericCodeWithPerContactOptions";
+import {generateUrlSafeHashFromValueIdContactId} from "./genericCode";
 import {generateLegacyHashForValueIdContactId} from "./contactValues";
 import {nowInDbPrecision} from "../../utils/dbUtils";
 import {updateValue} from "./values/values";

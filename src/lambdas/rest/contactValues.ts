@@ -14,7 +14,7 @@ import {DbContactValue} from "../../model/DbContactValue";
 import {AttachValueParameters} from "../../model/internal/AttachValueParameters";
 import {ValueIdentifier} from "../../model/internal/ValueIdentifier";
 import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
-import {attachGenericCode, generateUrlSafeHashFromValueIdContactId} from "./genericCodeWithPerContactOptions";
+import {attachGenericCode, generateUrlSafeHashFromValueIdContactId} from "./genericCode";
 import {LightrailDbTransactionStep} from "../../model/TransactionStep";
 import log = require("loglevel");
 

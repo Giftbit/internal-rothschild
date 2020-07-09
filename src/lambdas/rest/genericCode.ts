@@ -14,10 +14,8 @@ import {executeTransactionPlanner} from "./transactions/executeTransactionPlans"
 import {initializeValue} from "./values/createValue";
 import {getIdForAttachingGenericValue} from "./contactValues";
 import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
-import {Transaction} from "../../model/Transaction";
 
 export async function attachGenericCode(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<Value> {
-    let transaction: Transaction;
     let transactionPlan: TransactionPlan;
     try {
         await executeTransactionPlanner(auth, {
