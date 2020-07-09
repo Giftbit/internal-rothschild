@@ -23,6 +23,7 @@ import {createCurrency} from "../rest/currencies";
 
 chai.use(chaiExclude);
 
+// Temporary test file that can be removed once the contact value migration is removed.
 describe("contact value migration", () => {
 
     const router = new cassava.Router();
@@ -69,7 +70,8 @@ describe("contact value migration", () => {
             genericCode: {
                 ...genericCodeBaseProps,
                 id: generateId() + "0",
-                // before migration V35 this would have had a balance = 500
+                // before migration V36 this would have had a balance = 500
+                // this is what it will look like after
                 genericCodeOptions: {
                     perContact: {
                         balance: 500,
@@ -83,7 +85,8 @@ describe("contact value migration", () => {
             genericCode: {
                 ...genericCodeBaseProps,
                 id: generateId() + "1",
-                // before migration V35 this would have had a balance = 0
+                // before migration V36 this would have had a balance = 0
+                // this is what it will look like after
                 genericCodeOptions: {
                     perContact: {
                         balance: 0,
@@ -98,7 +101,7 @@ describe("contact value migration", () => {
                 ...genericCodeBaseProps,
                 id: generateId() + "2",
                 balanceRule: {rule: "2", explanation: "2 cents off all items"},
-                usesRemaining: 50, // migration V35 will set perContact.usesRemaining = 1
+                usesRemaining: 50, // migration V36 will set perContact.usesRemaining = 1
                 genericCodeOptions: {
                     perContact: {
                         balance: null,

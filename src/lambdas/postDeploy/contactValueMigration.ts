@@ -44,7 +44,6 @@ export async function migrateContactValuesForUser(userId: string): Promise<Conta
         genericCodeIdList: []
     };
 
-    // lookup ContactValues
     const knexRead = await getKnexRead();
     const contactValues: DbContactValue[] = await knexRead("ContactValues")
         .select()
@@ -52,6 +51,7 @@ export async function migrateContactValuesForUser(userId: string): Promise<Conta
             userId: userId
         });
     stats.countOfContactValues = contactValues.length;
+    log.info(`Found ${stats.countOfContactValues} ContactValues to migrate for user ${userId}.`);
 
     let genericCodes: { [valueId: string]: DbValue } = {};
     const newValueAttaches: DbObjectsForNewAttach[] = [];
@@ -73,7 +73,7 @@ export async function migrateContactValuesForUser(userId: string): Promise<Conta
                 await insertTransactionSteps(trx, newValueAttach.steps);
             } catch (err) {
                 if (err instanceof cassava.RestError && err.statusCode === cassava.httpStatusCode.clientError.CONFLICT) {
-                    log.info("While migrating a contactValue it appears it may have already been attached as a new value.");
+                    log.info(`While migrating a contactValue it appears it may have already been attached as a new value. New Value Id: ${newValueAttach.value.id}. This is okay. Proceed with migration.`);
                 } else {
                     throw err;
                 }
@@ -85,7 +85,7 @@ export async function migrateContactValuesForUser(userId: string): Promise<Conta
             .where({
                 userId: userId
             });
-        log.info(`deleted ${del} contactValues`);
+        log.info(`Deleted ${del} contactValues.`);
     });
 
     return {
