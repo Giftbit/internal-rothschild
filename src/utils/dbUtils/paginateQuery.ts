@@ -97,9 +97,9 @@ export async function paginateQuery<T extends { id: string }>(query: knex.QueryB
     //
     // What we do instead is cursor pagination.  The next page is defined by values
     // that come after the last item in the previous page.  With one unique sort field (id)
-    // that's easy.  When sorting on a non-unique field and then a unique (createdDate,
-    // id) the next page of results might have createdDates that equal the end of the
-    // previous page.
+    // that's easy.  When sorting on multiple fields (createdDate, id) the next page of
+    // results might have createdDates that equal the end of the previous page.
+    // How do we get the next page in that case?
     //
     // The SQL spec technically has a feature called row value constructors.  The
     // syntax can be used in a WHERE clause like `(createdDate, id) < (?, ?)`.  Note
