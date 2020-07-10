@@ -26,9 +26,11 @@ interface ContactValueMigration {
 export async function migrateContactValues(): Promise<ContactValueMigration[]> {
     const knexRead = await getKnexRead();
     const results: ContactValueMigration[] = [];
+
     const users: { userId: string }[] = await knexRead("ContactValues")
         .select("userId")
         .groupBy("userId");
+
     for (const user of users) {
         results.push(await migrateContactValuesForUser(user.userId));
     }
@@ -73,7 +75,7 @@ export async function migrateContactValuesForUser(userId: string): Promise<Conta
                 await insertTransactionSteps(trx, newValueAttach.steps);
             } catch (err) {
                 if (err instanceof cassava.RestError && err.statusCode === cassava.httpStatusCode.clientError.CONFLICT) {
-                    log.info(`While migrating a contactValue it appears it may have already been attached as a new value. New Value Id: ${newValueAttach.value.id}. This is okay. Proceed with migration.`);
+                    log.info(`While migrating a contactValue it appears it may have already been attached as a new value. New Value Id: ${newValueAttach.value.id}. This is okay. It is possible to have attached a generic code as a shared generic and then also attach using attachGenericAsNewValue=true. Proceed with migration.`);
                 } else {
                     throw err;
                 }
