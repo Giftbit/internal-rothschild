@@ -169,7 +169,6 @@ describe("/v2/transactions/reverse - transfer", () => {
             currency: "USD"
         };
         const postTransfer = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", transfer);
-        console.log("postTransfer", JSON.stringify(postTransfer.body, null, 4));
         chai.assert.equal(postTransfer.statusCode, 201, `body=${JSON.stringify(postTransfer.body)}`);
         chai.assert.equal((postTransfer.body.steps[0] as StripeTransactionStep).amount, -75);
         chai.assert.equal((postTransfer.body.steps[1] as LightrailTransactionStep).balanceAfter, 175);

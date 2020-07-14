@@ -317,7 +317,6 @@ describe("/v2/transactions/debit", () => {
         chai.assert.equal(getValueResp.body.usesRemaining, 17);
 
         const getDebitResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${postDebitResp.body.id}`, "GET");
-        console.log("getDebitResp", JSON.stringify(getDebitResp.body, null, 4));
         chai.assert.equal(getDebitResp.statusCode, 200, `body=${JSON.stringify(getDebitResp.body)}`);
         chai.assert.deepEqual(getDebitResp.body, postDebitResp.body);
     });

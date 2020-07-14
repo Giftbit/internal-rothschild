@@ -309,8 +309,6 @@ describe("/v2/transactions/credit", () => {
         chai.assert.equal(getValueResp.body.usesRemaining, 2);
 
         const getCreditResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
-        console.log("postCreditResp", JSON.stringify(postCreditResp.body, null, 4));
-        console.log("getCreditResp", JSON.stringify(getCreditResp.body, null, 4));
         chai.assert.equal(getCreditResp.statusCode, 200, `body=${JSON.stringify(getCreditResp.body)}`);
         chai.assert.deepEqual(getCreditResp.body, postCreditResp.body);
     });
