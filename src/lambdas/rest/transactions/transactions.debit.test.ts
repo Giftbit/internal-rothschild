@@ -69,6 +69,7 @@ describe("/v2/transactions/debit", () => {
                     valueId: value1.id,
                     code: "…CODE",
                     contactId: null,
+                    balanceRule: null,
                     balanceBefore: 1000,
                     balanceAfter: 401,
                     balanceChange: -599,
@@ -164,6 +165,7 @@ describe("/v2/transactions/debit", () => {
                     valueId: valueWithCode.id,
                     code: "…ARGE",
                     contactId: null,
+                    balanceRule: null,
                     balanceBefore: 1000,
                     balanceAfter: 999,
                     balanceChange: -1,
@@ -225,6 +227,7 @@ describe("/v2/transactions/debit", () => {
                     valueId: valueWithGenericCode.id,
                     code: formatCodeForLastFourDisplay(valueWithGenericCode.code),
                     contactId: null,
+                    balanceRule: null,
                     balanceBefore: 1000,
                     balanceAfter: 999,
                     balanceChange: -1,
@@ -290,6 +293,7 @@ describe("/v2/transactions/debit", () => {
                     valueId: value.id,
                     code: "…" + value.code.slice(-4),
                     contactId: null,
+                    balanceRule: null,
                     balanceBefore: null,
                     balanceAfter: null,
                     balanceChange: null,
@@ -313,6 +317,7 @@ describe("/v2/transactions/debit", () => {
         chai.assert.equal(getValueResp.body.usesRemaining, 17);
 
         const getDebitResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${postDebitResp.body.id}`, "GET");
+        console.log("getDebitResp", JSON.stringify(getDebitResp.body, null, 4));
         chai.assert.equal(getDebitResp.statusCode, 200, `body=${JSON.stringify(getDebitResp.body)}`);
         chai.assert.deepEqual(getDebitResp.body, postDebitResp.body);
     });
@@ -354,6 +359,7 @@ describe("/v2/transactions/debit", () => {
                     valueId: value.id,
                     code: "…" + value.code.slice(-4),
                     contactId: null,
+                    balanceRule: null,
                     balanceBefore: 2000,
                     balanceAfter: 889,
                     balanceChange: -1111,
@@ -416,6 +422,7 @@ describe("/v2/transactions/debit", () => {
                     valueId: valueWithUses.id,
                     code: "…" + valueWithUses.code.slice(-4),
                     contactId: null,
+                    balanceRule: null,
                     balanceBefore: 2000,
                     balanceAfter: 1000,
                     balanceChange: -1000,
@@ -482,6 +489,7 @@ describe("/v2/transactions/debit", () => {
                     valueId: value1.id,
                     code: "…CODE",
                     contactId: null,
+                    balanceRule: null,
                     balanceBefore: 401,
                     balanceAfter: 101,
                     balanceChange: -300,
@@ -529,6 +537,7 @@ describe("/v2/transactions/debit", () => {
                     valueId: value1.id,
                     code: "…CODE",
                     contactId: null,
+                    balanceRule: null,
                     balanceBefore: 401,
                     balanceAfter: 0,
                     balanceChange: -401,
@@ -586,6 +595,7 @@ describe("/v2/transactions/debit", () => {
                     valueId: valueWithUses.id,
                     contactId: null,
                     code: null,
+                    balanceRule: null,
                     balanceBefore: 2000,
                     balanceAfter: 0,
                     balanceChange: -2000,
