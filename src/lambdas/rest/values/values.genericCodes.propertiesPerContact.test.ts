@@ -606,7 +606,7 @@ describe("/v2/values - generic code with per contact properties", () => {
         });
 
         it("contact stats are correct for other types of generic code attaches", async () => {
-            const legacyGenericValue: Partial<Value> = {
+            const genericCodeWithoutPerContactOptions: Partial<Value> = {
                 id: generateId(),
                 currency: "USD",
                 isGenericCode: true,
@@ -617,22 +617,22 @@ describe("/v2/values - generic code with per contact properties", () => {
                     explanation: "$5 off purchase"
                 }
             };
-            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", legacyGenericValue);
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericCodeWithoutPerContactOptions);
             chai.assert.equal(create.statusCode, 201);
 
             // attach as generic
-            const attachContact1 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1Id}/values/attach`, "POST", {code: legacyGenericValue.code});
+            const attachContact1 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1Id}/values/attach`, "POST", {code: genericCodeWithoutPerContactOptions.code});
             chai.assert.equal(attachContact1.statusCode, 200);
-            chai.assert.notEqual(attachContact1.body.id, legacyGenericValue.id);
+            chai.assert.notEqual(attachContact1.body.id, genericCodeWithoutPerContactOptions.id);
 
             // attachGenericAsNewValue
             const attachContact2 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact2Id}/values/attach`, "POST", {
-                code: legacyGenericValue.code,
+                code: genericCodeWithoutPerContactOptions.code,
                 attachGenericAsNewValue: true
             });
             chai.assert.equal(attachContact2.statusCode, 200);
 
-            const stats = await testUtils.testAuthedRequest(router, `/v2/values/${legacyGenericValue.id}/stats`, "GET");
+            const stats = await testUtils.testAuthedRequest(router, `/v2/values/${genericCodeWithoutPerContactOptions.id}/stats`, "GET");
             chai.assert.equal(stats.statusCode, 200);
             chai.assert.deepEqual(stats.body, {
                 "redeemed": {

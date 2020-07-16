@@ -441,8 +441,8 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
                 simulate: true
             };
             const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-            chai.assert.equal(checkout.statusCode, 404);
-            chai.assert.equal(checkout.body["messageCode"], "ContactNotFound");
+            chai.assert.equal(checkout.statusCode, 409);
+            chai.assert.equal(checkout.body["messageCode"], "ValueMustBeAttached");
         });
     });
 

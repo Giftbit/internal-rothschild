@@ -8,6 +8,7 @@ import {createCurrency} from "../currencies";
 import {createContact} from "../contacts";
 import {Contact} from "../../../model/Contact";
 import {
+    getContactIdFromSources,
     getLightrailValuesForTransactionPlanSteps,
     ResolveTransactionPartiesOptions,
     resolveTransactionPlanSteps
@@ -588,6 +589,29 @@ describe("resolveTransactionPlanSteps", () => {
                     });
                 chai.assert.equal(resolvedValuesUser1.length, 1, JSON.stringify(resolvedValuesUser1, null, 4));
             }).timeout(12000);
+        });
+
+        describe("getContactIdFromSources", () => {
+            it("can get contactId is contact is provided in sources", async () => {
+                const res = await getContactIdFromSources(defaultTestUser.auth, [{
+                    rail: "lightrail",
+                    contactId: contact.id
+                }]);
+                chai.assert.equal(res, contact.id);
+            });
+
+            it("can't get contactId if no contactId source is provided", async () => {
+                const res = await getContactIdFromSources(defaultTestUser.auth, [{rail: "lightrail", valueId: "123"}]);
+                chai.assert.isNull(res);
+            });
+
+            it("can't get contactId if contactId in source doesn't exist", async () => {
+                const res = await getContactIdFromSources(defaultTestUser.auth, [{
+                    rail: "lightrail",
+                    contactId: generateId()
+                }]);
+                chai.assert.isNull(res);
+            });
         });
     });
 });

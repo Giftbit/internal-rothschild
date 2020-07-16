@@ -819,7 +819,7 @@ describe("/v2/transactions/checkout - basics", () => {
                 currency: "CAD"
             };
             const createCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
-            chai.assert.equal(createCheckout.statusCode, 404);
+            chai.assert.equal(createCheckout.statusCode, 409);
         });
     });
 

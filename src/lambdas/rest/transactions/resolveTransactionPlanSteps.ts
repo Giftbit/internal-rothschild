@@ -235,13 +235,23 @@ export function filterForUsedAttaches(attachTransactionPlans: TransactionPlan[],
     return attachTransactionsToPersist;
 }
 
-export async function getContactIdFromSources(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[]): Promise<string> {
+/**
+ * Returns either a string or a null. If a contactId is provided and the contactId doesn not exist,
+ * this function will return null rather than throwing a 404 exception.
+ */
+export async function getContactIdFromSources(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[]): Promise<string | null> {
     const contactPaymentSource = parties.find(p => p.rail === "lightrail" && p.contactId != null) as LightrailTransactionParty;
     const contactId = contactPaymentSource ? contactPaymentSource.contactId : null;
 
     if (contactId) {
-        const contact = await getContact(auth, contactId);
-        return contact.id;
+        try {
+            const contact = await getContact(auth, contactId);
+            return contact.id;
+        } catch (e) {
+            if ((e as giftbitRoutes.GiftbitRestError).statusCode === 404) {
+                return null;
+            } else throw e;
+        }
     } else {
         return null;
     }
