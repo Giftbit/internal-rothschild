@@ -58,7 +58,7 @@ describe("/v2/transactions - tags", () => {
     });
 
     describe("checkouts", () => {
-        it("unique attached value as source", async () => {
+        it("tags tx with contactId: unique attached value as source", async () => {
             const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
                 id: "checkout-uq-attached-value",
                 currency: "USD",
@@ -74,7 +74,7 @@ describe("/v2/transactions - tags", () => {
             chai.assert.deepEqual(getTxResp.body, resp.body);
         });
 
-        it("unique attached value as source: value not charged", async () => {
+        it("tags tx with contactId: unique attached value as source: value not charged", async () => {
             const zeroBalanceValue = await testUtils.createUSDValue(router, {
                 balance: 0,
                 contactId: contact1.id
@@ -101,7 +101,7 @@ describe("/v2/transactions - tags", () => {
             chai.assert.deepEqual(getTxResp.body, resp.body);
         });
 
-        it("contactId as source", async () => {
+        it("tags tx with contactId: contactId as source", async () => {
             const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
                 id: "checkout-cid",
                 currency: "USD",
@@ -117,7 +117,7 @@ describe("/v2/transactions - tags", () => {
             chai.assert.deepEqual(getTxResp.body, resp.body);
         });
 
-        it("2nd contactId as source, doesn't get used", async () => {
+        it("tags tx with contactId: 2nd contactId as source, doesn't get used", async () => {
             const contact2: Partial<Contact> = {id: "contact2"};
             const contact2Resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact2);
             chai.assert.equal(contact2Resp.statusCode, 201, `contact2Resp.body=${JSON.stringify(contact2Resp.body)}`);
@@ -133,7 +133,7 @@ describe("/v2/transactions - tags", () => {
             assertTxHasContactIdTags(resp.body, [contact1.id, contact2.id]);
         });
 
-        it("2nd unique value (attached to different contact) as source, doesn't get used", async () => {
+        it("tags tx with contactId: 2nd unique value (attached to different contact) as source, doesn't get used", async () => {
             const newContact: Partial<Contact> = {id: testUtils.generateId(5)};
             const newContactResp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", newContact);
             chai.assert.equal(newContactResp.statusCode, 201, `newContactResp.body=${JSON.stringify(newContactResp.body)}`);
@@ -162,7 +162,7 @@ describe("/v2/transactions - tags", () => {
             chai.assert.sameDeepMembers(getTxResp.body.tags, resp.body.tags);
         });
 
-        it("contactId that doesn't exist as source", async () => {
+        it("tags tx with contactId: contactId that doesn't exist as source", async () => {
             const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
                 id: "checkout-nonexistent-cid",
                 currency: "USD",
@@ -179,7 +179,7 @@ describe("/v2/transactions - tags", () => {
             chai.assert.sameDeepMembers(getTxResp.body.tags, resp.body.tags);
         });
 
-        it("does not tag checkouts that involve no contacts", async () => {
+        it("does not tag tx: no contacts involved in checkout", async () => {
             const newValue = await testUtils.createUSDValue(router);
             const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
                 id: "checkout-no-contacts",
@@ -191,7 +191,7 @@ describe("/v2/transactions - tags", () => {
             chai.assert.isUndefined(resp.body.tags, `transaction should have no contactId tags: ${JSON.stringify(resp.body)}`);
         });
 
-        it("can create a checkout with a shared generic code", async () => {
+        it("tags tx with contactId: checkout with attached shared generic code", async () => { // todo this can probably go away, see tim's deprecation
             const sharedGeneric: Partial<Value> = {
                 id: "shared-generic",
                 isGenericCode: true,
@@ -656,7 +656,7 @@ describe("/v2/transactions - tags", () => {
             // create user2 transaction
             const valueUser2Resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/values", "POST", {
                 headers: {
-                    Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`,
+                    Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`
 
                 },
                 body: JSON.stringify(valueProps)
@@ -664,7 +664,7 @@ describe("/v2/transactions - tags", () => {
             chai.assert.equal(valueUser2Resp.statusCode, 201, `valueUser2Resp.body=${JSON.stringify(valueUser2Resp.body)}`);
             const txUser2Resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/transactions/checkout", "POST", {
                 headers: {
-                    Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`,
+                    Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`
 
                 },
                 body: JSON.stringify(txRequest)
@@ -688,7 +688,7 @@ describe("/v2/transactions - tags", () => {
             const transactionsTagsRes = await knex("TransactionsTags")
                 .select()
                 .where({
-                    transactionId: txRequest.id,
+                    transactionId: txRequest.id
                 });
             chai.assert.equal(transactionsTagsRes.length, 2, `TransactionsTags table should have an entry for each test user's transaction: ${JSON.stringify(transactionsTagsRes)}`);
 
@@ -764,7 +764,7 @@ describe("/v2/transactions - tags", () => {
             assertTxHasContactIdTags(valueForTransferInitialBalanceTx.body, [newContact.id]);
 
             const anotherValueForTransfer = await testUtils.createUSDValue(router, {
-                id: `another-value-for-transfer-${testUtils.generateId(6)}`,
+                id: `another-value-for-transfer-${testUtils.generateId(6)}`
             });
             const transferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
                 id: `newContact-transfer-${testUtils.generateId(6)}`,
@@ -918,7 +918,7 @@ describe("/v2/transactions - tags", () => {
             assertTxHasContactIdTags(fakeContactVoidResp.body, [fakeContactId]);
         });
 
-        it("fetches the transactions for a contact that actually gets charged (contactId on step)", async () => {
+        it("fetches the transactions for a contact that actually gets charged: contactId on step", async () => {
             const knex = await getKnexRead();
             const txTagsRes = await knex.select("TransactionsTags.*").from("TransactionsTags").join("Tags", {
                 "TransactionsTags.userId": "Tags.userId",
@@ -934,7 +934,7 @@ describe("/v2/transactions - tags", () => {
             chai.assert.equal(transactionsResp.body.length, txTagsRes.length, `should have same number of transactions for newContact.id as there are TxTags records for newContact.id tag: tx IDs=${transactionsResp.body.map(t => t.id)}`);
         });
 
-        it("fetches the transactions for a contact that does not get charged (contactId in payment sources only)", async () => {
+        it("fetches the transactions for a contact that does not get charged: contactId in payment sources, not steps", async () => {
             const knex = await getKnexRead();
             const txTagsRes = await knex.select("TransactionsTags.*").from("TransactionsTags").join("Tags", {
                 "TransactionsTags.userId": "Tags.userId",
