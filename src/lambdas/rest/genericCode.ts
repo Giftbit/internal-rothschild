@@ -16,7 +16,6 @@ import {getIdForAttachingGenericValue} from "./contactValues";
 import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
 
 export async function attachGenericCode(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<Value> {
-
     let transactionPlan: TransactionPlan;
     try {
         await executeTransactionPlanner(auth, {
