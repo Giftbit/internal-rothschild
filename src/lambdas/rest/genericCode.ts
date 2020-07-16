@@ -16,6 +16,7 @@ import {getIdForAttachingGenericValue} from "./contactValues";
 import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
 
 export async function attachGenericCode(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<Value> {
+
     let transactionPlan: TransactionPlan;
     try {
         await executeTransactionPlanner(auth, {
@@ -33,6 +34,9 @@ export async function attachGenericCode(auth: giftbitRoutes.jwtauth.Authorizatio
 }
 
 export async function getAttachTransactionPlanForGenericCode(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<TransactionPlan> {
+    if (!genericValue.isGenericCode) {
+        throw new Error("Attempted to attach a Value that's not a generic code as a generic code. This should not happen.");
+    }
     if (Value.isGenericCodeWithPropertiesPerContact(genericValue)) {
         MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericPerContactProps, auth);
     } else {
