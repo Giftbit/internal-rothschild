@@ -769,7 +769,7 @@ describe("/v2/transactions/checkout - basics", () => {
             chai.assert.equal((createCheckout.body.steps[0] as LightrailTransactionStep).contactId, contact.id);
 
             const listTransactionsAssociatedWithContact = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?contactId=${contact.id}`, "GET");
-            chai.assert.equal(listTransactionsAssociatedWithContact.body.length, 3, "Should return 2 transactions. initialBalance, attach, and checkout");
+            chai.assert.equal(listTransactionsAssociatedWithContact.body.length, 3, "Should return 3 transactions. initialBalance, attach, and checkout");
             chai.assert.sameMembers(listTransactionsAssociatedWithContact.body.map(t => t.transactionType), ["initialBalance", "attach", "checkout"]);
             chai.assert.deepEqual(listTransactionsAssociatedWithContact.body.find(tx => tx.transactionType === "checkout"), createCheckout.body);
         });

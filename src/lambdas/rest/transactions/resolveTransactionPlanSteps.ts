@@ -236,7 +236,7 @@ export function filterForUsedAttaches(attachTransactionPlans: TransactionPlan[],
 }
 
 /**
- * Returns either a string or a null. If a contactId is provided and the contactId doesn not exist,
+ * Returns either a string or a null. If a contactId is provided and the contactId does not exist,
  * this function will return null rather than throwing a 404 exception.
  */
 export async function getContactIdFromSources(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[]): Promise<string | null> {

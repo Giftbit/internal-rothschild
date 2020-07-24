@@ -344,7 +344,7 @@ describe("contact value migration", () => {
         ]);
     }).timeout(15000);
 
-    it("can migrate 10,000 contact vales", async () => {
+    it("can migrate 10,000 contact values", async () => {
         const gc: Partial<Value> = {
             ...genericCodeBaseProps,
             id: generateId(),
@@ -437,7 +437,7 @@ describe("contact value migration", () => {
 });
 
 // Legacy function moved from contactValues.ts, now used to test that existing shared generic codes will still function correctly.
-export async function attachSharedGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, value: Value): Promise<DbContactValue> {
+async function attachSharedGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, value: Value): Promise<DbContactValue> {
     const dbContactValue: DbContactValue = {
         userId: auth.userId,
         valueId: value.id,

@@ -277,7 +277,7 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
         chai.assert.deepEqualExcluding(attachResp1.body, attachResp2.body, ["createdDate", "updatedDate", "updatedContactIdDate"]);
     });
 
-    describe("stats on generic code with usesRemaining liability", () => {
+    describe("stats on generic code", () => {
         const contactForStatsTest = generateId();
 
         const genericValue: Partial<Value> = {
