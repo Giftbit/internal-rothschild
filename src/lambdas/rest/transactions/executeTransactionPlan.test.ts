@@ -30,7 +30,10 @@ describe("rest/transactions/executeTransactionPlan", () => {
             code: "CAD",
             name: "Monopoly money",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         };
 
         const value: DbValue = {
@@ -56,7 +59,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             redemptionRule: "null",
             balanceRule: "null",
             discount: false,
-            discountSellerLiability: null,
+            discountSellerLiabilityRule: null,
             startDate: null,
             endDate: null,
             metadata: "null",
@@ -81,7 +84,9 @@ describe("rest/transactions/executeTransactionPlan", () => {
                     value: await DbValue.toValue(value),
                     amount: -3500,    // more than is in the value
                     uses: null,
-                    action: "update"
+                    action: "update",
+                    allowCanceled: false,
+                    allowFrozen: false
                 }
             ],
             totals: {remainder: 0},
@@ -138,7 +143,7 @@ describe("rest/transactions/executeTransactionPlan", () => {
             redemptionRule: "null",
             balanceRule: "null",
             discount: false,
-            discountSellerLiability: null,
+            discountSellerLiabilityRule: null,
             startDate: null,
             endDate: null,
             metadata: "null",
@@ -163,7 +168,9 @@ describe("rest/transactions/executeTransactionPlan", () => {
                     value: await DbValue.toValue(value),
                     amount: -1200,
                     uses: -1,
-                    action: "update"
+                    action: "update",
+                    allowCanceled: false,
+                    allowFrozen: true
                 }
             ],
             totals: {remainder: null},

@@ -17,9 +17,8 @@ export interface TransferTransactionSteps {
 }
 
 export async function resolveTransferTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: TransferRequest): Promise<TransferTransactionSteps> {
-    const sourceSteps = await resolveTransactionPlanSteps(auth, {
+    const sourceSteps = await resolveTransactionPlanSteps(auth, [req.source], {
         currency: req.currency,
-        parties: [req.source],
         transactionId: req.id,
         nonTransactableHandling: "error",
         includeZeroBalance: true,
@@ -30,9 +29,8 @@ export async function resolveTransferTransactionPlanSteps(auth: giftbitRoutes.jw
     }
     const sourceStep = sourceSteps[0] as LightrailUpdateTransactionPlanStep | StripeChargeTransactionPlanStep;
 
-    const destSteps = await resolveTransactionPlanSteps(auth, {
+    const destSteps = await resolveTransactionPlanSteps(auth, [req.destination], {
         currency: req.currency,
-        parties: [req.destination],
         transactionId: req.id,
         nonTransactableHandling: "error",
         includeZeroBalance: true,
@@ -50,7 +48,7 @@ export function createTransferTransactionPlan(req: TransferRequest, steps: Trans
     const plan: TransactionPlan = {
         id: req.id,
         transactionType: "transfer" as TransactionType,
-        currency: req.currency,
+        currency: req.currency?.toUpperCase(),
         steps: [
             steps.sourceStep,
             steps.destStep
@@ -86,8 +84,8 @@ export function createTransferTransactionPlan(req: TransferRequest, steps: Trans
 
         const amount = sourceStep.maxAmount != null ? (Math.min(sourceStep.maxAmount, req.amount)) : req.amount;
 
-        steps.sourceStep.amount = -amount;
-        steps.sourceStep.idempotentStepId = `${req.id}-src`;
+        sourceStep.amount = -amount;
+        sourceStep.stepIdempotencyKey = `${req.id}-src`;
         steps.destStep.amount = amount;
         plan.totals.remainder = sourceStep.maxAmount ? Math.max(req.amount - sourceStep.maxAmount, 0) : 0;
     }

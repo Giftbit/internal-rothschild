@@ -9,7 +9,7 @@ import {installRestRoutes} from "../installRestRoutes";
 import {getKnexRead, getKnexWrite} from "../../../utils/dbUtils/connection";
 import {DebitRequest} from "../../../model/TransactionRequest";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 
@@ -21,14 +21,16 @@ describe("/v2/transactions/debit", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
 
         await currencies.createCurrency(testUtils.defaultTestUser.auth, {
             code: "CAD",
             name: "Canadian bucks",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
     });
 
@@ -857,6 +859,19 @@ describe("/v2/transactions/debit", () => {
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 
+    it("422s debiting a huge amount", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/debit", "POST", {
+            id: "debit-negative-amount",
+            destination: {
+                rail: "lightrail",
+                valueId: "idontexist"
+            },
+            amount: 999999999999,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
     it("422s debiting negative uses", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/debit", "POST", {
             id: "debit-negative-amount",
@@ -1307,6 +1322,143 @@ describe("/v2/transactions/debit", () => {
             });
             chai.assert.equal(failCaptureRes.statusCode, 409, `body=${JSON.stringify(failCaptureRes.body)}`);
             chai.assert.equal(failCaptureRes.body.messageCode, "TransactionVoiding");
+        });
+
+        describe("with frozen values", () => {
+            it("can void a transaction with a frozen value", async () => {
+                const value: Partial<Value> = {
+                    id: generateId(),
+                    currency: "CAD",
+                    balance: 500,
+                };
+                const valueRes = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+                chai.assert.equal(valueRes.statusCode, 201, `body=${JSON.stringify(valueRes.body)}`);
+
+                const pendingDebitTx: DebitRequest = {
+                    id: generateId(),
+                    amount: 100,
+                    currency: "CAD",
+                    source: {
+                        rail: "lightrail",
+                        valueId: value.id
+                    },
+                    pending: true
+                };
+                const pendingDebitRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", pendingDebitTx);
+                chai.assert.equal(pendingDebitRes.statusCode, 201, `body=${JSON.stringify(pendingDebitRes.body)}`);
+                chai.assert.isTrue(pendingDebitRes.body.pending);
+
+                const freezeRes = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", {frozen: true});
+                chai.assert.equal(freezeRes.statusCode, 200, `body=${JSON.stringify(freezeRes.body)}`);
+                chai.assert.isTrue(freezeRes.body.frozen);
+
+                const voidRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingDebitTx.id}/void`, "POST", {
+                    id: generateId()
+                });
+                chai.assert.equal(voidRes.statusCode, 201, `body=${JSON.stringify(voidRes.body)}`);
+            });
+
+            it("can't capture a transaction with a frozen value", async () => {
+                const value: Partial<Value> = {
+                    id: generateId(),
+                    currency: "CAD",
+                    balance: 500,
+                };
+                const valueRes = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+                chai.assert.equal(valueRes.statusCode, 201, `body=${JSON.stringify(valueRes.body)}`);
+
+                const pendingDebitTx: DebitRequest = {
+                    id: generateId(),
+                    amount: 100,
+                    currency: "CAD",
+                    source: {
+                        rail: "lightrail",
+                        valueId: value.id
+                    },
+                    pending: true
+                };
+                const pendingDebitRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", pendingDebitTx);
+                chai.assert.equal(pendingDebitRes.statusCode, 201, `body=${JSON.stringify(pendingDebitRes.body)}`);
+                chai.assert.isTrue(pendingDebitRes.body.pending);
+
+                const freezeRes = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", {frozen: true});
+                chai.assert.equal(freezeRes.statusCode, 200, `body=${JSON.stringify(freezeRes.body)}`);
+                chai.assert.isTrue(freezeRes.body.frozen);
+
+                const failCaptureRes = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${pendingDebitTx.id}/capture`, "POST", {
+                    id: generateId()
+                });
+                chai.assert.equal(failCaptureRes.statusCode, 409, `body=${JSON.stringify(failCaptureRes.body)}`);
+                chai.assert.equal(failCaptureRes.body.messageCode, "ValueFrozen");
+            });
+        });
+
+        describe("with canceled values", () => {
+            it("can void a transaction with a canceled value", async () => {
+                const value: Partial<Value> = {
+                    id: generateId(),
+                    currency: "CAD",
+                    balance: 500,
+                };
+                const valueRes = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+                chai.assert.equal(valueRes.statusCode, 201, `body=${JSON.stringify(valueRes.body)}`);
+
+                const pendingDebitTx: DebitRequest = {
+                    id: generateId(),
+                    amount: 100,
+                    currency: "CAD",
+                    source: {
+                        rail: "lightrail",
+                        valueId: value.id
+                    },
+                    pending: true
+                };
+                const pendingDebitRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", pendingDebitTx);
+                chai.assert.equal(pendingDebitRes.statusCode, 201, `body=${JSON.stringify(pendingDebitRes.body)}`);
+                chai.assert.isTrue(pendingDebitRes.body.pending);
+
+                const cancelRes = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", {canceled: true});
+                chai.assert.equal(cancelRes.statusCode, 200, `body=${JSON.stringify(cancelRes.body)}`);
+                chai.assert.isTrue(cancelRes.body.canceled);
+
+                const voidRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingDebitTx.id}/void`, "POST", {
+                    id: generateId()
+                });
+                chai.assert.equal(voidRes.statusCode, 201, `body=${JSON.stringify(voidRes.body)}`);
+            });
+
+            it("can capture a transaction with a canceled value", async () => {
+                const value: Partial<Value> = {
+                    id: generateId(),
+                    currency: "CAD",
+                    balance: 500,
+                };
+                const valueRes = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+                chai.assert.equal(valueRes.statusCode, 201, `body=${JSON.stringify(valueRes.body)}`);
+
+                const pendingDebitTx: DebitRequest = {
+                    id: generateId(),
+                    amount: 100,
+                    currency: "CAD",
+                    source: {
+                        rail: "lightrail",
+                        valueId: value.id
+                    },
+                    pending: true
+                };
+                const pendingDebitRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", pendingDebitTx);
+                chai.assert.equal(pendingDebitRes.statusCode, 201, `body=${JSON.stringify(pendingDebitRes.body)}`);
+                chai.assert.isTrue(pendingDebitRes.body.pending);
+
+                const cancelRes = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", {canceled: true});
+                chai.assert.equal(cancelRes.statusCode, 200, `body=${JSON.stringify(cancelRes.body)}`);
+                chai.assert.isTrue(cancelRes.body.canceled);
+
+                const captureRes = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${pendingDebitTx.id}/capture`, "POST", {
+                    id: generateId()
+                });
+                chai.assert.equal(captureRes.statusCode, 201, `body=${JSON.stringify(captureRes.body)}`);
+            });
         });
     });
 });

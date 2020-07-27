@@ -20,6 +20,6 @@ export namespace DbCode {
 /**
  * Done this way to support unicode and emoji characters. Length of emoji characters is often 2.
  */
-export function getCodeLastFourNoPrefix(code: string) {
+export function getCodeLastFourNoPrefix(code: string): string {
     return Array.from(code).slice(-4).join("");
 }

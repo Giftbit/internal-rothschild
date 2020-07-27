@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as testUtils from "../../../utils/testUtils/index";
-import {generateId, setCodeCryptographySecrets, testAuthedRequest} from "../../../utils/testUtils/index";
+import {generateId, setCodeCryptographySecrets, testAuthedRequest} from "../../../utils/testUtils";
 import {installRestRoutes} from "../installRestRoutes";
 import {createCurrency} from "../currencies";
 import {Value} from "../../../model/Value";
@@ -15,16 +15,8 @@ import {
     StripeTransactionParty,
     TransferRequest
 } from "../../../model/TransactionRequest";
-import {
-    setStubsForStripeTests,
-    stubCheckoutStripeCharge,
-    stubStripeCapture,
-    stubStripeRefund,
-    unsetStubsForStripeTests
-} from "../../../utils/testUtils/stripeTestUtils";
-import {after} from "mocha";
-
-require("dotenv").config();
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
 
 describe("/v2/values/ - secret stats capability", () => {
 
@@ -34,14 +26,17 @@ describe("/v2/values/ - secret stats capability", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
         await createCurrency(testUtils.defaultTestUser.auth, {
             code: "USD",
             name: "The Big Bucks",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
     });
 
     after(async function () {
@@ -287,8 +282,7 @@ describe("/v2/values/ - secret stats capability", () => {
                     lineItems: [{unitPrice: 102}], // discountLightrail: 50, paidStripe: 52
                     sources: [genericCodeSrc, creditCardSource],
                     currency: "USD"
-                },
-                stripeStubAmount: 52
+                }
             }, {
                 type: "checkout",
                 request: {
@@ -298,8 +292,7 @@ describe("/v2/values/ - secret stats capability", () => {
                     currency: "USD",
                     pending: true,
                 },
-                voided: true, // no change
-                stripeStubAmount: 53
+                voided: true // no change
             }, {
                 type: "checkout",
                 request: {
@@ -309,8 +302,7 @@ describe("/v2/values/ - secret stats capability", () => {
                     currency: "USD",
                     pending: true,
                 },
-                captured: true, // discountLightrail: 50, paidStripe: 54
-                stripeStubAmount: 54
+                captured: true // discountLightrail: 50, paidStripe: 54
             }, {
                 type: "checkout",
                 request: {
@@ -319,8 +311,7 @@ describe("/v2/values/ - secret stats capability", () => {
                     sources: [genericCodeSrc, creditCardSource],
                     currency: "USD",
                 },
-                reversed: true, // no change
-                stripeStubAmount: 55
+                reversed: true // no change
             }, {
                 type: "checkout",
                 request: {
@@ -339,8 +330,7 @@ describe("/v2/values/ - secret stats capability", () => {
                     pending: true,
                 },
                 captured: true,
-                reversed: true, // no change
-                stripeStubAmount: 57
+                reversed: true // no change
             }
         ];
 
@@ -425,8 +415,7 @@ describe("/v2/values/ - secret stats capability", () => {
                     lineItems: [{unitPrice: 1000}],
                     sources: [valueSrc, ccSrc],
                     currency: "USD" // paidLightrail: 350. balance 0 after. 650 paidStripe
-                },
-                stripeStubAmount: 650
+                }
             }, {
                 type: "credit",
                 request: {
@@ -534,33 +523,20 @@ describe("/v2/values/ - secret stats capability", () => {
 
     async function createTransactionData(transactionRequests: TransactionRequestData[]): Promise<void> {
         for (const transactionRequest of transactionRequests) {
-            let charge;
-            if (transactionRequest.stripeStubAmount) {
-                [charge] = stubCheckoutStripeCharge(transactionRequest.request as CheckoutRequest, (transactionRequest.request as CheckoutRequest).sources.findIndex(src => src.rail === "stripe"), transactionRequest.stripeStubAmount);
-            }
             const postTransaction = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transactionRequest.type}`, "POST", transactionRequest.request);
             chai.assert.equal(postTransaction.statusCode, 201);
 
             let capture: Transaction;
             if (transactionRequest.captured) {
-                if (charge) {
-                    stubStripeCapture(charge);
-                }
                 const postCapture = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transactionRequest.request.id}/capture`, "POST", {id: transactionRequest.request.id + "-capture"});
                 chai.assert.equal(postCapture.statusCode, 201);
                 capture = postCapture.body;
             } else if (transactionRequest.voided) {
-                if (charge) {
-                    stubStripeRefund(charge);
-                }
                 const postVoid = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transactionRequest.request.id}/void`, "POST", {id: transactionRequest.request.id + "-void"});
                 chai.assert.equal(postVoid.statusCode, 201);
             }
 
             if (transactionRequest.reversed) {
-                if (charge) {
-                    stubStripeRefund(charge);
-                }
                 const transactionIdToReverse = capture ? capture.id : transactionRequest.request.id;
                 const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transactionIdToReverse}/reverse`, "POST", {id: transactionRequest.request.id + "-reverse"});
                 chai.assert.equal(postReverse.statusCode, 201);
@@ -576,6 +552,5 @@ interface TransactionRequestData {
     captured?: boolean;
     voided?: boolean;
     reversed?: boolean;
-    stripeStubAmount?: number;
 }
 

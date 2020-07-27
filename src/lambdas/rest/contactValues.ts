@@ -1,14 +1,15 @@
 import * as cassava from "cassava";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import {GiftbitRestError} from "giftbit-cassava-routes";
 import {getValue, getValueByCode, getValues, injectValueStats, updateValue, valueExists} from "./values/values";
-import {csvSerializer} from "../../serializers";
+import {csvSerializer} from "../../utils/serializers";
 import {Pagination} from "../../model/Pagination";
 import {DbValue, Value} from "../../model/Value";
 import {getContact, getContacts} from "./contacts";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
-import {DbTransaction, LightrailDbTransactionStep, Transaction} from "../../model/Transaction";
+import {DbTransaction, Transaction} from "../../model/Transaction";
 import {DbContactValue} from "../../model/DbContactValue";
 import {AttachValueParameters} from "../../model/internal/AttachValueParameters";
 import {ValueIdentifier} from "../../model/internal/ValueIdentifier";
@@ -17,6 +18,7 @@ import {
     attachGenericCodeWithPerContactOptions,
     generateUrlSafeHashFromValueIdContactId
 } from "./genericCodeWithPerContactOptions";
+import {LightrailDbTransactionStep} from "../../model/TransactionStep";
 import log = require("loglevel");
 
 export function installContactValuesRest(router: cassava.Router): void {
@@ -42,7 +44,7 @@ export function installContactValuesRest(router: cassava.Router): void {
             }, Pagination.getPaginationParams(evt), showCode);
 
             if (evt.queryStringParameters.stats === "true") {
-                // For now this is a secret param only Yervana knows about.
+                // For now this is a secret param only Yervana and Chairish know about.
                 await injectValueStats(auth, res.values);
             }
 
@@ -175,17 +177,34 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     }
 
     if (value.isGenericCode) {
-        if (Value.isGenericCodeWithPropertiesPerContact(value)) {
-            MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericPerContactProps, auth);
-            return await attachGenericCodeWithPerContactOptions(auth, contact.id, value);
-        }
-        else if (params.attachGenericAsNewValue) /* legacy case to eventually be removed */ {
-            MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, auth);
-            return await attachGenericValueAsNewValue(auth, contact.id, value);
-        } else {
-            MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, auth);
-            await attachSharedGenericValue(auth, contact.id, value);
-            return value;
+        try {
+            if (Value.isGenericCodeWithPropertiesPerContact(value)) {
+                MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericPerContactProps, auth);
+                return await attachGenericCodeWithPerContactOptions(auth, contact.id, value);
+            } else if (params.attachGenericAsNewValue) /* legacy case to eventually be removed */ {
+                MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, auth);
+                return await attachGenericValueAsNewValue(auth, contact.id, value);
+            } else {
+                MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, auth);
+                await attachSharedGenericValue(auth, contact.id, value);
+                return value;
+            }
+        } catch (err) {
+            if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "ValueAlreadyExists") {
+                const attachedValueId = await getIdForAttachingGenericValue(auth, contact.id, value);
+                return await attachValue(auth, {
+                    contactId: params.contactId,
+                    valueIdentifier: {
+                        valueId: attachedValueId,
+                        code: undefined
+                    },
+                    allowOverwrite: params.allowOverwrite,
+                });
+            } else if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "ValueAlreadyAttached") {
+                // when a shared generic code is being re-attached, do nothing.
+            } else {
+                throw err;
+            }
         }
     } else {
         MetricsLogger.valueAttachment(ValueAttachmentTypes.Unique, auth);
@@ -223,9 +242,23 @@ export async function detachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             .delete();
 
         if (res === 0) {
-            // if this object doesn't exist it implies the Value isn't attached.
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value ${valueId} is not Attached to the Contact ${contactId}.`, "AttachedValueNotFound");
+            try {
+                const attachedValueId = await getIdForAttachingGenericValue(auth, contactId, value);
+                const now = nowInDbPrecision();
+                return await updateValue(auth, attachedValueId, {
+                    contactId: null,
+                    updatedDate: now,
+                    updatedContactIdDate: now
+                });
+            } catch (err) {
+                if ((err as GiftbitRestError).statusCode === 404 && err.additionalParams.messageCode === "ValueNotFound") {
+                    throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value ${valueId} is not Attached to the Contact ${contactId}.`, "AttachedValueNotFound");
+                } else {
+                    throw err;
+                }
+            }
         }
+
         if (res > 1) {
             throw new Error(`Illegal DELETE query.  Deleted ${res} values.`);
         }
@@ -297,8 +330,7 @@ async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.Authoriz
         metadata: null,
         tax: null
     };
-    const dbAttachTransaction: DbTransaction = Transaction.toDbTransaction(auth, attachTransaction);
-    dbAttachTransaction.rootTransactionId = dbAttachTransaction.id;
+    const dbAttachTransaction: DbTransaction = Transaction.toDbTransaction(auth, attachTransaction, attachTransaction.id);
 
     const dbLightrailTransactionStep0: LightrailDbTransactionStep = {
         userId: auth.userId,
@@ -351,7 +383,7 @@ async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.Authoriz
         } catch (err) {
             const constraint = getSqlErrorConstraintName(err);
             if (constraint === "PRIMARY") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${originalValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
+                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${originalValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyExists");
             }
             if (constraint === "fk_Values_Contacts") {
                 throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${contactId}' not found.`, "ContactNotFound");
@@ -387,7 +419,7 @@ export async function getIdForAttachingGenericValue(auth: giftbitRoutes.jwtauth.
         const legacyHashId = await generateLegacyHashForValueIdContactId(genericValue.id, contactId);
 
         if (await valueExists(auth, legacyHashId)) {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${genericValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyAttached");
+            return legacyHashId;
         }
     }
     return generateUrlSafeHashFromValueIdContactId(genericValue.id, contactId);
@@ -482,7 +514,7 @@ export async function getContactValue(auth: giftbitRoutes.jwtauth.AuthorizationB
 
 export async function hasContactValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueId: string): Promise<boolean> {
     const knex = await getKnexRead();
-    const res: [{ count: number }] = await knex("ContactValues")
+    const res = await knex("ContactValues")
         .count({count: "*"})
         .where({
             userId: auth.userId,

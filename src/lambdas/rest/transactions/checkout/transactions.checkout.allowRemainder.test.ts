@@ -6,7 +6,9 @@ import {Value} from "../../../../model/Value";
 import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import {installRestRoutes} from "../../installRestRoutes";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../../../utils/dbUtils";
+import {CheckoutRequest} from "../../../../model/TransactionRequest";
 
 chai.use(chaiExclude);
 
@@ -22,7 +24,10 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
             code: "CAD",
             name: "Canadian Tire Money",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
     });
 
@@ -46,7 +51,7 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
         const createPromotion1Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", preTaxPromotion);
         chai.assert.equal(createPromotion1Resp.statusCode, 201, `body=${JSON.stringify(createPromotion1Resp.body)}`);
 
-        let request: any = {
+        const request: CheckoutRequest = {
             id: "checkout-4",
             sources: [
                 {

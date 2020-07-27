@@ -1,4 +1,6 @@
 import * as cassava from "cassava";
+import * as chai from "chai";
+import sinon from "sinon";
 import * as testUtils from "../../utils/testUtils";
 import {
     createUSD,
@@ -11,19 +13,10 @@ import {
 } from "../../utils/testUtils";
 import {installRestRoutes} from "../rest/installRestRoutes";
 import * as stripeAccess from "../../utils/stripeUtils/stripeAccess";
-import * as chai from "chai";
-import {
-    generateStripeChargeResponse,
-    setStubsForStripeTests,
-    stripeLiveLightrailConfig,
-    stripeLiveMerchantConfig,
-    testStripeLive,
-    unsetStubsForStripeTests
-} from "../../utils/testUtils/stripeTestUtils";
-import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../model/Transaction";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
+import {Transaction} from "../../model/Transaction";
 import {Value} from "../../model/Value";
 import {CheckoutRequest} from "../../model/TransactionRequest";
-import * as stripe from "stripe";
 import {Contact} from "../../model/Contact";
 import {
     assertTransactionChainContainsTypes,
@@ -33,12 +26,13 @@ import {
     setupForWebhookEvent,
     testSignedWebhookRequest
 } from "../../utils/testUtils/webhookHandlerTestUtils";
-import sinon from "sinon";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
 import {generateCode} from "../../utils/codeGenerator";
 import {installStripeEventWebhookRest} from "./installStripeEventWebhookRest";
 import * as webhookUtils from "../../utils/stripeEventWebhookRouteUtils";
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import {createCharge, createRefund, retrieveCharge} from "../../utils/stripeUtils/stripeTransactions";
+import {LightrailTransactionStep, StripeTransactionStep} from "../../model/TransactionStep";
 
 /**
  * Webhook handling tests follow this format:
@@ -60,10 +54,8 @@ describe("/v2/stripeEventWebhook", () => {
         restRouter.route(testUtils.authRoute);
         installRestRoutes(restRouter);
         installStripeEventWebhookRest(webhookEventRouter);
-
-        await setCodeCryptographySecrets();
-
-        setStubsForStripeTests();
+        setCodeCryptographySecrets();
+        await setStubsForStripeTests();
     });
 
     after(() => {
@@ -85,12 +77,7 @@ describe("/v2/stripeEventWebhook", () => {
         chai.assert.equal(webhookResp3.statusCode, 204);
     });
 
-    it("does nothing for refunds that do not indicate fraud activity", async function () {
-        if (!testStripeLive()) {
-            this.skip();
-            return;
-        }
-
+    it("does nothing for refunds that do not indicate fraud activity", async () => {
         const webhookEventSetup = await setupForWebhookEvent(restRouter);
         const refundedCharge = await refundInStripe(webhookEventSetup.stripeStep);
 
@@ -105,12 +92,7 @@ describe("/v2/stripeEventWebhook", () => {
         }
     });
 
-    it("reverses Lightrail transaction & freezes Values for Stripe refunds created with 'reason: fraudulent'", async function () {
-        if (!testStripeLive()) {
-            this.skip();
-            return;
-        }
-
+    it("reverses Lightrail transaction & freezes Values for Stripe refunds created with 'reason: fraudulent'", async () => {
         const webhookEventSetup = await setupForWebhookEvent(restRouter);
         const refundedCharge = await refundInStripe(webhookEventSetup.checkout.steps.find(step => step.rail === "stripe") as StripeTransactionStep, "fraudulent");
 
@@ -131,12 +113,12 @@ describe("/v2/stripeEventWebhook", () => {
     }).timeout(8000);
 
     it("does nothing if event comes from our account instead of Connected account", async () => {
-        const platformWebhookEvent = generateConnectWebhookEventMock("nonsense.event.type", generateStripeChargeResponse({
-            transactionId: generateId(),
-            amount: 1234,
-            currency: "NIL",
-            pending: false,
-        }));
+        const charge = await createCharge({
+            source: "tok_visa",
+            currency: "USD",
+            amount: 5000
+        }, true, undefined, generateId());
+        const platformWebhookEvent = generateConnectWebhookEventMock("nonsense.event.type", charge);
         delete platformWebhookEvent.account;
 
         const webhookResp = await testSignedWebhookRequest(webhookEventRouter, platformWebhookEvent);
@@ -144,11 +126,7 @@ describe("/v2/stripeEventWebhook", () => {
     });
 
     describe("metadata operations", () => {
-        it("logs Stripe eventId & Connected accountId in metadata", async function () {
-            if (!testStripeLive()) {
-                this.skip();
-                return;
-            }
+        it("logs Stripe eventId & Connected accountId in metadata", async () => {
             const webhookEventSetup = await setupForWebhookEvent(restRouter);
             const refundedCharge = await refundInStripe(webhookEventSetup.checkout.steps.find(step => step.rail === "stripe") as StripeTransactionStep, "fraudulent");
 
@@ -158,17 +136,12 @@ describe("/v2/stripeEventWebhook", () => {
 
             const chain = await assertTransactionChainContainsTypes(restRouter, webhookEventSetup.checkout.id, 2, ["checkout", "reverse"]);
             const reverseTransaction: Transaction = chain[1];
-            chai.assert.deepEqual(reverseTransaction.metadata, {stripeWebhookTriggeredAction: `Transaction reversed by Lightrail because Stripe charge '${refundedCharge.id}' was refunded as fraudulent. Stripe eventId: '${webhookEvent.id}', Stripe accountId: '${stripeLiveMerchantConfig.stripeUserId}'`}, `reverseTransaction metadata: ${JSON.stringify(reverseTransaction.metadata)}`);
+            chai.assert.deepEqual(reverseTransaction.metadata, {stripeWebhookTriggeredAction: `Transaction reversed by Lightrail because Stripe charge '${refundedCharge.id}' was refunded as fraudulent. Stripe eventId: '${webhookEvent.id}', Stripe accountId: '${defaultTestUser.stripeAccountId}'`}, `reverseTransaction metadata: ${JSON.stringify(reverseTransaction.metadata)}`);
 
             await assertValuesRestoredAndFrozen(restRouter, webhookEventSetup.valuesCharged, true);
         }).timeout(8000);
 
-        it("preserves existing Value metadata", async function () {
-            if (!testStripeLive()) {
-                this.skip();
-                return;
-            }
-
+        it("preserves existing Value metadata", async () => {
             await createUSD(restRouter);
             const value1 = await createUSDValue(restRouter, {metadata: {"marco": "polo"}});
             const value2 = await createUSDValue(restRouter, {metadata: {"call": "response"}});
@@ -201,12 +174,7 @@ describe("/v2/stripeEventWebhook", () => {
         }).timeout(12000);
     });
 
-    it("freezes Values attached to Contact used as a payment source", async function () {
-        if (!testStripeLive()) {
-            this.skip();
-            return;
-        }
-
+    it("freezes Values attached to Contact used as a payment source", async () => {
         const contact: Partial<Contact> = {
             id: generateId()
         };
@@ -270,13 +238,8 @@ describe("/v2/stripeEventWebhook", () => {
     }).timeout(8000);
 
     describe("generic values", () => {
-        it("does not freeze generic values - attached or unattached", async function () {
-            if (!testStripeLive()) {
-                this.skip();
-                return;
-            }
-
-            let sandbox = sinon.createSandbox();
+        it("does not freeze generic values - attached or unattached", async () => {
+            const sandbox = sinon.createSandbox();
             (giftbitRoutes.sentry.sendErrorNotification as any).restore();
             const stub = sandbox.stub(giftbitRoutes.sentry, "sendErrorNotification");
 
@@ -356,13 +319,8 @@ describe("/v2/stripeEventWebhook", () => {
             sinon.assert.notCalled(stub);
         }).timeout(12000);
 
-        it("freezes unique values only when both generic and unique are used", async function () {
-            if (!testStripeLive()) {
-                this.skip();
-                return;
-            }
-
-            let sandbox = sinon.createSandbox();
+        it("freezes unique values only when both generic and unique are used", async () => {
+            const sandbox = sinon.createSandbox();
             (giftbitRoutes.sentry.sendErrorNotification as any).restore();
             const stub = sandbox.stub(giftbitRoutes.sentry, "sendErrorNotification");
 
@@ -459,12 +417,7 @@ describe("/v2/stripeEventWebhook", () => {
      * Only return failure responses for situations that might change with another attempt.
      */
     describe("error handling", () => {
-        it("handles case where no Lightrail sources charged", async function () {
-            if (!testStripeLive()) {
-                this.skip();
-                return;
-            }
-
+        it("handles case where no Lightrail sources charged", async () => {
             const webhookEventSetup = await setupForWebhookEvent(restRouter, {
                 initialCheckoutReq: {
                     sources: [{
@@ -493,23 +446,17 @@ describe("/v2/stripeEventWebhook", () => {
             }
         });
 
-        it("returns success if can't find Lightrail userId", async function () {
-            if (!testStripeLive()) {
-                this.skip();
-                return;
-            }
-
-            const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
-            const charge = await lightrailStripe.charges.create({
+        it("returns success if can't find Lightrail userId", async () => {
+            const charge = await createCharge({
                 amount: 500,
                 currency: "usd",
                 source: "tok_visa"
-            }, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
-            await lightrailStripe.refunds.create({
+            }, true, defaultTestUser.stripeAccountId, generateId());
+            await createRefund({
                 charge: charge.id,
                 reason: "fraudulent"
-            }, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
-            const refundedCharge = await lightrailStripe.charges.retrieve(charge.id, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+            }, true, defaultTestUser.stripeAccountId);
+            const refundedCharge = await retrieveCharge(charge.id, true, defaultTestUser.stripeAccountId);
             chai.assert.isTrue(refundedCharge.refunded, `Stripe charge should have 'refunded=true': ${JSON.stringify(refundedCharge)}`);
             const eventMock = generateConnectWebhookEventMock("charge.refunded", refundedCharge);
 
@@ -525,13 +472,8 @@ describe("/v2/stripeEventWebhook", () => {
             chai.assert.equal(webhookResp.statusCode, 204, `webhookResp.body=${JSON.stringify(webhookResp.body)}`);
         }).timeout(8000);
 
-        it("returns success if can't find Lightrail transaction", async function () {
-            if (!testStripeLive()) {
-                this.skip();
-                return;
-            }
-
-            let sandbox = sinon.createSandbox();
+        it("returns success if can't find Lightrail transaction", async () => {
+            const sandbox = sinon.createSandbox();
             const stub = sandbox.stub(stripeAccess, "getAuthBadgeFromStripeCharge");
             stub.resolves(new AuthorizationBadge({
                 g: {
@@ -544,17 +486,16 @@ describe("/v2/stripeEventWebhook", () => {
             }));
 
             // create & refund a charge in Stripe that won't exist in Lightrail
-            const lightrailStripe = require("stripe")(stripeLiveLightrailConfig.secretKey);
-            const charge = await lightrailStripe.charges.create({
+            const charge = await createCharge({
                 amount: 500,
                 currency: "usd",
                 source: "tok_visa"
-            }, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
-            await lightrailStripe.refunds.create({
+            }, true, defaultTestUser.stripeAccountId, generateId());
+            await createRefund({
                 charge: charge.id,
                 reason: "fraudulent"
-            }, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
-            const refundedCharge = await lightrailStripe.charges.retrieve(charge.id, {stripe_account: stripeLiveMerchantConfig.stripeUserId});
+            }, true, defaultTestUser.stripeAccountId);
+            const refundedCharge = await retrieveCharge(charge.id, true, defaultTestUser.stripeAccountId);
             chai.assert.isTrue(refundedCharge.refunded, `Stripe charge should have 'refunded=true': ${JSON.stringify(refundedCharge)}`);
 
             const webhookResp = await testSignedWebhookRequest(webhookEventRouter, generateConnectWebhookEventMock("charge.refunded", refundedCharge));
@@ -563,13 +504,8 @@ describe("/v2/stripeEventWebhook", () => {
             sandbox.restore();
         }).timeout(12000);
 
-        it("returns failure response if can't freeze all Lightrail values", async function () {
-            if (!testStripeLive()) {
-                this.skip();
-                return;
-            }
-
-            let sandbox = sinon.createSandbox();
+        it("returns failure response if can't freeze all Lightrail values", async () => {
+            const sandbox = sinon.createSandbox();
             const stub = sandbox.stub(webhookUtils, "freezeLightrailSources");
             stub.rejects(new Error("End of the world, at least for now "));
 
@@ -584,13 +520,8 @@ describe("/v2/stripeEventWebhook", () => {
             chai.assert.equal(getValueResp.body.frozen, false, `getValueResp.body.frozen=${getValueResp.body.frozen}`);
         }).timeout(8000);
 
-        it("passes 5XX through to Stripe", async function () {
-            if (!testStripeLive()) {
-                this.skip();
-                return;
-            }
-
-            let sandbox = sinon.createSandbox();
+        it("passes 5XX through to Stripe", async () => {
+            const sandbox = sinon.createSandbox();
             const stub = sandbox.stub(stripeAccess, "getAuthBadgeFromStripeCharge");
             stub.rejects(new Error("End of the world, at least for now "));
 

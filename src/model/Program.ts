@@ -1,6 +1,7 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {Rule} from "./Value";
 import {pickDefined} from "../utils/pick";
+import {Rule} from "./Value";
+import {discountSellerLiabilityUtils} from "../utils/discountSellerLiabilityUtils";
 
 export interface Program {
     id: string;
@@ -8,6 +9,7 @@ export interface Program {
     currency: string;
     discount: boolean;
     discountSellerLiability: number | null;
+    discountSellerLiabilityRule: Rule | null;
     pretax: boolean;
     active: boolean;
     redemptionRule: Rule | null;
@@ -32,7 +34,7 @@ export namespace Program {
             name: v.name,
             currency: v.currency,
             discount: v.discount,
-            discountSellerLiability: v.discountSellerLiability,
+            discountSellerLiabilityRule: JSON.stringify(v.discountSellerLiabilityRule),
             pretax: v.pretax,
             active: v.active,
             minInitialBalance: v.minInitialBalance,
@@ -55,7 +57,7 @@ export namespace Program {
             name: v.name,
             currency: v.currency,
             discount: v.discount,
-            discountSellerLiability: v.discountSellerLiability,
+            discountSellerLiabilityRule: JSON.stringify(v.discountSellerLiabilityRule),
             pretax: v.pretax,
             active: v.active,
             redemptionRule: JSON.stringify(v.redemptionRule),
@@ -78,7 +80,7 @@ export interface DbProgram {
     name: string;
     currency: string;
     discount: boolean;
-    discountSellerLiability: number | null;
+    discountSellerLiabilityRule: string;
     pretax: boolean;
     active: boolean;
     redemptionRule: string;
@@ -102,7 +104,8 @@ export namespace DbProgram {
             name: v.name,
             currency: v.currency,
             discount: v.discount,
-            discountSellerLiability: v.discountSellerLiability,
+            discountSellerLiability: discountSellerLiabilityUtils.ruleToNumber(JSON.parse(v.discountSellerLiabilityRule)),
+            discountSellerLiabilityRule: JSON.parse(v.discountSellerLiabilityRule),
             pretax: v.pretax,
             active: v.active,
             minInitialBalance: v.minInitialBalance,

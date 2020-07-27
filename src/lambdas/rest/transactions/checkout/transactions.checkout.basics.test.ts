@@ -3,13 +3,15 @@ import * as chai from "chai";
 import * as testUtils from "../../../../utils/testUtils";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../../utils/testUtils";
 import {formatCodeForLastFourDisplay, Value} from "../../../../model/Value";
-import {LightrailTransactionStep, Transaction} from "../../../../model/Transaction";
+import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import {getKnexRead} from "../../../../utils/dbUtils/connection";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import {Contact} from "../../../../model/Contact";
 import {installRestRoutes} from "../../installRestRoutes";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../../../utils/dbUtils";
+import {LightrailTransactionStep} from "../../../../model/TransactionStep";
 
 chai.use(chaiExclude);
 
@@ -21,12 +23,15 @@ describe("/v2/transactions/checkout - basics", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
         await createCurrency(testUtils.defaultTestUser.auth, {
             code: "CAD",
             name: "Canadian Tire Money",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
     });
 

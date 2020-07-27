@@ -1,27 +1,34 @@
+import * as cassava from "cassava";
+import * as Knex from "knex";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
-import * as Knex from "knex";
 import {Value} from "../../../model/Value";
 import {dateInDbPrecision, nowInDbPrecision} from "../../../utils/dbUtils/index";
-import * as cassava from "cassava";
 import {MetricsLogger, ValueAttachmentTypes} from "../../../utils/metricsLogger";
 import {Program} from "../../../model/Program";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
 import {pickOrDefault} from "../../../utils/pick";
 import {CreateValueParameters} from "./values";
 import {checkRulesSyntax} from "../transactions/rules/RuleContext";
-import {TransactionPlan} from "../transactions/TransactionPlan";
+import {LightrailInsertTransactionPlanStep, TransactionPlan} from "../transactions/TransactionPlan";
 import {executeTransactionPlan} from "../transactions/executeTransactionPlans";
+import {discountSellerLiabilityUtils} from "../../../utils/discountSellerLiabilityUtils";
 import log = require("loglevel");
 
 export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: CreateValueParameters, trx: Knex.Transaction): Promise<Value> {
     auth.requireIds("userId", "teamMemberId");
-    let value: Value = initializeValue(auth, params.partialValue, params.program, params.generateCodeParameters);
+    const value: Value = initializeValue(auth, params.partialValue, params.program, params.generateCodeParameters);
     log.info(`Create Value requested for user: ${auth.userId}. Value`, Value.toStringSanitized(value));
 
     value.startDate = value.startDate ? dateInDbPrecision(new Date(value.startDate)) : null;
     value.endDate = value.endDate ? dateInDbPrecision(new Date(value.endDate)) : null;
 
+    const step: LightrailInsertTransactionPlanStep = {
+        rail: "lightrail",
+        value: value,
+        action: "insert",
+        generateCodeParameters: params.generateCodeParameters
+    };
     const plan: TransactionPlan = {
         id: value.id,
         transactionType: "initialBalance",
@@ -29,14 +36,7 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         totals: null,
         lineItems: null,
         paymentSources: null,
-        steps: [{
-            rail: "lightrail",
-            value: value,
-            amount: value.balance,
-            uses: value.usesRemaining,
-            action: "insert",
-            generateCodeParameters: params.generateCodeParameters
-        }],
+        steps: [step],
         tax: null,
         pendingVoidDate: null,
         createdDate: value.createdDate,
@@ -63,7 +63,7 @@ export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 
     let value: Value = pickOrDefault(partialValue, {
         id: null,
-        currency: program ? program.currency : null,
+        currency: program ? program.currency.toUpperCase() : null,
         balance: partialValue.balanceRule || (program && program.balanceRule) || (Value.isGenericCodeWithPropertiesPerContact(partialValue)) ? null : 0,
         usesRemaining: null,
         programId: program ? program.id : null,
@@ -78,7 +78,10 @@ export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
         canceled: false,
         frozen: false,
         discount: program ? program.discount : false,
-        discountSellerLiability: program ? program.discountSellerLiability : null,
+        discountSellerLiability: null,
+        discountSellerLiabilityRule: null, // Due to how these properties can be overridden during value creation
+                                           // from what the program has set, default to null. Once discountSellerLiability
+                                           // is deprecated change back to `program ? program.discountSellerLiabilityRule : null`
         redemptionRule: program ? program.redemptionRule : null,
         balanceRule: program ? program.balanceRule : null,
         startDate: program ? program.startDate : null,
@@ -92,11 +95,37 @@ export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 
     value.metadata = {...(program && program.metadata ? program.metadata : {}), ...value.metadata};
 
+    // If these properties aren't set during value creation, default to what program has set.
+    if (value.discountSellerLiability == null && value.discountSellerLiabilityRule == null && program != null) {
+        if (program.discountSellerLiabilityRule != null) {
+            value.discountSellerLiabilityRule = program.discountSellerLiabilityRule;
+        } else if (program.discountSellerLiability != null) {
+            value.discountSellerLiability = program.discountSellerLiability;
+        }
+    }
+    if (value.discountSellerLiability != null) {
+        MetricsLogger.legacyDiscountSellerLiabilitySet("valueCreate", auth);
+    }
+    value = setDiscountSellerLiabilityPropertiesForLegacySupport(value);
+
     // code generation is done when the Value is inserted into the database.
     checkCodeParameters(generateCodeParameters, value.code);
 
     checkValueProperties(value, program);
     return value;
+}
+
+/*
+ * If rule is set, will attempt to convert rule to number to support existing functionality.
+ * Otherwise, if number is set, will format as rule.
+ */
+export function setDiscountSellerLiabilityPropertiesForLegacySupport(v: Value): Value {
+    if (v.discountSellerLiabilityRule != null) {
+        v.discountSellerLiability = discountSellerLiabilityUtils.ruleToNumber(v.discountSellerLiabilityRule);
+    } else if (v.discountSellerLiability != null) {
+        v.discountSellerLiabilityRule = discountSellerLiabilityUtils.numberToRule(v.discountSellerLiability);
+    }
+    return v;
 }
 
 export function checkValueProperties(value: Value, program: Program = null): void {
@@ -109,6 +138,9 @@ export function checkValueProperties(value: Value, program: Program = null): voi
     }
     if (value.discountSellerLiability !== null && !value.discount) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have discountSellerLiability if it is not a discount.`);
+    }
+    if (value.discountSellerLiabilityRule !== null && !value.discount) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value can't have a discountSellerLiabilityRule if it is not a discount.`);
     }
     if (value.contactId && value.isGenericCode) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, "A Value with isGenericCode=true cannot have contactId set.");
@@ -134,7 +166,6 @@ export function checkValueProperties(value: Value, program: Program = null): voi
     checkRulesSyntax(value, "Value");
 }
 
-
 function checkProgramConstraints(value: Value, program: Program): void {
     let balance = value.balance;
     let usesRemaining = value.usesRemaining;
@@ -145,26 +176,29 @@ function checkProgramConstraints(value: Value, program: Program): void {
     }
 
     if (program.fixedInitialBalances && (program.fixedInitialBalances.indexOf(balance) === -1 || balance === null)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${balance} is outside fixedInitialBalances defined by Program ${program.fixedInitialBalances}.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${balance} is not in the Program (${program.id}) fixedInitialBalances [${program.fixedInitialBalances.join(", ")}].`);
     }
     if (program.minInitialBalance !== null && (balance < program.minInitialBalance || balance === null)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${balance} is less than minInitialBalance ${program.minInitialBalance}.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${balance} is less than the Program (${program.id}) minInitialBalance ${program.minInitialBalance}.`);
     }
     if (program.maxInitialBalance !== null && (balance > program.maxInitialBalance || balance === null)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${balance} is greater than maxInitialBalance ${program.maxInitialBalance}.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's balance ${balance} is greater than the Program (${program.id}) maxInitialBalance ${program.maxInitialBalance}.`);
     }
 
     if (program.fixedInitialUsesRemaining && (program.fixedInitialUsesRemaining.indexOf(usesRemaining) === -1 || !usesRemaining)) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's usesRemaining ${usesRemaining} outside fixedInitialUsesRemaining defined by Program ${program.fixedInitialUsesRemaining}.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's usesRemaining ${usesRemaining} is not in the Program (${program.id}) fixedInitialUsesRemaining [${program.fixedInitialUsesRemaining.join(", ")}].`);
     }
 
     if (program.currency !== value.currency) {
-        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's currency ${value.currency} cannot differ from currency of Program ${program.currency}.`);
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.CONFLICT, `Value's currency ${value.currency} does not match the Program (${program.id}) currency ${program.currency}.`);
     }
 }
 
 export function checkCodeParameters(generateCode: GenerateCodeParameters, code: string): void {
     if (generateCode && code) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Parameter generateCode is not allowed with parameters code or isGenericCode:true.`);
+    }
+    if (/^[\s+]/.test(code) || /[\s+]$/.test(code)) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Code may not have leading or trailing whitespace.`);
     }
 }

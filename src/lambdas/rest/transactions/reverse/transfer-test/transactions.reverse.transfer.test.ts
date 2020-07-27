@@ -1,20 +1,18 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
+import * as stripe from "stripe";
 import * as testUtils from "../../../../../utils/testUtils/index";
-import {generateId} from "../../../../../utils/testUtils/index";
+import {generateId} from "../../../../../utils/testUtils";
 import {installRestRoutes} from "../../../installRestRoutes";
 import {createCurrency} from "../../../currencies";
 import {Value} from "../../../../../model/Value";
-import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../../../model/Transaction";
+import {Transaction} from "../../../../../model/Transaction";
 import {CreditRequest, DebitRequest, ReverseRequest, TransferRequest} from "../../../../../model/TransactionRequest";
-import {
-    setStubsForStripeTests,
-    stubStripeRefund,
-    stubTransferStripeCharge,
-    unsetStubsForStripeTests
-} from "../../../../../utils/testUtils/stripeTestUtils";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../../../../utils/dbUtils";
+import {LightrailTransactionStep, StripeTransactionStep} from "../../../../../model/TransactionStep";
 
 chai.use(chaiExclude);
 
@@ -31,10 +29,13 @@ describe("/v2/transactions/reverse - transfer", () => {
             code: "USD",
             name: "US Dollars",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
         chai.assert.equal(currency.code, "USD");
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
     });
 
     after(() => {
@@ -132,7 +133,7 @@ describe("/v2/transactions/reverse - transfer", () => {
                 "createdBy": "default-test-user-TEST"
             }, ["createdDate"]
         );
-        chai.assert.deepEqualExcluding(simulate.body, postReverse.body, "simulated", "createdDate");
+        chai.assert.deepEqualExcluding(simulate.body, postReverse.body, ["simulated", "createdDate"]);
         chai.assert.isTrue(simulate.body.simulated);
 
         // check value is same as before
@@ -165,7 +166,6 @@ describe("/v2/transactions/reverse - transfer", () => {
             amount: 75,
             currency: "USD"
         };
-        const [charge] = stubTransferStripeCharge(transfer);
         const postTransfer = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", transfer);
         chai.assert.equal(postTransfer.statusCode, 201, `body=${JSON.stringify(postTransfer.body)}`);
         chai.assert.equal((postTransfer.body.steps[0] as StripeTransactionStep).amount, -75);
@@ -175,12 +175,6 @@ describe("/v2/transactions/reverse - transfer", () => {
         const reverse: Partial<ReverseRequest> = {
             id: generateId()
         };
-        stubStripeRefund(charge, {
-            metadata: {
-                reason: `Being refunded as part of reverse transaction ${reverse.id}.`
-            },
-            source_transfer_reversal: null
-        } as any);  //  source_transfer_reversal is in the docs, but not d.ts and it's mysterious
         const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transfer.id}/reverse`, "POST", reverse);
         chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postTransfer.body)}`);
         const stripeStep: StripeTransactionStep = postReverse.body.steps[1] as StripeTransactionStep;
@@ -211,12 +205,12 @@ describe("/v2/transactions/reverse - transfer", () => {
                         "rail": "stripe",
                         "chargeId": stripeStep.chargeId,
                         "charge": {
-                            "id": stripeStep.charge.id,
+                            "id": (stripeStep.charge as stripe.charges.ICharge).id,
                             "object": "refund",
                             "amount": 75,
-                            "balance_transaction": stripeStep.charge.balance_transaction,
+                            "balance_transaction": (stripeStep.charge as stripe.charges.ICharge).balance_transaction,
                             "charge": stripeStep.chargeId,
-                            "created": stripeStep.charge.created,
+                            "created": (stripeStep.charge as stripe.charges.ICharge).created,
                             "currency": "usd",
                             "metadata": {
                                 "reason": `Being refunded as part of reverse transaction ${reverse.id}.`
@@ -234,7 +228,7 @@ describe("/v2/transactions/reverse - transfer", () => {
                 pending: false,
                 "metadata": null,
                 "createdBy": "default-test-user-TEST"
-            }, ["createdDate"]
+            }, ["createdDate", "payment_intent"]
         );
 
         // check value is same as before

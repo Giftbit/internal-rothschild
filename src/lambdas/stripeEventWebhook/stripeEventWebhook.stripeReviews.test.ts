@@ -1,11 +1,11 @@
 import * as cassava from "cassava";
+import * as chai from "chai";
+import * as stripe from "stripe";
 import * as testUtils from "../../utils/testUtils";
 import {generateId, setCodeCryptographySecrets} from "../../utils/testUtils";
 import {installRestRoutes} from "../rest/installRestRoutes";
 import {installStripeEventWebhookRest} from "./installStripeEventWebhookRest";
-import * as chai from "chai";
-import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
-import * as stripe from "stripe";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
 import {
     assertTransactionChainContainsTypes,
     assertValuesRestoredAndFrozen,
@@ -24,26 +24,19 @@ describe("/v2/stripeEventWebhook - Stripe Review events", () => {
         restRouter.route(testUtils.authRoute);
         installRestRoutes(restRouter);
         installStripeEventWebhookRest(webhookEventRouter);
-
-        await setCodeCryptographySecrets();
-
-        setStubsForStripeTests();
+        setCodeCryptographySecrets();
+        await setStubsForStripeTests();
     });
 
     after(() => {
         unsetStubsForStripeTests();
     });
 
-    it("reverses Lightrail transaction & freezes Values for Stripe event 'review.closed' with 'reason: refunded_as_fraud'", async function () {
-        if (!testStripeLive()) {
-            this.skip();
-            return;
-        }
-
+    it("reverses Lightrail transaction & freezes Values for Stripe event 'review.closed' with 'reason: refunded_as_fraud'", async () => {
         const webhookEventSetup = await setupForWebhookEvent(restRouter);
         const refundedCharge = await refundInStripe(webhookEventSetup.stripeStep, "fraudulent");
 
-        let review: stripe.reviews.IReview = {
+        const review: stripe.reviews.IReview = {
             id: generateId(),
             object: "review",
             charge: refundedCharge,

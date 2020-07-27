@@ -6,15 +6,13 @@ import {formatCodeForLastFourDisplay, Value} from "../../../model/Value";
 import {installRestRoutes} from "../installRestRoutes";
 import {createCurrency} from "../currencies";
 import {Contact} from "../../../model/Contact";
-import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {Transaction} from "../../../model/Transaction";
 import {CheckoutRequest} from "../../../model/TransactionRequest";
-import {
-    setStubsForStripeTests,
-    testStripeLive,
-    unsetStubsForStripeTests
-} from "../../../utils/testUtils/stripeTestUtils";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
 import {generateUrlSafeHashFromValueIdContactId} from "../genericCodeWithPerContactOptions";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
+import {LightrailTransactionStep} from "../../../model/TransactionStep";
 
 chai.use(chaiExclude);
 
@@ -26,14 +24,17 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
         await createCurrency(testUtils.defaultTestUser.auth, {
             code: "USD",
             name: "US Dollars",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
     });
 
     after(() => {
@@ -584,30 +585,6 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             chai.assert.equal(checkout.body["messageCode"], "ValueMustBeAttached");
         });
 
-        it("can't manually attach generic code after it has been auto-attached", async () => {
-            // auto attach
-            const checkoutRequest: CheckoutRequest = {
-                id: generateId(),
-                currency: "USD",
-                sources: [
-                    {rail: "lightrail", code: genericValue.code},
-                    {rail: "lightrail", contactId: contactId}
-                ],
-                lineItems: [
-                    {unitPrice: 200}
-                ]
-            };
-            const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-            chai.assert.equal(checkout.statusCode, 201);
-
-            // try to manually attach
-            const attach = await testUtils.testAuthedRequest(router, `/v2/contacts/${contactId}/values/attach`, "POST", {
-                code: genericValue.code
-            });
-            chai.assert.equal(attach.statusCode, 409);
-            chai.assert.equal(attach.body["messageCode"], "ValueAlreadyAttached");
-        });
-
         it("auto-attaches to first contact in list if multiple contactIds passed in payment sources", async () => {
             const contact2 = generateId();
             const createContact = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contact2});
@@ -726,12 +703,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
         });
     });
 
-    it("checkout with stripe exception rolls back auto-attach. no value is inserted", async function () {
-        if (!testStripeLive()) {
-            this.skip();
-            return;
-        }
-
+    it("checkout with stripe exception rolls back auto-attach. no value is inserted", async () => {
         const contactId = generateId();
 
         const genericValue: Partial<Value> = {

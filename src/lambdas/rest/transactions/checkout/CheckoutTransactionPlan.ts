@@ -1,5 +1,4 @@
 import {
-    getDiscountSellerLiability,
     InternalTransactionPlanStep,
     LightrailUpdateTransactionPlanStep,
     StripeTransactionPlanStep,
@@ -28,17 +27,18 @@ export class CheckoutTransactionPlan implements TransactionPlan {
     metadata: object | null;
 
     constructor(checkout: CheckoutRequest, steps: TransactionPlanStep[], now: Date) {
-        let lineItemResponses: LineItemResponse[] = [];
-        for (let lineItem of checkout.lineItems) {
+        const lineItemResponses: LineItemResponse[] = [];
+        for (const lineItem of checkout.lineItems) {
             lineItem.quantity = lineItem.quantity ? lineItem.quantity : 1;
             const subtotal = lineItem.unitPrice * lineItem.quantity;
-            let lineItemResponse: LineItemResponse = {
+            const lineItemResponse: LineItemResponse = {
                 ...lineItem,
                 lineTotal: {
                     subtotal: subtotal,
                     taxable: subtotal,
                     tax: 0,
                     discount: 0,
+                    sellerDiscount: 0,
                     remainder: subtotal,
                     payable: 0
                 }
@@ -47,7 +47,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
         }
         this.id = checkout.id;
         this.transactionType = "checkout";
-        this.currency = checkout.currency;
+        this.currency = checkout.currency?.toUpperCase();
         this.lineItems = lineItemResponses.sort((a, b) => b.lineTotal.subtotal - a.lineTotal.subtotal);
         this.steps = steps;
         this.paymentSources = checkout.sources; // TODO if secure code, only return last four
@@ -68,10 +68,10 @@ export class CheckoutTransactionPlan implements TransactionPlan {
             payable: 0,
             remainder: 0,
             forgiven: 0,
-            discountLightrail: this.steps.filter(step => step.rail === "lightrail" && step.value.discount === true).reduce((prev, step) => prev + (<LightrailUpdateTransactionPlanStep>step).amount, 0) * -1,
-            paidLightrail: this.steps.filter(step => step.rail === "lightrail" && step.value.discount === false).reduce((prev, step) => prev + (<LightrailUpdateTransactionPlanStep>step).amount, 0) * -1,
-            paidStripe: this.steps.filter(step => step.rail === "stripe").reduce((prev, step) => prev + (<StripeTransactionPlanStep>step).amount, 0) * -1,
-            paidInternal: this.steps.filter(step => step.rail === "internal").reduce((prev, step) => prev + (<InternalTransactionPlanStep>step).amount, 0) * -1,
+            discountLightrail: this.steps.filter(step => step.rail === "lightrail" && step.value.discount === true).reduce((prev, step) => prev + (step as LightrailUpdateTransactionPlanStep).amount, 0) * -1,
+            paidLightrail: this.steps.filter(step => step.rail === "lightrail" && step.value.discount === false).reduce((prev, step) => prev + (step as LightrailUpdateTransactionPlanStep).amount, 0) * -1,
+            paidStripe: this.steps.filter(step => step.rail === "stripe").reduce((prev, step) => prev + (step as StripeTransactionPlanStep).amount, 0) * -1,
+            paidInternal: this.steps.filter(step => step.rail === "internal").reduce((prev, step) => prev + (step as InternalTransactionPlanStep).amount, 0) * -1,
         };
         for (const item of this.lineItems) {
             item.lineTotal.payable = item.lineTotal.subtotal + item.lineTotal.tax - item.lineTotal.discount;
@@ -88,26 +88,23 @@ export class CheckoutTransactionPlan implements TransactionPlan {
     }
 
     private calculateMarketplaceTotals(): void {
-        if ((!this.lineItems || !this.lineItems.find(lineItem => lineItem.marketplaceRate !== undefined))
-            && !this.steps.find(step => getDiscountSellerLiability(step) !== 0)) {
+        if (!this.hasLineItemWithMarketplaceRateSet() && !this.hasValueWithDiscountSellerLiabilitySet()) {
             // Marketplace totals are only set if an item has a marketplaceRate or if discountSellerLiability is set on a Value.
             this.totals.marketplace = undefined;
+            for (const item of this.lineItems) {
+                item.lineTotal.sellerDiscount = undefined;
+            }
             return;
         }
 
         let sellerGross = 0;
+        let sellerDiscount = 0;
         for (const item of this.lineItems) {
             const rate = item.marketplaceRate != null ? item.marketplaceRate : 0;
             sellerGross += (1.0 - rate) * item.unitPrice * (item.quantity || 1);
+            sellerDiscount += item.lineTotal.sellerDiscount;
         }
         sellerGross = bankersRounding(sellerGross, 0);
-
-        let sellerDiscount = 0;
-        for (const step of this.steps) {
-            if (getDiscountSellerLiability(step) !== 0) {
-                sellerDiscount -= (step as LightrailUpdateTransactionPlanStep).amount * (step as LightrailUpdateTransactionPlanStep).value.discountSellerLiability;
-            }
-        }
         sellerDiscount = bankersRounding(sellerDiscount, 0);
 
         this.totals.marketplace = {
@@ -121,7 +118,7 @@ export class CheckoutTransactionPlan implements TransactionPlan {
         if (!this.tax) {
             this.tax = {roundingMode: "HALF_EVEN"};
         }
-        for (let item of this.lineItems) {
+        for (const item of this.lineItems) {
             let tax = 0;
             item.lineTotal.taxable = item.lineTotal.remainder;
             if (item.taxRate >= 0) {
@@ -130,5 +127,15 @@ export class CheckoutTransactionPlan implements TransactionPlan {
             item.lineTotal.tax = tax;
             item.lineTotal.remainder += tax;
         }
+    }
+
+    private hasLineItemWithMarketplaceRateSet(): boolean {
+        return !!(this.lineItems.find(lineItem => lineItem.marketplaceRate !== undefined));
+    }
+
+    private hasValueWithDiscountSellerLiabilitySet(): boolean {
+        return !!this.steps.find(step =>
+            step.rail === "lightrail" && step.value.discount && !!step.value.discountSellerLiabilityRule
+        );
     }
 }

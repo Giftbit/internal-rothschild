@@ -1,30 +1,18 @@
-import {MetricsLogger, ValueAttachmentTypes} from "./metricsLogger";
+import * as cassava from "cassava";
+import * as chai from "chai";
+import sinon from "sinon";
 import * as testUtils from "./testUtils";
 import {defaultTestUser, generateId} from "./testUtils";
-import * as cassava from "cassava";
+import {MetricsLogger, ValueAttachmentTypes} from "./metricsLogger";
 import {installRestRoutes} from "../lambdas/rest/installRestRoutes";
-import sinon from "sinon";
-import * as chai from "chai";
 import {Value} from "../model/Value";
 import {Contact} from "../model/Contact";
 import {Transaction, TransactionType} from "../model/Transaction";
-import {StripeTransactionPlanStep, TransactionPlan} from "../lambdas/rest/transactions/TransactionPlan";
+import {StripeChargeTransactionPlanStep, TransactionPlan} from "../lambdas/rest/transactions/TransactionPlan";
 import {CheckoutRequest} from "../model/TransactionRequest";
-import {
-    setStubsForStripeTests,
-    stubCheckoutStripeCharge,
-    stubCheckoutStripeError,
-    stubStripeCapture,
-    stubStripeRefund,
-    unsetStubsForStripeTests
-} from "./testUtils/stripeTestUtils";
-import {after} from "mocha";
-import {StripeRestError} from "./stripeUtils/StripeRestError";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "./testUtils/stripeTestUtils";
 import {Currency} from "../model/Currency";
 import log = require("loglevel");
-
-require("dotenv").config();
-
 
 describe("MetricsLogger", () => {
 
@@ -256,15 +244,18 @@ describe("MetricsLogger", () => {
         describe("direct calls", () => {
             it("generates correct log statement - called directly - stripe call", () => {
                 const spy = sandbox.spy(log, "info");
-                const stripeStep = {
+                const stripeStep: StripeChargeTransactionPlanStep = {
                     rail: "stripe",
                     type: "charge",
-                    idempotentStepId: "",
+                    stepIdempotencyKey: "",
+                    amount: 0,
+                    minAmount: null,
                     maxAmount: null,
-                    amount: 0
+                    forgiveSubMinAmount: null,
+                    additionalStripeParams: {}
                 };
 
-                MetricsLogger.stripeCall(stripeStep as StripeTransactionPlanStep, defaultTestUser.auth);
+                MetricsLogger.stripeCall(stripeStep, defaultTestUser.auth);
                 chai.assert.match(spy.args[0][0], getStripeCallLogMatcher(stripeStep.amount, "charge"));
             });
 
@@ -278,7 +269,7 @@ describe("MetricsLogger", () => {
 
         describe("integration tests", () => {
             before(async function () {
-                setStubsForStripeTests();
+                await setStubsForStripeTests();
             });
 
             after(() => {
@@ -307,13 +298,10 @@ describe("MetricsLogger", () => {
             it("generates correct log statement for Stripe charge & refund", async () => {
                 const spy = sandbox.spy(log, "info");
 
-                const [stripeResponse] = stubCheckoutStripeCharge(checkoutRequest, 0, amount);
-
                 const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
                 chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
                 sinon.assert.calledWith(spy, sinon.match(getStripeCallLogMatcher(-amount, "charge")));
 
-                stubStripeRefund(stripeResponse);
                 const refundResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkoutRequest.id}/reverse`, "POST", {id: `reverse-${checkoutRequest.id}`});
                 chai.assert.equal(refundResp.statusCode, 201, `body=${JSON.stringify(refundResp.body)}`);
 
@@ -324,11 +312,9 @@ describe("MetricsLogger", () => {
                 const spy = sandbox.spy(log, "info");
                 const pendingCheckoutRequest: CheckoutRequest = {...checkoutRequest, id: generateId(), pending: true};
 
-                const [stripePending] = stubCheckoutStripeCharge(pendingCheckoutRequest, 0, amount);
                 const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/checkout`, "POST", pendingCheckoutRequest);
                 chai.assert.equal(checkoutResp.statusCode, 201, `body=${JSON.stringify(checkoutResp.body)}`);
 
-                stubStripeCapture(stripePending);
                 const captureResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${pendingCheckoutRequest.id}/capture`, "POST", {id: `capture-${pendingCheckoutRequest.id}`});
                 chai.assert.equal(captureResp.statusCode, 201, `body=${JSON.stringify(captureResp.body)}`);
 
@@ -343,7 +329,6 @@ describe("MetricsLogger", () => {
                     sources: [{rail: "stripe", source: "tok_chargeDeclined"}]
                 };
 
-                stubCheckoutStripeError(errorCheckoutReq, 0, new StripeRestError(409, "", "", {type: "StripeCardError"}));
                 const errorResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", errorCheckoutReq);
                 chai.assert.equal(errorResp.statusCode, 409, `body=${JSON.stringify(errorResp.body)}`);
 

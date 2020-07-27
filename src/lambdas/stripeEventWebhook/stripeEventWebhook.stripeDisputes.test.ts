@@ -4,7 +4,7 @@ import {generateId, setCodeCryptographySecrets} from "../../utils/testUtils";
 import {installRestRoutes} from "../rest/installRestRoutes";
 import {installStripeEventWebhookRest} from "./installStripeEventWebhookRest";
 import * as chai from "chai";
-import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
 import * as stripe from "stripe";
 import {
     generateConnectWebhookEventMock,
@@ -24,10 +24,8 @@ describe("/v2/stripeEventWebhook - Stripe Dispute events", () => {
         restRouter.route(testUtils.authRoute);
         installRestRoutes(restRouter);
         installStripeEventWebhookRest(webhookEventRouter);
-
-        await setCodeCryptographySecrets();
-
-        setStubsForStripeTests();
+        setCodeCryptographySecrets();
+        await setStubsForStripeTests();
     });
 
     beforeEach(function () {
@@ -46,12 +44,7 @@ describe("/v2/stripeEventWebhook - Stripe Dispute events", () => {
         return new RegExp("MONITORING\\|\\d{10}\\|1\\|histogram\\|rothschild\\.stripeEventWebhook\\.dispute\\|#stripeEventType:charge.dispute.created,#stripeAccountId:acct_1BOVE6CM9MOvFvZK,#userId:default-test-user-TEST,#teamMemberId:stripe-webhook-event-handler,#liveMode:false");
     }
 
-    it("logs & metrics receipt of 'charge.dispute' events'", async function () {
-        if (!testStripeLive()) {
-            this.skip();
-            return;
-        }
-
+    it("logs & metrics receipt of 'charge.dispute' events'", async () => {
         const webhookEventSetup = await setupForWebhookEvent(restRouter, {reversed: true});
 
         const spy = sandbox.spy(log, "info");

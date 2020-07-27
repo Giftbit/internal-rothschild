@@ -1,5 +1,4 @@
 import * as cassava from "cassava";
-import * as stripe from "stripe";
 import {ReverseRequest} from "../../../../model/TransactionRequest";
 import {
     InternalTransactionPlanStep,
@@ -8,19 +7,18 @@ import {
     TransactionPlan,
     TransactionPlanStep
 } from "../TransactionPlan";
-import {
-    DbTransaction,
-    InternalTransactionStep,
-    LightrailTransactionStep,
-    StripeTransactionStep,
-    Transaction
-} from "../../../../model/Transaction";
+import {DbTransaction, Transaction} from "../../../../model/Transaction";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
 import {getDbTransaction, getTransaction} from "../transactions";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
 import {Value} from "../../../../model/Value";
-import {getValues} from "../../values/values";
+import {getDbValuesByTransaction, getValues} from "../../values/values";
+import {
+    InternalTransactionStep,
+    LightrailTransactionStep,
+    StripeTransactionStep
+} from "../../../../model/TransactionStep";
 import log = require("loglevel");
 
 export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: ReverseRequest, transactionIdToReverse: string): Promise<TransactionPlan> {
@@ -56,7 +54,13 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
     const transactionToReverse: Transaction =
         lastDbTransaction.transactionType === "capture"
             ? await getTransaction(auth, lastDbTransaction.rootTransactionId)
-            : (await DbTransaction.toTransactions([lastDbTransaction], auth.userId))[0];
+            : (await DbTransaction.toTransactionsUsingDb([lastDbTransaction], auth.userId))[0];
+
+    const values = await getDbValuesByTransaction(auth, transactionToReverse);
+    const frozenValue = values.find(value => value.frozen);
+    if (frozenValue) {
+        throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot reverse Transaction because value. '${frozenValue.id}' is frozen.`, "ValueFrozen");
+    }
 
     return {
         id: req.id,
@@ -75,15 +79,8 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
 }
 
 export async function getReverseTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, planId: string, tx: Transaction): Promise<TransactionPlanStep[]> {
-    const valueIdsArrayString: string = tx.steps.filter(step => step.rail === "lightrail").map(lrStep => (lrStep as LightrailTransactionStep).valueId).join(",");
-    const lrValues: Value[] = (await getValues(auth, {"id.in": valueIdsArrayString}, {
-        limit: valueIdsArrayString.length,
-        maxLimit: 1000,
-        sort: null,
-        before: null,
-        after: null,
-        last: false
-    })).values;
+    const lrValues = await getValuesForReverseTransactionPlan(auth, tx);
+
     return tx.steps.map(step => {
         switch (step.rail) {
             case "lightrail":
@@ -98,6 +95,22 @@ export async function getReverseTransactionPlanSteps(auth: giftbitRoutes.jwtauth
     });
 }
 
+async function getValuesForReverseTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, tx: Transaction): Promise<Value[]> {
+    const valueIdsArrayString: string = tx.steps.filter(step => step.rail === "lightrail").map(lrStep => (lrStep as LightrailTransactionStep).valueId).join(",");
+    if (valueIdsArrayString.length === 0) {
+        return [];
+    }
+
+    return (await getValues(auth, {"id.in": valueIdsArrayString}, {
+        limit: valueIdsArrayString.length,
+        maxLimit: 1000,
+        sort: null,
+        before: null,
+        after: null,
+        last: false
+    })).values;
+}
+
 function getReverseForLightrailTransactionStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: LightrailTransactionStep, value: Value): LightrailTransactionPlanStep {
     if (!value) {
         throw new Error(`No value found with id ${step.valueId} and user ${auth.userId}. This is a serious problem since step ${JSON.stringify(step)} claims one exists.`);
@@ -107,15 +120,16 @@ function getReverseForLightrailTransactionStep(auth: giftbitRoutes.jwtauth.Autho
         value: value,
         amount: step.balanceChange != null ? -step.balanceChange : null,
         uses: step.usesRemainingChange != null ? -step.usesRemainingChange : null,
-        action: "update"
+        action: "update",
+        allowCanceled: true,
+        allowFrozen: false
     };
 }
 
-function getReverseForStripeTransactionStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: StripeTransactionStep, idempotentStepId: string, refundReason: string): StripeTransactionPlanStep {
+function getReverseForStripeTransactionStep(auth: giftbitRoutes.jwtauth.AuthorizationBadge, step: StripeTransactionStep, stepIdempotencyKey: string, refundReason: string): StripeTransactionPlanStep {
     return {
         rail: "stripe",
         type: "refund",
-        idempotentStepId: idempotentStepId,
         chargeId: step.chargeId,
         amount: -step.amount,
         reason: refundReason
@@ -136,7 +150,7 @@ function getReverseForInternalTransactionStep(auth: giftbitRoutes.jwtauth.Author
 export function invertTransactionTotals<T extends object>(t: T): T {
     const res: T = Object.assign({}, t);
     for (const key in res) {
-        if (typeof res[key] === "number") {
+        if (res[key] && typeof res[key] === "number") {
             res[key] = -res[key] as any;
         } else if (res[key] && typeof res[key] === "object") {
             res[key] = invertTransactionTotals(res[key] as any) as any;

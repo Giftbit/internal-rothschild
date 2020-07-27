@@ -3,6 +3,8 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as logPrefix from "loglevel-plugin-prefix";
 import {voidExpiredPending} from "./voidExpiredPending";
 import {CodeCryptographySecrets, initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils";
+import {initializeAssumeCheckoutToken, initializeLightrailStripeConfig} from "../../utils/stripeUtils/stripeAccess";
+import {StripeConfig} from "../../utils/stripeUtils/StripeConfig";
 import log = require("loglevel");
 
 // Wrapping console.log instead of binding (default behaviour for loglevel)
@@ -10,7 +12,7 @@ import log = require("loglevel");
 // request the lambda received (AWS modifies log calls, loglevel binds to the
 // version of console.log that exists when it is initialized).
 // See https://github.com/pimterry/loglevel/blob/master/lib/loglevel.js
-// tslint:disable-next-line:no-console
+// eslint-disable-next-line no-console
 log.methodFactory = () => (...args) => console.log(...args);
 
 // Prefix log messages with the level.
@@ -30,6 +32,14 @@ initializeCodeCryptographySecrets(
     giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<CodeCryptographySecrets>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY")
 );
 
+initializeAssumeCheckoutToken(
+    giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<giftbitRoutes.secureConfig.AssumeScopeToken>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_RETRIEVE_STRIPE_AUTH")
+);
+
+initializeLightrailStripeConfig(
+    giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<StripeConfig>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_STRIPE")
+);
+
 async function handleScheduleEvent(evt: awslambda.ScheduledEvent, ctx: awslambda.Context): Promise<any> {
     return voidExpiredPending(ctx);
 }
@@ -38,5 +48,5 @@ async function handleScheduleEvent(evt: awslambda.ScheduledEvent, ctx: awslambda
 export const handler = giftbitRoutes.sentry.wrapLambdaHandler({
     handler: handleScheduleEvent,
     logger: log.error,
-    secureConfig: giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<any>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_SENTRY")
+    sentryDsn: process.env["SENTRY_DSN"]
 });

@@ -5,9 +5,11 @@ import {generateId, setCodeCryptographySecrets} from "../../../../utils/testUtil
 import {installRestRoutes} from "../../installRestRoutes";
 import {createCurrency} from "../../currencies";
 import {Value} from "../../../../model/Value";
-import {LightrailTransactionStep, Transaction} from "../../../../model/Transaction";
+import {Transaction} from "../../../../model/Transaction";
 import {CaptureRequest, DebitRequest, ReverseRequest} from "../../../../model/TransactionRequest";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../../../utils/dbUtils";
+import {LightrailTransactionStep} from "../../../../model/TransactionStep";
 
 chai.use(chaiExclude);
 
@@ -19,14 +21,16 @@ describe("/v2/transactions/reverse - debit", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
 
         const currency = await createCurrency(testUtils.defaultTestUser.auth, {
             code: "USD",
             name: "US Dollars",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
         chai.assert.equal(currency.code, "USD");
     });
@@ -257,5 +261,69 @@ describe("/v2/transactions/reverse - debit", () => {
 
         const chainRes = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions/${reverseTx.id}/chain`, "GET");
         chai.assert.sameDeepMembers(chainRes.body, [debitRes.body, captureRes.body, reverseRes.body]);
+    });
+
+    it("can reverse a debit with a canceled Value", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 50
+        };
+        const postValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+        chai.assert.equal(postValue.statusCode, 201);
+
+        const debitTx: DebitRequest = {
+            id: generateId(),
+            source: {
+                rail: "lightrail",
+                valueId: value.id
+            },
+            currency: "USD",
+            amount: 20
+        };
+        const debitRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", debitTx);
+        chai.assert.equal(debitRes.statusCode, 201, `body=${JSON.stringify(debitRes.body)}`);
+
+        const cancelResp = await await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", {canceled: true});
+        chai.assert.equal(cancelResp.statusCode, 200, `body=${JSON.stringify(cancelResp.body)}`);
+
+        const reverseTx: Partial<ReverseRequest> = {
+            id: generateId()
+        };
+        const reverseRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${debitTx.id}/reverse`, "POST", reverseTx);
+        chai.assert.equal(reverseRes.statusCode, 201, `body=${JSON.stringify(reverseRes.body)}`);
+        chai.assert.equal((reverseRes.body.steps[0] as LightrailTransactionStep).balanceChange, 20);
+    });
+
+    it("can't reverse a debit with a frozen Value", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 50
+        };
+        const postValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+        chai.assert.equal(postValue.statusCode, 201);
+
+        const debitTx: DebitRequest = {
+            id: generateId(),
+            source: {
+                rail: "lightrail",
+                valueId: value.id
+            },
+            currency: "USD",
+            amount: 20
+        };
+        const debitRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", debitTx);
+        chai.assert.equal(debitRes.statusCode, 201, `body=${JSON.stringify(debitRes.body)}`);
+
+        const freezeResp = await await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", {frozen: true});
+        chai.assert.equal(freezeResp.statusCode, 200, `body=${JSON.stringify(freezeResp.body)}`);
+
+        const reverseTx: Partial<ReverseRequest> = {
+            id: generateId()
+        };
+        const reverseRes = await testUtils.testAuthedRequest<any>(router, `/v2/transactions/${debitTx.id}/reverse`, "POST", reverseTx);
+        chai.assert.equal(reverseRes.statusCode, 409, `body=${JSON.stringify(reverseRes.body)}`);
+        chai.assert.equal(reverseRes.body.messageCode, "ValueFrozen");
     });
 });

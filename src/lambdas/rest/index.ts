@@ -3,7 +3,6 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as logPrefix from "loglevel-plugin-prefix";
 import {installRestRoutes} from "./installRestRoutes";
 import {CodeCryptographySecrets, initializeCodeCryptographySecrets} from "../../utils/codeCryptoUtils"; // Prefix log messages with the level.
-import {initializeIntercomSecrets, IntercomSecrets} from "../../utils/intercomUtils";
 import {initializeAssumeCheckoutToken, initializeLightrailStripeConfig} from "../../utils/stripeUtils/stripeAccess";
 import {StripeConfig} from "../../utils/stripeUtils/StripeConfig";
 import log = require("loglevel");
@@ -13,7 +12,7 @@ import log = require("loglevel");
 // request the lambda received (AWS modifies log calls, loglevel binds to the
 // version of console.log that exists when it is initialized).
 // See https://github.com/pimterry/loglevel/blob/master/lib/loglevel.js
-// tslint:disable-next-line:no-console
+// eslint-disable-next-line no-console
 log.methodFactory = () => (...args) => console.log(...args);
 
 // Prefix log messages with the level.
@@ -30,7 +29,8 @@ log.setLevel(log.levels.INFO);
 const router = new cassava.Router();
 
 router.route(new cassava.routes.LoggingRoute({
-    logFunction: log.info
+    logFunction: log.info,
+    logRequestHeaders: ["Lightrail-Client"]
 }));
 
 router.route(new giftbitRoutes.MetricsRoute({
@@ -45,15 +45,12 @@ router.route(new giftbitRoutes.jwtauth.JwtAuthorizationRoute({
     sharedSecretProvider: new giftbitRoutes.jwtauth.sharedSecret.RestSharedSecretProvider(`https://${process.env["LIGHTRAIL_DOMAIN"]}/v1/storage/jwtSecret`, giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<giftbitRoutes.secureConfig.AssumeScopeToken>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_ASSUME_STORAGE_SCOPE_TOKEN"),
     ),
     infoLogFunction: log.info,
-    errorLogFunction: log.error
+    errorLogFunction: log.error,
+    onAuth: auth => giftbitRoutes.sentry.setSentryUser(auth)
 }));
 
 initializeCodeCryptographySecrets(
     giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<CodeCryptographySecrets>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_CODE_CRYTPOGRAPHY")
-);
-
-initializeIntercomSecrets(
-    giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<IntercomSecrets>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_INTERCOM_SECRET")
 );
 
 initializeAssumeCheckoutToken(
@@ -70,5 +67,5 @@ installRestRoutes(router);
 export const handler = giftbitRoutes.sentry.wrapLambdaHandler({
     router,
     logger: log.error,
-    secureConfig: giftbitRoutes.secureConfig.fetchFromS3ByEnvVar<any>("SECURE_CONFIG_BUCKET", "SECURE_CONFIG_KEY_SENTRY")
+    sentryDsn: process.env["SENTRY_DSN"]
 });

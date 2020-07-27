@@ -5,16 +5,18 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as mysql from "mysql2/promise";
 import * as path from "path";
 import {getDbCredentials} from "../dbUtils/connection";
-import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
 import {initializeCodeCryptographySecrets} from "../codeCryptoUtils";
 import {Currency} from "../../model/Currency";
 import {Value} from "../../model/Value";
 import {CheckoutRequest} from "../../model/TransactionRequest";
 import {Transaction} from "../../model/Transaction";
+import {TestUser} from "./TestUser";
+import {ParsedProxyResponse} from "./ParsedProxyResponse";
+import {ParsedCsvProxyResponse} from "./ParsedCsvProxyResponse";
 import log = require("loglevel");
-import papaparse = require("papaparse");
 import uuid = require("uuid");
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const rolesConfig = require("./rolesConfig.json");
 
 if (!process.env["TEST_ENV"]) {
@@ -22,63 +24,32 @@ if (!process.env["TEST_ENV"]) {
     throw new Error("Env var TEST_ENV is undefined.  This is not a test environment!");
 }
 
-export const defaultTestUser = {
-    userId: "default-test-user-TEST",
-    teamMemberId: "default-test-user-TEST",
-    jwt: "eyJ2ZXIiOjIsInZhdiI6MSwiYWxnIjoiSFMyNTYiLCJ0eXAiOiJKV1QifQ.eyJnIjp7Imd1aSI6ImRlZmF1bHQtdGVzdC11c2VyLVRFU1QiLCJnbWkiOiJkZWZhdWx0LXRlc3QtdXNlci1URVNUIiwidG1pIjoiZGVmYXVsdC10ZXN0LXVzZXItVEVTVCJ9LCJpYXQiOiIyMDE3LTAzLTA3VDE4OjM0OjA2LjYwMyswMDAwIiwianRpIjoiYmFkZ2UtZGQ5NWI5YjU4MmU4NDBlY2JhMWNiZjQxMzY1ZDU3ZTEiLCJzY29wZXMiOltdLCJyb2xlcyI6WyJhY2NvdW50TWFuYWdlciIsImNvbnRhY3RNYW5hZ2VyIiwiY3VzdG9tZXJTZXJ2aWNlTWFuYWdlciIsImN1c3RvbWVyU2VydmljZVJlcHJlc2VudGF0aXZlIiwicG9pbnRPZlNhbGUiLCJwcm9ncmFtTWFuYWdlciIsInByb21vdGVyIiwicmVwb3J0ZXIiLCJzZWN1cml0eU1hbmFnZXIiLCJ0ZWFtQWRtaW4iLCJ3ZWJQb3J0YWwiXX0.Pz9XaaNX3HenvSUb6MENm_KEBheztiscGr2h2TJfhIc",
-    auth: new AuthorizationBadge({
-        "g": {
-            "gui": "default-test-user-TEST",
-            "gmi": "default-test-user-TEST",
-            "tmi": "default-test-user-TEST",
-        },
-        "iat": "2017-03-07T18:34:06.603+0000",
-        "jti": "badge-dd95b9b582e840ecba1cbf41365d57e1",
-        "scopes": [],
-        "roles": [
-            "accountManager",
-            "contactManager",
-            "customerServiceManager",
-            "customerServiceRepresentative",
-            "pointOfSale",
-            "programManager",
-            "promoter",
-            "reporter",
-            "securityManager",
-            "teamAdmin",
-            "webPortal"
-        ]
-    })
-};
+export function generateId(length?: number): string {
+    return (uuid.v4() + uuid.v4()).substring(0, length != null ? length : 20);
+}
 
-export const alternateTestUser = {
-    userId: "alternate-test-user-TEST",
-    teamMemberId: "alternate-test-user-TEST",
-    jwt: "eyJ2ZXIiOjIsInZhdiI6MSwiYWxnIjoiSFMyNTYiLCJ0eXAiOiJKV1QifQ.eyJnIjp7Imd1aSI6ImFsdGVybmF0ZS10ZXN0LXVzZXItVEVTVCIsImdtaSI6ImFsdGVybmF0ZS10ZXN0LXVzZXItVEVTVCIsInRtaSI6ImFsdGVybmF0ZS10ZXN0LXVzZXItVEVTVCJ9LCJpYXQiOiIyMDE4LTAzLTIzVDIxOjI1OjI2LjgxMiswMDAwIiwianRpIjoiYmFkZ2UtMmYxOGZkMjk2YmNkNDg4ZWFkODUzNTllYjY2ODA0MTkiLCJzY29wZXMiOltdLCJyb2xlcyI6WyJhY2NvdW50TWFuYWdlciIsImNvbnRhY3RNYW5hZ2VyIiwiY3VzdG9tZXJTZXJ2aWNlTWFuYWdlciIsImN1c3RvbWVyU2VydmljZVJlcHJlc2VudGF0aXZlIiwicG9pbnRPZlNhbGUiLCJwcm9ncmFtTWFuYWdlciIsInByb21vdGVyIiwicmVwb3J0ZXIiLCJzZWN1cml0eU1hbmFnZXIiLCJ0ZWFtQWRtaW4iLCJ3ZWJQb3J0YWwiXX0.9Xdsk8q4dLTp5baeeP_kHi61C0jU8pvFshUhCmoDLbY",
-    auth: new AuthorizationBadge({
-        "g": {
-            "gui": "alternate-test-user-TEST",
-            "gmi": "alternate-test-user-TEST",
-            "tmi": "alternate-test-user-TEST"
-        },
-        "iat": "2018-03-23T21:25:26.812+0000",
-        "jti": "badge-2f18fd296bcd488ead85359eb6680419",
-        "scopes": [],
-        "roles": [
-            "accountManager",
-            "contactManager",
-            "customerServiceManager",
-            "customerServiceRepresentative",
-            "pointOfSale",
-            "programManager",
-            "promoter",
-            "reporter",
-            "securityManager",
-            "teamAdmin",
-            "webPortal"
-        ]
-    })
-};
+export const defaultTestUser = new TestUser({
+    userId: "default-test-user-TEST",
+
+    /**
+     * See .env.example for Stripe config details
+     * This is "merchant" (connected account) config from stripe test account//pass: integrationtesting+merchant@giftbit.com // x39Rlf4TH3pzn29hsb#
+     */
+    stripeAccountId: "acct_1BOVE6CM9MOvFvZK"
+});
+export const alternateTestUser = new TestUser({
+    userId: "alternate-test-user-TEST"
+});
+
+/**
+ * Make a simple authed request to the router with the default test user.
+ */
+export const testAuthedRequest: <T>(router: cassava.Router, url: string, method: string, body?: any) => Promise<ParsedProxyResponse<T>> = defaultTestUser.request.bind(defaultTestUser);
+
+/**
+ * Make a simple authed request for CSV to the router with the default test user.
+ */
+export const testAuthedCsvRequest: <T>(router: cassava.Router, url: string, method: string, body?: any) => Promise<ParsedCsvProxyResponse<T>> = defaultTestUser.requestCsv.bind(defaultTestUser);
 
 /**
  * A Cassava Route that enables authorization with the above JWTs.
@@ -91,6 +62,8 @@ export const authRoute: cassava.routes.Route = new giftbitRoutes.jwtauth.JwtAuth
     },
     errorLogFunction: log.error
 });
+
+let fullMigrationHasRun = false;
 
 export async function resetDb(): Promise<void> {
     const credentials = await getDbCredentials();
@@ -106,25 +79,12 @@ export async function resetDb(): Promise<void> {
     });
 
     try {
-        const [schemaRes] = await connection.query("SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?", ["rothschild"]);
-        if (schemaRes.length > 0) {
-            try {
-                await connection.query("DROP USER readonly");
-            } catch (err) {
-                // Can error because the user didn't exist. There isn't a great way to do `DROP USER IF EXISTS readonly` in mysql 5.6.
-            }
-            await connection.query("DROP DATABASE rothschild");
-        }
-
-        await connection.query("CREATE DATABASE rothschild");
-
-        for (const file of await getSqlMigrationFiles()) {
-            try {
-                await connection.query(file.sql);
-            } catch (err) {
-                log.error(`Error processing migration file ${file.filename}:`, err.message);
-                throw err;
-            }
+        await connection.query("RESET MASTER");     // Resets the binary log.
+        if (!fullMigrationHasRun) {
+            await runSqlMigrations(connection);
+            fullMigrationHasRun = true;
+        } else {
+            await truncateTables(connection);
         }
     } catch (err) {
         log.error("Error setting up DB for test:", err.message);
@@ -141,9 +101,65 @@ export async function resetDb(): Promise<void> {
         }
 
         throw err;
+    } finally {
+        await connection.end();
+    }
+}
+
+async function runSqlMigrations(connection: any): Promise<void> {
+    const [schemaRes] = await connection.query("SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?", ["rothschild"]);
+    if (schemaRes.length > 0) {
+        try {
+            await connection.query("DROP USER readonly");
+        } catch (err) {
+            // Can error because the user didn't exist. There isn't a great way to do `DROP USER IF EXISTS readonly` in mysql 5.6.
+        }
+        try {
+            await connection.query("DROP USER binlogwatcher");
+        } catch (err) {
+            // Ditto.
+        }
+        await connection.query("DROP DATABASE rothschild");
     }
 
-    await connection.end();
+    await connection.query("CREATE DATABASE rothschild");
+
+    for (const file of await getSqlMigrationFiles()) {
+        try {
+            await connection.query(file.sql);
+        } catch (err) {
+            log.error(`Error processing migration file ${file.filename}:`, err.message);
+            throw err;
+        }
+    }
+}
+
+/**
+ * Cache the SQL to save time because we do this a lot.
+ */
+let truncateTablesSql: string = null;
+
+/**
+ * Truncate all data in all tables in the schema.  This is faster
+ * than running all migrations if we're sure the schema is correct
+ * (eg: 1:22 vs 2:40 on 721 tests)
+ */
+async function truncateTables(connection: any): Promise<void> {
+    if (!truncateTablesSql) {
+        const [tables] = await connection.query("SELECT table_name as tableName\n" +
+            "FROM   information_schema.tables\n" +
+            "WHERE  table_type   = 'BASE TABLE'\n" +
+            "  AND  table_schema  = ?;", ["rothschild"]);
+
+        // Manually gluing together SQL is dangerous and we never do it in production.
+        truncateTablesSql = "SET FOREIGN_KEY_CHECKS=0; ";
+        for (const row of tables) {
+            truncateTablesSql += `TRUNCATE rothschild.\`${row.tableName}\`; `;
+        }
+        truncateTablesSql += "SET FOREIGN_KEY_CHECKS=1;";
+    }
+
+    await connection.query(truncateTablesSql);
 }
 
 /**
@@ -176,80 +192,12 @@ async function getSqlMigrationFiles(): Promise<{ filename: string, sql: string }
     return sqlMigrationFiles;
 }
 
-export interface ParsedProxyResponse<T> {
-    statusCode: number;
-    headers: {
-        [key: string]: string;
-    };
-    body: T;
-}
-
-/**
- * Make a simple authed request to the router with the default test user.
- */
-export async function testAuthedRequest<T>(router: cassava.Router, url: string, method: string, body?: any): Promise<ParsedProxyResponse<T>> {
-    const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent(url, method, {
-        headers: {
-            Authorization: `Bearer ${defaultTestUser.jwt}`
-        },
-        body: body && JSON.stringify(body) || undefined
-    }));
-
-    chai.assert.equal(resp.headers["Content-Type"], "application/json");
-
-    return {
-        statusCode: resp.statusCode,
-        headers: resp.headers,
-        body: resp.body && JSON.parse(resp.body) || undefined
-    };
-}
-
-export interface ParsedCsvProxyResponse<T> {
-    statusCode: number;
-    headers: {
-        [key: string]: string;
-    };
-    body: T[];
-}
-
-/**
- * Make a simple authed request for CSV to the router with the default test user.
- */
-export async function testAuthedCsvRequest<T>(router: cassava.Router, url: string, method: string, body?: any): Promise<ParsedCsvProxyResponse<T>> {
-    const resp = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent(url, method, {
-        headers: {
-            Authorization: `Bearer ${defaultTestUser.jwt}`,
-            Accept: "text/csv"
-        },
-        body: body && JSON.stringify(body) || undefined
-    }));
-    resp.body = resp.body.substr(1); // clear universal bom from tests.
-
-    const parseRes = papaparse.parse(resp.body, {
-        dynamicTyping: true,
-        header: true,
-        delimiter: ","
-    });
-    chai.assert.equal(resp.headers["Content-Type"], "text/csv");
-    chai.assert.deepEqual(parseRes.errors, [], "csv parsing 0 errors");
-
-    return {
-        statusCode: resp.statusCode,
-        headers: resp.headers,
-        body: parseRes.data
-    };
-}
-
-export function generateId(length?: number): string {
-    return (uuid.v4() + uuid.v4()).substring(0, length != null ? length : 20);
-}
-
-export function generateFullcode(length?: number) {
+export function generateFullcode(length?: number): string {
     return (uuid.v4() + uuid.v4()).replace("-", "").toUpperCase().substring(0, length != null ? length : 10);
 }
 
-export async function setCodeCryptographySecrets() {
-    return await initializeCodeCryptographySecrets(Promise.resolve({
+export function setCodeCryptographySecrets(): void {
+    initializeCodeCryptographySecrets(Promise.resolve({
         encryptionSecret: "ca7589aef4ffed15783341414fe2f4a5edf9ddad75cf2e96ed2a16aee88673ea",
         lookupHashSecret: "ae8645165cc7533dbcc84aeb21c7d6553a38271b7e3402f99d16b8a8717847e1"
     }));
@@ -288,7 +236,7 @@ export async function createUSDValue(router: cassava.Router, valueProps?: Partia
 export async function createUSDCheckout(router: cassava.Router, checkoutProps?: Partial<CheckoutRequest>, chargeStripe: boolean = true): Promise<{ checkout: Transaction, valuesCharged: Value[] }> {
     await createUSD(router);
 
-    let baseCheckoutProps: Partial<CheckoutRequest> = {
+    const baseCheckoutProps: Partial<CheckoutRequest> = {
         id: generateId(),
         currency: "USD",
         lineItems: [{

@@ -8,7 +8,8 @@ import {Value} from "../../../../model/Value";
 import {Transaction} from "../../../../model/Transaction";
 import {ReverseRequest} from "../../../../model/TransactionRequest";
 import {Contact} from "../../../../model/Contact";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
@@ -20,14 +21,16 @@ describe("/v2/transactions/reverse - attach", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
 
         const currency = await createCurrency(testUtils.defaultTestUser.auth, {
             code: "USD",
             name: "US Dollars",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
         chai.assert.equal(currency.code, "USD");
     });
@@ -95,7 +98,7 @@ describe("/v2/transactions/reverse - attach", () => {
                 "createdBy": "default-test-user-TEST"
             } as Transaction, ["createdDate"]
         );
-        chai.assert.deepEqualExcluding(simulate.body, postReverse.body, "simulated", "createdDate");
+        chai.assert.deepEqualExcluding(simulate.body, postReverse.body, ["simulated", "createdDate"]);
         chai.assert.isTrue(simulate.body.simulated);
 
         // check value is same as before

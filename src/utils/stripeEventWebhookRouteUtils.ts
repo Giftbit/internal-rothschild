@@ -1,21 +1,22 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {getKnexRead, getKnexWrite} from "./dbUtils/connection";
 import {DbValue, Value} from "../model/Value";
-import {DbTransaction, LightrailTransactionStep, Transaction} from "../model/Transaction";
+import {DbTransaction, Transaction} from "../model/Transaction";
 import {QueryBuilder} from "knex";
+import {LightrailTransactionStep} from "../model/TransactionStep";
 import log = require("loglevel");
 import Stripe = require("stripe");
 
 export async function freezeLightrailSources(auth: giftbitRoutes.jwtauth.AuthorizationBadge, event: Stripe.events.IEvent & { account: string }, stripeCharge: Stripe.charges.ICharge, fraudulentTransaction: Transaction, reverseOrVoidTransaction?: Transaction): Promise<void> {
     // Get list of all Values used in the Transaction and all Values attached to Contacts used in the Transaction
-    const lightrailSteps = <LightrailTransactionStep[]>fraudulentTransaction.steps.filter(step => step.rail === "lightrail");
+    const lightrailSteps = fraudulentTransaction.steps.filter(step => step.rail === "lightrail") as LightrailTransactionStep[];
 
     if (lightrailSteps.length === 0) {
         log.info(`No Lightrail sources were charged in Transaction '${fraudulentTransaction.id}': no Values to freeze.`);
         return;
     }
 
-    let chargedValueIds: string[] = lightrailSteps.map(step => step.valueId);
+    const chargedValueIds: string[] = lightrailSteps.map(step => step.valueId);
     const chargedContactIds: string[] = fraudulentTransaction.paymentSources.filter(src => src.rail === "lightrail" && src.contactId).map(src => (src as LightrailTransactionStep).contactId);
 
     log.info(`Freezing charged Values: '${chargedValueIds}' and all Values attached to charged Contacts: '${chargedContactIds}'`);
@@ -57,7 +58,7 @@ async function freezeValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valu
         }
         const uniqueValuesToFreeze: Value[] = await Promise.all(uniqueDbValues.map(async dbValue => await DbValue.toValue(dbValue)));
 
-        const queries: QueryBuilder[] = [];
+        const queries: QueryBuilder<any, number>[] = [];
         for (const value of uniqueValuesToFreeze) {
             const perValueQuery = knex("Values")
                 .where({

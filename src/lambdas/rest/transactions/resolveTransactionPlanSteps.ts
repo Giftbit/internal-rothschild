@@ -16,16 +16,15 @@ import {DbValue, Value} from "../../../model/Value";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {computeCodeLookupHash} from "../../../utils/codeCryptoUtils";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
-import * as knex from "knex";
 import {getContact} from "../contacts";
 import {getStripeMinCharge} from "../../../utils/stripeUtils/getStripeMinCharge";
+import {trimCodeIfPresent} from "../values/values";
+import {isSystemId} from "../../../utils/isSystemId";
 
 /**
  * Options to resolving transaction parties.
  */
 export interface ResolveTransactionPartiesOptions {
-    parties: TransactionParty[];
-
     /**
      * The currency of the transaction.
      * NOTE: when we do currency conversion transactions this will have
@@ -40,7 +39,7 @@ export interface ResolveTransactionPartiesOptions {
 
     /**
      * What to do about Lightrail Values that can not be transacted against
-     * (because they are canceled, frozen, etc...).
+     * (because they are canceled, frozen, inactive, unstarted, ended, wrong currency).
      * - error: throw a 409 GiftbitRestError
      * - exclude: remove them from the results
      * - include: accept them in the results
@@ -58,13 +57,12 @@ export interface ResolveTransactionPartiesOptions {
     includeZeroBalance: boolean;
 }
 
-export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions): Promise<TransactionPlanStep[]> {
-    const fetchedValues = await getLightrailValues(auth, options);
+export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[], options: ResolveTransactionPartiesOptions): Promise<TransactionPlanStep[]> {
+    const fetchedValues = await getLightrailValuesForTransactionPlanSteps(auth, parties, options);
     return getTransactionPlanStepsFromSources(
-        options.transactionId,
-        options.currency,
         fetchedValues,
-        options.parties.filter(party => party.rail !== "lightrail") as (StripeTransactionParty | InternalTransactionParty)[]
+        parties.filter(party => party.rail !== "lightrail") as (StripeTransactionParty | InternalTransactionParty)[],
+        options
     );
 }
 
@@ -72,14 +70,16 @@ export async function resolveTransactionPlanSteps(auth: giftbitRoutes.jwtauth.Au
  * Translates Values loaded from the database and non Lightrail sources into TransactionPlanSteps.
  * Used when the Values have already been loaded from the DB.
  */
-export function getTransactionPlanStepsFromSources(transactionId: string, currency: string, lightrailSources: Value[], nonLightrailSources: (StripeTransactionParty | InternalTransactionParty)[]): TransactionPlanStep[] {
+export function getTransactionPlanStepsFromSources(lightrailSources: Value[], nonLightrailSources: (StripeTransactionParty | InternalTransactionParty)[], options: ResolveTransactionPartiesOptions): TransactionPlanStep[] {
     const lightrailSteps = lightrailSources
         .map((v): LightrailTransactionPlanStep => ({
             rail: "lightrail",
             value: v,
             amount: 0,
             uses: null,
-            action: "update"
+            action: "update",
+            allowCanceled: options.nonTransactableHandling === "include",
+            allowFrozen: options.nonTransactableHandling === "include"
         }));
 
     const internalSteps = nonLightrailSources
@@ -99,11 +99,11 @@ export function getTransactionPlanStepsFromSources(transactionId: string, curren
         .map((p: StripeTransactionParty, index): StripeTransactionPlanStep => ({
             rail: "stripe",
             type: "charge",
-            idempotentStepId: `${transactionId}-${index}`,
+            stepIdempotencyKey: `${options.transactionId}-${index}`,
             source: p.source || null,
             customer: p.customer || null,
             maxAmount: p.maxAmount || null,
-            minAmount: p.minAmount != null ? p.minAmount : getStripeMinCharge(currency),
+            minAmount: p.minAmount != null ? p.minAmount : getStripeMinCharge(options.currency),
             forgiveSubMinAmount: !!p.forgiveSubMinAmount,
             additionalStripeParams: p.additionalStripeParams || null,
             amount: 0
@@ -112,16 +112,17 @@ export function getTransactionPlanStepsFromSources(transactionId: string, curren
     return [...lightrailSteps, ...internalSteps, ...stripeSteps];
 }
 
-export async function getLightrailValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, options: ResolveTransactionPartiesOptions): Promise<Value[]> {
-    const valueIds = options.parties.filter(p => p.rail === "lightrail" && p.valueId)
+export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[], options: ResolveTransactionPartiesOptions): Promise<Value[]> {
+    const valueIds = parties.filter(p => p.rail === "lightrail" && p.valueId && isSystemId(p.valueId))
         .map(p => (p as LightrailTransactionParty).valueId);
 
-    const hashedCodesPromises = options.parties.filter(p => p.rail === "lightrail" && p.code)
-        .map(p => (p as LightrailTransactionParty).code)
+    const hashedCodesPromises = parties.filter(p => p.rail === "lightrail" && p.code)
+        .map(p => trimCodeIfPresent(p as LightrailTransactionParty))
+        .map(p => p.code)
         .map(code => computeCodeLookupHash(code, auth));
     const hashedCodes = await Promise.all(hashedCodesPromises);
 
-    const contactIds = options.parties.filter(p => p.rail === "lightrail" && p.contactId)
+    const contactIds = parties.filter(p => p.rail === "lightrail" && p.contactId && isSystemId(p.contactId))
         .map(p => (p as LightrailTransactionParty).contactId);
 
     if (!valueIds.length && !hashedCodes.length && !contactIds.length) {
@@ -130,30 +131,51 @@ export async function getLightrailValues(auth: giftbitRoutes.jwtauth.Authorizati
 
     const knex = await getKnexRead();
     const now = nowInDbPrecision();
-    let query: knex.QueryBuilder = knex("Values")
-        .select("Values.*")
-        .where("Values.userId", "=", auth.userId);
-    if (contactIds.length) {
-        query = query.leftJoin(knex.raw("(SELECT * FROM ContactValues WHERE userId = ? AND contactId in (?)) as ContactValuesTemp", [auth.userId, contactIds]), {
-            "Values.id": "ContactValuesTemp.valueId",
-            "Values.userId": "ContactValuesTemp.userId"
-        }); // The temporary table only joins to ContactValues that have a contactId in contactIds. If a generic code is transacted against directly via code/valueId, a ContactValue that it is attached to is not joined to.
-        query = query.groupBy("Values.id"); // Without groupBy, will return duplicate generic code if two contactId's are supplied as sources and both contact's have attached the generic code.
-        query = query.select(knex.raw("IFNULL(ContactValuesTemp.contactId, Values.contactId) as contactId")); // If step was looked up via ContactId then need to sure the contactId persists to the Step for tracking purposes.
-    }
-    query = query.where(q => {
-        if (valueIds.length) {
-            q = q.whereIn("Values.id", valueIds);
-        }
-        if (hashedCodes.length) {
-            q = q.orWhereIn("codeHashed", hashedCodes);
-        }
+
+    /**
+     * Note on query structure: The Values table has a composite index for each of userId+ID, userId+code, userId+contactId
+     *  so it's more efficient to use those in a set of UNION subqueries to build up the FROM clause, than it was to use
+     *  'OR WHERE code = ? OR WHERE contactId = ?' ...etc, which resulted in a full table scan.
+     */
+    let query = knex.select("*").from(queryBuilder => {
         if (contactIds.length) {
-            q = q.orWhereIn("Values.contactId", contactIds)
-                .orWhereIn("ContactValuesTemp.contactId", contactIds);
+            queryBuilder.union(
+                knex.select("V.*", "CV.contactId AS contactIdForResult") // contactId returned in an extra column so it can be tracked for shared generics looked up by contactId
+                    .from("Values AS V")
+                    .join("ContactValues AS CV", {"V.userId": "CV.userId", "V.id": "CV.valueId"})
+                    .where({"CV.userId": auth.userId})
+                    .andWhere("CV.contactId", "in", contactIds)
+            );
+
+            queryBuilder.union(
+                knex.select("*", "contactId as contactIdForResult")
+                    .from("Values")
+                    .where({"userId": auth.userId})
+                    .andWhere("contactId", "in", contactIds)
+            );
         }
-        return q;
+
+        if (hashedCodes.length) {
+            queryBuilder.union(
+                knex.select("*", "contactId as contactIdForResult")
+                    .from("Values")
+                    .where({"userId": auth.userId})
+                    .andWhere("codeHashed", "in", hashedCodes)
+            );
+        }
+
+        if (valueIds.length) {
+            queryBuilder.union(
+                knex.select("*", "contactId as contactIdForResult")
+                    .from("Values")
+                    .where({"userId": auth.userId})
+                    .andWhere("id", "in", valueIds)
+            );
+        }
+
+        queryBuilder.as("TT");
     });
+
     if (options.nonTransactableHandling === "exclude") {
         query = query
             .where({
@@ -172,8 +194,9 @@ export async function getLightrailValues(auth: giftbitRoutes.jwtauth.Authorizati
         query = query.where(q => q.whereNull("balance").orWhere("balance", ">", 0));
     }
 
-    const dbValues: DbValue[] = await query;
-    const values = await Promise.all(dbValues.map(value => DbValue.toValue(value)));
+    const dbValues: (DbValue & { contactIdForResult: string | null })[] = await query;
+    const dedupedDbValues = consolidateValueQueryResults(dbValues);
+    const values = await Promise.all(dedupedDbValues.map(value => DbValue.toValue(value)));
 
     if (options.nonTransactableHandling === "error") {
         // Throw an error if we have any Values that *would* have been filtered out
@@ -207,7 +230,7 @@ export async function getLightrailValues(auth: giftbitRoutes.jwtauth.Authorizati
     return values;
 }
 
-export function filterForUsedAttaches(attachTransactionPlans: TransactionPlan[], transactionPlan: TransactionPlan) {
+export function filterForUsedAttaches(attachTransactionPlans: TransactionPlan[], transactionPlan: TransactionPlan): TransactionPlan[] {
     const attachTransactionsToPersist: TransactionPlan[] = [];
     for (const attach of attachTransactionPlans) {
         const newAttachedValue: LightrailTransactionPlanStep = attach.steps.find(s => (s as LightrailTransactionPlanStep).action === "insert") as LightrailTransactionPlanStep;
@@ -229,4 +252,20 @@ export async function getContactIdFromSources(auth: giftbitRoutes.jwtauth.Author
     } else {
         return null;
     }
+}
+
+function consolidateValueQueryResults(values: (DbValue & { contactIdForResult: string | null })[]): DbValue[] {
+    return values
+        .map((v) => ({
+            ...v,
+            contactId: v.contactId || v.contactIdForResult // Persist the contactId to the value record if it was looked up via the ContactValues table
+        }))
+        .filter((v, index, dbValues) => {
+            if (v.contactId) {
+                const firstValue = dbValues.find(firstValue => firstValue.id === v.id && firstValue.contactId === v.contactId);
+                return dbValues.indexOf(firstValue) === index; // unique attached values can only be used once per transaction but might have been included twice in the payment sources (eg by code and also by contactId)
+            } else {
+                return !dbValues.find(otherValue => otherValue.id === v.id && otherValue.contactId); // generic codes can be used by two different contacts in the same transaction, but not by a contact and also anonymously: skip anonymous usage if this value is also attached
+            }
+        });
 }

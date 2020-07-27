@@ -8,6 +8,9 @@ export interface Currency {
     name: string;
     symbol: string;
     decimalPlaces: number;
+    createdDate: Date;
+    updatedDate: Date;
+    createdBy: string;
 }
 
 export namespace Currency {
@@ -17,7 +20,10 @@ export namespace Currency {
             code: c.code,
             name: c.name,
             symbol: c.symbol,
-            decimalPlaces: c.decimalPlaces
+            decimalPlaces: c.decimalPlaces,
+            createdDate: c.createdDate,
+            updatedDate: c.updatedDate,
+            createdBy: c.createdBy
         };
     }
 
@@ -32,6 +38,9 @@ export interface DbCurrency {
     name: string;
     symbol: string;
     decimalPlaces: number;
+    createdDate: Date;
+    updatedDate: Date;
+    createdBy: string;
 }
 
 export namespace DbCurrency {
@@ -40,12 +49,15 @@ export namespace DbCurrency {
             code: c.code,
             name: c.name,
             symbol: c.symbol,
-            decimalPlaces: c.decimalPlaces
+            decimalPlaces: c.decimalPlaces,
+            createdDate: c.createdDate,
+            updatedDate: c.updatedDate,
+            createdBy: c.createdBy
         };
     }
 }
 
-export function formatAmountForCurrencyDisplay(amountInSmallestUnits: number, c: Currency) {
+export function formatAmountForCurrencyDisplay(amountInSmallestUnits: number, c: Currency): string {
     const converted = amountInSmallestUnits / (Math.pow(10, c.decimalPlaces));
     return c.symbol + converted.toFixed(c.decimalPlaces);
 }
@@ -72,7 +84,7 @@ export async function formatObjectsAmountPropertiesForCurrencyDisplay(auth: gift
 
         let objectClone = JSON.parse(JSON.stringify(object));
         for (const path of pathsToAmountProperties) {
-            let valueAtPath = mapUtils.get(object, path);
+            const valueAtPath = mapUtils.get(object, path);
             if (valueAtPath != null) {
                 objectClone = mapUtils.set(objectClone, path, formatAmountForCurrencyDisplay(valueAtPath, retrievedCurrencies[currency]));
             }

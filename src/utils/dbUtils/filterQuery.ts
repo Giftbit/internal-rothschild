@@ -28,6 +28,14 @@ export interface FilterQueryProperty {
     operators?: FilterQueryOperator[];
 
     /**
+     * Filters the value passed in through the query param.  Values filtered
+     * out are taken to have 0 results.  If that implies the filter could never
+     * return any results then an empty result set is immediately returned.
+     * This filter is applied before the `valueMap`.
+     */
+    valueFilter?: (value: string) => boolean;
+
+    /**
      * Maps the value passed in through the query param to a value that will
      * be used in the SQL query.  The type of the value passed in will match the
      * `type` property of this object.  The type of the value returned by
@@ -36,7 +44,32 @@ export interface FilterQueryProperty {
     valueMap?: (value: any) => number | string | boolean | Date | Promise<number | string | boolean | Date>;
 }
 
-export type FilterQueryOperator = "lt" | "lte" | "gt" | "gte" | "eq" | "ne" | "in" | "like";
+export type FilterQueryOperator = "lt" | "lte" | "gt" | "gte" | "eq" | "ne" | "in" | "like" | "isNull" | "orNull";
+
+type FilterValueType = number | string | boolean | Date;
+
+type Filter = SingleValueFilter | ArrayValueFilter;
+
+interface BasicFilterProps {
+    property: FilterQueryProperty;
+    filterKey: string;
+}
+
+/**
+ * The Value is singular. Ie `property.op=value`.
+ */
+interface SingleValueFilter extends BasicFilterProps {
+    value: FilterValueType;
+    op: "lt" | "lte" | "gt" | "gte" | "eq" | "ne" | "like" | "isNull" | "orNull";
+}
+
+/**
+ * The Value is an array. Ie `property.in=value1,value2`.
+ */
+interface ArrayValueFilter extends BasicFilterProps {
+    value: FilterValueType[];
+    op: "in";
+}
 
 /**
  * Add where clauses to filter the given SQL query.
@@ -46,11 +79,26 @@ export type FilterQueryOperator = "lt" | "lte" | "gt" | "gte" | "eq" | "ne" | "i
  * @returns The filtered SQL query in a tuple.
  */
 export async function filterQuery(query: knex.QueryBuilder, filterParams: { [key: string]: string }, options: FilterQueryOptions): Promise<[knex.QueryBuilder]> {
+    const filters = await parseFilters(filterParams, options);
+
+    if (filters === null) {
+        return [query.whereRaw("0 = 1")];
+    }
+
+    query = addFiltersToQuery(query, filters.filter(f => f.op !== "orNull"), filters.filter(f => f.op === "orNull"), options);
+
+    // We have to return the query in an array (or object or something) because the query is
+    // itself awaitable so awaiting this function would execute the query.
+    return [query];
+}
+
+async function parseFilters(filterParams: { [key: string]: string }, options: FilterQueryOptions): Promise<Filter[] | null> {
+    const filters: Filter[] = [];
     for (const queryKey of Object.keys(filterParams)) {
         const {filterKey, op} = splitFilterKeyAndOp(queryKey);
-        const filterValue = filterParams[queryKey];
+        let filterValue = filterParams[queryKey];
 
-        if (!options.properties.hasOwnProperty(filterKey)) {
+        if (options.properties[filterKey] == null) {
             // Not a filterable property.
             continue;
         }
@@ -60,23 +108,54 @@ export async function filterQuery(query: knex.QueryBuilder, filterParams: { [key
             throw new giftbitRoutes.GiftbitRestError(400, `Query filter key '${filterKey}' does not support operator '${op}'.`);
         }
 
-        [query] = await addFilterToQuery(
-            query,
-            property,
-            filterKey,
-            op,
-            filterValue,
-            options
-        );
-    }
+        if (property.valueFilter) {
+            if (op === "in") {
+                filterValue = filterValue.split(",").filter(property.valueFilter).join(",");
+                if (filterValue === "") {
+                    return null;
+                }
+            } else {
+                filterValue = property.valueFilter(filterValue) ? filterValue : null;
+                if (filterValue == null) {
+                    return null;
+                }
+            }
+        }
 
-    // We have to return the query in an array (or object or something) because the query is
-    // itself awaitable so awaiting this function would execute the query.
-    return [query];
+        const filter: Filter = {
+            property: property,
+            filterKey: filterKey,
+            op: op,
+            value: op !== "in" ? await convertValue(property, filterValue, op) :
+                await Promise.all(filterValue.split(",").map(v => convertValue(property, v, op)))
+        } as Filter;
+        filters.push(filter);
+    }
+    return filters;
+}
+
+function addFiltersToQuery(query: knex.QueryBuilder, filters: Filter[], orNullFilters: Filter[], options: FilterQueryOptions): knex.QueryBuilder {
+    for (const filter of filters) {
+        const orNullFilter = orNullFilters.find(orNullFilter => orNullFilter.filterKey === filter.filterKey);
+        if (orNullFilter) {
+            query.where(q => {
+                q = addFilterToQuery(q, filter, options);
+                q = addFilterToQuery(q, orNullFilter, options);
+                return q;
+            });
+        } else {
+            query = addFilterToQuery(
+                query,
+                filter,
+                options
+            );
+        }
+    }
+    return query;
 }
 
 function splitFilterKeyAndOp(filterKey: string): { filterKey: string, op: string } {
-    let op: string = "eq";
+    let op = "eq";
     if (filterKey.indexOf(".") !== -1) {
         const keyAndOp = filterKey.split(".", 2);
         filterKey = keyAndOp[0];
@@ -91,65 +170,89 @@ function filterQueryPropertyAllowsOperator(prop: FilterQueryProperty, op: string
     }
     switch (prop.type) {
         case "boolean":
-            return ["eq", "ne"].indexOf(op) !== -1;
+            return ["eq", "ne", "isNull", "orNull"].indexOf(op) !== -1;
         case "number":
         case "Date":
-            return ["lt", "lte", "gt", "gte", "eq", "ne"].indexOf(op) !== -1;
+            return ["lt", "lte", "gt", "gte", "eq", "ne", "isNull", "orNull"].indexOf(op) !== -1;
         case "string":
-            return ["lt", "lte", "gt", "gte", "eq", "ne", "like"].indexOf(op) !== -1;
+            return ["lt", "lte", "gt", "gte", "eq", "ne", "like", "isNull", "orNull"].indexOf(op) !== -1;
     }
     return false;
 }
 
-async function addFilterToQuery(query: knex.QueryBuilder, prop: FilterQueryProperty, key: string, op: FilterQueryOperator, value: string, options: FilterQueryOptions): Promise<[knex.QueryBuilder]> {
-    let columnIdentifier = key;
-    if (prop.columnName) {
-        columnIdentifier = prop.columnName;
+function addFilterToQuery(query: knex.QueryBuilder, filter: Filter, options: FilterQueryOptions): knex.QueryBuilder {
+    let columnIdentifier = filter.filterKey;
+    if (filter.property.columnName) {
+        columnIdentifier = filter.property.columnName;
     }
     if (options.tableName) {
         columnIdentifier = options.tableName + "." + columnIdentifier;
     }
 
-    switch (op) {
+    switch (filter.op) {
         case "lt":
-            return [query.where(columnIdentifier, "<", await convertValue(prop, value))];
+            return query.where(columnIdentifier, "<", filter.value);
         case "lte":
-            return [query.where(columnIdentifier, "<=", await convertValue(prop, value))];
+            return query.where(columnIdentifier, "<=", filter.value);
         case "gt":
-            return [query.where(columnIdentifier, ">", await convertValue(prop, value))];
+            return query.where(columnIdentifier, ">", filter.value);
         case "gte":
-            return [query.where(columnIdentifier, ">=", await convertValue(prop, value))];
+            return query.where(columnIdentifier, ">=", filter.value);
         case "eq":
-            return [query.where(columnIdentifier, "=", await convertValue(prop, value))];
+            return query.where(columnIdentifier, "=", filter.value);
         case "ne":
-            return [query.where(columnIdentifier, "!=", await convertValue(prop, value))];
+            return query.where(columnIdentifier, "!=", filter.value);
         case "in":
-            return [query.whereIn(columnIdentifier, await Promise.all(value.split(",").map(v => convertValue(prop, v))))];
+            return query.whereIn(columnIdentifier, filter.value);
         case "like":
-            return [query.where(columnIdentifier, "LIKE", await convertValue(prop, value))];
+            return query.where(columnIdentifier, "LIKE", filter.value);
+        case "isNull":
+            if (filter.value) {
+                return query.whereNull(columnIdentifier);
+            } else {
+                return query.whereNotNull(columnIdentifier);
+            }
+        case "orNull":
+            if (filter.value) {
+                query.orWhereNull(columnIdentifier);
+            } else {
+                query.orWhereNotNull(columnIdentifier);
+            }
     }
 }
 
-async function convertValue(prop: FilterQueryProperty, value: string): Promise<number | string | boolean | Date> {
+async function convertValue(prop: FilterQueryProperty, value: string, operator: FilterQueryOperator): Promise<number | string | boolean | Date> {
+    if (operator === "orNull" || operator === "isNull") {
+        switch (value) {
+            case "true":
+                return true;
+            case "false":
+                return false;
+            default:
+                throw new giftbitRoutes.GiftbitRestError(422, `Query filter '${value}' is not allowed on ${operator} operator. Allowed values [true, false].`);
+        }
+    }
     let result: number | string | boolean | Date;
     switch (prop.type) {
-        case "number":
+        case "number": {
             const numValue = +value;
             if (isNaN(numValue)) {
                 throw new giftbitRoutes.GiftbitRestError(400, `Query filter value '${value}' could not be parsed as a number.`);
             }
             result = numValue;
             break;
+        }
         case "boolean":
             result = value.toLowerCase() === "true";
             break;
-        case "Date":
+        case "Date": {
             const dateValue = new Date(value);
             if (isNaN(dateValue.getTime())) {
                 throw new giftbitRoutes.GiftbitRestError(400, `Query filter value '${value}' could not be parsed as an ISO Date.`);
             }
             result = dateValue;
             break;
+        }
         case "string":
         default:
             result = value;

@@ -8,7 +8,8 @@ import * as currencies from "../currencies";
 import {installRestRoutes} from "../installRestRoutes";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {CreditRequest} from "../../../model/TransactionRequest";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
@@ -20,14 +21,16 @@ describe("/v2/transactions/credit", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
 
         await currencies.createCurrency(defaultTestUser.auth, {
             code: "CAD",
             name: "Canadian bucks",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
     });
 
@@ -601,6 +604,51 @@ describe("/v2/transactions/credit", () => {
         chai.assert.equal(resp.body.messageCode, "ValueEnded");
     });
 
+    it("409s crediting a Value to a balance greater than the max int", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balance: 0x7FFFFFFF
+        };
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
+            id: generateId(),
+            destination: {
+                rail: "lightrail",
+                valueId: value.id
+            },
+            amount: 0x7FFFFFFF,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.messageCode, "ValueBalanceTooLarge");
+    });
+
+    it("409s crediting a Value to a usesRemaining greater than the max int", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "CAD",
+            balance: 2000,
+            usesRemaining: 0x7ffffff
+        };
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
+            id: generateId(),
+            destination: {
+                rail: "lightrail",
+                valueId: value.id
+            },
+            uses: 0x7FFFFFFF,
+            currency: "CAD"
+        });
+        chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.messageCode, "ValueUsesRemainingTooLarge");
+    });
+
     it("409s crediting a value that does not exist", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
             id: "credit-4",
@@ -613,6 +661,32 @@ describe("/v2/transactions/credit", () => {
         });
         chai.assert.equal(resp.statusCode, 409, `body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.messageCode, "InvalidParty");
+    });
+
+    it("422s crediting a negative amount", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
+            id: generateId(),
+            destination: {
+                rail: "lightrail",
+                valueId: "idontexist"
+            },
+            amount: -1500,
+            currency: "USD"
+        });
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("422s crediting a huge amount", async () => {
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/transactions/credit", "POST", {
+            id: generateId(),
+            destination: {
+                rail: "lightrail",
+                valueId: "idontexist"
+            },
+            amount: 999999999999,
+            currency: "USD"
+        });
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 
     it("422s crediting without a transactionId", async () => {

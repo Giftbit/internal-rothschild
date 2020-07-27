@@ -7,7 +7,8 @@ import {createCurrency} from "../../currencies";
 import {installRestRoutes} from "../../installRestRoutes";
 import {Value} from "../../../../model/Value";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
@@ -23,7 +24,10 @@ describe("/v2/transactions/checkout - internal sources", () => {
             code: "CAD",
             name: "Canadian Tire Money",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
     });
 

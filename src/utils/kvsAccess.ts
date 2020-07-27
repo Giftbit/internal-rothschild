@@ -1,15 +1,16 @@
-// Function definitions copied from internal-turnkey. Added to exports to facilitate testing.
-
 import * as superagent from "superagent";
-
-const timeoutMs = 15000;
 
 export async function kvsDelete(token: string, key: string): Promise<void> {
     try {
-        await superagent.delete(`https://${process.env["LIGHTRAIL_DOMAIN"]}/v1/storage/${key}`)
+        await superagent.delete(`https://${getLightrailDomain()}/v1/storage/${key}`)
             .set("Authorization", `Bearer ${token}`)
             .set("Content-Type", "application/json")
-            .timeout(timeoutMs);
+            .timeout({
+                // When things are healthy our P99 latency is between 0.5 and 1.5 seconds.
+                response: 3000,
+                deadline: 6000
+            })
+            .retry(5);  // Delete is idempotent so retry is ok.
     } catch (err) {
         if (err.timeout) {
             err.message = `Timeout on KVS delete: ${err.message}`;
@@ -20,10 +21,15 @@ export async function kvsDelete(token: string, key: string): Promise<void> {
 
 export async function kvsGet(token: string, key: string, authorizeAs?: string): Promise<any> {
     try {
-        let request = superagent.get(`https://${process.env["LIGHTRAIL_DOMAIN"]}/v1/storage/${key}`)
+        const request = superagent.get(`https://${getLightrailDomain()}/v1/storage/${key}`)
             .set("Authorization", `Bearer ${token}`)
             .ok(r => r.ok || r.status === 404)
-            .timeout(timeoutMs);
+            .timeout({
+                // When things are healthy our P99 latency is between 0.5 and 1.5 seconds.
+                response: 3000,
+                deadline: 6000
+            })
+            .retry(5);
         if (authorizeAs) {
             request.set("AuthorizeAs", authorizeAs);
         }
@@ -42,15 +48,27 @@ export async function kvsGet(token: string, key: string, authorizeAs?: string): 
 
 export async function kvsPut(token: string, key: string, value: any): Promise<void> {
     try {
-        await superagent.put(`https://${process.env["LIGHTRAIL_DOMAIN"]}/v1/storage/${key}`)
+        await superagent.put(`https://${getLightrailDomain()}/v1/storage/${key}`)
             .set("Authorization", `Bearer ${token}`)
             .set("Content-Type", "application/json")
             .send(value)
-            .timeout(timeoutMs);
+            .timeout({
+                // When things are healthy our P99 latency is between 0.5 and 1.5 seconds.
+                response: 3000,
+                deadline: 6000
+            })
+            .retry(5);  // Put is idempotent so retry is ok.
     } catch (err) {
         if (err.timeout) {
             err.message = `Timeout on KVS put: ${err.message}`;
         }
         throw err;
     }
+}
+
+function getLightrailDomain(): string {
+    if (!process.env["LIGHTRAIL_DOMAIN"]) {
+        throw new Error("Env var LIGHTRAIL_DOMAIN undefined.");
+    }
+    return process.env["LIGHTRAIL_DOMAIN"];
 }

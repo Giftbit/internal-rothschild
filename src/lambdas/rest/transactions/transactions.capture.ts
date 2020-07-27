@@ -1,4 +1,5 @@
 import * as giftbitRoutes from "giftbit-cassava-routes";
+import {GiftbitRestError} from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import * as log from "loglevel";
 import * as Stripe from "stripe";
@@ -6,8 +7,8 @@ import {CaptureRequest} from "../../../model/TransactionRequest";
 import {StripeCaptureTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "./TransactionPlan";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {getDbTransaction} from "./transactions";
-import {GiftbitRestError} from "giftbit-cassava-routes";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
+import {getDbValuesByTransaction} from "../values/values";
 
 export async function createCaptureTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CaptureRequest, transactionIdToCapture: string): Promise<TransactionPlan> {
     log.info(`Creating capture transaction plan for user: ${auth.userId} and capture request:`, req);
@@ -37,7 +38,13 @@ export async function createCaptureTransactionPlan(auth: giftbitRoutes.jwtauth.A
         throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot capture Transaction that passed the pendingVoidDate.  It is in the process of being automatically voided.`, "TransactionVoiding");
     }
 
-    const transactionToCapture: Transaction = (await DbTransaction.toTransactions([dbTransactionToCapture], auth.userId))[0];
+    const transactionToCapture: Transaction = (await DbTransaction.toTransactionsUsingDb([dbTransactionToCapture], auth.userId))[0];
+
+    const values = await getDbValuesByTransaction(auth, transactionToCapture);
+    const frozenValue = values.find(value => value.frozen);
+    if (frozenValue) {
+        throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot capture Transaction because value '${frozenValue.id}' is frozen.`, "ValueFrozen");
+    }
 
     return {
         id: req.id,
@@ -64,7 +71,6 @@ function getCaptureTransactionPlanSteps(captureTransactionId: string, transactio
                     const stripeCapturePlanStep: StripeCaptureTransactionPlanStep = {
                         rail: "stripe",
                         type: "capture",
-                        idempotentStepId: `${captureTransactionId}-${stepIx}`,
                         chargeId: step.chargeId,
                         pendingAmount: step.amount,
                         amount: 0

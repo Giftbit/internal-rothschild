@@ -1,12 +1,12 @@
-import * as testUtils from "../../../utils/testUtils/index";
-import {generateId} from "../../../utils/testUtils/index";
 import * as cassava from "cassava";
 import * as chai from "chai";
+import * as testUtils from "../../../utils/testUtils/index";
+import {generateId} from "../../../utils/testUtils/index";
 import {installRestRoutes} from "../installRestRoutes";
 import {createCurrency} from "../currencies";
 import {Program} from "../../../model/Program";
 import {Value} from "../../../model/Value";
-import {dateInDbPrecision} from "../../../utils/dbUtils/index";
+import {dateInDbPrecision, nowInDbPrecision} from "../../../utils/dbUtils/index";
 
 describe("/v2/values create from program", () => {
 
@@ -20,19 +20,37 @@ describe("/v2/values create from program", () => {
             code: "USD",
             name: "US Dollars",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
         await createCurrency(testUtils.defaultTestUser.auth, {
             code: "CAD",
             name: "Canadian Dollars",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
     });
 
-    it("can't create a value with a programId that doesn't exist", async () => {
-        let value: Partial<Value> = {
+    it("can create a value with programId = null", async () => {
+        const value: Partial<Value> = {
             id: generateId(),
+            currency: "USD",
+            programId: null
+        };
+
+        const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(valueResp.statusCode, 201, JSON.stringify(valueResp.body));
+    });
+
+    it("can't create a value with a programId that doesn't exist", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
             programId: generateId()
         };
 
@@ -41,22 +59,22 @@ describe("/v2/values create from program", () => {
     });
 
     describe(`creating Values from Program with no balance constraints or value balanceRule`, () => {
-        let program: Partial<Program> = {
+        const program: Partial<Program> = {
             id: generateId(),
             name: "program with no balance constraints or balanceRule",
             currency: "USD"
         };
 
-        let programProperties = Object.keys(program);
+        const programProperties = Object.keys(program);
         it("can create Program", async () => {
             const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
             chai.assert.equal(programResp.statusCode, 201, JSON.stringify(programResp.body));
-            for (let prop of programProperties) {
+            for (const prop of programProperties) {
                 chai.assert.equal(programResp.body[prop], program[prop]);
             }
         });
 
-        let value: Partial<Value> = {
+        const value: Partial<Value> = {
             programId: program.id
         };
 
@@ -80,23 +98,23 @@ describe("/v2/values create from program", () => {
     });
 
     describe(`creating Values from Program with fixedInitialBalance constraints`, () => {
-        let program: Partial<Program> = {
+        const program: Partial<Program> = {
             id: generateId(),
             name: "program with fixedInitialBalance constraints",
             currency: "USD",
             fixedInitialBalances: [100, 200]
         };
 
-        let programProperties = Object.keys(program);
+        const programProperties = Object.keys(program);
         it("can create Program", async () => {
             const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
             chai.assert.equal(programResp.statusCode, 201, JSON.stringify(programResp.body));
-            for (let prop of programProperties) {
+            for (const prop of programProperties) {
                 chai.assert.equal(JSON.stringify(programResp.body[prop]), JSON.stringify(program[prop]));
             }
         });
 
-        let value: Partial<Value> = {
+        const value: Partial<Value> = {
             programId: program.id
         };
 
@@ -139,23 +157,23 @@ describe("/v2/values create from program", () => {
     });
 
     describe(`creating Values from Program with fixedInitialUses constraints`, () => {
-        let program: Partial<Program> = {
+        const program: Partial<Program> = {
             id: generateId(),
             name: "program with fixedInitialUses constraints",
             currency: "USD",
             fixedInitialUsesRemaining: [100, 200]
         };
 
-        let programProperties = Object.keys(program);
+        const programProperties = Object.keys(program);
         it("can create Program", async () => {
             const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
             chai.assert.equal(programResp.statusCode, 201, JSON.stringify(programResp.body));
-            for (let prop of programProperties) {
+            for (const prop of programProperties) {
                 chai.assert.equal(JSON.stringify(programResp.body[prop]), JSON.stringify(program[prop]));
             }
         });
 
-        let value: Partial<Value> = {
+        const value: Partial<Value> = {
             programId: program.id
         };
 
@@ -198,7 +216,7 @@ describe("/v2/values create from program", () => {
     });
 
     describe(`creating Values from Program with minInitialBalance and maxInitialBalance set`, () => {
-        let program: Partial<Program> = {
+        const program: Partial<Program> = {
             id: generateId(),
             name: "program with minInitialBalance and maxInitialBalance constraints",
             currency: "USD",
@@ -206,16 +224,16 @@ describe("/v2/values create from program", () => {
             maxInitialBalance: 200
         };
 
-        let programProperties = Object.keys(program);
+        const programProperties = Object.keys(program);
         it("can create Program", async () => {
             const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
             chai.assert.equal(programResp.statusCode, 201, JSON.stringify(programResp.body));
-            for (let prop of programProperties) {
+            for (const prop of programProperties) {
                 chai.assert.equal(JSON.stringify(programResp.body[prop]), JSON.stringify(program[prop]));
             }
         });
 
-        let value: Partial<Value> = {
+        const value: Partial<Value> = {
             programId: program.id
         };
 
@@ -225,7 +243,7 @@ describe("/v2/values create from program", () => {
                 id: generateId()
             });
             chai.assert.equal(valueResp.statusCode, 409, JSON.stringify(valueResp.body));
-            chai.assert.equal(valueResp.body.message, "Value's balance 0 is less than minInitialBalance 100.");
+            chai.assert.include(valueResp.body.message, "minInitialBalance");
         });
 
         it("can't create Value with balance < minInitialBalance", async () => {
@@ -235,7 +253,7 @@ describe("/v2/values create from program", () => {
                 id: generateId()
             });
             chai.assert.equal(valueResp.statusCode, 409, JSON.stringify(valueResp.body));
-            chai.assert.equal(valueResp.body.message, "Value's balance 1 is less than minInitialBalance 100.");
+            chai.assert.include(valueResp.body.message, "minInitialBalance");
         });
 
         it("can't create Value with balance > maxInitialBalance", async () => {
@@ -245,7 +263,7 @@ describe("/v2/values create from program", () => {
                 id: generateId()
             });
             chai.assert.equal(valueResp.statusCode, 409, JSON.stringify(valueResp.body));
-            chai.assert.equal(valueResp.body.message, "Value's balance 201 is greater than maxInitialBalance 200.");
+            chai.assert.include(valueResp.body.message, "maxInitialBalance");
         });
 
         it("can create Value with balance > minInitialBalance and balance < maxInitialBalance", async () => {
@@ -280,23 +298,23 @@ describe("/v2/values create from program", () => {
     });
 
     describe(`creating Values from Program with minInitialBalance=0`, () => {
-        let program: Partial<Program> = {
+        const program: Partial<Program> = {
             id: generateId(),
             name: "program with minInitialBalance and maxInitialBalance constraints",
             currency: "USD",
             minInitialBalance: 0
         };
 
-        let programProperties = Object.keys(program);
+        const programProperties = Object.keys(program);
         it("can create Program", async () => {
             const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
             chai.assert.equal(programResp.statusCode, 201, JSON.stringify(programResp.body));
-            for (let prop of programProperties) {
+            for (const prop of programProperties) {
                 chai.assert.equal(JSON.stringify(programResp.body[prop]), JSON.stringify(program[prop]));
             }
         });
 
-        let value: Partial<Value> = {
+        const value: Partial<Value> = {
             programId: program.id
         };
 
@@ -327,7 +345,7 @@ describe("/v2/values create from program", () => {
                 programId: program.id
             } as Partial<Value>);
             chai.assert.equal(valuePost_BalanceNull.statusCode, 409);
-            chai.assert.equal(valuePost_BalanceNull.body.message, "Value's balance null is less than minInitialBalance 0.");
+            chai.assert.include(valuePost_BalanceNull.body.message, "minInitialBalance");
         });
     });
 
@@ -402,12 +420,12 @@ describe("/v2/values create from program", () => {
                 programId: program.id
             } as Partial<Value>);
             chai.assert.equal(valuePost_BalanceNull.statusCode, 409);
-            chai.assert.equal(valuePost_BalanceNull.body.message, "Value's balance null is outside fixedInitialBalances defined by Program 0.");
+            chai.assert.include(valuePost_BalanceNull.body.message, "fixedInitialBalances");
         });
     });
 
     it("can't create a Program with minInitialBalance > maxInitialBalance", async () => {
-        let program: Partial<Program> = {
+        const program: Partial<Program> = {
             id: generateId(),
             name: "program with minInitialBalance and maxInitialBalance constraints",
             currency: "USD",
@@ -421,23 +439,23 @@ describe("/v2/values create from program", () => {
     });
 
     describe(`creating Values from Program with balanceRule set`, () => {
-        let program: Partial<Program> = {
+        const program: Partial<Program> = {
             id: generateId(),
             name: "program with balanceRule",
             currency: "USD",
             balanceRule: {rule: "500", explanation: "$5 the hard way"}
         };
 
-        let programProperties = Object.keys(program);
+        const programProperties = Object.keys(program);
         it("can create Program", async () => {
             const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
             chai.assert.equal(programResp.statusCode, 201, JSON.stringify(programResp.body));
-            for (let prop of programProperties) {
+            for (const prop of programProperties) {
                 chai.assert.equal(JSON.stringify(programResp.body[prop]), JSON.stringify(program[prop]));
             }
         });
 
-        let value: Partial<Value> = {
+        const value: Partial<Value> = {
             programId: program.id
         };
 
@@ -473,7 +491,7 @@ describe("/v2/values create from program", () => {
 
     describe(`create Values from complex Program`, () => {
         const now = new Date();
-        let program = {
+        const program = {
             id: generateId(),
             name: "program with fixedInitialBalance constraints",
             currency: "USD",
@@ -489,21 +507,18 @@ describe("/v2/values create from program", () => {
             metadata: {notes: "this is a program note"}
         };
 
-        let startDateDbPrecision, endDateDbPrecision;
-        let programProperties = Object.keys(program);
+        const programProperties = Object.keys(program);
         it("can create Program", async () => {
             const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
             chai.assert.equal(programResp.statusCode, 201, JSON.stringify(programResp.body));
             program.startDate = dateInDbPrecision(new Date(program.startDate)).toJSON();
             program.endDate = dateInDbPrecision(new Date(program.endDate)).toJSON();
-            for (let prop of programProperties) {
+            for (const prop of programProperties) {
                 chai.assert.equal(JSON.stringify(programResp.body[prop]), JSON.stringify(program[prop]));
             }
-            startDateDbPrecision = programResp.body.startDate;
-            endDateDbPrecision = programResp.body.startDate;
         });
 
-        let value: Partial<Value> = {
+        const value: Partial<Value> = {
             id: generateId(),
             programId: program.id,
             usesRemaining: 3,
@@ -526,7 +541,7 @@ describe("/v2/values create from program", () => {
         it("can create Value and override Program properties", async () => {
             chai.assert.isTrue(program.discount);
 
-            let value2 = {
+            const value2 = {
                 id: generateId(),
                 programId: program.id,
                 currency: "USD",
@@ -565,7 +580,7 @@ describe("/v2/values create from program", () => {
     });
 
     describe(`creating Values from Program with metadata`, () => {
-        let program: Partial<Program> = {
+        const program: Partial<Program> = {
             id: generateId(),
             name: "program with balanceRule",
             currency: "USD",
@@ -575,17 +590,17 @@ describe("/v2/values create from program", () => {
             }
         };
 
-        let programProperties = Object.keys(program);
+        const programProperties = Object.keys(program);
         it("can create Program", async () => {
             const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
             chai.assert.equal(programResp.statusCode, 201, JSON.stringify(programResp.body));
-            for (let prop of programProperties) {
+            for (const prop of programProperties) {
                 chai.assert.equal(JSON.stringify(programResp.body[prop]), JSON.stringify(program[prop]));
             }
         });
 
         it("can create Value and metadata from Program is copied over", async () => {
-            let value: Partial<Value> = {
+            const value: Partial<Value> = {
                 id: generateId(),
                 programId: program.id
             };
@@ -595,7 +610,7 @@ describe("/v2/values create from program", () => {
         });
 
         it("can create Value with metadata and override parts of Program's metadata", async () => {
-            let value: Partial<Value> = {
+            const value: Partial<Value> = {
                 id: generateId(),
                 programId: program.id,
                 metadata: {
@@ -613,4 +628,143 @@ describe("/v2/values create from program", () => {
             chai.assert.notDeepEqual(valueResp.body.metadata, program.metadata);
         });
     });
+
+    it("can create value from program that uses discountSellerLiabilityRule", async () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            currency: "USD",
+            name: "example",
+            discount: true,
+            discountSellerLiabilityRule: {
+                rule: "1 - currentLineItem.marketplaceRate",
+                explanation: "proportional to marketplace rate"
+            },
+        };
+        const createProgram = await testUtils.testAuthedRequest<Value>(router, "/v2/programs", "POST", program);
+        chai.assert.equal(createProgram.statusCode, 201, JSON.stringify(createProgram.body));
+        chai.assert.deepEqual(createProgram.body.discountSellerLiabilityRule, program.discountSellerLiabilityRule);
+        chai.assert.isNull(createProgram.body.discountSellerLiability);
+
+        const value: Partial<Value> = {
+            id: generateId(),
+            programId: program.id,
+            balance: 100
+        };
+
+        const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createValue.statusCode, 201, JSON.stringify(createValue.body));
+        chai.assert.deepEqual(createValue.body.discountSellerLiabilityRule, program.discountSellerLiabilityRule);
+        chai.assert.isNull(createValue.body.discountSellerLiability);
+    });
+
+    describe("program with discountSellerLiability set as number", () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            currency: "USD",
+            name: "example",
+            discount: true,
+            discountSellerLiability: 0.25
+        };
+
+        before(async () => {
+            const createProgram = await testUtils.testAuthedRequest<Value>(router, "/v2/programs", "POST", program);
+            chai.assert.equal(createProgram.statusCode, 201, JSON.stringify(createProgram.body));
+            chai.assert.deepEqual(createProgram.body.discountSellerLiabilityRule, {
+                rule: "0.25",
+                explanation: "Seller 25% liable"
+            });
+            chai.assert.equal(createProgram.body.discountSellerLiability, 0.25);
+        });
+
+        it("can override discountSellerLiability by setting number during value creation", async () => {
+            // set discountSellerLiability as number
+            const value: Partial<Value> = {
+                id: generateId(),
+                programId: program.id,
+                balance: 100,
+                discountSellerLiability: 0.35
+            };
+
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(create.statusCode, 201, JSON.stringify(create.body));
+            chai.assert.deepEqual(create.body.discountSellerLiabilityRule, {
+                rule: "0.35",
+                explanation: "Seller 35% liable"
+            });
+            chai.assert.equal(create.body.discountSellerLiability, 0.35);
+        });
+
+        it("can override discountSellerLiability by setting rule during value creation", async () => {
+            // set discountSellerLiability as rule
+            const value: Partial<Value> = {
+                id: generateId(),
+                programId: program.id,
+                balance: 100,
+                discountSellerLiabilityRule: {
+                    rule: "1 - currentLineItem.marketplaceRate",
+                    explanation: "proportional to marketplace rate"
+                }
+            };
+
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(create.statusCode, 201, JSON.stringify(create.body));
+            chai.assert.deepEqual(create.body.discountSellerLiabilityRule, value.discountSellerLiabilityRule);
+            chai.assert.isNull(create.body.discountSellerLiability);
+        });
+    });
+
+    describe("program with discountSellerLiabilityRule set as rule", () => {
+        const program: Partial<Program> = {
+            id: generateId(),
+            currency: "USD",
+            name: "example",
+            discount: true,
+            discountSellerLiabilityRule: {
+                rule: "1 - currentLineItem.marketplaceRate",
+                explanation: "proportional to marketplace rate"
+            },
+        };
+
+        before(async () => {
+            const createProgram = await testUtils.testAuthedRequest<Value>(router, "/v2/programs", "POST", program);
+            chai.assert.equal(createProgram.statusCode, 201, JSON.stringify(createProgram.body));
+            chai.assert.deepEqual(createProgram.body.discountSellerLiabilityRule, program.discountSellerLiabilityRule);
+            chai.assert.isNull(createProgram.body.discountSellerLiability);
+        });
+
+        it("can override discountSellerLiability by setting number during value creation", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                programId: program.id,
+                balance: 100,
+                discountSellerLiability: 0.35
+            };
+
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(create.statusCode, 201, JSON.stringify(create.body));
+            chai.assert.deepEqual(create.body.discountSellerLiabilityRule, {
+                rule: "0.35",
+                explanation: "Seller 35% liable"
+            });
+            chai.assert.equal(create.body.discountSellerLiability, 0.35);
+        });
+
+        it("can override discountSellerLiability by setting rule during value creation", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                programId: program.id,
+                balance: 100,
+                discountSellerLiabilityRule: {
+                    rule: "currentLineItem.marketplaceRate + 0.10",
+                    explanation: "some different weird rule"
+                }
+            };
+
+            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(create.statusCode, 201, JSON.stringify(create.body));
+            chai.assert.deepEqual(create.body.discountSellerLiabilityRule, value.discountSellerLiabilityRule);
+            chai.assert.isNull(create.body.discountSellerLiability);
+        });
+    });
+
 });

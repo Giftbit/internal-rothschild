@@ -6,7 +6,8 @@ import * as currencies from "../currencies";
 import {Transaction} from "../../../model/Transaction";
 import {Value} from "../../../model/Value";
 import {installRestRoutes} from "../installRestRoutes";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
@@ -27,19 +28,25 @@ describe("/v2/transactions", () => {
             code: "CAD",
             name: "Canadian bucks",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
         await currencies.createCurrency(defaultTestUser.auth, {
             code: "USD",
             name: "US Donairs",
             symbol: "D",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
     }
 
     it("can filter by valueId", async () => {
         await resetDbAndAddCurrencies();
-        let createdValues: Value[] = [];
+        const createdValues: Value[] = [];
         for (let i = 0; i < 3; i++) {
             const newValue = {
                 id: generateId(),
@@ -82,7 +89,10 @@ describe("/v2/transactions", () => {
             code: "USD",
             name: "US Donairs",
             symbol: "D",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
         const value1User2_newId = {
             id: generateId() + "c",
@@ -122,8 +132,8 @@ describe("/v2/transactions", () => {
     });
 
     describe("filtering queries", () => {
-        let transactionsUSD: Transaction[] = [];
-        let transactionsCAD: Transaction[] = [];
+        const transactionsUSD: Transaction[] = [];
+        const transactionsCAD: Transaction[] = [];
         // setup data
         before(async function () {
             await resetDbAndAddCurrencies();

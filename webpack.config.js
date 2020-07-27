@@ -26,7 +26,7 @@ module.exports = function (env) {
                             {
                                 loader: 'babel-loader',
                                 options: {
-                                    presets: [['@babel/env', {targets: {node: '8.10'}}]],
+                                    presets: [['@babel/env', {targets: {node: '10.17'}}]],
                                     plugins: [],
                                     compact: false,
                                     babelrc: false,
@@ -41,7 +41,7 @@ module.exports = function (env) {
                             {
                                 loader: 'babel-loader',
                                 options: {
-                                    presets: [['@babel/env', {targets: {node: '8.10'}}]],
+                                    presets: [['@babel/env', {targets: {node: '10.17'}}]],
                                     plugins: [],
                                     compact: false,
                                     babelrc: false,
@@ -98,7 +98,7 @@ module.exports = function (env) {
                 'mssql': 'mssql',
                 'mssql/lib/base': 'mssql/lib/base',
                 'mssql/package.json': 'mssql/package.json',
-                'mysql': 'mysql',
+                // 'mysql': 'mysql', // This is used by zongji which I would rather migrate to mysql2.
                 'oracle': 'oracle',
                 'oracledb': 'oracledb',
                 'pg': 'pg',

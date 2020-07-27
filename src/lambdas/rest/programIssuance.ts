@@ -3,7 +3,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../model/Pagination";
 import {Program} from "../../model/Program";
-import {csvSerializer} from "../../serializers";
+import {csvSerializer} from "../../utils/serializers";
 import {pick, pickNotNull, pickOrDefault} from "../../utils/pick";
 import {dateInDbPrecision, filterAndPaginateQuery, nowInDbPrecision} from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
@@ -12,6 +12,8 @@ import {getProgram} from "./programs";
 import {Value} from "../../model/Value";
 import {CodeParameters} from "../../model/CodeParameters";
 import {createValue} from "./values/createValue";
+import {ruleSchema} from "./transactions/rules/ruleSchema";
+import {isSystemId} from "../../utils/isSystemId";
 import log = require("loglevel");
 
 export function installIssuancesRest(router: cassava.Router): void {
@@ -111,19 +113,15 @@ async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, prog
                 },
                 "count": {
                     type: "number",
-                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 },
                 "usesRemaining": {
                     type: "number",
-                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 },
                 "startDate": {
                     type: "Date",
-                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 },
                 "endDate": {
                     type: "Date",
-                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 },
                 "createdDate": {
                     type: "Date",
@@ -142,7 +140,7 @@ async function getIssuances(auth: giftbitRoutes.jwtauth.AuthorizationBadge, prog
 
 async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, issuance: Issuance, codeParameters: CodeParameters): Promise<Issuance> {
     auth.requireIds("userId", "teamMemberId");
-    let program: Program = await getProgram(auth, issuance.programId);
+    const program: Program = await getProgram(auth, issuance.programId);
     log.info(`Creating issuance for userId: ${auth.userId}. Issuance:`, issuance);
 
     // copy over properties from program that may be null.
@@ -195,9 +193,9 @@ async function createIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge, is
     }
 }
 
-export function padValueIdForIssuance(num: number, width: number) {
+export function padValueIdForIssuance(num: number, width: number): string {
     const numLength = num.toString().length;
-    return numLength >= width ? num : new Array(width - numLength + 1).join("0") + num;
+    return numLength >= width ? num + "" : new Array(width - numLength + 1).join("0") + num;
 }
 
 function checkIssuanceConstraints(issuance: Issuance, program: Program, codeParameters: CodeParameters): void {
@@ -217,6 +215,10 @@ export async function getIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     auth.requireIds("userId");
     log.info(`Getting issuance by id ${id}`);
 
+    if (!isSystemId(id)) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Issuance with id '${id}' in Program with id '${programId}' not found.`, "IssuanceNotFound");
+    }
+
     const knex = await getKnexRead();
     const res: DbIssuance[] = await knex("Issuances")
         .select()
@@ -226,7 +228,7 @@ export async function getIssuance(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             id: id
         });
     if (res.length === 0) {
-        throw new cassava.RestError(404);
+        throw new giftbitRoutes.GiftbitRestError(404, `Issuance with id '${id}' in Program with id '${programId}' not found.`, "IssuanceNotFound");
     }
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
@@ -242,7 +244,7 @@ const issuanceSchema: jsonschema.Schema = {
             type: "string",
             maxLength: 58, /* Values created are based off this id. Leaves room for suffixing the Values index. ie `${id}-${index}` */
             minLength: 1,
-            pattern: "^[ -~]*$"
+            pattern: isSystemId.regexString
         },
         name: {
             type: "string",
@@ -256,11 +258,13 @@ const issuanceSchema: jsonschema.Schema = {
         },
         balance: {
             type: ["integer", "null"],
-            minimum: 0
+            minimum: 0,
+            maximum: 2147483647
         },
         usesRemaining: {
             type: ["integer", "null"],
-            minimum: 0
+            minimum: 0,
+            maximum: 2147483647
         },
         active: {
             type: "boolean"
@@ -293,42 +297,12 @@ const issuanceSchema: jsonschema.Schema = {
             }
         },
         redemptionRule: {
-            oneOf: [
-                {
-                    type: "null"
-                },
-                {
-                    title: "Redemption rule",
-                    type: "object",
-                    properties: {
-                        rule: {
-                            type: "string"
-                        },
-                        explanation: {
-                            type: "string"
-                        }
-                    }
-                }
-            ]
+            ...ruleSchema,
+            title: "Redemption rule"
         },
         balanceRule: {
-            oneOf: [
-                {
-                    type: "null"
-                },
-                {
-                    title: "Balance rule",
-                    type: "object",
-                    properties: {
-                        rule: {
-                            type: "string"
-                        },
-                        explanation: {
-                            type: "string"
-                        }
-                    }
-                }
-            ]
+            ...ruleSchema,
+            title: "Balance rule"
         },
         startDate: {
             type: ["string", "null"],

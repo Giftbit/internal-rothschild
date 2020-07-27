@@ -1,21 +1,24 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
+import chaiExclude from "chai-exclude";
+import * as sinon from "sinon";
 import * as testUtils from "../../../utils/testUtils/index";
-import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../utils/testUtils/index";
-import {DbValue, formatCodeForLastFourDisplay, Value} from "../../../model/Value";
+import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../utils/testUtils";
+import {DbValue, formatCodeForLastFourDisplay, Rule, Value} from "../../../model/Value";
 import {Currency} from "../../../model/Currency";
 import {Contact} from "../../../model/Contact";
 import {getCodeLastFourNoPrefix} from "../../../model/DbCode";
 import {getKnexRead, getKnexWrite} from "../../../utils/dbUtils/connection";
-import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {Transaction} from "../../../model/Transaction";
 import {installRestRoutes} from "../installRestRoutes";
 import {createCurrency} from "../currencies";
 import {computeCodeLookupHash, decryptCode} from "../../../utils/codeCryptoUtils";
 import * as codeGenerator from "../../../utils/codeGenerator";
 import {generateCode} from "../../../utils/codeGenerator";
-import * as sinon from "sinon";
+import {nowInDbPrecision} from "../../../utils/dbUtils";
+import {GiftbitRestError} from "giftbit-cassava-routes";
+import {LightrailTransactionStep} from "../../../model/TransactionStep";
 import parseLinkHeader = require("parse-link-header");
-import chaiExclude = require("chai-exclude");
 
 chai.use(chaiExclude);
 
@@ -28,12 +31,15 @@ describe("/v2/values/", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         installRestRoutes(router);
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
         await createCurrency(testUtils.defaultTestUser.auth, {
             code: "USD",
             name: "The Big Bucks",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
     });
 
@@ -86,6 +92,50 @@ describe("/v2/values/", () => {
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 
+    it("cannot create a value with huge balance", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 999999999999
+        };
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("cannot create a value with negative balance", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: -1
+        };
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("cannot create a value with negative usesRemaining", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: -1
+        };
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("cannot create a value with huge usesRemaining", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 999999999999
+        };
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
     it("cannot update valueId", async () => {
         const resp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value1.id}`, "PATCH", {id: generateId()});
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
@@ -112,10 +162,11 @@ describe("/v2/values/", () => {
             balanceRule: null,
             discount: false,
             discountSellerLiability: null,
+            discountSellerLiabilityRule: null,
             updatedContactIdDate: null,
             metadata: {},
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "updatedDate", "createdBy"]);
+        } as Value, ["createdDate", "updatedDate", "createdBy"]);
         value1 = resp2.body;
     });
 
@@ -151,10 +202,11 @@ describe("/v2/values/", () => {
             endDate: null,
             discount: false,
             discountSellerLiability: null,
+            discountSellerLiabilityRule: null,
             updatedContactIdDate: null,
             metadata: {},
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "updatedDate", "createdBy"]);
+        } as Value, ["createdDate", "updatedDate", "createdBy"]);
 
         const updateValueRequest: Partial<Value> = {
             balanceRule: {
@@ -187,16 +239,54 @@ describe("/v2/values/", () => {
             endDate: null,
             discount: false,
             discountSellerLiability: null,
+            discountSellerLiabilityRule: null,
             updatedContactIdDate: null,
             metadata: {},
             createdBy: defaultTestUser.auth.teamMemberId
-        }, ["createdDate", "updatedDate", "createdBy"]);
+        } as Value, ["createdDate", "updatedDate", "createdBy"]);
     });
 
     it("can get the value", async () => {
         const resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "GET");
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
         chai.assert.deepEqual(resp.body, value1);
+    });
+
+    it("treats valueId as case sensitive", async () => {
+        const value1: Partial<Value> = {
+            id: generateId() + "-A",
+            balance: 5,
+            currency: "USD"
+        };
+        const value2: Partial<Value> = {
+            id: value1.id.toLowerCase(),
+            balance: 5,
+            currency: "USD"
+        };
+        chai.assert.notEqual(value1.id, value2.id);
+
+        const postValue1Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value1);
+        chai.assert.equal(postValue1Resp.statusCode, 201);
+
+        const postValue2Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value2);
+        chai.assert.equal(postValue2Resp.statusCode, 201, postValue2Resp.bodyRaw);
+
+        const getValue1Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "GET");
+        chai.assert.equal(getValue1Resp.statusCode, 200);
+        chai.assert.equal(getValue1Resp.body.id, value1.id);
+
+        const getValue2Resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value2.id}`, "GET");
+        chai.assert.equal(getValue2Resp.statusCode, 200);
+        chai.assert.equal(getValue2Resp.body.id, value2.id);
+        chai.assert.notEqual(getValue1Resp.body.id, getValue2Resp.body.id);
+
+        const getValues1Resp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?id=${value1.id}`, "GET");
+        chai.assert.equal(getValues1Resp.statusCode, 200);
+        chai.assert.deepEqual(getValues1Resp.body, [getValue1Resp.body]);
+
+        const getValues2Resp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?id=${value2.id}`, "GET");
+        chai.assert.equal(getValues2Resp.statusCode, 200);
+        chai.assert.deepEqual(getValues2Resp.body, [getValue2Resp.body]);
     });
 
     it("409s on creating a value with a duplicate id", async () => {
@@ -214,7 +304,10 @@ describe("/v2/values/", () => {
             code: "XYZZY",
             name: "XYZZY",
             symbol: "X",
-            decimalPlaces: 0
+            decimalPlaces: 0,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         };
 
         const resp1 = await testUtils.testAuthedRequest<Value>(router, "/v2/currencies", "POST", currency2);
@@ -229,13 +322,6 @@ describe("/v2/values/", () => {
         chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
         chai.assert.equal(resp.body.discount, true);
         value1.discount = true;
-    });
-
-    it("can change discountSellerLiability", async () => {
-        const resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "PATCH", {discountSellerLiability: 1.0});
-        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.equal(resp.body.discountSellerLiability, 1.0);
-        value1.discountSellerLiability = 1.0;
     });
 
     it("cannot change a value's balance", async () => {
@@ -300,10 +386,10 @@ describe("/v2/values/", () => {
         chai.assert.deepEqualExcluding(resp.body, value1, ["updatedDate"]);
     });
 
-    it("cannot uncancel a value", async () => {
-        const resp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value1.id}`, "PATCH", {canceled: false});
-        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
-        chai.assert.equal(resp.body.messageCode, "CannotUncancelValue");
+    it("can uncancel a value", async () => {
+        const resp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "PATCH", {canceled: false});
+        chai.assert.equal(resp.statusCode, 200, `body=${JSON.stringify(resp.body)}`);
+        chai.assert.equal(resp.body.canceled, false);
     });
 
     it("can create a value attached to a contact", async () => {
@@ -452,8 +538,399 @@ describe("/v2/values/", () => {
         chai.assert.isNull(updateValue.body.endDate);
     });
 
+    describe("handling unicode in IDs", () => {
+        it("404s getting a Value by ID with unicode", async () => {
+            const valueResp = await testUtils.testAuthedRequest<any>(router, "/v2/values/%F0%9F%92%A9", "GET");
+            chai.assert.equal(valueResp.statusCode, 404);
+            chai.assert.equal(valueResp.body.messageCode, "ValueNotFound");
+        });
+
+        it("returns an empty list searching Value by ID with unicode", async () => {
+            const valuesResp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/values?id=%F0%9F%92%A9", "GET");
+            chai.assert.equal(valuesResp.statusCode, 200);
+            chai.assert.deepEqual(valuesResp.body, []);
+        });
+
+        it("returns valid results, when searching ID with the in operator and some values are unicode", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                balance: 5,
+                currency: "USD",
+            };
+            const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
+            chai.assert.equal(createValue.statusCode, 201);
+
+            const valuesResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?id.in=%F0%9F%92%A9,${value.id}`, "GET");
+            chai.assert.equal(valuesResp.statusCode, 200);
+            chai.assert.deepEqual(valuesResp.body, [createValue.body]);
+        });
+
+        it("404s patching a Value by ID with unicode", async () => {
+            const patchResp = await testUtils.testAuthedRequest<any>(router, "/v2/values/%F0%9F%92%A9", "PATCH", {pretax: true});
+            chai.assert.equal(patchResp.statusCode, 404);
+            chai.assert.equal(patchResp.body.messageCode, "ValueNotFound");
+        });
+
+        it("404s deleting a Value by ID with unicode", async () => {
+            const deleteResp = await testUtils.testAuthedRequest<any>(router, "/v2/values/%F0%9F%92%A9", "DELETE");
+            chai.assert.equal(deleteResp.statusCode, 404);
+            chai.assert.equal(deleteResp.body.messageCode, "ValueNotFound");
+        });
+    });
+
+    describe("discountSellerLiability", () => {
+        // can be removed when discountSellerLiability is dropped from API responses
+        it("can create value with discountSellerLiability set", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: true,
+                discountSellerLiability: 0.25
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+            chai.assert.equal(create.body.discountSellerLiability, 0.25);
+            chai.assert.deepEqual(create.body.discountSellerLiabilityRule, {
+                rule: "0.25",
+                explanation: "Seller 25% liable"
+            });
+        });
+
+        it("can create value with discountSellerLiabilityRule set - set as decimal WILL populate discountSellerLiability in response", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: true,
+                discountSellerLiabilityRule: {
+                    rule: "0.25",
+                    explanation: "25% off"
+                }
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+            chai.assert.equal(create.body.discountSellerLiability, 0.25, "should be set because the rule is a number");
+            chai.assert.deepEqual(create.body.discountSellerLiabilityRule, value.discountSellerLiabilityRule);
+        });
+
+        it("can create value with discountSellerLiabilityRule set - set as rule WILL NOT populate discountSellerLiability in response", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: true,
+                discountSellerLiabilityRule: {
+                    rule: "1 - currentLineItem.marketplaceRate",
+                    explanation: "proportional to marketplace rate"
+                }
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+            chai.assert.isNull(create.body.discountSellerLiability, "should be null because the rule isn't a number");
+            chai.assert.deepEqual(create.body.discountSellerLiabilityRule, value.discountSellerLiabilityRule);
+        });
+
+        // can be removed when discountSellerLiability is dropped from API responses
+        it("can update discountSellerLiability from null", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: true
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+
+            const update = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", {discountSellerLiability: 1.0});
+            chai.assert.equal(update.statusCode, 200, `body=${JSON.stringify(update.body)}`);
+            chai.assert.equal(update.body.discountSellerLiability, 1.0);
+            chai.assert.deepEqual(update.body.discountSellerLiabilityRule, {
+                    rule: "1",
+                    explanation: "Seller 100% liable"
+                }
+            );
+        });
+
+        it("can update discountSellerLiabilityRule from null", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: true
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+
+            const discountSellerLiabilityRule: Rule = {
+                rule: "0.05",
+                explanation: "5%"
+            };
+            const valueUpdate: Partial<Value> = {
+                discountSellerLiabilityRule: discountSellerLiabilityRule
+            };
+            const update = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", valueUpdate);
+            chai.assert.equal(update.statusCode, 200, `body=${JSON.stringify(update.body)}`);
+            chai.assert.deepEqual(update.body.discountSellerLiabilityRule, {
+                rule: "0.05",
+                explanation: "5%"
+            });
+            chai.assert.equal(update.body.discountSellerLiability, 0.05, "should be set since the rule is a number");
+        });
+
+        it("can update discountSellerLiability from a number to a rule", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: true,
+                discountSellerLiability: 0.25
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+            chai.assert.equal(create.body.discountSellerLiability, 0.25);
+            chai.assert.deepEqual(create.body.discountSellerLiabilityRule, {
+                rule: "0.25",
+                explanation: "Seller 25% liable"
+            });
+
+            const discountSellerLiabilityRule: Rule = {
+                rule: "1 - currentLineItem.marketplaceRate",
+                explanation: "proportional to marketplace rate"
+            };
+            const valueUpdate: Partial<Value> = {
+                discountSellerLiabilityRule: discountSellerLiabilityRule
+            };
+            const update = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", valueUpdate);
+            chai.assert.equal(update.statusCode, 200, `body=${JSON.stringify(update.body)}`);
+            chai.assert.deepEqual(update.body.discountSellerLiabilityRule, discountSellerLiabilityRule);
+            chai.assert.isNull(update.body.discountSellerLiability, "should not be set since the rule isn't a number");
+        });
+
+        // can be removed when discountSellerLiability is dropped from API responses
+        it("can update discountSellerLiability from a rule to a number", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: true,
+                discountSellerLiabilityRule: {
+                    rule: "1 - currentLineItem.marketplaceRate",
+                    explanation: "proportional to marketplaceRate"
+                }
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+            chai.assert.isNull(create.body.discountSellerLiability);
+            chai.assert.deepEqual(create.body.discountSellerLiabilityRule, value.discountSellerLiabilityRule);
+
+            const valueUpdate: Partial<Value> = {
+                discountSellerLiability: 0.50
+            };
+            const update = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", valueUpdate);
+            chai.assert.equal(update.statusCode, 200, `body=${JSON.stringify(update.body)}`);
+            chai.assert.equal(update.body.discountSellerLiability, 0.50);
+            chai.assert.deepEqual(update.body.discountSellerLiabilityRule, {
+                rule: "0.5",
+                explanation: "Seller 50% liable"
+            });
+        });
+
+        // can be removed when discountSellerLiability is dropped from API responses
+        it("can't set discountSellerLiability to be a rule", async () => {
+            const value: any = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: true,
+                discountSellerLiability: {
+                    rule: "0.05",
+                    explanation: "5% off"
+                }
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 422, `body=${JSON.stringify(create.body)}`);
+        });
+
+        // can be removed when discountSellerLiability is dropped from API responses
+        it("can't set discountSellerLiability and discountSellerLiabilityRule at same time", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: true,
+                discountSellerLiability: null,
+                discountSellerLiabilityRule: {
+                    rule: "0.05",
+                    explanation: "5% off"
+                }
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 422, `body=${JSON.stringify(create.body)}`);
+        });
+
+        // can be removed when discountSellerLiability is dropped from API responses
+        it("can't create value with discountSellerLiability if discount: false", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: false,
+                discountSellerLiability: 0.25
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 422, JSON.stringify(create.body));
+        });
+
+        it("can't create value with discountSellerLiabilityRule if discount: false", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: false,
+                discountSellerLiabilityRule: {
+                    rule: "0.05",
+                    explanation: "5% off"
+                }
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 422, JSON.stringify(create.body));
+        });
+
+        // can be removed when discountSellerLiability is dropped from API responses
+        it("can't update discount to be false if discountSellerLiability is set", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: true,
+                discountSellerLiability: 0.25
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+            chai.assert.equal(create.body.discountSellerLiability, 0.25);
+            chai.assert.deepEqual(create.body.discountSellerLiabilityRule, {
+                rule: "0.25",
+                explanation: "Seller 25% liable"
+            });
+
+            const update = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", {
+                discount: false
+            });
+            chai.assert.equal(update.statusCode, 422, `body=${JSON.stringify(update.body)}`);
+        });
+
+        it("can't update discount to be false if discountSellerLiabilityRule is set", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: true,
+                discountSellerLiabilityRule: {
+                    rule: "0.25",
+                    explanation: "25%"
+                }
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+            chai.assert.deepEqual(create.body.discountSellerLiabilityRule, {
+                    rule: "0.25",
+                    explanation: "25%"
+                }
+            );
+
+            const update = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "PATCH", {
+                discount: false
+            });
+            chai.assert.equal(update.statusCode, 422, `body=${JSON.stringify(update.body)}`);
+        });
+
+        it("can't set discountSellerLiabilityRule to a rule that doesn't compile", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: true,
+                discountSellerLiabilityRule: {
+                    rule: "currentLineItem.lineTotal.subtotal * (0.1",
+                    explanation: "unclosed parenthesis"
+                }
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 422, `body=${JSON.stringify(create.body)}`);
+        });
+
+        it("can't set discountSellerLiabilityRule to a rule that evaluate to a number less than 0", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: true,
+                discountSellerLiabilityRule: {
+                    rule: "-1",
+                    explanation: "must be between 0 and 1"
+                }
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 422, `body=${JSON.stringify(create.body)}`);
+        });
+
+        it("can't set discountSellerLiabilityRule to a rule that evaluate to a number greater than 1", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: true,
+                discountSellerLiabilityRule: {
+                    rule: "1.1",
+                    explanation: "must be between 0 and 1"
+                }
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 422, `body=${JSON.stringify(create.body)}`);
+        });
+
+        // can be removed when discountSellerLiability is dropped from API responses
+        it("can set discountSellerLiability: null, if discount: false", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: false,
+                discountSellerLiability: null
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+        });
+
+        it("can set discountSellerLiabilityRule: null, if discount: false", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: false,
+                discountSellerLiabilityRule: null
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+        });
+
+        it("can set both discountSellerLiabilityRule: null and discountSellerLiability: null", async () => {
+            const value: Partial<Value> = {
+                id: generateId(),
+                currency: "USD",
+                balance: 0,
+                discount: false,
+                discountSellerLiability: null,
+                discountSellerLiabilityRule: null
+            };
+            const create = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value);
+            chai.assert.equal(create.statusCode, 201, `body=${JSON.stringify(create.body)}`);
+        });
+    });
+
     it("can't create Value with balance and balanceRule", async () => {
-        let value: Partial<Value> = {
+        const value: Partial<Value> = {
             id: generateId(),
             balance: 50,
             balanceRule: {
@@ -467,7 +944,7 @@ describe("/v2/values/", () => {
     });
 
     it("can create Value with null balance and balanceRule which will default to balance of 0", async () => {
-        let value: Partial<Value> = {
+        const value: Partial<Value> = {
             id: generateId(),
             currency: "USD"
         };
@@ -588,7 +1065,7 @@ describe("/v2/values/", () => {
     });
 
     it("can't create a Value with startDate > endDate", async () => {
-        let value: Partial<Value> = {
+        const value: Partial<Value> = {
             id: generateId(),
             balance: 50,
             currency: "USD",
@@ -601,7 +1078,7 @@ describe("/v2/values/", () => {
     });
 
     it("can't patch a Value to have startDate > endDate", async () => {
-        let value: Partial<Value> = {
+        const value: Partial<Value> = {
             id: generateId(),
             balance: 50,
             currency: "USD",
@@ -618,23 +1095,12 @@ describe("/v2/values/", () => {
     });
 
     it("if no currency or programId is provided during value creation returns a 422", async () => {
-        let value: Partial<Value> = {
+        const value: Partial<Value> = {
             id: generateId()
         };
         const valueResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", value);
         chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
         chai.assert.equal(valueResp.body.message, "Property currency cannot be null. Please provide a currency or a programId.");
-    });
-
-    it("can't create Value with discount = false and discountSellerLiability", async () => {
-        let value: Partial<Value> = {
-            id: generateId(),
-            balance: 50,
-            discount: false,
-            discountSellerLiability: 1
-        };
-        const valueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
-        chai.assert.equal(valueResp.statusCode, 422, JSON.stringify(valueResp.body));
     });
 
     it("422s on creating a value with a negative balance", async () => {
@@ -656,7 +1122,7 @@ describe("/v2/values/", () => {
         chai.assert.equal(resp.statusCode, 422, `create body=${JSON.stringify(resp.body)}`);
     });
 
-    let value4: Partial<Value> = {
+    const value4: Partial<Value> = {
         id: "v4",
         currency: "USD",
         balance: 0,
@@ -677,7 +1143,7 @@ describe("/v2/values/", () => {
         };
 
         try {
-            const resp1 = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
+            await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
             chai.assert.fail("an exception should be thrown during this call so this assert won't happen");
         } catch (e) {
             // pass
@@ -785,13 +1251,13 @@ describe("/v2/values/", () => {
 
             const page1 = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?id.in=${ids.join(",")}`, "GET");
             chai.assert.equal(page1.statusCode, 200, `body=${JSON.stringify(page1.body)}`);
-            chai.assert.deepEqualExcludingEvery<any>(page1.body, expected, ["userId", "codeHashed", "code", "codeLastFour", "startDate", "endDate", "createdDate", "updatedDate", "updatedContactIdDate", "codeEncrypted", "isGenericCode", "attachedFromValueId", "genericCodeOptions_perContact_usesRemaining", "genericCodeOptions_perContact_balance"]);
+            chai.assert.deepEqualExcludingEvery<any>(page1.body, expected, ["userId", "codeHashed", "code", "codeLastFour", "startDate", "endDate", "createdDate", "updatedDate", "updatedContactIdDate", "codeEncrypted", "isGenericCode", "attachedFromValueId", "genericCodeOptions_perContact_usesRemaining", "genericCodeOptions_perContact_balance", "discountSellerLiabilityRule", "discountSellerLiability"]);
             chai.assert.isDefined(page1.headers["Link"]);
         });
     });
 
     it("can create a value with generic code", async () => {
-        let publicCode = {
+        const publicCode = {
             id: generateId(),
             currency: "USD",
             code: "PUBLIC",
@@ -827,15 +1293,15 @@ describe("/v2/values/", () => {
         chai.assert.equal(res[0].codeLastFour, "BLIC");
 
         const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
-        let codeInListShowCodeFalse: Value = list.body.find(it => it.id === publicCode.id);
+        const codeInListShowCodeFalse: Value = list.body.find(it => it.id === publicCode.id);
         chai.assert.equal(codeInListShowCodeFalse.code, "PUBLIC");
         const listShowCode = await testUtils.testAuthedRequest<any>(router, `/v2/values?showCode=true`, "GET");
-        let codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === publicCode.id);
+        const codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === publicCode.id);
         chai.assert.equal(codeInListShowCodeTrue.code, "PUBLIC");
     });
 
     it("can create a value with 1 character generic code", async () => {
-        let publicCode = {
+        const publicCode = {
             id: generateId(),
             currency: "USD",
             code: "A",
@@ -869,10 +1335,10 @@ describe("/v2/values/", () => {
         chai.assert.equal(res[0].codeLastFour, "A");
 
         const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
-        let codeInListShowCodeFalse: Value = list.body.find(it => it.id === publicCode.id);
+        const codeInListShowCodeFalse: Value = list.body.find(it => it.id === publicCode.id);
         chai.assert.equal(codeInListShowCodeFalse.code, "A");
         const listShowCode = await testUtils.testAuthedRequest<any>(router, `/v2/values?showCode=true`, "GET");
-        let codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === publicCode.id);
+        const codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === publicCode.id);
         chai.assert.equal(codeInListShowCodeTrue.code, "A");
     });
 
@@ -942,15 +1408,15 @@ describe("/v2/values/", () => {
         chai.assert.equal(res[0].codeHashed, await computeCodeLookupHash(value.code, testUtils.defaultTestUser.auth));
 
         const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
-        let codeInListShowCodeFalse: Value = list.body.find(it => it.id === value.id);
+        const codeInListShowCodeFalse: Value = list.body.find(it => it.id === value.id);
         chai.assert.equal(codeInListShowCodeFalse.code, "🚀");
         const listShowCode = await testUtils.testAuthedRequest<any>(router, `/v2/values?showCode=true`, "GET");
-        let codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === value.id);
+        const codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === value.id);
         chai.assert.equal(codeInListShowCodeTrue.code, "🚀");
     });
 
     it("can create a value with unicode secure code", async () => {
-        let value = {
+        const value = {
             id: generateId(),
             currency: "USD",
             code: "芷若⳥ⳢⳫⳂⳀ",
@@ -981,15 +1447,15 @@ describe("/v2/values/", () => {
         chai.assert.equal(res[0].codeHashed, await computeCodeLookupHash(value.code, testUtils.defaultTestUser.auth));
 
         const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
-        let codeInListShowCodeFalse: Value = list.body.find(it => it.id === value.id);
+        const codeInListShowCodeFalse: Value = list.body.find(it => it.id === value.id);
         chai.assert.equal(codeInListShowCodeFalse.code, "…ⳢⳫⳂⳀ");
         const listShowCode = await testUtils.testAuthedRequest<any>(router, `/v2/values?showCode=true`, "GET");
-        let codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === value.id);
+        const codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === value.id);
         chai.assert.equal(codeInListShowCodeTrue.code, "芷若⳥ⳢⳫⳂⳀ");
     });
 
     it("can create a value with emoji secure code", async () => {
-        let value = {
+        const value = {
             id: generateId(),
             currency: "USD",
             code: "👮😭💀😒😴🙌😇🚀",
@@ -1020,15 +1486,15 @@ describe("/v2/values/", () => {
         chai.assert.equal(res[0].codeHashed, await computeCodeLookupHash(value.code, testUtils.defaultTestUser.auth));
 
         const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
-        let codeInListShowCodeFalse: Value = list.body.find(it => it.id === value.id);
+        const codeInListShowCodeFalse: Value = list.body.find(it => it.id === value.id);
         chai.assert.equal(codeInListShowCodeFalse.code, "…😴🙌😇🚀");
         const listShowCode = await testUtils.testAuthedRequest<any>(router, `/v2/values?showCode=true`, "GET");
-        let codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === value.id);
+        const codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === value.id);
         chai.assert.equal(codeInListShowCodeTrue.code, "👮😭💀😒😴🙌😇🚀");
     });
 
     it("can create a value with secure code", async () => {
-        let secureCode = {
+        const secureCode = {
             id: "valueWithSecureCode",
             currency: "USD",
             code: "SECURE",
@@ -1062,15 +1528,15 @@ describe("/v2/values/", () => {
         chai.assert.equal(res[0].codeLastFour, "CURE");
 
         const list = await testUtils.testAuthedRequest<any>(router, `/v2/values`, "GET");
-        let codeInListShowCodeFalse: Value = list.body.find(it => it.id === secureCode.id);
+        const codeInListShowCodeFalse: Value = list.body.find(it => it.id === secureCode.id);
         chai.assert.equal(codeInListShowCodeFalse.code, "…CURE");
         const listShowCode = await testUtils.testAuthedRequest<any>(router, `/v2/values?showCode=true`, "GET");
-        let codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === secureCode.id);
+        const codeInListShowCodeTrue: Value = listShowCode.body.find(it => it.id === secureCode.id);
         chai.assert.equal(codeInListShowCodeTrue.code, "SECURE");
     });
 
     describe("code generation tests", () => {
-        let value = {
+        const value = {
             id: "generateCodeTest-1",
             currency: "USD",
             generateCode: {},
@@ -1080,7 +1546,6 @@ describe("/v2/values/", () => {
             }
         };
         let firstGeneratedCode: string;
-        let secondGeneratedCode: string;
 
         it("can generate a code with empty generateCode parameters", async () => {
             const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
@@ -1095,7 +1560,7 @@ describe("/v2/values/", () => {
             chai.assert.equal(firstGeneratedCode.length, 16);
 
             const knex = await getKnexRead();
-            let res: DbValue[] = await knex("Values")
+            const res: DbValue[] = await knex("Values")
                 .select()
                 .where({
                     userId: testUtils.defaultTestUser.userId,
@@ -1126,7 +1591,7 @@ describe("/v2/values/", () => {
         });
 
         it("can generate a code using an emoji charset", async () => {
-            let value = {
+            const value = {
                 id: generateId(),
                 currency: "USD",
                 generateCode: {
@@ -1146,7 +1611,7 @@ describe("/v2/values/", () => {
             chai.assert.equal(firstGeneratedCode.length, 32, "length of 32 because 16 glyphs at 2 for each emoji (because, again, JS is awful)");
 
             const knex = await getKnexRead();
-            let res: DbValue[] = await knex("Values")
+            const res: DbValue[] = await knex("Values")
                 .select()
                 .where({
                     userId: testUtils.defaultTestUser.userId,
@@ -1162,7 +1627,7 @@ describe("/v2/values/", () => {
         });
 
         it("charset can't contain a space", async () => {
-            let value = {
+            const value = {
                 id: generateId(),
                 currency: "USD",
                 generateCode: {
@@ -1193,7 +1658,7 @@ describe("/v2/values/", () => {
 
     describe("can't create a Value with bad code properties", () => {
         it("cannot create a Value with code and generateCode", async () => {
-            let valueWithPublicCode = {
+            const valueWithPublicCode = {
                 id: "value",
                 currency: "USD",
                 code: "SECURE",
@@ -1206,7 +1671,7 @@ describe("/v2/values/", () => {
         });
 
         it("cannot create a Value with code, isGenericCode, and generateCode", async () => {
-            let valueWithPublicCode = {
+            const valueWithPublicCode = {
                 id: "value",
                 currency: "USD",
                 code: "SECURE",
@@ -1220,7 +1685,7 @@ describe("/v2/values/", () => {
         });
 
         it("generateCode can't have unknown properties", async () => {
-            let valueWithPublicCode = {
+            const valueWithPublicCode = {
                 id: "value",
                 currency: "USD",
                 generateCode: {length: 6, unknown: "property"},
@@ -1239,19 +1704,19 @@ describe("/v2/values/", () => {
             chai.assert.isEmpty(listResponse.body);
         });
 
-        let importedCode = {
+        const importedCode = {
             id: generateId(),
             currency: "USD",
             code: "ABCDEFGHIJKLMNO",
             balance: 0
         };
-        let generatedCode = {
+        const generatedCode = {
             id: generateId(),
             currency: "USD",
             generateCode: {},
             balance: 0
         };
-        let genericCode = {
+        const genericCode = {
             id: generateId(),
             currency: "USD",
             code: "SPRING2018",
@@ -1316,7 +1781,7 @@ describe("/v2/values/", () => {
             {id: generateId(), createdDate: new Date("3030-02-03")},
             {id: generateId(), createdDate: new Date("3030-02-04")}
         ];
-        for (let idAndDate of idAndDates) {
+        for (const idAndDate of idAndDates) {
             const response = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
                 id: idAndDate.id,
                 currency: "USD",
@@ -1482,7 +1947,7 @@ describe("/v2/values/", () => {
                 chai.assert.isNull(changeCode.body.code);
 
                 const knex = await getKnexRead();
-                let res: DbValue[] = await knex("Values")
+                const res: DbValue[] = await knex("Values")
                     .select()
                     .where({
                         userId: testUtils.defaultTestUser.userId,
@@ -1599,7 +2064,7 @@ describe("/v2/values/", () => {
             });
 
             it("cannot supply both code and generateCode", async () => {
-                let changeRequest = {
+                const changeRequest = {
                     code: "SECURE",
                     generateCode: {length: 6},
                 };
@@ -1609,7 +2074,7 @@ describe("/v2/values/", () => {
             });
 
             it("cannot supply isGenericCode: true", async () => {
-                let changeRequest = {
+                const changeRequest = {
                     isGenericCode: true
                 };
 
@@ -1618,7 +2083,7 @@ describe("/v2/values/", () => {
             });
 
             it("cannot supply isGenericCode: false", async () => {
-                let changeRequest = {
+                const changeRequest = {
                     isGenericCode: false
                 };
 
@@ -1627,7 +2092,7 @@ describe("/v2/values/", () => {
             });
 
             it("can't have unknown properties in request", async () => {
-                let changeRequest = {
+                const changeRequest = {
                     something: "not defined in schema",
                 };
 
@@ -1636,7 +2101,7 @@ describe("/v2/values/", () => {
             });
 
             it("can't have unknown properties in request's nested properties", async () => {
-                let changeRequest = {
+                const changeRequest = {
                     generateCode: {length: 6, unknown: "property"},
                 };
 
@@ -1645,11 +2110,250 @@ describe("/v2/values/", () => {
             });
         });
     });
+
+    describe("whitespace handling", () => {
+        let value: Value;
+        let contact: Contact;
+
+        before(async function () {
+            const code = "ABCDEF";
+            await testUtils.createUSDValue(router, {code});
+            const fetchValueResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?code=${code}&showCode=true`, "GET");
+            chai.assert.equal(fetchValueResp.statusCode, 200, `fetchValueResp.body=${JSON.stringify(fetchValueResp.body)}`);
+            chai.assert.equal(fetchValueResp.body[0].code, code, `fetchValueResp.body=${JSON.stringify(fetchValueResp.body)}`);
+            value = fetchValueResp.body[0];
+
+            const contactResp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {
+                id: testUtils.generateId()
+            });
+            chai.assert.equal(contactResp.statusCode, 201, `contactResp.body=${JSON.stringify(contactResp.body)}`);
+            contact = contactResp.body;
+        });
+
+        describe("valueIds", () => {
+            it("422s creating valueIds with leading/trailing whitespace", async () => {
+                const createLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", {
+                    id: `\t${testUtils.generateId()}`,
+                    currency: "USD",
+                    balance: 1
+                });
+                chai.assert.equal(createLeadingResp.statusCode, 422, `createLeadingResp.body=${JSON.stringify(createLeadingResp.body)}`);
+
+                const createTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", {
+                    id: `${testUtils.generateId()}\n`,
+                    currency: "USD",
+                    balance: 1
+                });
+                chai.assert.equal(createTrailingResp.statusCode, 422, `createTrailingResp.body=${JSON.stringify(createTrailingResp.body)}`);
+            });
+
+            it("404s when looking up a value by id with leading/trailing whitespace", async () => {
+                const fetchLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/values/%20${value.id}`, "GET");
+                chai.assert.equal(fetchLeadingResp.statusCode, 404, `fetchLeadingResp.body=${JSON.stringify(fetchLeadingResp.body)}`);
+                const fetchTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/values/${value.id}%20`, "GET");
+                chai.assert.equal(fetchTrailingResp.statusCode, 404, `fetchLeadingResp.body=${JSON.stringify(fetchTrailingResp.body)}`);
+            });
+
+            describe("FK references to valueIds", () => {
+                it("404s attaching valueIds with leading/trailing whitespace", async () => {
+                    const attachLeadingResp = await testUtils.testAuthedRequest<GiftbitRestError>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+                        valueId: `%20${value.id}`
+                    });
+                    chai.assert.equal(attachLeadingResp.statusCode, 404, `attachLeadingResp.body=${JSON.stringify(attachLeadingResp.body)}`);
+                    chai.assert.equal(attachLeadingResp.body["messageCode"], "ValueNotFound", `attachLeadingResp.body=${JSON.stringify(attachLeadingResp.body)}`);
+                    const attachTrailingResp = await testUtils.testAuthedRequest<GiftbitRestError>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+                        valueId: `${value.id}%20`
+                    });
+                    chai.assert.equal(attachTrailingResp.statusCode, 404, `attachTrailingResp.body=${JSON.stringify(attachTrailingResp.body)}`);
+                    chai.assert.equal(attachTrailingResp.body["messageCode"], "ValueNotFound", `attachTrailingResp.body=${JSON.stringify(attachTrailingResp.body)}`);
+                });
+
+                it("409s transacting against valueIds with leading/trailing whitespace", async () => {
+                    const creditResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/credit", "POST", {
+                        id: testUtils.generateId(),
+                        currency: "USD",
+                        amount: 1,
+                        destination: {
+                            rail: "lightrail",
+                            valueId: ` ${value.id}`
+                        }
+                    });
+                    chai.assert.equal(creditResp.statusCode, 409, `creditResp.body=${JSON.stringify(creditResp.body)}`);
+                    chai.assert.equal(creditResp.body["messageCode"], "InvalidParty", `creditResp.body=${JSON.stringify(creditResp.body)}`);
+
+                    const debitResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/debit", "POST", {
+                        id: testUtils.generateId(),
+                        currency: "USD",
+                        amount: 1,
+                        source: {
+                            rail: "lightrail",
+                            valueId: `${value.id}\n`
+                        }
+                    });
+                    chai.assert.equal(debitResp.statusCode, 409, `debitResp.body=${JSON.stringify(debitResp.body)}`);
+                    chai.assert.equal(debitResp.body["messageCode"], "InvalidParty", `debitResp.body=${JSON.stringify(debitResp.body)}`);
+
+                    const checkoutResponse = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/transactions/checkout`, "POST", {
+                        id: testUtils.generateId(),
+                        currency: "USD",
+                        lineItems: [{unitPrice: 1}],
+                        sources: [{
+                            rail: "lightrail",
+                            valueId: `${value.id}\n`
+                        }]
+                    });
+                    chai.assert.equal(checkoutResponse.statusCode, 409, `checkoutResponse.body=${checkoutResponse.body}`);
+                    chai.assert.equal(checkoutResponse.body["messageCode"], "InsufficientBalance", `checkoutResponse.body=${checkoutResponse.body}`);
+                });
+
+                it("does not return contacts when searching by valueId with leading/trailing whitespace", async () => {
+                    const generic = await testUtils.createUSDValue(router, {
+                        isGenericCode: true,
+                        balance: null,
+                        balanceRule: {
+                            rule: "500",
+                            explanation: "$5"
+                        }
+                    });
+                    const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
+                        valueId: generic.id
+                    });
+                    chai.assert.equal(attachResp.statusCode, 200, `attachResp.body=${JSON.stringify(attachResp.body)}`);
+                    const fetchLeadingResp = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?valueId=%20${generic.id}`, "GET");
+                    chai.assert.equal(fetchLeadingResp.statusCode, 200, `fetchLeadingResp.body=${JSON.stringify(fetchLeadingResp.body)}`);
+                    chai.assert.equal(fetchLeadingResp.body.length, 0, `fetchLeadingResp.body=${JSON.stringify(fetchLeadingResp.body)}`);
+                    const fetchTrailingResp = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?valueId=${generic.id}%20`, "GET");
+                    chai.assert.equal(fetchTrailingResp.statusCode, 200, `fetchTrailingResp.body=${JSON.stringify(fetchTrailingResp.body)}`);
+                    chai.assert.equal(fetchTrailingResp.body.length, 0, `fetchTrailingResp.body=${JSON.stringify(fetchTrailingResp.body)}`);
+                });
+
+                it("does not return transactions when searching by valueId with leading/trailing whitespace", async () => {
+                    const txs = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${value.id}`, "GET"); // initialBalance
+                    chai.assert.equal(txs.statusCode, 200, `txs.body=${JSON.stringify(txs.body)}`);
+                    chai.assert.isAtLeast(txs.body.length, 1, `txs.body=${JSON.stringify(txs.body)}`);
+
+                    const txsLeading = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=%20${value.id}`, "GET");
+                    chai.assert.equal(txsLeading.statusCode, 200, `txsLeading.body=${JSON.stringify(txsLeading.body)}`);
+                    chai.assert.equal(txsLeading.body.length, 0, `txsLeading.body=${JSON.stringify(txsLeading.body)}`);
+
+                    const txsTrailing = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${value.id}%20`, "GET");
+                    chai.assert.equal(txsTrailing.statusCode, 200, `txsTrailing.body=${JSON.stringify(txsTrailing.body)}`);
+                    chai.assert.equal(txsTrailing.body.length, 0, `txsTrailing.body=${JSON.stringify(txsTrailing.body)}`);
+                });
+            });
+        });
+
+        describe("codes", () => {
+            it("422s creating codes with leading/trailing whitespace", async () => {
+                const createLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", {
+                    id: testUtils.generateId(),
+                    currency: "USD",
+                    balance: 1,
+                    code: ` ${testUtils.generateFullcode()}`
+                });
+                chai.assert.equal(createLeadingResp.statusCode, 422, `createLeadingResp.body=${JSON.stringify(createLeadingResp.body)}`);
+                const createTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/values", "POST", {
+                    id: testUtils.generateId(),
+                    currency: "USD",
+                    balance: 1,
+                    code: `${testUtils.generateFullcode()} `
+                });
+                chai.assert.equal(createTrailingResp.statusCode, 422, `createTrailingResp.body=${JSON.stringify(createTrailingResp.body)}`);
+            });
+
+            it("422s updating codes to have leading/trailing whitespace", async () => {
+                const updateLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/values/${value.id}/changeCode`, "POST", {
+                    code: `\rLEADINGSPACE`
+                });
+                chai.assert.equal(updateLeadingResp.statusCode, 422, `updateLeadingResp.body=${JSON.stringify(updateLeadingResp.body)}`);
+
+                const updateTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/values/${value.id}/changeCode`, "POST", {
+                    code: `TRAILINGSPACE\t`
+                });
+                chai.assert.equal(updateTrailingResp.statusCode, 422, `updateTrailingResp.body=${JSON.stringify(updateTrailingResp.body)}`);
+            });
+
+            it("successfully transacts against value by code with leading/trailing whitespace", async () => {
+                const debitResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
+                    id: "debit-" + testUtils.generateId(),
+                    currency: "USD",
+                    amount: 1,
+                    source: {
+                        rail: "lightrail",
+                        code: `\t${value.code}`
+                    }
+                });
+                chai.assert.equal(debitResp.statusCode, 201, `debitResp.body=${JSON.stringify(debitResp.body)}`);
+
+                const creditResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", {
+                    id: "credit-" + testUtils.generateId(),
+                    currency: "USD",
+                    amount: 1,
+                    destination: {
+                        rail: "lightrail",
+                        code: `${value.code} `
+                    }
+                });
+                chai.assert.equal(creditResp.statusCode, 201, `creditResp.body=${JSON.stringify(creditResp.body)}`);
+
+                const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                    id: "checkout-" + testUtils.generateId(),
+                    currency: "USD",
+                    lineItems: [{unitPrice: 1}],
+                    sources: [{
+                        rail: "lightrail",
+                        code: `\t${value.code} \n`
+                    }]
+                });
+                chai.assert.equal(checkoutResp.statusCode, 201, `checkoutResp.body=${JSON.stringify(checkoutResp.body)}`);
+
+                const otherCode = "12345";
+                await testUtils.createUSDValue(router, {code: otherCode});
+                const transferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", {
+                    id: "transfer-" + testUtils.generateId(),
+                    currency: "USD",
+                    amount: 1,
+                    source: {
+                        rail: "lightrail",
+                        code: `\n${otherCode}`
+                    },
+                    destination: {
+                        rail: "lightrail",
+                        code: `${value.code}\r`
+                    }
+                });
+                chai.assert.equal(transferResp.statusCode, 201, `transferResp.body=${JSON.stringify(transferResp.body)}`);
+            });
+
+            it("fetches value by code with leading/trailing whitespace", async () => {
+                const fetchLeadingResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?code=%20${value.code}`, "GET");
+                chai.assert.equal(fetchLeadingResp.statusCode, 200, `fetchLeadingResp.body=${JSON.stringify(fetchLeadingResp.body)}`);
+                chai.assert.equal(fetchLeadingResp.body.length, 1, `fetchLeadingResp.body=${JSON.stringify(fetchLeadingResp.body)}`);
+                chai.assert.equal(fetchLeadingResp.body[0].id, value.id, `fetchLeadingResp.body=${JSON.stringify(fetchLeadingResp.body)}`);
+
+                const fetchTrailingResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?code=${value.code}%20`, "GET");
+                chai.assert.equal(fetchTrailingResp.statusCode, 200, `fetchTrailingResp.body=${JSON.stringify(fetchTrailingResp.body)}`);
+                chai.assert.equal(fetchTrailingResp.body.length, 1, `fetchTrailingResp.body=${JSON.stringify(fetchTrailingResp.body)}`);
+                chai.assert.equal(fetchTrailingResp.body[0].id, value.id, `fetchTrailingResp.body=${JSON.stringify(fetchTrailingResp.body)}`);
+
+                const fetchTrailingResp2 = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?code=${value.code}&nbsp`, "GET");
+                chai.assert.equal(fetchTrailingResp2.statusCode, 200, `fetchTrailingResp2.body=${JSON.stringify(fetchTrailingResp2.body)}`);
+                chai.assert.equal(fetchTrailingResp2.body.length, 1, `fetchTrailingResp2.body=${JSON.stringify(fetchTrailingResp2.body)}`);
+                chai.assert.equal(fetchTrailingResp2.body[0].id, value.id, `fetchTrailingResp2.body=${JSON.stringify(fetchTrailingResp2.body)}`);
+
+                const fetchWithLotsOfWhitespaceResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?code=%0D%0A${value.code}%20%20`, "GET");
+                chai.assert.equal(fetchWithLotsOfWhitespaceResp.statusCode, 200, `fetchWithLotsOfWhitespaceResp.body=${JSON.stringify(fetchWithLotsOfWhitespaceResp.body)}`);
+                chai.assert.equal(fetchWithLotsOfWhitespaceResp.body.length, 1, `fetchWithLotsOfWhitespaceResp.body=${JSON.stringify(fetchWithLotsOfWhitespaceResp.body)}`);
+                chai.assert.equal(fetchWithLotsOfWhitespaceResp.body[0].id, value.id, `fetchWithLotsOfWhitespaceResp.body=${JSON.stringify(fetchWithLotsOfWhitespaceResp.body)}`);
+
+            });
+        });
+    });
 });
 
 async function assertCodeIsStoredCorrectlyInDB(valueId: string, code: string): Promise<void> {
     const knex = await getKnexRead();
-    let res: DbValue[] = await knex("Values")
+    const res: DbValue[] = await knex("Values")
         .select()
         .where({
             userId: testUtils.defaultTestUser.userId,

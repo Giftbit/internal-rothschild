@@ -4,13 +4,13 @@ import * as jsonschema from "jsonschema";
 import {Pagination, PaginationParams} from "../../../model/Pagination";
 import {DbValue, formatCodeForLastFourDisplay, Value} from "../../../model/Value";
 import {pick} from "../../../utils/pick";
-import {csvSerializer} from "../../../serializers";
+import {csvSerializer} from "../../../utils/serializers";
 import {
     dateInDbPrecision,
     filterAndPaginateQuery,
     getSqlErrorConstraintName,
     nowInDbPrecision
-} from "../../../utils/dbUtils/index";
+} from "../../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../../utils/dbUtils/connection";
 import {DbCode} from "../../../model/DbCode";
 import {generateCode} from "../../../utils/codeGenerator";
@@ -19,15 +19,20 @@ import {getProgram} from "../programs";
 import {Program} from "../../../model/Program";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
 import {getTransactions} from "../transactions/transactions";
+import {formatObjectsAmountPropertiesForCurrencyDisplay} from "../../../model/Currency";
 import {
-    Currency,
-    formatAmountForCurrencyDisplay,
-    formatObjectsAmountPropertiesForCurrencyDisplay
-} from "../../../model/Currency";
-import {getCurrency} from "../currencies";
-import {checkCodeParameters, checkValueProperties, createValue} from "./createValue";
+    checkCodeParameters,
+    checkValueProperties,
+    createValue,
+    setDiscountSellerLiabilityPropertiesForLegacySupport
+} from "./createValue";
 import {hasContactValues} from "../contactValues";
 import {QueryBuilder} from "knex";
+import {MetricsLogger} from "../../../utils/metricsLogger";
+import {Transaction} from "../../../model/Transaction";
+import {ruleSchema} from "../transactions/rules/ruleSchema";
+import {isSystemId} from "../../../utils/isSystemId";
+import {LightrailTransactionStep} from "../../../model/TransactionStep";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -47,7 +52,7 @@ export function installValuesRest(router: cassava.Router): void {
             const res = await getValues(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt), showCode);
 
             if (evt.queryStringParameters.stats === "true") {
-                // For now this is a secret param only Yervana knows about.
+                // For now this is a secret param only Yervana and Chairish know about.
                 await injectValueStats(auth, res.values);
             }
 
@@ -121,7 +126,7 @@ export function installValuesRest(router: cassava.Router): void {
             const value = await getValue(auth, evt.pathParameters.id, showCode);
 
             if (evt.queryStringParameters.stats === "true") {
-                // For now this is a secret param only Yervana knows about.
+                // For now this is a secret param only Yervana and Chairish know about.
                 await injectValueStats(auth, [value]);
             }
 
@@ -148,7 +153,7 @@ export function installValuesRest(router: cassava.Router): void {
 
             const now = nowInDbPrecision();
             const value = {
-                ...pick<Value>(evt.body, "pretax", "active", "canceled", "frozen", "pretax", "discount", "discountSellerLiability", "redemptionRule", "balanceRule", "startDate", "endDate", "metadata", "genericCodeOptions"),
+                ...pick<Value>(evt.body, "pretax", "active", "canceled", "frozen", "pretax", "discount", "discountSellerLiability", "discountSellerLiabilityRule", "redemptionRule", "balanceRule", "startDate", "endDate", "metadata", "genericCodeOptions"),
                 updatedDate: now
             };
             if (value.startDate) {
@@ -221,7 +226,7 @@ export function installValuesRest(router: cassava.Router): void {
                 code = generateCode(evt.body.generateCode);
             }
 
-            let updateProps: Partial<DbValue> = {
+            const updateProps: Partial<DbValue> = {
                 codeLastFour: null,
                 codeEncrypted: null,
                 codeHashed: null,
@@ -249,6 +254,10 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
     let query: QueryBuilder;
     const contactId = filterParams["contactId"] || filterParams["contactId.eq"];
     if (contactId) {
+        if (!isSystemId(contactId)) {
+            return {values: [], pagination};
+        }
+
         // Wrap the UNION query in another select so we can apply WHERE clauses to it below.
         query = knex.select("*").from(
             // This UNION query has two parts that each use a different index.  It replaces an earlier
@@ -285,23 +294,28 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
             properties: {
                 id: {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 programId: {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 issuanceId: {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 attachedFromValueId: {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 currency: {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 balance: {
                     type: "number"
@@ -319,7 +333,10 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                     type: "string",
                     operators: ["eq", "in"],
                     columnName: "codeHashed",
-                    valueMap: code => computeCodeLookupHash(code, auth)
+                    valueMap: code => {
+                        const c = trimCodeIfPresent({code});
+                        return computeCodeLookupHash(c.code, auth);
+                    }
                 },
                 active: {
                     type: "boolean"
@@ -340,10 +357,12 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                     type: "Date"
                 },
                 createdDate: {
-                    type: "Date"
+                    type: "Date",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 },
                 updatedDate: {
-                    type: "Date"
+                    type: "Date",
+                    operators: ["eq", "gt", "gte", "lt", "lte", "ne"]
                 }
             }
         },
@@ -359,6 +378,10 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 
 export async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, showCode: boolean = false): Promise<Value> {
     auth.requireIds("userId");
+
+    if (!isSystemId(id)) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${id}' not found.`, "ValueNotFound");
+    }
 
     const knex = await getKnexRead();
     const res: DbValue[] = await knex("Values")
@@ -414,8 +437,27 @@ export async function getValueByCode(auth: giftbitRoutes.jwtauth.AuthorizationBa
     return DbValue.toValue(res[0], showCode);
 }
 
+export async function getDbValuesByTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, transaction: Transaction): Promise<DbValue[]> {
+    const valueIds = transaction.steps
+        .filter(step => step.rail === "lightrail")
+        .map(step => (step as LightrailTransactionStep).valueId);
+    if (!valueIds.length) {
+        return [];
+    }
+
+    const knex = await getKnexRead();
+    const dbValues: DbValue[] = await knex("Values")
+        .where({userId: auth.userId})
+        .whereIn("id", valueIds);
+    return dbValues;
+}
+
 export async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, valueUpdates: Partial<Value>): Promise<Value> {
     auth.requireIds("userId");
+
+    if (!isSystemId(id)) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${id}' not found.`, "ValueNotFound");
+    }
 
     const knex = await getKnexWrite();
     return await knex.transaction(async trx => {
@@ -433,9 +475,16 @@ export async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             throw new Error(`Illegal SELECT query.  Returned ${selectValueRes.length} values.`);
         }
         const existingValue = await DbValue.toValue(selectValueRes[0]);
-        const updatedValue: Value = setValueUpdates(existingValue, valueUpdates);
-
+        if (valueUpdates.discountSellerLiabilityRule) {
+            existingValue.discountSellerLiability = null;
+        } else if (valueUpdates.discountSellerLiability != null) {
+            MetricsLogger.legacyDiscountSellerLiabilitySet("valueUpdate", auth);
+            existingValue.discountSellerLiabilityRule = null;
+        }
+        let updatedValue: Value = setValueUpdates(existingValue, valueUpdates);
+        updatedValue = setDiscountSellerLiabilityPropertiesForLegacySupport(updatedValue);
         await checkForRestrictedUpdates(auth, existingValue, updatedValue);
+
         checkValueProperties(updatedValue);
 
         const dbValue = Value.toDbValueUpdate(auth, valueUpdates);
@@ -451,6 +500,7 @@ export async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         if (updateRes > 1) {
             throw new Error(`Illegal UPDATE query.  Updated ${updateRes} values.`);
         }
+        MetricsLogger.valueUpdated(valueUpdates, auth);
         return updatedValue;
     });
 }
@@ -469,6 +519,7 @@ function setValueUpdates(existingValue: Value, valueUpdates: Partial<Value>): Va
             }
         };
     }
+
     return updatedValue;
 }
 
@@ -498,7 +549,7 @@ async function updateDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
             throw new cassava.RestError(404);
         }
         if (res > 1) {
-            throw new Error(`Illegal UPDATE query.  Updated ${res.length} values.`);
+            throw new Error(`Illegal UPDATE query.  Updated ${res} values.`);
         }
     } catch (err) {
         const constraint = getSqlErrorConstraintName(err);
@@ -518,6 +569,10 @@ async function updateDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
 async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<{ success: true }> {
     auth.requireIds("userId");
 
+    if (!isSystemId(id)) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${id}' not found.`, "ValueNotFound");
+    }
+
     try {
         const knex = await getKnexWrite();
         const res: number = await knex("Values")
@@ -527,7 +582,7 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
             })
             .delete();
         if (res === 0) {
-            throw new cassava.RestError(404);
+            throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${id}' not found.`, "ValueNotFound");
         }
         if (res > 1) {
             throw new Error(`Illegal DELETE query.  Deleted ${res} values.`);
@@ -542,7 +597,7 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
 }
 
 /**
- * This is currently a secret operation only Yervana knows about.
+ * For now this is a secret param only Yervana and Chairish know about.
  */
 export async function injectValueStats(auth: giftbitRoutes.jwtauth.AuthorizationBadge, values: Value[]): Promise<void> {
     auth.requireIds("userId");
@@ -636,10 +691,9 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
      * This will need to be updated once partial capture becomes a thing since joining to the last Transaction in the chain
      * will no longer give a complete picture regarding what happened.
      */
-    let query = knex("Values as V")
+    const query = knex("Values as V")
         .where({
             "V.userId": auth.userId,
-
         })
         .andWhere(q => {
             if (attachedFromGenericValueStats[0].count > 0) {
@@ -679,13 +733,13 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
         .groupBy("T_ROOT.transactionType");
 
     const results: {
-        transactionCount: number;
-        balanceChange: string; // For some reason sums come back as strings.
-        discountLightrail: string;
-        paidLightrail: string;
-        paidStripe: string;
-        paidInternal: string;
-        remainder: string;
+        transactionCount?: number | string; // Knex thinks this might come back as a string. ¯\_(ツ)_/¯
+        balanceChange?: string; // For some reason sums come back as strings.
+        discountLightrail?: string;
+        paidLightrail?: string;
+        paidStripe?: string;
+        paidInternal?: string;
+        remainder?: string;
         rootTransactionType: string; // The transactionType of the root transaction. Restricted to checkout and debit.
         finalTransactionType: string; // A join is done from the root transaction to the last transaction in the chain.
                                       // This is the transactionType of the last transaction in the chain.
@@ -694,12 +748,12 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
     for (const row of results) {
         if (row.rootTransactionType === "debit" && (row.finalTransactionType === null || row.finalTransactionType === "capture")) {
             stats.redeemed.balance += -row.balanceChange;
-            stats.redeemed.transactionCount += row.transactionCount;
+            stats.redeemed.transactionCount += +row.transactionCount;
         } else if (row.rootTransactionType === "checkout" && (row.finalTransactionType === null || row.finalTransactionType === "capture")) {
-            stats.redeemed.transactionCount += row.transactionCount;
+            stats.redeemed.transactionCount += +row.transactionCount;
             stats.redeemed.balance += -row.balanceChange;
             stats.checkout.lightrailSpend += +row.paidLightrail + +row.discountLightrail;
-            stats.checkout.transactionCount += row.transactionCount;
+            stats.checkout.transactionCount += +row.transactionCount;
             stats.checkout.overspend += +row.paidStripe + +row.paidInternal + +row.remainder;
         }
     }
@@ -708,22 +762,8 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
     return stats;
 }
 
-type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
-export type StringBalanceValue = Omit<Value, "balance"> & { balance: string | number };
-
-async function formatValueForCurrencyDisplay(auth: giftbitRoutes.jwtauth.AuthorizationBadge, values: Value[]): Promise<StringBalanceValue[]> {
-    const formattedValues: StringBalanceValue[] = [];
-    const retrievedCurrencies: { [key: string]: Currency } = {};
-    for (const value of values) {
-        if (!retrievedCurrencies[value.currency]) {
-            retrievedCurrencies[value.currency] = await getCurrency(auth, value.currency);
-        }
-        formattedValues.push({
-            ...value,
-            balance: value.balance != null ? formatAmountForCurrencyDisplay(value.balance, retrievedCurrencies[value.currency]) : value.balance
-        });
-    }
-    return formattedValues;
+export function trimCodeIfPresent<T extends { code?: string }>(request: T): T {
+    return request.code ? {...request, code: request.code.trim()} : request;
 }
 
 const valueSchema: jsonschema.Schema = {
@@ -734,7 +774,7 @@ const valueSchema: jsonschema.Schema = {
             type: "string",
             maxLength: 64,
             minLength: 1,
-            pattern: "^[ -~]*$"
+            pattern: isSystemId.regexString
         },
         currency: {
             type: "string",
@@ -742,16 +782,19 @@ const valueSchema: jsonschema.Schema = {
             maxLength: 16
         },
         programId: {
-            type: "string",
+            type: ["string", null],
             maxLength: 64,
             minLength: 1
         },
         balance: {
             type: ["integer", "null"],
-            minimum: 0
+            minimum: 0,
+            maximum: 2147483647
         },
         usesRemaining: {
-            type: ["integer", "null"]
+            type: ["integer", "null"],
+            minimum: 0,
+            maximum: 2147483647
         },
         code: {
             type: ["string", "null"],
@@ -791,10 +834,14 @@ const valueSchema: jsonschema.Schema = {
                     additionalProperties: false,
                     properties: {
                         balance: {
-                            type: ["integer", "null"]
+                            type: ["integer", "null"],
+                            minimum: 0,
+                            maximum: 2147483647
                         },
                         usesRemaining: {
-                            type: ["integer", "null"]
+                            type: ["integer", "null"],
+                            minimum: 0,
+                            maximum: 2147483647
                         }
                     }
                 }
@@ -815,45 +862,19 @@ const valueSchema: jsonschema.Schema = {
             type: "boolean"
         },
         redemptionRule: {
-            oneOf: [
-                {
-                    type: "null"
-                },
-                {
-                    title: "Redemption rule",
-                    type: "object",
-                    properties: {
-                        rule: {
-                            type: "string"
-                        },
-                        explanation: {
-                            type: "string"
-                        }
-                    }
-                }
-            ]
+            ...ruleSchema,
+            title: "Redemption rule",
         },
         balanceRule: {
-            oneOf: [
-                {
-                    type: "null"
-                },
-                {
-                    title: "Balance rule",
-                    type: "object",
-                    properties: {
-                        rule: {
-                            type: "string"
-                        },
-                        explanation: {
-                            type: "string"
-                        }
-                    }
-                }
-            ]
+            ...ruleSchema,
+            title: "Balance rule"
         },
         discount: {
             type: "boolean"
+        },
+        discountSellerLiabilityRule: {
+            ...ruleSchema,
+            title: "DiscountSellerLiability rule"
         },
         discountSellerLiability: {
             type: ["number", "null"],
@@ -876,8 +897,15 @@ const valueSchema: jsonschema.Schema = {
     dependencies: {
         discountSellerLiability: {
             properties: {
-                discount: {
-                    enum: [true]
+                discountSellerLiabilityRule: {
+                    enum: [null, undefined]
+                }
+            }
+        },
+        discountSellerLiabilityRule: {
+            properties: {
+                discountSellerLiability: {
+                    enum: [null, undefined]
                 }
             }
         }
@@ -888,12 +916,28 @@ const valueUpdateSchema: jsonschema.Schema = {
     type: "object",
     additionalProperties: false,
     properties: {
-        ...pick(valueSchema.properties, "id", "active", "frozen", "pretax", "redemptionRule", "balanceRule", "discount", "discountSellerLiability", "startDate", "endDate", "metadata", "genericCodeOptions"),
+        ...pick(valueSchema.properties, "id", "active", "frozen", "pretax", "redemptionRule", "balanceRule", "discount", "discountSellerLiability", "discountSellerLiabilityRule", "startDate", "endDate", "metadata", "genericCodeOptions"),
         canceled: {
             type: "boolean"
         }
     },
-    required: []
+    required: [],
+    dependencies: {
+        discountSellerLiability: {
+            properties: {
+                discountSellerLiabilityRule: {
+                    enum: [null, undefined]
+                }
+            }
+        },
+        discountSellerLiabilityRule: {
+            properties: {
+                discountSellerLiability: {
+                    enum: [null, undefined]
+                }
+            }
+        }
+    }
 };
 
 const valueChangeCodeSchema: jsonschema.Schema = {

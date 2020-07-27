@@ -5,8 +5,9 @@ import * as pendingTransactionUtils from "./pendingTransactionUtils";
 import {
     filterForUsedAttaches,
     getContactIdFromSources,
-    getLightrailValues,
-    getTransactionPlanStepsFromSources
+    getLightrailValuesForTransactionPlanSteps,
+    getTransactionPlanStepsFromSources,
+    ResolveTransactionPartiesOptions
 } from "./resolveTransactionPlanSteps";
 import {
     CaptureRequest,
@@ -36,6 +37,7 @@ import {createVoidTransactionPlan} from "./transactions.void";
 import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {Value} from "../../../model/Value";
 import {getAttachTransactionPlanForGenericCodeWithPerContactOptions} from "../genericCodeWithPerContactOptions";
+import {isSystemId} from "../../../utils/isSystemId";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -199,10 +201,14 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
     const knex = await getKnexRead();
     const valueId = filterParams["valueId"];
     const contactId = filterParams["contactId"];
-    let query = knex("Transactions")
+    const query = knex("Transactions")
         .select("Transactions.*")
         .where("Transactions.userId", "=", auth.userId);
     if (valueId || contactId) {
+        if (!isSystemId(contactId) || !isSystemId(valueId)) {
+            return {transactions: [], pagination};
+        }
+
         query.join("LightrailTransactionSteps", {
             "Transactions.id": "LightrailTransactionSteps.transactionId",
             "Transactions.userId": "LightrailTransactionSteps.userId"
@@ -223,11 +229,13 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
             properties: {
                 "id": {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 "transactionType": {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 "createdDate": {
                     type: "Date",
@@ -235,11 +243,13 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
                 },
                 "currency": {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 "rootTransactionId": { // only used internally for looking up transaction chain and not exposed publicly
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 }
             },
             tableName: "Transactions"
@@ -247,13 +257,17 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
         pagination
     );
     return {
-        transactions: await DbTransaction.toTransactions(res.body, auth.userId),
+        transactions: await DbTransaction.toTransactionsUsingDb(res.body, auth.userId),
         pagination: res.pagination
     };
 }
 
 export async function getDbTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<DbTransaction> {
     auth.requireIds("userId");
+
+    if (!isSystemId(id)) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Transaction with id '${id}' not found.`, "TransactionNotFound");
+    }
 
     const knex = await getKnexRead();
     const res: DbTransaction[] = await knex("Transactions")
@@ -263,7 +277,7 @@ export async function getDbTransaction(auth: giftbitRoutes.jwtauth.Authorization
             id
         });
     if (res.length === 0) {
-        throw new cassava.RestError(404);
+        throw new giftbitRoutes.GiftbitRestError(404, `Transaction with id '${id}' not found.`, "TransactionNotFound");
     }
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
@@ -275,7 +289,7 @@ export async function getTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBa
     auth.requireIds("userId");
     const dbTransaction = await getDbTransaction(auth, id);
 
-    const transactions: Transaction[] = await DbTransaction.toTransactions([dbTransaction], auth.userId);
+    const transactions: Transaction[] = await DbTransaction.toTransactionsUsingDb([dbTransaction], auth.userId);
     return transactions[0];   // at this point there will only ever be one
 }
 
@@ -309,14 +323,14 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
             allowRemainder: checkout.allowRemainder
         },
         async () => {
-            const fetchedValues = await getLightrailValues(auth, {
-                currency: checkout.currency,
-                parties: checkout.sources,
+            const resolveOptions: ResolveTransactionPartiesOptions = {
+                currency: checkout.currency?.toUpperCase(),
                 transactionId: checkout.id,
                 nonTransactableHandling: "exclude",
                 includeZeroBalance: !!checkout.allowRemainder,
                 includeZeroUsesRemaining: !!checkout.allowRemainder,
-            });
+            };
+            const fetchedValues = await getLightrailValuesForTransactionPlanSteps(auth, checkout.sources, resolveOptions);
 
             // handle auto attach on generic codes
             const valuesToAttach: Value[] = fetchedValues.filter(v => Value.isGenericCodeWithPropertiesPerContact(v));
@@ -330,10 +344,9 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
             }
 
             const checkoutTransactionPlanSteps = getTransactionPlanStepsFromSources(
-                checkout.id,
-                checkout.currency,
                 valuesForCheckout,
-                checkout.sources.filter(src => src.rail !== "lightrail") as (StripeTransactionParty | InternalTransactionParty)[]
+                checkout.sources.filter(src => src.rail !== "lightrail") as (StripeTransactionParty | InternalTransactionParty)[],
+                resolveOptions
             );
 
             const checkoutTransactionPlan: TransactionPlan = getCheckoutTransactionPlan(checkout, checkoutTransactionPlanSteps);
@@ -451,16 +464,18 @@ const creditSchema: jsonschema.Schema = {
             type: "string",
             minLength: 1,
             maxLength: 64,
-            pattern: "^[ -~]*$"
+            pattern: isSystemId.regexString
         },
         destination: transactionPartySchema.lightrailUnique,
         amount: {
             type: "integer",
-            minimum: 1
+            minimum: 1,
+            maximum: 2147483647
         },
         uses: {
             type: "integer",
-            minimum: 1
+            minimum: 1,
+            maximum: 2147483647
         },
         currency: {
             type: "string",
@@ -496,16 +511,18 @@ const debitSchema: jsonschema.Schema = {
             type: "string",
             minLength: 1,
             maxLength: 64,
-            pattern: "^[ -~]*$"
+            pattern: isSystemId.regexString
         },
         source: transactionPartySchema.lightrailUnique,
         amount: {
             type: "integer",
-            minimum: 1
+            minimum: 1,
+            maximum: 2147483647
         },
         uses: {
             type: "integer",
-            minimum: 1
+            minimum: 1,
+            maximum: 2147483647
         },
         currency: {
             type: "string",
@@ -548,7 +565,7 @@ const transferSchema: jsonschema.Schema = {
             type: "string",
             minLength: 1,
             maxLength: 64,
-            pattern: "^[ -~]*$"
+            pattern: isSystemId.regexString
         },
         source: {
             oneOf: [
@@ -559,7 +576,8 @@ const transferSchema: jsonschema.Schema = {
         destination: transactionPartySchema.lightrailUnique,
         amount: {
             type: "integer",
-            minimum: 1
+            minimum: 1,
+            maximum: 2147483647
         },
         currency: {
             type: "string",
@@ -588,7 +606,7 @@ const checkoutSchema: jsonschema.Schema = {
             type: "string",
             minLength: 1,
             maxLength: 64,
-            pattern: "^[ -~]*$"
+            pattern: isSystemId.regexString
         },
         lineItems: {
             type: "array",
@@ -604,15 +622,18 @@ const checkoutSchema: jsonschema.Schema = {
                     },
                     unitPrice: {
                         type: "integer",
-                        minimum: 0
+                        minimum: 0,
+                        maximum: 2147483647
                     },
                     quantity: {
                         type: "integer",
-                        minimum: 1
+                        minimum: 1,
+                        maximum: 2147483647
                     },
                     taxRate: {
                         type: "float",
-                        minimum: 0
+                        minimum: 0,
+                        maximum: 1
                     },
                     marketplaceRate: {
                         type: "float",
@@ -676,7 +697,7 @@ const reverseSchema: jsonschema.Schema = {
             type: "string",
             minLength: 1,
             maxLength: 64,
-            pattern: "^[ -~]*$"
+            pattern: isSystemId.regexString
         },
         simulate: {
             type: "boolean"
@@ -697,7 +718,7 @@ const captureSchema: jsonschema.Schema = {
             type: "string",
             minLength: 1,
             maxLength: 64,
-            pattern: "^[ -~]*$"
+            pattern: isSystemId.regexString
         },
         simulate: {
             type: "boolean"
@@ -718,7 +739,7 @@ const voidSchema: jsonschema.Schema = {
             type: "string",
             minLength: 1,
             maxLength: 64,
-            pattern: "^[ -~]*$"
+            pattern: isSystemId.regexString
         },
         simulate: {
             type: "boolean"

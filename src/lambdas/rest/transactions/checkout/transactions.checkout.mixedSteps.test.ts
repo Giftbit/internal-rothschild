@@ -1,46 +1,44 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
+import chaiExclude from "chai-exclude";
 import * as transactions from "../transactions";
 import * as valueStores from "../../values/values";
 import * as testUtils from "../../../../utils/testUtils";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../../utils/testUtils";
-import {LightrailTransactionStep, StripeTransactionStep, Transaction} from "../../../../model/Transaction";
+import {Transaction} from "../../../../model/Transaction";
 import {createCurrency} from "../../currencies";
 import {formatCodeForLastFourDisplay, Value} from "../../../../model/Value";
-import {after} from "mocha";
-import {
-    setStubsForStripeTests,
-    stubCheckoutStripeCharge,
-    unsetStubsForStripeTests
-} from "../../../../utils/testUtils/stripeTestUtils";
+import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../../utils/testUtils/stripeTestUtils";
 import {CheckoutRequest, InternalTransactionParty} from "../../../../model/TransactionRequest";
-import chaiExclude = require("chai-exclude");
+import {nowInDbPrecision} from "../../../../utils/dbUtils";
+import {LightrailTransactionStep, StripeTransactionStep} from "../../../../model/TransactionStep";
 
 chai.use(chaiExclude);
-
-require("dotenv").config();
 
 describe("/v2/transactions/checkout - mixed sources", () => {
 
     const router = new cassava.Router();
 
-    before(async function () {
+    before(async () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         transactions.installTransactionsRest(router);
         valueStores.installValuesRest(router);
 
-        setStubsForStripeTests();
+        await setStubsForStripeTests();
         await createCurrency(testUtils.defaultTestUser.auth, {
             code: "CAD",
             name: "Canadian Tire Money",
             symbol: "$",
-            decimalPlaces: 2
+            decimalPlaces: 2,
+            createdDate: nowInDbPrecision(),
+            updatedDate: nowInDbPrecision(),
+            createdBy: testUtils.defaultTestUser.teamMemberId
         });
-        await setCodeCryptographySecrets();
+        setCodeCryptographySecrets();
     });
 
-    after(async function () {
+    after(() => {
         unsetStubsForStripeTests();
     });
 
@@ -122,7 +120,6 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             currency: "CAD"
         };
 
-        stubCheckoutStripeCharge(request, 0, 1360);
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.deepEqualExcluding(postCheckoutResp.body, {
@@ -445,7 +442,6 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             currency: "CAD"
         };
 
-        stubCheckoutStripeCharge(request, 0, 50);
         const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
         chai.assert.equal(postCheckoutResp.statusCode, 201, `body=${JSON.stringify(postCheckoutResp.body)}`);
         chai.assert.equal(postCheckoutResp.body.id, request.id);

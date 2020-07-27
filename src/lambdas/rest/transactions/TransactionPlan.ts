@@ -1,16 +1,5 @@
 import * as stripe from "stripe";
-import {
-    InternalDbTransactionStep,
-    InternalTransactionStep,
-    LightrailDbTransactionStep,
-    LightrailTransactionStep,
-    StripeDbTransactionStep,
-    StripeTransactionStep,
-    Transaction,
-    TransactionStep,
-    TransactionTotals,
-    TransactionType
-} from "../../../model/Transaction";
+import {Transaction, TransactionTotals, TransactionType} from "../../../model/Transaction";
 import {formatCodeForLastFourDisplay, Value} from "../../../model/Value";
 import {LineItemResponse} from "../../../model/LineItem";
 import {AdditionalStripeChargeParams, TransactionParty} from "../../../model/TransactionRequest";
@@ -18,6 +7,15 @@ import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {TaxRequestProperties} from "../../../model/TaxProperties";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
+import {
+    InternalDbTransactionStep,
+    InternalTransactionStep,
+    LightrailDbTransactionStep,
+    LightrailTransactionStep,
+    StripeDbTransactionStep,
+    StripeTransactionStep,
+    TransactionStep
+} from "../../../model/TransactionStep";
 
 export interface TransactionPlan {
     id: string;
@@ -44,23 +42,25 @@ export type LightrailTransactionPlanStep = LightrailUpdateTransactionPlanStep | 
 
 export interface LightrailInsertTransactionPlanStep {
     rail: "lightrail";
-    value: Value;
     action: "insert";
+    value: Value;
     generateCodeParameters?: GenerateCodeParameters;
 }
 
 export interface LightrailUpdateTransactionPlanStep {
     rail: "lightrail";
+    action: "update";
     value: Value;
     amount: number;
     uses: number | null;
-    action: "update";
+    allowCanceled: boolean;
+    allowFrozen: boolean;
 }
 
 export interface StripeChargeTransactionPlanStep {
     rail: "stripe";
     type: "charge";
-    idempotentStepId: string;
+    stepIdempotencyKey: string;
     source?: string;
     customer?: string;
     maxAmount: number | null;
@@ -76,13 +76,12 @@ export interface StripeChargeTransactionPlanStep {
 }
 
 export function isStepWithAmount(step: TransactionPlanStep): step is LightrailUpdateTransactionPlanStep | StripeTransactionPlanStep | InternalTransactionPlanStep {
-    return (<any>step).amount !== undefined;
+    return (step as any).amount !== undefined;
 }
 
 export interface StripeRefundTransactionPlanStep {
     rail: "stripe";
     type: "refund";
-    idempotentStepId: string;
 
     /**
      * The ID of the charge to refund.
@@ -90,18 +89,17 @@ export interface StripeRefundTransactionPlanStep {
     chargeId: string;
 
     amount: number;
+    reason?: string;
 
     /**
-     * Result of creating the refund.  Only set if the plan is executed.
+     * Result of creating the refund.  Set when the plan is executed.
      */
     refundResult?: stripe.refunds.IRefund;
-    reason: string;
 }
 
 export interface StripeCaptureTransactionPlanStep {
     rail: "stripe";
     type: "capture";
-    idempotentStepId: string;
 
     /**
      * The ID of the charge to capture.
@@ -141,7 +139,7 @@ export interface InternalTransactionPlanStep {
 }
 
 export namespace LightrailTransactionPlanStep {
-    export function toLightrailDbTransactionStep(step: LightrailTransactionPlanStep, plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge, stepIndex: number): LightrailDbTransactionStep {
+    export function toLightrailDbTransactionStep(step: LightrailTransactionPlanStep, stepIndex: number, plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge): LightrailDbTransactionStep {
         return {
             userId: auth.userId,
             id: `${plan.id}-${stepIndex}`,
@@ -157,8 +155,23 @@ export namespace LightrailTransactionPlanStep {
         };
     }
 
-    function getSharedProperties(step: LightrailTransactionPlanStep) {
-        let sharedProperties = {
+    /**
+     * Shared between LightrailDbTransactionStep and LightrailTransactionStep.
+     */
+    interface SharedStepProperties {
+        valueId: string;
+        contactId: string;
+        code: string | null;
+        balanceBefore: number;
+        balanceChange: number;
+        balanceAfter: number;
+        usesRemainingBefore: number;
+        usesRemainingChange: number;
+        usesRemainingAfter: number;
+    }
+
+    function getSharedProperties(step: LightrailTransactionPlanStep): SharedStepProperties {
+        const sharedProperties = {
             valueId: step.value.id,
             contactId: step.value.contactId,
             code: step.value.code ? formatCodeForLastFourDisplay(step.value.code) : null,
@@ -192,12 +205,12 @@ export namespace LightrailTransactionPlanStep {
 }
 
 export namespace StripeTransactionPlanStep {
-    export function toStripeDbTransactionStep(step: StripeTransactionPlanStep, plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge): StripeDbTransactionStep {
+    export function toStripeDbTransactionStep(step: StripeTransactionPlanStep, stepIndex: number, plan: TransactionPlan, auth: giftbitRoutes.jwtauth.AuthorizationBadge): StripeDbTransactionStep {
         switch (step.type) {
             case "charge":
                 return {
                     userId: auth.userId,
-                    id: step.idempotentStepId,
+                    id: `${plan.id}-${stepIndex}`,
                     transactionId: plan.id,
                     chargeId: step.chargeResult.id,
                     amount: -step.chargeResult.amount /* Note, chargeResult.amount is positive in Stripe but Lightrail treats debits as negative amounts on Steps. */,
@@ -206,16 +219,16 @@ export namespace StripeTransactionPlanStep {
             case "refund":
                 return {
                     userId: auth.userId,
-                    id: step.idempotentStepId,
+                    id: `${plan.id}-${stepIndex}`,
                     transactionId: plan.id,
                     chargeId: step.chargeId,
-                    amount: step.refundResult.amount,
+                    amount: step.amount,
                     charge: JSON.stringify(step.refundResult)
                 };
             case "capture": // Capture steps aren't persisted to the DB.
                 return {
                     userId: auth.userId,
-                    id: step.idempotentStepId,
+                    id: `${plan.id}-${stepIndex}`,
                     transactionId: plan.id,
                     chargeId: step.captureResult.id,
                     amount: step.amount,
@@ -245,7 +258,7 @@ export namespace StripeTransactionPlanStep {
                 if (step.refundResult) {
                     stripeTransactionStep.chargeId = step.chargeId;
                     stripeTransactionStep.charge = step.refundResult;
-                    stripeTransactionStep.amount = step.refundResult.amount;
+                    stripeTransactionStep.amount = step.amount;
                 }
                 break;
             case "capture":
@@ -279,7 +292,17 @@ export namespace InternalTransactionPlanStep {
         };
     }
 
-    function getSharedProperties(step: InternalTransactionPlanStep) {
+    /**
+     * Shared between InternalDbTransactionStep and InternalTransactionStep.
+     */
+    interface SharedStepProperties {
+        internalId: string;
+        balanceBefore: number;
+        balanceAfter: number;
+        balanceChange: number;
+    }
+
+    function getSharedProperties(step: InternalTransactionPlanStep): SharedStepProperties {
         return {
             internalId: step.internalId,
             balanceBefore: step.balance,
@@ -292,7 +315,11 @@ export namespace InternalTransactionPlanStep {
 export namespace TransactionPlan {
     export function toTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, plan: TransactionPlan, simulated?: boolean): Transaction {
         const transaction: Transaction = {
-            ...getSharedProperties(plan),
+            id: plan.id,
+            transactionType: plan.transactionType,
+            currency: plan.currency,
+            createdDate: plan.createdDate,
+            tax: plan.tax,
             totals: plan.totals,
             lineItems: plan.lineItems,
             steps: plan.steps.map(step => transactionPlanStepToTransactionStep(step)),
@@ -321,16 +348,6 @@ export namespace TransactionPlan {
         });
     }
 
-    function getSharedProperties(plan: TransactionPlan) {
-        return {
-            id: plan.id,
-            transactionType: plan.transactionType,
-            currency: plan.currency,
-            createdDate: plan.createdDate,
-            tax: plan.tax
-        };
-    }
-
     function transactionPlanStepToTransactionStep(step: TransactionPlanStep): TransactionStep {
         switch (step.rail) {
             case "lightrail":
@@ -344,13 +361,5 @@ export namespace TransactionPlan {
 
     export function containsStripeSteps(plan: TransactionPlan): boolean {
         return plan.steps.find(step => step.rail === "stripe") != null;
-    }
-}
-
-export function getDiscountSellerLiability(step: TransactionPlanStep): number {
-    if (step.rail === "lightrail" && (step as LightrailTransactionPlanStep).value.discount && (step as LightrailTransactionPlanStep).value.discountSellerLiability) {
-        return (step as LightrailTransactionPlanStep).value.discountSellerLiability;
-    } else {
-        return 0;
     }
 }

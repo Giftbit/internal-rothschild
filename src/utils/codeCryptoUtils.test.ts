@@ -2,7 +2,7 @@ import * as chai from "chai";
 import * as codeCryptoUtils from "./codeCryptoUtils";
 import {initializeCodeCryptographySecrets} from "./codeCryptoUtils";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
-import chaiExclude = require("chai-exclude");
+import chaiExclude from "chai-exclude";
 
 chai.use(chaiExclude);
 
@@ -17,7 +17,7 @@ describe("test codeCryptographicUtils", () => {
     });
 
     it("test encryptCode and decryptCode", async () => {
-        for (let code of codes) {
+        for (const code of codes) {
             const codeEncrypted = await codeCryptoUtils.encryptCode(code);
             chai.assert.notEqual(code, codeEncrypted, `expected code ${code} to not equal codeEncrypted ${codeEncrypted}`);
 
@@ -27,7 +27,7 @@ describe("test codeCryptographicUtils", () => {
     });
 
     it("test hash", async () => {
-        for (let code of codes) {
+        for (const code of codes) {
             const badge: AuthorizationBadge = new AuthorizationBadge();
             badge.userId = "user-123";
             const hash1 = await codeCryptoUtils.computeCodeLookupHash(code, badge);
@@ -37,7 +37,7 @@ describe("test codeCryptographicUtils", () => {
     });
 
     it("test addCodebasePepperToCode", async () => {
-        for (let code of codes) {
+        for (const code of codes) {
             const codeWithPepper = await codeCryptoUtils.addCodebasePepperToCode(code);
             const codeWithoutPepper = await codeCryptoUtils.removeCodebasePepperFromDecryptedCode(codeWithPepper);
             chai.assert.equal(code, codeWithoutPepper);
