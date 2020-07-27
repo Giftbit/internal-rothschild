@@ -462,6 +462,7 @@ describe("/v2/values/", () => {
             valueId: value.id,
             code: null,
             contactId: null,
+            balanceRule: null,
             balanceBefore: 0,
             balanceAfter: value.balance,
             balanceChange: value.balance,

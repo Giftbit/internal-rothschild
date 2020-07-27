@@ -500,6 +500,7 @@ describe("/v2/transactions/checkout - internal sources", () => {
                 {
                     "rail": "lightrail",
                     "valueId": value.id,
+                    "balanceRule": null,
                     "balanceBefore": 2000,
                     "balanceAfter": 1776,
                     "balanceChange": -224,
