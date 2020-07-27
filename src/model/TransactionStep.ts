@@ -1,4 +1,5 @@
 import * as stripe from "stripe";
+import {Rule} from "./Value";
 
 export type TransactionStep = LightrailTransactionStep | StripeTransactionStep | InternalTransactionStep;
 
@@ -7,6 +8,7 @@ export interface LightrailTransactionStep {
     valueId: string;
     contactId?: string;
     code?: string;
+    balanceRule: Rule | null;
     balanceBefore: number;
     balanceAfter: number;
     balanceChange: number;
@@ -39,6 +41,7 @@ export interface LightrailDbTransactionStep {
     valueId: string;
     contactId?: string;
     code?: string;
+    balanceRule: string | null;
     balanceBefore: number | null;
     balanceAfter: number | null;
     balanceChange: number | null;
@@ -100,6 +103,7 @@ export namespace DbTransactionStep {
             balanceBefore: step.balanceBefore,
             balanceAfter: step.balanceAfter,
             balanceChange: step.balanceChange,
+            balanceRule: step.balanceRule ? JSON.parse(step.balanceRule) : null,
             usesRemainingBefore: step.usesRemainingBefore,
             usesRemainingAfter: step.usesRemainingAfter,
             usesRemainingChange: step.usesRemainingChange

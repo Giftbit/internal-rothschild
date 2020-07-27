@@ -144,14 +144,16 @@ export namespace LightrailTransactionPlanStep {
             userId: auth.userId,
             id: `${plan.id}-${stepIndex}`,
             transactionId: plan.id,
-            ...getSharedProperties(step)
+            ...getSharedProperties(step),
+            balanceRule: (step as LightrailUpdateTransactionPlanStep).amount != null ? JSON.stringify(step.value.balanceRule) : null
         };
     }
 
     export function toLightrailTransactionStep(step: LightrailTransactionPlanStep): LightrailTransactionStep {
         return {
             rail: "lightrail",
-            ...getSharedProperties(step)
+            ...getSharedProperties(step),
+            balanceRule: (step as LightrailUpdateTransactionPlanStep).amount != null ? step.value.balanceRule : null
         };
     }
 
@@ -357,9 +359,5 @@ export namespace TransactionPlan {
             case "internal":
                 return InternalTransactionPlanStep.toInternalTransactionStep(step);
         }
-    }
-
-    export function containsStripeSteps(plan: TransactionPlan): boolean {
-        return plan.steps.find(step => step.rail === "stripe") != null;
     }
 }
