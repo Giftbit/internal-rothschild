@@ -19,6 +19,7 @@ interface DbObjectsForNewAttach {
 interface ContactValueMigration {
     userId: string;
     countOfContactValues: number;
+    skippedMigrationConflicts: number;
     countOfSharedGenericCodes: number;
     genericCodeIdList: string[];
 }
@@ -34,6 +35,7 @@ export async function migrateContactValues(): Promise<ContactValueMigration[]> {
     for (const user of users) {
         results.push(await migrateContactValuesForUser(user.userId));
     }
+    log.info(`Finished ContactValue migration. Results: ${results.map(result => JSON.stringify(result) + "\n")}`);
     return results;
 }
 
@@ -42,6 +44,7 @@ export async function migrateContactValuesForUser(userId: string): Promise<Conta
     const stats: ContactValueMigration = {
         userId: userId,
         countOfContactValues: 0,
+        skippedMigrationConflicts: 0,
         countOfSharedGenericCodes: 0,
         genericCodeIdList: []
     };
@@ -50,12 +53,13 @@ export async function migrateContactValuesForUser(userId: string): Promise<Conta
     const contactValues: DbContactValue[] = await knexRead("ContactValues")
         .select()
         .where({
-            userId: userId
+            userId: userId,
+            migrated: false
         });
     stats.countOfContactValues = contactValues.length;
     log.info(`Found ${stats.countOfContactValues} ContactValues to migrate for user ${userId}.`);
 
-    let genericCodes: { [valueId: string]: DbValue } = {};
+    const genericCodes: { [valueId: string]: DbValue } = {};
     const newValueAttaches: DbObjectsForNewAttach[] = [];
     for (const contactValue of contactValues) {
         if (!genericCodes[contactValue.valueId]) {
@@ -73,29 +77,22 @@ export async function migrateContactValuesForUser(userId: string): Promise<Conta
                 await insertValue(trx, newValueAttach.value);
                 await insertTransaction(trx, newValueAttach.transaction);
                 await insertTransactionSteps(trx, newValueAttach.steps);
+                await markContactValueAsMigrated(trx, userId, newValueAttach.value.contactId, newValueAttach.value.attachedFromValueId);
             } catch (err) {
                 if (err instanceof cassava.RestError && err.statusCode === cassava.httpStatusCode.clientError.CONFLICT) {
                     log.info(`While migrating a contactValue it appears it may have already been attached as a new value. New Value Id: ${newValueAttach.value.id}. This is okay. It is possible to have attached a generic code as a shared generic and then also attach using attachGenericAsNewValue=true. Proceed with migration.`);
+                    await markContactValueAsMigrated(trx, userId, newValueAttach.value.contactId, newValueAttach.value.attachedFromValueId);
+                    stats.skippedMigrationConflicts++;
                 } else {
                     throw err;
                 }
             }
         }
-
-        const del = await trx("ContactValues")
-            .delete()
-            .where({
-                userId: userId
-            });
-        log.info(`Deleted ${del} contactValues.`);
     });
 
-    return {
-        userId: userId,
-        countOfContactValues: contactValues.length,
-        countOfSharedGenericCodes: Object.keys(genericCodes).length,
-        genericCodeIdList: Object.keys(genericCodes)
-    };
+    stats.countOfSharedGenericCodes = Object.keys(genericCodes).length;
+    stats.genericCodeIdList = Object.keys(genericCodes);
+    return stats;
 }
 
 async function getGenericCode(knex: Knex, userId: string, id: string): Promise<DbValue> {
@@ -235,5 +232,23 @@ async function insertTransactionSteps(trx: Knex, dbSteps: DbTransactionStep[]): 
     } catch (err) {
         log.debug(`Error inserting steps ${JSON.stringify(dbSteps)}`, err);
         throw err;
+    }
+}
+
+async function markContactValueAsMigrated(trx: Knex, userId: string, contactId: string, valueId: string): Promise<void> {
+    const update = await trx("ContactValues")
+        .where({
+            userId: userId,
+            contactId: contactId,
+            valueId: valueId
+        })
+        .update({
+            migrated: true
+        });
+    if (update === 0) {
+        throw new cassava.RestError(404);
+    }
+    if (update > 1) {
+        throw new Error(`Illegal UPDATE query.  Updated ${update} ContactValues.`);
     }
 }

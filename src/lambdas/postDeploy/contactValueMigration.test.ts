@@ -14,7 +14,7 @@ import {getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {Value} from "../../model/Value";
 import {DbContactValue} from "../../model/DbContactValue";
-import {getKnexWrite} from "../../utils/dbUtils/connection";
+import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {Contact} from "../../model/Contact";
 import {Transaction} from "../../model/Transaction";
 import {migrateContactValues, migrateContactValuesForUser} from "./contactValueMigration";
@@ -131,9 +131,18 @@ describe("contact value migration", () => {
             }
         }
 
+        const knexRead = await getKnexRead();
+
+        const contactValuesBefore: DbContactValue[] = await knexRead("ContactValues")
+            .select("*");
+        contactValuesBefore.forEach(cv => {
+            chai.assert.isFalse(cv.migrated);
+        });
+
         const migrate = await migrateContactValuesForUser(testUtils.defaultTestUser.userId);
         chai.assert.equal(migrate.userId, defaultTestUser.userId);
         chai.assert.equal(migrate.countOfContactValues, 6);
+        chai.assert.equal(migrate.skippedMigrationConflicts, 0);
         chai.assert.equal(migrate.countOfSharedGenericCodes, 4);
         chai.assert.sameMembers(migrate.genericCodeIdList, [testData[0].genericCode.id, testData[1].genericCode.id, testData[2].genericCode.id, testData[3].genericCode.id]);
 
@@ -342,6 +351,12 @@ describe("contact value migration", () => {
                 "usesRemainingChange": null
             }
         ]);
+
+        const contactValuesAfter: DbContactValue[] = await knexRead("ContactValues")
+            .select("*");
+        contactValuesAfter.forEach(cv => {
+            chai.assert.isTrue(cv.migrated);
+        });
     }).timeout(15000);
 
     it("can migrate 10,000 contact values", async () => {
@@ -370,6 +385,7 @@ describe("contact value migration", () => {
             {
                 userId: testUtils.defaultTestUser.userId,
                 countOfContactValues: 10000,
+                skippedMigrationConflicts: 0,
                 countOfSharedGenericCodes: 1,
                 genericCodeIdList: [gc.id]
             }
@@ -407,7 +423,6 @@ describe("contact value migration", () => {
             headers: {Authorization: `Bearer ${testUtils.alternateTestUser.jwt}`},
             body: JSON.stringify(gc)
         }));
-        console.log(JSON.stringify(createGenericCodeUser2));
         chai.assert.equal(createGenericCodeUser2.statusCode, 201);
 
         const createContactUser2 = await cassava.testing.testRouter(router, cassava.testing.createTestProxyEvent("/v2/contacts", "POST", {
@@ -423,17 +438,70 @@ describe("contact value migration", () => {
             {
                 userId: defaultTestUser.userId,
                 countOfContactValues: 1,
+                skippedMigrationConflicts: 0,
                 countOfSharedGenericCodes: 1,
                 genericCodeIdList: [createGenericCodeUser1.body.id]
             },
             {
                 userId: alternateTestUser.userId,
                 countOfContactValues: 1,
+                skippedMigrationConflicts: 0,
                 countOfSharedGenericCodes: 1,
                 genericCodeIdList: [JSON.parse(createGenericCodeUser2.body).id]
             }
         ]);
     });
+
+    it("will ignore conflict exceptions if a shared generic code was also attached as a unique value for a particular contact", async () => {
+        const gc: Partial<Value> = {
+            ...genericCodeBaseProps,
+            id: generateId(),
+            balanceRule: {
+                rule: "500 + value.balanceChange",
+                explanation: "$5 off"
+            }
+        };
+        const createGenericCode = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", gc);
+        chai.assert.equal(createGenericCode.statusCode, 201, `Failed creating: ${JSON.stringify(createGenericCode.body)}`);
+
+        const contactId = generateId();
+        const createContact = await testUtils.testAuthedRequest<Value>(router, "/v2/contacts", "POST", {
+            id: contactId
+        });
+        chai.assert.equal(createContact.statusCode, 201, `Failed creating: ${JSON.stringify(createContact.body)}`);
+        await attachSharedGenericValue(testUtils.defaultTestUser.auth, contactId, createGenericCode.body);
+
+        const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactId}/values/attach`, "POST", {
+            valueId: gc.id,
+            attachGenericAsNewValue: true
+        });
+        chai.assert.equal(attachResp.statusCode, 200);
+
+        const migrate = await migrateContactValuesForUser(testUtils.defaultTestUser.userId);
+        chai.assert.deepEqual(migrate, {
+                "userId": testUtils.defaultTestUser.userId,
+                "countOfContactValues": 1,
+                "skippedMigrationConflicts": 1,
+                "countOfSharedGenericCodes": 1,
+                "genericCodeIdList": [
+                    gc.id
+                ]
+            }
+        );
+
+        const knexRead = await getKnexRead();
+
+        const contactValuesAfter: DbContactValue[] = await knexRead("ContactValues")
+            .select("*")
+            .where({
+                userId: testUtils.defaultTestUser.userId,
+                contactId: contactId,
+                valueId: gc.id
+            });
+        chai.assert.equal(contactValuesAfter.length, 1);
+        chai.assert.isTrue(contactValuesAfter[0].migrated);
+    });
+
 });
 
 // Legacy function moved from contactValues.ts, now used to test that existing shared generic codes will still function correctly.

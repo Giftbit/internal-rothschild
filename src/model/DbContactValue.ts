@@ -3,4 +3,5 @@ export interface DbContactValue {
     valueId: string;
     contactId: string;
     createdDate: Date;
+    migrated?: boolean;
 }

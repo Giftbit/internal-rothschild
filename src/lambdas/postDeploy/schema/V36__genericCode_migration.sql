@@ -18,4 +18,7 @@ WHERE isGenericCode = TRUE
   AND usesRemaining IS NOT NULL
   AND genericCodeOptions_perContact_usesRemaining IS NULL;
 
+ALTER TABLE rothschild.`ContactValues`
+  ADD migrated BOOLEAN NOT NULL DEFAULT 0;
+
 SET SQL_SAFE_UPDATES = 1;

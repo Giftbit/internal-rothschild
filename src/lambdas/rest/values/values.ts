@@ -250,7 +250,7 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 
     const knex = await getKnexRead();
 
-    let query: QueryBuilder = knex("Values")
+    const query: QueryBuilder = knex("Values")
         .select("*")
         .where("Values.userId", "=", auth.userId);
 
