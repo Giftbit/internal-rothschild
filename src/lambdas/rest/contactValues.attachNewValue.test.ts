@@ -222,7 +222,7 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
                     balanceRule: null,
                     balanceBefore: null,
                     balanceAfter: null,
-                    balanceChange: 0,
+                    balanceChange: null,
                     usesRemainingBefore: null,
                     usesRemainingAfter: null,
                     usesRemainingChange: null

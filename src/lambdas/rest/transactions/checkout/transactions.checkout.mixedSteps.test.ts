@@ -404,7 +404,7 @@ describe("/v2/transactions/checkout - mixed sources", () => {
                 valueId: valueGenericCode.id,
                 contactId: null,
                 code: formatCodeForLastFourDisplay(valueGenericCode.code),
-                balanceRule: null,
+                balanceRule: valueGenericCode.balanceRule,
                 balanceBefore: null,
                 balanceAfter: null,
                 balanceChange: -2000,
