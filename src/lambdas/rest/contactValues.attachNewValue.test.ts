@@ -12,6 +12,7 @@ import {getKnexWrite} from "../../utils/dbUtils/connection";
 import {generateUrlSafeHashFromValueIdContactId} from "./genericCodeWithPerContactOptions";
 import {CheckoutRequest} from "../../model/TransactionRequest";
 import {nowInDbPrecision} from "../../utils/dbUtils";
+import {formatContactIdTags} from "./transactions/transactions";
 
 describe("/v2/contacts/values - attachNewValue=true", () => {
 
@@ -117,7 +118,7 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
             createdBy: attachResp.body.createdBy,
             metadata: null,
             tax: null,
-            tags: [`contactId:${contact.id}`]
+            tags: formatContactIdTags([contact.id])
         });
     });
 
@@ -332,7 +333,7 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
             createdBy: attachResp.body.createdBy,
             metadata: null,
             tax: null,
-            tags: [`contactId:${contact.id}`]
+            tags: formatContactIdTags([contact.id])
         });
     });
 

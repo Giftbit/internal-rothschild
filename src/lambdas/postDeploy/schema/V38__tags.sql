@@ -2,7 +2,7 @@ CREATE TABLE rothschild.Tags
 (
     userId      VARCHAR(64)                       NOT NULL,
     id          VARCHAR(64)                       NOT NULL,
-    displayName VARCHAR(96) CHARACTER SET utf8mb4 NOT NULL,
+    displayName VARCHAR(96) CHARACTER SET utf8mb4,
     createdDate DATETIME                          NOT NULL,
     updatedDate DATETIME                          NOT NULL,
     PRIMARY KEY pk_Tags (userId, id),

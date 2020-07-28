@@ -10,6 +10,7 @@ import {ReverseRequest} from "../../../../model/TransactionRequest";
 import {Contact} from "../../../../model/Contact";
 import chaiExclude from "chai-exclude";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
+import {formatContactIdTags} from "../transactions";
 
 chai.use(chaiExclude);
 
@@ -96,7 +97,7 @@ describe("/v2/transactions/reverse - attach", () => {
                 "pending": false,
                 "metadata": null,
                 "createdBy": "default-test-user-TEST",
-                "tags": [`contactId:${contact.id}`]
+                "tags": formatContactIdTags([contact.id])
             } as Transaction, ["createdDate"]
         );
         chai.assert.deepEqualExcluding(simulate.body, postReverse.body, ["simulated", "createdDate"]);

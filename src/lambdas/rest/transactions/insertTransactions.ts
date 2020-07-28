@@ -31,7 +31,7 @@ export async function insertTransaction(trx: Knex, auth: giftbitRoutes.jwtauth.A
             .insert(dbTransaction);
         if (plan.previousTransactionId) {
             let updateProperties: { [P in keyof DbTransaction]?: DbTransaction[P] | Knex.Raw } = {
-                nextTransactionId: plan.id,
+                nextTransactionId: plan.id
             };
             const updateRes = await trx.into("Transactions")
                 .where({

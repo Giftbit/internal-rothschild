@@ -11,6 +11,7 @@ import {Contact} from "../../../../model/Contact";
 import {installRestRoutes} from "../../installRestRoutes";
 import chaiExclude from "chai-exclude";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
+import {formatContactIdTags} from "../transactions";
 
 chai.use(chaiExclude);
 
@@ -755,7 +756,7 @@ describe("/v2/transactions/checkout - basics", () => {
                     "pending": false,
                     "metadata": null,
                     "createdBy": "default-test-user-TEST",
-                    "tags": [`contactId:${contact.id}`]
+                    "tags": formatContactIdTags([contact.id])
                 }, ["createdDate"]);
             chai.assert.equal((createCheckout.body.steps[0] as LightrailTransactionStep).contactId, contact.id, "The contactId is not directly on the Value, but attached to the Value via ContactValues. It's important for tracking reasons that the contactId is persisted onto the transaction step.");
 

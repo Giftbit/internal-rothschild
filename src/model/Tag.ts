@@ -1,7 +1,7 @@
 export interface Tag {
     userId: string;
     id: string;
-    displayName: string;
+    displayName?: string;
     createdDate: Date;
     updatedDate: Date;
 }

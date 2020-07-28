@@ -12,6 +12,7 @@ import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/t
 import {generateUrlSafeHashFromValueIdContactId} from "../genericCodeWithPerContactOptions";
 import chaiExclude from "chai-exclude";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
+import {formatContactIdTags} from "../transactions/transactions";
 
 chai.use(chaiExclude);
 
@@ -145,7 +146,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
                     "pending": false,
                     "metadata": null,
                     "createdBy": "default-test-user-TEST",
-                    "tags": [`contactId:${contactId}`]
+                    "tags": formatContactIdTags([contactId])
                 }, ["createdDate"]
             );
 

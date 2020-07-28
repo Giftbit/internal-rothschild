@@ -150,7 +150,7 @@ export namespace DbTransaction {
             "TransactionsTags.userId": "Tags.userId",
             "TransactionsTags.tagId": "Tags.id"
         }).where("TransactionsTags.userId", userId).whereIn("TransactionsTags.transactionId", txIds);
-        dbTxTags.forEach(t => transactionsTags[t.transactionId].push(t.displayName));
+        dbTxTags.forEach(t => transactionsTags[t.transactionId].push(t.id));
 
         return txns.map(dbTx => toTransaction(dbTx, dbSteps.filter(step => step.transactionId === dbTx.id), transactionsTags[dbTx.id]));
     }

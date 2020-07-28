@@ -586,7 +586,7 @@ describe("/v2/transactions - tags", () => {
 
     it("does not save new tag data for simulated transactions", async () => {
         const contactId = testUtils.generateId();
-        const tag = `contactId:${contactId}`;
+        const tag = formatContactIdTags([contactId])[0];
 
         const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
             id: "checkout-simulated",
@@ -607,7 +607,7 @@ describe("/v2/transactions - tags", () => {
             .select()
             .where({
                 userId: testUtils.defaultTestUser.userId,
-                displayName: tag
+                id: tag
             });
         chai.assert.equal(tagRes.length, 0, `tag should not exist: ${JSON.stringify(tagRes)}`);
 
@@ -678,9 +678,10 @@ describe("/v2/transactions - tags", () => {
             const tagRes: Tag[] = await knex("Tags")
                 .select()
                 .where({
-                    displayName: `contactId:${contactId}`
+                    id: formatContactIdTags([contactId])
                 });
             chai.assert.equal(tagRes.length, 2, `tag table should have an entry for this tag value for each test user: ${JSON.stringify(tagRes)}`);
+            chai.assert.equal(tagRes[0].id, tagRes[1].id, `tags should have the same 'id' value: ${JSON.stringify(tagRes)}`);
             chai.assert.equal(tagRes[0].displayName, tagRes[1].displayName, `tags should have the same 'displayName' value: ${JSON.stringify(tagRes)}`);
             chai.assert.sameMembers(tagRes.map(t => t.userId), [testUtils.defaultTestUser.auth.userId, testUtils.alternateTestUser.auth.userId], `tag table should have an entry for this tag value for each test user: ${JSON.stringify(tagRes)}`);
 
@@ -925,11 +926,11 @@ describe("/v2/transactions - tags", () => {
                 "TransactionsTags.tagId": "Tags.id"
             }).where({
                 "Tags.userId": testUtils.defaultTestUser.auth.userId,
-                "Tags.displayName": `contactId:${newContact.id}`
+                "Tags.id": formatContactIdTags([newContact.id])[0]
             });
             chai.assert.equal(txTagsRes.length, 12, `there should be exactly 12 transactions with the newContact.id tag: ${JSON.stringify(txTagsRes, null, 4)}`);
 
-            const transactionsResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?tag=contactId:${newContact.id}`, "GET");
+            const transactionsResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?tag=${formatContactIdTags([newContact.id])}`, "GET");
             chai.assert.equal(transactionsResp.statusCode, 200, `transactionsResp.body=${JSON.stringify(transactionsResp)}`);
             chai.assert.equal(transactionsResp.body.length, txTagsRes.length, `should have same number of transactions for newContact.id as there are TxTags records for newContact.id tag: tx IDs=${transactionsResp.body.map(t => t.id)}`);
         });
@@ -941,11 +942,11 @@ describe("/v2/transactions - tags", () => {
                 "TransactionsTags.tagId": "Tags.id"
             }).where({
                 "Tags.userId": testUtils.defaultTestUser.auth.userId,
-                "Tags.displayName": `contactId:${fakeContactId}`
+                "Tags.id": formatContactIdTags([fakeContactId])[0]
             });
             chai.assert.equal(txTagsRes.length, 6, `there should be exactly 6 transactions with the fakeContactId tag: ${JSON.stringify(txTagsRes, null, 4)}`);
 
-            const transactionsResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?tag=contactId:${fakeContactId}`, "GET");
+            const transactionsResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?tag=${formatContactIdTags([fakeContactId])}`, "GET");
             chai.assert.equal(transactionsResp.statusCode, 200, `transactionsResp.body=${JSON.stringify(transactionsResp)}`);
             chai.assert.equal(transactionsResp.body.length, txTagsRes.length, `should have same number of transactions for fakeContactId as there are TxTags records for fakeContactId tag: tx IDs=${JSON.stringify(transactionsResp.body.map(t => ({
                 id: t.id,
