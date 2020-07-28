@@ -91,41 +91,43 @@ describe("/v2/transactions/reverse - transfer", () => {
         });
         const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transfer.id}/reverse`, "POST", reverse);
         chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postTransfer.body)}`);
-        chai.assert.deepEqualExcluding(postReverse.body as any, {
-                "id": reverse.id,
-                "transactionType": "reverse",
-                "currency": "USD",
-                "createdDate": null,
-                "totals": {
-                    "remainder": 0
+        chai.assert.deepEqualExcluding(postReverse.body, {
+            "id": reverse.id,
+            "transactionType": "reverse",
+            "currency": "USD",
+            "createdDate": null,
+            "totals": {
+                "remainder": 0
+            },
+            "lineItems": null,
+            "tax": null,
+            "steps": [
+                {
+                    "rail": "lightrail",
+                    "valueId": value1.id,
+                    "contactId": null,
+                    "code": null,
+                    "balanceRule": null,
+                    "balanceBefore": 25,
+                    "balanceAfter": 100,
+                    "balanceChange": 75,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
                 },
-                "lineItems": null,
-                "tax": null,
-                "steps": [
-                    {
-                        "rail": "lightrail",
-                        "valueId": value1.id,
-                        "contactId": null,
-                        "code": null,
-                        "balanceBefore": 25,
-                        "balanceAfter": 100,
-                        "balanceChange": 75,
-                        "usesRemainingBefore": null,
-                        "usesRemainingAfter": null,
-                        "usesRemainingChange": null
-                    },
-                    {
-                        "rail": "lightrail",
-                        "valueId": value2.id,
-                        "contactId": null,
-                        "code": null,
-                        "balanceBefore": 95,
-                        "balanceAfter": 20,
-                        "balanceChange": -75,
-                        "usesRemainingBefore": null,
-                        "usesRemainingAfter": null,
-                        "usesRemainingChange": null
-                    }
+                {
+                    "rail": "lightrail",
+                    "valueId": value2.id,
+                    "contactId": null,
+                    "code": null,
+                    "balanceRule": null,
+                    "balanceBefore": 95,
+                    "balanceAfter": 20,
+                    "balanceChange": -75,
+                    "usesRemainingBefore": null,
+                    "usesRemainingAfter": null,
+                    "usesRemainingChange": null
+                }
                 ],
                 "paymentSources": null,
                 "pending": false,
@@ -194,6 +196,7 @@ describe("/v2/transactions/reverse - transfer", () => {
                         "valueId": value.id,
                         "contactId": null,
                         "code": null,
+                        "balanceRule": null,
                         "balanceBefore": 175,
                         "balanceAfter": 100,
                         "balanceChange": -75,

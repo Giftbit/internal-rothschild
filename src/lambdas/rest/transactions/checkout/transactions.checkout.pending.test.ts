@@ -117,6 +117,7 @@ describe("/v2/transactions/checkout - pending", () => {
                     valueId: value.id,
                     code: null,
                     contactId: null,
+                    balanceRule: null,
                     balanceBefore: 1000,
                     balanceAfter: 950,
                     balanceChange: -50,
@@ -177,6 +178,7 @@ describe("/v2/transactions/checkout - pending", () => {
                     valueId: value.id,
                     code: null,
                     contactId: null,
+                    balanceRule: null,
                     balanceBefore: 950,
                     balanceAfter: 1000,
                     balanceChange: 50,
@@ -270,6 +272,7 @@ describe("/v2/transactions/checkout - pending", () => {
                     valueId: value.id,
                     code: null,
                     contactId: null,
+                    balanceRule: null,
                     balanceBefore: 1000,
                     balanceAfter: 950,
                     balanceChange: -50,
@@ -882,6 +885,7 @@ describe("/v2/transactions/checkout - pending", () => {
         chai.assert.deepEqual(voidRes.body.steps, [
             {
                 rail: "lightrail",
+                balanceRule: null,
                 balanceAfter: 1000,
                 balanceBefore: 0,
                 balanceChange: 1000,

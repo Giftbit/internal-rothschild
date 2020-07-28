@@ -84,6 +84,7 @@ describe("/v2/transactions/reverse - attach", () => {
                         "valueId": value.id,
                         "contactId": contact.id,
                         "code": null,
+                        "balanceRule": null,
                         "balanceBefore": 100,
                         "balanceAfter": 0,
                         "balanceChange": -100,
@@ -96,7 +97,7 @@ describe("/v2/transactions/reverse - attach", () => {
                 "pending": false,
                 "metadata": null,
                 "createdBy": "default-test-user-TEST"
-            } as Transaction, ["createdDate"]
+            }, ["createdDate"]
         );
         chai.assert.deepEqualExcluding(simulate.body, postReverse.body, ["simulated", "createdDate"]);
         chai.assert.isTrue(simulate.body.simulated);
@@ -170,6 +171,7 @@ describe("/v2/transactions/reverse - attach", () => {
                         "valueId": genericValue.id,
                         "contactId": null,
                         "code": null,
+                        "balanceRule": null,
                         "balanceBefore": null,
                         "balanceAfter": null,
                         "balanceChange": null,
@@ -182,6 +184,7 @@ describe("/v2/transactions/reverse - attach", () => {
                         "valueId": postAttach.body.id,
                         "contactId": contact.id,
                         "code": null,
+                        "balanceRule": null,
                         "balanceBefore": null,
                         "balanceAfter": null,
                         "balanceChange": null,
@@ -194,7 +197,7 @@ describe("/v2/transactions/reverse - attach", () => {
                 "pending": false,
                 "metadata": null,
                 "createdBy": "default-test-user-TEST"
-            } as Transaction, ["createdDate"]
+            }, ["createdDate"]
         );
 
         // check value is same as before

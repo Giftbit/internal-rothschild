@@ -281,9 +281,10 @@ async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.Authoriz
         transactionId: dbAttachTransaction.id,
         valueId: originalValue.id,
         contactId: null,
+        balanceRule: null,
         balanceBefore: originalValue.balance,
         balanceAfter: originalValue.balance,
-        balanceChange: 0,
+        balanceChange: originalValue.balance == null ? null : 0,
         usesRemainingBefore: originalValue.usesRemaining != null ? originalValue.usesRemaining : null,
         usesRemainingAfter: originalValue.usesRemaining != null ? originalValue.usesRemaining - 1 : null,
         usesRemainingChange: originalValue.usesRemaining != null ? -1 : null
@@ -294,9 +295,10 @@ async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.Authoriz
         transactionId: dbAttachTransaction.id,
         valueId: newAttachedValue.id,
         contactId: newAttachedValue.contactId,
+        balanceRule: null,
         balanceBefore: newAttachedValue.balance != null ? 0 : null,
         balanceAfter: newAttachedValue.balance,
-        balanceChange: newAttachedValue.balance || 0,
+        balanceChange: newAttachedValue.balance || null,
         usesRemainingBefore: 0,
         usesRemainingAfter: newAttachedValue.usesRemaining,
         usesRemainingChange: newAttachedValue.usesRemaining
