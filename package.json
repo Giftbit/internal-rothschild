@@ -69,7 +69,7 @@
     "lru-cache": "^5.1.1",
     "mocha": "^6.2.2",
     "mysql2": "^1.7.0",
-    "papaparse": "^5.1.0",
+    "papaparse": "^5.2.0",
     "parse-link-header": "^1.0.1",
     "rimraf": "^3.0.0",
     "sinon": "^7.5.0",
