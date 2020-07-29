@@ -29,6 +29,8 @@ export async function migrateContactValues(): Promise<ContactValueMigration[]> {
     const knexRead = await getKnexRead();
     const results: ContactValueMigration[] = [];
 
+    log.info("Got database connection.");
+
     const users: { userId: string }[] = await knexRead("ContactValues")
         .select("userId")
         .groupBy("userId");
