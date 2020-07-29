@@ -25,6 +25,7 @@ interface ContactValueMigration {
 }
 
 export async function migrateContactValues(): Promise<ContactValueMigration[]> {
+    log.info(`Beginning ContactValue migration.`);
     const knexRead = await getKnexRead();
     const results: ContactValueMigration[] = [];
 
