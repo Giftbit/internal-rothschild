@@ -395,6 +395,12 @@ describe("/v2/transactions/transfer", () => {
             code: `${generateId()}-GENERIC`,
             currency: "CAD",
             balance: 100,
+            genericCodeOptions: {
+                perContact: {
+                    balance: 1,
+                    usesRemaining: null
+                }
+            },
             isGenericCode: true
         };
 
@@ -403,7 +409,7 @@ describe("/v2/transactions/transfer", () => {
         const postValueResp2 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueGenericCode);
         chai.assert.equal(postValueResp2.statusCode, 201, `body=${JSON.stringify(postValueResp2.body)}`);
 
-        const requestFromSecret = {
+        const transferRequest: TransferRequest = {
             id: generateId(),
             source: {
                 rail: "lightrail",
@@ -417,10 +423,10 @@ describe("/v2/transactions/transfer", () => {
             currency: "CAD"
         };
 
-        const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", requestFromSecret);
+        const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", transferRequest);
         chai.assert.equal(postTransferResp.statusCode, 201, `body=${JSON.stringify(postTransferResp.body)}`);
         chai.assert.deepEqualExcluding(postTransferResp.body, {
-            id: requestFromSecret.id,
+            id: transferRequest.id,
             transactionType: "transfer",
             totals: {
                 remainder: 0
@@ -475,22 +481,28 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.equal(getBasicValueResp.statusCode, 200, `body=${JSON.stringify(getBasicValueResp.body)}`);
         chai.assert.equal(getBasicValueResp.body.balance, 200);
 
-        const getTransferResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${requestFromSecret.id}`, "GET");
+        const getTransferResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transferRequest.id}`, "GET");
         chai.assert.equal(getTransferResp.statusCode, 200, `body=${JSON.stringify(getTransferResp.body)}`);
         chai.assert.deepEqual(getTransferResp.body, postTransferResp.body);
     });
 
     it("can transfer from valueId to generic code", async () => {
-        const basicValue = {
+        const basicValue: Partial<Value> = {
             id: generateId(),
             currency: "CAD",
             balance: 100
         };
-        const valueGenericCode = {
+        const valueGenericCode: Partial<Value> = {
             id: generateId(),
             code: `${generateId()}-SECRET`,
             currency: "CAD",
             balance: 100,
+            genericCodeOptions: {
+                perContact: {
+                    balance: 1,
+                    usesRemaining: null
+                }
+            },
             isGenericCode: true
         };
 
@@ -499,7 +511,7 @@ describe("/v2/transactions/transfer", () => {
         const postValueResp2 = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", valueGenericCode);
         chai.assert.equal(postValueResp2.statusCode, 201, `body=${JSON.stringify(postValueResp2.body)}`);
 
-        const requestToSecret = {
+        const requestToTransfer: TransferRequest = {
             id: generateId(),
             source: {
                 rail: "lightrail",
@@ -513,10 +525,10 @@ describe("/v2/transactions/transfer", () => {
             currency: "CAD"
         };
 
-        const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", requestToSecret);
+        const postTransferResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/transfer", "POST", requestToTransfer);
         chai.assert.equal(postTransferResp.statusCode, 201, `body=${JSON.stringify(postTransferResp.body)}`);
         chai.assert.deepEqualExcluding(postTransferResp.body, {
-            id: requestToSecret.id,
+            id: requestToTransfer.id,
             transactionType: "transfer",
             totals: {
                 remainder: 0
@@ -571,7 +583,7 @@ describe("/v2/transactions/transfer", () => {
         chai.assert.equal(getBasicValueResp.statusCode, 200, `body=${JSON.stringify(getBasicValueResp.body)}`);
         chai.assert.equal(getBasicValueResp.body.balance, 0);
 
-        const getTransferResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${requestToSecret.id}`, "GET");
+        const getTransferResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${requestToTransfer.id}`, "GET");
         chai.assert.equal(getTransferResp.statusCode, 200, `body=${JSON.stringify(getTransferResp.body)}`);
         chai.assert.deepEqual(getTransferResp.body, postTransferResp.body);
     });

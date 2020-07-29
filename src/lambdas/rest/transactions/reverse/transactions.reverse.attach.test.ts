@@ -121,6 +121,12 @@ describe("/v2/transactions/reverse - attach", () => {
                 explanation: "$1"
             },
             usesRemaining: 4,
+            genericCodeOptions: {
+                perContact: {
+                    balance: null,
+                    usesRemaining: 1
+                }
+            },
             discount: true,
             isGenericCode: true
         };
