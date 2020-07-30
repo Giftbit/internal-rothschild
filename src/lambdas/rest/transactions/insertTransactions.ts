@@ -225,62 +225,59 @@ export async function insertInternalTransactionSteps(auth: giftbitRoutes.jwtauth
     return plan;
 }
 
-export async function insertTransactionTags(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, transactionPlan: TransactionPlan): Promise<void> {
+async function insertTag(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, tag: Partial<Tag>): Promise<Tag> {
+    // This function deliberately does not handle createIfNotExists flag.
+    // That can be handled later with a wrapper, eg:
+    // if (createIfNotExists) { insertTag(); applyTagToResource() } else { applyTagToResource() }
+    const now = nowInDbPrecision();
+
+    let fetchTagRes: Tag[];
+    if (tag.id) {
+        fetchTagRes = await trx("Tags").where({
+            userId: auth.userId,
+            id: tag.id
+        });
+    } else if (tag.displayName && !tag.id) {
+        fetchTagRes = await trx("Tags").where({
+            userId: auth.userId,
+            displayName: tag.displayName
+        });
+    }
+
+    if (fetchTagRes.length > 1) {
+        throw new Error(`Illegal SELECT query.  Returned ${fetchTagRes.length} values.`);
+    } else if (fetchTagRes.length === 1) {
+        if ((!tag.displayName && !fetchTagRes[0].displayName) || (tag.displayName === fetchTagRes[0].displayName)) {
+            return fetchTagRes[0];
+        } else {
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `New tag to insert had displayName '${tag.displayName}' which did not match displayName '${fetchTagRes[0].displayName}' on existing tag ${fetchTagRes[0].id}`);
+        }
+    } else if (fetchTagRes.length === 0) {
+        const tagToInsert: Tag = {
+            userId: auth.userId,
+            id: tag.id || `${uuid.v4}`,
+            displayName: tag.displayName,
+            createdDate: now,
+            updatedDate: now
+        };
+        await trx.into("Tags").insert(tagToInsert);
+        return tagToInsert;
+    }
+}
+
+export async function applyTransactionTags(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, transactionPlan: TransactionPlan): Promise<void> {
     log.info(`inserting tags for transaction plan '${transactionPlan.id}': tags=${JSON.stringify(transactionPlan.tags)}`);
     if (!transactionPlan.tags || transactionPlan.tags.length === 0) {
         return;
     }
 
-    const now = nowInDbPrecision();
-
-    for (let tagDisplayName of transactionPlan.tags) {
-        let dbTagRes = await trx("Tags").where({
-            userId: auth.userId,
-            displayName: tagDisplayName
-        });
-
-        if (dbTagRes.length > 0) {
-            log.info(`using existing tag record: ${JSON.stringify(dbTagRes)}`);
-        } else {
-            let tagData: Tag = {
-                userId: auth.userId,
-                id: `tag-${uuid.v4()}`,
-                displayName: tagDisplayName,
-                createdDate: now,
-                updatedDate: now,
-            };
-
-            try {
-                await trx.into("Tags").insert(tagData);
-                log.info(`inserted new tag: ${JSON.stringify(tagData)}`);
-                dbTagRes = [tagData];
-            } catch (err) {
-                log.info("Error inserting tag:", err);
-                const constraint = getSqlErrorConstraintName(err);
-                if (constraint === "uq_ix_Tags_displayName") {
-                    dbTagRes = await trx("Tags").where({
-                        userId: auth.userId,
-                        displayName: tagDisplayName
-                    });
-                    log.info(`using existing tag record: ${JSON.stringify(dbTagRes)}`);
-                } else if (constraint === "PRIMARY") {
-                    tagData = {
-                        ...tagData,
-                        id: `tag-${uuid.v4()}`,
-                    };
-                    await trx.into("Tags").insert(tagData);
-                    log.info(`re-generated ID for tag record and inserted: ${JSON.stringify(tagData)}`);
-                    dbTagRes = [tagData];
-                } else {
-                    throw err;
-                }
-            }
-        }
+    for (let tag of transactionPlan.tags) {
+        await insertTag(auth, trx, {id: tag});
 
         const txsTagsData = {
             userId: auth.userId,
             transactionId: transactionPlan.id,
-            tagId: dbTagRes[0].id
+            tagId: tag
         };
 
         try {

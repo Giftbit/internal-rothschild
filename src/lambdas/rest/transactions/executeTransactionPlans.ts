@@ -14,7 +14,7 @@ import {
     insertLightrailTransactionSteps,
     insertStripeTransactionSteps,
     insertTransaction,
-    insertTransactionTags
+    applyTransactionTags
 } from "./insertTransactions";
 import {rollbackStripeChargeSteps} from "../../../utils/stripeUtils/stripeStepOperations";
 import {StripeRestError} from "../../../utils/stripeUtils/StripeRestError";
@@ -122,7 +122,7 @@ export async function executeTransactionPlan(auth: giftbitRoutes.jwtauth.Authori
     }
 
     try {
-        await insertTransactionTags(auth, trx, plan);
+        await applyTransactionTags(auth, trx, plan);
     } catch (err) {
         log.error(`Error occurred while processing transaction tags: ${err}`);
         await rollbackTransactionPlan(auth, plan, trx, err);

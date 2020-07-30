@@ -965,7 +965,7 @@ describe("/v2/transactions - tags", () => {
         const sinonSandbox = sinon.createSandbox();
 
         before(() => {
-            sinonSandbox.stub(InsertTransactions, "insertTransactionTags")
+            sinonSandbox.stub(InsertTransactions, "applyTransactionTags")
                 .rejects(new Error("Error for testing - tag insertion failure"));
         });
 
