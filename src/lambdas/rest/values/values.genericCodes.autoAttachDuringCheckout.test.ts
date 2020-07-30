@@ -61,7 +61,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
                 }
             },
             usesRemaining: null,
-            balance: null,
+            balance: null
         };
 
         it("can create generic value", async () => {
@@ -505,7 +505,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             lineItems: [
                 {unitPrice: 777}
             ],
-            allowRemainder: true,
+            allowRemainder: true
         };
 
         it("can simulate checkout", async () => {
@@ -559,7 +559,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
                 }
             },
             usesRemaining: null,
-            balance: null,
+            balance: null
         };
 
         before(async function () {
@@ -642,7 +642,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             currency: "USD",
             sources: [
                 {rail: "lightrail", code: expiredGenericCode.code},
-                {rail: "lightrail", contactId: contactId},
+                {rail: "lightrail", contactId: contactId}
             ],
             lineItems: [
                 {unitPrice: 500}
@@ -692,7 +692,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
                 ],
                 lineItems: [
                     {unitPrice: 111}
-                ],
+                ]
             };
             const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
             chai.assert.equal(checkout.statusCode, 201);
