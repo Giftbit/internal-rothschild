@@ -200,7 +200,7 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
     const knex = await getKnexRead();
     const valueId = filterParams["valueId"];
     const contactId = filterParams["contactId"];
-    const tag = filterParams["tag"];
+    const tagId = filterParams["tagId"];
     let query = knex("Transactions")
         .select("Transactions.*")
         .where("Transactions.userId", "=", auth.userId);
@@ -217,7 +217,7 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
             query.groupBy("Transactions.id"); // A Contact may have two steps in the same Transaction.
         }
     }
-    if (tag) {
+    if (tagId) {
         // When we support filter operators (eg startsWith) on tags, this will need to be handled in filterQuery
         query.innerJoin("TransactionsTags", {
             "TransactionsTags.userId": "Transactions.userId",
@@ -229,7 +229,7 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
             })
             .where({
                 "Tags.userId": auth.userId,
-                "Tags.id": tag
+                "Tags.id": tagId
             });
         query.groupBy("Transactions.id");
     }

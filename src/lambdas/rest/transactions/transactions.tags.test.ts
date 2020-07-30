@@ -930,7 +930,7 @@ describe("/v2/transactions - tags", () => {
             });
             chai.assert.equal(txTagsRes.length, 12, `there should be exactly 12 transactions with the newContact.id tag: ${JSON.stringify(txTagsRes, null, 4)}`);
 
-            const transactionsResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?tag=${formatContactIdTags([newContact.id])}`, "GET");
+            const transactionsResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?tagId=${formatContactIdTags([newContact.id])}`, "GET");
             chai.assert.equal(transactionsResp.statusCode, 200, `transactionsResp.body=${JSON.stringify(transactionsResp)}`);
             chai.assert.equal(transactionsResp.body.length, txTagsRes.length, `should have same number of transactions for newContact.id as there are TxTags records for newContact.id tag: tx IDs=${transactionsResp.body.map(t => t.id)}`);
         });
@@ -946,7 +946,7 @@ describe("/v2/transactions - tags", () => {
             });
             chai.assert.equal(txTagsRes.length, 6, `there should be exactly 6 transactions with the fakeContactId tag: ${JSON.stringify(txTagsRes, null, 4)}`);
 
-            const transactionsResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?tag=${formatContactIdTags([fakeContactId])}`, "GET");
+            const transactionsResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?tagId=${formatContactIdTags([fakeContactId])}`, "GET");
             chai.assert.equal(transactionsResp.statusCode, 200, `transactionsResp.body=${JSON.stringify(transactionsResp)}`);
             chai.assert.equal(transactionsResp.body.length, txTagsRes.length, `should have same number of transactions for fakeContactId as there are TxTags records for fakeContactId tag: tx IDs=${JSON.stringify(transactionsResp.body.map(t => ({
                 id: t.id,
@@ -955,7 +955,7 @@ describe("/v2/transactions - tags", () => {
         }).timeout(8000);
 
         it("fetches 0 transactions if the tag does not exist", async () => {
-            const transactionsResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?tag=${testUtils.generateId()}`, "GET");
+            const transactionsResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?tagId=${testUtils.generateId()}`, "GET");
             chai.assert.equal(transactionsResp.statusCode, 200, `transactionsResp.body=${JSON.stringify(transactionsResp.body)}`);
             chai.assert.equal(transactionsResp.body.length, 0, `no transactions should be returned when searching by a tag value that doesn't exist: transactions=${JSON.stringify(transactionsResp.body)}`);
         });
