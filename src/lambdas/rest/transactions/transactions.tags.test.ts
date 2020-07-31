@@ -1010,6 +1010,20 @@ describe("/v2/transactions - tags", () => {
             chai.assert.isDefined(logSpy.args.find(argsPerCall => argsPerCall.find(arg => arg.match(/An error occurred while processing transaction '.+'. The Stripe charge\(s\) '.+' have been refunded./))));
         });
     });
+
+    describe("utils", () => {
+        it("formats contactId tags for new transaction", () => {
+            const tags = formatContactIdTags(["contact1", "contact2"]);
+            chai.assert.equal(tags[0], "lr:contactId:contact1");
+            chai.assert.equal(tags[1], "lr:contactId:contact2");
+        });
+
+        it("maintains format of contactId tags from earlier transactions", () => {
+            const tags = formatContactIdTags([], ["lr:contactId:contact1", "lr:contactId:contact2"]);
+            chai.assert.equal(tags[0], "lr:contactId:contact1");
+            chai.assert.equal(tags[1], "lr:contactId:contact2");
+        });
+    });
 });
 
 function assertTxHasContactIdTags(tx: Transaction, contactIds: string[]) {
