@@ -36,8 +36,8 @@ import {createCaptureTransactionPlan} from "./transactions.capture";
 import {createVoidTransactionPlan} from "./transactions.void";
 import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {Value} from "../../../model/Value";
-import {getAttachTransactionPlanForGenericCodeWithPerContactOptions} from "../genericCodeWithPerContactOptions";
 import {isSystemId} from "../../../utils/isSystemId";
+import {getAttachTransactionPlanForGenericCode} from "../genericCode";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -371,7 +371,7 @@ async function getAutoAttachTransactionPlans(auth: giftbitRoutes.jwtauth.Authori
         if (valuesForCheckout.find(v => v.attachedFromValueId === genericValue.id)) {
             log.debug(`Skipping attaching generic value ${genericValue.id} since it's already been attached.`);
         } else {
-            const transactionPlan = await getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth, contactId, genericValue);
+            const transactionPlan = await getAttachTransactionPlanForGenericCode(auth, contactId, genericValue);
             attachTransactionPlans.push(transactionPlan);
         }
     }

@@ -193,6 +193,12 @@ describe("/v2/transactions/credit", () => {
             id: generateId(),
             currency: "CAD",
             balance: 0,
+            genericCodeOptions: {
+                perContact: {
+                    balance: 1,
+                    usesRemaining: null
+                }
+            },
             code: "SUPER-GENERIC",
             isGenericCode: true
         };

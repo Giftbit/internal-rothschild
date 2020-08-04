@@ -139,16 +139,9 @@ export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRou
      */
     let query = knex.select("*").from(queryBuilder => {
         if (contactIds.length) {
-            queryBuilder.union(
-                knex.select("V.*", "CV.contactId AS contactIdForResult") // contactId returned in an extra column so it can be tracked for shared generics looked up by contactId
-                    .from("Values AS V")
-                    .join("ContactValues AS CV", {"V.userId": "CV.userId", "V.id": "CV.valueId"})
-                    .where({"CV.userId": auth.userId})
-                    .andWhere("CV.contactId", "in", contactIds)
-            );
 
             queryBuilder.union(
-                knex.select("*", "contactId as contactIdForResult")
+                knex.select("*")
                     .from("Values")
                     .where({"userId": auth.userId})
                     .andWhere("contactId", "in", contactIds)
@@ -157,7 +150,7 @@ export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRou
 
         if (hashedCodes.length) {
             queryBuilder.union(
-                knex.select("*", "contactId as contactIdForResult")
+                knex.select("*")
                     .from("Values")
                     .where({"userId": auth.userId})
                     .andWhere("codeHashed", "in", hashedCodes)
@@ -166,7 +159,7 @@ export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRou
 
         if (valueIds.length) {
             queryBuilder.union(
-                knex.select("*", "contactId as contactIdForResult")
+                knex.select("*")
                     .from("Values")
                     .where({"userId": auth.userId})
                     .andWhere("id", "in", valueIds)
@@ -194,7 +187,7 @@ export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRou
         query = query.where(q => q.whereNull("balance").orWhere("balance", ">", 0));
     }
 
-    const dbValues: (DbValue & { contactIdForResult: string | null })[] = await query;
+    const dbValues: DbValue[] = await query;
     const dedupedDbValues = consolidateValueQueryResults(dbValues);
     const values = await Promise.all(dedupedDbValues.map(value => DbValue.toValue(value)));
 
@@ -242,30 +235,41 @@ export function filterForUsedAttaches(attachTransactionPlans: TransactionPlan[],
     return attachTransactionsToPersist;
 }
 
-export async function getContactIdFromSources(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[]): Promise<string> {
+/**
+ * Returns either a string or a null. If a contactId is provided and the contactId does not exist,
+ * this function will return null rather than throwing a 404 exception.
+ */
+export async function getContactIdFromSources(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[]): Promise<string | null> {
     const contactPaymentSource = parties.find(p => p.rail === "lightrail" && p.contactId != null) as LightrailTransactionParty;
     const contactId = contactPaymentSource ? contactPaymentSource.contactId : null;
 
     if (contactId) {
-        const contact = await getContact(auth, contactId);
-        return contact.id;
+        try {
+            const contact = await getContact(auth, contactId);
+            return contact.id;
+        } catch (e) {
+            if ((e as giftbitRoutes.GiftbitRestError).statusCode === 404) {
+                return null;
+            } else throw e;
+        }
     } else {
         return null;
     }
 }
 
-function consolidateValueQueryResults(values: (DbValue & { contactIdForResult: string | null })[]): DbValue[] {
+function consolidateValueQueryResults(values: (DbValue)[]): DbValue[] {
     return values
-        .map((v) => ({
-            ...v,
-            contactId: v.contactId || v.contactIdForResult // Persist the contactId to the value record if it was looked up via the ContactValues table
-        }))
         .filter((v, index, dbValues) => {
             if (v.contactId) {
                 const firstValue = dbValues.find(firstValue => firstValue.id === v.id && firstValue.contactId === v.contactId);
                 return dbValues.indexOf(firstValue) === index; // unique attached values can only be used once per transaction but might have been included twice in the payment sources (eg by code and also by contactId)
             } else {
-                return !dbValues.find(otherValue => otherValue.id === v.id && otherValue.contactId); // generic codes can be used by two different contacts in the same transaction, but not by a contact and also anonymously: skip anonymous usage if this value is also attached
+                // filter out already attached generic codes
+                if (v.isGenericCode) {
+                    return !dbValues.find(attachedValue => attachedValue.attachedFromValueId === v.id);
+                } else {
+                    return true;
+                }
             }
         });
 }

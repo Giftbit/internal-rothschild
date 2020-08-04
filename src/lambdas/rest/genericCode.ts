@@ -13,14 +13,15 @@ import {
 import {executeTransactionPlanner} from "./transactions/executeTransactionPlans";
 import {initializeValue} from "./values/createValue";
 import {getIdForAttachingGenericValue} from "./contactValues";
+import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
 
-export async function attachGenericCodeWithPerContactOptions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<Value> {
+export async function attachGenericCode(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<Value> {
     let transactionPlan: TransactionPlan;
     try {
         await executeTransactionPlanner(auth, {
             allowRemainder: false,
             simulate: false
-        }, async () => transactionPlan = await getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth, contactId, genericValue));
+        }, async () => transactionPlan = await getAttachTransactionPlanForGenericCode(auth, contactId, genericValue));
     } catch (err) {
         if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "TransactionExists") {
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${genericValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyExists");
@@ -31,15 +32,20 @@ export async function attachGenericCodeWithPerContactOptions(auth: giftbitRoutes
     return (transactionPlan.steps.find((step: LightrailTransactionPlanStep) => step.action === "insert") as LightrailInsertTransactionPlanStep).value;
 }
 
-export async function getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<TransactionPlan> {
-    if (!Value.isGenericCodeWithPropertiesPerContact(genericValue)) {
-        throw new Error(`Invalid value passed in. ${genericValue.id}`);
+export async function getAttachTransactionPlanForGenericCode(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<TransactionPlan> {
+    if (!genericValue.isGenericCode) {
+        throw new Error("Attempted to attach a Value that's not a generic code as a generic code. This should not happen.");
+    }
+    if (Value.isGenericCodeWithPropertiesPerContact(genericValue)) {
+        MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericPerContactProps, auth);
+    } else {
+        MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, auth);
     }
 
     const now = nowInDbPrecision();
     const newAttachedValueId = await getIdForAttachingGenericValue(auth, contactId, genericValue);
-    const amount = genericValue.genericCodeOptions.perContact.balance;
-    const uses = genericValue.genericCodeOptions.perContact.usesRemaining;
+    const amount = genericValue.genericCodeOptions?.perContact?.balance != null ? genericValue.genericCodeOptions.perContact.balance : null;
+    const uses = genericValue.genericCodeOptions?.perContact?.usesRemaining != null ? genericValue.genericCodeOptions.perContact.usesRemaining : null;
 
     const newValue = initializeValue(auth, {
         ...genericValue,
@@ -47,8 +53,8 @@ export async function getAttachTransactionPlanForGenericCodeWithPerContactOption
         code: null,
         isGenericCode: false,
         contactId: contactId,
-        balance: amount != null ? amount : null, // balance is initiated rather than being adjusted during inserting the step. this makes auto-attach during checkout work
-        usesRemaining: uses != null ? uses : null, // likewise
+        balance: amount, // balance is initiated rather than being adjusted during inserting the step. this makes auto-attach during checkout work
+        usesRemaining: uses, // likewise
         genericCodeOptions: undefined,
         metadata: {
             ...genericValue.metadata,

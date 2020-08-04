@@ -212,6 +212,10 @@ describe("/v2/programs/{id}/issuances", () => {
             name: "name",
             count: 1,
             isGenericCode: true,
+            balanceRule: {
+                rule: "500",
+                explanation: "$5 off all items!"
+            },
             code: "PRETTY-GENERIC"
         };
 
