@@ -148,6 +148,7 @@ function getKnex(username: string, password: string, endpoint: string, port: str
 function checkForEnvVar(...envVars: string[]): void {
     for (const envVar of envVars) {
         if (!process.env[envVar]) {
+            log.error("missing env vars");
             throw new Error(`env var ${envVar} not set`);
         }
     }
