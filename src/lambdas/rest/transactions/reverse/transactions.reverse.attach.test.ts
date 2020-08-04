@@ -190,7 +190,7 @@ describe("/v2/transactions/reverse - attach", () => {
                 "pending": false,
                 "metadata": null,
                 "createdBy": "default-test-user-TEST",
-                "tags": [`contactId:${contact.id}`]
+                "tags": formatContactIdTags([contact.id])
             } as Transaction, ["createdDate"]
         );
 

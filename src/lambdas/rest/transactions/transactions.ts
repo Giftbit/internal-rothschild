@@ -39,6 +39,7 @@ import {Value} from "../../../model/Value";
 import {getAttachTransactionPlanForGenericCodeWithPerContactOptions} from "../genericCodeWithPerContactOptions";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
+import {TagOnResource} from "../../../model/Tag";
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions")
@@ -332,7 +333,7 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
                 transactionId: checkout.id,
                 nonTransactableHandling: "exclude",
                 includeZeroBalance: !!checkout.allowRemainder,
-                includeZeroUsesRemaining: !!checkout.allowRemainder,
+                includeZeroUsesRemaining: !!checkout.allowRemainder
             };
             const checkoutSources = await getLightrailSourcesForTransactionPlanSteps(auth, checkout.sources, resolveOptions);
             const fetchedValues = checkoutSources.values;
@@ -365,15 +366,14 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
     return Array.isArray(transaction) ? transaction.find(tx => tx.transactionType === "checkout") : transaction;
 }
 
-export function formatContactIdTags(currentContactIds: string[], tagsOnEarlierTransaction: string[] = []): string[] | undefined {
+export function formatContactIdTags(currentContactIds: string[], tagsOnEarlierTransaction: TagOnResource[] = []): TagOnResource[] | undefined {
     if (!currentContactIds.length && !tagsOnEarlierTransaction.length) {
         return undefined;
     }
 
-    let tags = Array.from(new Set(currentContactIds.filter(id => !!id).map(id => `lr:contactId:${id}`)));
-    if (tagsOnEarlierTransaction.length) {
-        tags = Array.from(new Set([...tagsOnEarlierTransaction, ...tags]));
-    }
+    const earlierTagIds = tagsOnEarlierTransaction.length ? tagsOnEarlierTransaction.map(tag => tag.id) : [];
+    const newContactIdTagIds = Array.from(new Set(currentContactIds.filter(id => !!id).map(id => `lr:contactId:${id}`).filter(newTagId => !earlierTagIds.includes(newTagId))));
+    const tags = [...tagsOnEarlierTransaction, ...newContactIdTagIds.map(id => ({id}))];
     return tags.length ? tags : undefined;
 }
 

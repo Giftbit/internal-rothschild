@@ -4,6 +4,7 @@ import {getKnexRead} from "../utils/dbUtils/connection";
 import {LineItem} from "./LineItem";
 import {TransactionParty} from "./TransactionRequest";
 import {TaxRequestProperties} from "./TaxProperties";
+import {TagOnResource} from "./Tag";
 
 export interface Transaction {
     id: string;
@@ -20,7 +21,7 @@ export interface Transaction {
     createdBy: string;
     metadata: object | null;
     tax: TaxRequestProperties | null;
-    tags?: string[];
+    tags?: TagOnResource[];
 }
 
 export interface DbTransaction {
@@ -82,7 +83,7 @@ export namespace Transaction {
 }
 
 export namespace DbTransaction {
-    export function toTransaction(dbTx: DbTransaction, dbSteps: DbTransactionStep[], dbTags: string[]): Transaction {
+    export function toTransaction(dbTx: DbTransaction, dbSteps: DbTransactionStep[], dbTagIds: string[]): Transaction {
         let t: Transaction = {
             id: dbTx.id,
             transactionType: dbTx.transactionType,
@@ -97,7 +98,7 @@ export namespace DbTransaction {
             pendingVoidDate: dbTx.pendingVoidDate || undefined,
             createdDate: dbTx.createdDate,
             createdBy: dbTx.createdBy,
-            tags: dbTags.length > 0 ? dbTags : undefined
+            tags: dbTagIds.length > 0 ? dbTagIds.map(tagId => ({id: tagId})) : undefined
         };
         if (hasNonNullTotals(dbTx)) {
             let payable: number;

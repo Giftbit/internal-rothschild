@@ -678,7 +678,7 @@ describe("/v2/transactions - tags", () => {
             const tagRes: Tag[] = await knex("Tags")
                 .select()
                 .where({
-                    id: formatContactIdTags([contactId])
+                    id: formatContactIdTags([contactId])[0].id
                 });
             chai.assert.equal(tagRes.length, 2, `tag table should have an entry for this tag value for each test user: ${JSON.stringify(tagRes)}`);
             chai.assert.equal(tagRes[0].id, tagRes[1].id, `tags should have the same 'id' value: ${JSON.stringify(tagRes)}`);
@@ -926,11 +926,11 @@ describe("/v2/transactions - tags", () => {
                 "TransactionsTags.tagId": "Tags.id"
             }).where({
                 "Tags.userId": testUtils.defaultTestUser.auth.userId,
-                "Tags.id": formatContactIdTags([newContact.id])[0]
+                "Tags.id": formatContactIdTags([newContact.id])[0].id
             });
             chai.assert.equal(txTagsRes.length, 12, `there should be exactly 12 transactions with the newContact.id tag: ${JSON.stringify(txTagsRes, null, 4)}`);
 
-            const transactionsResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?tagId=${formatContactIdTags([newContact.id])}`, "GET");
+            const transactionsResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?tagId=${formatContactIdTags([newContact.id])[0].id}`, "GET");
             chai.assert.equal(transactionsResp.statusCode, 200, `transactionsResp.body=${JSON.stringify(transactionsResp)}`);
             chai.assert.equal(transactionsResp.body.length, txTagsRes.length, `should have same number of transactions for newContact.id as there are TxTags records for newContact.id tag: tx IDs=${transactionsResp.body.map(t => t.id)}`);
         });
@@ -942,11 +942,11 @@ describe("/v2/transactions - tags", () => {
                 "TransactionsTags.tagId": "Tags.id"
             }).where({
                 "Tags.userId": testUtils.defaultTestUser.auth.userId,
-                "Tags.id": formatContactIdTags([fakeContactId])[0]
+                "Tags.id": formatContactIdTags([fakeContactId])[0].id
             });
             chai.assert.equal(txTagsRes.length, 6, `there should be exactly 6 transactions with the fakeContactId tag: ${JSON.stringify(txTagsRes, null, 4)}`);
 
-            const transactionsResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?tagId=${formatContactIdTags([fakeContactId])}`, "GET");
+            const transactionsResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?tagId=${formatContactIdTags([fakeContactId])[0].id}`, "GET");
             chai.assert.equal(transactionsResp.statusCode, 200, `transactionsResp.body=${JSON.stringify(transactionsResp)}`);
             chai.assert.equal(transactionsResp.body.length, txTagsRes.length, `should have same number of transactions for fakeContactId as there are TxTags records for fakeContactId tag: tx IDs=${JSON.stringify(transactionsResp.body.map(t => ({
                 id: t.id,
@@ -1014,14 +1014,21 @@ describe("/v2/transactions - tags", () => {
     describe("utils", () => {
         it("formats contactId tags for new transaction", () => {
             const tags = formatContactIdTags(["contact1", "contact2"]);
-            chai.assert.equal(tags[0], "lr:contactId:contact1");
-            chai.assert.equal(tags[1], "lr:contactId:contact2");
+            chai.assert.deepEqual(tags[0], {id: "lr:contactId:contact1"});
+            chai.assert.deepEqual(tags[1], {id: "lr:contactId:contact2"});
         });
 
         it("maintains format of contactId tags from earlier transactions", () => {
-            const tags = formatContactIdTags([], ["lr:contactId:contact1", "lr:contactId:contact2"]);
-            chai.assert.equal(tags[0], "lr:contactId:contact1");
-            chai.assert.equal(tags[1], "lr:contactId:contact2");
+            const tags = formatContactIdTags([], [{id: "lr:contactId:contact1"}, {id: "lr:contactId:contact2"}]);
+            chai.assert.deepEqual(tags[0], {id: "lr:contactId:contact1"});
+            chai.assert.deepEqual(tags[1], {id: "lr:contactId:contact2"});
+        });
+
+        it("does not duplicate existing tags", () => {
+            const oldTags = [{id: "lr:contactId:contact1"}, {id: testUtils.generateId()}];
+            const tags = formatContactIdTags(["contact1", "contact2"], oldTags);
+            chai.assert.equal(tags.length, 3);
+            chai.assert.sameDeepMembers(tags, [...oldTags, ...formatContactIdTags(["contact2"])]);
         });
     });
 });
@@ -1029,5 +1036,6 @@ describe("/v2/transactions - tags", () => {
 function assertTxHasContactIdTags(tx: Transaction, contactIds: string[]) {
     chai.assert.isArray(tx.tags, `expected transaction to have tags: ${JSON.stringify(tx)}`);
     const contactIdTags = formatContactIdTags(contactIds);
-    chai.assert.sameDeepMembers(tx.tags, contactIdTags, `expected transaction '${tx.id}' (type='${tx.transactionType}') to have all contactId tags: expected tags=${JSON.stringify(contactIdTags)} tx.tags=${JSON.stringify(tx.tags)}`);
+
+    chai.assert.sameDeepMembers(tx.tags, contactIdTags, `expected transaction '${tx.id}' (type='${tx.transactionType}') to have all contactId tags: expected tags='${JSON.stringify(contactIdTags)}' tx.tags='${JSON.stringify(tx.tags)}'`);
 }

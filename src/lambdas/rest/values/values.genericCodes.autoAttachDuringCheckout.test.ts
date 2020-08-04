@@ -367,7 +367,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
                     "pending": false,
                     "metadata": null,
                     "createdBy": "default-test-user-TEST",
-                    "tags": [`contactId:${contactId}`]
+                    "tags": formatContactIdTags([contactId])
                 }, ["createdDate"]
             );
         });

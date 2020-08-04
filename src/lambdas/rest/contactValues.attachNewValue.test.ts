@@ -253,7 +253,7 @@ describe("/v2/contacts/values - attachNewValue=true", () => {
             createdBy: attachResp.body.createdBy,
             metadata: null,
             tax: null,
-            tags: [`contactId:${contact.id}`]
+            tags: formatContactIdTags([contact.id])
         });
     });
 

@@ -271,13 +271,13 @@ export async function applyTransactionTags(auth: giftbitRoutes.jwtauth.Authoriza
         return;
     }
 
-    for (let tag of transactionPlan.tags) {
-        await insertTag(auth, trx, {id: tag});
+    for (let tag of transactionPlan.tags) { // todo must handle tags as objects {id, name}: user-supplied tags don't exist yet but will need to be handled in tx creation
+        await insertTag(auth, trx, tag);
 
         const txsTagsData = {
             userId: auth.userId,
             transactionId: transactionPlan.id,
-            tagId: tag
+            tagId: tag.id
         };
 
         try {
@@ -285,8 +285,12 @@ export async function applyTransactionTags(auth: giftbitRoutes.jwtauth.Authoriza
             await trx.into("TransactionsTags")
                 .insert(txsTagsData);
         } catch (err) {
-            log.info("Error inserting TransactionsTags join record", err);
-            throw err;
+            if (err.code === "ER_DUP_ENTRY") {
+                log.info("TransactionsTags join record already inserted. This could be because the same contactId was on two different transaction steps. Not a problem; continuing.");
+            } else {
+                log.info("Error inserting TransactionsTags join record", err);
+                throw err;
+            }
         }
     }
 }
