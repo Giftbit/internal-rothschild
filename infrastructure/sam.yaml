@@ -706,6 +706,7 @@ Resources:
       Environment:
         Variables:
           DB_ENDPOINT: !GetAtt DbCluster.Endpoint.Address
+          DB_READ_ENDPOINT: !GetAtt DbCluster.ReadEndpoint.Address # temporary for ContactValue migration.
           DB_PORT: !GetAtt DbCluster.Endpoint.Port
           DB_USERNAME: "master"
           DB_PASSWORD_PARAMETER: !GetAtt DbCredentials.PasswordParameter
