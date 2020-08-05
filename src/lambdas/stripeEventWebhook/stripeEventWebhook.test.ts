@@ -253,14 +253,20 @@ describe("/v2/stripeEventWebhook", () => {
                 isGenericCode: true,
                 code: "USEME",
                 currency: "USD",
-                balance: 100,
+                balanceRule: {
+                    rule: "100 + value.balanceChange",
+                    explanation: "$1 off"
+                }
             };
             const genericAttachedRegular: Partial<Value> = {
                 id: generateId(),
                 isGenericCode: true,
                 code: "CONTACTME2",
                 currency: "USD",
-                balance: 50,
+                balanceRule: {
+                    rule: "50 + value.balanceChange",
+                    explanation: "$0.50 off"
+                }
             };
             const postContactResp = await testUtils.testAuthedRequest<Contact>(restRouter, "/v2/contacts", "POST", contact);
             chai.assert.equal(postContactResp.statusCode, 201, `body=${JSON.stringify(postContactResp.body)}`);
@@ -330,11 +336,13 @@ describe("/v2/stripeEventWebhook", () => {
                 isGenericCode: true,
                 code: "CODEIT",
                 currency: "USD",
-                balance: 100,
+                balanceRule: {
+                    rule: "500 + value.balanceChange",
+                    explanation: "$5 off"
+                }
             };
             const postValue2Resp = await testUtils.testAuthedRequest<Value>(restRouter, "/v2/values", "POST", genericUsedDirectlyInCheckout);
             chai.assert.equal(postValue2Resp.statusCode, 201, `body=${JSON.stringify(postValue2Resp.body)}`);
-
 
             const checkoutRequest: CheckoutRequest = {
                 id: generateId(),

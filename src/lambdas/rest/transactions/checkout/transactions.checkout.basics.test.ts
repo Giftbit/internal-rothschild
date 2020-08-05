@@ -2,8 +2,7 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import * as testUtils from "../../../../utils/testUtils";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../../utils/testUtils";
-import {formatCodeForLastFourDisplay, Value} from "../../../../model/Value";
-import {Transaction} from "../../../../model/Transaction";
+import {Value} from "../../../../model/Value";
 import {createCurrency} from "../../currencies";
 import {getKnexRead} from "../../../../utils/dbUtils/connection";
 import {CheckoutRequest} from "../../../../model/TransactionRequest";
@@ -11,6 +10,7 @@ import {Contact} from "../../../../model/Contact";
 import {installRestRoutes} from "../../installRestRoutes";
 import chaiExclude from "chai-exclude";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
+import {Transaction} from "../../../../model/Transaction";
 import {LightrailTransactionStep} from "../../../../model/TransactionStep";
 
 chai.use(chaiExclude);
@@ -633,6 +633,7 @@ describe("/v2/transactions/checkout - basics", () => {
         let contact: Contact;
         let genericValue: Value;
         let accountCredit: Value;
+        let attachedValue: Value;
 
         before(async () => {
             const contactRequest: Partial<Contact> = {
@@ -654,6 +655,12 @@ describe("/v2/transactions/checkout - basics", () => {
                 discount: true,
                 pretax: true,
                 usesRemaining: 100,
+                genericCodeOptions: {
+                    perContact: {
+                        balance: null,
+                        usesRemaining: 1
+                    }
+                },
                 code: "WINTERISCOMING19"
             };
             const createGenericValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericValueRequest);
@@ -672,6 +679,7 @@ describe("/v2/transactions/checkout - basics", () => {
 
             const attachValue = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {code: genericValue.code});
             chai.assert.equal(attachValue.statusCode, 200);
+            attachedValue = attachValue.body;
         });
 
         it("can checkout with a attached generic value", async () => {
@@ -732,15 +740,15 @@ describe("/v2/transactions/checkout - basics", () => {
                     "steps": [
                         {
                             "rail": "lightrail",
-                            "valueId": genericValue.id,
+                            "valueId": attachedValue.id,
                             "contactId": contact.id,
-                            "code": formatCodeForLastFourDisplay(genericValue.code),
+                            "code": null,
                             "balanceRule": genericValue.balanceRule,
                             "balanceBefore": null,
                             "balanceAfter": null,
                             "balanceChange": -75,
-                            "usesRemainingBefore": 100,
-                            "usesRemainingAfter": 99,
+                            "usesRemainingBefore": 1,
+                            "usesRemainingAfter": 0,
                             "usesRemainingChange": -1
                         },
                         {
@@ -767,14 +775,15 @@ describe("/v2/transactions/checkout - basics", () => {
                     "metadata": null,
                     "createdBy": "default-test-user-TEST"
                 }, ["createdDate"]);
-            chai.assert.equal((createCheckout.body.steps[0] as LightrailTransactionStep).contactId, contact.id, "The contactId is not directly on the Value, but attached to the Value via ContactValues. It's important for tracking reasons that the contactId is persisted onto the transaction step.");
+            chai.assert.equal((createCheckout.body.steps[0] as LightrailTransactionStep).contactId, contact.id);
 
             const listTransactionsAssociatedWithContact = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?contactId=${contact.id}`, "GET");
-            chai.assert.equal(listTransactionsAssociatedWithContact.body.length, 2, "Should return 2 transactions. initialBalance and checkout");
+            chai.assert.equal(listTransactionsAssociatedWithContact.body.length, 3, "Should return 3 transactions. initialBalance, attach, and checkout");
+            chai.assert.sameMembers(listTransactionsAssociatedWithContact.body.map(t => t.transactionType), ["initialBalance", "attach", "checkout"]);
             chai.assert.deepEqual(listTransactionsAssociatedWithContact.body.find(tx => tx.transactionType === "checkout"), createCheckout.body);
         });
 
-        it("can checkout directly against generic code", async () => {
+        it("can't checkout directly against generic code", async () => {
             const checkout: CheckoutRequest = {
                 id: generateId(),
                 allowRemainder: true,
@@ -793,25 +802,10 @@ describe("/v2/transactions/checkout - basics", () => {
                 currency: "CAD"
             };
             const createCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
-            chai.assert.equal(createCheckout.statusCode, 201);
-            chai.assert.deepEqual(createCheckout.body.steps,
-                [{
-                    "rail": "lightrail",
-                    "valueId": genericValue.id,
-                    "contactId": null,
-                    "code": formatCodeForLastFourDisplay(genericValue.code),
-                    "balanceRule": genericValue.balanceRule,
-                    "balanceBefore": null,
-                    "balanceAfter": null,
-                    "balanceChange": -75,
-                    "usesRemainingBefore": 99,
-                    "usesRemainingAfter": 98,
-                    "usesRemainingChange": -1
-                }]);
-            chai.assert.isNull((createCheckout.body.steps[0] as LightrailTransactionStep).contactId, "The contactId should be null since contactId was not passed in as a source. This is even though the Value has been attached to a Contact.");
+            chai.assert.equal(createCheckout.statusCode, 409);
         });
 
-        it("can checkout directly against generic code in a checkout request that includes a contactId not attached to the generic code", async () => {
+        it("can't checkout with a generic code that will be auto-attached with a contactId that doesn't exist", async () => {
             const checkout: CheckoutRequest = {
                 id: generateId(),
                 allowRemainder: true,
@@ -834,22 +828,7 @@ describe("/v2/transactions/checkout - basics", () => {
                 currency: "CAD"
             };
             const createCheckout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkout);
-            chai.assert.equal(createCheckout.statusCode, 201);
-            chai.assert.deepEqual(createCheckout.body.steps,
-                [{
-                    "rail": "lightrail",
-                    "valueId": genericValue.id,
-                    "contactId": null,
-                    "code": formatCodeForLastFourDisplay(genericValue.code),
-                    "balanceRule": genericValue.balanceRule,
-                    "balanceBefore": null,
-                    "balanceAfter": null,
-                    "balanceChange": -75,
-                    "usesRemainingBefore": 98,
-                    "usesRemainingAfter": 97,
-                    "usesRemainingChange": -1
-                }]);
-            chai.assert.isNull((createCheckout.body.steps[0] as LightrailTransactionStep).contactId, "The contactId should be null since contactId was not passed in as a source. This is even though the Value has been attached to a Contact.");
+            chai.assert.equal(createCheckout.statusCode, 409);
         });
     });
 

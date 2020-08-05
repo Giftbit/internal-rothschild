@@ -132,21 +132,14 @@ export async function getContacts(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             return {contacts: [], pagination};
         }
 
-        // join ContactValues
-        query.leftJoin("ContactValues", {
-            "Contacts.id": "ContactValues.contactId",
-            "Contacts.userId": "ContactValues.userId"
-        });
-
-        // also join Values
+        // join Values
         query.leftJoin("Values", {
             "Contacts.id": "Values.contactId",
             "Contacts.userId": "Values.userId"
         });
 
         query.andWhere(q => {
-            q.where("ContactValues.valueId", "=", valueId);
-            q.orWhere("Values.id", "=", valueId);
+            q.where("Values.id", "=", valueId);
             q.orWhere("Values.attachedFromValueId", "=", valueId);
             return q;
         });

@@ -1263,7 +1263,10 @@ describe("/v2/values/", () => {
             currency: "USD",
             code: "PUBLIC",
             isGenericCode: true,
-            balance: 0
+            balanceRule: {
+                rule: "500 + value.balanceChange",
+                explanation: "$5 off"
+            }
         };
 
         const post = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", publicCode);
@@ -1307,7 +1310,10 @@ describe("/v2/values/", () => {
             currency: "USD",
             code: "A",
             isGenericCode: true,
-            balance: 0
+            balanceRule: {
+                rule: "500 + value.balanceChange",
+                explanation: "$5 off"
+            },
         };
 
         const post = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", publicCode);
@@ -1349,7 +1355,10 @@ describe("/v2/values/", () => {
             currency: "USD",
             code: "PANTSDANCE",
             isGenericCode: true,
-            balance: 0
+            balanceRule: {
+                rule: "500 + value.balanceChange",
+                explanation: "$5 off"
+            },
         });
         chai.assert.equal(value1Res.statusCode, 201, `body=${JSON.stringify(value1Res.body)}`);
 
@@ -1358,7 +1367,10 @@ describe("/v2/values/", () => {
             currency: "USD",
             code: "PANTSDANCE",
             isGenericCode: true,
-            balance: 0
+            balanceRule: {
+                rule: "500 + value.balanceChange",
+                explanation: "$5 off"
+            },
         });
         chai.assert.equal(value2Res.statusCode, 409, `body=${JSON.stringify(value2Res.body)}`);
         chai.assert.equal(value2Res.body.messageCode, "ValueCodeExists");
@@ -1381,7 +1393,10 @@ describe("/v2/values/", () => {
             currency: "USD",
             code: "🚀",
             isGenericCode: true,
-            balance: 0
+            balanceRule: {
+                rule: "500 + value.balanceChange",
+                explanation: "$5 off"
+            },
         };
 
         const post = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
@@ -1722,7 +1737,10 @@ describe("/v2/values/", () => {
             currency: "USD",
             code: "SPRING2018",
             isGenericCode: true,
-            balance: 0
+            balanceRule: {
+                rule: "0 + value.balanceChange",
+                explanation: "$0 off"
+            },
         };
 
         it("secure imported code", async () => {
@@ -1881,7 +1899,10 @@ describe("/v2/values/", () => {
         const genericCode: Partial<Value> = {
             id: generateId(),
             currency: "USD",
-            balance: 10,
+            balanceRule: {
+                rule: "10 + value.balanceChange",
+                explanation: "$0.10 off"
+            },
             isGenericCode: true,
             code: "GEN_CODE_123"
         };
