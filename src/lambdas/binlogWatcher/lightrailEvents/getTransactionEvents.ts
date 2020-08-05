@@ -18,6 +18,9 @@ export async function getTransactionCreatedEvents(tx: BinlogTransaction): Promis
     const internalStepRows = tx.statements
         .filter(s => s.type === "INSERT" && s.table === "InternalTransactionSteps")
         .reduce((res, s) => [...res, ...s.affectedRows], [] as BinlogTransaction.AffectedRow<InternalDbTransactionStep>[]);
+    const tagJoinsRows = tx.statements
+        .filter(s => s.type === "INSERT" && s.table === "TransactionsTags")
+        .reduce((res, s) => [...res, ...s.affectedRows], [] as BinlogTransaction.AffectedRow<{ transactionId: string, tagId: string }>[]);
 
     return tx.statements
         .filter(s => s.type === "INSERT" && s.table === "Transactions")
@@ -33,6 +36,9 @@ export async function getTransactionCreatedEvents(tx: BinlogTransaction): Promis
             const dbInternalTransactionSteps = internalStepRows
                 .filter(row => row.after.userId === dbTransaction.userId && row.after.transactionId === dbTransaction.id)
                 .map(row => row.after);
+            const tagIds = tagJoinsRows
+                .filter(row => row.after.userId === dbTransaction.userId && row.after.transactionId === dbTransaction.id)
+                .map(row => row.after.tagId);
 
             return {
                 specversion: "1.0",
@@ -43,7 +49,7 @@ export async function getTransactionCreatedEvents(tx: BinlogTransaction): Promis
                 userid: dbTransaction.userId,
                 datacontenttype: "application/json",
                 data: {
-                    newTransaction: DbTransaction.toTransaction(dbTransaction, [...dbLightrailTransactionSteps, ...dbStripeTransactionSteps, ...dbInternalTransactionSteps], []) // todo: include tags
+                    newTransaction: DbTransaction.toTransaction(dbTransaction, [...dbLightrailTransactionSteps, ...dbStripeTransactionSteps, ...dbInternalTransactionSteps], tagIds)
                 }
             };
         });
