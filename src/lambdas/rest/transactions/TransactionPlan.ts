@@ -1,16 +1,5 @@
 import * as stripe from "stripe";
-import {
-    InternalDbTransactionStep,
-    InternalTransactionStep,
-    LightrailDbTransactionStep,
-    LightrailTransactionStep,
-    StripeDbTransactionStep,
-    StripeTransactionStep,
-    Transaction,
-    TransactionStep,
-    TransactionTotals,
-    TransactionType
-} from "../../../model/Transaction";
+import {Transaction, TransactionTotals, TransactionType} from "../../../model/Transaction";
 import {formatCodeForLastFourDisplay, Value} from "../../../model/Value";
 import {LineItemResponse} from "../../../model/LineItem";
 import {AdditionalStripeChargeParams, TransactionParty} from "../../../model/TransactionRequest";
@@ -19,6 +8,15 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {TaxRequestProperties} from "../../../model/TaxProperties";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
 import {TagOnResource} from "../../../model/Tag";
+import {
+    InternalDbTransactionStep,
+    InternalTransactionStep,
+    LightrailDbTransactionStep,
+    LightrailTransactionStep,
+    StripeDbTransactionStep,
+    StripeTransactionStep,
+    TransactionStep
+} from "../../../model/TransactionStep";
 
 export interface TransactionPlan {
     id: string;
@@ -148,22 +146,39 @@ export namespace LightrailTransactionPlanStep {
             userId: auth.userId,
             id: `${plan.id}-${stepIndex}`,
             transactionId: plan.id,
-            ...getSharedProperties(step)
+            ...getSharedProperties(step),
+            balanceRule: (step as LightrailUpdateTransactionPlanStep).amount != null ? JSON.stringify(step.value.balanceRule) : null
         };
     }
 
     export function toLightrailTransactionStep(step: LightrailTransactionPlanStep): LightrailTransactionStep {
         return {
             rail: "lightrail",
-            ...getSharedProperties(step)
+            ...getSharedProperties(step),
+            balanceRule: (step as LightrailUpdateTransactionPlanStep).amount != null ? step.value.balanceRule : null
         };
     }
 
-    function getSharedProperties(step: LightrailTransactionPlanStep) {
-        let sharedProperties = {
+    /**
+     * Shared between LightrailDbTransactionStep and LightrailTransactionStep.
+     */
+    interface SharedStepProperties {
+        valueId: string;
+        contactId: string;
+        code: string | null;
+        balanceBefore: number;
+        balanceChange: number;
+        balanceAfter: number;
+        usesRemainingBefore: number;
+        usesRemainingChange: number;
+        usesRemainingAfter: number;
+    }
+
+    function getSharedProperties(step: LightrailTransactionPlanStep): SharedStepProperties {
+        const sharedProperties = {
             valueId: step.value.id,
             contactId: step.value.contactId,
-            code: step.value.code ? formatCodeForLastFourDisplay(step.value.code) : null,
+            code: step.value.code ? formatCodeForLastFourDisplay(step.value.code) : null
         };
 
         switch (step.action) {
@@ -281,7 +296,17 @@ export namespace InternalTransactionPlanStep {
         };
     }
 
-    function getSharedProperties(step: InternalTransactionPlanStep) {
+    /**
+     * Shared between InternalDbTransactionStep and InternalTransactionStep.
+     */
+    interface SharedStepProperties {
+        internalId: string;
+        balanceBefore: number;
+        balanceAfter: number;
+        balanceChange: number;
+    }
+
+    function getSharedProperties(step: InternalTransactionPlanStep): SharedStepProperties {
         return {
             internalId: step.internalId,
             balanceBefore: step.balance,
@@ -337,9 +362,5 @@ export namespace TransactionPlan {
             case "internal":
                 return InternalTransactionPlanStep.toInternalTransactionStep(step);
         }
-    }
-
-    export function containsStripeSteps(plan: TransactionPlan): boolean {
-        return plan.steps.find(step => step.rail === "stripe") != null;
     }
 }

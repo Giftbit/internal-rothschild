@@ -1,16 +1,16 @@
 import * as chai from "chai";
-import {DiscountSellerLiabilityUtils} from "./discountSellerLiabilityUtils";
-import {Rule, Value} from "../model/Value";
+import {discountSellerLiabilityUtils} from "./discountSellerLiabilityUtils";
+import {Rule} from "../model/Value";
 
-describe("DiscountSellerLiabibilityRuleUtils", () => {
-    describe("discountSellerLiabilityRuleToNumber", () => {
+describe("discountSellerLiabibilityRuleUtils", () => {
+    describe("ruleToNumber()", () => {
         it("returns null if null", async () => {
-            const res = DiscountSellerLiabilityUtils.ruleToNumber(null);
+            const res = discountSellerLiabilityUtils.ruleToNumber(null);
             chai.assert.isNull(res);
         });
 
         it("returns number from string that evaluates to number", async () => {
-            const res = DiscountSellerLiabilityUtils.ruleToNumber({
+            const res = discountSellerLiabilityUtils.ruleToNumber({
                 rule: "0.05",
                 explanation: "5%"
             });
@@ -18,7 +18,7 @@ describe("DiscountSellerLiabibilityRuleUtils", () => {
         });
 
         it("returns null from a rule", async () => {
-            const res = DiscountSellerLiabilityUtils.ruleToNumber({
+            const res = discountSellerLiabilityUtils.ruleToNumber({
                 rule: "1 - currentLineItem.marketplaceRate",
                 explanation: "proportional shared with marketplace"
             });
@@ -26,18 +26,14 @@ describe("DiscountSellerLiabibilityRuleUtils", () => {
         });
     });
 
-    describe("discountSellerLiabilityToRule", () => {
+    describe("numberToRule()", () => {
         it("returns null if null", async () => {
-            const v: Partial<Value> = {};
-            const res: Rule | null = DiscountSellerLiabilityUtils.numberToRule(null);
+            const res: Rule | null = discountSellerLiabilityUtils.numberToRule(null);
             chai.assert.isNull(res);
         });
 
         it("converts discountSellerLiability to rule", async () => {
-            const v: Partial<Value> = {
-                discountSellerLiability: 0.45
-            };
-            const res: Rule | null = DiscountSellerLiabilityUtils.numberToRule(0.45);
+            const res: Rule | null = discountSellerLiabilityUtils.numberToRule(0.45);
             chai.assert.deepEqual(res, {
                 rule: "0.45",
                 explanation: "Seller 45% liable"

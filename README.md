@@ -7,6 +7,7 @@ The database is in a VPC and not directly accessible through the internet.  Ther
 
 1. If you're connecting to staging or production change `STACK_NAME` at the top of `dev.sh` to `staging-Rothschild` or `production-Rothschild` respectively.
 2. `./dev.sh rdstunnel`
+3. In your SQL client (like MySQL Workbench) connect to hostname "localhost" port "3306".  Username and password will depend upon the credentials.
 
 If `/Volumes/credentials/ssh/AWSKey.pem` does not exist:
 

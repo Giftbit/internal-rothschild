@@ -65,6 +65,7 @@ describe("/v2/transactions/credit", () => {
                     valueId: value1.id,
                     code: null,
                     contactId: null,
+                    balanceRule: null,
                     balanceBefore: 0,
                     balanceAfter: 1000,
                     balanceChange: 1000,
@@ -160,6 +161,7 @@ describe("/v2/transactions/credit", () => {
                     valueId: valueSecretCode.id,
                     code: "…RET⭐",
                     contactId: null,
+                    balanceRule: null,
                     balanceBefore: 0,
                     balanceAfter: 1000,
                     balanceChange: 1000,
@@ -191,6 +193,12 @@ describe("/v2/transactions/credit", () => {
             id: generateId(),
             currency: "CAD",
             balance: 0,
+            genericCodeOptions: {
+                perContact: {
+                    balance: 1,
+                    usesRemaining: null
+                }
+            },
             code: "SUPER-GENERIC",
             isGenericCode: true
         };
@@ -220,6 +228,7 @@ describe("/v2/transactions/credit", () => {
                     valueId: valueGenericCode.id,
                     code: formatCodeForLastFourDisplay(valueGenericCode.code),
                     contactId: null,
+                    balanceRule: null,
                     balanceBefore: 0,
                     balanceAfter: 1000,
                     balanceChange: 1000,
@@ -282,9 +291,10 @@ describe("/v2/transactions/credit", () => {
                     valueId: value.id,
                     code: null,
                     contactId: null,
+                    balanceRule: null,
                     balanceBefore: null,
                     balanceAfter: null,
-                    balanceChange: 0,
+                    balanceChange: null,
                     usesRemainingBefore: 0,
                     usesRemainingAfter: 2,
                     usesRemainingChange: 2
@@ -343,6 +353,7 @@ describe("/v2/transactions/credit", () => {
                     valueId: value.id,
                     code: null,
                     contactId: null,
+                    balanceRule: null,
                     balanceBefore: 349,
                     balanceAfter: 450,
                     balanceChange: 101,
@@ -408,6 +419,7 @@ describe("/v2/transactions/credit", () => {
                     valueId: value1.id,
                     code: null,
                     contactId: null,
+                    balanceRule: null,
                     balanceBefore: 1000,
                     balanceAfter: 2100,
                     balanceChange: 1100,

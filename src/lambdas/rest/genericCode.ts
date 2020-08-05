@@ -1,8 +1,9 @@
-import {Value} from "../../model/Value";
-import {nowInDbPrecision} from "../../utils/dbUtils/index";
+import * as cassava from "cassava";
 import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
+import {Value} from "../../model/Value";
+import {nowInDbPrecision} from "../../utils/dbUtils";
 import {
     LightrailInsertTransactionPlanStep,
     LightrailTransactionPlanStep,
@@ -10,20 +11,18 @@ import {
     TransactionPlan
 } from "./transactions/TransactionPlan";
 import {executeTransactionPlanner} from "./transactions/executeTransactionPlans";
-import {Transaction} from "../../model/Transaction";
-import * as cassava from "cassava";
 import {initializeValue} from "./values/createValue";
 import {getIdForAttachingGenericValue} from "./contactValues";
 import {formatContactIdTags} from "./transactions/transactions";
+import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
 
-export async function attachGenericCodeWithPerContactOptions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<Value> {
-    let transaction: Transaction;
+export async function attachGenericCode(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<Value> {
     let transactionPlan: TransactionPlan;
     try {
-        transaction = await executeTransactionPlanner(auth, {
+        await executeTransactionPlanner(auth, {
             allowRemainder: false,
             simulate: false
-        }, async () => transactionPlan = await getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth, contactId, genericValue));
+        }, async () => transactionPlan = await getAttachTransactionPlanForGenericCode(auth, contactId, genericValue));
     } catch (err) {
         if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "TransactionExists") {
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${genericValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyExists");
@@ -34,15 +33,20 @@ export async function attachGenericCodeWithPerContactOptions(auth: giftbitRoutes
     return (transactionPlan.steps.find((step: LightrailTransactionPlanStep) => step.action === "insert") as LightrailInsertTransactionPlanStep).value;
 }
 
-export async function getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<TransactionPlan> {
-    if (!Value.isGenericCodeWithPropertiesPerContact(genericValue)) {
-        throw new Error(`Invalid value passed in. ${genericValue.id}`);
+export async function getAttachTransactionPlanForGenericCode(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<TransactionPlan> {
+    if (!genericValue.isGenericCode) {
+        throw new Error("Attempted to attach a Value that's not a generic code as a generic code. This should not happen.");
+    }
+    if (Value.isGenericCodeWithPropertiesPerContact(genericValue)) {
+        MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericPerContactProps, auth);
+    } else {
+        MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, auth);
     }
 
     const now = nowInDbPrecision();
     const newAttachedValueId = await getIdForAttachingGenericValue(auth, contactId, genericValue);
-    const amount = genericValue.genericCodeOptions.perContact.balance;
-    const uses = genericValue.genericCodeOptions.perContact.usesRemaining;
+    const amount = genericValue.genericCodeOptions?.perContact?.balance != null ? genericValue.genericCodeOptions.perContact.balance : null;
+    const uses = genericValue.genericCodeOptions?.perContact?.usesRemaining != null ? genericValue.genericCodeOptions.perContact.usesRemaining : null;
 
     const newValue = initializeValue(auth, {
         ...genericValue,
@@ -50,8 +54,8 @@ export async function getAttachTransactionPlanForGenericCodeWithPerContactOption
         code: null,
         isGenericCode: false,
         contactId: contactId,
-        balance: amount != null ? amount : null, // balance is initiated rather than being adjusted during inserting the step. this makes auto-attach during checkout work
-        usesRemaining: uses != null ? uses : null, // likewise
+        balance: amount, // balance is initiated rather than being adjusted during inserting the step. this makes auto-attach during checkout work
+        usesRemaining: uses, // likewise
         genericCodeOptions: undefined,
         metadata: {
             ...genericValue.metadata,
@@ -99,6 +103,6 @@ export async function getAttachTransactionPlanForGenericCodeWithPerContactOption
 /**
  * This function encodes to the RFC 4648 Spec where '+' is encoded as '-' and '/' is encoded as '_'. The padding character '=' is removed.
  */
-export function generateUrlSafeHashFromValueIdContactId(genericValueId: string, contactId: string) {
+export function generateUrlSafeHashFromValueIdContactId(genericValueId: string, contactId: string): string {
     return crypto.createHash("sha1").update(genericValueId + "/" + contactId).digest("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }

@@ -8,6 +8,8 @@ import {Value} from "../../model/Value";
 import {Currency} from "../../model/Currency";
 import {installRestRoutes} from "./installRestRoutes";
 import chaiExclude from "chai-exclude";
+import {GiftbitRestError} from "giftbit-cassava-routes";
+import {Transaction} from "../../model/Transaction";
 import parseLinkHeader = require("parse-link-header");
 
 chai.use(chaiExclude);
@@ -146,7 +148,7 @@ describe("/v2/contacts", () => {
         contact2 = resp.body;
     });
 
-    let contact3: Partial<Contact> & { userId: string } = {
+    const contact3: Partial<Contact> & { userId: string } = {
         id: "c3",
         userId: "malicious"
     };
@@ -349,6 +351,86 @@ describe("/v2/contacts", () => {
             ...contact,
             createdBy: defaultTestUser.auth.teamMemberId
         }, ["createdDate", "updatedDate", "createdBy"]);
+    });
+
+    describe("handling unicode in IDs", () => {
+        it("404s getting a Contact by ID with unicode", async () => {
+            const contactResp = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/%F0%9F%92%A9`, "GET");
+            chai.assert.equal(contactResp.statusCode, 404);
+            chai.assert.equal(contactResp.body.messageCode, "ContactNotFound");
+        });
+
+        it("returns an empty list searching Contact by ID with unicode", async () => {
+            const contactsResp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/contacts?id=%F0%9F%92%A9", "GET");
+            chai.assert.equal(contactsResp.statusCode, 200);
+            chai.assert.deepEqual(contactsResp.body, []);
+        });
+
+        it("returns an empty list searching Contact by email with unicode", async () => {
+            const contactsResp = await testUtils.testAuthedRequest<Value[]>(router, "/v2/contacts?email=%F0%9F%92%A9", "GET");
+            chai.assert.equal(contactsResp.statusCode, 200);
+            chai.assert.deepEqual(contactsResp.body, []);
+        });
+
+        it("returns valid results, when searching ID with the in operator and some values are unicode", async () => {
+            const contact: Partial<Contact> = {
+                id: generateId()
+            };
+            const createContact = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact);
+            chai.assert.equal(createContact.statusCode, 201);
+
+            const contactsResp = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?id.in=%22%3E%3Cimg%20src%3D1%20onerror%3Dompt(document.cookie)%3B%3E%F0%9F%98%82,${contact.id}`, "GET");
+            chai.assert.equal(contactsResp.statusCode, 200);
+            chai.assert.deepEqual(contactsResp.body, [createContact.body]);
+        });
+
+        it("404s patching a Contact by ID with unicode", async () => {
+            const patchResp = await testUtils.testAuthedRequest<any>(router, "/v2/contacts/%F0%9F%92%A9", "PATCH", {
+                firstName: "Joey Jo-Jo Jr",
+                lastName: "Shabadoo"
+            });
+            chai.assert.equal(patchResp.statusCode, 404);
+            chai.assert.equal(patchResp.body.messageCode, "ContactNotFound");
+        });
+
+        it("404s deleting a Contact by ID with unicode", async () => {
+            const deleteResp = await testUtils.testAuthedRequest<any>(router, "/v2/contacts/%F0%9F%92%A9", "DELETE");
+            chai.assert.equal(deleteResp.statusCode, 404);
+            chai.assert.equal(deleteResp.body.messageCode, "ContactNotFound");
+        });
+    });
+
+    it("treats contactId as case sensitive", async () => {
+        const contact1: Partial<Contact> = {
+            id: generateId() + "-A"
+        };
+        const contact2: Partial<Contact> = {
+            id: contact1.id.toLowerCase()
+        };
+        chai.assert.notEqual(contact1.id, contact2.id);
+
+        const postContact1Resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact1);
+        chai.assert.equal(postContact1Resp.statusCode, 201);
+
+        const postContact2Resp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact2);
+        chai.assert.equal(postContact2Resp.statusCode, 201, postContact2Resp.bodyRaw);
+
+        const getContact1Resp = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/${contact1.id}`, "GET");
+        chai.assert.equal(getContact1Resp.statusCode, 200);
+        chai.assert.equal(getContact1Resp.body.id, contact1.id);
+
+        const getContact2Resp = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/${contact2.id}`, "GET");
+        chai.assert.equal(getContact2Resp.statusCode, 200);
+        chai.assert.equal(getContact2Resp.body.id, contact2.id);
+        chai.assert.notEqual(getContact1Resp.body.id, getContact2Resp.body.id);
+
+        const getContacts1Resp = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?id=${contact1.id}`, "GET");
+        chai.assert.equal(getContacts1Resp.statusCode, 200);
+        chai.assert.deepEqual(getContacts1Resp.body, [getContact1Resp.body]);
+
+        const getContacts2Resp = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?id=${contact2.id}`, "GET");
+        chai.assert.equal(getContacts2Resp.statusCode, 200);
+        chai.assert.deepEqual(getContacts2Resp.body, [getContact2Resp.body]);
     });
 
     describe("filters and pagination", () => {
@@ -788,7 +870,7 @@ describe("/v2/contacts", () => {
             {id: generateId(), createdDate: new Date("3030-02-03")},
             {id: generateId(), createdDate: new Date("3030-02-04")}
         ];
-        for (let idAndDate of idAndDates) {
+        for (const idAndDate of idAndDates) {
             const response = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {
                 id: idAndDate.id,
                 email: "user@example.com"
@@ -835,5 +917,110 @@ describe("/v2/contacts", () => {
         const createContact = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/contacts`, "POST", contact);
         chai.assert.equal(createContact.statusCode, 422);
         chai.assert.include(createContact.body.message, "requestBody.id does not meet maximum length of 64");
+    });
+
+    describe("whitespace handling", () => {
+        it("422s creating contactIds with leading/trailing whitespace", async () => {
+            const contactLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/contacts", "POST", {
+                id: `\t${testUtils.generateId()}`
+            });
+            chai.assert.equal(contactLeadingResp.statusCode, 422, `contactLeadingResp.body=${JSON.stringify(contactLeadingResp.body)}`);
+            const contactTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/contacts", "POST", {
+                id: `${testUtils.generateId()}\n`
+            });
+            chai.assert.equal(contactTrailingResp.statusCode, 422, `contactTrailingResp.body=${JSON.stringify(contactTrailingResp.body)}`);
+        });
+
+        it("404s when looking up a contact by id with leading/trailing whitespace", async () => {
+            const contactId = testUtils.generateId();
+            const contactResp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {id: contactId});
+            chai.assert.equal(contactResp.statusCode, 201, `contactResp.body=${JSON.stringify(contactResp.body)}`);
+
+            const fetchLeading = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/%20${contactId}`, "GET");
+            chai.assert.equal(fetchLeading.statusCode, 404, `fetchLeading.body=${JSON.stringify(fetchLeading.body)}`);
+            const fetchTrailing = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/${contactId}%20`, "GET");
+            chai.assert.equal(fetchTrailing.statusCode, 404, `fetchTrailing.body=${JSON.stringify(fetchTrailing.body)}`);
+        });
+
+        describe("FK references to contactIds", () => {
+            let contactForFKReferences: Contact;
+
+            before(async () => {
+                const contactResp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", {
+                    id: testUtils.generateId()
+                });
+                chai.assert.equal(contactResp.statusCode, 201, `contactResp.body=${JSON.stringify(contactResp.body)}`);
+                contactForFKReferences = contactResp.body;
+            });
+
+            it("404s attaching values to contactIds with leading/trailing whitespace", async () => {
+                const attachLeadingResp = await testUtils.testAuthedRequest<GiftbitRestError>(router, `/v2/contacts/%20${contactForFKReferences.id}/values/attach`, "POST", {
+                    valueId: "irrelevant"
+                });
+                chai.assert.equal(attachLeadingResp.statusCode, 404, `attachLeadingResp.body=${JSON.stringify(attachLeadingResp.body)}`);
+                chai.assert.equal(attachLeadingResp.body["messageCode"], "ContactNotFound", `attachLeadingResp.body=${JSON.stringify(attachLeadingResp.body)}`);
+                const attachTrailingResp = await testUtils.testAuthedRequest<GiftbitRestError>(router, `/v2/contacts/${contactForFKReferences.id}%0D%0A/values/attach`, "POST", {
+                    valueId: "irrelevant"
+                });
+                chai.assert.equal(attachTrailingResp.statusCode, 404, `attachTrailingResp.body=${JSON.stringify(attachTrailingResp.body)}`);
+                chai.assert.equal(attachTrailingResp.body["messageCode"], "ContactNotFound", `attachTrailingResp.body=${JSON.stringify(attachTrailingResp.body)}`);
+            });
+
+            it("409s transacting against contactIds (checkout only) with leading/trailing whitespace", async () => {
+                await testUtils.createUSDValue(router, {contactId: contactForFKReferences.id}); // 'contact not found' is indistinguishable from 'contact has no attached values' in checkout failures
+                const txLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/checkout", "POST", {
+                    id: testUtils.generateId(),
+                    currency: "USD",
+                    lineItems: [{unitPrice: 1}],
+                    sources: [{
+                        rail: "lightrail",
+                        contactId: ` ${contactForFKReferences.id}`
+                    }]
+                });
+                chai.assert.equal(txLeadingResp.statusCode, 409, `txLeadingResp.body=${JSON.stringify(txLeadingResp.body)}`);
+                chai.assert.equal(txLeadingResp.body["messageCode"], "InsufficientBalance", `txLeadingResp.body=${JSON.stringify(txLeadingResp.body)}`);
+                const txTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/checkout", "POST", {
+                    id: testUtils.generateId(),
+                    currency: "USD",
+                    lineItems: [{unitPrice: 1}],
+                    sources: [{
+                        rail: "lightrail",
+                        contactId: `${contactForFKReferences.id}\n`
+                    }]
+                });
+                chai.assert.equal(txTrailingResp.statusCode, 409, `txTrailingResp.body=${JSON.stringify(txTrailingResp.body)}`);
+                chai.assert.equal(txTrailingResp.body["messageCode"], "InsufficientBalance", `txTrailingResp.body=${JSON.stringify(txTrailingResp.body)}`);
+            });
+
+            it("does not find values when searching by contactId with leading/trailing whitespace", async () => {
+                await testUtils.createUSDValue(router, {contactId: contactForFKReferences.id});
+
+                const fetchLeadingResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?contactId=%20${contactForFKReferences.id}`, "GET");
+                chai.assert.equal(fetchLeadingResp.statusCode, 200, `fetchLeadingResp.body=${JSON.stringify(fetchLeadingResp.body)}`);
+                chai.assert.equal(fetchLeadingResp.body.length, 0, `fetchLeadingResp.body=${JSON.stringify(fetchLeadingResp.body)}`);
+
+                const fetchTrailingResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?contactId=${contactForFKReferences.id}%20`, "GET");
+                chai.assert.equal(fetchTrailingResp.statusCode, 200, `fetchTrailingResp.body=${JSON.stringify(fetchTrailingResp.body)}`);
+                chai.assert.equal(fetchTrailingResp.body.length, 0, `fetchTrailingResp.body=${JSON.stringify(fetchTrailingResp.body)}`);
+            });
+
+            it("does not find transactions when searching by contactId with leading/trailing whitespace", async () => {
+                await testUtils.createUSDValue(router, {balance: 1000, contactId: contactForFKReferences.id});
+                await testUtils.createUSDCheckout(router, {
+                    sources: [{
+                        rail: "lightrail",
+                        contactId: contactForFKReferences.id
+                    }]
+                }, false);
+
+                const fetchLeadingResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?contactId=%20${contactForFKReferences.id}`, "GET");
+                chai.assert.equal(fetchLeadingResp.statusCode, 200, `fetchLeadingResp.body=${JSON.stringify(fetchLeadingResp.body)}`);
+                chai.assert.equal(fetchLeadingResp.body.length, 0, `fetchLeadingResp.body=${JSON.stringify(fetchLeadingResp.body)}`);
+
+                const fetchTrailingResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?contactId=${contactForFKReferences.id}%20`, "GET");
+                chai.assert.equal(fetchTrailingResp.statusCode, 200, `fetchTrailingResp.body=${JSON.stringify(fetchTrailingResp.body)}`);
+                chai.assert.equal(fetchTrailingResp.body.length, 0, `fetchTrailingResp.body=${JSON.stringify(fetchTrailingResp.body)}`);
+            });
+        });
     });
 });

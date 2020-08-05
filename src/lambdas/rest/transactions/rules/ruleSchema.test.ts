@@ -1,9 +1,19 @@
-import {RouterEvent} from "cassava";
-import * as jsonschema from "jsonschema";
 import * as chai from "chai";
+import * as jsonschema from "jsonschema";
+import {RouterEvent} from "cassava";
 import {ruleSchema} from "./ruleSchema";
 
 describe("ruleSchema", () => {
+
+    const exampleSchema: jsonschema.Schema = {
+        type: "object",
+        properties: {
+            exampleRule: {
+                ...ruleSchema
+            }
+        }
+    };
+    
     it("can validate rule", () => {
         const evt = new RouterEvent();
         evt.body = {
@@ -75,12 +85,3 @@ describe("ruleSchema", () => {
         });
     });
 });
-
-const exampleSchema: jsonschema.Schema = {
-    type: "object",
-    properties: {
-        exampleRule: {
-            ...ruleSchema
-        }
-    }
-};

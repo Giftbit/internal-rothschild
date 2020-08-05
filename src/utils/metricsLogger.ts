@@ -4,7 +4,26 @@ import * as Stripe from "stripe";
 import {Value} from "../model/Value";
 import log = require("loglevel");
 
+/**
+ * Legal types of metrics: https://docs.datadoghq.com/integrations/amazon_lambda/#using-cloudwatch-logs
+ */
+enum MetricsType {
+    Histogram = "histogram",
+    Count = "count",
+    Gauge = "gauge",
+    Check = "check"
+}
+
+export enum ValueAttachmentTypes {
+    OnCreate = "onCreate",
+    Generic = "generic",
+    GenericPerContactProps = "genericPerContactProps",
+    GenericAsNew = "genericAsNew",
+    Unique = "unique"
+}
+
 export namespace MetricsLogger {
+
     export function legacyDiscountSellerLiabilitySet(request: "valueCreate" | "valueUpdate" | "programCreate" | "programUpdate", auth: giftbitRoutes.jwtauth.AuthorizationBadge): void {
         logMetric(1, MetricsType.Histogram, `rothschild.legacy.discountSellerLiabilitySet`, {type: request}, auth);
     }
@@ -71,14 +90,6 @@ export namespace MetricsLogger {
     }
 }
 
-export enum ValueAttachmentTypes {
-    OnCreate = "onCreate",
-    Generic = "generic",
-    GenericPerContactProps = "genericPerContactProps",
-    GenericAsNew = "genericAsNew",
-    Unique = "unique"
-}
-
 /**
  * Uses Cloudwatch logs to send arbitrary metrics to Datadog: see https://docs.datadoghq.com/integrations/amazon_lambda/#using-cloudwatch-logs for details
  * Log message follows format `MONITORING|<unix_epoch_timestamp_in_seconds>|<value>|<metric_type>|<metric_name>|#<tag_key>:<tag_value>`
@@ -103,14 +114,4 @@ function logMetric(value: number, metricType: MetricsType, metricName: string, t
         `${metricName}|` +
         `${tagString}`
     );
-}
-
-/**
- * Legal types of metrics: https://docs.datadoghq.com/integrations/amazon_lambda/#using-cloudwatch-logs
- */
-enum MetricsType {
-    Histogram = "histogram",
-    Count = "count",
-    Gauge = "gauge",
-    Check = "check"
 }

@@ -1,10 +1,10 @@
-import * as stripe from "stripe";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {getKnexRead} from "../utils/dbUtils/connection";
 import {LineItem} from "./LineItem";
 import {TransactionParty} from "./TransactionRequest";
 import {TaxRequestProperties} from "./TaxProperties";
 import {TagOnResource} from "./Tag";
+import {DbTransactionStep, TransactionStep} from "./TransactionStep";
 
 export interface Transaction {
     id: string;
@@ -22,6 +22,26 @@ export interface Transaction {
     metadata: object | null;
     tax: TaxRequestProperties | null;
     tags?: TagOnResource[];
+}
+
+export interface TransactionTotals {
+    subtotal?: number;
+    tax?: number;
+    discountLightrail?: number;
+    paidLightrail?: number;
+    paidStripe?: number;
+    paidInternal?: number;
+    remainder?: number;
+    forgiven?: number;
+    marketplace?: MarketplaceTransactionTotals;
+    discount?: number; // deprecated
+    payable?: number; // deprecated
+}
+
+export interface MarketplaceTransactionTotals {
+    sellerGross: number;
+    sellerDiscount: number;
+    sellerNet: number;
 }
 
 export interface DbTransaction {
@@ -84,7 +104,7 @@ export namespace Transaction {
 
 export namespace DbTransaction {
     export function toTransaction(dbTx: DbTransaction, dbSteps: DbTransactionStep[], dbTagIds: string[]): Transaction {
-        let t: Transaction = {
+        const t: Transaction = {
             id: dbTx.id,
             transactionType: dbTx.transactionType,
             currency: dbTx.currency,
@@ -132,7 +152,7 @@ export namespace DbTransaction {
 
     export async function toTransactionsUsingDb(txns: DbTransaction[], userId: string): Promise<Transaction[]> {
         const knex = await getKnexRead();
-        let txIds: string[] = txns.map(tx => tx.id);
+        const txIds: string[] = txns.map(tx => tx.id);
         let dbSteps: any[] = await knex("LightrailTransactionSteps")
             .where("userId", userId)
             .whereIn("transactionId", txIds);
@@ -181,149 +201,3 @@ export type TransactionType =
     | "reverse"
     | "capture"
     | "void";
-
-export type TransactionStep = LightrailTransactionStep | StripeTransactionStep | InternalTransactionStep;
-
-export interface LightrailTransactionStep {
-    rail: "lightrail";
-    valueId: string;
-    contactId?: string;
-    code?: string;
-    balanceBefore: number;
-    balanceAfter: number;
-    balanceChange: number;
-    usesRemainingBefore?: number;
-    usesRemainingAfter?: number;
-    usesRemainingChange?: number;
-}
-
-export interface StripeTransactionStep {
-    rail: "stripe";
-    amount: number;
-    chargeId?: string;
-    charge?: stripe.charges.ICharge | stripe.refunds.IRefund;
-}
-
-export interface InternalTransactionStep {
-    rail: "internal";
-    internalId: string;
-    balanceBefore: number;
-    balanceAfter: number;
-    balanceChange: number;
-}
-
-export interface TransactionTotals {
-    subtotal?: number;
-    tax?: number;
-    discountLightrail?: number;
-    paidLightrail?: number;
-    paidStripe?: number;
-    paidInternal?: number;
-    remainder?: number;
-    forgiven?: number;
-    marketplace?: MarketplaceTransactionTotals;
-    discount?: number; // deprecated
-    payable?: number; // deprecated
-}
-
-export interface MarketplaceTransactionTotals {
-    sellerGross: number;
-    sellerDiscount: number;
-    sellerNet: number;
-}
-
-export type DbTransactionStep = LightrailDbTransactionStep | StripeDbTransactionStep | InternalDbTransactionStep;
-
-export interface LightrailDbTransactionStep {
-    userId: string;
-    id: string;
-    transactionId: string;
-    valueId: string;
-    contactId?: string;
-    code?: string;
-    balanceBefore: number | null;
-    balanceAfter: number | null;
-    balanceChange: number | null;
-    usesRemainingBefore: number | null;
-    usesRemainingAfter: number | null;
-    usesRemainingChange: number | null;
-}
-
-export interface StripeDbTransactionStep {
-    userId: string;
-    id: string;
-    transactionId: string;
-    chargeId: string;
-    amount: number;
-    charge: string;
-}
-
-export interface InternalDbTransactionStep {
-    userId: string;
-    id: string;
-    transactionId: string;
-    internalId: string;
-    balanceBefore: number;
-    balanceAfter: number;
-    balanceChange: number;
-}
-
-export namespace DbTransactionStep {
-    export function toTransactionStep(step: DbTransactionStep): TransactionStep {
-        if (isLightrailDbTransactionStep(step)) {
-            return toLightrailTransactionStep(step);
-        }
-        if (isStripeDbTransactionStep(step)) {
-            return toStripeTransactionStep(step);
-        }
-        if (isInternalDbTransactionStep(step)) {
-            return toInternalTransactionStep(step);
-        }
-    }
-
-    export function isLightrailDbTransactionStep(step: DbTransactionStep): step is LightrailDbTransactionStep {
-        return (step as LightrailDbTransactionStep).valueId !== undefined;
-    }
-
-    export function isStripeDbTransactionStep(step: DbTransactionStep): step is StripeDbTransactionStep {
-        return (step as StripeDbTransactionStep).chargeId !== undefined;
-    }
-
-    export function isInternalDbTransactionStep(step: DbTransactionStep): step is InternalDbTransactionStep {
-        return (step as InternalDbTransactionStep).internalId !== undefined;
-    }
-
-    export function toLightrailTransactionStep(step: LightrailDbTransactionStep): LightrailTransactionStep {
-        return {
-            rail: "lightrail",
-            valueId: step.valueId,
-            contactId: step.contactId || null,
-            code: step.code || null,
-            balanceBefore: step.balanceBefore,
-            balanceAfter: step.balanceAfter,
-            balanceChange: step.balanceChange,
-            usesRemainingBefore: step.usesRemainingBefore,
-            usesRemainingAfter: step.usesRemainingAfter,
-            usesRemainingChange: step.usesRemainingChange
-        };
-    }
-
-    export function toStripeTransactionStep(step: StripeDbTransactionStep): StripeTransactionStep {
-        return {
-            rail: "stripe",
-            amount: step.amount,
-            chargeId: step.chargeId || null,
-            charge: JSON.parse(step.charge) || null
-        };
-    }
-
-    export function toInternalTransactionStep(step: InternalDbTransactionStep): InternalTransactionStep {
-        return {
-            rail: "internal",
-            internalId: step.internalId,
-            balanceBefore: step.balanceBefore,
-            balanceAfter: step.balanceAfter,
-            balanceChange: step.balanceChange,
-        };
-    }
-}

@@ -1,5 +1,3 @@
-"use strict";
-
 import {TaxRoundingMode} from "../model/TaxProperties";
 
 /**
@@ -13,20 +11,20 @@ import {TaxRoundingMode} from "../model/TaxProperties";
  *
  * source http://stackoverflow.com/a/3109234
  */
-export function bankersRounding(num, decimalPlaces) {
-    let d = decimalPlaces || 0;
-    let m = Math.pow(10, d);
-    let n = +(d ? num * m : num).toFixed(8); // Avoid rounding errors
-    let i = Math.floor(n), f = n - i;
-    let e = 1e-8; // Allow for rounding errors in f
-    let r = (f > 0.5 - e && f < 0.5 + e) ?
+export function bankersRounding(num: number, decimalPlaces: number): number {
+    const d = decimalPlaces || 0;
+    const m = Math.pow(10, d);
+    const n = +(d ? num * m : num).toFixed(8); // Avoid rounding errors
+    const i = Math.floor(n), f = n - i;
+    const e = 1e-8; // Allow for rounding errors in f
+    const r = (f > 0.5 - e && f < 0.5 + e) ?
         ((i % 2 === 0) ? i : i + 1) :
         Math.round(n);
 
     return d ? r / m : r;
 }
 
-export function roundTax(tax: number, mode: TaxRoundingMode) {
+export function roundTax(tax: number, mode: TaxRoundingMode): number {
     switch (mode) {
         case "HALF_EVEN":
             return bankersRounding(tax, 0);

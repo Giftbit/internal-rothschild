@@ -6,6 +6,7 @@ import {pick} from "../../utils/pick";
 import {csvSerializer} from "../../utils/serializers";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {nowInDbPrecision} from "../../utils/dbUtils";
+import {isSystemId} from "../../utils/isSystemId";
 
 export function installCurrenciesRest(router: cassava.Router): void {
     router.route("/v2/currencies")
@@ -117,6 +118,10 @@ export async function createCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBa
 export async function getCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string): Promise<Currency> {
     auth.requireIds("userId");
 
+    if (!isSystemId(code)) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Currency with code '${code}' not found.`, "CurrencyNotFound");
+    }
+
     const knex = await getKnexRead();
     const res: DbCurrency[] = await knex("Currencies")
         .select()
@@ -125,7 +130,7 @@ export async function getCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             code: code
         });
     if (res.length === 0) {
-        throw new cassava.RestError(404);
+        throw new giftbitRoutes.GiftbitRestError(404, `Currency with code '${code}' not found.`, "CurrencyNotFound");
     }
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
@@ -135,6 +140,10 @@ export async function getCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 
 export async function updateCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string, currencyUpdates: Partial<Currency>): Promise<Currency> {
     auth.requireIds("userId");
+
+    if (!isSystemId(code)) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Currency with code '${code}' not found.`, "CurrencyNotFound");
+    }
 
     const knex = await getKnexWrite();
     return knex.transaction(async trx => {
@@ -147,7 +156,7 @@ export async function updateCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBa
             })
             .forUpdate();
         if (currencyRes.length === 0) {
-            throw new cassava.RestError(404);
+            throw new giftbitRoutes.GiftbitRestError(404, `Currency with code '${code}' not found.`, "CurrencyNotFound");
         }
         if (currencyRes.length > 1) {
             throw new Error(`Illegal SELECT query.  Returned ${currencyRes.length} values.`);
@@ -177,6 +186,10 @@ export async function updateCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBa
 export async function deleteCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBadge, code: string): Promise<{ success: true }> {
     auth.requireIds("userId");
 
+    if (!isSystemId(code)) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Currency with code '${code}' not found.`, "CurrencyNotFound");
+    }
+
     try {
         const knex = await getKnexWrite();
         const res: number = await knex("Currencies")
@@ -186,7 +199,7 @@ export async function deleteCurrency(auth: giftbitRoutes.jwtauth.AuthorizationBa
             })
             .delete();
         if (res === 0) {
-            throw new cassava.RestError(404);
+            throw new giftbitRoutes.GiftbitRestError(404, `Currency with code '${code}' not found.`, "CurrencyNotFound");
         }
         if (res > 1) {
             throw new Error(`Illegal DELETE query.  Deleted ${res} values.`);
@@ -207,7 +220,7 @@ const currencySchema: jsonschema.Schema = {
             type: "string",
             maxLength: 16,
             minLength: 1,
-            pattern: "^[ -~]*$"
+            pattern: "^[A-Z]+$"
         },
         name: {
             type: "string",

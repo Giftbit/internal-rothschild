@@ -1,9 +1,9 @@
+import * as cassava from "cassava";
+import * as Knex from "knex";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
-import * as Knex from "knex";
 import {Value} from "../../../model/Value";
 import {dateInDbPrecision, nowInDbPrecision} from "../../../utils/dbUtils/index";
-import * as cassava from "cassava";
 import {MetricsLogger, ValueAttachmentTypes} from "../../../utils/metricsLogger";
 import {Program} from "../../../model/Program";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
@@ -12,13 +12,13 @@ import {CreateValueParameters} from "./values";
 import {checkRulesSyntax} from "../transactions/rules/RuleContext";
 import {LightrailInsertTransactionPlanStep, TransactionPlan} from "../transactions/TransactionPlan";
 import {executeTransactionPlan} from "../transactions/executeTransactionPlans";
-import {DiscountSellerLiabilityUtils} from "../../../utils/discountSellerLiabilityUtils";
 import {formatContactIdTags} from "../transactions/transactions";
+import {discountSellerLiabilityUtils} from "../../../utils/discountSellerLiabilityUtils";
 import log = require("loglevel");
 
 export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: CreateValueParameters, trx: Knex.Transaction): Promise<Value> {
     auth.requireIds("userId", "teamMemberId");
-    let value: Value = initializeValue(auth, params.partialValue, params.program, params.generateCodeParameters);
+    const value: Value = initializeValue(auth, params.partialValue, params.program, params.generateCodeParameters);
     log.info(`Create Value requested for user: ${auth.userId}. Value`, Value.toStringSanitized(value));
 
     value.startDate = value.startDate ? dateInDbPrecision(new Date(value.startDate)) : null;
@@ -65,7 +65,7 @@ export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 
     let value: Value = pickOrDefault(partialValue, {
         id: null,
-        currency: program ? program.currency : null,
+        currency: program ? program.currency.toUpperCase() : null,
         balance: partialValue.balanceRule || (program && program.balanceRule) || (Value.isGenericCodeWithPropertiesPerContact(partialValue)) ? null : 0,
         usesRemaining: null,
         programId: program ? program.id : null,
@@ -123,9 +123,9 @@ export function initializeValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
  */
 export function setDiscountSellerLiabilityPropertiesForLegacySupport(v: Value): Value {
     if (v.discountSellerLiabilityRule != null) {
-        v.discountSellerLiability = DiscountSellerLiabilityUtils.ruleToNumber(v.discountSellerLiabilityRule);
+        v.discountSellerLiability = discountSellerLiabilityUtils.ruleToNumber(v.discountSellerLiabilityRule);
     } else if (v.discountSellerLiability != null) {
-        v.discountSellerLiabilityRule = DiscountSellerLiabilityUtils.numberToRule(v.discountSellerLiability);
+        v.discountSellerLiabilityRule = discountSellerLiabilityUtils.numberToRule(v.discountSellerLiability);
     }
     return v;
 }
@@ -164,7 +164,12 @@ export function checkValueProperties(value: Value, program: Program = null): voi
     if (Value.isGenericCodeWithPropertiesPerContact(value) && (value.genericCodeOptions.perContact.balance == null && value.balanceRule == null)) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `If using a generic code with genericCodeOption.perContact properties either genericCodeOptions.perContact.balance or balanceRule must be set.`);
     }
-
+    if (value.isGenericCode && value.balance != null && value.genericCodeOptions?.perContact?.balance == null) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value with isGenericCode:true must have genericCodeOptions.perContact.balance set if balance is set.`);
+    }
+    if (value.isGenericCode && value.usesRemaining != null && value.genericCodeOptions?.perContact?.usesRemaining == null) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Value with isGenericCode:true must have genericCodeOptions.perContact.usesRemaining set if usesRemaining is set.`);
+    }
     checkRulesSyntax(value, "Value");
 }
 
@@ -199,5 +204,8 @@ function checkProgramConstraints(value: Value, program: Program): void {
 export function checkCodeParameters(generateCode: GenerateCodeParameters, code: string): void {
     if (generateCode && code) {
         throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Parameter generateCode is not allowed with parameters code or isGenericCode:true.`);
+    }
+    if (/^[\s+]/.test(code) || /[\s+]$/.test(code)) {
+        throw new cassava.RestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Code may not have leading or trailing whitespace.`);
     }
 }

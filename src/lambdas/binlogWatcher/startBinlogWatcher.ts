@@ -29,13 +29,42 @@ export async function startBinlogWatcher(stateManager: BinlogWatcherStateManager
     });
 
     const txBuilder = new BinlogTransactionBuilder();
+    let haveSeenFirstEvent = false;
+
     binlogStream.on("binlog", (event: BinlogEvent) => {
         txBuilder.handleBinlogEvent(event);
+
         if (event.binlog.getTypeName() === "Query" && !txBuilder.isBuildingTransaction()) {
             // Checkpointing here prevents us from losing our place in the face of a drought of SQL transactions.
             stateManager.openCheckpoint(event.binlogName, event.binlog.nextPosition);
             stateManager.closeCheckpoint(event.binlogName, event.binlog.nextPosition);
         }
+
+        if (event.binlog.getTypeName() === "Rotate" && event.binlogName !== stateManager.state?.checkpoint?.binlogName) {
+            // The log has rotated.  We should checkpoint here in case this is not followed
+            // by more events to trigger other checkpointing.
+            log.info("Detected log rotation, checkpointing stateManager");
+            stateManager.openCheckpoint(event.binlogName, 0);
+            stateManager.closeCheckpoint(event.binlogName, 0);
+            stateManager.binlogFlushed();
+        }
+
+        if (!haveSeenFirstEvent && stateManager.shouldFlushBinlog()) {
+            // If the binlog is started more than the max retention period ago when it is
+            // rotated then it will be immediately deleted and events can be lost.  Forcing
+            // rotation early ensures we do not lose events during the rotation.
+            log.info("Flushing binlog");
+            binlogStream.flushBinlog()
+                .then(() => {
+                    log.info("Binlog flushed.");
+                    stateManager.binlogFlushed();
+                })
+                .catch(err => {
+                    log.error("Error flushing binlog", err);
+                    giftbitRoutes.sentry.sendErrorNotification(err);
+                });
+        }
+        haveSeenFirstEvent = true;
     });
 
     txBuilder.on("transaction", async (tx: BinlogTransaction) => {
@@ -127,7 +156,7 @@ export async function testLightrailEvents(eventGenerator: () => Promise<void>): 
 
     await eventGenerator();
 
-    await new Promise(async resolve => {
+    await new Promise((resolve, reject) => {
         binlogStream.on("binlog", (event: BinlogEvent) => {
             // Look for a specific binlog event that marks the end of the events we care about.
             if (event.binlog.getTypeName() === "Query" && (event as BinlogEvent<QueryEvent>).binlog.query.startsWith(`DROP USER '${sentinelUser}'@'localhost'`)) {
@@ -138,9 +167,10 @@ export async function testLightrailEvents(eventGenerator: () => Promise<void>): 
 
         // Block on all previous SQL transactions completing and then trigger
         // a binlog event we will look for to mark the end of events we care about.
-        await knex.raw("FLUSH TABLE WITH READ LOCK");
-        await knex.raw("UNLOCK TABLES");
-        await knex.raw(`DROP USER '${sentinelUser}'@'localhost'`);
+        knex.raw("FLUSH TABLE WITH READ LOCK")
+            .then(() => knex.raw("UNLOCK TABLES"))
+            .then(() => knex.raw(`DROP USER '${sentinelUser}'@'localhost'`))
+            .catch(reject);
     });
 
     await binlogStream.stop();

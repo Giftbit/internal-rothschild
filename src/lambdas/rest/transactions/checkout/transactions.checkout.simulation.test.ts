@@ -52,7 +52,7 @@ describe("/v2/transactions/checkout - simulation tests", () => {
         const createPromotion1Resp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", preTaxPromotion);
         chai.assert.equal(createPromotion1Resp.statusCode, 201, `body=${JSON.stringify(createPromotion1Resp.body)}`);
 
-        let request: any = {
+        const request: any = {
             id: generateId(),
             simulate: true,
             allowRemainder: true,
@@ -141,6 +141,7 @@ describe("/v2/transactions/checkout - simulation tests", () => {
                     "valueId": preTaxPromotion.id,
                     "contactId": null,
                     "code": null,
+                    "balanceRule": null,
                     "balanceBefore": 500,
                     "balanceAfter": 0,
                     "balanceChange": -500,
@@ -153,6 +154,7 @@ describe("/v2/transactions/checkout - simulation tests", () => {
                     "valueId": giftCard.id,
                     "contactId": null,
                     "code": null,
+                    "balanceRule": null,
                     "balanceBefore": 4000,
                     "balanceAfter": 0,
                     "balanceChange": -4000,

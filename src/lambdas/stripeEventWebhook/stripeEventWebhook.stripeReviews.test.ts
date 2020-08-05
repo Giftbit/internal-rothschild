@@ -1,11 +1,11 @@
 import * as cassava from "cassava";
+import * as chai from "chai";
+import * as stripe from "stripe";
 import * as testUtils from "../../utils/testUtils";
 import {generateId, setCodeCryptographySecrets} from "../../utils/testUtils";
 import {installRestRoutes} from "../rest/installRestRoutes";
 import {installStripeEventWebhookRest} from "./installStripeEventWebhookRest";
-import * as chai from "chai";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../utils/testUtils/stripeTestUtils";
-import * as stripe from "stripe";
 import {
     assertTransactionChainContainsTypes,
     assertValuesRestoredAndFrozen,
@@ -36,7 +36,7 @@ describe("/v2/stripeEventWebhook - Stripe Review events", () => {
         const webhookEventSetup = await setupForWebhookEvent(restRouter);
         const refundedCharge = await refundInStripe(webhookEventSetup.stripeStep, "fraudulent");
 
-        let review: stripe.reviews.IReview = {
+        const review: stripe.reviews.IReview = {
             id: generateId(),
             object: "review",
             charge: refundedCharge,

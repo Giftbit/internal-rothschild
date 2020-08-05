@@ -20,6 +20,7 @@ import {
 } from "../../utils/stripeUtils/stripeAccess";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {StripeConfig} from "../../utils/stripeUtils/StripeConfig";
+import {migrateContactValues} from "./contactValueMigration";
 import log = require("loglevel");
 
 // Wrapping console.log instead of binding (default behaviour for loglevel)
@@ -27,7 +28,7 @@ import log = require("loglevel");
 // request the lambda received (AWS modifies log calls, loglevel binds to the
 // version of console.log that exists when it is initialized).
 // See https://github.com/pimterry/loglevel/blob/master/lib/loglevel.js
-// tslint:disable-next-line:no-console
+// eslint-disable-next-line no-console
 log.methodFactory = () => (...args) => console.log(...args);
 
 log.setLevel(log.levels.DEBUG);
@@ -56,6 +57,7 @@ export async function handler(evt: awslambda.CloudFormationCustomResourceEvent, 
             readonlyuserpassword: evt.ResourceProperties.ReadOnlyUserPassword,
             binlogwatcheruserpassword: evt.ResourceProperties.BinlogWatcherUserPassword
         });
+        await migrateContactValues();
         return sendCloudFormationResponse(evt, ctx, true, res);
     } catch (err) {
         log.error(JSON.stringify(err, null, 2));

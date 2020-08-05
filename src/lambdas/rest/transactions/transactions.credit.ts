@@ -8,7 +8,7 @@ import {resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
 
 export async function createCreditTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CreditRequest): Promise<TransactionPlan> {
     const steps = await resolveTransactionPlanSteps(auth, [req.destination], {
-        currency: req.currency,
+        currency: req.currency?.toUpperCase(),
         transactionId: req.id,
         nonTransactableHandling: "error",
         includeZeroBalance: true,
@@ -26,7 +26,7 @@ export async function createCreditTransactionPlan(auth: giftbitRoutes.jwtauth.Au
         throw new giftbitRoutes.GiftbitRestError(409, "Cannot credit uses to a Value with usesRemaining=null.", "NullUses");
     }
 
-    step.amount = req.amount || 0;
+    step.amount = req.amount || null;
     step.uses = req.uses != null ? req.uses : null;
 
     return {

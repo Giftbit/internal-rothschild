@@ -10,7 +10,7 @@ import {
     filterAndPaginateQuery,
     getSqlErrorConstraintName,
     nowInDbPrecision
-} from "../../../utils/dbUtils/index";
+} from "../../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../../utils/dbUtils/connection";
 import {DbCode} from "../../../model/DbCode";
 import {generateCode} from "../../../utils/codeGenerator";
@@ -19,23 +19,19 @@ import {getProgram} from "../programs";
 import {Program} from "../../../model/Program";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
 import {getTransactions} from "../transactions/transactions";
-import {
-    Currency,
-    formatAmountForCurrencyDisplay,
-    formatObjectsAmountPropertiesForCurrencyDisplay
-} from "../../../model/Currency";
-import {getCurrency} from "../currencies";
+import {formatObjectsAmountPropertiesForCurrencyDisplay} from "../../../model/Currency";
 import {
     checkCodeParameters,
     checkValueProperties,
     createValue,
     setDiscountSellerLiabilityPropertiesForLegacySupport
 } from "./createValue";
-import {hasContactValues} from "../contactValues";
 import {QueryBuilder} from "knex";
 import {MetricsLogger} from "../../../utils/metricsLogger";
-import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {Transaction} from "../../../model/Transaction";
 import {ruleSchema} from "../transactions/rules/ruleSchema";
+import {isSystemId} from "../../../utils/isSystemId";
+import {LightrailTransactionStep} from "../../../model/TransactionStep";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -55,7 +51,7 @@ export function installValuesRest(router: cassava.Router): void {
             const res = await getValues(auth, evt.queryStringParameters, Pagination.getPaginationParams(evt), showCode);
 
             if (evt.queryStringParameters.stats === "true") {
-                // For now this is a secret param only Yervana knows about.
+                // For now this is a secret param only Yervana and Chairish know about.
                 await injectValueStats(auth, res.values);
             }
 
@@ -129,7 +125,7 @@ export function installValuesRest(router: cassava.Router): void {
             const value = await getValue(auth, evt.pathParameters.id, showCode);
 
             if (evt.queryStringParameters.stats === "true") {
-                // For now this is a secret param only Yervana knows about.
+                // For now this is a secret param only Yervana and Chairish know about.
                 await injectValueStats(auth, [value]);
             }
 
@@ -229,7 +225,7 @@ export function installValuesRest(router: cassava.Router): void {
                 code = generateCode(evt.body.generateCode);
             }
 
-            let updateProps: Partial<DbValue> = {
+            const updateProps: Partial<DbValue> = {
                 codeLastFour: null,
                 codeEncrypted: null,
                 codeHashed: null,
@@ -254,37 +250,9 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 
     const knex = await getKnexRead();
 
-    let query: QueryBuilder;
-    const contactId = filterParams["contactId"] || filterParams["contactId.eq"];
-    if (contactId) {
-        // Wrap the UNION query in another select so we can apply WHERE clauses to it below.
-        query = knex.select("*").from(
-            // This UNION query has two parts that each use a different index.  It replaces an earlier
-            // OR query that could only use one of the two indexes and was thus slow.
-            knex.select("*")
-                .from("Values")
-                .where({
-                    "Values.userId": auth.userId,
-                    "Values.contactId": contactId
-                })
-                .union(k => k.select("Values.*")
-                    .from("Values")
-                    .leftJoin("ContactValues", {
-                        "Values.userId": "ContactValues.userId",
-                        "Values.id": "ContactValues.valueId"
-                    })
-                    .where({
-                        "Values.userId": auth.userId,
-                        "ContactValues.contactId": contactId
-                    })
-                )
-                .as("UnionTempTable")
-        );
-    } else {
-        query = knex("Values")
-            .select("*")
-            .where("Values.userId", "=", auth.userId);
-    }
+    const query: QueryBuilder = knex("Values")
+        .select("*")
+        .where("Values.userId", "=", auth.userId);
 
     const paginatedRes = await filterAndPaginateQuery<DbValue>(
         query,
@@ -293,23 +261,33 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
             properties: {
                 id: {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
+                },
+                contactId: {
+                    type: "string",
+                    operators: ["eq"],
+                    valueFilter: isSystemId
                 },
                 programId: {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 issuanceId: {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 attachedFromValueId: {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 currency: {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 balance: {
                     type: "number"
@@ -327,7 +305,10 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
                     type: "string",
                     operators: ["eq", "in"],
                     columnName: "codeHashed",
-                    valueMap: code => computeCodeLookupHash(code, auth)
+                    valueMap: code => {
+                        const c = trimCodeIfPresent({code});
+                        return computeCodeLookupHash(c.code, auth);
+                    }
                 },
                 active: {
                     type: "boolean"
@@ -369,6 +350,10 @@ export async function getValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, 
 
 export async function getValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, showCode: boolean = false): Promise<Value> {
     auth.requireIds("userId");
+
+    if (!isSystemId(id)) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${id}' not found.`, "ValueNotFound");
+    }
 
     const knex = await getKnexRead();
     const res: DbValue[] = await knex("Values")
@@ -442,6 +427,10 @@ export async function getDbValuesByTransaction(auth: giftbitRoutes.jwtauth.Autho
 export async function updateValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string, valueUpdates: Partial<Value>): Promise<Value> {
     auth.requireIds("userId");
 
+    if (!isSystemId(id)) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${id}' not found.`, "ValueNotFound");
+    }
+
     const knex = await getKnexWrite();
     return await knex.transaction(async trx => {
         // Get the master version of the Value and lock it.
@@ -507,11 +496,6 @@ function setValueUpdates(existingValue: Value, valueUpdates: Partial<Value>): Va
 }
 
 async function checkForRestrictedUpdates(auth: giftbitRoutes.jwtauth.AuthorizationBadge, existingValue: Value, updatedValue: Value): Promise<void> {
-    if (!Value.isGenericCodeWithPropertiesPerContact(existingValue) && Value.isGenericCodeWithPropertiesPerContact(updatedValue)) {
-        if (await hasContactValues(auth, existingValue.id)) {
-            throw new giftbitRoutes.GiftbitRestError(422, "A shared generic value without genericCodeOptions cannot be updated to have genericCodeOptions.");
-        }
-    }
     if (Value.isGenericCodeWithPropertiesPerContact(existingValue) && !Value.isGenericCodeWithPropertiesPerContact(updatedValue)) {
         throw new giftbitRoutes.GiftbitRestError(422, "A value with genericCodeOptions cannot be updated to no longer have genericCodeOptions.");
     }
@@ -552,6 +536,10 @@ async function updateDbValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id:
 async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<{ success: true }> {
     auth.requireIds("userId");
 
+    if (!isSystemId(id)) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${id}' not found.`, "ValueNotFound");
+    }
+
     try {
         const knex = await getKnexWrite();
         const res: number = await knex("Values")
@@ -561,7 +549,7 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
             })
             .delete();
         if (res === 0) {
-            throw new cassava.RestError(404);
+            throw new giftbitRoutes.GiftbitRestError(404, `Value with id '${id}' not found.`, "ValueNotFound");
         }
         if (res > 1) {
             throw new Error(`Illegal DELETE query.  Deleted ${res} values.`);
@@ -576,7 +564,7 @@ async function deleteValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: s
 }
 
 /**
- * This is currently a secret operation only Yervana knows about.
+ * For now this is a secret param only Yervana and Chairish know about.
  */
 export async function injectValueStats(auth: giftbitRoutes.jwtauth.AuthorizationBadge, values: Value[]): Promise<void> {
     auth.requireIds("userId");
@@ -644,13 +632,6 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
     };
 
     const knex = await getKnexRead();
-    const attachedContactValues = await knex("ContactValues")
-        .where({
-            "userId": auth.userId,
-            "valueId": valueId
-        })
-        .count({count: "*"});
-    stats.attachedContacts.count = attachedContactValues[0].count;
 
     const attachedFromGenericValueStats = await knex("Values")
         .where({
@@ -670,7 +651,7 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
      * This will need to be updated once partial capture becomes a thing since joining to the last Transaction in the chain
      * will no longer give a complete picture regarding what happened.
      */
-    let query = knex("Values as V")
+    const query = knex("Values as V")
         .where({
             "V.userId": auth.userId,
         })
@@ -741,22 +722,8 @@ export async function getValuePerformance(auth: giftbitRoutes.jwtauth.Authorizat
     return stats;
 }
 
-type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
-export type StringBalanceValue = Omit<Value, "balance"> & { balance: string | number };
-
-async function formatValueForCurrencyDisplay(auth: giftbitRoutes.jwtauth.AuthorizationBadge, values: Value[]): Promise<StringBalanceValue[]> {
-    const formattedValues: StringBalanceValue[] = [];
-    const retrievedCurrencies: { [key: string]: Currency } = {};
-    for (const value of values) {
-        if (!retrievedCurrencies[value.currency]) {
-            retrievedCurrencies[value.currency] = await getCurrency(auth, value.currency);
-        }
-        formattedValues.push({
-            ...value,
-            balance: value.balance != null ? formatAmountForCurrencyDisplay(value.balance, retrievedCurrencies[value.currency]) : value.balance
-        });
-    }
-    return formattedValues;
+export function trimCodeIfPresent<T extends { code?: string }>(request: T): T {
+    return request.code ? {...request, code: request.code.trim()} : request;
 }
 
 const valueSchema: jsonschema.Schema = {
@@ -767,7 +734,7 @@ const valueSchema: jsonschema.Schema = {
             type: "string",
             maxLength: 64,
             minLength: 1,
-            pattern: "^[ -~]*$"
+            pattern: isSystemId.regexString
         },
         currency: {
             type: "string",

@@ -68,6 +68,8 @@ function optimizeSteps(pretax: boolean, unsortedSteps: TransactionPlanStep[], ch
     (pretax ? sortedPretaxSteps : sortedPostTaxSteps).push(...splitUnsortedSteps.internalAfterLightrailSteps, ...splitUnsortedSteps.stripeSteps);
 }
 
+// Often not ideal but we'll let it slide here.
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function splitNonLightrailSteps(steps: TransactionPlanStep[]) {
     return {
         internalBeforeLightrailSteps: steps.filter(step => step.rail === "internal" && step.beforeLightrail),
@@ -127,7 +129,7 @@ function lightrailTransactionPlanStepComparer(a: LightrailTransactionPlanStep, b
     }
     if (a.value.endDate && b.value.endDate) {
         // Earlier expiration before later expiration.
-        let dateDifference = (a.value.endDate as any) - (b.value.endDate as any); // subtracting Dates really does work
+        const dateDifference = (a.value.endDate as any) - (b.value.endDate as any); // subtracting Dates really does work
         if (dateDifference !== 0) {
             return dateDifference;
         }

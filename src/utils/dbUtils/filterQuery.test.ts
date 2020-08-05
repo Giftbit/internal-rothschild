@@ -1,9 +1,9 @@
 import * as chai from "chai";
+import * as cryptojs from "crypto-js";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {getKnexRead, getKnexWrite} from "./connection";
 import * as testUtils from "../testUtils";
 import {filterQuery, FilterQueryOptions} from "./filterQuery";
-import * as cryptojs from "crypto-js";
 
 describe("filterQuery()", () => {
 
@@ -92,7 +92,7 @@ describe("filterQuery()", () => {
         }
     };
 
-    function hashCode(value: string) {
+    function hashCode(value: string): string {
         return cryptojs.SHA512(value).toString();
     }
 

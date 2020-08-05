@@ -1,12 +1,12 @@
 import {LightrailEvent} from "./LightrailEvent";
+import {DbTransaction} from "../../../model/Transaction";
+import {BinlogTransaction} from "../binlogTransaction/BinlogTransaction";
+import {generateLightrailEventId} from "./generateEventId";
 import {
-    DbTransaction,
     InternalDbTransactionStep,
     LightrailDbTransactionStep,
     StripeDbTransactionStep
-} from "../../../model/Transaction";
-import {BinlogTransaction} from "../binlogTransaction/BinlogTransaction";
-import {generateLightrailEventId} from "./generateEventId";
+} from "../../../model/TransactionStep";
 
 export async function getTransactionCreatedEvents(tx: BinlogTransaction): Promise<LightrailEvent[]> {
     const lightrailStepRows = tx.statements

@@ -2,7 +2,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import {DbCode, getCodeLastFourNoPrefix} from "./DbCode";
 import {pickDefined} from "../utils/pick";
 import {decryptCode} from "../utils/codeCryptoUtils";
-import {DiscountSellerLiabilityUtils} from "../utils/discountSellerLiabilityUtils";
+import {discountSellerLiabilityUtils} from "../utils/discountSellerLiabilityUtils";
 
 export interface Value {
     id: string;
@@ -181,7 +181,7 @@ export namespace DbValue {
             canceled: !!v.canceled,
             frozen: !!v.frozen,
             discount: !!v.discount,
-            discountSellerLiability: DiscountSellerLiabilityUtils.ruleToNumber(JSON.parse(v.discountSellerLiabilityRule)),
+            discountSellerLiability: discountSellerLiabilityUtils.ruleToNumber(JSON.parse(v.discountSellerLiabilityRule)),
             discountSellerLiabilityRule: JSON.parse(v.discountSellerLiabilityRule),
             redemptionRule: JSON.parse(v.redemptionRule),
             balanceRule: JSON.parse(v.balanceRule),

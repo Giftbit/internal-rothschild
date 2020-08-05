@@ -85,6 +85,7 @@ describe("/v2/transactions/reverse - attach", () => {
                         "valueId": value.id,
                         "contactId": contact.id,
                         "code": null,
+                        "balanceRule": null,
                         "balanceBefore": 100,
                         "balanceAfter": 0,
                         "balanceChange": -100,
@@ -98,7 +99,7 @@ describe("/v2/transactions/reverse - attach", () => {
                 "metadata": null,
                 "createdBy": "default-test-user-TEST",
                 "tags": formatContactIdTags([contact.id])
-            } as Transaction, ["createdDate"]
+            }, ["createdDate"]
         );
         chai.assert.deepEqualExcluding(simulate.body, postReverse.body, ["simulated", "createdDate"]);
         chai.assert.isTrue(simulate.body.simulated);
@@ -122,6 +123,12 @@ describe("/v2/transactions/reverse - attach", () => {
                 explanation: "$1"
             },
             usesRemaining: 4,
+            genericCodeOptions: {
+                perContact: {
+                    balance: null,
+                    usesRemaining: 1
+                }
+            },
             discount: true,
             isGenericCode: true
         };
@@ -166,9 +173,10 @@ describe("/v2/transactions/reverse - attach", () => {
                         "valueId": genericValue.id,
                         "contactId": null,
                         "code": null,
+                        "balanceRule": null,
                         "balanceBefore": null,
                         "balanceAfter": null,
-                        "balanceChange": 0,
+                        "balanceChange": null,
                         "usesRemainingBefore": 3,
                         "usesRemainingAfter": 4,
                         "usesRemainingChange": 1
@@ -178,9 +186,10 @@ describe("/v2/transactions/reverse - attach", () => {
                         "valueId": postAttach.body.id,
                         "contactId": contact.id,
                         "code": null,
+                        "balanceRule": null,
                         "balanceBefore": null,
                         "balanceAfter": null,
-                        "balanceChange": 0,
+                        "balanceChange": null,
                         "usesRemainingBefore": 1,
                         "usesRemainingAfter": 0,
                         "usesRemainingChange": -1
@@ -191,7 +200,7 @@ describe("/v2/transactions/reverse - attach", () => {
                 "metadata": null,
                 "createdBy": "default-test-user-TEST",
                 "tags": formatContactIdTags([contact.id])
-            } as Transaction, ["createdDate"]
+            }, ["createdDate"]
         );
 
         // check value is same as before

@@ -5,7 +5,7 @@ import * as testUtils from "../../../utils/testUtils";
 import {installRestRoutes} from "../installRestRoutes";
 import {Value} from "../../../model/Value";
 import {Contact} from "../../../model/Contact";
-import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {Transaction} from "../../../model/Transaction";
 import {CheckoutRequest} from "../../../model/TransactionRequest";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {Tag} from "../../../model/Tag";
@@ -15,6 +15,7 @@ import {after} from "mocha";
 import * as sinon from "sinon";
 import * as InsertTransactions from "./insertTransactions";
 import log = require("loglevel");
+import {LightrailTransactionStep} from "../../../model/TransactionStep";
 
 chai.use(chaiExclude);
 

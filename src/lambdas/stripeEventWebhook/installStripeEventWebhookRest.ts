@@ -127,11 +127,11 @@ async function handleFraudReverseEvent(auth: giftbitRoutes.jwtauth.Authorization
     }
 }
 
-function isEventForLoggingOnly(event: Stripe.events.IEvent & { account: string }) {
+function isEventForLoggingOnly(event: Stripe.events.IEvent & { account: string }): boolean {
     return event.type === "charge.dispute.created" || (event.type === "charge.refund.updated" && (event.data.object as Stripe.refunds.IRefund).status === "failed");
 }
 
-function logEvent(auth: giftbitRoutes.jwtauth.AuthorizationBadge, event: Stripe.events.IEvent & { account: string }) {
+function logEvent(auth: giftbitRoutes.jwtauth.AuthorizationBadge, event: Stripe.events.IEvent & { account: string }): void {
     metricsLogger.stripeWebhookEvent(event, auth);
 
     if (event.type === "charge.dispute.created") {
@@ -180,7 +180,7 @@ async function reverseOrVoidFraudulentTransaction(auth: giftbitRoutes.jwtauth.Au
 
     } else if (isCaptured(lightrailTransaction, transactionChain)) {
         log.info(`Transaction '${lightrailTransaction.id}' was pending and has been captured. Reversing capture transaction...`);
-        let captureTransaction = transactionChain.find(txn => txn.transactionType === "capture");
+        const captureTransaction = transactionChain.find(txn => txn.transactionType === "capture");
         const reverseTransaction = await createReverse(auth, {
             id: `${captureTransaction.id}-webhook-rev`,
             metadata: {
@@ -192,7 +192,7 @@ async function reverseOrVoidFraudulentTransaction(auth: giftbitRoutes.jwtauth.Au
 
     } else if (isVoided(lightrailTransaction, transactionChain)) {
         log.info(`Transaction '${lightrailTransaction.id}' was pending and has already been voided. Fetching existing void transaction...`);
-        let voidTransaction = transactionChain.find(txn => txn.transactionType === "void");
+        const voidTransaction = transactionChain.find(txn => txn.transactionType === "void");
         log.info(`Transaction '${lightrailTransaction.id}' was voided by transaction '${voidTransaction.id}'`);
         return voidTransaction;
 

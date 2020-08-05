@@ -4,7 +4,7 @@ import * as testUtils from "../../../utils/testUtils";
 import {alternateTestUser, defaultTestUser, generateId} from "../../../utils/testUtils";
 import * as currencies from "../currencies";
 import {Transaction} from "../../../model/Transaction";
-import {DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
+import {CreditRequest, DebitRequest, TransferRequest} from "../../../model/TransactionRequest";
 import {Value} from "../../../model/Value";
 import {installRestRoutes} from "../installRestRoutes";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
@@ -179,6 +179,51 @@ describe("/v2/transactions", () => {
         chai.assert.equal(resp.body.messageCode, "CannotDeleteTransaction");
     });
 
+    it("treats valueId as case sensitive", async () => {
+        const tx1: Partial<CreditRequest> = {
+            id: generateId() + "-A",
+            destination: {
+                rail: "lightrail",
+                valueId: value1.id
+            },
+            amount: 2,
+            currency: "CAD"
+        };
+        const tx2: Partial<CreditRequest> = {
+            id: tx1.id.toLowerCase(),
+            destination: {
+                rail: "lightrail",
+                valueId: value1.id
+            },
+            amount: 2,
+            currency: "CAD"
+        };
+        chai.assert.notEqual(tx1.id, tx2.id);
+
+        const postTx1Resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", tx1);
+        chai.assert.equal(postTx1Resp.statusCode, 201, postTx1Resp.bodyRaw);
+
+        const postTx2Resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/credit", "POST", tx2);
+        chai.assert.equal(postTx2Resp.statusCode, 201, postTx2Resp.bodyRaw);
+
+        const getTx1Resp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${tx1.id}`, "GET");
+        chai.assert.equal(getTx1Resp.statusCode, 200);
+        chai.assert.equal(getTx1Resp.body.id, tx1.id);
+
+        const getTx2Resp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${tx2.id}`, "GET");
+        chai.assert.equal(getTx2Resp.statusCode, 200);
+        chai.assert.equal(getTx2Resp.body.id, tx2.id);
+        chai.assert.notEqual(getTx1Resp.body.id, getTx2Resp.body.id);
+
+        const getTxs1Resp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?id=${tx1.id}`, "GET");
+        chai.assert.equal(getTxs1Resp.statusCode, 200);
+        chai.assert.deepEqual(getTxs1Resp.body, [getTx1Resp.body]);
+
+        const getTxs2Resp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?id=${tx2.id}`, "GET");
+        chai.assert.equal(getTxs2Resp.statusCode, 200);
+        chai.assert.deepEqual(getTxs2Resp.body, [getTx2Resp.body]);
+    });
+
     describe("userId isolation", () => {
         it("doesn't leak /transactions", async () => {
             const resp1 = await testUtils.testAuthedRequest<Transaction[]>(router, "/v2/transactions", "GET");
@@ -289,6 +334,7 @@ describe("/v2/transactions", () => {
                         valueId: "vs-gc-2",
                         code: null,
                         contactId: null,
+                        balanceRule: null,
                         balanceAfter: 0,
                         balanceBefore: 1,
                         balanceChange: -1,
@@ -301,8 +347,9 @@ describe("/v2/transactions", () => {
                         valueId: value1.id,
                         code: null,
                         contactId: null,
-                        balanceBefore: 995,
-                        balanceAfter: 946,
+                        balanceRule: null,
+                        balanceBefore: 999,
+                        balanceAfter: 950,
                         balanceChange: -49,
                         usesRemainingBefore: null,
                         usesRemainingAfter: null,
@@ -346,7 +393,7 @@ describe("/v2/transactions", () => {
             {id: generateId(), createdDate: new Date("3030-02-03")},
             {id: generateId(), createdDate: new Date("3030-02-04")}
         ];
-        for (let idAndDate of idAndDates) {
+        for (const idAndDate of idAndDates) {
             const response = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/debit", "POST", {
                 id: idAndDate.id,
                 source: {
@@ -381,5 +428,48 @@ describe("/v2/transactions", () => {
         chai.assert.equal(resp.statusCode, 200);
         chai.assert.equal(resp.body.length, 4);
         chai.assert.sameOrderedMembers(resp.body.map(tx => tx.id), idAndDates.reverse().map(tx => tx.id) /* reversed since createdDate desc*/);
+    });
+
+    describe("whitespace handling", () => {
+        let value: Value;
+        before(async function () {
+            await testUtils.createUSD(router);
+            value = await testUtils.createUSDValue(router);
+        });
+
+        it("422s creating transactionIds to be created with leading/trailing whitespace", async () => {
+            const txLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/checkout", "POST", {
+                id: `\n${testUtils.generateId()}`,
+                currency: "USD",
+                lineItems: [{unitPrice: 1}],
+                sources: [{rail: "lightrail", valueId: value.id}]
+            });
+            chai.assert.equal(txLeadingResp.statusCode, 422, `txLeadingResp.body=${JSON.stringify(txLeadingResp.body)}`);
+
+            const txTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, "/v2/transactions/checkout", "POST", {
+                id: `${testUtils.generateId()}\n`,
+                currency: "USD",
+                lineItems: [{unitPrice: 1}],
+                sources: [{rail: "lightrail", valueId: value.id}]
+            });
+            chai.assert.equal(txTrailingResp.statusCode, 422, `txTrailingResp.body=${JSON.stringify(txTrailingResp.body)}`);
+        });
+
+        it("404s when looking up a transaction by id with leading/trailing whitespace", async () => {
+            const txId = testUtils.generateId();
+            const txResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                id: txId,
+                currency: "USD",
+                lineItems: [{unitPrice: 1}],
+                sources: [{rail: "lightrail", valueId: value.id}]
+            });
+            chai.assert.equal(txResp.statusCode, 201, `txResp.body=${JSON.stringify(txResp.body)}`);
+            chai.assert.equal(txResp.body.id, txId, `txResp.body=${JSON.stringify(txResp.body)}`);
+
+            const fetchLeadingResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/%20${txId}`, "GET");
+            chai.assert.equal(fetchLeadingResp.statusCode, 404, `fetchLeadingResp.body=${JSON.stringify(fetchLeadingResp.body)}`);
+            const fetchTrailingResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${txId}%20`, "GET");
+            chai.assert.equal(fetchTrailingResp.statusCode, 404, `fetchTrailingResp.body=${JSON.stringify(fetchTrailingResp.body)}`);
+        });
     });
 });

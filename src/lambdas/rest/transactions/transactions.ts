@@ -36,7 +36,8 @@ import {createCaptureTransactionPlan} from "./transactions.capture";
 import {createVoidTransactionPlan} from "./transactions.void";
 import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {Value} from "../../../model/Value";
-import {getAttachTransactionPlanForGenericCodeWithPerContactOptions} from "../genericCodeWithPerContactOptions";
+import {isSystemId} from "../../../utils/isSystemId";
+import {getAttachTransactionPlanForGenericCode} from "../genericCode";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 import {TagOnResource} from "../../../model/Tag";
@@ -202,10 +203,14 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
     const valueId = filterParams["valueId"];
     const contactId = filterParams["contactId"];
     const tagId = filterParams["tagId"];
-    let query = knex("Transactions")
+    const query = knex("Transactions")
         .select("Transactions.*")
         .where("Transactions.userId", "=", auth.userId);
     if (valueId || contactId) {
+        if (!isSystemId(contactId) || !isSystemId(valueId)) {
+            return {transactions: [], pagination};
+        }
+
         query.join("LightrailTransactionSteps", {
             "Transactions.id": "LightrailTransactionSteps.transactionId",
             "Transactions.userId": "LightrailTransactionSteps.userId"
@@ -242,11 +247,13 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
             properties: {
                 "id": {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 "transactionType": {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 "createdDate": {
                     type: "Date",
@@ -254,11 +261,13 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
                 },
                 "currency": {
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 },
                 "rootTransactionId": { // only used internally for looking up transaction chain and not exposed publicly
                     type: "string",
-                    operators: ["eq", "in"]
+                    operators: ["eq", "in"],
+                    valueFilter: isSystemId
                 }
             },
             tableName: "Transactions"
@@ -274,6 +283,10 @@ export async function getTransactions(auth: giftbitRoutes.jwtauth.AuthorizationB
 export async function getDbTransaction(auth: giftbitRoutes.jwtauth.AuthorizationBadge, id: string): Promise<DbTransaction> {
     auth.requireIds("userId");
 
+    if (!isSystemId(id)) {
+        throw new giftbitRoutes.GiftbitRestError(404, `Transaction with id '${id}' not found.`, "TransactionNotFound");
+    }
+
     const knex = await getKnexRead();
     const res: DbTransaction[] = await knex("Transactions")
         .select()
@@ -282,7 +295,7 @@ export async function getDbTransaction(auth: giftbitRoutes.jwtauth.Authorization
             id
         });
     if (res.length === 0) {
-        throw new cassava.RestError(404);
+        throw new giftbitRoutes.GiftbitRestError(404, `Transaction with id '${id}' not found.`, "TransactionNotFound");
     }
     if (res.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${res.length} values.`);
@@ -329,7 +342,7 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
         },
         async () => {
             const resolveOptions: ResolveTransactionPartiesOptions = {
-                currency: checkout.currency,
+                currency: checkout.currency?.toUpperCase(),
                 transactionId: checkout.id,
                 nonTransactableHandling: "exclude",
                 includeZeroBalance: !!checkout.allowRemainder,
@@ -388,7 +401,7 @@ async function getAutoAttachTransactionPlans(auth: giftbitRoutes.jwtauth.Authori
         if (valuesForCheckout.find(v => v.attachedFromValueId === genericValue.id)) {
             log.debug(`Skipping attaching generic value ${genericValue.id} since it's already been attached.`);
         } else {
-            const transactionPlan = await getAttachTransactionPlanForGenericCodeWithPerContactOptions(auth, contactId, genericValue);
+            const transactionPlan = await getAttachTransactionPlanForGenericCode(auth, contactId, genericValue);
             attachTransactionPlans.push(transactionPlan);
         }
     }
@@ -481,7 +494,7 @@ const creditSchema: jsonschema.Schema = {
             type: "string",
             minLength: 1,
             maxLength: 64,
-            pattern: "^[ -~]*$"
+            pattern: isSystemId.regexString
         },
         destination: transactionPartySchema.lightrailUnique,
         amount: {
@@ -528,7 +541,7 @@ const debitSchema: jsonschema.Schema = {
             type: "string",
             minLength: 1,
             maxLength: 64,
-            pattern: "^[ -~]*$"
+            pattern: isSystemId.regexString
         },
         source: transactionPartySchema.lightrailUnique,
         amount: {
@@ -582,7 +595,7 @@ const transferSchema: jsonschema.Schema = {
             type: "string",
             minLength: 1,
             maxLength: 64,
-            pattern: "^[ -~]*$"
+            pattern: isSystemId.regexString
         },
         source: {
             oneOf: [
@@ -623,7 +636,7 @@ const checkoutSchema: jsonschema.Schema = {
             type: "string",
             minLength: 1,
             maxLength: 64,
-            pattern: "^[ -~]*$"
+            pattern: isSystemId.regexString
         },
         lineItems: {
             type: "array",
@@ -714,7 +727,7 @@ const reverseSchema: jsonschema.Schema = {
             type: "string",
             minLength: 1,
             maxLength: 64,
-            pattern: "^[ -~]*$"
+            pattern: isSystemId.regexString
         },
         simulate: {
             type: "boolean"
@@ -735,7 +748,7 @@ const captureSchema: jsonschema.Schema = {
             type: "string",
             minLength: 1,
             maxLength: 64,
-            pattern: "^[ -~]*$"
+            pattern: isSystemId.regexString
         },
         simulate: {
             type: "boolean"
@@ -756,7 +769,7 @@ const voidSchema: jsonschema.Schema = {
             type: "string",
             minLength: 1,
             maxLength: 64,
-            pattern: "^[ -~]*$"
+            pattern: isSystemId.regexString
         },
         simulate: {
             type: "boolean"

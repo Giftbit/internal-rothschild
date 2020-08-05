@@ -6,13 +6,14 @@ import {formatCodeForLastFourDisplay, Value} from "../../../model/Value";
 import {installRestRoutes} from "../installRestRoutes";
 import {createCurrency} from "../currencies";
 import {Contact} from "../../../model/Contact";
-import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {Transaction} from "../../../model/Transaction";
 import {CheckoutRequest} from "../../../model/TransactionRequest";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
-import {generateUrlSafeHashFromValueIdContactId} from "../genericCodeWithPerContactOptions";
+import {generateUrlSafeHashFromValueIdContactId} from "../genericCode";
 import chaiExclude from "chai-exclude";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {formatContactIdTags} from "../transactions/transactions";
+import {LightrailTransactionStep} from "../../../model/TransactionStep";
 
 chai.use(chaiExclude);
 
@@ -125,6 +126,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
                             "valueId": generateUrlSafeHashFromValueIdContactId(genericValue.id, contactId),
                             "contactId": contactId,
                             "code": null,
+                            "balanceRule": null,
                             "balanceBefore": 500,
                             "balanceChange": -200,
                             "balanceAfter": 300,
@@ -346,6 +348,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
                             "valueId": discountValueId,
                             "contactId": contactId,
                             "code": null,
+                            "balanceRule": null,
                             "balanceBefore": 1000,
                             "balanceChange": -777,
                             "balanceAfter": 223,
@@ -443,8 +446,8 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
                 simulate: true
             };
             const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
-            chai.assert.equal(checkout.statusCode, 404);
-            chai.assert.equal(checkout.body["messageCode"], "ContactNotFound");
+            chai.assert.equal(checkout.statusCode, 409);
+            chai.assert.equal(checkout.body["messageCode"], "ValueMustBeAttached");
         });
     });
 
@@ -658,7 +661,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
         chai.assert.equal(attachTx.body.length, 0);
     });
 
-    describe("doesn't auto attach legacy generic code", () => {
+    describe("doesn't auto attach generic code without perContact options because attachGenericAsNewValue flag may be used during attaches", () => {
         const contactId = generateId();
 
         const genericValue: Partial<Value> = {
@@ -666,8 +669,6 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             currency: "USD",
             isGenericCode: true,
             code: generateFullcode(),
-            usesRemaining: 5,
-            balance: null,
             balanceRule: {
                 rule: "500 + value.balanceChange",
                 explanation: "$5 off purchase"
@@ -697,7 +698,6 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
             chai.assert.equal(checkout.statusCode, 201);
             chai.assert.equal((checkout.body.steps[0] as LightrailTransactionStep).valueId, genericValue.id); // generic code is the one that's used
-            chai.assert.equal((checkout.body.steps[0] as LightrailTransactionStep).usesRemainingAfter, 4); // generic code is the one that's used
 
             // check for attach transactions.
             const attachTx = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${genericValue.id}&transactionType=attach`, "GET");
@@ -714,11 +714,11 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
             isGenericCode: true,
             code: generateFullcode(),
             discount: true,
-            usesRemaining: 5,
-            balance: null,
-            balanceRule: {
-                rule: "500 + value.balanceChange",
-                explanation: "$5 off purchase"
+            genericCodeOptions: {
+                perContact: {
+                    balance: 500,
+                    usesRemaining: null
+                }
             }
         };
 

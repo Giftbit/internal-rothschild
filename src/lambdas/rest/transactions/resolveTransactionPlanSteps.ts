@@ -18,6 +18,8 @@ import {computeCodeLookupHash} from "../../../utils/codeCryptoUtils";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {getContact} from "../contacts";
 import {getStripeMinCharge} from "../../../utils/stripeUtils/getStripeMinCharge";
+import {trimCodeIfPresent} from "../values/values";
+import {isSystemId} from "../../../utils/isSystemId";
 
 /**
  * Options to resolving transaction parties.
@@ -191,15 +193,16 @@ function handleNonTransactableValues(values: Value[], options: ResolveTransactio
  * @return - Uniquely identified values that may or may not be transactable: still need to be filtered.
  */
 async function getValuesWithAllContactIds(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[], options: ResolveTransactionPartiesOptions): Promise<Value[]> {
-    const valueIds = parties.filter(p => p.rail === "lightrail" && p.valueId)
+    const valueIds = parties.filter(p => p.rail === "lightrail" && p.valueId && isSystemId(p.valueId))
         .map(p => (p as LightrailTransactionParty).valueId);
 
     const hashedCodesPromises = parties.filter(p => p.rail === "lightrail" && p.code)
-        .map(p => (p as LightrailTransactionParty).code)
+        .map(p => trimCodeIfPresent(p as LightrailTransactionParty))
+        .map(p => p.code)
         .map(code => computeCodeLookupHash(code, auth));
     const hashedCodes = await Promise.all(hashedCodesPromises);
 
-    const contactIds = parties.filter(p => p.rail === "lightrail" && p.contactId)
+    const contactIds = parties.filter(p => p.rail === "lightrail" && p.contactId && isSystemId(p.contactId))
         .map(p => (p as LightrailTransactionParty).contactId);
 
     if (!valueIds.length && !hashedCodes.length && !contactIds.length) {
@@ -216,41 +219,17 @@ async function getValuesWithAllContactIds(auth: giftbitRoutes.jwtauth.Authorizat
      */
     let query = knex.select("*").from(queryBuilder => {
         if (contactIds.length) {
-            let valuesByContactIdQuery = knex.select("V.*", "CV.contactId AS contactIdForResult") /* contactId returned in an extra column so it can be tracked for shared generics looked up by contactId*/ .from("Values AS V").join("ContactValues AS CV", {
-                "V.userId": "CV.userId",
-                "V.id": "CV.valueId"
-            }).where({"CV.userId": auth.userId}).andWhere("CV.contactId", "in", contactIds)
-                .union(
-                    knex.select("*", "contactId as contactIdForResult")
-                        .from("Values")
-                        .where({"userId": auth.userId})
-                        .andWhere("contactId", "in", contactIds)
-                );
-
-            if (options.nonTransactableHandling === "exclude") {
-                valuesByContactIdQuery = valuesByContactIdQuery
-                    .where({
-                        currency: options.currency,
-                        canceled: false,
-                        frozen: false,
-                        active: true
-                    })
-                    .where(q => q.whereNull("startDate").orWhere("startDate", "<", now))
-                    .where(q => q.whereNull("endDate").orWhere("endDate", ">", now));
-            }
-            if (!options.includeZeroUsesRemaining) {
-                valuesByContactIdQuery = valuesByContactIdQuery.where(q => q.whereNull("usesRemaining").orWhere("usesRemaining", ">", 0));
-            }
-            if (!options.includeZeroBalance) {
-                valuesByContactIdQuery = valuesByContactIdQuery.where(q => q.whereNull("balance").orWhere("balance", ">", 0));
-            }
-
-            queryBuilder.union(valuesByContactIdQuery);
+            queryBuilder.union(
+                knex.select("*")
+                    .from("Values")
+                    .where({"userId": auth.userId})
+                    .andWhere("contactId", "in", contactIds)
+            );
         }
 
         if (hashedCodes.length) {
             queryBuilder.union(
-                knex.select("*", "contactId as contactIdForResult")
+                knex.select("*")
                     .from("Values")
                     .where({"userId": auth.userId})
                     .andWhere("codeHashed", "in", hashedCodes)
@@ -259,7 +238,7 @@ async function getValuesWithAllContactIds(auth: giftbitRoutes.jwtauth.Authorizat
 
         if (valueIds.length) {
             queryBuilder.union(
-                knex.select("*", "contactId as contactIdForResult")
+                knex.select("*")
                     .from("Values")
                     .where({"userId": auth.userId})
                     .andWhere("id", "in", valueIds)
@@ -268,13 +247,30 @@ async function getValuesWithAllContactIds(auth: giftbitRoutes.jwtauth.Authorizat
 
         queryBuilder.as("TT");
     });
+    if (options.nonTransactableHandling === "exclude") {
+        query = query
+            .where({
+                currency: options.currency,
+                canceled: false,
+                frozen: false,
+                active: true
+            })
+            .where(q => q.whereNull("startDate").orWhere("startDate", "<", now))
+            .where(q => q.whereNull("endDate").orWhere("endDate", ">", now));
+    }
+    if (!options.includeZeroUsesRemaining) {
+        query = query.where(q => q.whereNull("usesRemaining").orWhere("usesRemaining", ">", 0));
+    }
+    if (!options.includeZeroBalance) {
+        query = query.where(q => q.whereNull("balance").orWhere("balance", ">", 0));
+    }
 
-    const dbValues: (DbValue & { contactIdForResult: string | null })[] = await query;
+    const dbValues: DbValue[] = await query;
     const dedupedDbValues = consolidateValueQueryResults(dbValues);
     return await Promise.all(dedupedDbValues.map(value => DbValue.toValue(value)));
 }
 
-export function filterForUsedAttaches(attachTransactionPlans: TransactionPlan[], transactionPlan: TransactionPlan) {
+export function filterForUsedAttaches(attachTransactionPlans: TransactionPlan[], transactionPlan: TransactionPlan): TransactionPlan[] {
     const attachTransactionsToPersist: TransactionPlan[] = [];
     for (const attach of attachTransactionPlans) {
         const newAttachedValue: LightrailTransactionPlanStep = attach.steps.find(s => (s as LightrailTransactionPlanStep).action === "insert") as LightrailTransactionPlanStep;
@@ -286,30 +282,41 @@ export function filterForUsedAttaches(attachTransactionPlans: TransactionPlan[],
     return attachTransactionsToPersist;
 }
 
-export async function getContactIdFromSources(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[]): Promise<string> {
+/**
+ * Returns either a string or a null. If a contactId is provided and the contactId does not exist,
+ * this function will return null rather than throwing a 404 exception.
+ */
+export async function getContactIdFromSources(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[]): Promise<string | null> {
     const contactPaymentSource = parties.find(p => p.rail === "lightrail" && p.contactId != null) as LightrailTransactionParty;
     const contactId = contactPaymentSource ? contactPaymentSource.contactId : null;
 
     if (contactId) {
-        const contact = await getContact(auth, contactId);
-        return contact.id;
+        try {
+            const contact = await getContact(auth, contactId);
+            return contact.id;
+        } catch (e) {
+            if ((e as giftbitRoutes.GiftbitRestError).statusCode === 404) {
+                return null;
+            } else throw e;
+        }
     } else {
         return null;
     }
 }
 
-function consolidateValueQueryResults(values: (DbValue & { contactIdForResult: string | null })[]): DbValue[] {
+function consolidateValueQueryResults(values: (DbValue)[]): DbValue[] {
     return values
-        .map((v) => ({
-            ...v,
-            contactId: v.contactId || v.contactIdForResult // Persist the contactId to the value record if it was looked up via the ContactValues table
-        }))
         .filter((v, index, dbValues) => {
             if (v.contactId) {
                 const firstValue = dbValues.find(firstValue => firstValue.id === v.id && firstValue.contactId === v.contactId);
                 return dbValues.indexOf(firstValue) === index; // unique attached values can only be used once per transaction but might have been included twice in the payment sources (eg by code and also by contactId)
             } else {
-                return !dbValues.find(otherValue => otherValue.id === v.id && otherValue.contactId); // generic codes can be used by two different contacts in the same transaction, but not by a contact and also anonymously: skip anonymous usage if this value is also attached
+                // filter out already attached generic codes
+                if (v.isGenericCode) {
+                    return !dbValues.find(attachedValue => attachedValue.attachedFromValueId === v.id);
+                } else {
+                    return true;
+                }
             }
         });
 }

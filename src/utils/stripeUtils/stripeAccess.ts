@@ -1,15 +1,14 @@
-import log = require("loglevel");
-import Stripe = require("stripe");
+import * as cassava from "cassava";
 import * as giftbitRoutes from "giftbit-cassava-routes";
-import {GiftbitRestError} from "giftbit-cassava-routes";
+import * as kvsAccess from "../kvsAccess";
 import {stripeApiVersion, StripeConfig, StripeModeConfig} from "./StripeConfig";
 import {StripeAuth} from "./StripeAuth";
-import * as cassava from "cassava";
-import * as kvsAccess from "../kvsAccess";
 import {AuthorizationBadge} from "giftbit-cassava-routes/dist/jwtauth";
 import {generateCode} from "../codeGenerator";
 import {DbTransaction, Transaction} from "../../model/Transaction";
 import {getKnexRead} from "../dbUtils/connection";
+import log = require("loglevel");
+import Stripe = require("stripe");
 
 let assumeCheckoutToken: Promise<giftbitRoutes.secureConfig.AssumeScopeToken>;
 
@@ -42,10 +41,17 @@ export async function getMerchantStripeAuth(auth: giftbitRoutes.jwtauth.Authoriz
     log.info("got retrieve stripe auth assume token");
 
     log.info("fetching merchant stripe auth");
-    const merchantStripeAuth: StripeAuth = await kvsAccess.kvsGet(assumeToken, "stripeAuth", authorizeAs);
+    let merchantStripeAuth: StripeAuth;
+    try {
+        merchantStripeAuth = await kvsAccess.kvsGet(assumeToken, "stripeAuth", authorizeAs);
+    } catch (err) {
+        log.error("error accessing stripeAuth from KVS", err);
+        throw new giftbitRoutes.GiftbitRestError(503, "An internal service is temporarily unavailable.");
+    }
+
     log.info("got merchant stripe auth");
     if (!merchantStripeAuth || !merchantStripeAuth.stripe_user_id) {
-        throw new GiftbitRestError(424, "Merchant stripe config stripe_user_id must be set.", "MissingStripeUserId");
+        throw new giftbitRoutes.GiftbitRestError(424, "Merchant stripe config stripe_user_id must be set.", "MissingStripeUserId");
     }
 
     cachedMerchantStripeAuth.auth = auth;
@@ -106,7 +112,7 @@ export async function getStripeClient(isTestMode: boolean): Promise<Stripe> {
  * When that happens we'll be able to build the badge solely from the accountId and test/live flag on the event.
  */
 export async function getAuthBadgeFromStripeCharge(stripeAccountId: string, stripeCharge: Stripe.charges.ICharge, event: Stripe.events.IEvent & { account: string }): Promise<giftbitRoutes.jwtauth.AuthorizationBadge> {
-    let lightrailUserId = await getLightrailUserIdFromStripeCharge(stripeAccountId, stripeCharge, !event.livemode);
+    const lightrailUserId = await getLightrailUserIdFromStripeCharge(stripeAccountId, stripeCharge, !event.livemode);
 
     return new AuthorizationBadge({
         g: {

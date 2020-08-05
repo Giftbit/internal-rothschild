@@ -7,13 +7,12 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as sinon from "sinon";
 import * as stripe from "stripe";
 import {Value} from "../../../../model/Value";
-import {StripeTransactionStep, Transaction} from "../../../../model/Transaction";
+import {Transaction} from "../../../../model/Transaction";
 import {Currency} from "../../../../model/Currency";
 import {TransactionPlanError} from "../TransactionPlanError";
 import * as insertTransaction from "../insertTransactions";
 import * as testUtils from "../../../../utils/testUtils";
 import {defaultTestUser, generateId} from "../../../../utils/testUtils";
-import {after} from "mocha";
 import {
     setStubbedStripeUserId,
     setStubsForStripeTests,
@@ -29,9 +28,10 @@ import {
 } from "../../../../utils/stripeUtils/stripeTransactions";
 import chaiExclude from "chai-exclude";
 import {TestUser} from "../../../../utils/testUtils/TestUser";
+import {StripeTransactionStep} from "../../../../model/TransactionStep";
+import * as superagent from "superagent";
+import * as kvsAccess from "../../../../utils/kvsAccess";
 import log = require("loglevel");
-import Stripe = require("stripe");
-import ICharge = Stripe.charges.ICharge;
 
 chai.use(chaiExclude);
 
@@ -43,7 +43,7 @@ describe("split tender checkout with Stripe", () => {
         currency: "CAD",
         balance: 100
     };
-    const source: string = "tok_visa";
+    const source = "tok_visa";
     const basicRequest: CheckoutRequest = {
         id: generateId(),
         sources: [
@@ -85,17 +85,17 @@ describe("split tender checkout with Stripe", () => {
         const createValue = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
         chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
 
-        await setStubsForStripeTests();
-    });
-
-    after(() => {
-        unsetStubsForStripeTests();
     });
 
     const sinonSandbox = sinon.createSandbox();
 
+    beforeEach(async () => {
+        await setStubsForStripeTests();
+    });
+
     afterEach(() => {
         sinonSandbox.restore();
+        unsetStubsForStripeTests();
     });
 
     it("processes basic checkout with Stripe only", async () => {
@@ -332,6 +332,7 @@ describe("split tender checkout with Stripe", () => {
                 valueId: value.id,
                 code: null,
                 contactId: null,
+                balanceRule: null,
                 balanceBefore: 100,
                 balanceAfter: 0,
                 balanceChange: -100,
@@ -431,6 +432,7 @@ describe("split tender checkout with Stripe", () => {
                 valueId: sufficientValue.id,
                 code: null,
                 contactId: null,
+                balanceRule: null,
                 balanceBefore: 1000,
                 balanceAfter: 500,
                 balanceChange: -500,
@@ -571,7 +573,7 @@ describe("split tender checkout with Stripe", () => {
         const stripeStep = postCheckoutResp.body.steps.find(step => step.rail === "stripe") as StripeTransactionStep;
         chai.assert.isObject(stripeStep, "found stripe step");
 
-        const stripeCharge = stripeStep.charge as ICharge;
+        const stripeCharge = stripeStep.charge as stripe.charges.ICharge;
         chai.assert.equal(stripeCharge.description, "eee");
         chai.assert.equal(stripeCharge.on_behalf_of, onBehalfOf);
         chai.assert.equal(stripeCharge.receipt_email, "bbb@example.com");
@@ -609,7 +611,7 @@ describe("split tender checkout with Stripe", () => {
         chai.assert.equal(createValue.statusCode, 201, `body=${JSON.stringify(createValue.body)}`);
         chai.assert.equal(createValue.body.balance, 100, `body=${JSON.stringify(createValue.body)}`);
 
-        let request = {
+        const request = {
             ...basicRequest,
             id: "CO-simulation-w-stripe",
             simulate: true
@@ -656,6 +658,7 @@ describe("split tender checkout with Stripe", () => {
                 valueId: valueForSimulate.id,
                 code: null,
                 contactId: null,
+                balanceRule: null,
                 balanceBefore: 100,
                 balanceAfter: 0,
                 balanceChange: -100,
@@ -686,6 +689,39 @@ describe("split tender checkout with Stripe", () => {
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 404, "the transaction was not actually created");
+    });
+
+    it("returns 503 when unable to access KVS to get merchant auth token", async () => {
+        // By default the tests are setup so that it works.
+        unsetStubsForStripeTests();
+
+        const superAgentError: superagent.HTTPError = new Error("Error") as any;
+        superAgentError.status = 500;
+        superAgentError.method = "GET";
+        superAgentError.text = "Error";
+
+        sinonSandbox.stub(kvsAccess, "kvsGet")
+            .throwsException(superAgentError);
+
+        const request: CheckoutRequest = {
+            id: generateId(),
+            sources: [
+                {
+                    rail: "stripe",
+                    source: source
+                }
+            ],
+            lineItems: [
+                {
+                    type: "product",
+                    productId: "xyz-123",
+                    unitPrice: 500
+                }
+            ],
+            currency: "CAD"
+        };
+        const postCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", request);
+        chai.assert.equal(postCheckoutResp.statusCode, 503);
     });
 
     describe("rollback", () => {
@@ -898,6 +934,7 @@ describe("split tender checkout with Stripe", () => {
                 valueId: value2.id,
                 code: null,
                 contactId: null,
+                balanceRule: null,
                 balanceBefore: 100,
                 balanceAfter: 0,
                 balanceChange: -100,

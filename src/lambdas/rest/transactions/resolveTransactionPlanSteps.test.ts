@@ -9,6 +9,7 @@ import {createContact} from "../contacts";
 import {Contact} from "../../../model/Contact";
 import {
     getLightrailSourcesForTransactionPlanSteps,
+    getContactIdFromSources,
     ResolveTransactionPartiesOptions,
     resolveTransactionPlanSteps
 } from "./resolveTransactionPlanSteps";
@@ -16,8 +17,9 @@ import {LightrailTransactionPlanStep} from "./TransactionPlan";
 import {AttachedContactValueScenario, setupAttachedContactValueScenario} from "../contactValues.test";
 import {LightrailTransactionParty, TransactionParty} from "../../../model/TransactionRequest";
 import {Value} from "../../../model/Value";
-import {LightrailTransactionStep, Transaction} from "../../../model/Transaction";
+import {Transaction} from "../../../model/Transaction";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
+import {LightrailTransactionStep} from "../../../model/TransactionStep";
 
 describe("resolveTransactionPlanSteps", () => {
 
@@ -89,7 +91,7 @@ describe("resolveTransactionPlanSteps", () => {
             chai.assert.sameMembers(contactLightrailValues.map(v => (v as LightrailTransactionPlanStep).value.id), data.valuesAttachedToContactB.map(v => v.id));
         });
 
-        it("can get lightrail transaction plan steps associated with contactA and contactB. Allows both contacts to use shared generic Value.", async () => {
+        it("can get lightrail transaction plan steps associated with contactA and contactB.", async () => {
             const parties: TransactionParty[] = [
                 {
                     rail: "lightrail",
@@ -118,11 +120,11 @@ describe("resolveTransactionPlanSteps", () => {
             let value2_uniqueCodeContact: Partial<Value> = {
                 id: `value2_uniqueCodeContact_${testUtils.generateId(5)}`,
                 code: code2,
-                contactId: contact1.id,
+                contactId: contact1.id
             };
-            let value3_sharedGeneric: Partial<Value> = {
-                id: `value3_sharedGeneric_${testUtils.generateId(5)}`,
-                code: `SHARE-GEN-3`,
+            let value3_generic: Partial<Value> = {
+                id: `value3_generic_${testUtils.generateId(5)}`,
+                code: `GEN-3`,
                 isGenericCode: true,
                 balanceRule: {
                     rule: "500",
@@ -145,12 +147,13 @@ describe("resolveTransactionPlanSteps", () => {
                     }
                 }
             };
-            let contact1_attachedValues: Value[] = [];
-            let contact2_attachedValues: Value[] = [];
+            const contact1_attachedValues: Value[] = [];
+            const contact2_attachedValues: Value[] = [];
 
             /**
              * Returns enough identifers to assert that the value is the one we expect without needing to exclude dates etc
              */
+            // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
             function mapValueIdentifiers(value: Value) {
                 return {
                     id: value.id,
@@ -171,16 +174,16 @@ describe("resolveTransactionPlanSteps", () => {
                 value1_uniqueCode = await testUtils.createUSDValue(router, value1_uniqueCode);
                 value2_uniqueCodeContact = await testUtils.createUSDValue(router, value2_uniqueCodeContact);
                 contact1_attachedValues.push(value2_uniqueCodeContact as Value);
-                value3_sharedGeneric = await testUtils.createUSDValue(router, value3_sharedGeneric);
+                value3_generic = await testUtils.createUSDValue(router, value3_generic);
                 value4_perContactGeneric = await testUtils.createUSDValue(router, value4_perContactGeneric);
 
-                const attachSharedResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1.id}/values/attach`, "POST", {valueId: value3_sharedGeneric.id});
-                chai.assert.equal(attachSharedResp.statusCode, 200);
-                contact1_attachedValues.push(attachSharedResp.body);
+                const attachGenericCodeToContact1 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1.id}/values/attach`, "POST", {valueId: value3_generic.id});
+                chai.assert.equal(attachGenericCodeToContact1.statusCode, 200);
+                contact1_attachedValues.push(attachGenericCodeToContact1.body);
 
-                const attachPerContactResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact2.id}/values/attach`, "POST", {valueId: value4_perContactGeneric.id});
-                chai.assert.equal(attachPerContactResp.statusCode, 200);
-                contact2_attachedValues.push(attachPerContactResp.body);
+                const attachPerContactGenericCodeToContact2 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact2.id}/values/attach`, "POST", {valueId: value4_perContactGeneric.id});
+                chai.assert.equal(attachPerContactGenericCodeToContact2.statusCode, 200);
+                contact2_attachedValues.push(attachPerContactGenericCodeToContact2.body);
             });
 
             beforeEach(async () => {
@@ -267,10 +270,10 @@ describe("resolveTransactionPlanSteps", () => {
             });
 
             describe("Value de-duplication", () => {
-                it("does not duplicate shared generic Value if attached to contact in sources and also passed anonymously", async () => {
+                it("does not duplicate generic Value if attached to contact in sources and also passed anonymously", async () => {
                     const dupedSources: LightrailTransactionParty[] = [{
                         rail: "lightrail",
-                        code: value3_sharedGeneric.code // attached to contact1
+                        code: value3_generic.code // attached to contact1
                     }, {
                         rail: "lightrail",
                         contactId: contact1.id
@@ -415,7 +418,7 @@ describe("resolveTransactionPlanSteps", () => {
 
             it("properly excludes sources when nonTransactableHandling='exclude'", async () => {
                 const currency2: Partial<Currency> = {
-                    code: "123",
+                    code: "CCC",
                     name: "Currency123",
                     symbol: "$",
                     decimalPlaces: 3
@@ -586,6 +589,29 @@ describe("resolveTransactionPlanSteps", () => {
                     });
                 chai.assert.equal(resolvedValuesUser1.length, 1, JSON.stringify(resolvedValuesUser1, null, 4));
             }).timeout(12000);
+        });
+
+        describe("getContactIdFromSources", () => {
+            it("can get contactId is contact is provided in sources", async () => {
+                const res = await getContactIdFromSources(defaultTestUser.auth, [{
+                    rail: "lightrail",
+                    contactId: contact.id
+                }]);
+                chai.assert.equal(res, contact.id);
+            });
+
+            it("can't get contactId if no contactId source is provided", async () => {
+                const res = await getContactIdFromSources(defaultTestUser.auth, [{rail: "lightrail", valueId: "123"}]);
+                chai.assert.isNull(res);
+            });
+
+            it("can't get contactId if contactId in source doesn't exist", async () => {
+                const res = await getContactIdFromSources(defaultTestUser.auth, [{
+                    rail: "lightrail",
+                    contactId: generateId()
+                }]);
+                chai.assert.isNull(res);
+            });
         });
     });
 });

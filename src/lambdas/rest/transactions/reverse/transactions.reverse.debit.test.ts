@@ -5,10 +5,11 @@ import {generateId, setCodeCryptographySecrets} from "../../../../utils/testUtil
 import {installRestRoutes} from "../../installRestRoutes";
 import {createCurrency} from "../../currencies";
 import {Value} from "../../../../model/Value";
-import {LightrailTransactionStep, Transaction} from "../../../../model/Transaction";
+import {Transaction} from "../../../../model/Transaction";
 import {CaptureRequest, DebitRequest, ReverseRequest} from "../../../../model/TransactionRequest";
 import chaiExclude from "chai-exclude";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
+import {LightrailTransactionStep} from "../../../../model/TransactionStep";
 
 chai.use(chaiExclude);
 
@@ -88,6 +89,7 @@ describe("/v2/transactions/reverse - debit", () => {
                         "valueId": value.id,
                         "contactId": null,
                         "code": null,
+                        "balanceRule": null,
                         "balanceBefore": 25,
                         "balanceAfter": 100,
                         "balanceChange": 75,
@@ -164,6 +166,7 @@ describe("/v2/transactions/reverse - debit", () => {
                         "valueId": value.id,
                         "contactId": null,
                         "code": null,
+                        "balanceRule": null,
                         "balanceBefore": null,
                         "balanceAfter": null,
                         "balanceChange": null,

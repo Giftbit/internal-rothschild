@@ -17,7 +17,7 @@ import {nowInDbPrecision} from "../../utils/dbUtils";
 
 chai.use(chaiExclude);
 
-describe("/v2/issuances", () => {
+describe("/v2/programs/{id}/issuances", () => {
 
     const router = new cassava.Router();
     const sinonSandbox = sinon.createSandbox();
@@ -73,12 +73,12 @@ describe("/v2/issuances", () => {
         sinonSandbox.restore();
     });
 
-    it(`basic issuances with varying counts. POST, GET and LIST`, async () => {
+    it("basic issuances with varying counts. POST, GET and LIST", async () => {
         const valuesToIssues = [1, 10, 11, 100, 1000];
 
         const issuances: Issuance[] = [];
-        for (let count of valuesToIssues) {
-            let issuance = {
+        for (const count of valuesToIssues) {
+            const issuance = {
                 id: generateId(),
                 name: "name",
                 count: count,
@@ -146,8 +146,8 @@ describe("/v2/issuances", () => {
         chai.assert.sameDeepMembers(listIssuances.body, issuances);
     }).timeout(15000);
 
-    it(`issuing from program that has a balanceRule`, async () => {
-        let issuance: Partial<Issuance> = {
+    it("issuing from program that has a balanceRule", async () => {
+        const issuance: Partial<Issuance> = {
             id: generateId(),
             name: "name",
             count: 1
@@ -169,8 +169,8 @@ describe("/v2/issuances", () => {
         chai.assert.equal(listResponse.body[0].endDate.toString(), programWithRulesAndDates.endDate.toISOString(), "endDate from program is copied over to the Value");
     });
 
-    it(`can overwrite balanceRule, redemptionRule, startDate and endDate`, async () => {
-        let issuance: Partial<Issuance> = {
+    it("can overwrite balanceRule, redemptionRule, startDate and endDate", async () => {
+        const issuance: Partial<Issuance> = {
             id: generateId(),
             count: 1,
             name: "name",
@@ -206,12 +206,16 @@ describe("/v2/issuances", () => {
         chai.assert.equal(listResponse.body[0].endDate.toString(), issuance.endDate.toISOString());
     });
 
-    it(`issuance with generic code`, async () => {
-        let issuance = {
+    it("issuance with generic code", async () => {
+        const issuance = {
             id: generateId(),
             name: "name",
             count: 1,
             isGenericCode: true,
+            balanceRule: {
+                rule: "500",
+                explanation: "$5 off all items!"
+            },
             code: "PRETTY-GENERIC"
         };
 
@@ -225,8 +229,8 @@ describe("/v2/issuances", () => {
         chai.assert.isTrue(listResponse.body[0].isGenericCode);
     });
 
-    it(`issuance with code`, async () => {
-        let issuance = {
+    it("issuance with code", async () => {
+        const issuance = {
             id: generateId(),
             name: "name",
             count: 1,
@@ -243,8 +247,8 @@ describe("/v2/issuances", () => {
         chai.assert.isFalse(listResponse.body[0].isGenericCode);
     });
 
-    it(`422 if no name`, async () => {
-        let issuance = {
+    it("422 if no name", async () => {
+        const issuance = {
             id: generateId(),
             count: 2,
             isGenericCode: true
@@ -255,8 +259,8 @@ describe("/v2/issuances", () => {
         chai.assert.include(createIssuance.body.message, "requestBody requires property \"name\"");
     });
 
-    it(`422 if isGenericCode: true and count > 1`, async () => {
-        let issuance = {
+    it("422 if isGenericCode: true and count > 1", async () => {
+        const issuance = {
             id: generateId(),
             name: "name",
             count: 2,
@@ -268,8 +272,8 @@ describe("/v2/issuances", () => {
         chai.assert.include(createIssuance.body.message, "Issuance count must be 1 if isGenericCode:true.");
     });
 
-    it(`422 if provided code and count > 1`, async () => {
-        let issuance = {
+    it("422 if provided code and count > 1", async () => {
+        const issuance = {
             id: generateId(),
             name: "name",
             count: 2,
@@ -281,8 +285,8 @@ describe("/v2/issuances", () => {
         chai.assert.include(createIssuance.body.message, "Issuance count must be 1 if code is set");
     });
 
-    it(`422 if generateCode and code parameters are provided`, async () => {
-        let issuance = {
+    it("422 if generateCode and code parameters are provided", async () => {
+        const issuance = {
             id: generateId(),
             name: "name",
             count: 1,
@@ -295,7 +299,7 @@ describe("/v2/issuances", () => {
         chai.assert.include(createIssuance.body.message, "Parameter generateCode is not allowed with parameters code or isGenericCode:true.");
     });
 
-    it(`422 if program has balanceRule and try to issue with balance`, async () => {
+    it("422 if program has balanceRule and try to issue with balance", async () => {
         const program: Partial<Program> = {
             id: generateId(),
             name: "program-name",
@@ -308,7 +312,7 @@ describe("/v2/issuances", () => {
         const createProgram = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
         chai.assert.equal(createProgram.statusCode, 201, JSON.stringify(createProgram.body));
 
-        let issuance: Partial<Issuance> = {
+        const issuance: Partial<Issuance> = {
             id: generateId(),
             name: "name",
             count: 1,
@@ -320,16 +324,16 @@ describe("/v2/issuances", () => {
         chai.assert.include(createIssuance.body.message, "Value can't have both a balance and balanceRule.");
     });
 
-    it(`404 on invalid programId`, async () => {
-        let issuance: Partial<Issuance> = {
+    it("404s on invalid programId", async () => {
+        const issuance: Partial<Issuance> = {
             id: generateId(),
             name: "name",
             count: 1,
             balance: 1
         };
 
-        const createIssuance = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${generateId()}/issuances`, "POST", issuance);
-        chai.assert.equal(createIssuance.statusCode, 404, JSON.stringify(createIssuance.body));
+        const createIssuance = await testUtils.testAuthedRequest<any>(router, `/v2/programs/${generateId()}/issuances`, "POST", issuance);
+        chai.assert.equal(createIssuance.statusCode, 404, createIssuance.bodyRaw);
     });
 
     describe("ensure programId is considered", () => {
@@ -366,12 +370,12 @@ describe("/v2/issuances", () => {
             chai.assert.equal(issuanceProgramB.statusCode, 201);
         });
 
-        it(`GET using wrong programId 404s`, async () => {
+        it("GET using wrong programId 404s", async () => {
             const get = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${programA.id}/issuances/${issuanceProgramB.body.id}`, "GET");
             chai.assert.equal(get.statusCode, 404);
         });
 
-        it(`LIST only returns issuances from provided programId`, async () => {
+        it("LIST only returns issuances from provided programId", async () => {
             const list = await testUtils.testAuthedRequest<Issuance[]>(router, `/v2/programs/${programA.id}/issuances`, "GET");
             chai.assert.equal(list.statusCode, 200);
             chai.assert.equal(list.body.length, 1);
@@ -437,7 +441,7 @@ describe("/v2/issuances", () => {
             {id: generateId(), createdDate: new Date("3030-02-03")},
             {id: generateId(), createdDate: new Date("3030-02-04")}
         ];
-        for (let idAndDate of idAndDates) {
+        for (const idAndDate of idAndDates) {
             const response = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", {
                 id: idAndDate.id,
                 name: idAndDate.id + "-name",
@@ -466,8 +470,8 @@ describe("/v2/issuances", () => {
         chai.assert.sameOrderedMembers(resp.body.map(tx => tx.id), idAndDates.reverse().map(tx => tx.id) /* reversed since createdDate desc*/);
     });
 
-    describe(`creating Issuance with metadata from Program with metadata`, () => {
-        let program: Partial<Program> = {
+    describe("creating Issuance with metadata from Program with metadata", () => {
+        const program: Partial<Program> = {
             id: generateId(),
             name: "program with balanceRule",
             currency: "USD",
@@ -477,17 +481,17 @@ describe("/v2/issuances", () => {
             }
         };
 
-        let programProperties = Object.keys(program);
+        const programProperties = Object.keys(program);
         it("can create Program", async () => {
             const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", program);
             chai.assert.equal(programResp.statusCode, 201, JSON.stringify(programResp.body));
-            for (let prop of programProperties) {
+            for (const prop of programProperties) {
                 chai.assert.equal(JSON.stringify(programResp.body[prop]), JSON.stringify(program[prop]));
             }
         });
 
         it("can create Issuance and Program's metadata is copied to Issuance and Values metadata", async () => {
-            let issuance: Partial<Issuance> = {
+            const issuance: Partial<Issuance> = {
                 id: generateId(),
                 name: "issuance name",
                 count: 1
@@ -503,7 +507,7 @@ describe("/v2/issuances", () => {
         });
 
         it("can create Issuance with metadata and Program's metadata is copied to Issuance and Value metadata. Issuance metadata takes precedence.", async () => {
-            let issuance: Partial<Issuance> = {
+            const issuance: Partial<Issuance> = {
                 id: generateId(),
                 name: "issuance name",
                 count: 1,
@@ -527,7 +531,7 @@ describe("/v2/issuances", () => {
     });
 
     it("creating Issuance with no balance results in values with balance of 0.", async () => {
-        let issuance: Partial<Issuance> = {
+        const issuance: Partial<Issuance> = {
             id: generateId(),
             name: "issuance name",
             count: 1
@@ -550,7 +554,7 @@ describe("/v2/issuances", () => {
         const createProgram = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs`, "POST", minInitialBalanceProgram);
         chai.assert.equal(createProgram.statusCode, 201, JSON.stringify(createProgram.body));
 
-        let issuance: Partial<Issuance> = {
+        const issuance: Partial<Issuance> = {
             id: generateId(),
             name: "issuance name",
             count: 1
@@ -570,7 +574,7 @@ describe("/v2/issuances", () => {
         const createProgram = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs`, "POST", program);
         chai.assert.equal(createProgram.statusCode, 201, JSON.stringify(createProgram.body));
 
-        let issuance: Partial<Issuance> = {
+        const issuance: Partial<Issuance> = {
             id: generateId(),
             name: "issuance name",
             count: 1
@@ -582,6 +586,12 @@ describe("/v2/issuances", () => {
         chai.assert.equal(getValues.statusCode, 200);
         chai.assert.equal((getValues.body[0]).startDate as any, program.startDate.toISOString());
         chai.assert.isNull(getValues.body[0].endDate);
+    });
+
+    it("404s getting a ProgramIssuance by ID with unicode", async () => {
+        const getResp = await testUtils.testAuthedRequest<any>(router, `/v2/programs/${program.id}/issuances/%F0%9F%92%A9`, "GET");
+        chai.assert.equal(getResp.statusCode, 404);
+        chai.assert.equal(getResp.body.messageCode, "IssuanceNotFound");
     });
 
     describe("value active status scenarios", () => {
@@ -810,5 +820,60 @@ describe("/v2/issuances", () => {
         chai.assert.equal(generateCodeStub.callCount, 4);
         chai.assert.sameDeepMembers(values.body.map(v => v.code), [code1, code2]);
         generateCodeStub.restore();
+    });
+
+    describe("whitespace handling", () => {
+        let program;
+        before(async () => {
+            const programResp = await testUtils.testAuthedRequest<Program>(router, "/v2/programs", "POST", {
+                id: testUtils.generateId(),
+                currency: "USD",
+                name: "Irreverent test program"
+            });
+            chai.assert.equal(programResp.statusCode, 201, `programResp.body=${JSON.stringify(programResp.body)}`);
+            program = programResp.body;
+        });
+
+        it("422s creating issuanceIds with leading/trailing whitespace", async () => {
+            const issuanceResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${program.id}/issuances`, "POST", {
+                id: `\r${testUtils.generateId()}`,
+                name: testUtils.generateId(),
+                count: 1
+            });
+            chai.assert.equal(issuanceResp.statusCode, 422, `issuanceResp.body=${JSON.stringify(issuanceResp.body)}`);
+        });
+
+        it("404s looking up an issuance by id with leading/trailing whitespace", async () => {
+            const createIssuanceResp = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", {
+                id: testUtils.generateId(),
+                name: testUtils.generateId(),
+                count: 5
+            });
+            chai.assert.equal(createIssuanceResp.statusCode, 201, `createIssuanceResp.body=${JSON.stringify(createIssuanceResp.body)}`);
+
+            const fetchIssuanceLeadingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${program.id}/issuances/%0D%0A${createIssuanceResp.body.id}`, "GET");
+            chai.assert.equal(fetchIssuanceLeadingResp.statusCode, 404, `fetchIssuanceLeadingResp.body=${JSON.stringify(fetchIssuanceLeadingResp.body)}`);
+            const fetchIssuanceTrailingResp = await testUtils.testAuthedRequest<cassava.RestError>(router, `/v2/programs/${program.id}/issuances/${createIssuanceResp.body.id}%20`, "GET");
+            chai.assert.equal(fetchIssuanceTrailingResp.statusCode, 404, `fetchIssuanceTrailingResp.body=${JSON.stringify(fetchIssuanceTrailingResp.body)}`);
+        });
+
+        describe("FK references to issuanceIds", () => {
+            it("does not find values when searching by issuanceId with leading/trailing whitespace", async () => {
+                const issuanceProps = {
+                    id: testUtils.generateId(),
+                    name: testUtils.generateId(),
+                    count: 5
+                };
+                const createIssuanceResp = await testUtils.testAuthedRequest<Issuance>(router, `/v2/programs/${program.id}/issuances`, "POST", issuanceProps);
+                chai.assert.equal(createIssuanceResp.statusCode, 201, `createIssuanceResp.body=${JSON.stringify(createIssuanceResp.body)}`);
+
+                const getValuesLeadingResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?issuanceId=%20${issuanceProps.id}`, "GET");
+                chai.assert.equal(getValuesLeadingResp.statusCode, 200, `getValuesLeadingResp.body=${JSON.stringify(getValuesLeadingResp.body)}`);
+                chai.assert.equal(getValuesLeadingResp.body.length, 0, `getValuesLeadingResp.body=${JSON.stringify(getValuesLeadingResp.body)}`);
+                const getValuesTrailingResp = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?issuanceId=${issuanceProps.id}%0D%0A`, "GET");
+                chai.assert.equal(getValuesTrailingResp.statusCode, 200, `getValuesTrailingResp.body=${JSON.stringify(getValuesTrailingResp.body)}`);
+                chai.assert.equal(getValuesTrailingResp.body.length, 0, `getValuesTrailingResp.body=${JSON.stringify(getValuesTrailingResp.body)}`);
+            });
+        });
     });
 });
