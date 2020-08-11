@@ -110,8 +110,16 @@ export class BinlogWatcherStateManager {
         const putRequest = dynameh.requestBuilder.buildPutInput(this.tableSchema, this.state);
         log.debug("BinlogWatcherStateManager putRequest=", JSON.stringify(putRequest));
 
-        const putResponse = await this.dynamodb.putItem(putRequest).promise();
-        log.debug("BinlogWatcherStateManager putResponse=", JSON.stringify(putResponse));
+        try {
+            const putResponse = await this.dynamodb.putItem(putRequest).promise();
+            log.debug("BinlogWatcherStateManager putResponse=", JSON.stringify(putResponse));
+        } catch (error) {
+            if ((error as aws.AWSError).code === "ConditionalCheckFailedException") {
+                log.warn("Saving BinlogWatcherState failed with ConditionalCheckFailedException.  The state is versioned and occasionally two Lambdas will launch at the same time so if this happens occasionally that's ok.");
+            } else {
+                throw error;
+            }
+        }
     }
 
     async load(): Promise<void> {
