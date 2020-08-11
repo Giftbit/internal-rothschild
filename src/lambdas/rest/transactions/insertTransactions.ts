@@ -238,26 +238,26 @@ async function insertTag(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Kn
             userId: auth.userId,
             id: tag.id
         });
-    } else if (tag.displayName && !tag.id) {
+    } else if (tag.name && !tag.id) {
         fetchTagRes = await trx("Tags").where({
             userId: auth.userId,
-            displayName: tag.displayName
+            name: tag.name
         });
     }
 
     if (fetchTagRes.length > 1) {
         throw new Error(`Illegal SELECT query.  Returned ${fetchTagRes.length} values.`);
     } else if (fetchTagRes.length === 1) {
-        if ((!tag.displayName && !fetchTagRes[0].displayName) || (tag.displayName === fetchTagRes[0].displayName)) {
+        if ((!tag.name && !fetchTagRes[0].name) || (tag.name === fetchTagRes[0].name)) {
             return fetchTagRes[0];
         } else {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `New tag to insert had displayName '${tag.displayName}' which did not match displayName '${fetchTagRes[0].displayName}' on existing tag ${fetchTagRes[0].id}`);
+            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `New tag to insert had name '${tag.name}' which did not match name '${fetchTagRes[0].name}' on existing tag ${fetchTagRes[0].id}`);
         }
     } else if (fetchTagRes.length === 0) {
         const tagToInsert: Tag = {
             userId: auth.userId,
             id: tag.id || `${uuid.v4}`,
-            displayName: tag.displayName,
+            name: tag.name,
             createdDate: now,
             updatedDate: now
         };

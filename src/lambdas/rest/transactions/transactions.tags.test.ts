@@ -688,7 +688,7 @@ describe("/v2/transactions - tags", () => {
                 });
             chai.assert.equal(tagRes.length, 2, `tag table should have an entry for this tag value for each test user: ${JSON.stringify(tagRes)}`);
             chai.assert.equal(tagRes[0].id, tagRes[1].id, `tags should have the same 'id' value: ${JSON.stringify(tagRes)}`);
-            chai.assert.equal(tagRes[0].displayName, tagRes[1].displayName, `tags should have the same 'displayName' value: ${JSON.stringify(tagRes)}`);
+            chai.assert.equal(tagRes[0].name, tagRes[1].name, `tags should have the same 'name' value: ${JSON.stringify(tagRes)}`);
             chai.assert.sameMembers(tagRes.map(t => t.userId), [testUtils.defaultTestUser.auth.userId, testUtils.alternateTestUser.auth.userId], `tag table should have an entry for this tag value for each test user: ${JSON.stringify(tagRes)}`);
 
             // ...and what was actually written to TransactionsTags join table
