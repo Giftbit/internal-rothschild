@@ -272,7 +272,7 @@ export async function applyTransactionTags(auth: giftbitRoutes.jwtauth.Authoriza
         return;
     }
 
-    for (let tag of transactionPlan.tags) { // todo must handle tags as objects {id, name}: user-supplied tags don't exist yet but will need to be handled in tx creation
+    for (const tag of transactionPlan.tags) { // todo must handle tags as objects {id, name}: user-supplied tags don't exist yet but will need to be handled in tx creation
         await insertTag(auth, trx, tag);
 
         const txsTagsData = {

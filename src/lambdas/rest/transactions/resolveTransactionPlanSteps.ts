@@ -115,7 +115,7 @@ export function getTransactionPlanStepsFromSources(lightrailSources: Value[], no
 export async function getLightrailSourcesForTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[], options: ResolveTransactionPartiesOptions): Promise<{ values: Value[], contactIds: string[] }> {
     let values = await getValuesWithAllContactIds(auth, parties, options);
 
-    let contactIdsForResult = [...new Set([...values.map(v => v.contactId), ...parties.filter(p => p.rail === "lightrail" && p.contactId).map(p => (p as LightrailTransactionParty).contactId)])];
+    const contactIdsForResult = [...new Set([...values.map(v => v.contactId), ...parties.filter(p => p.rail === "lightrail" && p.contactId).map(p => (p as LightrailTransactionParty).contactId)])];
 
     values = handleNonTransactableValues(values, options, true).values;
 
@@ -125,7 +125,7 @@ export async function getLightrailSourcesForTransactionPlanSteps(auth: giftbitRo
 function handleNonTransactableValues(values: Value[], options: ResolveTransactionPartiesOptions, returnNonTransactableContactIds: boolean): { values: Value[], contactIds: string[] } {
     const now = nowInDbPrecision();
 
-    let result = {
+    const result = {
         values: [...values],
         contactIds: values.map(v => v.id)
     };
@@ -186,7 +186,7 @@ function handleNonTransactableValues(values: Value[], options: ResolveTransactio
 }
 
 /**
- * @param parties - All values identified by code/valueId they will be returned; values identified by contactId will be filtered for transactability.
+ * @param parties - All values identified by code/valueId will be returned; values identified by contactId will be filtered for transactability.
  *  This makes the query much more performant (contacts can have a huge number of attached values) while still making sure we can include all contactIds
  *  that could have been charged in the transaction tags.
  * @param options - Determines whether & how attached values identified by contactId will be filtered.
@@ -217,14 +217,32 @@ async function getValuesWithAllContactIds(auth: giftbitRoutes.jwtauth.Authorizat
      *  so it's more efficient to use those in a set of UNION subqueries to build up the FROM clause, than it was to use
      *  'OR WHERE code = ? OR WHERE contactId = ?' ...etc, which resulted in a full table scan.
      */
-    let query = knex.select("*").from(queryBuilder => {
+    const query = knex.select("*").from(queryBuilder => {
         if (contactIds.length) {
-            queryBuilder.union(
-                knex.select("*")
-                    .from("Values")
-                    .where({"userId": auth.userId})
-                    .andWhere("contactId", "in", contactIds)
-            );
+            let valuesByContactIdQuery = knex.select("*")
+                .from("Values")
+                .where({"userId": auth.userId})
+                .andWhere("contactId", "in", contactIds);
+
+            if (options.nonTransactableHandling === "exclude") {
+                valuesByContactIdQuery = valuesByContactIdQuery
+                    .where({
+                        currency: options.currency,
+                        canceled: false,
+                        frozen: false,
+                        active: true
+                    })
+                    .where(q => q.whereNull("startDate").orWhere("startDate", "<", now))
+                    .where(q => q.whereNull("endDate").orWhere("endDate", ">", now));
+            }
+            if (!options.includeZeroUsesRemaining) {
+                valuesByContactIdQuery = valuesByContactIdQuery.where(q => q.whereNull("usesRemaining").orWhere("usesRemaining", ">", 0));
+            }
+            if (!options.includeZeroBalance) {
+                valuesByContactIdQuery = valuesByContactIdQuery.where(q => q.whereNull("balance").orWhere("balance", ">", 0));
+            }
+
+            queryBuilder.union(valuesByContactIdQuery);
         }
 
         if (hashedCodes.length) {
@@ -247,23 +265,6 @@ async function getValuesWithAllContactIds(auth: giftbitRoutes.jwtauth.Authorizat
 
         queryBuilder.as("TT");
     });
-    if (options.nonTransactableHandling === "exclude") {
-        query = query
-            .where({
-                currency: options.currency,
-                canceled: false,
-                frozen: false,
-                active: true
-            })
-            .where(q => q.whereNull("startDate").orWhere("startDate", "<", now))
-            .where(q => q.whereNull("endDate").orWhere("endDate", ">", now));
-    }
-    if (!options.includeZeroUsesRemaining) {
-        query = query.where(q => q.whereNull("usesRemaining").orWhere("usesRemaining", ">", 0));
-    }
-    if (!options.includeZeroBalance) {
-        query = query.where(q => q.whereNull("balance").orWhere("balance", ">", 0));
-    }
 
     const dbValues: DbValue[] = await query;
     const dedupedDbValues = consolidateValueQueryResults(dbValues);

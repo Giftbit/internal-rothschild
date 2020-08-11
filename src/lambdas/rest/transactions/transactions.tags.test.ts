@@ -274,7 +274,7 @@ describe("/v2/transactions - tags", () => {
             chai.assert.equal(getTxResp.statusCode, 200, `getTxResp.body=${JSON.stringify(getTxResp)}`);
             chai.assert.deepEqual(getTxResp.body, checkoutResp.body);
 
-            const getAttachTxResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?transactionType=attach&calueId=${perContactValue1.id}`, "GET");
+            const getAttachTxResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?transactionType=attach&valueId=${perContactValue1.id}`, "GET");
             chai.assert.equal(getAttachTxResp.statusCode, 200, `getAttachTxResp.body=${JSON.stringify(getAttachTxResp)}`);
             chai.assert.equal(getAttachTxResp.body.length, 1, `getAttachTxResp.body=${JSON.stringify(getAttachTxResp)}`);
             assertTxHasContactIdTags(getAttachTxResp.body[0], [newContact.id]);
@@ -303,7 +303,12 @@ describe("/v2/transactions - tags", () => {
 
         it("adds contactId tag to attach transaction when using legacy 'attachGenericAsNewValue' flag", async () => {
             const sharedGenericValue = await testUtils.createUSDValue(router, {
-                isGenericCode: true
+                isGenericCode: true,
+                balance: null,
+                balanceRule: {
+                    rule: "500",
+                    explanation: "$5"
+                }
             });
 
             const attachSharedResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1.id}/values/attach`, "POST", {
@@ -1034,7 +1039,7 @@ describe("/v2/transactions - tags", () => {
     });
 });
 
-function assertTxHasContactIdTags(tx: Transaction, contactIds: string[]) {
+function assertTxHasContactIdTags(tx: Transaction, contactIds: string[]): void {
     chai.assert.isArray(tx.tags, `expected transaction to have tags: ${JSON.stringify(tx)}`);
     const contactIdTags = formatContactIdTags(contactIds);
 

@@ -163,11 +163,11 @@ export namespace DbTransaction {
             .where("userId", userId)
             .whereIn("transactionId", txIds));
 
-        let transactionsTags = txIds.reduce((tagMap, id) => {
+        const transactionsTags = txIds.reduce((tagMap, id) => {
             tagMap[id] = [];
             return tagMap;
         }, {});
-        let dbTxTags = await knex.select("Tags.*", "TransactionsTags.transactionId").from("Tags").join("TransactionsTags", {
+        const dbTxTags = await knex.select("Tags.*", "TransactionsTags.transactionId").from("Tags").join("TransactionsTags", {
             "TransactionsTags.userId": "Tags.userId",
             "TransactionsTags.tagId": "Tags.id"
         }).where("TransactionsTags.userId", userId).whereIn("TransactionsTags.transactionId", txIds);
