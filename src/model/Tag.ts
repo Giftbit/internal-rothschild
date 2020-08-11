@@ -4,6 +4,7 @@ export interface Tag {
     name: string | null;
     createdDate: Date;
     updatedDate: Date;
+    createdBy: string;
 }
 
 export interface TagOnResource {

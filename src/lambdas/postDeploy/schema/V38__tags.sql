@@ -5,6 +5,7 @@ CREATE TABLE rothschild.Tags
     name        VARCHAR(96) CHARACTER SET utf8mb4,
     createdDate DATETIME                          NOT NULL,
     updatedDate DATETIME                          NOT NULL,
+    createdBy   VARCHAR(64) COLLATE ascii_bin     NOT NULL,
     PRIMARY KEY pk_Tags (userId, id),
     UNIQUE INDEX uq_ix_Tags_name (userId, name)
 );

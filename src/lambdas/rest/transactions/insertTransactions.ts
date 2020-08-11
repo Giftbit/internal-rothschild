@@ -259,7 +259,8 @@ async function insertTag(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Kn
             id: tag.id || `${uuid.v4}`,
             name: tag.name,
             createdDate: now,
-            updatedDate: now
+            updatedDate: now,
+            createdBy: auth.teamMemberId
         };
         await trx.into("Tags").insert(tagToInsert);
         return tagToInsert;
