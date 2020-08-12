@@ -1,4 +1,4 @@
-export interface Tag {
+export interface DbTag {
     userId: string;
     id: string;
     name: string | null;
@@ -7,7 +7,7 @@ export interface Tag {
     createdBy: string;
 }
 
-export interface TagOnResource {
+export interface Tag {
     id?: string;
     name?: string;
 }

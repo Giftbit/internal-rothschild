@@ -40,7 +40,7 @@ import {isSystemId} from "../../../utils/isSystemId";
 import {getAttachTransactionPlanForGenericCode} from "../genericCode";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
-import {TagOnResource} from "../../../model/Tag";
+import {Tag} from "../../../model/Tag";
 
 export function installTransactionsRest(router: cassava.Router): void {
     router.route("/v2/transactions")
@@ -379,7 +379,7 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
     return Array.isArray(transaction) ? transaction.find(tx => tx.transactionType === "checkout") : transaction;
 }
 
-export function formatContactIdTags(currentContactIds: string[], tagsOnEarlierTransaction: TagOnResource[] = []): TagOnResource[] | undefined {
+export function formatContactIdTags(currentContactIds: string[], tagsOnEarlierTransaction: Tag[] = []): Tag[] | undefined {
     if (!currentContactIds.length && !tagsOnEarlierTransaction.length) {
         return undefined;
     }

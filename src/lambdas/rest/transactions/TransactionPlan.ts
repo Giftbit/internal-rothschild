@@ -7,7 +7,7 @@ import * as crypto from "crypto";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {TaxRequestProperties} from "../../../model/TaxProperties";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
-import {TagOnResource} from "../../../model/Tag";
+import {Tag} from "../../../model/Tag";
 import {
     InternalDbTransactionStep,
     InternalTransactionStep,
@@ -32,7 +32,7 @@ export interface TransactionPlan {
     metadata: object | null;
     rootTransactionId?: string;
     previousTransactionId?: string;
-    tags?: TagOnResource[];
+    tags?: Tag[];
 }
 
 export type TransactionPlanStep =

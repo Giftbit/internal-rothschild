@@ -3,7 +3,7 @@ import {getKnexRead} from "../utils/dbUtils/connection";
 import {LineItem} from "./LineItem";
 import {TransactionParty} from "./TransactionRequest";
 import {TaxRequestProperties} from "./TaxProperties";
-import {TagOnResource} from "./Tag";
+import {Tag} from "./Tag";
 import {DbTransactionStep, TransactionStep} from "./TransactionStep";
 
 export interface Transaction {
@@ -21,7 +21,7 @@ export interface Transaction {
     createdBy: string;
     metadata: object | null;
     tax: TaxRequestProperties | null;
-    tags?: TagOnResource[];
+    tags?: Tag[];
 }
 
 export interface TransactionTotals {

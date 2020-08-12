@@ -8,7 +8,7 @@ import {Contact} from "../../../model/Contact";
 import {Transaction} from "../../../model/Transaction";
 import {CheckoutRequest} from "../../../model/TransactionRequest";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
-import {Tag} from "../../../model/Tag";
+import {DbTag} from "../../../model/Tag";
 import {formatContactIdTags} from "./transactions";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
@@ -681,7 +681,7 @@ describe("/v2/transactions - tags", () => {
 
             // check what was actually written to tags table
             const knex = await getKnexRead();
-            const tagRes: Tag[] = await knex("Tags")
+            const tagRes: DbTag[] = await knex("Tags")
                 .select()
                 .where({
                     id: formatContactIdTags([contactId])[0].id

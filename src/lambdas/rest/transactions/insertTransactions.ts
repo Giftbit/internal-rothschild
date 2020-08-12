@@ -14,7 +14,7 @@ import {executeStripeSteps} from "../../../utils/stripeUtils/stripeStepOperation
 import {getSqlErrorColumnName, getSqlErrorConstraintName, nowInDbPrecision} from "../../../utils/dbUtils";
 import {generateCode} from "../../../utils/codeGenerator";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
-import {Tag} from "../../../model/Tag";
+import {DbTag} from "../../../model/Tag";
 import uuid from "uuid";
 import {StripeDbTransactionStep} from "../../../model/TransactionStep";
 import Knex = require("knex");
@@ -226,13 +226,13 @@ export async function insertInternalTransactionSteps(auth: giftbitRoutes.jwtauth
     return plan;
 }
 
-async function insertTag(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, tag: Partial<Tag>): Promise<Tag> {
+async function insertTag(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, tag: Partial<DbTag>): Promise<DbTag> {
     // This function deliberately does not handle createIfNotExists flag.
     // That can be handled later with a wrapper, eg:
     // if (createIfNotExists) { insertTag(); applyTagToResource() } else { applyTagToResource() }
     const now = nowInDbPrecision();
 
-    let fetchTagRes: Tag[];
+    let fetchTagRes: DbTag[];
     if (tag.id) {
         fetchTagRes = await trx("Tags").where({
             userId: auth.userId,
@@ -254,7 +254,7 @@ async function insertTag(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Kn
             throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `New tag to insert had name '${tag.name}' which did not match name '${fetchTagRes[0].name}' on existing tag ${fetchTagRes[0].id}`);
         }
     } else if (fetchTagRes.length === 0) {
-        const tagToInsert: Tag = {
+        const tagToInsert: DbTag = {
             userId: auth.userId,
             id: tag.id || `${uuid.v4}`,
             name: tag.name,

@@ -3,9 +3,9 @@ import {CheckoutRequest} from "../../../../model/TransactionRequest";
 import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "../TransactionPlan";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
 import log = require("loglevel");
-import {TagOnResource} from "../../../../model/Tag";
+import {Tag} from "../../../../model/Tag";
 
-export function getCheckoutTransactionPlan(checkout: CheckoutRequest, steps: TransactionPlanStep[], tags: TagOnResource[]): TransactionPlan {
+export function getCheckoutTransactionPlan(checkout: CheckoutRequest, steps: TransactionPlanStep[], tags: Tag[]): TransactionPlan {
     log.info(`optimizing checkout transaction`);
 
     const now = nowInDbPrecision();
