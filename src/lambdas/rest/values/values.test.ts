@@ -118,7 +118,8 @@ describe("/v2/values/", () => {
         const value: Partial<Value> = {
             id: generateId(),
             currency: "USD",
-            balance: -1
+            balance: 1,
+            usesRemaining: -1
         };
 
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
@@ -129,7 +130,22 @@ describe("/v2/values/", () => {
         const value: Partial<Value> = {
             id: generateId(),
             currency: "USD",
-            balance: 999999999999
+            balance: 1,
+            usesRemaining: 999999999999
+        };
+
+        const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
+        chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it.only("cannot create a value with huge metadata", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 1
+        };
+        value.metadata = {
+            bigString: "a".repeat(65536)
         };
 
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
