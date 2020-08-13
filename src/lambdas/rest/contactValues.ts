@@ -13,6 +13,7 @@ import {AttachValueParameters} from "../../model/internal/AttachValueParameters"
 import {ValueIdentifier} from "../../model/internal/ValueIdentifier";
 import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
 import {attachGenericCode, generateUrlSafeHashFromValueIdContactId} from "./genericCode";
+import * as jsonschema from "jsonschema";
 import log = require("loglevel");
 
 export function installContactValuesRest(router: cassava.Router): void {
@@ -83,7 +84,7 @@ export function installContactValuesRest(router: cassava.Router): void {
                 auth.requireScopes("lightrailV2:values:attach");
             }
 
-            evt.validateBody({
+            const attachSchema: jsonschema.Schema = {
                 type: "object",
                 additionalProperties: false,
                 properties: {
@@ -94,9 +95,6 @@ export function installContactValuesRest(router: cassava.Router): void {
                     valueId: {
                         type: "string",
                         minLength: 1
-                    },
-                    attachGenericAsNewValue: {
-                        type: "boolean"
                     }
                 },
                 oneOf: [
@@ -109,7 +107,16 @@ export function installContactValuesRest(router: cassava.Router): void {
                         required: ["code"]
                     }
                 ]
-            });
+            };
+            if (isYervana(auth.userId)) {
+                attachSchema.properties = {
+                    ...attachSchema.properties,
+                    attachGenericAsNewValue: {
+                        type: "boolean"
+                    }
+                };
+            }
+            evt.validateBody(attachSchema);
 
             return {
                 body: await attachValue(auth, {
@@ -131,11 +138,6 @@ export function installContactValuesRest(router: cassava.Router): void {
             auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:values:detach");
 
-            /* Only supports detach by valueId.
-             * There's complexity around supporting detach by code
-             * for generic codes with attachGenericAsNewValue: true.
-             * If attachGenericAsNewValue is removed, consider supporting
-             * detach by code. */
             evt.validateBody({
                 type: "object",
                 additionalProperties: false,
@@ -171,22 +173,9 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     }
 
     if (value.isGenericCode) {
-        if (!Value.isGenericCodeWithPropertiesPerContact(value) && params.attachGenericAsNewValue) {
-            // if a legacy generic code is still being attached in this way, migrate the generic code.
-            const updates: Partial<Value> = {
-                genericCodeOptions: {
-                    perContact: {
-                        usesRemaining: 1,
-                        balance: value.balance,
-                    }
-                }
-            };
-            if (value.balance != null) {
-                updates.balance = null;
-            }
-            value = await updateValue(auth, value.id, updates);
+        if (isYervana(auth.userId) && !Value.isGenericCodeWithPropertiesPerContact(value) && params.attachGenericAsNewValue) {
+            value = await updateYervanasGenericCodeToHavePerContactProperties(auth, value.id);
         }
-
         try {
             return await attachGenericCode(auth, contact.id, value);
         } catch (err) {
@@ -349,4 +338,20 @@ export async function hasContactValues(auth: giftbitRoutes.jwtauth.Authorization
             valueId: valueId
         });
     return res[0].count >= 1;
+}
+
+function isYervana(userId: string): boolean {
+    return userId === "user-eed702db18574c91b8625cec47a09ee1" || userId === "user-eed702db18574c91b8625cec47a09ee1-TEST";
+}
+
+async function updateYervanasGenericCodeToHavePerContactProperties(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueId: string): Promise<Value> {
+    const updates: Partial<Value> = {
+        genericCodeOptions: {
+            perContact: {
+                usesRemaining: 1,
+                balance: null, /* It's not possible to have a balance w/o a perContact.balance. */
+            }
+        }
+    };
+    return await updateValue(auth, valueId, updates);
 }

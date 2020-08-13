@@ -122,30 +122,6 @@ describe("MetricsLogger", () => {
 
                 sinon.assert.calledWith(spy, sinon.match(getValueAttachmentLogMatcher(ValueAttachmentTypes.Generic)));
             });
-
-            it("'GenericAsNew' generates correct log statement", async () => {
-                const spy = sandbox.spy(log, "info");
-
-                const value: Partial<Value> = {
-                    id: generateId(),
-                    currency: "USD",
-                    isGenericCode: true,
-                    balanceRule: {
-                        rule: "500 + value.balanceChange",
-                        explanation: "$5 off"
-                    }
-                };
-                const createValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", value);
-                chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
-
-                const attachValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contactPartial.id}/values/attach`, "POST", {
-                    valueId: value.id,
-                    attachGenericAsNewValue: true
-                });
-                chai.assert.equal(attachValueResp.statusCode, 200, `body=${JSON.stringify(attachValueResp.body)}`);
-
-                sinon.assert.calledWith(spy, sinon.match(getValueAttachmentLogMatcher(ValueAttachmentTypes.GenericAsNew)));
-            });
         });
     });
 
