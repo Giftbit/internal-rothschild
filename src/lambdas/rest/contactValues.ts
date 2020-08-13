@@ -340,8 +340,10 @@ export async function hasContactValues(auth: giftbitRoutes.jwtauth.Authorization
     return res[0].count >= 1;
 }
 
+export const yervanaUserId = "user-eed702db18574c91b8625cec47a09ee1";
+
 function isYervana(userId: string): boolean {
-    return userId === "user-eed702db18574c91b8625cec47a09ee1" || userId === "user-eed702db18574c91b8625cec47a09ee1-TEST";
+    return userId === yervanaUserId || userId === yervanaUserId + "-TEST";
 }
 
 async function updateYervanasGenericCodeToHavePerContactProperties(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueId: string): Promise<Value> {

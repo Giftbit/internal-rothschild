@@ -12,10 +12,11 @@ import {generateCode} from "../../utils/codeGenerator";
 import chaiExclude from "chai-exclude";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
 import {generateUrlSafeHashFromValueIdContactId} from "./genericCode";
-import {generateLegacyHashForValueIdContactId} from "./contactValues";
+import {generateLegacyHashForValueIdContactId, yervanaUserId} from "./contactValues";
 import {nowInDbPrecision} from "../../utils/dbUtils";
 import {updateValue} from "./values/values";
 import {Value} from "../../model/Value";
+import {TestUser} from "../../utils/testUtils/TestUser";
 
 chai.use(chaiExclude);
 
@@ -622,6 +623,48 @@ describe("/v2/contacts/values", () => {
             const detach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/detach`, "POST", {valueId: value.id});
             chai.assert.equal(detach.statusCode, 200, `body=${JSON.stringify(detach.body)}`);
         });
+    });
+
+    describe("yervana attachGenericAsNewValue support", () => {
+        const yervanaUsers = [new TestUser({userId: yervanaUserId}), new TestUser({userId: yervanaUserId + "-TEST"})];
+
+        for (const yervana of yervanaUsers) {
+            it("can call attach with attachGenericAsNewValue - will also migrate generic code if it doesn't have perContact properties", async () => {
+                await createCurrency(yervana.auth, currency);
+                const contact = await yervana.request<Contact>(router, `/v2/contacts`, "POST", {id: generateId()});
+
+                const genericCode: Partial<Value> = {
+                    id: generateId(),
+                    currency: currency.code,
+                    isGenericCode: true,
+                    balanceRule: {
+                        rule: "1",
+                        explanation: "$0.01 off every item!"
+                    }
+                };
+                const createGenericCode = await yervana.request<Value>(router, `/v2/values`, "POST", genericCode);
+                chai.assert.equal(createGenericCode.statusCode, 201);
+
+                const attach = await yervana.request<Value>(router, `/v2/contacts/${contact.body.id}/values/attach`, "POST", {
+                    valueId: genericCode.id,
+                    attachGenericAsNewValue: true
+                });
+                chai.assert.notEqual(attach.statusCode, 422, "attachGenericAsNewValue is only allowed in attach schema for yervana");
+                chai.assert.equal(attach.statusCode, 200);
+
+                const genericCodeAfterAttach = await yervana.request<Value>(router, `/v2/values/${genericCode.id}`, "GET");
+                chai.assert.equal(genericCodeAfterAttach.statusCode, 200);
+                chai.assert.deepEqualExcluding(genericCodeAfterAttach.body, {
+                    ...createGenericCode.body,
+                    genericCodeOptions: {
+                        perContact: {
+                            usesRemaining: 1,
+                            balance: null
+                        }
+                    }
+                }, ["updatedDate"]);
+            });
+        }
     });
 });
 
