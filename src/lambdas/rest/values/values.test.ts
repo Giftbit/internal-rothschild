@@ -138,18 +138,40 @@ describe("/v2/values/", () => {
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
     });
 
-    it.only("cannot create a value with huge metadata", async () => {
+    it("cannot create a value with huge metadata", async () => {
         const value: Partial<Value> = {
             id: generateId(),
             currency: "USD",
             balance: 1
         };
+
+        // max length of whole json - length of rest of json + 1
+        const stringLength = 65535 - JSON.stringify({bigString: ""}).length + 1;
         value.metadata = {
-            bigString: "a".repeat(65536)
+            bigString: "a".repeat(stringLength)
         };
 
         const resp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
         chai.assert.equal(resp.statusCode, 422, `body=${JSON.stringify(resp.body)}`);
+    });
+
+    it("cannot update a value to have huge metadata", async () => {
+        const value: Partial<Value> = {
+            id: generateId(),
+            currency: "USD",
+            balance: 1
+        };
+        const createResp = await testUtils.testAuthedRequest<any>(router, "/v2/values", "POST", value);
+        chai.assert.equal(createResp.statusCode, 201);
+
+        // max length of whole json - length of rest of json + 1
+        const stringLength = 65535 - JSON.stringify({bigString: ""}).length + 1;
+        value.metadata = {
+            bigString: "a".repeat(stringLength)
+        };
+
+        const patchResp = await testUtils.testAuthedRequest<any>(router, `/v2/values/${value.id}`, "PATCH", {metadata: value.metadata});
+        chai.assert.equal(patchResp.statusCode, 422);
     });
 
     it("cannot update valueId", async () => {
