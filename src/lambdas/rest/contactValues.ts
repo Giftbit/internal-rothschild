@@ -7,7 +7,7 @@ import {csvSerializer} from "../../utils/serializers";
 import {Pagination} from "../../model/Pagination";
 import {Value} from "../../model/Value";
 import {getContact, getContacts} from "./contacts";
-import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
+import {getKnexWrite} from "../../utils/dbUtils/connection";
 import {getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
 import {AttachValueParameters} from "../../model/internal/AttachValueParameters";
 import {ValueIdentifier} from "../../model/internal/ValueIdentifier";
@@ -327,17 +327,6 @@ function getValueByIdentifier(auth: giftbitRoutes.jwtauth.AuthorizationBadge, va
         }
     }
     throw new Error("Neither valueId nor code specified");
-}
-
-export async function hasContactValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueId: string): Promise<boolean> {
-    const knex = await getKnexRead();
-    const res = await knex("ContactValues")
-        .count({count: "*"})
-        .where({
-            userId: auth.userId,
-            valueId: valueId
-        });
-    return res[0].count >= 1;
 }
 
 export const yervanaUserId = "user-eed702db18574c91b8625cec47a09ee1";
