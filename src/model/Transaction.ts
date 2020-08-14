@@ -97,7 +97,7 @@ export namespace Transaction {
             tax: t.tax != null ? JSON.stringify(t.tax) : null,
             pendingVoidDate: t.pendingVoidDate,
             createdDate: t.createdDate,
-            createdBy: t.createdBy,
+            createdBy: t.createdBy
         };
     }
 }
@@ -143,7 +143,7 @@ export namespace DbTransaction {
                 t.totals.marketplace = {
                     sellerGross: dbTx.totals_marketplace_sellerGross,
                     sellerDiscount: dbTx.totals_marketplace_sellerDiscount,
-                    sellerNet: dbTx.totals_marketplace_sellerNet,
+                    sellerNet: dbTx.totals_marketplace_sellerNet
                 };
             }
         }
@@ -167,10 +167,14 @@ export namespace DbTransaction {
             tagMap[id] = [];
             return tagMap;
         }, {});
-        const dbTxTags = await knex.select("Tags.*", "TransactionsTags.transactionId").from("Tags").join("TransactionsTags", {
-            "TransactionsTags.userId": "Tags.userId",
-            "TransactionsTags.tagId": "Tags.id"
-        }).where("TransactionsTags.userId", userId).whereIn("TransactionsTags.transactionId", txIds);
+        const dbTxTags = await knex.select("Tags.*", "TransactionsTags.transactionId")
+            .from("Tags")
+            .join("TransactionsTags", {
+                "TransactionsTags.userId": "Tags.userId",
+                "TransactionsTags.tagId": "Tags.id"
+            })
+            .where("TransactionsTags.userId", userId)
+            .whereIn("TransactionsTags.transactionId", txIds);
         dbTxTags.forEach(t => transactionsTags[t.transactionId].push(t.id));
 
         return txns.map(dbTx => toTransaction(dbTx, dbSteps.filter(step => step.transactionId === dbTx.id), transactionsTags[dbTx.id]));

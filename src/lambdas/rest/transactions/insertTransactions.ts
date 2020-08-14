@@ -14,7 +14,7 @@ import {executeStripeSteps} from "../../../utils/stripeUtils/stripeStepOperation
 import {getSqlErrorColumnName, getSqlErrorConstraintName, nowInDbPrecision} from "../../../utils/dbUtils";
 import {generateCode} from "../../../utils/codeGenerator";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
-import {DbTag} from "../../../model/Tag";
+import {DbTag, Tag} from "../../../model/Tag";
 import uuid from "uuid";
 import {StripeDbTransactionStep} from "../../../model/TransactionStep";
 import Knex = require("knex");
@@ -226,7 +226,7 @@ export async function insertInternalTransactionSteps(auth: giftbitRoutes.jwtauth
     return plan;
 }
 
-async function insertTag(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, tag: Partial<DbTag>): Promise<DbTag> {
+async function insertTag(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, tag: Tag): Promise<DbTag> {
     // This function deliberately does not handle createIfNotExists flag.
     // That can be handled later with a wrapper, eg:
     // if (createIfNotExists) { insertTag(); applyTagToResource() } else { applyTagToResource() }
@@ -243,6 +243,8 @@ async function insertTag(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Kn
             userId: auth.userId,
             name: tag.name
         });
+    } else {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Tags must have one or both of 'name' and 'id'. Tag='${JSON.stringify(tag)}'`);
     }
 
     if (fetchTagRes.length > 1) {
