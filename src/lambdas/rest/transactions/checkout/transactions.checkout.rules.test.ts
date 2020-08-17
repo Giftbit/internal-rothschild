@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as transactions from "../transactions";
-import * as valueStores from "../../values/values";
+import * as values from "../../values/values";
 import * as testUtils from "../../../../utils/testUtils";
 import {defaultTestUser, generateId} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
@@ -22,7 +22,7 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         transactions.installTransactionsRest(router);
-        valueStores.installValuesRest(router);
+        values.installValuesRest(router);
         await createCurrency(testUtils.defaultTestUser.auth, {
             code: "CAD",
             name: "Canadian Tire Money",

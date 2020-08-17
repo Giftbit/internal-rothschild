@@ -10,7 +10,7 @@ import {setStubsForStripeTests, testStripeLive, unsetStubsForStripeTests} from "
 import {CheckoutRequest} from "../../model/TransactionRequest";
 import * as testUtils from "../testUtils";
 import * as transactions from "../../lambdas/rest/transactions/transactions";
-import * as valueStores from "../../lambdas/rest/values/values";
+import * as values from "../../lambdas/rest/values/values";
 import * as currencies from "../../lambdas/rest/currencies";
 import {StripeRestError} from "./StripeRestError";
 import {updateCharge} from "./stripeTransactions";
@@ -93,7 +93,7 @@ describe("stripeAccess", () => {
             await testUtils.resetDb();
             router.route(testUtils.authRoute);
             transactions.installTransactionsRest(router);
-            valueStores.installValuesRest(router);
+            values.installValuesRest(router);
             currencies.installCurrenciesRest(router);
 
             await testUtils.createUSD(router);

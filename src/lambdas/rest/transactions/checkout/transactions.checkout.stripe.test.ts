@@ -1,7 +1,7 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
 import * as transactions from "../transactions";
-import * as valueStores from "../../values/values";
+import * as values from "../../values/values";
 import * as currencies from "../../currencies";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as sinon from "sinon";
@@ -70,7 +70,7 @@ describe("split tender checkout with Stripe", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         transactions.installTransactionsRest(router);
-        valueStores.installValuesRest(router);
+        values.installValuesRest(router);
         currencies.installCurrenciesRest(router);
 
         const currency: Partial<Currency> = {

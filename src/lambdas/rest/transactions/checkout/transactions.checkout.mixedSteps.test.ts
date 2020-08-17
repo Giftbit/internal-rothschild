@@ -2,7 +2,7 @@ import * as cassava from "cassava";
 import * as chai from "chai";
 import chaiExclude from "chai-exclude";
 import * as transactions from "../transactions";
-import * as valueStores from "../../values/values";
+import * as values from "../../values/values";
 import * as testUtils from "../../../../utils/testUtils";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../../utils/testUtils";
 import {Transaction} from "../../../../model/Transaction";
@@ -23,7 +23,7 @@ describe("/v2/transactions/checkout - mixed sources", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         transactions.installTransactionsRest(router);
-        valueStores.installValuesRest(router);
+        values.installValuesRest(router);
 
         await setStubsForStripeTests();
         await createCurrency(testUtils.defaultTestUser.auth, {

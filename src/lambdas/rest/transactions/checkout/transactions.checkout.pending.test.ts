@@ -3,7 +3,7 @@ import chaiExclude from "chai-exclude";
 import * as chai from "chai";
 import * as Stripe from "stripe";
 import * as transactions from "../transactions";
-import * as valueStores from "../../values/values";
+import * as values from "../../values/values";
 import * as testUtils from "../../../../utils/testUtils";
 import {defaultTestUser, generateId, setCodeCryptographySecrets} from "../../../../utils/testUtils";
 import {Value} from "../../../../model/Value";
@@ -32,7 +32,7 @@ describe("/v2/transactions/checkout - pending", () => {
         await testUtils.resetDb();
         router.route(testUtils.authRoute);
         transactions.installTransactionsRest(router);
-        valueStores.installValuesRest(router);
+        values.installValuesRest(router);
         await createCurrency(testUtils.defaultTestUser.auth, {
             code: "CAD",
             name: "Canadian Tire Money",

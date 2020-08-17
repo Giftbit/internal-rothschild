@@ -42,8 +42,8 @@ describe("/v2/transactions/checkout - basics", () => {
             balance: 1000
         };
 
-        const postValueStoreResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", giftCard);
-        chai.assert.equal(postValueStoreResp.statusCode, 201, `body=${JSON.stringify(postValueStoreResp.body)}`);
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", giftCard);
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
 
         const request: CheckoutRequest = {
             id: "checkout-1",
@@ -127,9 +127,9 @@ describe("/v2/transactions/checkout - basics", () => {
             tags: []
         }, ["createdDate"]);
 
-        const getValueStoreResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
-        chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(getValueStoreResp.body)}`);
-        chai.assert.equal(getValueStoreResp.body.balance, 950);
+        const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
+        chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
+        chai.assert.equal(getValueResp.body.balance, 950);
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout-1", "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
@@ -172,7 +172,7 @@ describe("/v2/transactions/checkout - basics", () => {
         );
     });
 
-    it("process checkout with two ValueStores", async () => {
+    it("process checkout with two Values", async () => {
         const giftCard: Partial<Value> = {
             id: "vs-checkout2-giftcard",
             currency: "CAD",
@@ -307,7 +307,7 @@ describe("/v2/transactions/checkout - basics", () => {
         chai.assert.deepEqual(getCheckoutResp.body, postCheckoutResp.body);
     });
 
-    it("process checkout with 3 ValueStores with complicated tax implications", async () => {
+    it("process checkout with 3 Values with complicated tax implications", async () => {
         const giftCard: Partial<Value> = {
             id: "vs-checkout3-giftcard",
             currency: "CAD",
@@ -508,8 +508,8 @@ describe("/v2/transactions/checkout - basics", () => {
             balance: 1000
         };
 
-        const postValueStoreResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", giftCard);
-        chai.assert.equal(postValueStoreResp.statusCode, 201, `body=${JSON.stringify(postValueStoreResp.body)}`);
+        const postValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", giftCard);
+        chai.assert.equal(postValueResp.statusCode, 201, `body=${JSON.stringify(postValueResp.body)}`);
 
         const request: CheckoutRequest = {
             id: generateId(),
@@ -601,9 +601,9 @@ describe("/v2/transactions/checkout - basics", () => {
             tags: []
         }, ["createdDate"]);
 
-        const getValueStoreResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
-        chai.assert.equal(getValueStoreResp.statusCode, 200, `body=${JSON.stringify(getValueStoreResp.body)}`);
-        chai.assert.equal(getValueStoreResp.body.balance, 950);
+        const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
+        chai.assert.equal(getValueResp.statusCode, 200, `body=${JSON.stringify(getValueResp.body)}`);
+        chai.assert.equal(getValueResp.body.balance, 950);
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.equal(getCheckoutResp.statusCode, 200, `body=${JSON.stringify(getCheckoutResp.body)}`);
