@@ -115,7 +115,7 @@ export function getTransactionPlanStepsFromSources(lightrailSources: Value[], no
 export async function getLightrailSourcesForTransactionPlanSteps(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[], options: ResolveTransactionPartiesOptions): Promise<{ values: Value[], contactIds: string[] }> {
     let values = await getValuesWithAllContactIds(auth, parties, options);
 
-    const contactIdsForResult = [...new Set([...values.map(v => v.contactId), ...parties.filter(p => p.rail === "lightrail" && p.contactId).map(p => (p as LightrailTransactionParty).contactId)])];
+    const contactIdsForResult: string[] = [...new Set([...values.map(v => v.contactId), ...parties.filter(p => p.rail === "lightrail" && p.contactId).map(p => (p as LightrailTransactionParty).contactId)])];
 
     values = handleNonTransactableValues(values, options, true).values;
 

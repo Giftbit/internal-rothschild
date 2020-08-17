@@ -192,48 +192,6 @@ describe("/v2/transactions - tags", () => {
             chai.assert.isArray(resp.body.tags);
             chai.assert.equal(resp.body.tags.length, 0, `transaction should have no tags (empty array): ${JSON.stringify(resp.body)}`);
         });
-
-        it("tags tx with contactId: checkout with attached shared generic code", async () => { // todo this can probably go away, see tim's deprecation
-            const sharedGeneric: Partial<Value> = {
-                id: "shared-generic",
-                isGenericCode: true,
-                currency: "USD",
-                balanceRule: {
-                    rule: "1000",
-                    explanation: "1000"
-                },
-                balance: null
-            };
-            await testUtils.createUSDValue(router, sharedGeneric);
-
-            const newContact: Partial<Contact> = {id: `new-contact-${testUtils.generateId(4)}`};
-            const contactResp = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", newContact);
-            chai.assert.equal(contactResp.statusCode, 201, `contactResp.body=${JSON.stringify(contactResp)}`);
-
-            const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${newContact.id}/values/attach`, "POST", {
-                valueId: sharedGeneric.id
-            });
-            chai.assert.equal(attachResp.statusCode, 200, `attachResp.body=${JSON.stringify(attachResp.body)}`);
-
-            const checkoutResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
-                id: "checkout-w-shared-generic",
-                currency: "USD",
-                lineItems: [{unitPrice: 100}],
-                sources: [{
-                    rail: "lightrail",
-                    valueId: sharedGeneric.id
-                }, {
-                    rail: "lightrail",
-                    contactId: newContact.id
-                }]
-            });
-            chai.assert.equal(checkoutResp.statusCode, 201, `checkoutResp.body=${JSON.stringify(checkoutResp.body)}`);
-            assertTxHasContactIdTags(checkoutResp.body, [newContact.id]);
-
-            const getTxResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${checkoutResp.body.id}`, "GET");
-            chai.assert.equal(getTxResp.statusCode, 200, `getTxResp.body=${JSON.stringify(getTxResp)}`);
-            chai.assert.deepEqual(getTxResp.body, checkoutResp.body);
-        });
     });
 
     describe("attach transactions", () => {
@@ -300,28 +258,6 @@ describe("/v2/transactions - tags", () => {
             const attachTxResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${genericValue.id}&transactionType=attach`, "GET");
             chai.assert.equal(attachTxResp.statusCode, 200, `attachTxResp.body=${JSON.stringify(attachTxResp.body)}`);
             assertTxHasContactIdTags(attachTxResp.body[0], [contact1.id]);
-        });
-
-        it("adds contactId tag to attach transaction when using legacy 'attachGenericAsNewValue' flag", async () => {
-            const sharedGenericValue = await testUtils.createUSDValue(router, {
-                isGenericCode: true,
-                balance: null,
-                balanceRule: {
-                    rule: "500",
-                    explanation: "$5"
-                }
-            });
-
-            const attachSharedResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1.id}/values/attach`, "POST", {
-                valueId: sharedGenericValue.id,
-                attachGenericAsNewValue: true
-            });
-            chai.assert.equal(attachSharedResp.statusCode, 200, `attachSharedResp.body=${JSON.stringify(attachSharedResp.body)}`);
-
-            const attachSharedTxResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?valueId=${sharedGenericValue.id}&transactionType=attach`, "GET");
-            chai.assert.equal(attachSharedTxResp.statusCode, 200, `attachSharedTxResp.body=${JSON.stringify(attachSharedTxResp.body)}`);
-            chai.assert.equal(attachSharedTxResp.body.length, 1, `attachSharedTxResp.body=${JSON.stringify(attachSharedTxResp.body)}`);
-            assertTxHasContactIdTags(attachSharedTxResp.body[0], [contact1.id]);
         });
     });
 
@@ -412,7 +348,7 @@ describe("/v2/transactions - tags", () => {
             chai.assert.sameDeepMembers(resp.body.tags, setupResp.body.tags, `reverse should have same contactId tags as original transaction: ${JSON.stringify(resp.body.tags)}`);
         });
 
-        it("adds contactId tag when creating a capture transaction", async () => {
+        it("copies contactId tag when creating a capture transaction", async () => {
             const setupResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
                 id: "pending-to-capture",
                 currency: "USD",
@@ -434,7 +370,7 @@ describe("/v2/transactions - tags", () => {
             chai.assert.sameDeepMembers(resp.body.tags, setupResp.body.tags, `capture transaction should have same tags as original pending transaction`);
         });
 
-        it("adds contactId tag when creating a void transaction", async () => {
+        it("copies contactId tag when creating a void transaction", async () => {
             const setupResp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
                 id: "pending-to-void",
                 currency: "USD",
@@ -581,7 +517,7 @@ describe("/v2/transactions - tags", () => {
         });
     });
 
-    it("adds contactId tag when creating a initialBalance transaction", async () => {
+    it("adds contactId tag when creating an initialBalance transaction", async () => {
         const createValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", {
             id: "value-with-initial-balance",
             contactId: contact1.id,
