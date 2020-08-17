@@ -80,7 +80,8 @@ describe("/v2/transactions/reverse - initialBalance", () => {
             "paymentSources": null,
             "pending": false,
             "metadata": null,
-            "createdBy": "default-test-user-TEST"
+            "createdBy": "default-test-user-TEST",
+            "tags": []
         }, ["createdDate"]);
         chai.assert.deepEqualExcluding(simulate.body, postReverse.body, ["simulated", "createdDate"]);
         chai.assert.isTrue(simulate.body.simulated);
@@ -139,7 +140,8 @@ describe("/v2/transactions/reverse - initialBalance", () => {
             "paymentSources": null,
             "pending": false,
             "metadata": null,
-            "createdBy": "default-test-user-TEST"
+            "createdBy": "default-test-user-TEST",
+            "tags": []
         }, ["createdDate"]);
 
         const getValue = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");

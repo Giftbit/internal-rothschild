@@ -112,7 +112,8 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
                 roundingMode: "HALF_UP"
             },
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate", "createdBy"]);
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
@@ -200,7 +201,8 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
                 roundingMode: "HALF_EVEN"
             },
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate", "createdBy"]);
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
@@ -285,7 +287,8 @@ describe("/v2/transactions/checkout - tax roundingMode", () => {
                 roundingMode: "HALF_EVEN"
             },
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate", "createdBy"]);
 
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");

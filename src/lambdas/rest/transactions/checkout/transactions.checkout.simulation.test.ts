@@ -175,11 +175,12 @@ describe("/v2/transactions/checkout - simulation tests", () => {
             ],
             "pending": false,
             "metadata": null,
-            tax: {
+            "tax": {
                 "roundingMode": "HALF_EVEN"
             },
             "createdDate": null,
             "createdBy": defaultTestUser.auth.teamMemberId,
+            "tags": []
         }, ["createdDate", "createdBy"]);
 
         const giftCardBalance = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");

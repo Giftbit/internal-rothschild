@@ -145,13 +145,14 @@ describe("/v2/transactions/checkout - internal sources", () => {
                     "internalId": request.sources[0].internalId
                 }
             ],
-            pending: false,
+            "pending": false,
             "metadata": null,
-            tax: {
+            "tax": {
                 "roundingMode": "HALF_EVEN"
             },
             "createdDate": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": defaultTestUser.auth.teamMemberId,
+            "tags": []
         }, ["createdDate"]);
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.deepEqual(getCheckoutResp.body, postCheckoutResp.body);
@@ -290,13 +291,14 @@ describe("/v2/transactions/checkout - internal sources", () => {
                     "internalId": request.sources[1].internalId
                 }
             ],
-            pending: false,
+            "pending": false,
             "metadata": null,
-            tax: {
+            "tax": {
                 "roundingMode": "HALF_EVEN"
             },
             "createdDate": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": defaultTestUser.auth.teamMemberId,
+            "tags": []
         }, ["createdDate"]);
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["steps"]);
@@ -408,13 +410,14 @@ describe("/v2/transactions/checkout - internal sources", () => {
                     "pretax": true
                 }
             ],
-            pending: false,
+            "pending": false,
             "metadata": null,
-            tax: {
+            "tax": {
                 "roundingMode": "HALF_EVEN"
             },
             "createdDate": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": defaultTestUser.auth.teamMemberId,
+            "tags": []
         }, ["createdDate"]);
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["steps"]);
@@ -523,13 +526,14 @@ describe("/v2/transactions/checkout - internal sources", () => {
                     "beforeLightrail": true
                 }
             ],
-            pending: false,
+            "pending": false,
             "metadata": null,
-            tax: {
+            "tax": {
                 "roundingMode": "HALF_EVEN"
             },
             "createdDate": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": defaultTestUser.auth.teamMemberId,
+            "tags": []
         }, ["createdDate"]);
         const getCheckoutResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${request.id}`, "GET");
         chai.assert.deepEqualExcluding(getCheckoutResp.body, postCheckoutResp.body, ["steps"]);
@@ -621,7 +625,8 @@ describe("/v2/transactions/checkout - internal sources", () => {
             metadata: null,
             tax: {
                 roundingMode: "HALF_EVEN"
-            }
+            },
+            tags: []
         }, ["createdDate", "createdBy"]);
     });
 });

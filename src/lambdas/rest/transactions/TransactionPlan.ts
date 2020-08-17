@@ -332,7 +332,7 @@ export namespace TransactionPlan {
             pendingVoidDate: plan.pendingVoidDate || undefined,
             metadata: plan.metadata || null,
             createdBy: auth.teamMemberId,
-            tags: plan.tags || undefined
+            tags: plan.tags || []
         };
         if (simulated) {
             transaction.simulated = true;

@@ -187,13 +187,14 @@ describe("/v2/transactions/checkout - mixed sources", () => {
             ],
             "steps": null,
             "paymentSources": null,
-            pending: false,
+            "pending": false,
             "metadata": null,
-            tax: {
+            "tax": {
                 "roundingMode": "HALF_EVEN"
             },
             "createdDate": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": defaultTestUser.auth.teamMemberId,
+            "tags": []
         }, ["createdDate", "steps", "paymentSources", "createdBy"]);
 
         chai.assert.deepEqual(postCheckoutResp.body.steps[0], {
@@ -374,13 +375,14 @@ describe("/v2/transactions/checkout - mixed sources", () => {
                     code: formatCodeForLastFourDisplay(valueGenericCode.code)
                 }
             ],
-            pending: false,
+            "pending": false,
             "metadata": null,
-            tax: {
+            "tax": {
                 "roundingMode": "HALF_EVEN"
             },
             "createdDate": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": defaultTestUser.auth.teamMemberId,
+            "tags": []
         }, ["createdDate", "steps", "createdBy"]);
 
         const step1 = postCheckoutResp.body.steps.find(step => (step as LightrailTransactionStep).valueId === valueSecretCode.id);

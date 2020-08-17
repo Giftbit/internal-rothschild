@@ -189,7 +189,8 @@ describe("/v2/transactions - tags", () => {
                 sources: [{rail: "lightrail", valueId: newValue.id}]
             });
             chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
-            chai.assert.isUndefined(resp.body.tags, `transaction should have no contactId tags: ${JSON.stringify(resp.body)}`);
+            chai.assert.isArray(resp.body.tags);
+            chai.assert.equal(resp.body.tags.length, 0, `transaction should have no tags (empty array): ${JSON.stringify(resp.body)}`);
         });
 
         it("tags tx with contactId: checkout with attached shared generic code", async () => { // todo this can probably go away, see tim's deprecation
@@ -468,7 +469,8 @@ describe("/v2/transactions - tags", () => {
                 amount: 50
             });
             chai.assert.equal(firstTx.statusCode, 201, `firstTx.body=${JSON.stringify(firstTx.body)}`);
-            chai.assert.isUndefined(firstTx.body.tags);
+            chai.assert.isArray(firstTx.body.tags);
+            chai.assert.equal(firstTx.body.tags.length, 0);
 
             const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1.id}/values/attach`, "POST", {
                 valueId: newValue.id
@@ -497,7 +499,8 @@ describe("/v2/transactions - tags", () => {
                 pending: true
             });
             chai.assert.equal(firstTx.statusCode, 201, `firstTx.body=${JSON.stringify(firstTx.body)}`);
-            chai.assert.isUndefined(firstTx.body.tags, `pending transaction should have no tags`);
+            chai.assert.isArray(firstTx.body.tags);
+            chai.assert.equal(firstTx.body.tags.length, 0, `pending transaction should have no tags`);
 
             const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1.id}/values/attach`, "POST", {
                 valueId: newValue.id
@@ -526,7 +529,8 @@ describe("/v2/transactions - tags", () => {
                 pending: true
             });
             chai.assert.equal(firstTx.statusCode, 201, `firstTx.body=${JSON.stringify(firstTx.body)}`);
-            chai.assert.isUndefined(firstTx.body.tags, `pending transaction should have no tags`);
+            chai.assert.isArray(firstTx.body.tags);
+            chai.assert.equal(firstTx.body.tags.length, 0, `pending transaction should have no tags`);
 
             const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1.id}/values/attach`, "POST", {
                 valueId: newValue.id
@@ -555,13 +559,15 @@ describe("/v2/transactions - tags", () => {
                 pending: true
             });
             chai.assert.equal(firstTx.statusCode, 201, `firstTx.body=${JSON.stringify(firstTx.body)}`);
-            chai.assert.isUndefined(firstTx.body.tags, `pending transaction should have no tags`);
+            chai.assert.isArray(firstTx.body.tags);
+            chai.assert.equal(firstTx.body.tags.length, 0, `pending transaction should have no tags`);
 
             const captureResp = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${firstTx.body.id}/capture`, "POST", {
                 id: testUtils.generateId()
             });
             chai.assert.equal(captureResp.statusCode, 201, `captureResp.body=${JSON.stringify(captureResp.body)}`);
-            chai.assert.isUndefined(captureResp.body.tags, `capture transaction should have no tags`);
+            chai.assert.isArray(captureResp.body.tags);
+            chai.assert.equal(captureResp.body.tags.length, 0, `capture transaction should have no tags`);
 
             const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1.id}/values/attach`, "POST", {
                 valueId: newValue.id

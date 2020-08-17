@@ -103,7 +103,8 @@ describe("/v2/transactions/reverse - debit", () => {
                 "metadata": {
                     "oh_look_a_cat": "🐈"
                 },
-                "createdBy": "default-test-user-TEST"
+                "createdBy": "default-test-user-TEST",
+                "tags": []
             }, ["createdDate"]
         );
         chai.assert.deepEqualExcluding(simulate.body, postReverse.body, ["simulated", "createdDate"]);
@@ -178,7 +179,8 @@ describe("/v2/transactions/reverse - debit", () => {
                 "paymentSources": null,
                 "pending": false,
                 "metadata": null,
-                "createdBy": "default-test-user-TEST"
+                "createdBy": "default-test-user-TEST",
+                "tags": []
             }, ["createdDate"]
         );
 

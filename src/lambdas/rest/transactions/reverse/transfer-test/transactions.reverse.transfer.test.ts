@@ -56,7 +56,7 @@ describe("/v2/transactions/reverse - transfer", () => {
         const value2: Partial<Value> = {
             id: generateId(),
             currency: "USD",
-            balance: 20,
+            balance: 20
         };
         const postValue2 = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", value2);
         chai.assert.equal(postValue2.statusCode, 201);
@@ -92,47 +92,48 @@ describe("/v2/transactions/reverse - transfer", () => {
         const postReverse = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${transfer.id}/reverse`, "POST", reverse);
         chai.assert.equal(postReverse.statusCode, 201, `body=${JSON.stringify(postTransfer.body)}`);
         chai.assert.deepEqualExcluding(postReverse.body, {
-            "id": reverse.id,
-            "transactionType": "reverse",
-            "currency": "USD",
-            "createdDate": null,
-            "totals": {
-                "remainder": 0
-            },
-            "lineItems": null,
-            "tax": null,
-            "steps": [
-                {
-                    "rail": "lightrail",
-                    "valueId": value1.id,
-                    "contactId": null,
-                    "code": null,
-                    "balanceRule": null,
-                    "balanceBefore": 25,
-                    "balanceAfter": 100,
-                    "balanceChange": 75,
-                    "usesRemainingBefore": null,
-                    "usesRemainingAfter": null,
-                    "usesRemainingChange": null
+                "id": reverse.id,
+                "transactionType": "reverse",
+                "currency": "USD",
+                "createdDate": null,
+                "totals": {
+                    "remainder": 0
                 },
-                {
-                    "rail": "lightrail",
-                    "valueId": value2.id,
-                    "contactId": null,
-                    "code": null,
-                    "balanceRule": null,
-                    "balanceBefore": 95,
-                    "balanceAfter": 20,
-                    "balanceChange": -75,
-                    "usesRemainingBefore": null,
-                    "usesRemainingAfter": null,
-                    "usesRemainingChange": null
-                }
+                "lineItems": null,
+                "tax": null,
+                "steps": [
+                    {
+                        "rail": "lightrail",
+                        "valueId": value1.id,
+                        "contactId": null,
+                        "code": null,
+                        "balanceRule": null,
+                        "balanceBefore": 25,
+                        "balanceAfter": 100,
+                        "balanceChange": 75,
+                        "usesRemainingBefore": null,
+                        "usesRemainingAfter": null,
+                        "usesRemainingChange": null
+                    },
+                    {
+                        "rail": "lightrail",
+                        "valueId": value2.id,
+                        "contactId": null,
+                        "code": null,
+                        "balanceRule": null,
+                        "balanceBefore": 95,
+                        "balanceAfter": 20,
+                        "balanceChange": -75,
+                        "usesRemainingBefore": null,
+                        "usesRemainingAfter": null,
+                        "usesRemainingChange": null
+                    }
                 ],
                 "paymentSources": null,
                 "pending": false,
                 "metadata": null,
-                "createdBy": "default-test-user-TEST"
+                "createdBy": "default-test-user-TEST",
+                "tags": []
             }, ["createdDate"]
         );
         chai.assert.deepEqualExcluding(simulate.body, postReverse.body, ["simulated", "createdDate"]);
@@ -228,9 +229,10 @@ describe("/v2/transactions/reverse - transfer", () => {
                     }
                 ],
                 "paymentSources": null,
-                pending: false,
+                "pending": false,
                 "metadata": null,
-                "createdBy": "default-test-user-TEST"
+                "createdBy": "default-test-user-TEST",
+                "tags": []
             }, ["createdDate", "payment_intent"]
         );
 

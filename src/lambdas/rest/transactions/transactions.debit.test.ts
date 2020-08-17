@@ -84,7 +84,8 @@ describe("/v2/transactions/debit", () => {
             metadata: null,
             tax: null,
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "GET");
@@ -180,7 +181,8 @@ describe("/v2/transactions/debit", () => {
             metadata: null,
             tax: null,
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueWithCode.id}`, "GET");
@@ -248,7 +250,8 @@ describe("/v2/transactions/debit", () => {
             metadata: null,
             tax: null,
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueWithGenericCode.id}`, "GET");
@@ -314,7 +317,8 @@ describe("/v2/transactions/debit", () => {
             metadata: null,
             tax: null,
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
@@ -379,7 +383,8 @@ describe("/v2/transactions/debit", () => {
             metadata: null,
             tax: null,
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value.id}`, "GET");
@@ -442,7 +447,8 @@ describe("/v2/transactions/debit", () => {
             metadata: null,
             tax: null,
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${valueWithUses.id}`, "GET");
@@ -509,7 +515,8 @@ describe("/v2/transactions/debit", () => {
             metadata: null,
             tax: null,
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "GET");
@@ -557,7 +564,8 @@ describe("/v2/transactions/debit", () => {
             metadata: null,
             tax: null,
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "GET");
@@ -615,7 +623,8 @@ describe("/v2/transactions/debit", () => {
             metadata: null,
             tax: null,
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate"]);
 
         const getValueResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${value1.id}`, "GET");

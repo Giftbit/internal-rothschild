@@ -373,6 +373,7 @@ describe("/v2/transactions", () => {
                 },
                 createdDate: null,
                 createdBy: defaultTestUser.auth.teamMemberId,
+                tags: []
             }, ["createdDate", "createdBy"]);
         });
     });

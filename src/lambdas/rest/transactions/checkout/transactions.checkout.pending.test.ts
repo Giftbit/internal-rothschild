@@ -139,7 +139,8 @@ describe("/v2/transactions/checkout - pending", () => {
                 roundingMode: "HALF_EVEN"
             },
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate", "pendingVoidDate"]);
         chai.assert.isNotNull(pendingTxRes.body.pendingVoidDate);
 
@@ -194,7 +195,8 @@ describe("/v2/transactions/checkout - pending", () => {
                 roundingMode: "HALF_EVEN"
             },
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate"]);
 
         const getVoidRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${voidRes.body.id}`, "GET");
@@ -294,7 +296,8 @@ describe("/v2/transactions/checkout - pending", () => {
                 roundingMode: "HALF_EVEN"
             },
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate", "pendingVoidDate"]);
         chai.assert.isNotNull(pendingTxRes.body.pendingVoidDate);
 
@@ -324,7 +327,8 @@ describe("/v2/transactions/checkout - pending", () => {
                 roundingMode: "HALF_EVEN"
             },
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate"]);
 
         const getCaptureRes = await testUtils.testAuthedRequest<Transaction>(router, `/v2/transactions/${captureRes.body.id}`, "GET");
@@ -422,7 +426,8 @@ describe("/v2/transactions/checkout - pending", () => {
                 roundingMode: "HALF_EVEN"
             },
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate", "pendingVoidDate", "steps"]);
         chai.assert.isNotNull(pendingTxRes.body.pendingVoidDate);
         chai.assert.equal((pendingTxRes.body.steps[0] as LightrailTransactionStep).balanceBefore, 1000);
@@ -471,7 +476,8 @@ describe("/v2/transactions/checkout - pending", () => {
                 roundingMode: "HALF_EVEN"
             },
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate", "steps"]);
         chai.assert.equal((voidRes.body.steps[0] as LightrailTransactionStep).balanceBefore, 0);
         chai.assert.equal((voidRes.body.steps[0] as LightrailTransactionStep).balanceAfter, 1000);
@@ -575,7 +581,8 @@ describe("/v2/transactions/checkout - pending", () => {
                 roundingMode: "HALF_EVEN"
             },
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate", "pendingVoidDate", "steps"]);
         chai.assert.isNotNull(pendingTxRes.body.pendingVoidDate);
         chai.assert.equal((pendingTxRes.body.steps[0] as LightrailTransactionStep).balanceBefore, 1000);
@@ -613,7 +620,8 @@ describe("/v2/transactions/checkout - pending", () => {
                 roundingMode: "HALF_EVEN"
             },
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate", "steps"]);
         chai.assert.equal((captureRes.body.steps[0] as StripeTransactionStep).rail, "stripe");
         chai.assert.equal((captureRes.body.steps[0] as StripeTransactionStep).amount, 0);
@@ -698,7 +706,8 @@ describe("/v2/transactions/checkout - pending", () => {
                 roundingMode: "HALF_EVEN"
             },
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate", "pendingVoidDate"]);
         chai.assert.isNotNull(pendingTxRes.body.pendingVoidDate);
 
@@ -733,7 +742,8 @@ describe("/v2/transactions/checkout - pending", () => {
                 roundingMode: "HALF_EVEN"
             },
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate"]);
     });
 
@@ -807,7 +817,8 @@ describe("/v2/transactions/checkout - pending", () => {
                 roundingMode: "HALF_EVEN"
             },
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate", "pendingVoidDate"]);
         chai.assert.isNotNull(pendingTxRes.body.pendingVoidDate);
 
@@ -831,7 +842,8 @@ describe("/v2/transactions/checkout - pending", () => {
                 roundingMode: "HALF_EVEN"
             },
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate"]);
     });
 

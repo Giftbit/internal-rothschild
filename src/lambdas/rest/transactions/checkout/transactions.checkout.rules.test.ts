@@ -166,13 +166,14 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                     "valueId": promotion.id
                 }
             ],
-            pending: false,
+            "pending": false,
             "metadata": null,
-            tax: {
+            "tax": {
                 "roundingMode": "HALF_EVEN"
             },
             "createdDate": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": defaultTestUser.auth.teamMemberId,
+            "tags": []
         }, ["createdDate", "createdBy"]);
     });
 
@@ -293,13 +294,14 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                     "valueId": promotion.id
                 }
             ],
-            pending: false,
+            "pending": false,
             "metadata": null,
-            tax: {
+            "tax": {
                 "roundingMode": "HALF_EVEN"
             },
             "createdDate": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": defaultTestUser.auth.teamMemberId,
+            "tags": []
         }, ["createdDate"]);
     });
 
@@ -459,13 +461,14 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                     "valueId": productPromotion.id
                 }
             ],
-            pending: false,
+            "pending": false,
             "metadata": null,
-            tax: {
+            "tax": {
                 "roundingMode": "HALF_EVEN"
             },
             "createdDate": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": defaultTestUser.auth.teamMemberId,
+            "tags": []
         }, ["createdDate"]);
     });
 
@@ -664,13 +667,14 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                     "valueId": giftCard1.id
                 }
             ],
-            pending: false,
+            "pending": false,
             "metadata": null,
-            tax: {
+            "tax": {
                 "roundingMode": "HALF_EVEN"
             },
             "createdDate": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": defaultTestUser.auth.teamMemberId,
+            "tags": []
         }, ["createdDate"]);
     });
 
@@ -791,13 +795,14 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                     "valueId": promotion.id
                 }
             ],
-            pending: false,
+            "pending": false,
             "metadata": null,
-            tax: {
+            "tax": {
                 "roundingMode": "HALF_EVEN"
             },
             "createdDate": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": defaultTestUser.auth.teamMemberId,
+            "tags": []
         }, ["createdDate"]);
 
         const lookupAfterCheckout = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${promotion.id}`, "GET", promotion);
@@ -865,13 +870,14 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                     "valueId": promotion.id
                 }
             ],
-            pending: false,
+            "pending": false,
             "metadata": null,
-            tax: {
+            "tax": {
                 "roundingMode": "HALF_EVEN"
             },
             "createdDate": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": defaultTestUser.auth.teamMemberId,
+            "tags": []
         }, ["createdDate"]);
     });
 
@@ -1004,11 +1010,12 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
             ],
             "pending": false,
             "metadata": null,
-            tax: {
+            "tax": {
                 "roundingMode": "HALF_EVEN"
             },
             "createdDate": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": defaultTestUser.auth.teamMemberId,
+            "tags": []
         }, ["createdDate"]);
     });
 
@@ -1144,7 +1151,8 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                 "isNewClient": true
             },
             "createdBy": defaultTestUser.auth.teamMemberId,
-            "createdDate": null
+            "createdDate": null,
+            "tags": []
         }, ["createdDate"]);
     });
 
@@ -1268,7 +1276,8 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                 }
             ],
             "metadata": null,
-            "createdBy": "default-test-user-TEST"
+            "createdBy": "default-test-user-TEST",
+            "tags": []
         }, ["createdDate"]);
     });
 
@@ -1348,7 +1357,8 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                 }
             ],
             "metadata": null,
-            "createdBy": "default-test-user-TEST"
+            "createdBy": "default-test-user-TEST",
+            "tags": []
         }, ["createdDate"]);
     });
 
@@ -1428,7 +1438,8 @@ describe("/v2/transactions/checkout - balanceRule and redemptionRule", () => {
                 }
             ],
             "metadata": null,
-            "createdBy": "default-test-user-TEST"
+            "createdBy": "default-test-user-TEST",
+            "tags": []
         }, ["createdDate"]);
     });
 

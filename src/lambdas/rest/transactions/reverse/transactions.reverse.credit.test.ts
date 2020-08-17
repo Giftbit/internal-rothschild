@@ -96,7 +96,8 @@ describe("/v2/transactions/reverse - credit", () => {
                 "paymentSources": null,
                 "pending": false,
                 "metadata": null,
-                "createdBy": "default-test-user-TEST"
+                "createdBy": "default-test-user-TEST",
+                "tags": []
             }, ["createdDate"]
         );
         chai.assert.deepEqualExcluding(simulate.body, postReverse.body, ["simulated", "createdDate"] /* sometimes this is off by a second since the tx is inserted in the following second after the simulate*/);
@@ -169,7 +170,8 @@ describe("/v2/transactions/reverse - credit", () => {
                 "paymentSources": null,
                 "pending": false,
                 "metadata": null,
-                "createdBy": "default-test-user-TEST"
+                "createdBy": "default-test-user-TEST",
+                "tags": []
             }, ["createdDate"]
         );
 

@@ -21,7 +21,7 @@ export interface Transaction {
     createdBy: string;
     metadata: object | null;
     tax: TaxRequestProperties | null;
-    tags?: Tag[];
+    tags: Tag[];
 }
 
 export interface TransactionTotals {
@@ -118,7 +118,7 @@ export namespace DbTransaction {
             pendingVoidDate: dbTx.pendingVoidDate || undefined,
             createdDate: dbTx.createdDate,
             createdBy: dbTx.createdBy,
-            tags: dbTagIds.length > 0 ? dbTagIds.map(tagId => ({id: tagId})) : undefined
+            tags: dbTagIds.length > 0 ? dbTagIds.map(tagId => ({id: tagId})) : []
         };
         if (hasNonNullTotals(dbTx)) {
             let payable: number;

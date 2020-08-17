@@ -123,7 +123,8 @@ describe("/v2/transactions/checkout - basics", () => {
                 roundingMode: "HALF_EVEN"
             },
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate"]);
 
         const getValueStoreResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");
@@ -273,7 +274,7 @@ describe("/v2/transactions/checkout - basics", () => {
                     usesRemainingChange: null
                 }
             ],
-            "paymentSources": [
+            paymentSources: [
                 {
                     "rail": "lightrail",
                     "valueId": "vs-checkout2-giftcard"
@@ -289,7 +290,8 @@ describe("/v2/transactions/checkout - basics", () => {
                 "roundingMode": "HALF_EVEN"
             },
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate"]);
 
         const getPromotionVS = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${promotion.id}`, "GET");
@@ -472,13 +474,14 @@ describe("/v2/transactions/checkout - basics", () => {
                     "valueId": "vs-checkout3-promotion2"
                 }
             ],
-            pending: false,
+            "pending": false,
             "metadata": null,
-            tax: {
+            "tax": {
                 "roundingMode": "HALF_EVEN"
             },
             "createdDate": null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            "createdBy": defaultTestUser.auth.teamMemberId,
+            "tags": []
         }, ["createdDate"]);
 
         const getPreTaxPromo = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${preTaxPromotion.id}`, "GET");
@@ -594,7 +597,8 @@ describe("/v2/transactions/checkout - basics", () => {
                 "roundingMode": "HALF_EVEN"
             },
             createdDate: null,
-            createdBy: defaultTestUser.auth.teamMemberId
+            createdBy: defaultTestUser.auth.teamMemberId,
+            tags: []
         }, ["createdDate"]);
 
         const getValueStoreResp = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${giftCard.id}`, "GET");

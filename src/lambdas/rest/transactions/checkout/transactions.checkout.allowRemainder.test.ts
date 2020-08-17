@@ -173,13 +173,14 @@ describe("/v2/transactions/checkout - allowRemainder tests", () => {
                     "valueId": "vs-checkout4-promotion1"
                 }
             ],
-            pending: false,
+            "pending": false,
             "metadata": null,
-            tax: {
+            "tax": {
                 "roundingMode": "HALF_EVEN"
             },
             "createdDate": null,
-            "createdBy": defaultTestUser.auth.teamMemberId
+            "createdBy": defaultTestUser.auth.teamMemberId,
+            "tags": []
         }, ["createdDate", "createdBy"]);
 
         const getPreTaxPromo = await testUtils.testAuthedRequest<Value>(router, `/v2/values/${preTaxPromotion.id}`, "GET");
