@@ -4,8 +4,8 @@ import * as jsonschema from "jsonschema";
 import * as pendingTransactionUtils from "./pendingTransactionUtils";
 import {
     filterForUsedAttaches,
-    getContactIdFromSources,
-    getLightrailSourcesForTransactionPlanSteps,
+    getContactIdFromSources, getContactIds,
+    getLightrailValuesForTransactionPlanSteps,
     getTransactionPlanStepsFromSources,
     ResolveTransactionPartiesOptions
 } from "./resolveTransactionPlanSteps";
@@ -348,8 +348,8 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
                 includeZeroBalance: !!checkout.allowRemainder,
                 includeZeroUsesRemaining: !!checkout.allowRemainder
             };
-            const checkoutSources = await getLightrailSourcesForTransactionPlanSteps(auth, checkout.sources, resolveOptions);
-            const fetchedValues = checkoutSources.values;
+            const fetchedValues = await getLightrailValuesForTransactionPlanSteps(auth, checkout.sources, resolveOptions);
+            const contactIds = await getContactIds(auth, checkout.sources);
 
             // handle auto attach on generic codes
             const valuesToAttach: Value[] = fetchedValues.filter(v => Value.isGenericCodeWithPropertiesPerContact(v));
@@ -368,7 +368,7 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
                 resolveOptions
             );
 
-            const checkoutTransactionPlan: TransactionPlan = getCheckoutTransactionPlan(checkout, checkoutTransactionPlanSteps, formatContactIdTags(checkoutSources.contactIds));
+            const checkoutTransactionPlan: TransactionPlan = getCheckoutTransactionPlan(checkout, checkoutTransactionPlanSteps, formatContactIdTags(contactIds));
 
             // Only persist attach transactions that were used.
             const attachTransactionsToPersist: TransactionPlan[] = filterForUsedAttaches(attachTransactionPlans, checkoutTransactionPlan);
