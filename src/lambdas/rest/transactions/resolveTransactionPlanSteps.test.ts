@@ -9,7 +9,7 @@ import {createContact} from "../contacts";
 import {Contact} from "../../../model/Contact";
 import {
     getLightrailValuesForTransactionPlanSteps,
-    getContactIdFromSources,
+    getValidContactIdFromSources,
     ResolveTransactionPartiesOptions,
     resolveTransactionPlanSteps
 } from "./resolveTransactionPlanSteps";
@@ -593,7 +593,7 @@ describe("resolveTransactionPlanSteps", () => {
 
         describe("getContactIdFromSources", () => {
             it("can get contactId is contact is provided in sources", async () => {
-                const res = await getContactIdFromSources(defaultTestUser.auth, [{
+                const res = await getValidContactIdFromSources(defaultTestUser.auth, [{
                     rail: "lightrail",
                     contactId: contact.id
                 }]);
@@ -601,12 +601,15 @@ describe("resolveTransactionPlanSteps", () => {
             });
 
             it("can't get contactId if no contactId source is provided", async () => {
-                const res = await getContactIdFromSources(defaultTestUser.auth, [{rail: "lightrail", valueId: "123"}]);
+                const res = await getValidContactIdFromSources(defaultTestUser.auth, [{
+                    rail: "lightrail",
+                    valueId: "123"
+                }]);
                 chai.assert.isNull(res);
             });
 
             it("can't get contactId if contactId in source doesn't exist", async () => {
-                const res = await getContactIdFromSources(defaultTestUser.auth, [{
+                const res = await getValidContactIdFromSources(defaultTestUser.auth, [{
                     rail: "lightrail",
                     contactId: generateId()
                 }]);

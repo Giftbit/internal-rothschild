@@ -223,7 +223,46 @@ export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRou
     return values;
 }
 
-export async function getContactIds(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[]): Promise<string[]> {
+export function filterForUsedAttaches(attachTransactionPlans: TransactionPlan[], transactionPlan: TransactionPlan): TransactionPlan[] {
+    const attachTransactionsToPersist: TransactionPlan[] = [];
+    for (const attach of attachTransactionPlans) {
+        const newAttachedValue: LightrailTransactionPlanStep = attach.steps.find(s => (s as LightrailTransactionPlanStep).action === "insert") as LightrailTransactionPlanStep;
+        if (transactionPlan.steps.find(s => s.rail === "lightrail" && s.value.id === newAttachedValue.value.id)) {
+            // new attached value was used
+            attachTransactionsToPersist.push(attach);
+        }
+    }
+    return attachTransactionsToPersist;
+}
+
+/**
+ * Returns either a string or a null. If a contactId is provided and the contactId does not exist,
+ * this function will return null rather than throwing a 404 exception.
+ */
+export async function getValidContactIdFromSources(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[]): Promise<string | null> {
+    const contactPaymentSource = parties.find(p => p.rail === "lightrail" && p.contactId != null) as LightrailTransactionParty;
+    const contactId = contactPaymentSource ? contactPaymentSource.contactId : null;
+
+    if (contactId) {
+        try {
+            const contact = await getContact(auth, contactId);
+            return contact.id;
+        } catch (e) {
+            if ((e as giftbitRoutes.GiftbitRestError).statusCode === 404) {
+                return null;
+            } else throw e;
+        }
+    } else {
+        return null;
+    }
+}
+
+/**
+ * Returns an array of all contactIds affiliated with any LR sources so that we can add them as tags to the transaction.
+ * This includes contactIds on attached Values, regardless of whether those Values can be transacted against, and also
+ * includes contactIds supplied directly as paymentSources, regardless of whether a contact exists with that ID or not.
+ */
+export async function getAllContactIdsFromSources(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[]): Promise<string[]> {
     const valueIds = parties.filter(p => p.rail === "lightrail" && p.valueId && isSystemId(p.valueId))
         .map(p => (p as LightrailTransactionParty).valueId);
 
@@ -264,40 +303,6 @@ export async function getContactIds(auth: giftbitRoutes.jwtauth.AuthorizationBad
 
         contactIdsFromValueIdentifiers.forEach(result => contactIds.push(result.contactId));
         return Array.from(new Set(contactIds));
-    }
-}
-
-export function filterForUsedAttaches(attachTransactionPlans: TransactionPlan[], transactionPlan: TransactionPlan): TransactionPlan[] {
-    const attachTransactionsToPersist: TransactionPlan[] = [];
-    for (const attach of attachTransactionPlans) {
-        const newAttachedValue: LightrailTransactionPlanStep = attach.steps.find(s => (s as LightrailTransactionPlanStep).action === "insert") as LightrailTransactionPlanStep;
-        if (transactionPlan.steps.find(s => s.rail === "lightrail" && s.value.id === newAttachedValue.value.id)) {
-            // new attached value was used
-            attachTransactionsToPersist.push(attach);
-        }
-    }
-    return attachTransactionsToPersist;
-}
-
-/**
- * Returns either a string or a null. If a contactId is provided and the contactId does not exist,
- * this function will return null rather than throwing a 404 exception.
- */
-export async function getContactIdFromSources(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[]): Promise<string | null> {
-    const contactPaymentSource = parties.find(p => p.rail === "lightrail" && p.contactId != null) as LightrailTransactionParty;
-    const contactId = contactPaymentSource ? contactPaymentSource.contactId : null;
-
-    if (contactId) {
-        try {
-            const contact = await getContact(auth, contactId);
-            return contact.id;
-        } catch (e) {
-            if ((e as giftbitRoutes.GiftbitRestError).statusCode === 404) {
-                return null;
-            } else throw e;
-        }
-    } else {
-        return null;
     }
 }
 

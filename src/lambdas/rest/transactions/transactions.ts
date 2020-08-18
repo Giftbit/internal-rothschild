@@ -4,7 +4,7 @@ import * as jsonschema from "jsonschema";
 import * as pendingTransactionUtils from "./pendingTransactionUtils";
 import {
     filterForUsedAttaches,
-    getContactIdFromSources, getContactIds,
+    getValidContactIdFromSources, getAllContactIdsFromSources,
     getLightrailValuesForTransactionPlanSteps,
     getTransactionPlanStepsFromSources,
     ResolveTransactionPartiesOptions
@@ -349,7 +349,7 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
                 includeZeroUsesRemaining: !!checkout.allowRemainder
             };
             const fetchedValues = await getLightrailValuesForTransactionPlanSteps(auth, checkout.sources, resolveOptions);
-            const contactIds = await getContactIds(auth, checkout.sources);
+            const contactIds = await getAllContactIdsFromSources(auth, checkout.sources);
 
             // handle auto attach on generic codes
             const valuesToAttach: Value[] = fetchedValues.filter(v => Value.isGenericCodeWithPropertiesPerContact(v));
@@ -391,9 +391,9 @@ export function formatContactIdTags(currentContactIds: string[], tagsOnEarlierTr
 }
 
 async function getAutoAttachTransactionPlans(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valuesToAttach: Value[], valuesForCheckout: Value[], sources: TransactionParty[]): Promise<TransactionPlan[]> {
-    const contactId = await getContactIdFromSources(auth, sources);
+    const contactId = await getValidContactIdFromSources(auth, sources);
     if (!contactId) {
-        throw new giftbitRoutes.GiftbitRestError(409, `Values cannot be transacted against because they must be attached to a Contact first. Alternatively, a contactId must be included a source in the checkout request.`, "ValueMustBeAttached");
+        throw new giftbitRoutes.GiftbitRestError(409, `Values cannot be transacted against because they must be attached to a Contact first. Alternatively, a contactId must be included as a source in the checkout request.`, "ValueMustBeAttached");
     }
 
     const attachTransactionPlans: TransactionPlan[] = [];
