@@ -139,7 +139,6 @@ export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRou
      */
     let query = knex.select("*").from(queryBuilder => {
         if (contactIds.length) {
-
             queryBuilder.union(
                 knex.select("*")
                     .from("Values")

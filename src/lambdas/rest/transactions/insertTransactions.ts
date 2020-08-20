@@ -15,7 +15,7 @@ import {getSqlErrorColumnName, getSqlErrorConstraintName, nowInDbPrecision} from
 import {generateCode} from "../../../utils/codeGenerator";
 import {GenerateCodeParameters} from "../../../model/GenerateCodeParameters";
 import {DbTag, Tag} from "../../../model/Tag";
-import uuid from "uuid";
+import uuid = require("uuid");
 import {StripeDbTransactionStep} from "../../../model/TransactionStep";
 import Knex = require("knex");
 import log = require("loglevel");
@@ -226,75 +226,105 @@ export async function insertInternalTransactionSteps(auth: giftbitRoutes.jwtauth
     return plan;
 }
 
-async function insertTag(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, tag: Tag): Promise<DbTag> {
-    // This function deliberately does not handle createIfNotExists flag.
-    // That can be handled later with a wrapper, eg:
-    // if (createIfNotExists) { insertTag(); applyTagToResource() } else { applyTagToResource() }
-    const now = nowInDbPrecision();
-
-    let fetchTagRes: DbTag[];
-    if (tag.id) {
-        fetchTagRes = await trx("Tags").where({
-            userId: auth.userId,
-            id: tag.id
-        });
-    } else if (tag.name && !tag.id) {
-        fetchTagRes = await trx("Tags").where({
-            userId: auth.userId,
-            name: tag.name
-        });
-    } else {
-        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Tags must have one or both of 'name' and 'id'. Tag='${JSON.stringify(tag)}'`);
-    }
-
-    if (fetchTagRes.length > 1) {
-        throw new Error(`Illegal SELECT query.  Returned ${fetchTagRes.length} values.`);
-    } else if (fetchTagRes.length === 1) {
-        if ((!tag.name && !fetchTagRes[0].name) || (tag.name === fetchTagRes[0].name)) {
-            return fetchTagRes[0];
-        } else {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `New tag to insert had name '${tag.name}' which did not match name '${fetchTagRes[0].name}' on existing tag ${fetchTagRes[0].id}`);
-        }
-    } else if (fetchTagRes.length === 0) {
-        const tagToInsert: DbTag = {
-            userId: auth.userId,
-            id: tag.id || `${uuid.v4}`,
-            name: tag.name,
-            createdDate: now,
-            updatedDate: now,
-            createdBy: auth.teamMemberId
-        };
-        await trx.into("Tags").insert(tagToInsert);
-        return tagToInsert;
-    }
-}
-
 export async function applyTransactionTags(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, transactionPlan: TransactionPlan): Promise<void> {
     log.info(`inserting tags for transaction plan '${transactionPlan.id}': tags=${JSON.stringify(transactionPlan.tags)}`);
     if (!transactionPlan.tags || transactionPlan.tags.length === 0) {
         return;
     }
 
-    for (const tag of transactionPlan.tags) { // todo must handle tags as objects {id, name}: user-supplied tags don't exist yet but will need to be handled in tx creation
-        await insertTag(auth, trx, tag);
+    const dbTags = await getOrCreateDbTags(auth, trx, transactionPlan.tags);
+    const transactionsTags = dbTags.map(t => ({
+        userId: auth.userId,
+        tagId: t.id,
+        transactionId: transactionPlan.id
+    }));
 
-        const txsTagsData = {
-            userId: auth.userId,
-            transactionId: transactionPlan.id,
-            tagId: tag.id
-        };
+    log.info(`inserting TransactionsTags join records: ${JSON.stringify(transactionsTags)}`);
+    await trx.into("TransactionsTags").insert(transactionsTags);
+}
 
-        try {
-            log.info(`inserting TransactionsTags join record: ${JSON.stringify(txsTagsData)}`);
-            await trx.into("TransactionsTags")
-                .insert(txsTagsData);
-        } catch (err) {
-            if (err.code === "ER_DUP_ENTRY") {
-                log.info("TransactionsTags join record already inserted. This could be because the same contactId was on two different transaction steps. Not a problem; continuing.");
+async function getOrCreateDbTags(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, tags: Tag[]): Promise<DbTag[]> {
+    const invalidTags = tags.filter(t => !t.id && !t.name);
+    if (invalidTags.length) {
+        throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Tags must have one or both of 'name' and 'id'. Invalid Tags: '${JSON.stringify(invalidTags)}'`);
+    }
+
+    const tagIds: string[] = tags.filter(t => t.id).map(t => t.id);
+    const tagNames: string[] = tags.filter(t => !t.id && t.name).map(t => t.name);
+
+    let fetchTagsRes: DbTag[];
+    if (tagIds.length || tagNames.length) {
+        const query = trx.select("*").from(queryBuilder => {
+            if (tagIds.length) {
+                queryBuilder.union(
+                    trx("Tags")
+                        .where({userId: auth.userId})
+                        .andWhere("Tags.id", "in", tagIds));
+            }
+            if (tagNames.length) {
+                queryBuilder.union(
+                    trx("Tags")
+                        .where({userId: auth.userId})
+                        .andWhere("Tags.name", "in", tagNames));
+            }
+            queryBuilder.as("TT");
+        });
+        fetchTagsRes = await query;
+    } else {
+        return [];
+    }
+
+    const existingDbTags: DbTag[] = [];
+    const tagsToInsert: Tag[] = [];
+
+    tags.forEach(t => {
+        if (t.id) {
+            let existingTagById = fetchTagsRes.find(dbTag => dbTag.id === t.id);
+
+            if (existingTagById) {
+                if ((!t.name && !existingTagById.name) || (t.name === existingTagById.name)) {
+                    existingDbTags.push(existingTagById);
+                } else {
+                    throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Tag to apply had name '${t.name}' which did not match name '${existingTagById.name}' on existing tag with id='${existingTagById.id}'`, "TagNameConflict");
+                }
+
+            } else if (!existingTagById && t.name) {
+                let existingTagByName = fetchTagsRes.find(dbTag => dbTag.name === t.name);
+                if (!existingTagByName) {
+                    tagsToInsert.push(t);
+                } else {
+                    // we already know the tag supplied has an id, so if there's a name match but there wasn't an id match, that's a conflict
+                    throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Tag to apply had ID '${t.id}' which did not match ID '${existingTagByName.id}' on existing tag with name='${existingTagByName.name}'`, "TagIdConflict");
+                }
+
+            } else if (!existingTagById && !t.name) {
+                tagsToInsert.push(t);
+            }
+
+        } else if (t.name && !t.id) {
+            let existingTagByNameOnly = fetchTagsRes.find(dbTag => dbTag.name === t.name);
+            if (existingTagByNameOnly) {
+                existingDbTags.push(existingTagByNameOnly);
             } else {
-                log.info("Error inserting TransactionsTags join record", err);
-                throw err;
+                tagsToInsert.push(t);
             }
         }
+    });
+
+    const newDbTags: DbTag[] = [];
+    if (tagsToInsert.length) {
+        const now = nowInDbPrecision();
+        tagsToInsert.forEach(t => newDbTags.push({
+            userId: auth.userId,
+            id: t.id || `${uuid.v4()}`,
+            name: t.name,
+            createdDate: now,
+            updatedDate: now,
+            createdBy: auth.teamMemberId
+        }));
+
+        await trx.into("Tags").insert(newDbTags);
     }
+
+    return [...existingDbTags, ...newDbTags];
 }
