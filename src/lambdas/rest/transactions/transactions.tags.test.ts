@@ -555,7 +555,7 @@ describe("/v2/transactions - tags", () => {
             .select()
             .where({
                 userId: testUtils.defaultTestUser.userId,
-                id: tag
+                id: tag.id
             });
         chai.assert.equal(tagRes.length, 0, `tag should not exist: ${JSON.stringify(tagRes)}`);
 
