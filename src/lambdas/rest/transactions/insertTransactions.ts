@@ -226,21 +226,21 @@ export async function insertInternalTransactionSteps(auth: giftbitRoutes.jwtauth
     return plan;
 }
 
-export async function applyTransactionTags(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, transactionPlan: TransactionPlan): Promise<void> {
-    log.info(`inserting tags for transaction plan '${transactionPlan.id}': tags=${JSON.stringify(transactionPlan.tags)}`);
-    if (!transactionPlan.tags || transactionPlan.tags.length === 0) {
+export async function applyTransactionTags(auth: giftbitRoutes.jwtauth.AuthorizationBadge, knex: Knex, transaction: TransactionPlan | Transaction): Promise<void> {
+    log.info(`inserting tags for transaction plan '${transaction.id}': tags=${JSON.stringify(transaction.tags)}`);
+    if (!transaction.tags || transaction.tags.length === 0) {
         return;
     }
 
-    const dbTags = await getOrCreateDbTags(auth, trx, transactionPlan.tags);
+    const dbTags = await getOrCreateDbTags(auth, knex, transaction.tags);
     const transactionsTags = dbTags.map(t => ({
         userId: auth.userId,
         tagId: t.id,
-        transactionId: transactionPlan.id
+        transactionId: transaction.id
     }));
 
     log.info(`inserting TransactionsTags join records: ${JSON.stringify(transactionsTags)}`);
-    await trx.into("TransactionsTags").insert(transactionsTags);
+    await knex.into("TransactionsTags").insert(transactionsTags);
 }
 
 async function getOrCreateDbTags(auth: giftbitRoutes.jwtauth.AuthorizationBadge, trx: Knex, tags: Tag[]): Promise<DbTag[]> {

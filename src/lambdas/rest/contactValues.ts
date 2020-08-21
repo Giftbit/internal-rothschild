@@ -347,7 +347,7 @@ async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.Authoriz
             .insert(dbLightrailTransactionStep0);
         await trx("LightrailTransactionSteps")
             .insert(dbLightrailTransactionStep1);
-        await applyTransactionTags(auth, trx, attachTransaction as unknown as TransactionPlan);
+        await applyTransactionTags(auth, trx, attachTransaction);
     });
 
     return DbValue.toValue(dbNewAttachedValue);
