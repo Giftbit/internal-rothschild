@@ -1,8 +1,6 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import sinon from "sinon";
 import * as testUtils from "../../../utils/testUtils";
-import * as getValuesForReport from "./getValuesForReport";
 import {installRestRoutes} from "../installRestRoutes";
 import {Value} from "../../../model/Value";
 import {Program} from "../../../model/Program";
@@ -143,7 +141,7 @@ describe("/v2/reports/values/", () => {
         chai.assert.isAbove(getAllValues.body.length, 3);
 
         const returnedValueIds: string[] = [];
-        let resp = await testUtils.testAuthedCsvRequest<ReportValue>(router, `/v2/reports/values?limit=3&suppressLimitError=true`, "GET");
+        let resp = await testUtils.testAuthedCsvRequest<ReportValue>(router, "/v2/reports/values?limit=3", "GET");
         chai.assert.equal(resp.statusCode, 200);
         returnedValueIds.push(...resp.body.map(v => v.id));
         const linkHeaders = parseLinkHeader(resp.headers["Link"]);
@@ -277,135 +275,6 @@ describe("/v2/reports/values/", () => {
         chai.assert.deepInclude(respUniqueCode, {
             balance: "$2.50",
             genericCodeOptions_perContact_balance: null
-        });
-    });
-
-    describe("row limiting", () => {
-        const sinonSandbox = sinon.createSandbox();
-        let valueCount: number;
-        let mockResults10000: ReportValue[];
-        let mockResults1: ReportValue[];
-        let mockResults0: ReportValue[];
-
-        before(async function () {
-            const valueRes = await testUtils.testAuthedRequest<Value[]>(router, "/v2/values", "GET");
-            chai.assert.equal(valueRes.statusCode, 200, `valueRes.body=${JSON.stringify(valueRes.body)}`);
-            chai.assert.isTrue(valueRes.body.length >= 2); // need at least two so we can request one less than the actual count in tests below
-            valueCount = valueRes.body.length;
-
-            const mockValue = {
-                id: "mock",
-                currency: "USD",
-                balance: 50,
-                usesRemaining: 3,
-                programId: null,
-                issuanceId: null,
-                contactId: "mock",
-                code: null,
-                isGenericCode: false,
-                attachedFromValueId: "mock",
-                pretax: false,
-                active: true,
-                canceled: false,
-                frozen: false,
-                discount: false,
-                discountSellerLiability: null,
-                redemptionRule: null,
-                balanceRule: null,
-                startDate: null,
-                endDate: null,
-                metadata: "",
-                createdDate: "2019-07-10T18:56:13.000Z",
-                updatedDate: "2019-07-10T18:56:13.000Z",
-                updatedContactIdDate: "2019-07-10T18:56:13.000Z",
-                createdBy: "default-test-user-TEST"
-            };
-
-            mockResults10000 = Array(10000).fill(mockValue);
-            mockResults1 = Array(1).fill(mockValue);
-            mockResults0 = [];
-        });
-
-        afterEach(() => {
-            sinonSandbox.restore();
-        });
-
-        describe("default behaviour: error if more results than limit/default limit", () => {
-            it("returns success if results count <= limit", async () => {
-                const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values?limit=${valueCount}`, "GET");
-                chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.deepInclude(resp.headers, getValueReportHeadersForAssertions(valueCount), `resp.headers=${JSON.stringify(resp.headers)}`);
-                chai.assert.equal(resp.body.length, valueCount, `resp.body=${JSON.stringify(resp.body)}`);
-            });
-
-            it("returns error if results count > limit", async () => {
-                const resp = await testUtils.testAuthedRequest(router, `/v2/reports/values?limit=${valueCount - 1}`, "GET");
-                chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
-            });
-
-            it("returns success if results count < default limit", async () => {
-                const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values`, "GET");
-                chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.deepInclude(resp.headers, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
-                chai.assert.equal(resp.body.length, valueCount, `resp.body=${JSON.stringify(resp.body)}`);
-            });
-
-            it("returns error if results count > default limit", async () => {
-                sinonSandbox.stub(getValuesForReport, "getValuesForReport")
-                    .onFirstCall()
-                    .resolves({
-                        results: (mockResults10000),
-                        pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
-                    })
-                    .onSecondCall()
-                    .resolves({
-                        results: (mockResults1),
-                        pagination: {limit: 1, maxLimit: 1, after: "", before: null}
-                    });
-
-                const resp = await testUtils.testAuthedRequest(router, `/v2/reports/values`, "GET");
-                chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
-            });
-
-            it("returns success if results count == default limit", async () => {
-                sinonSandbox.stub(getValuesForReport, "getValuesForReport")
-                    .onFirstCall()
-                    .resolves({
-                        results: (mockResults10000),
-                        pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
-                    })
-                    .onSecondCall()
-                    .resolves({
-                        results: (mockResults0),
-                        pagination: {limit: 1, maxLimit: 1, after: null, before: null}
-                    });
-
-                const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values`, "GET");
-                chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.equal(resp.body.length, 10000, `Expected 10000 results and got ${resp.body.length}.`);
-            });
-        });
-
-        describe("'suppressLimitError=true'", () => {
-            it("returns success if results count > limit", async () => {
-                const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values?limit=${valueCount - 1}&suppressLimitError=true`, "GET");
-                chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.deepInclude(resp.headers, getValueReportHeadersForAssertions(valueCount - 1), `resp.headers=${JSON.stringify(resp.headers)}`);
-                chai.assert.equal(resp.body.length, valueCount - 1, `resp.body=${JSON.stringify(resp.body)}`);
-            });
-
-            it("returns success if results count == default limit", async () => {
-                sinonSandbox.stub(getValuesForReport, "getValuesForReport")
-                    .resolves({
-                        results: (mockResults10000),
-                        pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
-                    });
-
-                const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/values?suppressLimitError=true`, "GET");
-                chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.deepInclude(resp.headers, getValueReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
-                chai.assert.equal(resp.body.length, 10000, `resp.body.length=${resp.body.length}`);
-            });
         });
     });
 
