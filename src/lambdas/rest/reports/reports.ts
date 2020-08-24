@@ -88,11 +88,9 @@ type ReportDelegate<T> = (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filter
 
 /**
  * Uses a delegate to actually fetch the results so we can do reports-specific things with the pagination params used in the query.
- * This supports us doing things like optionally throwing an error if there are more than 'limit' results available.
  */
 async function getReportResults<T>(auth: giftbitRoutes.jwtauth.AuthorizationBadge, evt: RouterEvent, fetchObjectsDelegate: ReportDelegate<T>): Promise<{ results: T[], pagination: Pagination }> {
     const requestedLimit = +evt.queryStringParameters["limit"] || reportRowLimit;
-    const suppressLimitError = evt.queryStringParameters["suppressLimitError"] === "true";
 
     const paginationParams = Pagination.getPaginationParams(evt, {
         defaultLimit: requestedLimit,
@@ -101,22 +99,8 @@ async function getReportResults<T>(auth: giftbitRoutes.jwtauth.AuthorizationBadg
     const res = await fetchObjectsDelegate(auth, evt.queryStringParameters, paginationParams);
     const results = res.results;
 
-    log.info(`Report query returned ${results.length} rows. Params: requestedLimit=${requestedLimit}, suppressLimitError=${suppressLimitError}`);
+    log.info(`Report query returned ${results.length} rows. Params: requestedLimit=${requestedLimit}`);
 
-    // Default behaviour is to error if there are more results than requested.
-    // This behaviour can be overridden by passing in suppressLimitError=true.
-    if (results.length === requestedLimit && !suppressLimitError) {
-        // do extra call using after & limit 1.
-        const paginationParamsToCheckForMoreResults = {
-            ...paginationParams,
-            limit: 1,
-            after: res.pagination.after
-        };
-        const moreResults = await fetchObjectsDelegate(auth, evt.queryStringParameters, paginationParamsToCheckForMoreResults);
-        if (moreResults.results.length > 0) {
-            throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNPROCESSABLE_ENTITY, `Report query returned too many rows. Please modify your request and try again.`);
-        }
-    }
     return {
         results: results as T[],
         pagination: res.pagination
