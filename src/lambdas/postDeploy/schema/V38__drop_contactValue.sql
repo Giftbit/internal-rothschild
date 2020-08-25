@@ -1,5 +1,1 @@
-SET SQL_SAFE_UPDATES = 0;
-
 DROP TABLE rothschild.`ContactValues`;
-
-SET SQL_SAFE_UPDATES = 1;

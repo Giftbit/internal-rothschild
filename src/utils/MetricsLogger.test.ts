@@ -65,9 +65,6 @@ describe("MetricsLogger", () => {
 
             MetricsLogger.valueAttachment(ValueAttachmentTypes.Generic, defaultTestUser.auth);
             chai.assert.match(spy.args[2][0], getValueAttachmentLogMatcher(ValueAttachmentTypes.Generic));
-
-            MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, defaultTestUser.auth);
-            chai.assert.match(spy.args[3][0], getValueAttachmentLogMatcher(ValueAttachmentTypes.GenericAsNew));
         });
 
         describe("integration tests", () => {

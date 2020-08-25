@@ -109,6 +109,9 @@ export function installContactValuesRest(router: cassava.Router): void {
                 ]
             };
             if (isYervana(auth.userId)) {
+                // Yervana is the only user who is still allowed to supply `attachGenericAsNewValue`.
+                // Before we can drop it from the schema for them, we need communicate with them
+                // to ensure they are no longer supplying this property in their attach requests.
                 attachSchema.properties = {
                     ...attachSchema.properties,
                     attachGenericAsNewValue: {
@@ -174,6 +177,8 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
 
     if (value.isGenericCode) {
         if (isYervana(auth.userId) && !Value.isGenericCodeWithPropertiesPerContact(value) && params.attachGenericAsNewValue) {
+            // Update the value so that it has perContact.usesRemaining = 1. This causes it be behave the same as
+            // how `attachGenericAsNewValue: true` used to work.
             value = await updateYervanasGenericCodeToHavePerContactProperties(auth, value.id);
         }
         try {
@@ -335,12 +340,26 @@ function isYervana(userId: string): boolean {
     return userId === yervanaUserId || userId === yervanaUserId + "-TEST";
 }
 
+/**
+ * Used for calls by user Yervana who may still be using legacy functionality that has been removed from
+ * they system. The legacy flag: `attachGenericAsNewValue: true` would attach the generic code with a single
+ * usesRemaining. By updating the generic code to have perContact.usesRemaining = 1, it effectively behaves
+ * the same.
+ *
+ * Note, it is not possible for the generic code to have usesRemaining set without
+ * `perContact.usesRemaining` set. This is defined by Value creation rules and all such Values have been migrated
+ * to follow this rule.
+ *
+ * Can be removed if Yervana stops supplying the `attachGenericAsNewValue` flag in their attach requests.
+ */
 async function updateYervanasGenericCodeToHavePerContactProperties(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueId: string): Promise<Value> {
     const updates: Partial<Value> = {
         genericCodeOptions: {
             perContact: {
                 usesRemaining: 1,
-                balance: null, /* It's not possible to have a balance w/o a perContact.balance. */
+                balance: null, /* It's not possible to have a balance w/o a perContact.balance.
+                                * This is defined by Value creation rules and all such Values have
+                                * been migrated to follow this rule.  */
             }
         }
     };
