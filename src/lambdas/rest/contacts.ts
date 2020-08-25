@@ -8,6 +8,7 @@ import {csvSerializer} from "../../utils/serializers";
 import {filterAndPaginateQuery, nowInDbPrecision} from "../../utils/dbUtils";
 import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
 import {isSystemId} from "../../utils/isSystemId";
+import {validateBodyMetadata} from "../../utils/validateBodyMetadata";
 
 export function installContactsRest(router: cassava.Router): void {
     router.route("/v2/contacts")
@@ -39,6 +40,7 @@ export function installContactsRest(router: cassava.Router): void {
                 auth.requireScopes("lightrailV2:contacts:create");
             }
             evt.validateBody(contactSchema);
+            validateBodyMetadata(evt);
 
             const now = nowInDbPrecision();
             const contact = {
@@ -87,6 +89,7 @@ export function installContactsRest(router: cassava.Router): void {
             }
 
             evt.validateBody(contactUpdateSchema);
+            validateBodyMetadata(evt);
             if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
                 throw new giftbitRoutes.GiftbitRestError(422, `The body id '${evt.body.id}' does not match the path id '${evt.pathParameters.id}'.  The id cannot be updated.`);
             }

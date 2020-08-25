@@ -18,6 +18,7 @@ import {MetricsLogger} from "../../utils/metricsLogger";
 import {ruleSchema} from "./transactions/rules/ruleSchema";
 import {discountSellerLiabilityUtils} from "../../utils/discountSellerLiabilityUtils";
 import {isSystemId} from "../../utils/isSystemId";
+import {validateBodyMetadata} from "../../utils/validateBodyMetadata";
 import log = require("loglevel");
 
 export function installProgramsRest(router: cassava.Router): void {
@@ -46,6 +47,7 @@ export function installProgramsRest(router: cassava.Router): void {
             auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:programs:create");
             evt.validateBody(programSchema);
+            validateBodyMetadata(evt);
 
             const now = nowInDbPrecision();
             const program: Program = {
@@ -112,6 +114,7 @@ export function installProgramsRest(router: cassava.Router): void {
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:programs:update");
             evt.validateBody(updateProgramSchema);
+            validateBodyMetadata(evt);
 
             if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
                 throw new giftbitRoutes.GiftbitRestError(422, `The body id '${evt.body.id}' does not match the path id '${evt.pathParameters.id}'.  The id cannot be updated.`);

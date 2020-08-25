@@ -32,6 +32,7 @@ import {Transaction} from "../../../model/Transaction";
 import {ruleSchema} from "../transactions/rules/ruleSchema";
 import {isSystemId} from "../../../utils/isSystemId";
 import {LightrailTransactionStep} from "../../../model/TransactionStep";
+import {validateBodyMetadata} from "../../../utils/validateBodyMetadata";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -83,6 +84,7 @@ export function installValuesRest(router: cassava.Router): void {
                 auth.requireScopes("lightrailV2:values:create");
             }
             evt.validateBody(valueSchema);
+            validateBodyMetadata(evt);
 
             let program: Program = null;
             if (evt.body.programId) {
@@ -145,6 +147,7 @@ export function installValuesRest(router: cassava.Router): void {
                 auth.requireScopes("lightrailV2:values:update");
             }
             evt.validateBody(valueUpdateSchema);
+            validateBodyMetadata(evt);
 
             if (evt.body.id && evt.body.id !== evt.pathParameters.id) {
                 throw new giftbitRoutes.GiftbitRestError(422, `The body id '${evt.body.id}' does not match the path id '${evt.pathParameters.id}'.  The id cannot be updated.`);

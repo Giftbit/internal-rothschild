@@ -1,7 +1,5 @@
 import * as cassava from "cassava";
 import * as chai from "chai";
-import sinon from "sinon";
-import * as getTransactionsForReport from "./getTransactionsForReport";
 import * as testUtils from "../../../utils/testUtils";
 import {generateId} from "../../../utils/testUtils";
 import {Transaction} from "../../../model/Transaction";
@@ -129,7 +127,7 @@ describe("/v2/reports/transactions/", () => {
         chai.assert.isAbove(getAllTransactions.body.length, 3, `getAllTransactions.body.length=${getAllTransactions.body.length}`);
 
         const returnedTransactionIds: string[] = [];
-        let resp = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, `/v2/reports/transactions?limit=3&suppressLimitError=true`, "GET");
+        let resp = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, "/v2/reports/transactions?limit=3", "GET");
         chai.assert.equal(resp.statusCode, 200);
         returnedTransactionIds.push(...resp.body.map(t => t.id));
         const linkHeaders = parseLinkHeader(resp.headers["Link"]);
@@ -144,133 +142,6 @@ describe("/v2/reports/transactions/", () => {
 
         const expected = getAllTransactions.body.map(v => v.id);
         chai.assert.sameDeepMembers(returnedTransactionIds, expected, `returnedTransactionIds=${JSON.stringify(returnedTransactionIds)}, getAllTransactions IDs = ${JSON.stringify(expected)}`);
-    });
-
-    describe("row limiting", () => {
-        const sinonSandbox = sinon.createSandbox();
-        let transactionCount: number;
-        let mockResults10000: ReportTransaction[];
-        let mockResults1: ReportTransaction[];
-        let mockResults0: ReportTransaction[];
-
-        before(async () => {
-            const transactionRes = await testUtils.testAuthedRequest<Transaction[]>(router, "/v2/transactions", "GET");
-            chai.assert.equal(transactionRes.statusCode, 200);
-            chai.assert.isTrue(transactionRes.body.length >= 2); // need at least two so we can request one less than the actual count in tests below
-            transactionCount = transactionRes.body.length;
-
-            const mockReportTransaction: ReportTransaction = {
-                id: "mock",
-                createdDate: new Date(),
-                transactionType: "checkout",
-                currency: "USD",
-                transactionAmount: 100,
-                checkout_subtotal: 100,
-                checkout_tax: 0,
-                checkout_discountLightrail: 0,
-                checkout_paidLightrail: 100,
-                checkout_paidStripe: 0,
-                checkout_paidInternal: 0,
-                checkout_remainder: 0,
-                checkout_forgiven: 0,
-                marketplace_sellerNet: 0,
-                marketplace_sellerGross: 0,
-                marketplace_sellerDiscount: 0,
-                stepsCount: 1,
-                metadata: "",
-            };
-            mockResults10000 = Array(10000).fill(mockReportTransaction);
-            mockResults1 = Array(1).fill(mockReportTransaction);
-            mockResults0 = [];
-        });
-
-        afterEach(() => {
-            sinonSandbox.restore();
-        });
-
-        describe("default behaviour: error if more results than limit/default limit", () => {
-            it("returns success if results count <= limit", async () => {
-                const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/transactions?limit=${transactionCount}`, "GET");
-                chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.deepInclude(resp.headers, getTransactionReportHeadersForAssertions(transactionCount), `resp.headers=${JSON.stringify(resp.headers)}`);
-                chai.assert.equal(resp.body.length, transactionCount, `resp.body=${JSON.stringify(resp.body)}`);
-            });
-
-            it("returns error if results count > limit", async () => {
-                const resp = await testUtils.testAuthedRequest(router, `/v2/reports/transactions?limit=${transactionCount - 1}`, "GET");
-                chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
-            });
-
-            it("returns success if results count < default limit", async () => {
-                const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/transactions`, "GET");
-                chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.deepInclude(resp.headers, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
-                chai.assert.equal(resp.body.length, transactionCount, `resp.body=${JSON.stringify(resp.body)}`);
-            });
-
-            it("returns error if results count > default limit", async () => {
-                sinonSandbox.stub(getTransactionsForReport, "getTransactionsForReport")
-                    .onFirstCall()
-                    .resolves({
-                        results: mockResults10000,
-                        pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
-                    })
-                    .onSecondCall()
-                    .resolves({
-                        results: mockResults1,
-                        pagination: {limit: 1, maxLimit: 1, after: "", before: null}
-                    });
-
-                const resp = await testUtils.testAuthedRequest(router, `/v2/reports/transactions`, "GET");
-                chai.assert.equal(resp.statusCode, 422, `resp.body=${JSON.stringify(resp.body)}`);
-            });
-
-            it("returns success if results count == default limit", async () => {
-                sinonSandbox.stub(getTransactionsForReport, "getTransactionsForReport")
-                    .onFirstCall()
-                    .resolves({
-                        results: mockResults10000,
-                        pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
-                    })
-                    .onSecondCall()
-                    .resolves({
-                        results: mockResults0,
-                        pagination: {limit: 1, maxLimit: 1, after: null, before: null}
-                    });
-
-                const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/transactions`, "GET");
-                chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.equal(resp.body.length, 10000, `resp.body.length=${resp.body.length}`);
-            });
-        });
-
-        describe("'suppressLimitError=true'", () => {
-            it("returns success if results count > limit", async () => {
-                const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/transactions?limit=${transactionCount - 1}&suppressLimitError=true`, "GET");
-                chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.deepInclude(resp.headers, getTransactionReportHeadersForAssertions(transactionCount - 1), `resp.headers=${JSON.stringify(resp.headers)}`);
-                chai.assert.equal(resp.body.length, transactionCount - 1, `resp.body=${JSON.stringify(resp.body)}`);
-            });
-
-            it("returns success if results count > default limit", async () => {
-                sinonSandbox.stub(getTransactionsForReport, "getTransactionsForReport")
-                    .onFirstCall()
-                    .resolves({
-                        results: mockResults10000,
-                        pagination: {limit: 10000, maxLimit: 10000, after: "", before: null}
-                    })
-                    .onSecondCall()
-                    .resolves({
-                        results: mockResults1,
-                        pagination: {limit: 1, maxLimit: 1, after: "", before: null}
-                    });
-
-                const resp = await testUtils.testAuthedCsvRequest(router, `/v2/reports/transactions?suppressLimitError=true`, "GET");
-                chai.assert.equal(resp.statusCode, 200, `resp.body=${JSON.stringify(resp.body)}`);
-                chai.assert.deepInclude(resp.headers, getTransactionReportHeadersForAssertions(), `resp.headers=${JSON.stringify(resp.headers)}`);
-                chai.assert.equal(resp.body.length, 10000, `resp.body.length=${JSON.stringify(resp.body.length)}`);
-            });
-        });
     });
 
     describe("filtering by transactionType", () => {
@@ -464,12 +335,9 @@ describe("/v2/reports/transactions/", () => {
             chai.assert.equal(reportProgram1.statusCode, 200, `reportProgram1.body=${JSON.stringify(reportProgram1.body)}`);
             chai.assert.isAbove(reportProgram1.body.length, 2, `reportProgram1.body.length: ${reportProgram1.body.length}`);
 
-            const reportLimitedProgram1 = await testUtils.testAuthedRequest<ReportTransaction>(router, `/v2/reports/transactions?limit=2&programId=program1`, "GET");
-            chai.assert.equal(reportLimitedProgram1.statusCode, 422, `reportLimitedProgram1.body=${JSON.stringify(reportLimitedProgram1.body)}`);
-
-            const reportLimitedProgram1NoErrors = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, `/v2/reports/transactions?limit=2&programId=program1&suppressLimitError=true`, "GET");
-            chai.assert.equal(reportLimitedProgram1NoErrors.statusCode, 200, `reportLimitedProgram1NoErrors.body=${JSON.stringify(reportLimitedProgram1NoErrors.body)}`);
-            chai.assert.equal(reportLimitedProgram1NoErrors.body.length, 2, `reportLimitedProgram1NoErrors.body=${JSON.stringify(reportLimitedProgram1NoErrors.body)}`);
+            const reportLimitedProgram1 = await testUtils.testAuthedCsvRequest<ReportTransaction>(router, "/v2/reports/transactions?limit=2&programId=program1", "GET");
+            chai.assert.equal(reportLimitedProgram1.statusCode, 200, `reportLimitedProgram1NoErrors.body=${JSON.stringify(reportLimitedProgram1.body)}`);
+            chai.assert.equal(reportLimitedProgram1.body.length, 2, `reportLimitedProgram1NoErrors.body=${JSON.stringify(reportLimitedProgram1.body)}`);
         });
     });
 

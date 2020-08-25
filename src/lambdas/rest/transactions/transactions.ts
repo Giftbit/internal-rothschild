@@ -38,6 +38,7 @@ import {LightrailTransactionPlanStep, TransactionPlan} from "./TransactionPlan";
 import {Value} from "../../../model/Value";
 import {isSystemId} from "../../../utils/isSystemId";
 import {getAttachTransactionPlanForGenericCode} from "../genericCode";
+import {validateBodyMetadata} from "../../../utils/validateBodyMetadata";
 import log = require("loglevel");
 import getPaginationParams = Pagination.getPaginationParams;
 
@@ -89,6 +90,7 @@ export function installTransactionsRest(router: cassava.Router): void {
             auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:transactions:credit");
             evt.validateBody(creditSchema);
+            validateBodyMetadata(evt);
             return {
                 statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
                 body: await createCredit(auth, evt.body)
@@ -102,6 +104,7 @@ export function installTransactionsRest(router: cassava.Router): void {
             auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:transactions:debit");
             evt.validateBody(debitSchema);
+            validateBodyMetadata(evt);
             return {
                 statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
                 body: await createDebit(auth, evt.body)
@@ -115,6 +118,7 @@ export function installTransactionsRest(router: cassava.Router): void {
             auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:transactions:checkout");
             evt.validateBody(checkoutSchema);
+            validateBodyMetadata(evt);
             return {
                 statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
                 body: await createCheckout(auth, evt.body)
@@ -128,6 +132,7 @@ export function installTransactionsRest(router: cassava.Router): void {
             auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:transactions:transfer");
             evt.validateBody(transferSchema);
+            validateBodyMetadata(evt);
             return {
                 statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
                 body: await createTransfer(auth, evt.body)
@@ -141,6 +146,7 @@ export function installTransactionsRest(router: cassava.Router): void {
             auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:transactions:reverse");
             evt.validateBody(reverseSchema);
+            validateBodyMetadata(evt);
             return {
                 statusCode: evt.body.simulate ? cassava.httpStatusCode.success.OK : cassava.httpStatusCode.success.CREATED,
                 body: await createReverse(auth, evt.body, evt.pathParameters.id)
@@ -154,6 +160,7 @@ export function installTransactionsRest(router: cassava.Router): void {
             auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:transactions:capture");
             evt.validateBody(captureSchema);
+            validateBodyMetadata(evt);
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
                 body: await createCapture(auth, evt.body, evt.pathParameters.id)
@@ -167,6 +174,7 @@ export function installTransactionsRest(router: cassava.Router): void {
             auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:transactions:void");
             evt.validateBody(voidSchema);
+            validateBodyMetadata(evt);
             return {
                 statusCode: cassava.httpStatusCode.success.CREATED,
                 body: await createVoid(auth, evt.body, evt.pathParameters.id)
