@@ -368,7 +368,7 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
                 resolveOptions
             );
 
-            const checkoutTransactionPlan: TransactionPlan = getCheckoutTransactionPlan(checkout, checkoutTransactionPlanSteps, formatContactIdTags(contactIds));
+            const checkoutTransactionPlan: TransactionPlan = getCheckoutTransactionPlan(checkout, checkoutTransactionPlanSteps, getTransactionTags(contactIds));
 
             // Only persist attach transactions that were used.
             const attachTransactionsToPersist: TransactionPlan[] = filterForUsedAttaches(attachTransactionPlans, checkoutTransactionPlan);
@@ -379,15 +379,19 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
     return Array.isArray(transaction) ? transaction.find(tx => tx.transactionType === "checkout") : transaction;
 }
 
-export function formatContactIdTags(currentContactIds: string[], tagsOnEarlierTransaction: Tag[] = []): Tag[] | undefined {
-    if (!currentContactIds.length && !tagsOnEarlierTransaction.length) {
+export function getTransactionTags(currentContactIds: string[], previousTransactionInChain?: Transaction): Tag[] | undefined {
+    if (!currentContactIds.length && !previousTransactionInChain?.tags.length) {
         return undefined;
     }
 
-    const earlierTagIds = tagsOnEarlierTransaction.length ? tagsOnEarlierTransaction.map(tag => tag.id) : [];
-    const newContactIdTagIds = Array.from(new Set(currentContactIds.filter(id => !!id).map(id => `lr:contactId:${id}`).filter(newTagId => !earlierTagIds.includes(newTagId))));
-    const tags = [...tagsOnEarlierTransaction, ...newContactIdTagIds.map(id => ({id}))];
-    return tags.length ? tags : undefined;
+    const existingTagIds = previousTransactionInChain && previousTransactionInChain.tags.length ? previousTransactionInChain.tags.map(t => t.id) : [];
+    const contactIdTagIds = currentContactIds.length ? formatContactIdTagIds(currentContactIds) : [];
+    const tags = Array.from(new Set([...existingTagIds, ...contactIdTagIds]));
+    return tags.map(id => ({id}));
+}
+
+function formatContactIdTagIds(contactIds: string[]): string[] {
+    return Array.from(new Set(contactIds.filter(id => !!id).map(id => `lr:contactId:${id}`)));
 }
 
 async function getAutoAttachTransactionPlans(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valuesToAttach: Value[], valuesForCheckout: Value[], sources: TransactionParty[]): Promise<TransactionPlan[]> {

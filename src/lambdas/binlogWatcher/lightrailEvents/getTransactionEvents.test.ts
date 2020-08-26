@@ -13,7 +13,7 @@ import {CheckoutRequest, CreditRequest, VoidRequest} from "../../../model/Transa
 import {Transaction} from "../../../model/Transaction";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
-import {formatContactIdTags} from "../../rest/transactions/transactions";
+import {getTransactionTags} from "../../rest/transactions/transactions";
 
 describe("getTransactionEvents()", () => {
 
@@ -160,7 +160,7 @@ describe("getTransactionEvents()", () => {
             const checkoutRes = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", checkoutRequest);
             chai.assert.equal(checkoutRes.statusCode, 201, `body=${JSON.stringify(checkoutRes.body)}`);
             chai.assert.isArray(checkoutRes.body.tags, `transaction should have contactId tag: ${JSON.stringify(checkoutRes.body)}`);
-            chai.assert.deepEqual(checkoutRes.body.tags, formatContactIdTags(contactIds), `transaction should have contactId tags: ${JSON.stringify(checkoutRes.body.tags)}`);
+            chai.assert.deepEqual(checkoutRes.body.tags, getTransactionTags(contactIds), `transaction should have contactId tags: ${JSON.stringify(checkoutRes.body.tags)}`);
             checkoutTransaction = checkoutRes.body;
         });
         chai.assert.lengthOf(lightrailEvents, 1);

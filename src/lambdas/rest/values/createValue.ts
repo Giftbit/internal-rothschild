@@ -12,9 +12,9 @@ import {CreateValueParameters} from "./values";
 import {checkRulesSyntax} from "../transactions/rules/RuleContext";
 import {LightrailInsertTransactionPlanStep, TransactionPlan} from "../transactions/TransactionPlan";
 import {executeTransactionPlan} from "../transactions/executeTransactionPlans";
-import {formatContactIdTags} from "../transactions/transactions";
 import {discountSellerLiabilityUtils} from "../../../utils/discountSellerLiabilityUtils";
 import log = require("loglevel");
+import {getTransactionTags} from "../transactions/transactions";
 
 export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: CreateValueParameters, trx: Knex.Transaction): Promise<Value> {
     auth.requireIds("userId", "teamMemberId");
@@ -42,7 +42,7 @@ export async function createValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
         pendingVoidDate: null,
         createdDate: value.createdDate,
         metadata: null,
-        tags: formatContactIdTags([step.value.contactId])
+        tags: getTransactionTags([step.value.contactId])
     };
 
     try {

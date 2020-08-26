@@ -3,7 +3,7 @@ import * as giftbitRoutes from "giftbit-cassava-routes";
 import * as cassava from "cassava";
 import {CreditRequest} from "../../../model/TransactionRequest";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
-import {formatContactIdTags} from "./transactions";
+import {getTransactionTags} from "./transactions";
 import {resolveTransactionPlanSteps} from "./resolveTransactionPlanSteps";
 
 export async function createCreditTransactionPlan(auth: giftbitRoutes.jwtauth.AuthorizationBadge, req: CreditRequest): Promise<TransactionPlan> {
@@ -40,6 +40,6 @@ export async function createCreditTransactionPlan(auth: giftbitRoutes.jwtauth.Au
         tax: null,
         lineItems: null,
         paymentSources: null,
-        tags: formatContactIdTags([step.value.contactId])
+        tags: getTransactionTags([step.value.contactId])
     };
 }

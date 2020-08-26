@@ -9,7 +9,7 @@ import {Transaction} from "../../../model/Transaction";
 import {CheckoutRequest} from "../../../model/TransactionRequest";
 import {getKnexRead} from "../../../utils/dbUtils/connection";
 import {DbTag} from "../../../model/Tag";
-import {formatContactIdTags} from "./transactions";
+import {getTransactionTags} from "./transactions";
 import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/testUtils/stripeTestUtils";
 import {after} from "mocha";
 import * as sinon from "sinon";
@@ -534,7 +534,7 @@ describe("/v2/transactions - tags", () => {
 
     it("does not save new tag data for simulated transactions", async () => {
         const contactId = testUtils.generateId();
-        const tag = formatContactIdTags([contactId])[0];
+        const tag = getTransactionTags([contactId])[0];
 
         const resp = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
             id: "checkout-simulated",
@@ -626,7 +626,7 @@ describe("/v2/transactions - tags", () => {
             const tagRes: DbTag[] = await knex("Tags")
                 .select()
                 .where({
-                    id: formatContactIdTags([contactId])[0].id
+                    id: getTransactionTags([contactId])[0].id
                 });
             chai.assert.equal(tagRes.length, 2, `tag table should have an entry for this tag value for each test user: ${JSON.stringify(tagRes)}`);
             chai.assert.equal(tagRes[0].id, tagRes[1].id, `tags should have the same 'id' value: ${JSON.stringify(tagRes)}`);
@@ -893,12 +893,12 @@ describe("/v2/transactions - tags", () => {
                 "TransactionsTags.tagId": "Tags.id"
             }).where({
                 "Tags.userId": testUtils.defaultTestUser.auth.userId,
-                "Tags.id": formatContactIdTags([newContact.id])[0].id
+                "Tags.id": getTransactionTags([newContact.id])[0].id
             });
             chai.assert.equal(txTagsRes.length, newContactTransactions.length, `should be the same number of transactions as created in the setup for this test, with the newContact.id tag: ${JSON.stringify(txTagsRes, null, 4)}`);
             chai.assert.sameDeepMembers(txTagsRes.map(t => t.transactionId), newContactTransactions.map(t => t.id), "transactionIds returned from TransactionsTags (join record lookup) should match list of transactionIds created for newContact");
 
-            const transactionsResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?tagId=${formatContactIdTags([newContact.id])[0].id}`, "GET");
+            const transactionsResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?tagId=${getTransactionTags([newContact.id])[0].id}`, "GET");
             chai.assert.equal(transactionsResp.statusCode, 200, `transactionsResp.body=${JSON.stringify(transactionsResp)}`);
             chai.assert.equal(transactionsResp.body.length, txTagsRes.length, `should have same number of transactions for newContact.id as there are TxTags records for newContact.id tag: tx IDs=${transactionsResp.body.map(t => t.id)}`);
             chai.assert.sameDeepMembers(transactionsResp.body.map(t => t.id), newContactTransactions.map(t => t.id), "should get all the transactions that were created for this contact in the test setup when looking up transactions by tag through the rest api");
@@ -911,12 +911,12 @@ describe("/v2/transactions - tags", () => {
                 "TransactionsTags.tagId": "Tags.id"
             }).where({
                 "Tags.userId": testUtils.defaultTestUser.auth.userId,
-                "Tags.id": formatContactIdTags([fakeContactId])[0].id
+                "Tags.id": getTransactionTags([fakeContactId])[0].id
             });
             chai.assert.equal(txTagsRes.length, fakeContactTransactions.length, `should be the same number of transactions as created in the setup for this test, with the fakeContactId tag: ${JSON.stringify(txTagsRes, null, 4)}`);
             chai.assert.sameDeepMembers(txTagsRes.map(t => t.transactionId), fakeContactTransactions.map(t => t.id), "transactionIds returned from TransactionsTags (join record lookup) should match list of transactionIds created for fakeContact");
 
-            const transactionsResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?tagId=${formatContactIdTags([fakeContactId])[0].id}`, "GET");
+            const transactionsResp = await testUtils.testAuthedRequest<Transaction[]>(router, `/v2/transactions?tagId=${getTransactionTags([fakeContactId])[0].id}`, "GET");
             chai.assert.equal(transactionsResp.statusCode, 200, `transactionsResp.body=${JSON.stringify(transactionsResp)}`);
             chai.assert.equal(transactionsResp.body.length, txTagsRes.length, `should have same number of transactions for fakeContactId as there are TxTags records for fakeContactId tag: tx IDs=${JSON.stringify(transactionsResp.body.map(t => ({
                 id: t.id,
@@ -983,30 +983,47 @@ describe("/v2/transactions - tags", () => {
     });
 
     describe("utils", () => {
+        const contactId1 = "contact1";
+        const contactId2 = "contact2";
+        const dummyTrx: Transaction = {
+            id: testUtils.generateId(),
+            transactionType: "credit",
+            currency: "USD",
+            tags: [{id: `lr:contactId:${contactId1}`}, {id: `lr:contactId:${contactId2}`}],
+            createdBy: "",
+            createdDate: undefined,
+            lineItems: undefined,
+            metadata: undefined,
+            paymentSources: undefined,
+            steps: [],
+            tax: undefined,
+            totals: undefined
+        };
+
         it("formats contactId tags for new transaction", () => {
-            const tags = formatContactIdTags(["contact1", "contact2"]);
+            const tags = getTransactionTags(["contact1", "contact2"]);
             chai.assert.deepEqual(tags[0], {id: "lr:contactId:contact1"});
             chai.assert.deepEqual(tags[1], {id: "lr:contactId:contact2"});
         });
 
         it("maintains format of contactId tags from earlier transactions", () => {
-            const tags = formatContactIdTags([], [{id: "lr:contactId:contact1"}, {id: "lr:contactId:contact2"}]);
+            const tags = getTransactionTags([], dummyTrx);
             chai.assert.deepEqual(tags[0], {id: "lr:contactId:contact1"});
             chai.assert.deepEqual(tags[1], {id: "lr:contactId:contact2"});
         });
 
         it("does not duplicate existing tags", () => {
-            const oldTags = [{id: "lr:contactId:contact1"}, {id: testUtils.generateId()}];
-            const tags = formatContactIdTags(["contact1", "contact2"], oldTags);
+            const oldTags = [{id: `lr:contactId:${contactId1}`}, {id: testUtils.generateId()}];
+            const tags = getTransactionTags([contactId1, contactId2], {...dummyTrx, tags: oldTags});
             chai.assert.equal(tags.length, 3);
-            chai.assert.sameDeepMembers(tags, [...oldTags, ...formatContactIdTags(["contact2"])]);
+            chai.assert.sameDeepMembers(tags, [...oldTags, ...getTransactionTags(["contact2"])]);
         });
     });
 });
 
 function assertTxHasContactIdTags(tx: Transaction, contactIds: string[]): void {
     chai.assert.isArray(tx.tags, `expected transaction to have tags: ${JSON.stringify(tx)}`);
-    const contactIdTags = formatContactIdTags(contactIds);
+    const contactIdTags = getTransactionTags(contactIds);
 
     chai.assert.sameDeepMembers(tx.tags, contactIdTags, `expected transaction '${tx.id}' (type='${tx.transactionType}') to have all contactId tags: expected tags='${JSON.stringify(contactIdTags)}' tx.tags='${JSON.stringify(tx.tags)}'`);
 }

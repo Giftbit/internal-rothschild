@@ -10,7 +10,7 @@ import {
 } from "./TransactionPlan";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
 import {TransactionType} from "../../../model/Transaction";
-import {formatContactIdTags} from "./transactions";
+import {getTransactionTags} from "./transactions";
 
 export interface TransferTransactionSteps {
     sourceStep: LightrailUpdateTransactionPlanStep | StripeTransactionPlanStep;
@@ -96,7 +96,7 @@ export function createTransferTransactionPlan(req: TransferRequest, steps: Trans
     }
 
     if (lightrailSteps.find(s => s.value.contactId)) {
-        plan.tags = formatContactIdTags(lightrailSteps.map(s => s.value.contactId));
+        plan.tags = getTransactionTags(lightrailSteps.map(s => s.value.contactId));
     }
 
     return plan;

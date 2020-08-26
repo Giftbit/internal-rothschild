@@ -10,7 +10,7 @@ import {Contact} from "../../../../model/Contact";
 import {installRestRoutes} from "../../installRestRoutes";
 import chaiExclude from "chai-exclude";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
-import {formatContactIdTags} from "../transactions";
+import {getTransactionTags} from "../transactions";
 import {Transaction} from "../../../../model/Transaction";
 import {LightrailTransactionStep} from "../../../../model/TransactionStep";
 
@@ -778,7 +778,7 @@ describe("/v2/transactions/checkout - basics", () => {
                     "pending": false,
                     "metadata": null,
                     "createdBy": "default-test-user-TEST",
-                    "tags": formatContactIdTags([contact.id])
+                    "tags": getTransactionTags([contact.id])
                 }, ["createdDate"]);
             chai.assert.equal((createCheckout.body.steps[0] as LightrailTransactionStep).contactId, contact.id);
 

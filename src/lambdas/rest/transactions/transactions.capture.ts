@@ -6,7 +6,7 @@ import * as Stripe from "stripe";
 import {CaptureRequest} from "../../../model/TransactionRequest";
 import {StripeCaptureTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "./TransactionPlan";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
-import {formatContactIdTags, getDbTransaction} from "./transactions";
+import {getTransactionTags, getDbTransaction} from "./transactions";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 import {getDbValuesByTransaction} from "../values/values";
 
@@ -46,7 +46,7 @@ export async function createCaptureTransactionPlan(auth: giftbitRoutes.jwtauth.A
         throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot capture Transaction because value '${frozenValue.id}' is frozen.`, "ValueFrozen");
     }
 
-    const tags = formatContactIdTags(values.map(v => v.contactId), transactionToCapture.tags);
+    const tags = getTransactionTags(values.map(v => v.contactId), transactionToCapture);
 
     return {
         id: req.id,

@@ -12,7 +12,7 @@ import {setStubsForStripeTests, unsetStubsForStripeTests} from "../../../utils/t
 import {generateUrlSafeHashFromValueIdContactId} from "../genericCode";
 import chaiExclude from "chai-exclude";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
-import {formatContactIdTags} from "../transactions/transactions";
+import {getTransactionTags} from "../transactions/transactions";
 import {LightrailTransactionStep} from "../../../model/TransactionStep";
 
 chai.use(chaiExclude);
@@ -148,7 +148,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
                     "pending": false,
                     "metadata": null,
                     "createdBy": "default-test-user-TEST",
-                    "tags": formatContactIdTags([contactId])
+                "tags": getTransactionTags([contactId])
                 }, ["createdDate"]
             );
 
@@ -370,7 +370,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
                     "pending": false,
                     "metadata": null,
                     "createdBy": "default-test-user-TEST",
-                    "tags": formatContactIdTags([contactId])
+                "tags": getTransactionTags([contactId])
                 }, ["createdDate"]
             );
         });

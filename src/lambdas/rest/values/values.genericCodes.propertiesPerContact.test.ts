@@ -15,7 +15,7 @@ import {generateLegacyHashForValueIdContactId} from "../contactValues";
 import {getKnexWrite} from "../../../utils/dbUtils/connection";
 import chaiExclude from "chai-exclude";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
-import {formatContactIdTags} from "../transactions/transactions";
+import {getTransactionTags} from "../transactions/transactions";
 import {LightrailTransactionStep} from "../../../model/TransactionStep";
 
 chai.use(chaiExclude);
@@ -226,7 +226,7 @@ describe("/v2/values - generic code with per contact properties", () => {
                 "pending": false,
                 "createdDate": null,
                 "createdBy": "default-test-user-TEST",
-                "tags": formatContactIdTags([contacts[2].id])
+                "tags": getTransactionTags([contacts[2].id])
             }, ["id", "createdDate"]);
 
         const getNewAttachedValues = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?attachedFromValueId=${genericValue.id}`, "GET");
@@ -361,7 +361,7 @@ describe("/v2/values - generic code with per contact properties", () => {
                 "pending": false,
                 "createdDate": null,
                 "createdBy": "default-test-user-TEST",
-                "tags": formatContactIdTags([createContact.body.id])
+                "tags": getTransactionTags([createContact.body.id])
             }, ["id", "createdDate"]);
     });
 
@@ -817,7 +817,7 @@ describe("/v2/values - generic code with per contact properties", () => {
                 "pending": false,
                 "metadata": null,
                 "createdBy": "default-test-user-TEST",
-                "tags": formatContactIdTags([contact.id])
+                "tags": getTransactionTags([contact.id])
             } as Transaction, ["createdDate"]
         );
 

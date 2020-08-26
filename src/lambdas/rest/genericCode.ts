@@ -13,7 +13,7 @@ import {
 import {executeTransactionPlanner} from "./transactions/executeTransactionPlans";
 import {initializeValue} from "./values/createValue";
 import {getIdForAttachingGenericValue} from "./contactValues";
-import {formatContactIdTags} from "./transactions/transactions";
+import {getTransactionTags} from "./transactions/transactions";
 import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
 
 export async function attachGenericCode(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<Value> {
@@ -96,7 +96,7 @@ export async function getAttachTransactionPlanForGenericCode(auth: giftbitRoutes
         createdDate: now,
         metadata: null,
         tax: null,
-        tags: formatContactIdTags([insertStep.value.contactId])
+        tags: getTransactionTags([insertStep.value.contactId])
     };
 }
 

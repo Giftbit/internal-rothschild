@@ -13,7 +13,7 @@ import {DbTransaction, Transaction} from "../../model/Transaction";
 import {AttachValueParameters} from "../../model/internal/AttachValueParameters";
 import {ValueIdentifier} from "../../model/internal/ValueIdentifier";
 import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
-import {formatContactIdTags} from "./transactions/transactions";
+import {getTransactionTags} from "./transactions/transactions";
 import {TransactionPlan} from "./transactions/TransactionPlan";
 import {applyTransactionTags} from "./transactions/insertTransactions";
 import {attachGenericCode, generateUrlSafeHashFromValueIdContactId} from "./genericCode";
@@ -275,7 +275,7 @@ async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.Authoriz
         createdBy: auth.teamMemberId,
         metadata: null,
         tax: null,
-        tags: formatContactIdTags([contactId])
+        tags: getTransactionTags([contactId])
     };
     const dbAttachTransaction: DbTransaction = Transaction.toDbTransaction(auth, attachTransaction, attachTransaction.id);
 

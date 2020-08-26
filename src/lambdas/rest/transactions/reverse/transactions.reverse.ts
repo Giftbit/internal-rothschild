@@ -10,7 +10,7 @@ import {
 import {DbTransaction, Transaction} from "../../../../model/Transaction";
 import * as giftbitRoutes from "giftbit-cassava-routes";
 import {GiftbitRestError} from "giftbit-cassava-routes";
-import {formatContactIdTags, getDbTransaction, getTransaction} from "../transactions";
+import {getTransactionTags, getDbTransaction, getTransaction} from "../transactions";
 import {nowInDbPrecision} from "../../../../utils/dbUtils";
 import {Value} from "../../../../model/Value";
 import {getDbValuesByTransaction, getValues} from "../../values/values";
@@ -62,7 +62,7 @@ export async function createReverseTransactionPlan(auth: giftbitRoutes.jwtauth.A
         throw new GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `Cannot reverse Transaction because value. '${frozenValue.id}' is frozen.`, "ValueFrozen");
     }
 
-    const tags = formatContactIdTags(values.map(v => v.contactId), transactionToReverse.tags);
+    const tags = getTransactionTags(values.map(v => v.contactId), transactionToReverse);
 
     return {
         id: req.id,

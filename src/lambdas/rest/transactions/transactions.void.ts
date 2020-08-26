@@ -5,7 +5,7 @@ import * as log from "loglevel";
 import {VoidRequest} from "../../../model/TransactionRequest";
 import {LightrailTransactionPlanStep, TransactionPlan, TransactionPlanStep} from "./TransactionPlan";
 import {nowInDbPrecision} from "../../../utils/dbUtils";
-import {formatContactIdTags, getDbTransaction} from "./transactions";
+import {getTransactionTags, getDbTransaction} from "./transactions";
 import {getReverseTransactionPlanSteps, invertTransactionTotals} from "./reverse/transactions.reverse";
 import {DbTransaction, Transaction} from "../../../model/Transaction";
 
@@ -39,7 +39,7 @@ export async function createVoidTransactionPlanForDbTransaction(auth: giftbitRou
 
     const transactionToVoid: Transaction = (await DbTransaction.toTransactionsUsingDb([dbTransactionToVoid], auth.userId))[0];
     const voidSteps = await getVoidTransactionPlanSteps(auth, req.id, transactionToVoid);
-    const tags = formatContactIdTags(voidSteps.filter(s => s.rail === "lightrail").map(s => (s as LightrailTransactionPlanStep).value.contactId), transactionToVoid.tags);
+    const tags = getTransactionTags(voidSteps.filter(s => s.rail === "lightrail").map(s => (s as LightrailTransactionPlanStep).value.contactId), transactionToVoid);
 
     return {
         id: req.id,
