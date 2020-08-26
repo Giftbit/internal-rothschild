@@ -279,7 +279,7 @@ async function getOrCreateDbTags(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
 
     tags.forEach(t => {
         if (t.id) {
-            let existingTagById = fetchTagsRes.find(dbTag => dbTag.id === t.id);
+            const existingTagById = fetchTagsRes.find(dbTag => dbTag.id === t.id);
 
             if (existingTagById) {
                 if ((!t.name && !existingTagById.name) || (t.name === existingTagById.name)) {
@@ -289,7 +289,7 @@ async function getOrCreateDbTags(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
                 }
 
             } else if (!existingTagById && t.name) {
-                let existingTagByName = fetchTagsRes.find(dbTag => dbTag.name === t.name);
+                const existingTagByName = fetchTagsRes.find(dbTag => dbTag.name === t.name);
                 if (!existingTagByName) {
                     tagsToInsert.push(t);
                 } else {
@@ -302,7 +302,7 @@ async function getOrCreateDbTags(auth: giftbitRoutes.jwtauth.AuthorizationBadge,
             }
 
         } else if (t.name && !t.id) {
-            let existingTagByNameOnly = fetchTagsRes.find(dbTag => dbTag.name === t.name);
+            const existingTagByNameOnly = fetchTagsRes.find(dbTag => dbTag.name === t.name);
             if (existingTagByNameOnly) {
                 existingDbTags.push(existingTagByNameOnly);
             } else {

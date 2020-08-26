@@ -14,7 +14,6 @@ import {AttachValueParameters} from "../../model/internal/AttachValueParameters"
 import {ValueIdentifier} from "../../model/internal/ValueIdentifier";
 import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
 import {getTransactionTags} from "./transactions/transactions";
-import {TransactionPlan} from "./transactions/TransactionPlan";
 import {applyTransactionTags} from "./transactions/insertTransactions";
 import {attachGenericCode, generateUrlSafeHashFromValueIdContactId} from "./genericCode";
 import {LightrailDbTransactionStep} from "../../model/TransactionStep";
