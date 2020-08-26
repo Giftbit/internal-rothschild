@@ -8,6 +8,6 @@ export interface DbTag {
 }
 
 export interface Tag {
-    id?: string;
+    id: string;
     name?: string;
 }
