@@ -346,9 +346,11 @@ function isYervana(userId: string): boolean {
  * usesRemaining. By updating the generic code to have perContact.usesRemaining = 1, it effectively behaves
  * the same.
  *
- * Note, it is not possible for the generic code to have usesRemaining set without
- * `perContact.usesRemaining` set. This is defined by Value creation rules and all such Values have been migrated
- * to follow this rule.
+ * Note, it is no longer possible for a generic code to exist with:
+ * - usesRemaining set, but no perContact.usesRemaining
+ * - balance set, but no perContact.balance
+ * This is defined by Value creation rules and all existing Values have been
+ * migrated to follow these rules.
  *
  * Can be removed if Yervana stops supplying the `attachGenericAsNewValue` flag in their attach requests.
  */
@@ -357,9 +359,7 @@ async function updateYervanasGenericCodeToHavePerContactProperties(auth: giftbit
         genericCodeOptions: {
             perContact: {
                 usesRemaining: 1,
-                balance: null, /* It's not possible to have a balance w/o a perContact.balance.
-                                * This is defined by Value creation rules and all such Values have
-                                * been migrated to follow this rule.  */
+                balance: null
             }
         }
     };
