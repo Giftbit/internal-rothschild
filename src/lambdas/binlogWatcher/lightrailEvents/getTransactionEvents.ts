@@ -7,6 +7,7 @@ import {
     LightrailDbTransactionStep,
     StripeDbTransactionStep
 } from "../../../model/TransactionStep";
+import {DbTransactionTag} from "../../../model/Tag";
 
 export async function getTransactionCreatedEvents(tx: BinlogTransaction): Promise<LightrailEvent[]> {
     const lightrailStepRows = tx.statements
@@ -20,7 +21,7 @@ export async function getTransactionCreatedEvents(tx: BinlogTransaction): Promis
         .reduce((res, s) => [...res, ...s.affectedRows], [] as BinlogTransaction.AffectedRow<InternalDbTransactionStep>[]);
     const tagJoinsRows = tx.statements
         .filter(s => s.type === "INSERT" && s.table === "TransactionsTags")
-        .reduce((res, s) => [...res, ...s.affectedRows], [] as BinlogTransaction.AffectedRow<{ transactionId: string, tagId: string }>[]);
+        .reduce((res, s) => [...res, ...s.affectedRows], [] as BinlogTransaction.AffectedRow<DbTransactionTag>[]);
 
     return tx.statements
         .filter(s => s.type === "INSERT" && s.table === "Transactions")
@@ -36,9 +37,9 @@ export async function getTransactionCreatedEvents(tx: BinlogTransaction): Promis
             const dbInternalTransactionSteps = internalStepRows
                 .filter(row => row.after.userId === dbTransaction.userId && row.after.transactionId === dbTransaction.id)
                 .map(row => row.after);
-            const tagIds = tagJoinsRows
+            const dbTxTags = tagJoinsRows
                 .filter(row => row.after.userId === dbTransaction.userId && row.after.transactionId === dbTransaction.id)
-                .map(row => row.after.tagId);
+                .map(row => row.after);
 
             return {
                 specversion: "1.0",
@@ -49,7 +50,7 @@ export async function getTransactionCreatedEvents(tx: BinlogTransaction): Promis
                 userid: dbTransaction.userId,
                 datacontenttype: "application/json",
                 data: {
-                    newTransaction: DbTransaction.toTransaction(dbTransaction, [...dbLightrailTransactionSteps, ...dbStripeTransactionSteps, ...dbInternalTransactionSteps], tagIds)
+                    newTransaction: DbTransaction.toTransaction(dbTransaction, [...dbLightrailTransactionSteps, ...dbStripeTransactionSteps, ...dbInternalTransactionSteps], dbTxTags)
                 }
             };
         });

@@ -3,7 +3,7 @@ import {getKnexRead} from "../utils/dbUtils/connection";
 import {LineItem} from "./LineItem";
 import {TransactionParty} from "./TransactionRequest";
 import {TaxRequestProperties} from "./TaxProperties";
-import {Tag} from "./Tag";
+import {DbTransactionTag, Tag} from "./Tag";
 import {DbTransactionStep, TransactionStep} from "./TransactionStep";
 
 export interface Transaction {
@@ -103,7 +103,7 @@ export namespace Transaction {
 }
 
 export namespace DbTransaction {
-    export function toTransaction(dbTx: DbTransaction, dbSteps: DbTransactionStep[], dbTagIds: string[]): Transaction {
+    export function toTransaction(dbTx: DbTransaction, dbSteps: DbTransactionStep[], dbTags: DbTransactionTag[]): Transaction {
         const t: Transaction = {
             id: dbTx.id,
             transactionType: dbTx.transactionType,
@@ -118,7 +118,7 @@ export namespace DbTransaction {
             pendingVoidDate: dbTx.pendingVoidDate || undefined,
             createdDate: dbTx.createdDate,
             createdBy: dbTx.createdBy,
-            tags: dbTagIds.length > 0 ? dbTagIds.map(tagId => ({id: tagId})) : []
+            tags: dbTags.length > 0 ? dbTags.map(dbTxTag => ({id: dbTxTag.tagId})) : []
         };
         if (hasNonNullTotals(dbTx)) {
             let payable: number;
@@ -163,21 +163,11 @@ export namespace DbTransaction {
             .where("userId", userId)
             .whereIn("transactionId", txIds));
 
-        const transactionsTags = txIds.reduce((tagMap, id) => {
-            tagMap[id] = [];
-            return tagMap;
-        }, {});
-        const dbTxTags = await knex.select("Tags.*", "TransactionsTags.transactionId")
-            .from("Tags")
-            .join("TransactionsTags", {
-                "TransactionsTags.userId": "Tags.userId",
-                "TransactionsTags.tagId": "Tags.id"
-            })
+        const dbTxTags: DbTransactionTag[] = await knex("TransactionsTags")
             .where("TransactionsTags.userId", userId)
             .whereIn("TransactionsTags.transactionId", txIds);
-        dbTxTags.forEach(t => transactionsTags[t.transactionId].push(t.id));
 
-        return txns.map(dbTx => toTransaction(dbTx, dbSteps.filter(step => step.transactionId === dbTx.id), transactionsTags[dbTx.id]));
+        return txns.map(dbTx => toTransaction(dbTx, dbSteps.filter(step => step.transactionId === dbTx.id), dbTxTags.filter(tag => tag.transactionId === dbTx.id)));
     }
 }
 

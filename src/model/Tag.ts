@@ -7,6 +7,12 @@ export interface DbTag {
     createdBy: string;
 }
 
+export interface DbTransactionTag {
+    userId: string;
+    tagId: string;
+    transactionId: string;
+}
+
 export interface Tag {
     id: string;
     name?: string;
