@@ -274,11 +274,7 @@ export async function getAllContactIdsFromSources(auth: giftbitRoutes.jwtauth.Au
     const contactIds = parties.filter(p => p.rail === "lightrail" && p.contactId && isSystemId(p.contactId))
         .map(p => (p as LightrailTransactionParty).contactId);
 
-    if (!contactIds.length && !valueIds.length && !hashedCodes.length) {
-        return [];
-    } else if (contactIds.length && !valueIds.length && !hashedCodes.length) {
-        return contactIds;
-    } else {
+    if (valueIds.length || hashedCodes.length) {
         const knex = await getKnexRead();
         const contactIdsFromValueIdentifiers = await knex.select("*").from(queryBuilder => {
             if (hashedCodes.length) {
@@ -301,8 +297,9 @@ export async function getAllContactIdsFromSources(auth: giftbitRoutes.jwtauth.Au
         });
 
         contactIdsFromValueIdentifiers.forEach(result => contactIds.push(result.contactId));
-        return Array.from(new Set(contactIds));
     }
+
+    return contactIds.length ? Array.from(new Set(contactIds)) : [];
 }
 
 function consolidateValueQueryResults(values: (DbValue)[]): DbValue[] {
