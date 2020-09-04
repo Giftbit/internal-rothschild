@@ -4,17 +4,17 @@ import * as jsonschema from "jsonschema";
 import * as pendingTransactionUtils from "./pendingTransactionUtils";
 import {
     filterForUsedAttaches,
-    getValidContactIdFromSources, getAllContactIdsFromSources,
+    getValidContactIdFromSources,
     getLightrailValuesForTransactionPlanSteps,
     getTransactionPlanStepsFromSources,
-    ResolveTransactionPartiesOptions
+    ResolveTransactionPartiesOptions, filterValuesForCheckout
 } from "./resolveTransactionPlanSteps";
 import {
     CaptureRequest,
     CheckoutRequest,
     CreditRequest,
     DebitRequest,
-    InternalTransactionParty,
+    InternalTransactionParty, LightrailTransactionParty,
     ReverseRequest,
     StripeTransactionParty,
     TransactionParty,
@@ -344,16 +344,23 @@ async function createCheckout(auth: giftbitRoutes.jwtauth.AuthorizationBadge, ch
             const resolveOptions: ResolveTransactionPartiesOptions = {
                 currency: checkout.currency?.toUpperCase(),
                 transactionId: checkout.id,
-                nonTransactableHandling: "exclude",
-                includeZeroBalance: !!checkout.allowRemainder,
-                includeZeroUsesRemaining: !!checkout.allowRemainder
+
+                // Return non-transactable/zeroBalance/zeroUsesRemaining Values so that if they are attached,
+                // we can tag the transaction with the contactId even if each Value doesn't get charged.
+                // Values will be filtered later for zeroBalance/zeroUsesRemaining/expiry/etc.
+                nonTransactableHandling: "include",
+                includeZeroBalance: true,
+                includeZeroUsesRemaining: true
             };
             const fetchedValues = await getLightrailValuesForTransactionPlanSteps(auth, checkout.sources, resolveOptions);
-            const contactIds = await getAllContactIdsFromSources(auth, checkout.sources);
+            const contactIds: string[] = Array.from(new Set([
+                ...checkout.sources.map(s => (s as LightrailTransactionParty).contactId ? (s as LightrailTransactionParty).contactId : undefined),
+                ...fetchedValues.map(v => v.contactId)]));
+            const transactableValues = filterValuesForCheckout(fetchedValues, checkout.currency, checkout.allowRemainder);
 
             // handle auto attach on generic codes
-            const valuesToAttach: Value[] = fetchedValues.filter(v => Value.isGenericCodeWithPropertiesPerContact(v));
-            const valuesForCheckout: Value[] = fetchedValues.filter(v => valuesToAttach.indexOf(v) === -1);
+            const valuesToAttach: Value[] = transactableValues.filter(v => Value.isGenericCodeWithPropertiesPerContact(v));
+            const valuesForCheckout: Value[] = transactableValues.filter(v => valuesToAttach.indexOf(v) === -1);
             const attachTransactionPlans: TransactionPlan[] = [];
             if (valuesToAttach.length > 0) {
                 attachTransactionPlans.push(...await getAutoAttachTransactionPlans(auth, valuesToAttach, valuesForCheckout, checkout.sources));

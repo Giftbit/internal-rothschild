@@ -16,6 +16,7 @@ import * as sinon from "sinon";
 import * as InsertTransactions from "./insertTransactions";
 import log = require("loglevel");
 import {LightrailTransactionStep} from "../../../model/TransactionStep";
+import {Currency} from "../../../model/Currency";
 
 chai.use(chaiExclude);
 
@@ -191,6 +192,39 @@ describe("/v2/transactions - tags", () => {
             chai.assert.equal(resp.statusCode, 201, `resp.body=${JSON.stringify(resp.body)}`);
             chai.assert.isArray(resp.body.tags);
             chai.assert.equal(resp.body.tags.length, 0, `transaction should have no tags (empty array): ${JSON.stringify(resp.body)}`);
+        });
+
+        describe("tags tx with contactId for attached but non-transactable values", () => {
+            it("tags tx when attached value has wrong currency", async () => {
+                const createPointsResp = await testUtils.testAuthedRequest<Currency>(router, "/v2/currencies", "POST", {
+                    code: "PTS",
+                    symbol: "*",
+                    decimalPlaces: 0,
+                    name: "Points currency"
+                });
+                chai.assert.equal(createPointsResp.statusCode, 201, `createPointsResp.body=${JSON.stringify(createPointsResp.body)}`);
+                const pointsValue = await testUtils.createUSDValue(router, {
+                    currency: createPointsResp.body.code,
+                    contactId: contact1.id
+                });
+                const unattachedValue = await testUtils.createUSDValue(router, {balance: 1000});
+
+                const checkout = await testUtils.testAuthedRequest<Transaction>(router, "/v2/transactions/checkout", "POST", {
+                    id: "checkout-mixed-currencies",
+                    currency: "USD",
+                    lineItems: [{unitPrice: 100}],
+                    sources: [{
+                        rail: "lightrail", valueId: pointsValue.id
+                    }, {
+                        rail: "lightrail",
+                        valueId: unattachedValue.id
+                    }]
+                });
+                chai.assert.equal(checkout.statusCode, 201, `checkout.body=${JSON.stringify(checkout.body)}`);
+
+                assertTxHasContactIdTags(checkout.body, [contact1.id]);
+
+            });
         });
     });
 

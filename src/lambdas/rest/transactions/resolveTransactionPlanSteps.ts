@@ -222,6 +222,26 @@ export async function getLightrailValuesForTransactionPlanSteps(auth: giftbitRou
     return values;
 }
 
+export function filterValuesForCheckout(values: Value[], currency: string, allowRemainder: boolean): Value[] {
+    const now = nowInDbPrecision();
+    let transactableValues = values.filter(v =>
+        (v.currency === currency) &&
+        !v.canceled &&
+        !v.frozen &&
+        v.active &&
+        (!v.startDate || v.startDate <= now) &&
+        (!v.endDate || v.endDate >= now)
+    );
+
+    if (!allowRemainder) {
+        transactableValues = transactableValues
+            .filter(v => (v.balance === null) || (v.balance > 0))
+            .filter(v => (v.usesRemaining === null) || (v.usesRemaining > 0));
+    }
+
+    return transactableValues;
+};
+
 export function filterForUsedAttaches(attachTransactionPlans: TransactionPlan[], transactionPlan: TransactionPlan): TransactionPlan[] {
     const attachTransactionsToPersist: TransactionPlan[] = [];
     for (const attach of attachTransactionPlans) {
@@ -254,52 +274,6 @@ export async function getValidContactIdFromSources(auth: giftbitRoutes.jwtauth.A
     } else {
         return null;
     }
-}
-
-/**
- * Returns an array of all contactIds affiliated with any LR sources so that we can add them as tags to the transaction.
- * This includes contactIds on attached Values, regardless of whether those Values can be transacted against, and also
- * includes contactIds supplied directly as paymentSources, regardless of whether a contact exists with that ID or not.
- */
-export async function getAllContactIdsFromSources(auth: giftbitRoutes.jwtauth.AuthorizationBadge, parties: TransactionParty[]): Promise<string[]> {
-    const valueIds = parties.filter(p => p.rail === "lightrail" && p.valueId && isSystemId(p.valueId))
-        .map(p => (p as LightrailTransactionParty).valueId);
-
-    const hashedCodesPromises = parties.filter(p => p.rail === "lightrail" && p.code)
-        .map(p => trimCodeIfPresent(p as LightrailTransactionParty))
-        .map(p => p.code)
-        .map(code => computeCodeLookupHash(code, auth));
-    const hashedCodes = await Promise.all(hashedCodesPromises);
-
-    const contactIds = parties.filter(p => p.rail === "lightrail" && p.contactId && isSystemId(p.contactId))
-        .map(p => (p as LightrailTransactionParty).contactId);
-
-    if (valueIds.length || hashedCodes.length) {
-        const knex = await getKnexRead();
-        const contactIdsFromValueIdentifiers = await knex.select("*").from(queryBuilder => {
-            if (hashedCodes.length) {
-                queryBuilder.union(
-                    knex.select("contactId")
-                        .from("Values")
-                        .where({"userId": auth.userId})
-                        .andWhere("codeHashed", "in", hashedCodes)
-                );
-            }
-            if (valueIds.length) {
-                queryBuilder.union(
-                    knex.select("contactId")
-                        .from("Values")
-                        .where({"userId": auth.userId})
-                        .andWhere("id", "in", valueIds)
-                );
-            }
-            queryBuilder.as("TT");
-        });
-
-        contactIdsFromValueIdentifiers.forEach(result => contactIds.push(result.contactId));
-    }
-
-    return contactIds.length ? Array.from(new Set(contactIds)) : [];
 }
 
 function consolidateValueQueryResults(values: (DbValue)[]): DbValue[] {
