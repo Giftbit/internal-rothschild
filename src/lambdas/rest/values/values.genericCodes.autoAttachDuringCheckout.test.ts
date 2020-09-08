@@ -658,7 +658,7 @@ describe("/v2/transactions/checkout - generic code with auto-attach", () => {
         chai.assert.equal(attachTx.body.length, 0);
     });
 
-    describe("doesn't auto attach generic code without perContact options because attachGenericAsNewValue flag may be used during attaches", () => {
+    describe("doesn't auto attach generic code without perContact options because the code can be used directly", () => {
         const contactId = generateId();
 
         const genericValue: Partial<Value> = {

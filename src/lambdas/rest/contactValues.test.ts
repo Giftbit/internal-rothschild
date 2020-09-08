@@ -12,10 +12,11 @@ import {generateCode} from "../../utils/codeGenerator";
 import chaiExclude from "chai-exclude";
 import {getKnexWrite} from "../../utils/dbUtils/connection";
 import {generateUrlSafeHashFromValueIdContactId} from "./genericCode";
-import {generateLegacyHashForValueIdContactId} from "./contactValues";
+import {generateLegacyHashForValueIdContactId, yervanaUserId} from "./contactValues";
 import {nowInDbPrecision} from "../../utils/dbUtils";
 import {updateValue} from "./values/values";
 import {Value} from "../../model/Value";
+import {TestUser} from "../../utils/testUtils/TestUser";
 
 chai.use(chaiExclude);
 
@@ -147,7 +148,7 @@ describe("/v2/contacts/values", () => {
         });
     });
 
-    describe("legacy generic code using attachGenericAsNewValue flag attached before June 26, 2019", () => {
+    describe("generic code attached before June 26, 2019", () => {
         const genericCode: Partial<Value> = {
             id: "genericCodeId54321",
             currency: currency.code,
@@ -238,10 +239,11 @@ describe("/v2/contacts/values", () => {
         });
 
         it("can re-attach", async () => {
-            const reattach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: attachedValue.id});
+            const reattach = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: genericCode.id});
             chai.assert.equal(reattach.statusCode, 200, `body=${JSON.stringify(reattach.body)}`);
             chai.assert.isNotNull(reattach.body.contactId);
             chai.assert.equal(reattach.body.attachedFromValueId, genericCode.id);
+            chai.assert.equal(reattach.body.id, attachedValue.id, "The Id should resolve to the same Id that would have been generated before June 26, 2019.");
         });
     });
 
@@ -303,77 +305,6 @@ describe("/v2/contacts/values", () => {
 
         it("can re-attach", async () => {
             const reattach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {valueId: value.id});
-            chai.assert.equal(reattach.statusCode, 200, `body=${JSON.stringify(reattach.body)}`);
-            chai.assert.isNotNull(reattach.body.contactId);
-        });
-    });
-
-    describe("generic code using attachGenericAsNewValue flag after june 26, 2019", () => {
-        const genericCode: Partial<Value> = {
-            id: "324arwesf342aw",
-            currency: currency.code,
-            balanceRule: {
-                rule: "500",
-                explanation: "$5 done the hard way"
-            },
-            code: generateFullcode(),
-            isGenericCode: true
-        };
-        const contact: Partial<Contact> = {
-            id: "aw4rd4arwefd",
-        };
-
-        before(async () => {
-            const createValueResp = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericCode);
-            chai.assert.equal(createValueResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
-
-            const createContactA = await testUtils.testAuthedRequest<Contact>(router, "/v2/contacts", "POST", contact);
-            chai.assert.equal(createContactA.statusCode, 201);
-            // manually set createdDate
-            const knex = await getKnexWrite();
-            await knex.transaction(async trx => {
-                const updateRes: number = await trx("Values")
-                    .where({
-                        userId: testUtils.defaultTestUser.userId,
-                        id: genericCode.id
-                    })
-                    .update({
-                        createdDate: "2019-06-26 00:00:01.000" // first second
-                    });
-                if (updateRes === 0) {
-                    throw new cassava.RestError(404);
-                }
-                if (updateRes > 1) {
-                    throw new Error(`Illegal UPDATE query.  Updated ${updateRes} values.`);
-                }
-            });
-
-            const get = await testUtils.testAuthedRequest<any>(router, `/v2/values/${genericCode.id}`, "GET");
-            chai.assert.equal(get.statusCode, 200);
-            chai.assert.equal(get.body.createdDate, "2019-06-26T00:00:01.000Z", "Assert createdDate was updated.");
-        });
-
-        it("can attach", async () => {
-            const attachResp = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
-                valueId: genericCode.id,
-                attachGenericAsNewValue: true
-            });
-            chai.assert.equal(attachResp.statusCode, 200, `body=${JSON.stringify(attachResp.body)}`);
-            chai.assert.equal(attachResp.body.id, generateUrlSafeHashFromValueIdContactId(genericCode.id, contact.id));
-            chai.assert.equal(attachResp.body.id, "F6GljQ2EJiGZAFkHKXuJNPtOkOc", "Specifically checking for string F6GljQ2EJiGZAFkHKXuJNPtOkOc since this is what the hash should return for contactId: aw4rd4arwefd, and valueId: 324arwesf342aw");
-        });
-
-        it("can detach", async () => {
-            const detach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/detach`, "POST", {valueId: genericCode.id});
-            chai.assert.equal(detach.statusCode, 200, `body=${JSON.stringify(detach.body)}`);
-            chai.assert.isNull(detach.body.contactId);
-        });
-
-        it("can re-attach", async () => {
-            const reattach = await testUtils.testAuthedRequest<any>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
-                valueId: genericCode.id,
-                attachGenericAsNewValue: true
-            });
             chai.assert.equal(reattach.statusCode, 200, `body=${JSON.stringify(reattach.body)}`);
             chai.assert.isNotNull(reattach.body.contactId);
         });
@@ -600,8 +531,8 @@ describe("/v2/contacts/values", () => {
             const listValuesByContactAndIsGenericCodeTrue = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?contactId=${data.contactA.id}&isGenericCode=true`, "GET");
             chai.assert.sameDeepMembers(listValuesByContactAndIsGenericCodeTrue.body, data.valuesAttachedToContactA.filter(v => v.isGenericCode === true));
 
-            const listValuesByContactAndIsCode = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?contactId=${data.contactA.id}&code=${data.genVal1_attachGenericAsNewValue.code}`, "GET");
-            chai.assert.sameDeepMembers(listValuesByContactAndIsCode.body, data.valuesAttachedToContactA.filter(v => v.id === data.genVal1_attachGenericAsNewValue.id));
+            const listValuesByContactAndIsCode = await testUtils.testAuthedRequest<Value[]>(router, `/v2/values?contactId=${data.contactA.id}&code=${data.genVal1_genericValue.code}`, "GET");
+            chai.assert.sameDeepMembers(listValuesByContactAndIsCode.body, data.valuesAttachedToContactA.filter(v => v.id === data.genVal1_genericValue.id));
         });
 
         it("can list values attached to contactB", async () => {
@@ -613,7 +544,7 @@ describe("/v2/contacts/values", () => {
         });
 
         it("can list contacts who have attached genVal1 but returns none since genericValue1 was attached as new Values", async () => {
-            const contactListValues = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?valueId=${data.genVal1_attachGenericAsNewValue.id}`, "GET");
+            const contactListValues = await testUtils.testAuthedRequest<Contact[]>(router, `/v2/contacts?valueId=${data.genVal1_genericValue.id}`, "GET");
             chai.assert.sameDeepMembers(contactListValues.body, data.contacts);
         });
 
@@ -693,6 +624,48 @@ describe("/v2/contacts/values", () => {
             chai.assert.equal(detach.statusCode, 200, `body=${JSON.stringify(detach.body)}`);
         });
     });
+
+    describe("yervana attachGenericAsNewValue support", () => {
+        const yervanaUsers = [new TestUser({userId: yervanaUserId}), new TestUser({userId: yervanaUserId + "-TEST"})];
+
+        for (const yervana of yervanaUsers) {
+            it("can call attach with attachGenericAsNewValue - will also migrate generic code if it doesn't have perContact properties", async () => {
+                await createCurrency(yervana.auth, currency);
+                const contact = await yervana.request<Contact>(router, `/v2/contacts`, "POST", {id: generateId()});
+
+                const genericCode: Partial<Value> = {
+                    id: generateId(),
+                    currency: currency.code,
+                    isGenericCode: true,
+                    balanceRule: {
+                        rule: "1",
+                        explanation: "$0.01 off every item!"
+                    }
+                };
+                const createGenericCode = await yervana.request<Value>(router, `/v2/values`, "POST", genericCode);
+                chai.assert.equal(createGenericCode.statusCode, 201);
+
+                const attach = await yervana.request<Value>(router, `/v2/contacts/${contact.body.id}/values/attach`, "POST", {
+                    valueId: genericCode.id,
+                    attachGenericAsNewValue: true
+                });
+                chai.assert.notEqual(attach.statusCode, 422, "attachGenericAsNewValue is only allowed in attach schema for yervana");
+                chai.assert.equal(attach.statusCode, 200);
+
+                const genericCodeAfterAttach = await yervana.request<Value>(router, `/v2/values/${genericCode.id}`, "GET");
+                chai.assert.equal(genericCodeAfterAttach.statusCode, 200);
+                chai.assert.deepEqualExcluding(genericCodeAfterAttach.body, {
+                    ...createGenericCode.body,
+                    genericCodeOptions: {
+                        perContact: {
+                            usesRemaining: 1,
+                            balance: null
+                        }
+                    }
+                }, ["updatedDate"]);
+            });
+        }
+    });
 });
 
 export interface AttachedContactValueScenario {
@@ -703,7 +676,7 @@ export interface AttachedContactValueScenario {
     valuesAttachedToContactB: Value[];
     uniqueValueWithContact: Partial<Value>;
     uniqueValue: Partial<Value>;
-    genVal1_attachGenericAsNewValue: Partial<Value>;
+    genVal1_genericValue: Partial<Value>;
     genVal2_genericValue: Partial<Value>;
     genVal3_perContactProperties: Partial<Value>;
 }
@@ -731,7 +704,7 @@ export async function setupAttachedContactValueScenario(router: cassava.Router, 
             id: generateId(5) + "-unique-attachToA",
             currency: currency.code,
         },
-        genVal1_attachGenericAsNewValue: {
+        genVal1_genericValue: {
             id: generateId(5) + "-GEN1",
             currency: currency.code,
             code: generateCode({}),
@@ -775,7 +748,7 @@ export async function setupAttachedContactValueScenario(router: cassava.Router, 
     data.contacts.push(createContactB.body);
 
     // create genericVal1
-    const createGenericVal1 = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", data.genVal1_attachGenericAsNewValue);
+    const createGenericVal1 = await testUtils.testAuthedRequest<Value>(router, `/v2/values`, "POST", data.genVal1_genericValue);
     chai.assert.equal(createGenericVal1.statusCode, 201);
 
     // create a genericVal2
@@ -802,10 +775,9 @@ export async function setupAttachedContactValueScenario(router: cassava.Router, 
     chai.assert.equal(attachUniqueValue.statusCode, 200);
     data.valuesAttachedToContactA.push(attachUniqueValue.body);
 
-    // attach genericVal1 to ContactA as new Value
+    // attach genericVal1 to ContactA
     const attachNew_genVal1_contactA = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${data.contactA.id}/values/attach`, "POST", {
-        valueId: data.genVal1_attachGenericAsNewValue.id,
-        attachGenericAsNewValue: true
+        valueId: data.genVal1_genericValue.id
     });
     chai.assert.equal(attachNew_genVal1_contactA.statusCode, 200);
     data.valuesAttachedToContactA.push(attachNew_genVal1_contactA.body /* new value from attach */);
@@ -821,12 +793,11 @@ export async function setupAttachedContactValueScenario(router: cassava.Router, 
     data.valuesAttachedToContactA.push(attach_genVal3_contactA.body /* new value attached with per contact properties */);
 
     /** ContactB Attached Values **/
-    const attachNew_genVal1_contactB = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${data.contactB.id}/values/attach`, "POST", {
-        valueId: data.genVal1_attachGenericAsNewValue.id,
-        attachGenericAsNewValue: true
+    const attach_genVal1_contactB = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${data.contactB.id}/values/attach`, "POST", {
+        valueId: data.genVal1_genericValue.id,
     });
-    chai.assert.equal(attachNew_genVal1_contactB.statusCode, 200);
-    data.valuesAttachedToContactB.push(attachNew_genVal1_contactB.body /* new value from attach */);
+    chai.assert.equal(attach_genVal1_contactB.statusCode, 200);
+    data.valuesAttachedToContactB.push(attach_genVal1_contactB.body /* new value from attach */);
 
     const attach_genVal2_contactB = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${data.contactB.id}/values/attach`, "POST", {valueId: data.genVal2_genericValue.id});
     chai.assert.equal(attach_genVal2_contactB.statusCode, 200);

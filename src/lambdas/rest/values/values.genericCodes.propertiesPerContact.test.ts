@@ -611,51 +611,6 @@ describe("/v2/values - generic code with per contact properties", () => {
                 }
             });
         });
-
-        it("contact stats are correct for other types of generic code attaches", async () => {
-            const genericCodeWithoutPerContactOptions: Partial<Value> = {
-                id: generateId(),
-                currency: "USD",
-                isGenericCode: true,
-                code: generateFullcode(),
-                discount: true,
-                balanceRule: {
-                    rule: "500 + value.balanceChange",
-                    explanation: "$5 off purchase"
-                }
-            };
-            const create = await testUtils.testAuthedRequest<Value>(router, "/v2/values", "POST", genericCodeWithoutPerContactOptions);
-            chai.assert.equal(create.statusCode, 201);
-
-            // attach as generic
-            const attachContact1 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact1Id}/values/attach`, "POST", {code: genericCodeWithoutPerContactOptions.code});
-            chai.assert.equal(attachContact1.statusCode, 200);
-            chai.assert.notEqual(attachContact1.body.id, genericCodeWithoutPerContactOptions.id);
-
-            // attachGenericAsNewValue
-            const attachContact2 = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact2Id}/values/attach`, "POST", {
-                code: genericCodeWithoutPerContactOptions.code,
-                attachGenericAsNewValue: true
-            });
-            chai.assert.equal(attachContact2.statusCode, 200);
-
-            const stats = await testUtils.testAuthedRequest(router, `/v2/values/${genericCodeWithoutPerContactOptions.id}/stats`, "GET");
-            chai.assert.equal(stats.statusCode, 200);
-            chai.assert.deepEqual(stats.body, {
-                "redeemed": {
-                    "balance": 0,
-                    "transactionCount": 0
-                },
-                "checkout": {
-                    "lightrailSpend": 0,
-                    "overspend": 0,
-                    "transactionCount": 0
-                },
-                "attachedContacts": {
-                    "count": 2
-                }
-            });
-        });
     });
 
     describe("stats on generic code with balance liability", () => {
@@ -1391,10 +1346,10 @@ describe("/v2/values - generic code with per contact properties", () => {
 
             // can attach migrated generic code to same contact
             const attachAgain = await testUtils.testAuthedRequest<Value>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
-                code: genericCode.code,
-                attachGenericAsNewValue: true
+                code: genericCode.code
             });
             chai.assert.equal(attachAgain.statusCode, 200);
+            chai.assert.equal(attachAgain.body.id, generateLegacyHashForValueIdContactId(genericCode.id, contact.id));
             chai.assert.equal(attachAgain.body.attachedFromValueId, genericCode.id);
         });
     });

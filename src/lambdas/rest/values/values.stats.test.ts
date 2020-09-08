@@ -155,8 +155,7 @@ describe("/v2/values/ - secret stats capability", () => {
             chai.assert.equal(createContactResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
 
             const claimValueResp = await testUtils.testAuthedRequest<Contact>(router, `/v2/contacts/${contact.id}/values/attach`, "POST", {
-                code: value.code,
-                attachGenericAsNewValue: true
+                code: value.code
             });
             chai.assert.equal(createContactResp.statusCode, 201, `body=${JSON.stringify(createValueResp.body)}`);
 
