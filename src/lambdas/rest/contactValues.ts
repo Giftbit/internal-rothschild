@@ -5,16 +5,15 @@ import {GiftbitRestError} from "giftbit-cassava-routes";
 import {getValue, getValueByCode, getValues, injectValueStats, updateValue, valueExists} from "./values/values";
 import {csvSerializer} from "../../utils/serializers";
 import {Pagination} from "../../model/Pagination";
-import {DbValue, Value} from "../../model/Value";
+import {Value} from "../../model/Value";
 import {getContact, getContacts} from "./contacts";
-import {getKnexRead, getKnexWrite} from "../../utils/dbUtils/connection";
+import {getKnexWrite} from "../../utils/dbUtils/connection";
 import {getSqlErrorConstraintName, nowInDbPrecision} from "../../utils/dbUtils";
-import {DbTransaction, Transaction} from "../../model/Transaction";
 import {AttachValueParameters} from "../../model/internal/AttachValueParameters";
 import {ValueIdentifier} from "../../model/internal/ValueIdentifier";
 import {MetricsLogger, ValueAttachmentTypes} from "../../utils/metricsLogger";
 import {attachGenericCode, generateUrlSafeHashFromValueIdContactId} from "./genericCode";
-import {LightrailDbTransactionStep} from "../../model/TransactionStep";
+import * as jsonschema from "jsonschema";
 import log = require("loglevel");
 
 export function installContactValuesRest(router: cassava.Router): void {
@@ -85,7 +84,7 @@ export function installContactValuesRest(router: cassava.Router): void {
                 auth.requireScopes("lightrailV2:values:attach");
             }
 
-            evt.validateBody({
+            const attachSchema: jsonschema.Schema = {
                 type: "object",
                 additionalProperties: false,
                 properties: {
@@ -96,9 +95,6 @@ export function installContactValuesRest(router: cassava.Router): void {
                     valueId: {
                         type: "string",
                         minLength: 1
-                    },
-                    attachGenericAsNewValue: {
-                        type: "boolean"
                     }
                 },
                 oneOf: [
@@ -111,7 +107,19 @@ export function installContactValuesRest(router: cassava.Router): void {
                         required: ["code"]
                     }
                 ]
-            });
+            };
+            if (isYervana(auth.userId)) {
+                // Yervana is the only user who is still allowed to supply `attachGenericAsNewValue`.
+                // Before we can drop it from the schema for them, we need communicate with them
+                // to ensure they are no longer supplying this property in their attach requests.
+                attachSchema.properties = {
+                    ...attachSchema.properties,
+                    attachGenericAsNewValue: {
+                        type: "boolean"
+                    }
+                };
+            }
+            evt.validateBody(attachSchema);
 
             return {
                 body: await attachValue(auth, {
@@ -133,11 +141,6 @@ export function installContactValuesRest(router: cassava.Router): void {
             auth.requireIds("userId", "teamMemberId");
             auth.requireScopes("lightrailV2:values:detach");
 
-            /* Only supports detach by valueId.
-             * There's complexity around supporting detach by code
-             * for generic codes with attachGenericAsNewValue: true.
-             * If attachGenericAsNewValue is removed, consider supporting
-             * detach by code. */
             evt.validateBody({
                 type: "object",
                 additionalProperties: false,
@@ -157,7 +160,7 @@ export function installContactValuesRest(router: cassava.Router): void {
 
 export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, params: AttachValueParameters): Promise<Value> {
     const contact = await getContact(auth, params.contactId);
-    const value = await getValueByIdentifier(auth, params.valueIdentifier);
+    let value = await getValueByIdentifier(auth, params.valueIdentifier);
 
     if (!value.active) {
         throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value cannot be attached because it is inactive.`, "ValueInactive");
@@ -173,12 +176,13 @@ export async function attachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
     }
 
     if (value.isGenericCode) {
+        if (isYervana(auth.userId) && !Value.isGenericCodeWithPropertiesPerContact(value) && params.attachGenericAsNewValue) {
+            // Update the value so that it has perContact.usesRemaining = 1. This causes it be behave the same as
+            // how `attachGenericAsNewValue: true` used to work.
+            value = await updateYervanasGenericCodeToHavePerContactProperties(auth, value.id);
+        }
         try {
-            if (!Value.isGenericCodeWithPropertiesPerContact(value) && params.attachGenericAsNewValue) {
-                return await attachGenericValueAsNewValue(auth, contact.id, value);
-            } else {
-                return await attachGenericCode(auth, contact.id, value);
-            }
+            return await attachGenericCode(auth, contact.id, value);
         } catch (err) {
             if ((err as GiftbitRestError).statusCode === 409 && err.additionalParams.messageCode === "ValueAlreadyExists") {
                 const attachedValueId = await getIdForAttachingGenericValue(auth, contact.id, value);
@@ -237,115 +241,6 @@ export async function detachValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge
             }
         }
     }
-}
-
-/**
- * Legacy functionality. This makes a new Value and attaches it to the Contact. Yervana as well as others are using this.
- */
-async function attachGenericValueAsNewValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, originalValue: Value): Promise<Value> {
-    MetricsLogger.valueAttachment(ValueAttachmentTypes.GenericAsNew, auth);
-    const now = nowInDbPrecision();
-    const newAttachedValue: Value = {
-        ...originalValue,
-        id: await getIdForAttachingGenericValue(auth, contactId, originalValue),
-        attachedFromValueId: originalValue.id,
-        code: null,
-        isGenericCode: false,
-        contactId: contactId,
-        usesRemaining: 1,
-        createdDate: now,
-        updatedDate: now,
-        updatedContactIdDate: now,
-        createdBy: auth.teamMemberId
-    };
-    const dbNewAttachedValue: DbValue = await Value.toDbValue(auth, newAttachedValue);
-
-    const attachTransaction: Transaction = {
-        id: newAttachedValue.id,
-        transactionType: "attach",
-        currency: originalValue.currency,
-        steps: [],
-        totals: null,
-        lineItems: null,
-        paymentSources: null,
-        createdDate: now,
-        createdBy: auth.teamMemberId,
-        metadata: null,
-        tax: null
-    };
-    const dbAttachTransaction: DbTransaction = Transaction.toDbTransaction(auth, attachTransaction, attachTransaction.id);
-
-    const dbLightrailTransactionStep0: LightrailDbTransactionStep = {
-        userId: auth.userId,
-        id: `${dbAttachTransaction.id}-0`,
-        transactionId: dbAttachTransaction.id,
-        valueId: originalValue.id,
-        contactId: null,
-        balanceRule: null,
-        balanceBefore: originalValue.balance,
-        balanceAfter: originalValue.balance,
-        balanceChange: originalValue.balance == null ? null : 0,
-        usesRemainingBefore: originalValue.usesRemaining != null ? originalValue.usesRemaining : null,
-        usesRemainingAfter: originalValue.usesRemaining != null ? originalValue.usesRemaining - 1 : null,
-        usesRemainingChange: originalValue.usesRemaining != null ? -1 : null
-    };
-    const dbLightrailTransactionStep1: LightrailDbTransactionStep = {
-        userId: auth.userId,
-        id: `${dbAttachTransaction.id}-1`,
-        transactionId: dbAttachTransaction.id,
-        valueId: newAttachedValue.id,
-        contactId: newAttachedValue.contactId,
-        balanceRule: null,
-        balanceBefore: newAttachedValue.balance != null ? 0 : null,
-        balanceAfter: newAttachedValue.balance,
-        balanceChange: newAttachedValue.balance || null,
-        usesRemainingBefore: 0,
-        usesRemainingAfter: newAttachedValue.usesRemaining,
-        usesRemainingChange: newAttachedValue.usesRemaining
-    };
-
-    const knex = await getKnexWrite();
-    await knex.transaction(async trx => {
-        if (originalValue.usesRemaining != null) {
-            const usesDecrementRes: number = await trx("Values")
-                .where({
-                    userId: auth.userId,
-                    id: originalValue.id
-                })
-                .where("usesRemaining", ">", 0)
-                .increment("usesRemaining", -1);
-            if (usesDecrementRes === 0) {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value with id '${originalValue.id}' cannot be attached because it has 0 usesRemaining.`, "InsufficientUsesRemaining");
-            }
-            if (usesDecrementRes > 1) {
-                throw new Error(`Illegal UPDATE query.  Updated ${usesDecrementRes} values.`);
-            }
-        }
-
-        try {
-            await trx("Values")
-                .insert(dbNewAttachedValue);
-        } catch (err) {
-            const constraint = getSqlErrorConstraintName(err);
-            if (constraint === "PRIMARY") {
-                throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.CONFLICT, `The Value '${originalValue.id}' has already been attached to the Contact '${contactId}'.`, "ValueAlreadyExists");
-            }
-            if (constraint === "fk_Values_Contacts") {
-                throw new giftbitRoutes.GiftbitRestError(404, `Contact with id '${contactId}' not found.`, "ContactNotFound");
-            }
-            log.error(`An unexpected error occurred while attempting to insert new attach value ${JSON.stringify(newAttachedValue)}. err: ${err}.`);
-            throw err;
-        }
-
-        await trx("Transactions")
-            .insert(dbAttachTransaction);
-        await trx("LightrailTransactionSteps")
-            .insert(dbLightrailTransactionStep0);
-        await trx("LightrailTransactionSteps")
-            .insert(dbLightrailTransactionStep1);
-    });
-
-    return DbValue.toValue(dbNewAttachedValue);
 }
 
 export async function getIdForAttachingGenericValue(auth: giftbitRoutes.jwtauth.AuthorizationBadge, contactId: string, genericValue: Value): Promise<string> {
@@ -439,13 +334,34 @@ function getValueByIdentifier(auth: giftbitRoutes.jwtauth.AuthorizationBadge, va
     throw new Error("Neither valueId nor code specified");
 }
 
-export async function hasContactValues(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueId: string): Promise<boolean> {
-    const knex = await getKnexRead();
-    const res = await knex("ContactValues")
-        .count({count: "*"})
-        .where({
-            userId: auth.userId,
-            valueId: valueId
-        });
-    return res[0].count >= 1;
+export const yervanaUserId = "user-eed702db18574c91b8625cec47a09ee1";
+
+function isYervana(userId: string): boolean {
+    return userId === yervanaUserId || userId === yervanaUserId + "-TEST";
+}
+
+/**
+ * Used for calls by user Yervana who may still be using legacy functionality that has been removed from
+ * they system. The legacy flag: `attachGenericAsNewValue: true` would attach the generic code with a single
+ * usesRemaining. By updating the generic code to have perContact.usesRemaining = 1, it effectively behaves
+ * the same.
+ *
+ * Note, it is no longer possible for a generic code to exist with:
+ * - usesRemaining set, but no perContact.usesRemaining
+ * - balance set, but no perContact.balance
+ * This is defined by Value creation rules and all existing Values have been
+ * migrated to follow these rules.
+ *
+ * Can be removed if Yervana stops supplying the `attachGenericAsNewValue` flag in their attach requests.
+ */
+async function updateYervanasGenericCodeToHavePerContactProperties(auth: giftbitRoutes.jwtauth.AuthorizationBadge, valueId: string): Promise<Value> {
+    const updates: Partial<Value> = {
+        genericCodeOptions: {
+            perContact: {
+                usesRemaining: 1,
+                balance: null
+            }
+        }
+    };
+    return await updateValue(auth, valueId, updates);
 }
