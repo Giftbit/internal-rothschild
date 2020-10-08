@@ -35,10 +35,10 @@ export function installStripeEventWebhookRest(router: cassava.Router): void {
             const stripe = await getStripeClient(!evt.body.livemode);
 
             let event: Stripe.events.IEvent & { account?: string };
-            log.info(`Verifying Stripe signature for eventId '${evt.body.id}' from account '${evt.body.account}'`);
+            log.info("Verifying Stripe signature for eventId", evt.body.id, "from account", evt.body.account);
             try {
                 event = stripe.webhooks.constructEvent(evt.bodyRaw, evt.headersLowerCase["stripe-signature"], lightrailStripeModeConfig.connectWebhookSigningSecret);
-                log.info(`Stripe signature verified. Event: ${JSON.stringify(event)}`);
+                log.info("Stripe signature verified. Event=", JSON.stringify(event));
             } catch (err) {
                 log.info(`Event '${evt.body.id}' could not be verified.`);
                 throw new giftbitRoutes.GiftbitRestError(cassava.httpStatusCode.clientError.UNAUTHORIZED, "The Stripe signature could not be validated");
@@ -47,7 +47,7 @@ export function installStripeEventWebhookRest(router: cassava.Router): void {
             if (event.account) {
                 await handleConnectedAccountEvent((event as Stripe.events.IEvent & { account: string }));
             } else {
-                log.warn(`Received event '${event.id}' that did not have property 'account'. This endpoint is not configured to handle events from the Lightrail Stripe account.`);
+                log.warn("Received event", event.id, "that did not have property 'account'. This endpoint is not configured to handle events from the Lightrail Stripe account.");
             }
 
             return {
@@ -67,9 +67,12 @@ async function handleConnectedAccountEvent(event: Stripe.events.IEvent & { accou
     let stripeCharge: Stripe.charges.ICharge;
     try {
         stripeCharge = await getStripeChargeFromEvent(event); // todo refactor when we have mapping from Stripe accountId to Lightrail userId: won't need to get charge to get auth badge
+        if (!stripeCharge) {
+            throw new Error("Retrieved stripeCharge is null");
+        }
         auth = await getAuthBadgeFromStripeCharge(stripeAccountId, stripeCharge, event);
     } catch (e) {
-        log.error(`Could not build auth badge from webhook event. Error=${e}`);
+        log.error("Could not build auth badge from webhook event", e);
         if ((e as GiftbitRestError).statusCode === 401) {
             return;
         } else {
@@ -84,18 +87,18 @@ async function handleConnectedAccountEvent(event: Stripe.events.IEvent & { accou
         try {
             await handleFraudReverseEvent(auth, event, stripeCharge);
         } catch (e) {
-            log.error(`Error handling Connected Account: ${e}`);
+            log.error("Error handling Connected Account:", e);
             throw new GiftbitRestError(500, "Server error");
         }
 
     } else {
-        log.info(`Received Connected Account event of type '${event.type}', eventId '${event.id}', accountId '${event.account}'. This event does not indicate that fraud has occurred: exiting without handling.`);
+        log.info("Received Connected Account event of type", event.type, "eventId=", event.id, "accountId=", event.account, "This event does not indicate that fraud has occurred: exiting without handling.");
         return;
     }
 }
 
 async function handleFraudReverseEvent(auth: giftbitRoutes.jwtauth.AuthorizationBadge, event: Stripe.events.IEvent & { account: string }, stripeCharge: Stripe.charges.ICharge): Promise<void> {
-    log.info(`Event ${event.id} indicates that fraud has occurred. Reversing corresponding Lightrail Transaction and freezing associated Values.`);
+    log.info("Event", event.id, "indicates that fraud has occurred. Reversing corresponding Lightrail Transaction and freezing associated Values.");
     metricsLogger.stripeWebhookFraudEvent(event, auth);
 
     let lightrailTransaction: Transaction;
@@ -135,11 +138,11 @@ function logEvent(auth: giftbitRoutes.jwtauth.AuthorizationBadge, event: Stripe.
     metricsLogger.stripeWebhookEvent(event, auth);
 
     if (event.type === "charge.dispute.created") {
-        log.info(`Event ${event.id} indicates a charge dispute which usually means fraud. Sending metrics data but taking no further action until fraud action confirmed.`);
+        log.info("Event", event.id, "indicates a charge dispute which usually means fraud. Sending metrics data but taking no further action until fraud action confirmed.");
         metricsLogger.stripeWebhookDisputeEvent(event, auth);
         return;
     } else if ((event.type === "charge.refund.updated" && (event.data.object as Stripe.refunds.IRefund).status === "failed")) {
-        log.info(`Event ${event.id} indicates a refund failure with failure reason '${(event.data.object as Stripe.refunds.IRefund).failure_reason}'. Sending error notification and taking no further action. State of Stripe and Lightrail may be inconsistent.`);
+        log.info("Event", event.id, "indicates a refund failure with failure reason", (event.data.object as Stripe.refunds.IRefund).failure_reason, ". Sending error notification and taking no further action. State of Stripe and Lightrail may be inconsistent.");
         giftbitRoutes.sentry.sendErrorNotification(new Error(`Event of type '${event.type}', eventId '${event.id}', accountId '${event.account}' indicates a refund failure with failure reason '${(event.data.object as Stripe.refunds.IRefund).failure_reason}'. State of Stripe and Lightrail may be inconsistent.`));
         return;
     }
@@ -163,9 +166,9 @@ async function reverseOrVoidFraudulentTransaction(auth: giftbitRoutes.jwtauth.Au
     }
 
     if (isReversed(lightrailTransaction, transactionChain)) {
-        log.info(`Transaction '${lightrailTransaction.id}' has already been reversed. Fetching existing reverse transaction...`);
+        log.info("Transaction", lightrailTransaction.id, "has already been reversed. Fetching existing reverse transaction...");
         const reverseTransaction = transactionChain.find(txn => txn.transactionType === "reverse");
-        log.info(`Lightrail Transaction '${lightrailTransaction.id}' was reversed by Transaction '${reverseTransaction.id}'`);
+        log.info("Lightrail Transaction", lightrailTransaction.id, "was reversed by Transaction", reverseTransaction.id);
         return reverseTransaction;
 
     } else if (isReversible(lightrailTransaction, transactionChain)) {
@@ -175,11 +178,11 @@ async function reverseOrVoidFraudulentTransaction(auth: giftbitRoutes.jwtauth.Au
                 stripeWebhookTriggeredAction: `Transaction reversed by Lightrail because Stripe charge '${stripeCharge.id}' was refunded as fraudulent. Stripe eventId: '${event.id}', Stripe accountId: '${event.account}'`
             }
         }, lightrailTransaction.id);
-        log.info(`Lightrail Transaction '${lightrailTransaction.id}' was reversed by Transaction '${reverseTransaction.id}'`);
+        log.info("Lightrail Transaction", lightrailTransaction.id, "was reversed by Transaction", reverseTransaction.id);
         return reverseTransaction;
 
     } else if (isCaptured(lightrailTransaction, transactionChain)) {
-        log.info(`Transaction '${lightrailTransaction.id}' was pending and has been captured. Reversing capture transaction...`);
+        log.info("Transaction", lightrailTransaction.id, "was pending and has been captured. Reversing capture transaction...");
         const captureTransaction = transactionChain.find(txn => txn.transactionType === "capture");
         const reverseTransaction = await createReverse(auth, {
             id: `${captureTransaction.id}-webhook-rev`,
@@ -187,24 +190,24 @@ async function reverseOrVoidFraudulentTransaction(auth: giftbitRoutes.jwtauth.Au
                 stripeWebhookTriggeredAction: `Transaction reversed by Lightrail because Stripe charge '${stripeCharge.id}' was refunded as fraudulent. Stripe eventId: '${event.id}', Stripe accountId: '${event.account}'`
             }
         }, captureTransaction.id);
-        log.info(`Transaction '${lightrailTransaction.id}' was captured by transaction '${captureTransaction.id}' which was reversed by '${reverseTransaction.id}'`);
+        log.info("Transaction", lightrailTransaction.id, "was captured by transaction", captureTransaction.id, "which was reversed by", reverseTransaction.id);
         return reverseTransaction;
 
     } else if (isVoided(lightrailTransaction, transactionChain)) {
-        log.info(`Transaction '${lightrailTransaction.id}' was pending and has already been voided. Fetching existing void transaction...`);
+        log.info("Transaction", lightrailTransaction.id, "was pending and has already been voided. Fetching existing void transaction...");
         const voidTransaction = transactionChain.find(txn => txn.transactionType === "void");
-        log.info(`Transaction '${lightrailTransaction.id}' was voided by transaction '${voidTransaction.id}'`);
+        log.info("Transaction", lightrailTransaction.id, "was voided by transaction", voidTransaction.id);
         return voidTransaction;
 
     } else if (isVoidable(lightrailTransaction, transactionChain)) {
-        log.info(`Transaction '${lightrailTransaction.id}' was pending: voiding...`);
+        log.info("Transaction", lightrailTransaction.id, "was pending: voiding...");
         const voidTransaction = await createVoid(auth, {
             id: `${lightrailTransaction.id}-webhook-void`,
             metadata: {
                 stripeWebhookTriggeredAction: `Transaction voided by Lightrail because Stripe charge ${stripeCharge.id} was refunded as fraudulent. Stripe eventId: ${event.id}, Stripe accountId: ${event.account}`
             }
         }, lightrailTransaction.id);
-        log.info(`Voided Transaction '${lightrailTransaction.id}' with void transaction '${voidTransaction.id}'`);
+        log.info("Voided Transaction", lightrailTransaction.id, "with void transaction", voidTransaction.id);
         return voidTransaction;
 
     } else {
@@ -224,7 +227,7 @@ function isFraudActionEvent(event: Stripe.events.IEvent & { account?: string }):
     } else if (event.type === "charge.dispute.created") {
         return true;
     } else {
-        log.info(`This event is not one of ['charge.refunded', 'charge.refund.updated', 'review.closed', 'charge.dispute.created']: taking no action. Event ID: '${event.id}' with Stripe connected account ID: '${event.account}'`);
+        log.info("This event is not one of ['charge.refunded', 'charge.refund.updated', 'review.closed', 'charge.dispute.created']: taking no action. Event ID=", event.id, "with Stripe connected account ID=", event.account);
         return false;
     }
 }
