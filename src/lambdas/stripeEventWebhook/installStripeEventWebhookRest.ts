@@ -68,7 +68,8 @@ async function handleConnectedAccountEvent(event: Stripe.events.IEvent & { accou
     try {
         stripeCharge = await getStripeChargeFromEvent(event); // todo refactor when we have mapping from Stripe accountId to Lightrail userId: won't need to get charge to get auth badge
         if (!stripeCharge) {
-            throw new Error("Retrieved stripeCharge is null");
+            log.info("Skipping event because it does not contain a charge.");
+            return;
         }
         auth = await getAuthBadgeFromStripeCharge(stripeAccountId, stripeCharge, event);
     } catch (e) {
@@ -237,12 +238,27 @@ async function getStripeChargeFromEvent(event: Stripe.events.IEvent & { account:
         return event.data.object as Stripe.charges.ICharge;
     } else if (event.data.object.object === "refund") {
         const refund = event.data.object as Stripe.refunds.IRefund;
+        if (refund.charge == null) {
+            // This can happen if payment_intent is set.  Lightrail doesn't support PaymentIntents
+            // so this isn't relevant to us.
+            return null;
+        }
         return typeof refund.charge === "string" ? await retrieveCharge(refund.charge, !event.livemode, event.account) : refund.charge;
     } else if (event.data.object.object === "review") {
         const review = event.data.object as Stripe.reviews.IReview;
+        if (review.charge == null) {
+            // This can happen if payment_intent is set.  Lightrail doesn't support PaymentIntents
+            // so this isn't relevant to us.
+            return null;
+        }
         return typeof review.charge === "string" ? await retrieveCharge(review.charge, !event.livemode, event.account) : review.charge;
     } else if (event.data.object.object === "dispute") {
         const dispute = event.data.object as Stripe.disputes.IDispute;
+        if (dispute.charge == null) {
+            // This can happen if payment_intent is set.  Lightrail doesn't support PaymentIntents
+            // so this isn't relevant to us.
+            return null;
+        }
         return typeof dispute.charge === "string" ? await retrieveCharge(dispute.charge, !event.livemode, event.account) : dispute.charge;
     } else {
         throw new Error(`Could not retrieve Stripe charge from event. Event=${JSON.stringify(event)}`);
