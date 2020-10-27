@@ -1,5 +1,5 @@
 # internal-rothschild
-POC banking implementation
+Banking implementation
 
 ## Connecting to the database
 
