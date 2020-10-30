@@ -120,18 +120,18 @@ SET @dateStart = '2020-01-01';
 SET @dateEnd = '2020-10-01';
 SELECT userId
 FROM (
-	SELECT userId
-	FROM Transactions
-	WHERE userId NOT LIKE '%-TEST'
-		AND createdDate >= @dateStart
-		AND createdDate < @dateEnd
-	GROUP BY userId
+    SELECT userId
+    FROM Transactions
+    WHERE userId NOT LIKE '%-TEST'
+        AND createdDate >= @dateStart
+        AND createdDate < @dateEnd
+    GROUP BY userId
 ) as ActiveUsers
 WHERE NOT EXISTS (
-	SELECT userId
+    SELECT userId
     FROM Transactions
     WHERE Transactions.userId = ActiveUsers.userId
-		AND createdDate >= @dateEnd
+        AND createdDate >= @dateEnd
 )
 ```
 
