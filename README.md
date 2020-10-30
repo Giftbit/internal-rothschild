@@ -7,7 +7,7 @@ Rothschild's architecture is defined in the [AWS SAM template](https://docs.aws.
 
 Rothschild is back by a MySQL-compatible RDS Aurora database.  Schema changes to the database happen automatically on deployment using migration files in the `src/lambdas/postDeploy/schema/` dir which is run by the PostDeploy lambda which calls Flyway to do the real work.  You can see the current schema in its entirety by running `npm run schema`.
 
-Rothschild predates having the concept of Accounts and Users.  Originally there were users and that was it.  So on all the columns you'll find `userId` which is actually the ID of the Account that owns the object, and maybe a `createdBy` which is the ID of the User that created the object.  Adding to the confusion for all older users the ID of the Account and the ID of the User is the same.  So it goes.
+Rothschild predates having the concept of Accounts and Users.  Originally there were users and that was it.  So on all the columns you'll find `userId` which is actually the ID of the Account that owns the object, and maybe a `createdBy` which is the ID of the User that created the object.  Adding to the confusion for all older users the ID of the Account and the ID of the first User is the same.  So it goes.
 
 userIds come in two flavours: live and test.  Test mode userIds end in `-TEST` and live mode userIds don't.  Live mode data represents real money.  It may include gift cards sold that a company has a legal obligation to honour.  This data is sacred.
 
