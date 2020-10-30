@@ -167,8 +167,8 @@ SET @dateEnd = '2020-11-01';
 SELECT currency
 FROM `Transactions`
 WHERE createdDate >= @dateStart
-	AND createdDate < @dateEnd
-	AND userId NOT LIKE '%_TEST'
+    AND createdDate < @dateEnd
+    AND userId NOT LIKE '%_TEST'
 GROUP BY currency
 ```
 
@@ -180,8 +180,8 @@ SET @dateEnd = '2020-11-01';
 SELECT userId, COUNT(*) as txcount
 FROM `Transactions`
 WHERE createdDate >= @dateStart
-	AND createdDate < @dateEnd
-	AND userId NOT LIKE '%-TEST'
+    AND createdDate < @dateEnd
+    AND userId NOT LIKE '%-TEST'
 GROUP BY userId
 ORDER BY txcount DESC
 ```
@@ -192,14 +192,14 @@ ORDER BY txcount DESC
 SET @dateStart = '2020-10-01';
 SET @dateEnd = '2020-11-01';
 SELECT sum(totals_paidStripe / power(10, Currencies.decimalPlaces)) as paidStripe,
-	sum(totals_paidLightrail / power(10, Currencies.decimalPlaces)) as paidLightrail,
-	sum(totals_discountLightrail / power(10, Currencies.decimalPlaces)) as discountLightrail,
+    sum(totals_paidLightrail / power(10, Currencies.decimalPlaces)) as paidLightrail,
+    sum(totals_discountLightrail / power(10, Currencies.decimalPlaces)) as discountLightrail,
     sum(totals_remainder / power(10, Currencies.decimalPlaces)) as remainder
 FROM `Transactions`
 JOIN `Currencies` ON Transactions.currency = Currencies.code
-	AND Transactions.userId = Currencies.userId
+    AND Transactions.userId = Currencies.userId
 WHERE Currencies.code = 'USD'
-	AND Transactions.createdDate >= @dateStart
-	AND Transactions.createdDate < @dateEnd
-	AND Transactions.userId NOT LIKE '%_TEST'
+    AND Transactions.createdDate >= @dateStart
+    AND Transactions.createdDate < @dateEnd
+    AND Transactions.userId NOT LIKE '%_TEST'
 ```
