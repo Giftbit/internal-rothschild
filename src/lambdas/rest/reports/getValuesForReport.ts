@@ -19,3 +19,7 @@ export async function getValuesForReport(auth: giftbitRoutes.jwtauth.Authorizati
         pagination: res.pagination
     };
 }
+
+export function getValuesForReportPartial(showCode: boolean): (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams) => Promise<{ results: ReportValue[], pagination: Pagination }> {
+    return (auth: giftbitRoutes.jwtauth.AuthorizationBadge, filterParams: { [key: string]: string }, pagination: PaginationParams) => getValuesForReport(auth, filterParams, pagination, showCode);
+}
