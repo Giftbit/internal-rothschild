@@ -6,7 +6,7 @@ import {Pagination, PaginationParams} from "../../../model/Pagination";
 import {ReportTransaction} from "../transactions/ReportTransaction";
 import {formatObjectsAmountPropertiesForCurrencyDisplay} from "../../../model/Currency";
 import {ReportValue} from "../values/ReportValue";
-import {getValuesForReport} from "./getValuesForReport";
+import {getValuesForReportPartial} from "./getValuesForReport";
 import {getTransactionsForReport} from "./getTransactionsForReport";
 import log = require("loglevel");
 
@@ -65,7 +65,8 @@ export function installReportsRest(router: cassava.Router): void {
             auth.requireIds("userId");
             auth.requireScopes("lightrailV2:values:list");
 
-            const valueResults = await getReportResults<ReportValue>(auth, evt, getValuesForReport);
+            const showCode = evt.queryStringParameters.showCode === "true";
+            const valueResults = await getReportResults<ReportValue>(auth, evt, getValuesForReportPartial(showCode));
 
             if (evt.queryStringParameters.formatCurrencies === "true") {
                 return {
